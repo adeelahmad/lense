@@ -42,23 +42,31 @@ with AES-GCM and are write-only: the API reports whether one is set, never its v
 
 ## First-run setup
 
-A fresh install (no accounts when the API first starts) walks its first admin through setup in the web app:
+A fresh install (no accounts when the API first starts) walks its first admin through setup in the web app, asking
+only what has no answer yet and no default:
 
 1. **Admin account**, with the one-time setup code from the log (`make setup-code`), so a stranger who finds a new
    public server can't claim it. The admin signs in with a passkey ([Authentication](authentication.md#signing-in-passkeys)).
    Skipped when `LENS_ADMIN_EMAIL` creates the admin at startup; then open the sign-in link the log prints (or sign
    in with `LENS_ADMIN_PASSWORD`, if you set one).
-2. **Namespace**: the first one, with its knowledge graph shared or isolated. Already done when archive.yaml or
-   `LENS_NAMESPACE` names namespaces, or an install script made one.
-3. **Model provider**: an OpenAI-compatible server (OpenAI, Ollama, llama.cpp, LM Studio, vLLM), its model and key,
-   with a test. Servers running nearby and [cloud providers](#cloud-model-providers) are a click.
-4. **Storage**: where data lives (shown; set in archive.yaml and `SURREAL_URL`), where Lens keeps its own files (this
-   machine or a storage connection, [Storage](storage.md)), the largest upload, and optionally a folder inside
-   `sources.local_roots` to watch.
-5. **Apps and AI**: whether apps and AI assistants (Claude, ChatGPT, Cursor and other MCP clients) may sign people in
-   with their Lens account ([OAuth](authentication.md#oauth)), on unless turned off, how long their tokens last, and
-   the MCP server's address to add to an assistant.
-6. **Telemetry**: off unless chosen ([Telemetry](telemetry.md)).
+2. **Model provider**, while there is none: an OpenAI-compatible server (OpenAI, Ollama, llama.cpp, LM Studio, vLLM),
+   its model and key, with a test. Servers running nearby and [cloud providers](#cloud-model-providers) are a click.
+3. **Budget**, for a paid (cloud) model with none ([Budgets](budgets.md#one-budget-for-everything)); a model on this
+   machine or its network costs nothing, so it isn't asked.
+
+When the model is set already, by the [web installer](get-started.md#the-web-installer) (which asks for the budget
+with it) or by `.env`, there is nothing left to ask: the wizard finishes at startup and the first admin goes straight
+to Lens. These have defaults, so the wizard doesn't ask them; each is a click away there, and in Settings:
+
+* **Namespace**: the first one, with its knowledge graph shared or isolated; `archive` (shared) unless chosen. Already
+  there when archive.yaml or `LENS_NAMESPACE` names namespaces, or an install script made one.
+* **Storage**: where data lives (shown; set in archive.yaml and `SURREAL_URL`), where Lens keeps its own files (this
+  machine or a storage connection, [Storage](storage.md)), the largest upload, and optionally a folder inside
+  `sources.local_roots` to watch.
+* **Apps and AI**: whether apps and AI assistants (Claude, ChatGPT, Cursor and other MCP clients) may sign people in
+  with their Lens account ([OAuth](authentication.md#oauth)), on unless turned off, how long their tokens last, and
+  the MCP server's address to add to an assistant.
+* **Telemetry**: off unless chosen ([Telemetry](telemetry.md)).
 
 Every step can be skipped, and the whole wizard too; all of it stays in Settings. Values from the environment win and
 show locked. Installs that already had accounts never see the wizard. The API side is `GET /api/v1/setup`,
@@ -66,7 +74,8 @@ show locked. Installs that already had accounts never see the wizard. The API si
 this machine or the Docker host, with their models), `GET /api/v1/setup/llm/providers` (the
 [cloud providers](#cloud-model-providers)), `PUT /api/v1/setup/storage`, `PUT /api/v1/setup/oauth`,
 `PUT /api/v1/setup/telemetry` and `POST /api/v1/setup/finish`
-(admins); `GET /api/v1/auth/status` says whether it is still pending (`wizard_pending`).
+(admins); `GET /api/v1/setup` says what is still to ask (`todo`: `llm`, `budget`), and `GET /api/v1/auth/status`
+whether the wizard is still pending (`wizard_pending`).
 
 ## Frontend environment
 

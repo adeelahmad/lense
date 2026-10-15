@@ -15954,6 +15954,10 @@ export type SetupView = {
    * Pending
    */
   pending: boolean;
+  /**
+   * Todo
+   */
+  todo?: Array<"llm" | "budget">;
   admin: SetupAdmin;
   namespace: SetupNamespaceView;
   llm: SetupLlmView;

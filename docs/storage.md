@@ -6,8 +6,8 @@ and notes' images and attachments ([Notes](notes.md#files-and-images)). **Planne
 storage key.
 
 The files Lens makes its own, starting with notes' attachments, go where **Settings → Storage** (the `files` section)
-says. The setup wizard's Storage step asks the same: on this machine, or on a storage connection, which can be added
-right there (the same dialog as Sources) and is checked before it's saved.
+says. The setup wizard's Storage step (not asked, a click away there) offers the same: on this machine, or on a storage
+connection, which can be added right there (the same dialog as Sources) and is checked before it's saved.
 
 | Setting | |
 |---|---|

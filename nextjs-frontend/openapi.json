@@ -54630,6 +54630,18 @@
             "type": "boolean",
             "title": "Pending"
           },
+          "todo": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "llm",
+                "budget"
+              ]
+            },
+            "type": "array",
+            "title": "Todo",
+            "default": []
+          },
           "admin": {
             "$ref": "#/components/schemas/SetupAdmin"
           },
