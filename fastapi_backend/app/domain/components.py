@@ -115,6 +115,11 @@ def activate(cfg):
     importlib.invalidate_caches()
 
 
+def hf_token(cfg):
+    """The Hugging Face token gated models are downloaded with: HF_TOKEN, else the one in Settings → Components."""
+    return os.environ.get("HF_TOKEN") or (cfg.get("components") or {}).get("hf_token") or None
+
+
 def importable(*modules):
     for m in modules:
         try:
@@ -615,7 +620,7 @@ class Laya(Component):
 
         if say:
             say(f"downloading the Laya model {self._model(cfg)}")
-        snapshot_download(self._model(cfg))
+        snapshot_download(self._model(cfg), token=hf_token(cfg))
         _mark(cfg, self._tag(cfg))
 
     def detail(self, cfg):

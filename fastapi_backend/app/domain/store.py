@@ -469,7 +469,8 @@ DEFAULTS = {
     },
     # what Lens fetches for itself (components.py): auto fetches what the settings need, on first use unless ahead;
     # also names optional ones (fetched straight away)
-    "components": {"auto": True, "ahead": False, "also": []},
+    # hf_token: a Hugging Face token, for gated models (pyannote, some GGUF models); kept encrypted, HF_TOKEN wins
+    "components": {"auto": True, "ahead": False, "also": [], "hf_token": None},
     # routine decisions the assistant takes instead of asking (decide.py): engine auto uses the decision model when it
     # has a key, else the language model. act_above: the confidence it acts on; below it, it asks. Engine laya runs a
     # Laya model (laya_model) on this Mac, or asks a Laya server (laya_url, `lens decide-server`).

@@ -79,7 +79,8 @@ Speaker ids belong to one namespace. Per recording, `diarize.engine: auto` works
 
 - If the file is genuinely two-channel (left and right carry different voices), each channel is one speaker. That separation is exact and free.
 - Otherwise, voices are clustered from embeddings. Short backchannels take the label of the nearest long turn.
-- Or set the engine to `pyannote`.
+- Or set the engine to `pyannote`. Its model is gated: accept its terms on Hugging Face and add a token in Settings →
+  Components ([Components](components.md#settings)).
 
 Each voice gets a voiceprint (SpeechBrain ECAPA, up to `sample_seconds` of that speaker's clearest audio). The voiceprint is matched one-to-one against the namespace registry:
 

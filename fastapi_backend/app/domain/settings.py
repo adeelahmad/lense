@@ -142,6 +142,7 @@ SECRETS = {
     "tunnel": ("token", "api_token"),
     "https": ("dns_credentials", "eab_hmac_key"),
     "documents": ("anytopdf_token",),
+    "components": ("hf_token",),
 }
 ENUMS = {
     ("transcribe", "engine"): {"sensevoice", "whisper", "mlx-whisper", "openai", "elevenlabs", "assemblyai", "deepgram"},
@@ -219,6 +220,7 @@ ENV_OVERRIDES = {
     ("fedora", "url"): "LENS_FEDORA_URL",
     ("fedora", "user"): "LENS_FEDORA_USER",
     ("fedora", "password"): "LENS_FEDORA_PASSWORD",
+    ("components", "hf_token"): "HF_TOKEN",
 }
 
 
@@ -922,6 +924,12 @@ def _component_setting(key, value):
         if not (isinstance(value, list) and all(isinstance(v, str) and v in known for v in value)):
             raise ValueError("components.also lists components to fetch: " + ", ".join(sorted(known)))
         return list(dict.fromkeys(value))
+    if key == "hf_token":
+        if value in (None, ""):
+            return None
+        if not (isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9_\-]{8,500}", value.strip())):
+            raise ValueError("components.hf_token is a Hugging Face access token, such as hf_…")
+        return value.strip()
     raise ValueError(f"unknown setting components.{key}")
 
 
@@ -1393,6 +1401,7 @@ def save(db, base, section, changes, user=None):
                     raise ValueError(f"matterbridge.{k} is one line of text")
                 if (section, k) in (
                     ("documents", "anytopdf_token"),
+                    ("components", "hf_token"),
                     ("telemetry", "prometheus_token"),
                     ("telegram", "token"),
                 ) or section == "slack":
