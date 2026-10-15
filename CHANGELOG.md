@@ -24,6 +24,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   every client signs in with a hub login, with too many wrong passwords from one address turned away for a while. It's
   the same broker as on port 1883. SMB, NFS and syslog stay on the local network, and Remote access now says why
   ([Sensors](docs/sensors.md#at-the-web-apps-address), [Remote access](docs/remote-access.md#what-it-reaches)).
+- **Passkeys at your remote address in one step.** A passkey works only at the address it was made at, so one made at
+  `localhost` or on the network didn't work at the Remote access or HTTPS address, and getting one there took a
+  sign-in link from email or an admin. Now Profile and sign-in › Passkeys lists Lens's other addresses with **Open
+  signed in**, which opens one with a 15-minute sign-in link of your own, where one fingerprint adds a passkey for it
+  ([Authentication](docs/authentication.md#signing-in-passkeys)).
 - **Export a conversation.** `GET /api/v1/chats/<id>/export.md`, `.pdf` or `.json` gives the version showing, one
   message (`?message=`) or, as JSON, every version (`?all=true`). The Markdown has each question and answer, its
   citations as footnotes linking back to the moment in Lens and the tools it used; the PDF is that Markdown printed by

@@ -42,7 +42,10 @@ command (the long string after `--token`).
 - When cloudflared stops, Lens starts it again after 5 s, 15 s, 1 min, then every 5 min; changing a setting starts
   it again at once.
 - The tunnel's address counts as one Lens is served at: passkeys and sign-in redirects use `https://<that host>`,
-  and email links use the fixed hostname unless Settings › Notifications sets another address.
+  and email links use the fixed hostname unless Settings › Notifications sets another address. A passkey works only
+  at the address it was made at, so Profile and sign-in › Passkeys offers **Open signed in** there, to add one for the
+  tunnel's address in one step ([Authentication](authentication.md#signing-in-passkeys)). The quick address changes
+  each time, and passkeys made there stop working with it.
 
 ## What it reaches
 

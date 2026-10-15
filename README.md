@@ -181,14 +181,15 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   machine; the same daily events can also go to a Google Analytics 4 property of your own (off unless you turn it on).
   ([Logging](docs/logging.md), [telemetry](docs/telemetry.md), [Prometheus](docs/prometheus.md),
   [usage analytics](docs/analytics.md); [checks](docs/requirements.md#watch-it-run))
-- **Stay private and safe.** Passkeys instead of passwords, encryption at rest with a key per namespace, roles per
-  namespace (viewer, editor, owner, or custom roles made of permissions), email invitations, removing someone for
-  good, and an audit log. Prompt injection meets several layers: what the assistant reads (recordings,
-  documents, web pages, tool results) reaches the model marked as data, not instructions, and text that reads like
-  instructions to an AI is flagged (by free patterns, or an optional classifier model that runs on your machine and is
-  fetched only when you pick it). Once an answer has read such text, sending anything out, or the browser opening or
-  typing what the assistant wrote, waits for your yes. Chat-room answers have links they built themselves broken up,
-  agents over MCP get the archive as data, and what Lens caught goes into the audit log. Serve Lens over HTTPS, set
+- **Stay private and safe.** Passkeys instead of passwords (one at Lens's remote address added from a signed-in one with
+  Open signed in), encryption at rest with a key per namespace, roles per namespace (viewer, editor, owner, or custom
+  roles made of permissions), email invitations, removing someone for good, and an audit log. Prompt injection meets
+  several layers: what the assistant reads (recordings, documents, web pages, tool results) reaches the model marked as
+  data, not instructions, and text that reads like instructions to an AI is flagged (by free patterns, or an optional
+  classifier model that runs on your machine and is fetched only when you pick it). Once an answer has read such text,
+  sending anything out, or the browser opening or typing what the assistant wrote, waits for your yes. Chat-room answers
+  have links they built themselves broken up, agents over MCP get the archive as data, and what Lens caught goes into
+  the audit log. Serve Lens over HTTPS, set
   up in Settings, with certificates from Let's Encrypt or ZeroSSL that renew on their own, answering only for its own
   domains and, if you choose, only to devices holding a client certificate; or reach it from anywhere through a
   Cloudflare tunnel with nothing opened on your router. Either way, the S3 and WebDAV shares and the MQTT hub answer at
