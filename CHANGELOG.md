@@ -325,6 +325,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   anytopdf, telemetry), takes the administrator password when installing needs it, then installs with live progress
   and opens Lens's setup page. Its answers become ordinary settings in Lens, editable there
   ([Get started](docs/get-started.md#the-web-installer)). `LENS_WIZARD=0` keeps the install in the terminal.
+- **Assets, not recordings.** The web app, the assistant, the API descriptions and the docs now call an item of any
+  kind an asset (or a document, when it is one), and keep "recording" for audio and video. API paths, MCP tool names
+  and stored data are unchanged.
+- **People, not speakers.** Everyone Lens recognises by voice or face is a person, on the People page, in the graph and
+  for the assistant; names found in text are named people. An item's text is its text, not its transcript, unless it
+  came from speech, and search says where words are found, not where they were said. The admin's account list is now
+  Members. "Speaker" stays for voices in audio (who spoke when).
 
 ### Features
 

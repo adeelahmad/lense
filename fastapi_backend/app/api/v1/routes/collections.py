@@ -49,7 +49,7 @@ def create_collection(body: CollectionCreate, user: Writer, db: Db) -> Created:
 
 @router.get("/{cid}")
 def get_collection(cid: int, user: CurrentUser, acl: Acl, db: Db) -> CollectionDetail:
-    """The collection with how many recordings you can read in it, and the newest 200 of them."""
+    """The collection with how many assets you can read in it, and the newest 200 of them."""
     col = own_collection(db, cid, user)
     ids = recsets.members(db, col, set(acl.roles))
     rows = (
@@ -69,13 +69,13 @@ def get_collection(cid: int, user: CurrentUser, acl: Acl, db: Db) -> CollectionD
 def collection_evidence(
     cid: int, user: CurrentUser, acl: Acl, db: Db, cfg: Cfg, include: list[EvidencePart] | None = evidence_api.INCLUDE
 ) -> Response:
-    """The collection's recordings you can read (a list in its order, a filter's oldest first) as one evidence PDF made by anytopdf (a download): each
+    """The collection's assets you can read (a list in its order, a filter's oldest first) as one evidence PDF made by anytopdf (a download): each
     one's pages and what Lens found about it, then a provenance page with every file's SHA-256 and size. `include` picks the parts, as for a
-    resource's evidence PDF. At most 50 recordings."""
+    resource's evidence PDF. At most 50 assets."""
     col = own_collection(db, cid, user)
     ids = recsets.members(db, col, set(acl.roles))
     if len(ids) > evidence.MAX:
-        raise HTTPException(400, f"an evidence PDF holds {evidence.MAX} recordings at most; this collection has {len(ids)}")
+        raise HTTPException(400, f"an evidence PDF holds {evidence.MAX} assets at most; this collection has {len(ids)}")
     recs = (
         db.rows(
             "SELECT record::id(id) AS id, space, collection FROM recording WHERE id IN $ids", ids=[store.R("recording", i) for i in ids]
@@ -89,7 +89,7 @@ def collection_evidence(
 
 @router.patch("/{cid}")
 def update_collection(cid: int, body: CollectionUpdate, user: Writer, db: Db) -> Ok:
-    """Change your collection. A filter collection takes a new filter; a fixed one a new list of recordings."""
+    """Change your collection. A filter collection takes a new filter; a fixed one a new list of assets."""
     own_collection(db, cid, user, write=True)
     try:
         recsets.update(db, cid, body.name, body.description, body.filter, body.recordings, body.shared)

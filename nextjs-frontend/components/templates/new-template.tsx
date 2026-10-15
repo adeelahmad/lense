@@ -21,7 +21,7 @@ type Kind = TemplateKind;
 /** Starting points, so a new template renders straight away. */
 const STARTERS: Record<Kind, { body: string; schema?: Record<string, unknown> }> = {
   prompt: {
-    body: 'Summarise "{{ recording.title }}" ({{ recording.duration }}).\n\nSpeakers: {% for s in speakers %}{{ s.name }}{% if not loop.last %}, {% endif %}{% endfor %}\n\nTranscript:\n{{ transcript }}\n\nReturn JSON matching the schema.\n',
+    body: 'Summarise "{{ recording.title }}" ({{ recording.duration }}).\n\nPeople: {% for s in speakers %}{{ s.name }}{% if not loop.last %}, {% endif %}{% endfor %}\n\nText:\n{{ transcript }}\n\nReturn JSON matching the schema.\n',
     schema: {
       type: "object",
       required: ["tldr", "key_points"],
@@ -133,7 +133,7 @@ export function NewTemplate() {
         />
         <span className="text-[12.5px] text-fg-muted">
           {kind === "prompt"
-            ? "Sent to the model by an LLM step; its answer must match an output schema and is saved on the recording."
+            ? "Sent to the model by an LLM step; its answer must match an output schema and is saved on the asset."
             : kind === "report"
               ? "An HTML page for a report step (scripts don’t run in it)."
               : "A text file (Markdown, CSV…) written by an export step, optionally copied to a source."}

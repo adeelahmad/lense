@@ -283,7 +283,7 @@ export function HandlingEditor({
         />
         <span className="pl-[46px] text-[12.5px] text-fg-muted">
           {hasNamespace
-            ? "A short document each day: ranges, the busiest log lines, warnings. It is searchable like any recording."
+            ? "A short document each day: ranges, the busiest log lines, warnings. It is searchable like any asset."
             : "Give the sensor a namespace first."}
         </span>
       </div>

@@ -161,8 +161,8 @@ export function EntitiesPage() {
       <div className="px-4 py-6 md:px-6">
         <PageHeader title="Entities" />
         <EmptyState icon={<Shapes />} title="No namespaces yet">
-          Entities are kept per namespace. Once you have access to one, the people, organisations and topics its
-          recordings mention show here.
+          Entities are kept per namespace. Once you have access to one, the people, organisations and topics its assets
+          mention show here.
         </EmptyState>
       </div>
     );
@@ -293,7 +293,7 @@ export function EntitiesPage() {
                 ? "Nothing matches these filters."
                 : f.hidden
                   ? "Nobody has hidden an entity in this namespace."
-                  : "Entities appear once recordings are analysed."}
+                  : "Entities appear once assets are analysed."}
             </EmptyState>
           )}
           {list.data && rows.length > 0 && (
@@ -318,10 +318,10 @@ export function EntitiesPage() {
                       Mentions
                     </SortTh>
                     <SortTh {...sortBy("recordings")} className="hidden w-[120px] md:table-cell">
-                      Recordings
+                      Assets
                     </SortTh>
                     <SortTh {...sortBy("recent")} className="hidden w-[130px] md:table-cell">
-                      Last said
+                      Last mentioned
                     </SortTh>
                     <Th className="w-8">
                       <span className="sr-only">Open</span>

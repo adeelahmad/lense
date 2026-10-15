@@ -98,7 +98,7 @@ shows. All are gauges.
 | `lens_jobs` | `status` | Jobs by status: `queued` (the queue's depth), `running`, `held` (over budget), `succeeded`, `failed`, `cancelled`. |
 | `lens_pipeline_jobs` | `pipeline`, `status` | The same, for jobs a pipeline queued. |
 | `lens_routine_runs` | `status` | Routine runs kept, by status. |
-| `lens_resources` | `status` | Resources (recordings and documents) by status; `error` counts failed imports and processing. |
+| `lens_resources` | `status` | Assets (recordings, documents and more) by status; `error` counts failed imports and processing. |
 | `lens_imports` | `window` | Resources imported in the last `1h` or `24h`. |
 | `lens_activity_calls` | `window`, `kind`, `model` | Calls in the [activity ledger](activity.md): `in` (API changes), `out` (model calls, embeddings, webhooks…), `run` (jobs and routine runs ending). |
 | `lens_activity_failed` | `window`, `kind`, `model` | Those that failed. |

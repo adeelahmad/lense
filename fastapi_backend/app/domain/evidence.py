@@ -99,7 +99,7 @@ def make(db, cfg, rids, include=None, places=None):
     if not rids:
         raise ValueError("there's nothing to put in it")
     if len(rids) > MAX:
-        raise ValueError(f"an evidence PDF holds {MAX} recordings at most; this has {len(rids)}")
+        raise ValueError(f"an evidence PDF holds {MAX} assets at most; this has {len(rids)}")
     parts = evidence_report.parts_of(include)
     if not parts:
         raise ValueError("there's nothing to put in it: include its file or something Lens found")

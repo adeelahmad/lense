@@ -42,8 +42,7 @@ export function PodcastsScreen() {
             </Button>
           }
         >
-          Select recordings or documents in the Library and choose Podcast, or open one and pick Create podcast from its
-          menu.
+          Select assets in the Library and choose Podcast, or open one and pick Create podcast from its menu.
         </EmptyState>
       ) : (
         <ul className="divide-y divide-border rounded-md border border-border">

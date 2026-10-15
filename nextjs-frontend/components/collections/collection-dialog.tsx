@@ -83,7 +83,7 @@ export function CollectionDialog({
   const reason = !name.trim()
     ? "Give it a name"
     : kind === "fixed" && !picked.length
-      ? "Pick at least one recording"
+      ? "Pick at least one asset"
       : undefined;
   return (
     <Dialog
@@ -91,7 +91,7 @@ export function CollectionDialog({
       onOpenChange={onOpenChange}
       wide
       title={editing ? "Edit collection" : "New collection"}
-      description="Use a collection as a chat scope, for batch runs and for collection reports. It only ever lists recordings the viewer can read."
+      description="Use a collection as a chat scope, for batch runs and for collection reports. It only ever lists assets the viewer can read."
       actions={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -141,7 +141,7 @@ export function CollectionDialog({
             </div>
             <span className="text-[12px] text-fg-muted">None ticked: every namespace the viewer can read.</span>
           </fieldset>
-          <Field label="Words said" optional hint="The same rules as Search: every word, “phrases”, OR.">
+          <Field label="Words" optional hint="The same rules as Search: every word, “phrases”, OR.">
             {({ id, describedBy }) => (
               <Input id={id} aria-describedby={describedBy} value={q} onChange={(e) => setQ(e.target.value)} mono />
             )}
@@ -163,14 +163,14 @@ export function CollectionDialog({
                     { value: "", label: "Any" },
                     { value: "audio", label: "Audio" },
                     { value: "video", label: "Video" },
-                    { value: "transcript", label: "Transcript only" },
+                    { value: "transcript", label: "Text only" },
                   ]}
                 />
               )}
             </Field>
           </div>
           {Boolean(f0.speakers?.length || f0.entities?.length) && (
-            <p className="m-0 text-[12.5px] text-fg-muted">This filter also keeps its speaker and entity conditions.</p>
+            <p className="m-0 text-[12.5px] text-fg-muted">This filter also keeps its person and entity conditions.</p>
           )}
         </div>
       ) : (
@@ -178,11 +178,11 @@ export function CollectionDialog({
           <SearchInput
             value={find}
             onChange={(e) => setFind(e.target.value)}
-            placeholder="Find recordings"
-            aria-label="Find recordings"
+            placeholder="Find assets"
+            aria-label="Find assets"
           />
           <ul className="m-0 max-h-[260px] list-none overflow-y-auto rounded-md border border-border p-2">
-            {index.isLoading && <li className="p-2 text-[13px] text-fg-muted">Loading recordings…</li>}
+            {index.isLoading && <li className="p-2 text-[13px] text-fg-muted">Loading assets…</li>}
             {(index.data ?? [])
               .filter((r) => !t || (r.title ?? "").toLowerCase().includes(t))
               .slice(0, 100)
@@ -191,7 +191,7 @@ export function CollectionDialog({
                   <Checkbox
                     checked={picked.includes(r.id)}
                     onCheckedChange={(on) => setPicked((x) => (on ? [...x, r.id] : x.filter((y) => y !== r.id)))}
-                    label={r.title ?? `Recording ${r.id}`}
+                    label={r.title ?? `Asset ${r.id}`}
                   />
                   <span className="ml-auto shrink-0 text-[12px] text-fg-muted">{r.namespace}</span>
                 </li>
@@ -203,7 +203,7 @@ export function CollectionDialog({
       <Switch
         checked={shared}
         onCheckedChange={setShared}
-        label="Share it (others see only the recordings they can read)"
+        label="Share it (others see only the assets they can read)"
       />
       {save.isError && <Banner tone="error">{save.error.message}</Banner>}
     </Dialog>

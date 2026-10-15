@@ -249,7 +249,7 @@ export function ShareLinks({
       ) : (
         <>
           <span className="flex-1 text-[12.5px] text-fg-secondary">
-            {shares.isSuccess ? `This recording has ${plural(active, "active link")}.` : ""}
+            {shares.isSuccess ? `This asset has ${plural(active, "active link")}.` : ""}
           </span>
           <Button
             size="sm"
@@ -281,7 +281,7 @@ export function ShareLinks({
           <span className="text-[13px] font-bold text-fg-strong">Link · expires {fmtDay(created.expires)}</span>
           <CodeBlock inline text={url} label="the share link" className="w-full justify-between [&_code]:text-[13px]" />
           <span className="text-[12px] text-fg-muted">
-            Shown once: copy it now. Anyone with it can play and read this recording until it expires.
+            Shown once: copy it now. Anyone with it can play and read this asset until it expires.
           </span>
         </div>
         <div className="flex flex-col gap-1.5">
@@ -318,7 +318,7 @@ export function ShareLinks({
       <p className="text-[14px] leading-normal text-fg-secondary">
         People in {namespace ?? "its namespace"} can already open it at{" "}
         <code className="font-mono text-[12.5px] text-fg">/resources/{recordingId}</code>. A share link lets anyone with
-        it play and read this one recording — nothing else.
+        it play and read this one asset — nothing else.
       </p>
       <Field
         label="Expires after (days)"

@@ -63,8 +63,8 @@ class EntitySetupSave(RequestModel):
 
 
 class EntitySetupApply(RequestModel):
-    collection: int | None = Field(None, description="only this collection's recordings (and those inside it)")
+    collection: int | None = Field(None, description="only this collection's assets (and those inside it)")
 
 
 class EntitySetupApplied(ResponseModel):
-    recordings: int = Field(description="how many recordings are analysed again")
+    recordings: int = Field(description="how many assets are analysed again")

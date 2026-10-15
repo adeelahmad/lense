@@ -3189,7 +3189,7 @@
           "admin"
         ],
         "summary": "Semantic Status",
-        "description": "Search by meaning: whether it's set up, its model, and how many recordings are indexed with it.",
+        "description": "Search by meaning: whether it's set up, its model, and how many assets are indexed with it.",
         "operationId": "semantic_status",
         "responses": {
           "200": {
@@ -3211,7 +3211,7 @@
           "admin"
         ],
         "summary": "Index Semantic",
-        "description": "Queue the embed step for up to `limit` recordings not yet indexed with the configured model, oldest first (a\nrecording with a job waiting or running is left for the next time).",
+        "description": "Queue the embed step for up to `limit` assets not yet indexed with the configured model, oldest first (an\nasset with a job waiting or running is left for the next time).",
         "operationId": "index_semantic",
         "parameters": [
           {
@@ -4456,7 +4456,7 @@
           "activity"
         ],
         "summary": "Resource History",
-        "description": "A resource's history, newest first: API requests that changed it, calls made for it (models, embeddings, the\ndecision model, webhooks, web tools) with tokens and cost, runs that ended, its audit log entries, and its graph\nchanges (an entity's, a namespace's, or what analysing a recording changed; docs/graph-history.md).",
+        "description": "A resource's history, newest first: API requests that changed it, calls made for it (models, embeddings, the\ndecision model, webhooks, web tools) with tokens and cost, runs that ended, its audit log entries, and its graph\nchanges (an entity's, a namespace's, or what analysing an asset changed; docs/graph-history.md).",
         "operationId": "resource_history",
         "parameters": [
           {
@@ -5433,7 +5433,7 @@
           "namespaces"
         ],
         "summary": "List Namespaces",
-        "description": "The namespaces you have a role in, with their counts, and those you see only some collections of (`partial`,\nno `role`): counted over those collections, without the namespace-wide speakers and word cloud.",
+        "description": "The namespaces you have a role in, with their counts, and those you see only some collections of (`partial`,\nno `role`): counted over those collections, without the namespace-wide people and word cloud.",
         "operationId": "list_namespaces",
         "responses": {
           "200": {
@@ -5727,7 +5727,7 @@
           "namespaces"
         ],
         "summary": "Get Namespace Stats",
-        "description": "The namespace's numbers for the recordings made in a range of days (the Reports overview): how many and how long,\nwho was heard and for how long, and the same per month. Without a range, every recording.",
+        "description": "The namespace's numbers for the assets made in a range of days (the Reports overview): how many and how long,\nwho was heard and for how long, and the same per month. Without a range, every asset.",
         "operationId": "get_namespace_stats",
         "parameters": [
           {
@@ -5753,10 +5753,10 @@
                   "type": "null"
                 }
               ],
-              "description": "recorded on or after this day",
+              "description": "dated on or after this day",
               "title": "From"
             },
-            "description": "recorded on or after this day"
+            "description": "dated on or after this day"
           },
           {
             "name": "to",
@@ -5772,10 +5772,10 @@
                   "type": "null"
                 }
               ],
-              "description": "recorded on or before this day",
+              "description": "dated on or before this day",
               "title": "To"
             },
-            "description": "recorded on or before this day"
+            "description": "dated on or before this day"
           },
           {
             "name": "top",
@@ -5785,11 +5785,11 @@
               "type": "integer",
               "maximum": 50,
               "minimum": 1,
-              "description": "how many speakers in `top_speakers`",
+              "description": "how many people in `top_speakers`",
               "default": 5,
               "title": "Top"
             },
-            "description": "how many speakers in `top_speakers`"
+            "description": "how many people in `top_speakers`"
           }
         ],
         "responses": {
@@ -5863,7 +5863,7 @@
           "namespaces"
         ],
         "summary": "Create Ip Group",
-        "description": "Add an IP group (owners): visitors from its addresses see all of every recording in the namespace\n(everything), or of the recordings chosen on each. Answers with all of the namespace's groups.",
+        "description": "Add an IP group (owners): visitors from its addresses see all of every asset in the namespace\n(everything), or of the assets chosen on each. Answers with all of the namespace's groups.",
         "operationId": "create_ip_group",
         "parameters": [
           {
@@ -5916,7 +5916,7 @@
           "namespaces"
         ],
         "summary": "Update Ip Group",
-        "description": "Rename an IP group, change its ranges or what it opens (owners). Choosing recordings again after opening\neverything brings back the ones chosen before.",
+        "description": "Rename an IP group, change its ranges or what it opens (owners). Choosing assets again after opening\neverything brings back the ones chosen before.",
         "operationId": "update_ip_group",
         "parameters": [
           {
@@ -6391,7 +6391,7 @@
           "namespaces"
         ],
         "summary": "List Namespace Collections",
-        "description": "The namespace's collections, depth first and by name, each with its place in the tree, how many recordings it\nholds (with and without the collections inside it), and what you may do with it. Someone who sees only some\ncollections of the namespace gets those, starting from the ones they were given.",
+        "description": "The namespace's collections, depth first and by name, each with its place in the tree, how many assets it\nholds (with and without the collections inside it), and what you may do with it. Someone who sees only some\ncollections of the namespace gets those, starting from the ones they were given.",
         "operationId": "list_namespace_collections",
         "parameters": [
           {
@@ -6538,7 +6538,7 @@
           "namespaces"
         ],
         "summary": "Update Namespace Collection",
-        "description": "Rename it, describe it, move it inside another collection of the namespace (`parent`; null: to the top) or make\nit the default. Editors of the namespace may do all of that; an admin of the collection all but moving it to the\ntop or making it the default, and only into a collection they're an admin of. The recordings and collections\ninside it go with it. Audited as `collection.update`.",
+        "description": "Rename it, describe it, move it inside another collection of the namespace (`parent`; null: to the top) or make\nit the default. Editors of the namespace may do all of that; an admin of the collection all but moving it to the\ntop or making it the default, and only into a collection they're an admin of. The assets and collections\ninside it go with it. Audited as `collection.update`.",
         "operationId": "update_namespace_collection",
         "parameters": [
           {
@@ -6598,7 +6598,7 @@
           "namespaces"
         ],
         "summary": "Delete Namespace Collection",
-        "description": "Delete an empty collection (editors of the namespace, or an admin of it), with the roles given on it: 409 while\nit holds recordings or collections, or is the namespace's default. Audited as `collection.delete`.",
+        "description": "Delete an empty collection (editors of the namespace, or an admin of it), with the roles given on it: 409 while\nit holds assets or collections, or is the namespace's default. Audited as `collection.delete`.",
         "operationId": "delete_namespace_collection",
         "parameters": [
           {
@@ -6770,7 +6770,7 @@
           "resources"
         ],
         "summary": "List Recordings",
-        "description": "Recordings you can read, newest first by default: those of the namespaces you have a role in, and of the\ncollections you were given a role on. Filters combine with AND; the ``X-Total-Count`` header says how many match in\nall, so pages can be counted. Each row has your `role` on it.",
+        "description": "Assets you can read, newest first by default: those of the namespaces you have a role in, and of the\ncollections you were given a role on. Filters combine with AND; the ``X-Total-Count`` header says how many match in\nall, so pages can be counted. Each row has your `role` on it.",
         "operationId": "list_recordings",
         "parameters": [
           {
@@ -6805,10 +6805,10 @@
                   "type": "null"
                 }
               ],
-              "description": "words that must all appear in the title, the namespace or a speaker's name",
+              "description": "words that must all appear in the title, the namespace or a person's name",
               "title": "Q"
             },
-            "description": "words that must all appear in the title, the namespace or a speaker's name"
+            "description": "words that must all appear in the title, the namespace or a person's name"
           },
           {
             "name": "status",
@@ -6835,10 +6835,10 @@
                   "type": "null"
                 }
               ],
-              "description": "recording statuses, or processing (a job is queued or running) and failed (the latest job failed); repeat for several (any of them matches)",
+              "description": "asset statuses, or processing (a job is queued or running) and failed (the latest job failed); repeat for several (any of them matches)",
               "title": "Status"
             },
-            "description": "recording statuses, or processing (a job is queued or running) and failed (the latest job failed); repeat for several (any of them matches)"
+            "description": "asset statuses, or processing (a job is queued or running) and failed (the latest job failed); repeat for several (any of them matches)"
           },
           {
             "name": "attention",
@@ -6846,11 +6846,11 @@
             "required": false,
             "schema": {
               "type": "boolean",
-              "description": "only recordings that need a person: errored, latest job failed, or a voice match to review",
+              "description": "only assets that need attention: errored, latest job failed, or a person match to review",
               "default": false,
               "title": "Attention"
             },
-            "description": "only recordings that need a person: errored, latest job failed, or a voice match to review"
+            "description": "only assets that need attention: errored, latest job failed, or a person match to review"
           },
           {
             "name": "processing",
@@ -6858,11 +6858,11 @@
             "required": false,
             "schema": {
               "type": "boolean",
-              "description": "only recordings with a job queued or running",
+              "description": "only assets with a job queued or running",
               "default": false,
               "title": "Processing"
             },
-            "description": "only recordings with a job queued or running"
+            "description": "only assets with a job queued or running"
           },
           {
             "name": "speaker",
@@ -6880,10 +6880,10 @@
                   "type": "null"
                 }
               ],
-              "description": "speaker ids; repeat for several (any of them matches)",
+              "description": "person ids; repeat for several (any of them matches)",
               "title": "Speaker"
             },
-            "description": "speaker ids; repeat for several (any of them matches)"
+            "description": "person ids; repeat for several (any of them matches)"
           },
           {
             "name": "from",
@@ -6981,10 +6981,10 @@
                   "type": "null"
                 }
               ],
-              "description": "audio, video, transcript (no media), document or image",
+              "description": "audio, video, `transcript` (text without media), document or image",
               "title": "Media"
             },
-            "description": "audio, video, transcript (no media), document or image"
+            "description": "audio, video, `transcript` (text without media), document or image"
           },
           {
             "name": "access",
@@ -7025,10 +7025,10 @@
                   "type": "null"
                 }
               ],
-              "description": "only featured recordings (true) or only the others (false)",
+              "description": "only featured assets (true) or only the others (false)",
               "title": "Featured"
             },
-            "description": "only featured recordings (true) or only the others (false)"
+            "description": "only featured assets (true) or only the others (false)"
           },
           {
             "name": "tag",
@@ -7088,10 +7088,10 @@
                   "type": "null"
                 }
               ],
-              "description": "language codes (ignoring case), none for recordings whose language isn't known; repeat for several",
+              "description": "language codes (ignoring case), none for assets whose language isn't known; repeat for several",
               "title": "Language"
             },
-            "description": "language codes (ignoring case), none for recordings whose language isn't known; repeat for several"
+            "description": "language codes (ignoring case), none for assets whose language isn't known; repeat for several"
           },
           {
             "name": "object",
@@ -7128,10 +7128,10 @@
                   "type": "null"
                 }
               ],
-              "description": "me: recordings you edited (corrected the transcript, changed the catalogue record or renamed)",
+              "description": "me: assets you edited (corrected the text, changed the catalogue record or renamed)",
               "title": "Edited By"
             },
-            "description": "me: recordings you edited (corrected the transcript, changed the catalogue record or renamed)"
+            "description": "me: assets you edited (corrected the text, changed the catalogue record or renamed)"
           },
           {
             "name": "sensitive",
@@ -7169,10 +7169,10 @@
                   "type": "null"
                 }
               ],
-              "description": "a collection: the recordings in it and in the collections inside it",
+              "description": "a collection: the assets in it and in the collections inside it",
               "title": "Collection"
             },
-            "description": "a collection: the recordings in it and in the collections inside it"
+            "description": "a collection: the assets in it and in the collections inside it"
           },
           {
             "name": "field",
@@ -7187,10 +7187,10 @@
                   "type": "null"
                 }
               ],
-              "description": "a custom field (of resources): the recordings with a value for it, or with `value`",
+              "description": "a custom field (of resources): the assets with a value for it, or with `value`",
               "title": "Field"
             },
-            "description": "a custom field (of resources): the recordings with a value for it, or with `value`"
+            "description": "a custom field (of resources): the assets with a value for it, or with `value`"
           },
           {
             "name": "value",
@@ -7231,11 +7231,11 @@
                 "-importance"
               ],
               "type": "string",
-              "description": "date, title, duration, speakers, status or importance; prefix - for descending",
+              "description": "date, title, duration, speakers (number of people), status or importance; prefix - for descending",
               "default": "-date",
               "title": "Sort"
             },
-            "description": "date, title, duration, speakers, status or importance; prefix - for descending"
+            "description": "date, title, duration, speakers (number of people), status or importance; prefix - for descending"
           },
           {
             "name": "limit",
@@ -7277,7 +7277,7 @@
             },
             "headers": {
               "X-Total-Count": {
-                "description": "how many recordings match the filters, on all pages",
+                "description": "how many assets match the filters, on all pages",
                 "schema": {
                   "type": "integer"
                 }
@@ -7303,7 +7303,7 @@
           "resources"
         ],
         "summary": "List Tags",
-        "description": "The tags on the recordings you can read (or one namespace's), with how many recordings have each.",
+        "description": "The tags on the assets you can read (or one namespace's), with how many assets have each.",
         "operationId": "list_tags",
         "parameters": [
           {
@@ -7357,7 +7357,7 @@
           "resources"
         ],
         "summary": "Retag Recordings",
-        "description": "Add and remove tags on several recordings at once (editors of each one's namespace).",
+        "description": "Add and remove tags on several assets at once (editors of each one's namespace).",
         "operationId": "retag_recordings",
         "requestBody": {
           "required": true,
@@ -7399,7 +7399,7 @@
           "resources"
         ],
         "summary": "List Origins",
-        "description": "Where the recordings you can read (or one namespace's) came from, with how many came from each: connected sources\nby name, uploads, pasted text, IIIF imports, the archive's own folders and other imported files.",
+        "description": "Where the assets you can read (or one namespace's) came from, with how many came from each: connected sources\nby name, uploads, pasted text, IIIF imports, the archive's own folders and other imported files.",
         "operationId": "list_origins",
         "parameters": [
           {
@@ -7455,7 +7455,7 @@
           "resources"
         ],
         "summary": "List Languages",
-        "description": "The languages of the recordings you can read (or one namespace's), with how many are in each; null: not known.",
+        "description": "The languages of the assets you can read (or one namespace's), with how many are in each; null: not known.",
         "operationId": "list_languages",
         "parameters": [
           {
@@ -7511,7 +7511,7 @@
           "resources"
         ],
         "summary": "List Objects",
-        "description": "The kinds of object seen in the recordings you can read (or one namespace's), with how many recordings each is\nin, the most first (the objects step finds them).",
+        "description": "The kinds of object seen in the assets you can read (or one namespace's), with how many assets each is\nin, the most first (the objects step finds them).",
         "operationId": "list_objects",
         "parameters": [
           {
@@ -7567,7 +7567,7 @@
           "resources"
         ],
         "summary": "Nsfw Counts",
-        "description": "NSFW classification in the recordings you can read (or one namespace's): whether it's on in any of their\nnamespaces, how many are flagged, and how many of those the Library leaves out (docs/nsfw.md).",
+        "description": "NSFW classification in the assets you can read (or one namespace's): whether it's on in any of their\nnamespaces, how many are flagged, and how many of those the Library leaves out (docs/nsfw.md).",
         "operationId": "nsfw_counts",
         "parameters": [
           {
@@ -7619,7 +7619,7 @@
           "resources"
         ],
         "summary": "Place Recordings",
-        "description": "Move recordings into a collection of their namespace: editors of each recording (through the namespace or the\ncollection it's in) who are editors of the collection too. Recordings of another namespace are a 400: move them\nto that namespace first. Their IIIF Manifests change (partOf), so harvesters hear an Update. Audited as\n`recording.collection`.",
+        "description": "Move assets into a collection of their namespace: editors of each asset (through the namespace or the\ncollection it's in) who are editors of the collection too. Assets of another namespace are a 400: move them\nto that namespace first. Their IIIF Manifests change (partOf), so harvesters hear an Update. Audited as\n`recording.collection`.",
         "operationId": "place_recordings",
         "requestBody": {
           "content": {
@@ -7701,7 +7701,7 @@
           "resources"
         ],
         "summary": "Update Recording",
-        "description": "Rename a recording or replace its tags (editors). A renamed recording's report is rebuilt with the new title.",
+        "description": "Rename an asset or replace its tags (editors). A renamed asset's report is rebuilt with the new title.",
         "operationId": "update_recording",
         "parameters": [
           {
@@ -7752,7 +7752,7 @@
           "resources"
         ],
         "summary": "Delete Recording",
-        "description": "Delete a recording (owners). Everything Lens made from it goes: its transcript and analysis, frames, reports and\noutputs, shares, notes, permissions and requests for access. The media file stays where it is, and scans and watched\nfolders don't import it again; importing it on purpose brings it back. Its waiting jobs are cancelled; while a job\nis running on it, this answers 409. Audited as `recording.delete`.",
+        "description": "Delete an asset (owners). Everything Lens made from it goes: its text and analysis, frames, reports and\noutputs, shares, notes, permissions and requests for access. The media file stays where it is, and scans and watched\nfolders don't import it again; importing it on purpose brings it back. Its waiting jobs are cancelled; while a job\nis running on it, this answers 409. Audited as `recording.delete`.",
         "operationId": "delete_recording",
         "parameters": [
           {
@@ -7856,7 +7856,7 @@
           "resources"
         ],
         "summary": "Move Recording",
-        "description": "Move a recording to another namespace (owners of its namespace, editors of the new one).\n\nIt keeps its transcript, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);\nits IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and\nfaces are matched by name in the new namespace (`rediarize`: identified again from their voices, audio only), and\nanalysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. Its\nfiles are kept under the new namespace's key. 409 when the new namespace has the same file or a job is running on\nit; 423 when either namespace is a vault nobody has unlocked. Audited as `recording.move`.",
+        "description": "Move an asset to another namespace (owners of its namespace, editors of the new one).\n\nIt keeps its text, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);\nits IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). People\n(voices and faces) are matched by name in the new namespace (`rediarize`: voices identified again, audio only),\nand analysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. Its\nfiles are kept under the new namespace's key. 409 when the new namespace has the same file or a job is running on\nit; 423 when either namespace is a vault nobody has unlocked. Audited as `recording.move`.",
         "operationId": "move_recording",
         "parameters": [
           {
@@ -7909,7 +7909,7 @@
           "resources"
         ],
         "summary": "Get Recording Access",
-        "description": "Who may see the recording: public, restricted or private, the parts a public one opens, featured.",
+        "description": "Who may see the asset: public, restricted or private, the parts a public one opens, featured.",
         "operationId": "get_recording_access",
         "parameters": [
           {
@@ -7950,7 +7950,7 @@
           "resources"
         ],
         "summary": "Update Recording Access",
-        "description": "Make a recording public, restricted or private, choose what a public one opens, feature it (owners).\n\naccess or open set to null follow the namespace's default again. The change is kept in the metadata history, and\nIIIF harvesters hear when the recording is published, changed or withdrawn.",
+        "description": "Make an asset public, restricted or private, choose what a public one opens, feature it (owners).\n\naccess or open set to null follow the namespace's default again. The change is kept in the metadata history, and\nIIIF harvesters hear when the asset is published, changed or withdrawn.",
         "operationId": "update_recording_access",
         "parameters": [
           {
@@ -8003,7 +8003,7 @@
           "resources"
         ],
         "summary": "List Recording Permissions",
-        "description": "The people given permission on the recording (owners), newest first.",
+        "description": "The people given permission on the asset (owners), newest first.",
         "operationId": "list_recording_permissions",
         "parameters": [
           {
@@ -8048,7 +8048,7 @@
           "resources"
         ],
         "summary": "Add Recording Permission",
-        "description": "Give someone with an account permission on the recording (owners): they see all of it on the pages visitors see\nand in IIIF, whatever its access; members of its namespace already do. Answers with everyone who has permission.",
+        "description": "Give someone with an account permission on the asset (owners): they see all of it on the pages visitors see\nand in IIIF, whatever its access; members of its namespace already do. Answers with everyone who has permission.",
         "operationId": "add_recording_permission",
         "parameters": [
           {
@@ -8105,7 +8105,7 @@
           "resources"
         ],
         "summary": "Remove Recording Permission",
-        "description": "Take someone's permission on the recording away (owners). Answers with everyone who still has it.",
+        "description": "Take someone's permission on the asset away (owners). Answers with everyone who still has it.",
         "operationId": "remove_recording_permission",
         "parameters": [
           {
@@ -8161,7 +8161,7 @@
           "resources"
         ],
         "summary": "List Recording Ip Groups",
-        "description": "The namespace's IP groups (owners), each with whether visitors from its addresses see all of this recording.",
+        "description": "The namespace's IP groups (owners), each with whether visitors from its addresses see all of this asset.",
         "operationId": "list_recording_ip_groups",
         "parameters": [
           {
@@ -8208,7 +8208,7 @@
           "resources"
         ],
         "summary": "Open Recording To Ip Group",
-        "description": "Open the recording to an IP group that opens chosen recordings (owners): visitors from its addresses see all of\nit. Answers with the namespace's groups.",
+        "description": "Open the asset to an IP group that opens chosen assets (owners): visitors from its addresses see all of\nit. Answers with the namespace's groups.",
         "operationId": "open_recording_to_ip_group",
         "parameters": [
           {
@@ -8262,7 +8262,7 @@
           "resources"
         ],
         "summary": "Close Recording To Ip Group",
-        "description": "Close the recording to an IP group again (owners).",
+        "description": "Close the asset to an IP group again (owners).",
         "operationId": "close_recording_to_ip_group",
         "parameters": [
           {
@@ -8318,7 +8318,7 @@
           "resources"
         ],
         "summary": "List Access Requests",
-        "description": "Requests for access to the recording (owners), newest first; pending ones wait for an answer.",
+        "description": "Requests for access to the asset (owners), newest first; pending ones wait for an answer.",
         "operationId": "list_access_requests",
         "parameters": [
           {
@@ -8365,7 +8365,7 @@
           "resources"
         ],
         "summary": "Approve Access Request",
-        "description": "Approve a request (owners): the person gets permission on the recording.",
+        "description": "Approve a request (owners): the person gets permission on the asset.",
         "operationId": "approve_access_request",
         "parameters": [
           {
@@ -8530,7 +8530,7 @@
           "resources"
         ],
         "summary": "Get Embed Link",
-        "description": "A signed link to the embeddable player, for people who can see the recording (it expires; share links don't).",
+        "description": "A signed link to the embeddable player, for people who can see the asset (it expires; share links don't).",
         "operationId": "get_embed_link",
         "parameters": [
           {
@@ -8901,7 +8901,7 @@
           "resources"
         ],
         "summary": "List Shares",
-        "description": "The recording's share links, newest first: whether each still works, how often it was played, and the sites\nwhose pages embed it.",
+        "description": "The asset's share links, newest first: whether each still works, how often it was played, and the sites\nwhose pages embed it.",
         "operationId": "list_shares",
         "parameters": [
           {
@@ -8948,7 +8948,7 @@
           "resources"
         ],
         "summary": "Export Recording",
-        "description": "The transcript as txt, md, srt, vtt or json (a download).",
+        "description": "The text (transcript, for audio and video) as txt, md, srt, vtt or json (a download).",
         "operationId": "export_recording",
         "parameters": [
           {
@@ -9077,7 +9077,7 @@
           "resources"
         ],
         "summary": "Edit Segment",
-        "description": "Correct a transcript line (text and/or speaker); the recording is re-analysed afterwards.",
+        "description": "Correct a line of the text (its words and/or person); the asset is re-analysed afterwards.",
         "operationId": "edit_segment",
         "parameters": [
           {
@@ -9139,7 +9139,7 @@
           "resources"
         ],
         "summary": "Split Segment",
-        "description": "Split a transcript line in two (editors): at `at`, a position in its text, moved back to the start of the word\nit's in. The second part starts at `t` (ms) when given, else when its first word was said (or as far into the\nline's time as `at` is into its text); it keeps the line's speaker unless `speaker` is sent. The lines after it\nmove down one, with their corrections. Kept in the edit history; the recording is re-analysed afterwards.",
+        "description": "Split a line of the text in two (editors): at `at`, a position in its text, moved back to the start of the word\nit's in. The second part starts at `t` (ms) when given, else when its first word starts (or as far into the\nline's time as `at` is into its text); it keeps the line's person unless `speaker` is sent. The lines after it\nmove down one, with their corrections. Kept in the edit history; the asset is re-analysed afterwards.",
         "operationId": "split_segment",
         "parameters": [
           {
@@ -9201,7 +9201,7 @@
           "resources"
         ],
         "summary": "Merge Segments",
-        "description": "Merge a transcript line with the next one (editors): one line with both texts, from the first's start to the\nsecond's end, with the first's speaker. The lines after it move up one, with their corrections. Kept in the edit\nhistory (with where to split it again); the recording is re-analysed afterwards.",
+        "description": "Merge a line of the text with the next one (editors): one line with both texts, from the first's start to the\nsecond's end, with the first's person. The lines after it move up one, with their corrections. Kept in the edit\nhistory (with where to split it again); the asset is re-analysed afterwards.",
         "operationId": "merge_segments",
         "parameters": [
           {
@@ -9253,7 +9253,7 @@
           "resources"
         ],
         "summary": "List Segment Edits",
-        "description": "Corrections, splits and merges of the transcript, the latest first.",
+        "description": "Corrections, splits and merges of the text, the latest first.",
         "operationId": "list_segment_edits",
         "parameters": [
           {
@@ -9300,7 +9300,7 @@
           "resources"
         ],
         "summary": "List Outputs",
-        "description": "Results of LLM pipeline steps for this recording.",
+        "description": "Results of LLM pipeline steps for this asset.",
         "operationId": "list_outputs",
         "parameters": [
           {
@@ -9347,7 +9347,7 @@
           "notes"
         ],
         "summary": "List Notes",
-        "description": "Your notes on the recording and the ones shared on it: notes about the whole recording first, then by moment.",
+        "description": "Your notes on the asset and the ones shared on it: notes about the whole asset first, then by moment.",
         "operationId": "list_notes",
         "parameters": [
           {
@@ -9392,7 +9392,7 @@
           "notes"
         ],
         "summary": "Create Note",
-        "description": "Write a note about a moment (`t0`\u2013`t1`, with the `quote` picked in the transcript) or about the whole recording.\nAnyone who can read the recording can; only you see it unless you share it with everyone who can read the\nrecording, which needs editor access. Up to 500 each on a recording. Sharing is audited (`note.share`).",
+        "description": "Write a note about a moment (`t0`\u2013`t1`, with the `quote` picked in the text) or about the whole asset.\nAnyone who can read the asset can; only you see it unless you share it with everyone who can read the\nasset, which needs editor access. Up to 500 each on an asset. Sharing is audited (`note.share`).",
         "operationId": "create_note",
         "parameters": [
           {
@@ -9505,7 +9505,7 @@
           "notes"
         ],
         "summary": "Delete Note",
-        "description": "Delete it: its writer, or for a shared note an owner of the recording (of its namespace, or an admin of its\ncollection). Deleting a shared note is audited (`note.delete`).",
+        "description": "Delete it: its writer, or for a shared note an owner of the asset (of its namespace, or an admin of its\ncollection). Deleting a shared note is audited (`note.delete`).",
         "operationId": "delete_note",
         "parameters": [
           {
@@ -9650,7 +9650,7 @@
           "notes"
         ],
         "summary": "Link Targets",
-        "description": "What a mention can link to, best matches first: `#` for topics; `@` for pages, recordings, people and other\nentities, collections and speakers.",
+        "description": "What a mention can link to, best matches first: `#` for topics; `@` for pages, assets, named people and other\nentities, collections and people.",
         "operationId": "link_targets",
         "parameters": [
           {
@@ -9842,7 +9842,7 @@
           "notes"
         ],
         "summary": "Page About",
-        "description": "The page of a recording, entity, topic, collection or speaker: its page, or a draft while nobody has written one.",
+        "description": "The page of an asset, entity, topic, collection or person: its page, or a draft while nobody has written one.",
         "operationId": "page_about",
         "parameters": [
           {
@@ -12363,7 +12363,7 @@
           "uploads"
         ],
         "summary": "Start Upload",
-        "description": "Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of\na transcript-only recording (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the\nnamespace's. Then send the file with PUT /uploads/{uid}.\n400 for a type not in uploads.extensions, 409 when the recording has audio already, 413 over uploads.max_mb, 507\nwhen the server's disk can't hold it.",
+        "description": "Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of\na text-only asset (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the\nnamespace's. Then send the file with PUT /uploads/{uid}.\n400 for a type not in uploads.extensions, 409 when the asset has audio already, 413 over uploads.max_mb, 507\nwhen the server's disk can't hold it.",
         "operationId": "start_upload",
         "requestBody": {
           "content": {
@@ -12405,7 +12405,7 @@
           "uploads"
         ],
         "summary": "Get Upload",
-        "description": "How much of an upload has arrived (`offset`), or the recording it became.",
+        "description": "How much of an upload has arrived (`offset`), or the asset it became.",
         "operationId": "get_upload",
         "parameters": [
           {
@@ -12447,7 +12447,7 @@
           "uploads"
         ],
         "summary": "Send Chunk",
-        "description": "The next chunk of the file as the raw request body (application/octet-stream), starting at `offset`; it streams\nto disk. A chunk that breaks off is dropped whole. 409 when `offset` isn't where the upload has got to (GET it and\nsend from its `offset`), or while another chunk of it is arriving. The chunk with the last byte returns the upload\ndone, with its recording and job (for `attach`, the job that runs the steps that need media); audited as `upload`.",
+        "description": "The next chunk of the file as the raw request body (application/octet-stream), starting at `offset`; it streams\nto disk. A chunk that breaks off is dropped whole. 409 when `offset` isn't where the upload has got to (GET it and\nsend from its `offset`), or while another chunk of it is arriving. The chunk with the last byte returns the upload\ndone, with its asset and job (for `attach`, the job that runs the steps that need media); audited as `upload`.",
         "operationId": "send_chunk",
         "parameters": [
           {
@@ -12512,7 +12512,7 @@
           "uploads"
         ],
         "summary": "Cancel Upload",
-        "description": "Stop an upload and throw away what has arrived. A finished one is only forgotten: its recording stays.",
+        "description": "Stop an upload and throw away what has arrived. A finished one is only forgotten: its asset stays.",
         "operationId": "cancel_upload",
         "parameters": [
           {
@@ -12556,7 +12556,7 @@
           "search"
         ],
         "summary": "Search Transcripts",
-        "description": "Moments where the words are said (or shown on screen in a video, or written in a resource's supplementary\ntranscripts, captions, translations and indexes, or the kinds of object seen in videos, documents and images),\nbest first, in the namespaces you can read and the collections you were given a role on. A speaker or emotion\nfilter keeps to what was said. By meaning, a moment is a passage about what was asked, though its words may differ.",
+        "description": "Moments where the words appear (said in audio or video, shown on screen in a video, written in a document or in\na resource's supplementary transcripts, captions, translations and indexes, or the kinds of object seen in videos,\ndocuments and images),\nbest first, in the namespaces you can read and the collections you were given a role on. A person or emotion\nfilter keeps to their lines. By meaning, a moment is a passage about what was asked, though its words may differ.",
         "operationId": "search_transcripts",
         "parameters": [
           {
@@ -12648,10 +12648,10 @@
                   "type": "null"
                 }
               ],
-              "description": "only recordings this kind of object is seen in (person, car \u2026)",
+              "description": "only assets this kind of object is seen in (person, car \u2026)",
               "title": "Object"
             },
-            "description": "only recordings this kind of object is seen in (person, car \u2026)"
+            "description": "only assets this kind of object is seen in (person, car \u2026)"
           },
           {
             "name": "limit",
@@ -12682,11 +12682,11 @@
             "required": false,
             "schema": {
               "type": "boolean",
-              "description": "also count all the matching moments by namespace, speaker, emotion and recording, and list their kinds of object",
+              "description": "also count all the matching moments by namespace, person, emotion and asset, and list their kinds of object",
               "default": false,
               "title": "Facets"
             },
-            "description": "also count all the matching moments by namespace, speaker, emotion and recording, and list their kinds of object"
+            "description": "also count all the matching moments by namespace, person, emotion and asset, and list their kinds of object"
           },
           {
             "name": "mode",
@@ -12812,7 +12812,7 @@
           "search"
         ],
         "summary": "Find Similar",
-        "description": "The resources most like a text, a resource, a topic or an entity (give one), best first, in the namespaces you\ncan read and the collections you were given a role on, each with why: its closest passages by meaning (when\nsearch by meaning is set up), the lines with the key words it shares, and the topics and entities in common.\nEach cited moment can be opened. A resource is never listed as like itself.",
+        "description": "The assets most like a text, an asset, a topic or an entity (give one), best first, in the namespaces you\ncan read and the collections you were given a role on, each with why: its closest passages by meaning (when\nsearch by meaning is set up), the lines with the key words it shares, and the topics and entities in common.\nEach cited moment can be opened. An asset is never listed as like itself.",
         "operationId": "find_similar",
         "parameters": [
           {
@@ -12960,7 +12960,7 @@
           "search"
         ],
         "summary": "Suggest Terms",
-        "description": "Whole words said in the namespaces you can read (or `ns`) that start with `prefix`, the most said first. Search\nhas no prefix search, so the web app offers these when someone types interp*. Words are counted per namespace, so\ncollections you were given a role on don't add any.",
+        "description": "Whole words found in the namespaces you can read (or `ns`) that start with `prefix`, the most frequent first. Search\nhas no prefix search, so the web app offers these when someone types interp*. Words are counted per namespace, so\ncollections you were given a role on don't add any.",
         "operationId": "suggest_terms",
         "parameters": [
           {
@@ -13039,7 +13039,7 @@
           "search"
         ],
         "summary": "Get Graph",
-        "description": "Speakers and entities as a graph, over the namespaces you can read (isolated ones only in their own scope).\n`as_of` shows the entities as they were at an earlier version (docs/graph-history.md); mentions are today's.",
+        "description": "People and entities as a graph, over the namespaces you can read (isolated ones only in their own scope).\n`as_of` shows the entities as they were at an earlier version (docs/graph-history.md); mentions are today's.",
         "operationId": "get_graph",
         "parameters": [
           {
@@ -13175,7 +13175,7 @@
           "searches"
         ],
         "summary": "Create Search",
-        "description": "Save a search (its words, namespace, speaker, emotion, recording and object) under a name unique among yours. Sharing it\nwith its namespace needs editor access there.",
+        "description": "Save a search (its words, namespace, person, emotion, asset and object) under a name unique among yours. Sharing it\nwith its namespace needs editor access there.",
         "operationId": "create_search",
         "requestBody": {
           "content": {
@@ -13311,7 +13311,7 @@
           "speakers"
         ],
         "summary": "List Speakers",
-        "description": "A namespace's speakers, its recent merges (undoable; who merged and how many recordings moved), links to speakers\nin other namespaces, and voices in other shared namespaces that are likely the same person (`cross`).",
+        "description": "A namespace's people, its recent merges (undoable; who merged and how many assets moved), links to people\nin other namespaces, and people in other shared namespaces who are likely the same person (`cross`).",
         "operationId": "list_speakers",
         "parameters": [
           {
@@ -13452,7 +13452,7 @@
           "speakers"
         ],
         "summary": "Merge Speaker",
-        "description": "Fold this speaker into ``into`` (same namespace). Undo with POST /merges/{merge_id}/undo.",
+        "description": "Fold this person into ``into`` (same namespace). Undo with POST /merges/{merge_id}/undo.",
         "operationId": "merge_speaker",
         "parameters": [
           {
@@ -13547,7 +13547,7 @@
           "speakers"
         ],
         "summary": "Link Speaker",
-        "description": "Mark this speaker and one in another namespace as the same person (you need editor access to both).",
+        "description": "Mark this person and one in another namespace as the same person (you need editor access to both).",
         "operationId": "link_speaker",
         "parameters": [
           {
@@ -13706,7 +13706,7 @@
           "entities"
         ],
         "summary": "List Entities",
-        "description": "Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones.\nWith `recording`, those said in it, also for someone who sees it through a role on its collection (then counted\nover the recordings they see). With `collection`, those said in its recordings and those of the collections inside\nit (counted over them).",
+        "description": "Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones.\nWith `recording`, those mentioned in it, also for someone who sees it through a role on its collection (then counted\nover the assets they see). With `collection`, those mentioned in its assets and those of the collections inside\nit (counted over them).",
         "operationId": "list_entities",
         "parameters": [
           {
@@ -14298,7 +14298,7 @@
           "entities"
         ],
         "summary": "Update Entity",
-        "description": "Describe the entity (what it is, in your words), say how else it's said, or put it on (or off) the fixed list.",
+        "description": "Describe the entity (what it is, in your words), say how else it's called, or put it on (or off) the fixed list.",
         "operationId": "update_entity",
         "parameters": [
           {
@@ -14562,7 +14562,7 @@
           "entities"
         ],
         "summary": "Rename Entity",
-        "description": "Rename; with `correct`, also fix the transcript lines (re-analysing the recordings). `dry_run` previews the lines.",
+        "description": "Rename; with `correct`, also fix the lines of text (re-analysing the assets). `dry_run` previews the lines.",
         "operationId": "rename_entity",
         "parameters": [
           {
@@ -14886,7 +14886,7 @@
           "entities"
         ],
         "summary": "Explore Graph",
-        "description": "The neighbourhood of a node (`e<id>` for an entity, a speaker node id...). scope: `all` (shared graphs) or `ns:<name>`.",
+        "description": "The neighbourhood of a node (`e<id>` for an entity, `s<id>` for a person...). scope: `all` (shared graphs) or `ns:<name>`.",
         "operationId": "explore_graph",
         "parameters": [
           {
@@ -15155,7 +15155,7 @@
           "topics"
         ],
         "summary": "Get Topic",
-        "description": "A topic with its broader, narrower and related topics and the recordings about it.",
+        "description": "A topic with its broader, narrower and related topics and the assets about it.",
         "operationId": "get_topic",
         "parameters": [
           {
@@ -15247,7 +15247,7 @@
           "topics"
         ],
         "summary": "Delete Topic",
-        "description": "Delete it: its narrower topics move up, recordings stop being about it, and an entity it was made from shows\nagain. `undo` takes it back (POST /topics/changes/{undo}/undo).",
+        "description": "Delete it: its narrower topics move up, assets stop being about it, and an entity it was made from shows\nagain. `undo` takes it back (POST /topics/changes/{undo}/undo).",
         "operationId": "delete_topic",
         "parameters": [
           {
@@ -15343,7 +15343,7 @@
           "topics"
         ],
         "summary": "Topic Candidates",
-        "description": "What the namespace's summaries say recordings are about that no topic covers yet, the most recordings first.\nAdding one as a topic suggests it for those recordings; skipping one stops it being offered.",
+        "description": "What the namespace's summaries say assets are about that no topic covers yet, the most assets first.\nAdding one as a topic suggests it for those assets; skipping one stops it being offered.",
         "operationId": "topic_candidates",
         "parameters": [
           {
@@ -15453,7 +15453,7 @@
           "topics"
         ],
         "summary": "Merge Topics",
-        "description": "Fold topics into one: their labels become its other labels and their recordings are about it. `undo` takes it\nback (POST /topics/changes/{undo}/undo).",
+        "description": "Fold topics into one: their labels become its other labels and their assets are about it. `undo` takes it\nback (POST /topics/changes/{undo}/undo).",
         "operationId": "merge_topics",
         "requestBody": {
           "content": {
@@ -15552,7 +15552,7 @@
           "topics"
         ],
         "summary": "Undo Topic Change",
-        "description": "Take back a merge or a delete: the topics come back with their labels, recordings and pages. What changed\nsince stays. Refused (400) when another topic has taken one of their labels meanwhile.",
+        "description": "Take back a merge or a delete: the topics come back with their labels, assets and pages. What changed\nsince stays. Refused (400) when another topic has taken one of their labels meanwhile.",
         "operationId": "undo_topic_change",
         "parameters": [
           {
@@ -15595,7 +15595,7 @@
           "topics"
         ],
         "summary": "Tag Recordings",
-        "description": "Say recordings of the topic's namespace are about it (accepting suggestions too), or with `remove` that they aren't.",
+        "description": "Say assets of the topic's namespace are about it (accepting suggestions too), or with `remove` that they aren't.",
         "operationId": "tag_recordings",
         "parameters": [
           {
@@ -15648,7 +15648,7 @@
           "topics"
         ],
         "summary": "Recording Topics",
-        "description": "The topics a recording is about, and those suggested for it.",
+        "description": "The topics an asset is about, and those suggested for it.",
         "operationId": "recording_topics",
         "parameters": [
           {
@@ -15695,7 +15695,7 @@
           "topics"
         ],
         "summary": "Entity To Topic",
-        "description": "Make a topic-like entity (type TERM) a topic: its names become the topic's labels and the recordings that\nmention it are about the topic. The entity is hidden; deleting the topic shows it again.",
+        "description": "Make a topic-like entity (type TERM) a topic: its names become the topic's labels and the assets that\nmention it are about the topic. The entity is hidden; deleting the topic shows it again.",
         "operationId": "entity_to_topic",
         "parameters": [
           {
@@ -16364,7 +16364,7 @@
           "graph"
         ],
         "summary": "Graph As Of",
-        "description": "The graph as it was at a version: entities (with their other names), cross-namespace links and the pairs someone\nsaid are different. Mentions aren't versioned: counts elsewhere are today's.",
+        "description": "The graph as it was at a version: entities (with their other names), cross-namespace links and the pairs someone\nmarked as different. Mentions aren't versioned: counts elsewhere are today's.",
         "operationId": "graph_as_of",
         "parameters": [
           {
@@ -16902,7 +16902,7 @@
           "entities"
         ],
         "summary": "Apply Entity Setup",
-        "description": "Analyse the recordings of the namespace (or of a collection and those inside it) again, so their entities follow\nthe setup as it is now.",
+        "description": "Analyse the assets of the namespace (or of a collection and those inside it) again, so their entities follow\nthe setup as it is now.",
         "operationId": "apply_entity_setup",
         "parameters": [
           {
@@ -17258,7 +17258,7 @@
           "metadata"
         ],
         "summary": "Revert Metadata Edit",
-        "description": "Put a recording's (editors) or namespace's (owners) metadata back to how it was before this edit.",
+        "description": "Put an asset's (editors) or namespace's (owners) metadata back to how it was before this edit.",
         "operationId": "revert_metadata_edit",
         "parameters": [
           {
@@ -17301,7 +17301,7 @@
           "metadata"
         ],
         "summary": "Get Namespace Metadata",
-        "description": "The namespace's description and metadata profile, for anyone who sees some of it (the profile says how its\nrecordings are catalogued).",
+        "description": "The namespace's description and metadata profile, for anyone who sees some of it (the profile says how its\nassets are catalogued).",
         "operationId": "get_namespace_metadata",
         "parameters": [
           {
@@ -17395,7 +17395,7 @@
           "metadata"
         ],
         "summary": "Bulk Update Metadata",
-        "description": "Set or clear fields on many recordings. `dry_run` (the default) reports what would change.",
+        "description": "Set or clear fields on many assets. `dry_run` (the default) reports what would change.",
         "operationId": "bulk_update_metadata",
         "requestBody": {
           "content": {
@@ -17437,7 +17437,7 @@
           "rdf"
         ],
         "summary": "Get Recording Rdf",
-        "description": "The recording described with Dublin Core, with the entities it mentions.",
+        "description": "The asset described with Dublin Core, with the entities it mentions.",
         "operationId": "get_recording_rdf",
         "parameters": [
           {
@@ -17513,7 +17513,7 @@
           "rdf"
         ],
         "summary": "Get Namespace Rdf",
-        "description": "Everything in the namespace as one graph: itself, its collections, recordings, entities and speakers.",
+        "description": "Everything in the namespace as one graph: itself, its collections, assets, entities and people.",
         "operationId": "get_namespace_rdf",
         "parameters": [
           {
@@ -17601,7 +17601,7 @@
           "rdf"
         ],
         "summary": "Import Namespace Rdf",
-        "description": "Read Dublin Core descriptions into the namespace's recordings (matched by their URI or an identifier). Each change\nis a metadata edit, kept in the recording's history. With dry_run (the default) nothing changes.",
+        "description": "Read Dublin Core descriptions into the namespace's assets (matched by their URI or an identifier). Each change\nis a metadata edit, kept in the asset's history. With dry_run (the default) nothing changes.",
         "operationId": "import_namespace_rdf",
         "parameters": [
           {
@@ -18436,7 +18436,7 @@
           "video"
         ],
         "summary": "Link Face Speaker",
-        "description": "Say whose voice goes with this face (null unlinks).",
+        "description": "Say which person this face is (null unlinks).",
         "operationId": "link_face_speaker",
         "parameters": [
           {
@@ -18489,7 +18489,7 @@
           "video"
         ],
         "summary": "Dismiss Face Suggestion",
-        "description": "Drop a suggestion (`kind` face or speaker, with its id).",
+        "description": "Drop a suggestion (`kind` face, or speaker for a person, with its id).",
         "operationId": "dismiss_face_suggestion",
         "parameters": [
           {
@@ -18542,7 +18542,7 @@
           "iiif"
         ],
         "summary": "Get Recording Iiif",
-        "description": "The recording's manifest (as `json`), whether it is published, its layers, a schema check and viewer links.",
+        "description": "The asset's manifest (as `json`), whether it is published, its layers, a schema check and viewer links.",
         "operationId": "get_recording_iiif",
         "parameters": [
           {
@@ -18585,7 +18585,7 @@
           "iiif"
         ],
         "summary": "Get Content State",
-        "description": "A IIIF Content State pointing at a moment (t0..t1 seconds) of the recording, and links that open it.",
+        "description": "A IIIF Content State pointing at a moment (t0..t1 seconds) of the asset, and links that open it.",
         "operationId": "get_content_state",
         "parameters": [
           {
@@ -18704,7 +18704,7 @@
           "iiif"
         ],
         "summary": "Import Iiif",
-        "description": "Import recordings (audio, captions and metadata) from a IIIF manifest or collection into a namespace.\n\nWith `wait`, answers with the new recording ids; otherwise imports in the background (202).",
+        "description": "Import assets (audio, captions and metadata) from a IIIF manifest or collection into a namespace.\n\nWith `wait`, answers with the new asset ids; otherwise imports in the background (202).",
         "operationId": "import_iiif",
         "requestBody": {
           "content": {
@@ -18756,7 +18756,7 @@
           "jobs"
         ],
         "summary": "List Jobs",
-        "description": "Recent jobs, newest first, with counts by status and by namespace (of the jobs in `namespace` and `batch`, of\nany status), plus the latest job's step and log (for the progress bar). With `recording`, that recording's runs,\nalso for someone who sees it through a role on its collection (then the counts are of those runs only).",
+        "description": "Recent jobs, newest first, with counts by status and by namespace (of the jobs in `namespace` and `batch`, of\nany status), plus the latest job's step and log (for the progress bar). With `recording`, that asset's runs,\nalso for someone who sees it through a role on its collection (then the counts are of those runs only).",
         "operationId": "list_jobs",
         "parameters": [
           {
@@ -18870,7 +18870,7 @@
           "jobs"
         ],
         "summary": "Create Jobs",
-        "description": "Queue recordings (these steps, a pipeline, or their namespace's pipeline) and/or everything pending in a namespace.",
+        "description": "Queue assets (these steps, a pipeline, or their namespace's pipeline) and/or everything pending in a namespace.",
         "operationId": "create_jobs",
         "requestBody": {
           "required": true,
@@ -18912,7 +18912,7 @@
           "jobs"
         ],
         "summary": "Get Job",
-        "description": "One run: its steps and how each went (`step_runs`), the pipeline it runs, its last log lines, and how long its\nsteps usually take on this recording (`estimates`, `eta_seconds`).",
+        "description": "One run: its steps and how each went (`step_runs`), the pipeline it runs, its last log lines, and how long its\nsteps usually take on this asset (`estimates`, `eta_seconds`).",
         "operationId": "get_job",
         "parameters": [
           {
@@ -19624,7 +19624,7 @@
           "sources"
         ],
         "summary": "Browse Source",
-        "description": "The folders and files at one path of a source (for local sources, no path lists the allowed roots), with the\nrecordings each file already is.",
+        "description": "The folders and files at one path of a source (for local sources, no path lists the allowed roots), with the\nassets each file already is.",
         "operationId": "browse_source",
         "parameters": [
           {
@@ -20034,7 +20034,7 @@
           "templates"
         ],
         "summary": "Preview Template",
-        "description": "Render a template (saved, or the unsaved text in the editor) against a recording; run=true also calls the model.\n\nA template that fails to render answers ok=false with the error, so the editor can show it inline.",
+        "description": "Render a template (saved, or the unsaved text in the editor) against an asset; run=true also calls the model.\n\nA template that fails to render answers ok=false with the error, so the editor can show it inline.",
         "operationId": "preview_template",
         "requestBody": {
           "content": {
@@ -20522,7 +20522,7 @@
           "pipelines"
         ],
         "summary": "Run Pipeline",
-        "description": "Run this pipeline on one recording now (its outputs are kept).",
+        "description": "Run this pipeline on one asset now (its outputs are kept).",
         "operationId": "run_pipeline",
         "parameters": [
           {
@@ -21087,7 +21087,7 @@
           "workflows"
         ],
         "summary": "Run Workflow",
-        "description": "Run this workflow on one recording now, as a job (after anything its current job still has to do).",
+        "description": "Run this workflow on one asset now, as a job (after anything its current job still has to do).",
         "operationId": "run_workflow",
         "parameters": [
           {
@@ -23075,7 +23075,7 @@
           "collections"
         ],
         "summary": "Get Collection",
-        "description": "The collection with how many recordings you can read in it, and the newest 200 of them.",
+        "description": "The collection with how many assets you can read in it, and the newest 200 of them.",
         "operationId": "get_collection",
         "parameters": [
           {
@@ -23116,7 +23116,7 @@
           "collections"
         ],
         "summary": "Update Collection",
-        "description": "Change your collection. A filter collection takes a new filter; a fixed one a new list of recordings.",
+        "description": "Change your collection. A filter collection takes a new filter; a fixed one a new list of assets.",
         "operationId": "update_collection",
         "parameters": [
           {
@@ -23209,7 +23209,7 @@
           "collections"
         ],
         "summary": "Collection Evidence",
-        "description": "The collection's recordings you can read (a list in its order, a filter's oldest first) as one evidence PDF made by anytopdf (a download): each\none's pages and what Lens found about it, then a provenance page with every file's SHA-256 and size. `include` picks the parts, as for a\nresource's evidence PDF. At most 50 recordings.",
+        "description": "The collection's assets you can read (a list in its order, a filter's oldest first) as one evidence PDF made by anytopdf (a download): each\none's pages and what Lens found about it, then a provenance page with every file's SHA-256 and size. `include` picks the parts, as for a\nresource's evidence PDF. At most 50 assets.",
         "operationId": "collection_evidence",
         "parameters": [
           {
@@ -23286,7 +23286,7 @@
           "batches"
         ],
         "summary": "Estimate Batch",
-        "description": "What a run would cost, before starting it. Only recordings you can change count; the rest are `skipped`.",
+        "description": "What a run would cost, before starting it. Only assets you can change count; the rest are `skipped`.",
         "operationId": "estimate_batch",
         "requestBody": {
           "content": {
@@ -23445,7 +23445,7 @@
           "batches"
         ],
         "summary": "Combine Batch",
-        "description": "One overview written by the model from every recording's result, citing each as [n]; saved on the batch.",
+        "description": "One overview written by the model from every asset's result, citing each as [n]; saved on the batch.",
         "operationId": "combine_batch",
         "parameters": [
           {
@@ -23505,7 +23505,7 @@
           "batches"
         ],
         "summary": "Control Batch",
-        "description": "continue (after a sample), pause, resume, cancel, or retry the failed recordings.",
+        "description": "continue (after a sample), pause, resume, cancel, or retry the failed assets.",
         "operationId": "control_batch",
         "parameters": [
           {
@@ -23691,7 +23691,7 @@
           "public"
         ],
         "summary": "Get Public Home",
-        "description": "The home page: featured public recordings, for everyone, and the collections this visitor sees anything in.",
+        "description": "The home page: featured public assets, for everyone, and the collections this visitor sees anything in.",
         "operationId": "get_public_home",
         "responses": {
           "200": {
@@ -23713,7 +23713,7 @@
           "public"
         ],
         "summary": "Get Public Collection",
-        "description": "A collection's page: its description and the recordings this visitor sees, newest first. Visitors see the public\nones; signed-in people also see restricted ones, locked; members see all of them. A collection with nothing for\nthis visitor answers 404, as a missing one does.",
+        "description": "A collection's page: its description and the assets this visitor sees, newest first. Visitors see the public\nones; signed-in people also see restricted ones, locked; members see all of them. A collection with nothing for\nthis visitor answers 404, as a missing one does.",
         "operationId": "get_public_collection",
         "parameters": [
           {
@@ -23779,7 +23779,7 @@
           "public"
         ],
         "summary": "Search Public",
-        "description": "Search what this visitor may see: titles of the recordings they see listed, and the lines of the transcripts\nthey may read. Title matches come first. Restricted recordings (for signed-in people) and public ones with the\ntranscript closed match on their title only.",
+        "description": "Search what this visitor may see: titles of the assets they see listed, and the lines of the text of those\nthey may read. Title matches come first. Restricted assets (for signed-in people) and public ones with the\ntext closed match on their title only.",
         "operationId": "search_public",
         "parameters": [
           {
@@ -23848,7 +23848,7 @@
           "public"
         ],
         "summary": "Get Public Recording",
-        "description": "A recording's public page: what this visitor may see of it, and nothing more.\n\nAnyone sees a public recording's page, description and open parts; a signed-in person sees a restricted one's title\nwith a lock; people with a role in its namespace, given permission on the recording, or on the network of an IP\ngroup that opens it, see all of it. Everything else answers 404, as a recording that doesn't exist would.",
+        "description": "An asset's public page: what this visitor may see of it, and nothing more.\n\nAnyone sees a public asset's page, description and open parts; a signed-in person sees a restricted one's title\nwith a lock; people with a role in its namespace, given permission on the asset, or on the network of an IP\ngroup that opens it, see all of it. Everything else answers 404, as an asset that doesn't exist would.",
         "operationId": "get_public_recording",
         "parameters": [
           {
@@ -23891,7 +23891,7 @@
           "public"
         ],
         "summary": "Request Access",
-        "description": "Ask for access to a recording (signed in, without permission): its closed parts, or a restricted one. Asking\nagain replaces the earlier request. The namespace's owners hear of it by email when mail is set up; they approve\n(which gives permission) or decline in the recording's access settings.",
+        "description": "Ask for access to an asset (signed in, without permission): its closed parts, or a restricted one. Asking\nagain replaces the earlier request. The namespace's owners hear of it by email when mail is set up; they approve\n(which gives permission) or decline in the asset's access settings.",
         "operationId": "request_access",
         "parameters": [
           {
@@ -23944,7 +23944,7 @@
           "access requests"
         ],
         "summary": "List Pending Access Requests",
-        "description": "Requests waiting for an answer, for recordings in the namespaces you own (all of them for admins), newest\nfirst. Each is answered in its recording's access settings.",
+        "description": "Requests waiting for an answer, for assets in the namespaces you own (all of them for admins), newest\nfirst. Each is answered in its asset's access settings.",
         "operationId": "list_pending_access_requests",
         "responses": {
           "200": {
@@ -26467,7 +26467,7 @@
           "import hooks"
         ],
         "summary": "Push To Import Hook",
-        "description": "Push something into an import webhook's namespace, with its token as a bearer token. Three ways:\n\n- a file as the raw body, named by `?filename=`, Content-Disposition or X-Filename: audio, video, documents and\n  images become recordings and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as\n  transcripts;\n- multipart form files (field `file`, up to 20), with optional `title`, `url` and `text` fields;\n- JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as a transcript), with an optional\n  `title`.\n\nEach runs the hook's pipeline, or the namespace's. 401 for an unknown token, 403 while the hook is paused, 413 over\nuploads.max_mb. Audited as `import.hook`.",
+        "description": "Push something into an import webhook's namespace, with its token as a bearer token. Three ways:\n\n- a file as the raw body, named by `?filename=`, Content-Disposition or X-Filename: audio, video, documents and\n  images become assets and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as\n  transcripts;\n- multipart form files (field `file`, up to 20), with optional `title`, `url` and `text` fields;\n- JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as text), with an optional\n  `title`.\n\nEach runs the hook's pipeline, or the namespace's. 401 for an unknown token, 403 while the hook is paused, 413 over\nuploads.max_mb. Audited as `import.hook`.",
         "operationId": "push_to_import_hook",
         "parameters": [
           {
@@ -26592,7 +26592,7 @@
                         "type": "null"
                       }
                     ],
-                    "description": "text to import as a transcript, as pasted text is",
+                    "description": "text to import, as pasted text is",
                     "title": "Text"
                   },
                   "title": {
@@ -26754,7 +26754,7 @@
                         "type": "null"
                       }
                     ],
-                    "description": "text to import as a transcript, as pasted text is",
+                    "description": "text to import, as pasted text is",
                     "title": "Text"
                   },
                   "title": {
@@ -27459,7 +27459,7 @@
           "podcasts"
         ],
         "summary": "Delete Podcast",
-        "description": "Delete an episode with its audio (editors of its namespace, unlike other recordings: Lens made it). 409 while a\njob is working on it.",
+        "description": "Delete an episode with its audio (editors of its namespace, unlike other assets: Lens made it). 409 while a\njob is working on it.",
         "operationId": "delete_podcast",
         "parameters": [
           {
@@ -27652,7 +27652,7 @@
           "status"
         ],
         "title": "AccessRequest",
-        "description": "Someone asking for permission on a recording (docs/access.md)."
+        "description": "Someone asking for permission on an asset (docs/access.md)."
       },
       "AccountToken": {
         "properties": {
@@ -28710,7 +28710,7 @@
               }
             ],
             "title": "Recording",
-            "description": "the recording it came from"
+            "description": "the asset it came from"
           },
           "t0": {
             "anyOf": [
@@ -28725,7 +28725,7 @@
               }
             ],
             "title": "T0",
-            "description": "the moment in that recording (ms)"
+            "description": "the moment in that asset (ms)"
           },
           "title": {
             "anyOf": [
@@ -28737,7 +28737,7 @@
               }
             ],
             "title": "Title",
-            "description": "that recording's title"
+            "description": "that asset's title"
           },
           "time": {
             "anyOf": [
@@ -28918,7 +28918,7 @@
               }
             ],
             "title": "Recording",
-            "description": "the recording it became, once imported"
+            "description": "the asset it became, once imported"
           }
         },
         "additionalProperties": true,
@@ -29380,7 +29380,7 @@
               }
             ],
             "title": "Result",
-            "description": "recordings started (continue) or jobs retried (retry)"
+            "description": "assets started (continue) or jobs retried (retry)"
           }
         },
         "additionalProperties": true,
@@ -29514,7 +29514,7 @@
           "skipped": {
             "type": "integer",
             "title": "Skipped",
-            "description": "matching recordings you can't change"
+            "description": "matching assets you can't change"
           }
         },
         "additionalProperties": true,
@@ -29874,7 +29874,7 @@
         "additionalProperties": false,
         "type": "object",
         "title": "BatchSelection",
-        "description": "Which recordings: a collection, a list, or a filter (optionally narrowed to a namespace, entity or speaker)."
+        "description": "Which assets: a collection, a list, or a filter (optionally narrowed to a namespace, entity or person)."
       },
       "BatchSummary": {
         "properties": {
@@ -30215,7 +30215,7 @@
             },
             "type": "array",
             "title": "Imported",
-            "description": "the recordings this file already is, and where"
+            "description": "the assets this file already is, and where"
           }
         },
         "additionalProperties": true,
@@ -31204,7 +31204,7 @@
               }
             ],
             "title": "Collections",
-            "description": "saved collections (yours or shared): their recordings as they are when it answers"
+            "description": "saved collections (yours or shared): their assets as they are when it answers"
           },
           "speakers": {
             "anyOf": [
@@ -31639,7 +31639,7 @@
           "count": {
             "type": "integer",
             "title": "Count",
-            "description": "recordings in it you can read"
+            "description": "assets in it you can read"
           },
           "recordings": {
             "anyOf": [
@@ -31789,7 +31789,7 @@
           "count": {
             "type": "integer",
             "title": "Count",
-            "description": "recordings in it you can read"
+            "description": "assets in it you can read"
           },
           "created_at": {
             "anyOf": [
@@ -31999,13 +31999,13 @@
           "recordings": {
             "type": "integer",
             "title": "Recordings",
-            "description": "recordings it holds",
+            "description": "assets it holds",
             "default": 0
           },
           "total": {
             "type": "integer",
             "title": "Total",
-            "description": "recordings it and the collections inside it hold",
+            "description": "assets it and the collections inside it hold",
             "default": 0
           },
           "children": {
@@ -32017,7 +32017,7 @@
           "default": {
             "type": "boolean",
             "title": "Default",
-            "description": "new recordings go here when nobody says where",
+            "description": "new assets go here when nobody says where",
             "default": false
           },
           "created_at": {
@@ -32181,7 +32181,7 @@
               }
             ],
             "title": "Default",
-            "description": "true: new recordings go here when nobody says where"
+            "description": "true: new assets go here when nobody says where"
           }
         },
         "additionalProperties": false,
@@ -34611,7 +34611,7 @@
           "by"
         ],
         "title": "Enrichment",
-        "description": "The places and dates anytopdf found in a recording (analysis.anytopdf); members of its namespace only."
+        "description": "The places and dates anytopdf found in an asset (analysis.anytopdf); members of its namespace only."
       },
       "EntityDefine": {
         "properties": {
@@ -34645,7 +34645,7 @@
             "type": "array",
             "maxItems": 100,
             "title": "Aliases",
-            "description": "other ways it's said"
+            "description": "other ways it's written"
           },
           "collection": {
             "anyOf": [
@@ -35011,7 +35011,7 @@
           "correct": {
             "type": "boolean",
             "title": "Correct",
-            "description": "also correct the transcript lines that say the old name",
+            "description": "also correct the lines of text that have the old name",
             "default": false
           },
           "dry_run": {
@@ -35141,7 +35141,7 @@
           "recordings": {
             "type": "integer",
             "title": "Recordings",
-            "description": "how many recordings are analysed again"
+            "description": "how many assets are analysed again"
           }
         },
         "additionalProperties": true,
@@ -35163,7 +35163,7 @@
               }
             ],
             "title": "Collection",
-            "description": "only this collection's recordings (and those inside it)"
+            "description": "only this collection's assets (and those inside it)"
           }
         },
         "additionalProperties": false,
@@ -35444,7 +35444,7 @@
               }
             ],
             "title": "Aliases",
-            "description": "the other ways it's said (these replace the ones it has)"
+            "description": "the other ways it's written (these replace the ones it has)"
           },
           "defined": {
             "anyOf": [
@@ -37269,7 +37269,7 @@
               }
             ],
             "title": "Speaker",
-            "description": "who says it, as the file names them"
+            "description": "who says or writes it, as the file names them"
           },
           "title": {
             "anyOf": [
@@ -38654,7 +38654,7 @@
           "recording": {
             "type": "integer",
             "title": "Recording",
-            "description": "the recording or resource it became"
+            "description": "the asset or resource it became"
           },
           "job": {
             "anyOf": [
@@ -38671,7 +38671,7 @@
           "duplicate": {
             "type": "boolean",
             "title": "Duplicate",
-            "description": "the namespace had this file already; it's that recording",
+            "description": "the namespace had this file already; it's that asset",
             "default": false
           }
         },
@@ -39186,7 +39186,7 @@
             },
             "type": "array",
             "title": "Open",
-            "description": "the parts anyone may use, when the recording is public"
+            "description": "the parts anyone may use, when the asset is public"
           },
           "featured": {
             "type": "boolean",
@@ -39196,7 +39196,7 @@
           "published": {
             "type": "boolean",
             "title": "Published",
-            "description": "IIIF publishes public recordings"
+            "description": "IIIF publishes public assets"
           },
           "layers": {
             "items": {},
@@ -39769,7 +39769,7 @@
           "recordings": {
             "type": "integer",
             "title": "Recordings",
-            "description": "recordings queued to be indexed"
+            "description": "assets queued to be indexed"
           },
           "remaining": {
             "type": "boolean",
@@ -39939,12 +39939,12 @@
           "everything": {
             "type": "boolean",
             "title": "Everything",
-            "description": "opens every recording in the namespace; else the ones chosen on each recording"
+            "description": "opens every asset in the namespace; else the ones chosen on each asset"
           },
           "chosen": {
             "type": "integer",
             "title": "Chosen",
-            "description": "how many recordings it opens when it doesn't open everything",
+            "description": "how many assets it opens when it doesn't open everything",
             "default": 0
           },
           "here": {
@@ -40007,7 +40007,7 @@
           "everything"
         ],
         "title": "IpGroup",
-        "description": "Address ranges whose visitors see all of some of the namespace's recordings without signing in (docs/access.md)."
+        "description": "Address ranges whose visitors see all of some of the namespace's assets without signing in (docs/access.md)."
       },
       "IpGroupCreate": {
         "properties": {
@@ -40030,7 +40030,7 @@
           "everything": {
             "type": "boolean",
             "title": "Everything",
-            "description": "open every recording in the namespace; else choose them on each recording",
+            "description": "open every asset in the namespace; else choose them on each asset",
             "default": false
           }
         },
@@ -40220,7 +40220,7 @@
               }
             ],
             "title": "Title",
-            "description": "the recording's title"
+            "description": "the asset's title"
           },
           "progress": {
             "anyOf": [
@@ -40438,7 +40438,7 @@
               }
             ],
             "title": "Estimates",
-            "description": "GET /jobs/{jid}: how long each step usually takes on this recording, in seconds, from recent runs (null for a step with none)"
+            "description": "GET /jobs/{jid}: how long each step usually takes on this asset, in seconds, from recent runs (null for a step with none)"
           },
           "eta_seconds": {
             "anyOf": [
@@ -42704,7 +42704,7 @@
               }
             ],
             "title": "Namespace",
-            "description": "every recording in this namespace (added to `recordings`)"
+            "description": "every asset in this namespace (added to `recordings`)"
           },
           "set": {
             "additionalProperties": true,
@@ -43129,7 +43129,7 @@
           "enabled": {
             "type": "boolean",
             "title": "Enabled",
-            "description": "conversations scoped to this namespace alone talk to its assistant"
+            "description": "conversations scoped to this namespace alone go to its assistant"
           },
           "name": {
             "type": "string",
@@ -43536,7 +43536,7 @@
           "recordings": {
             "type": "integer",
             "title": "Recordings",
-            "description": "recordings made in the range (without a range: all of them, dated or not)"
+            "description": "assets made in the range (without a range: all of them, dated or not)"
           },
           "ms": {
             "type": "integer",
@@ -43546,12 +43546,12 @@
           "speakers": {
             "type": "integer",
             "title": "Speakers",
-            "description": "speakers heard in them"
+            "description": "people in them"
           },
           "undated": {
             "type": "integer",
             "title": "Undated",
-            "description": "the namespace's recordings without a date: counted only when there's no range",
+            "description": "the namespace's assets without a date: counted only when there's no range",
             "default": 0
           },
           "first": {
@@ -43564,7 +43564,7 @@
               }
             ],
             "title": "First",
-            "description": "the day of the earliest dated recording in the range"
+            "description": "the day of the earliest dated asset in the range"
           },
           "last": {
             "anyOf": [
@@ -43576,7 +43576,7 @@
               }
             ],
             "title": "Last",
-            "description": "the day of the latest dated recording in the range"
+            "description": "the day of the latest dated asset in the range"
           },
           "months": {
             "items": {
@@ -43584,7 +43584,7 @@
             },
             "type": "array",
             "title": "Months",
-            "description": "each calendar month from `from` (else the first recording) to `to` (else the later of today and the last recording), empty ones included; at most the latest 240"
+            "description": "each calendar month from `from` (else the first asset) to `to` (else the later of today and the last asset), empty ones included; at most the latest 240"
           },
           "top_speakers": {
             "items": {
@@ -43592,7 +43592,7 @@
             },
             "type": "array",
             "title": "Top Speakers",
-            "description": "by talk time in the range, most first"
+            "description": "by speaking time in the range, most first"
           }
         },
         "additionalProperties": true,
@@ -44025,7 +44025,7 @@
               }
             ],
             "title": "T0",
-            "description": "the moment it's about, in ms from the start; null: the whole recording"
+            "description": "the moment it's about, in ms from the start; null: the whole asset"
           },
           "t1": {
             "anyOf": [
@@ -44049,12 +44049,12 @@
               }
             ],
             "title": "Quote",
-            "description": "the words picked in the transcript"
+            "description": "the words picked in the text"
           },
           "shared": {
             "type": "boolean",
             "title": "Shared",
-            "description": "everyone who can read the recording sees it",
+            "description": "everyone who can read the asset sees it",
             "default": false
           },
           "created_by": {
@@ -44123,7 +44123,7 @@
           "can_delete": {
             "type": "boolean",
             "title": "Can Delete",
-            "description": "you wrote it, or it's shared and you own the recording's namespace"
+            "description": "you wrote it, or it's shared and you own the asset's namespace"
           }
         },
         "additionalProperties": true,
@@ -44197,7 +44197,7 @@
               }
             ],
             "title": "T0",
-            "description": "the moment it's about, in ms from the start; leave out for the whole recording"
+            "description": "the moment it's about, in ms from the start; leave out for the whole asset"
           },
           "t1": {
             "anyOf": [
@@ -44223,12 +44223,12 @@
               }
             ],
             "title": "Quote",
-            "description": "the words picked in the transcript"
+            "description": "the words picked in the text"
           },
           "shared": {
             "type": "boolean",
             "title": "Shared",
-            "description": "share it with everyone who can read the recording (needs editor access)",
+            "description": "share it with everyone who can read the asset (needs editor access)",
             "default": false
           }
         },
@@ -46217,7 +46217,7 @@
           "on"
         ],
         "title": "NsfwCounts",
-        "description": "NSFW classification in the recordings you can read (docs/nsfw.md)."
+        "description": "NSFW classification in the assets you can read (docs/nsfw.md)."
       },
       "NsfwHit": {
         "properties": {
@@ -46503,7 +46503,7 @@
           "count": {
             "type": "integer",
             "title": "Count",
-            "description": "how many of the recordings with matching moments it's seen in"
+            "description": "how many of the assets with matching moments it's seen in"
           }
         },
         "additionalProperties": true,
@@ -46626,7 +46626,7 @@
           "score"
         ],
         "title": "ObjectTrack",
-        "description": "A kind of object seen in a recording, and where."
+        "description": "A kind of object seen in an asset, and where."
       },
       "OcrFix": {
         "properties": {
@@ -46928,7 +46928,7 @@
               }
             ],
             "title": "Time",
-            "description": "when it was said (\"12:34\"), or for a document its page (\"p. 3\")"
+            "description": "where it is: a time (\"12:34\"), or for a document its page (\"p. 3\")"
           },
           "page": {
             "anyOf": [
@@ -47372,7 +47372,7 @@
           "email"
         ],
         "title": "Permission",
-        "description": "Someone given permission on a recording (docs/access.md): they see all of it on the pages visitors see and in\nIIIF, whatever its access."
+        "description": "Someone given permission on an asset (docs/access.md): they see all of it on the pages visitors see and in\nIIIF, whatever its access."
       },
       "PermissionAdd": {
         "properties": {
@@ -47476,7 +47476,7 @@
             "type": "integer",
             "minimum": 0.0,
             "title": "Idx",
-            "description": "the line (segment) number in the recording"
+            "description": "the line (segment) number in the asset"
           }
         },
         "additionalProperties": false,
@@ -48067,7 +48067,7 @@
             },
             "type": "array",
             "title": "Segments",
-            "description": "the lines: t0, t1 (ms), s (speaker key), text, e (emotion), v (event), and w, the timed words as [c0, c1, t0, t1] (a character range of text, ms) when transcription gave them; a document's or an image's blocks of text have p, their page (from 0), and b, where they are on it ([x, y, w, h] as fractions of the page), and times that are only a reading pace"
+            "description": "the lines: t0, t1 (ms), s (person key), text, e (emotion), v (event), and w, the timed words as [c0, c1, t0, t1] (a character range of text, ms) when transcription gave them; a document's or an image's blocks of text have p, their page (from 0), and b, where they are on it ([x, y, w, h] as fractions of the page), and times that are only a reading pace"
           },
           "sections": {
             "items": {
@@ -48125,7 +48125,7 @@
               }
             ],
             "title": "Media",
-            "description": "kind: audio, video, document or image (audio for a transcript without media), and its size"
+            "description": "kind: audio, video, document or image (audio for text without media), and its size"
           },
           "pages": {
             "anyOf": [
@@ -48188,7 +48188,7 @@
           "id"
         ],
         "title": "Player",
-        "description": "Everything the player shows: transcript, speakers, sections, entities and, for videos, shots and faces; for\ndocuments and images, their pages."
+        "description": "Everything the player shows: text, people, sections, entities and, for videos, shots and faces; for\ndocuments and images, their pages."
       },
       "Podcast": {
         "properties": {
@@ -48730,7 +48730,7 @@
           "episode": {
             "type": "integer",
             "title": "Episode",
-            "description": "the episode's recording id"
+            "description": "the episode's asset id"
           },
           "job": {
             "type": "integer",
@@ -49081,7 +49081,7 @@
           "featured"
         ],
         "title": "PublicCard",
-        "description": "A recording in a list, as this visitor may see it: a locked one (restricted, signed in without permission) shows\nits title only."
+        "description": "An asset in a list, as this visitor may see it: a locked one (restricted, signed in without permission) shows\nits title only."
       },
       "PublicChapter": {
         "properties": {
@@ -49177,7 +49177,7 @@
           "member": {
             "type": "boolean",
             "title": "Member",
-            "description": "the visitor has a role in this namespace, so they see all of its recordings"
+            "description": "the visitor has a role in this namespace, so they see all of its assets"
           },
           "network": {
             "anyOf": [
@@ -49189,12 +49189,12 @@
               }
             ],
             "title": "Network",
-            "description": "the IP group that opens all of its recordings to the visitor's address"
+            "description": "the IP group that opens all of its assets to the visitor's address"
           },
           "total": {
             "type": "integer",
             "title": "Total",
-            "description": "how many recordings this visitor sees here, on all pages"
+            "description": "how many assets this visitor sees here, on all pages"
           },
           "items": {
             "items": {
@@ -49239,7 +49239,7 @@
           "recordings": {
             "type": "integer",
             "title": "Recordings",
-            "description": "how many of its recordings this visitor sees"
+            "description": "how many of its assets this visitor sees"
           },
           "member": {
             "type": "boolean",
@@ -49360,7 +49360,7 @@
           "url"
         ],
         "title": "PublicFile",
-        "description": "A supplementary file a visitor may download: it follows the part its role does (transcripts, captions and\ntranslations the transcript, indexes the index, thumbnails the media); attachments need permission."
+        "description": "A supplementary file a visitor may download: it follows the part its role does (transcripts, captions and\ntranslations the text, indexes the index, thumbnails the media); attachments need permission."
       },
       "PublicHit": {
         "properties": {
@@ -49403,7 +49403,7 @@
             },
             "type": "array",
             "title": "Featured",
-            "description": "featured public recordings, newest first"
+            "description": "featured public assets, newest first"
           },
           "shared": {
             "items": {
@@ -49411,7 +49411,7 @@
             },
             "type": "array",
             "title": "Shared",
-            "description": "recordings the visitor was given permission on, outside their namespaces"
+            "description": "assets the visitor was given permission on, outside their namespaces"
           },
           "collections": {
             "items": {
@@ -49685,7 +49685,7 @@
               "locked"
             ],
             "title": "View",
-            "description": "full: with permission; public: a public recording; locked: restricted, listed with a lock"
+            "description": "full: with permission; public: a public asset; locked: restricted, listed with a lock"
           },
           "access": {
             "type": "string",
@@ -49707,7 +49707,7 @@
             },
             "type": "array",
             "title": "Open",
-            "description": "the parts a public recording opens to everyone"
+            "description": "the parts a public asset opens to everyone"
           },
           "featured": {
             "type": "boolean",
@@ -49716,12 +49716,12 @@
           "member": {
             "type": "boolean",
             "title": "Member",
-            "description": "the visitor has a role in the recording's namespace, so it opens in the workspace too"
+            "description": "the visitor has a role in the asset's namespace, so it opens in the workspace too"
           },
           "granted": {
             "type": "boolean",
             "title": "Granted",
-            "description": "the visitor was given permission on this recording, so they see all of it",
+            "description": "the visitor was given permission on this asset, so they see all of it",
             "default": false
           },
           "network": {
@@ -49794,7 +49794,7 @@
             },
             "type": "array",
             "title": "Closed",
-            "description": "parts the recording has that this visitor can't use"
+            "description": "parts the asset has that this visitor can't use"
           },
           "files": {
             "items": {
@@ -49841,7 +49841,7 @@
           "closed"
         ],
         "title": "PublicRecording",
-        "description": "A recording as this visitor may see it: all of it with permission, else its page, description and open parts,\nor (restricted, signed in) its title only. Parts left out are null."
+        "description": "An asset as this visitor may see it: all of it with permission, else its page, description and open parts,\nor (restricted, signed in) its title only. Parts left out are null."
       },
       "PublicRequest": {
         "properties": {
@@ -49894,7 +49894,7 @@
           "status"
         ],
         "title": "PublicRequest",
-        "description": "Someone's latest request for access to a recording."
+        "description": "Someone's latest request for access to an asset."
       },
       "PublicRequestCreate": {
         "properties": {
@@ -50028,7 +50028,7 @@
             },
             "type": "array",
             "title": "Hits",
-            "description": "matching transcript lines, best first; none where the transcript is closed"
+            "description": "matching lines of text, best first; none where the text is closed"
           }
         },
         "additionalProperties": true,
@@ -50051,7 +50051,7 @@
           "total": {
             "type": "integer",
             "title": "Total",
-            "description": "how many recordings match, on all pages"
+            "description": "how many assets match, on all pages"
           },
           "capped": {
             "type": "boolean",
@@ -50098,7 +50098,7 @@
               }
             ],
             "title": "S",
-            "description": "the speaker's key"
+            "description": "the person's key"
           },
           "text": {
             "type": "string",
@@ -50172,7 +50172,7 @@
             },
             "type": "array",
             "title": "Downloads",
-            "description": "transcript files; offered when the transcript is open to everyone"
+            "description": "text files; offered when the text is open to everyone"
           }
         },
         "additionalProperties": true,
@@ -50259,7 +50259,7 @@
           "statements": {
             "type": "integer",
             "title": "Statements",
-            "description": "other statements kept with the recording"
+            "description": "other statements kept with the asset"
           }
         },
         "additionalProperties": true,
@@ -50684,7 +50684,7 @@
           "space"
         ],
         "title": "Recording",
-        "description": "The recording row (less its envelope) plus what the recording page needs."
+        "description": "The asset row (less its envelope) plus what the asset page needs."
       },
       "RecordingAccess": {
         "properties": {
@@ -50708,7 +50708,7 @@
             },
             "type": "array",
             "title": "Open",
-            "description": "the parts anyone may use when it is public: media, transcript, index"
+            "description": "the parts anyone may use when it is public: media, transcript (the text), index"
           },
           "featured": {
             "type": "boolean",
@@ -50734,7 +50734,7 @@
           "default"
         ],
         "title": "RecordingAccess",
-        "description": "Who may see the recording: public, restricted or private (docs/access.md)."
+        "description": "Who may see the asset: public, restricted or private (docs/access.md)."
       },
       "RecordingAccessUpdate": {
         "properties": {
@@ -50882,12 +50882,12 @@
           "everything": {
             "type": "boolean",
             "title": "Everything",
-            "description": "it opens every recording in the namespace"
+            "description": "it opens every asset in the namespace"
           },
           "opens": {
             "type": "boolean",
             "title": "Opens",
-            "description": "visitors from its addresses see all of this recording"
+            "description": "visitors from its addresses see all of this asset"
           }
         },
         "additionalProperties": true,
@@ -50900,7 +50900,7 @@
           "opens"
         ],
         "title": "RecordingIpGroup",
-        "description": "One of the namespace's IP groups, and whether it opens this recording (docs/access.md)."
+        "description": "One of the namespace's IP groups, and whether it opens this asset (docs/access.md)."
       },
       "RecordingMetadata": {
         "properties": {
@@ -50971,7 +50971,7 @@
           "rediarize": {
             "type": "boolean",
             "title": "Rediarize",
-            "description": "identify its speakers again from their voices in the new namespace (audio only); else matched by name",
+            "description": "identify its people again from their voices in the new namespace (audio only); else matched by name",
             "default": false
           },
           "revoke_shares": {
@@ -51277,7 +51277,7 @@
           "speakers": {
             "type": "string",
             "title": "Speakers",
-            "description": "speaker names, comma separated",
+            "description": "names of the people in it, comma separated",
             "default": ""
           },
           "access": {
@@ -51999,7 +51999,7 @@
                 "type": "null"
               }
             ],
-            "description": "none for a transcript without audio or video"
+            "description": "none for text without audio or video"
           },
           "files": {
             "items": {
@@ -52796,7 +52796,7 @@
             },
             "type": "array",
             "title": "Recordings",
-            "description": "which recordings a pipeline or workflow action takes: new, unprocessed, all, unindexed (not yet searchable by meaning)"
+            "description": "which assets a pipeline or workflow action takes: new, unprocessed, all, unindexed (not yet searchable by meaning)"
           }
         },
         "additionalProperties": true,
@@ -53441,7 +53441,7 @@
               }
             ],
             "title": "Speaker Name",
-            "description": "the speaker's name, when you can read their namespace"
+            "description": "the person's name, when you can read their namespace"
           },
           "emotion": {
             "anyOf": [
@@ -53475,7 +53475,7 @@
               }
             ],
             "title": "Recording Title",
-            "description": "the recording's title, when you can read it"
+            "description": "the asset's title, when you can read it"
           },
           "object": {
             "anyOf": [
@@ -53487,7 +53487,7 @@
               }
             ],
             "title": "Object",
-            "description": "a kind of object the recordings have"
+            "description": "a kind of object the assets have"
           },
           "created_by": {
             "anyOf": [
@@ -53718,7 +53718,7 @@
               }
             ],
             "title": "Object",
-            "description": "a kind of object the recordings have (person, car \u2026)"
+            "description": "a kind of object the assets have (person, car \u2026)"
           },
           "name": {
             "type": "string",
@@ -53808,7 +53808,7 @@
           "partial"
         ],
         "title": "SearchFacets",
-        "description": "How many of all the matching moments are in each namespace, speaker, emotion and recording (up to 50 of each,\nmost first), and the kinds of object seen in the recordings they're in. Text on screen has no speaker or emotion."
+        "description": "How many of all the matching moments are in each namespace, person, emotion and asset (up to 50 of each,\nmost first), and the kinds of object seen in the assets they're in. Text on screen has no person or emotion."
       },
       "SearchHit": {
         "properties": {
@@ -53822,7 +53822,7 @@
               }
             ],
             "title": "Id",
-            "description": "segment id (int) for transcript hits, OCR span or file line id (str) for the others"
+            "description": "segment id (int) for hits in an asset's text, OCR span or file line id (str) for the others"
           },
           "recording_id": {
             "type": "integer",
@@ -53944,7 +53944,7 @@
               "described"
             ],
             "title": "Source",
-            "description": "\"said\" (transcript), \"screen\" (text on screen in a video), \"file\" (a line of a supplementary file), \"page\" (text on a page of a document or an image, whose times are only a reading pace), \"object\" (a kind of object seen in a video, a document or an image, where it's first seen; its snippet is the kind) or \"described\" (what a model that can see said a shot of a video, or a page, shows)"
+            "description": "\"said\" (a line of a transcript or other text), \"screen\" (text on screen in a video), \"file\" (a line of a supplementary file), \"page\" (text on a page of a document or an image, whose times are only a reading pace), \"object\" (a kind of object seen in a video, a document or an image, where it's first seen; its snippet is the kind) or \"described\" (what a model that can see said a shot of a video, or a page, shows)"
           },
           "frame": {
             "anyOf": [
@@ -54048,7 +54048,7 @@
           "nsfw": {
             "type": "boolean",
             "title": "Nsfw",
-            "description": "its recording is flagged NSFW where its namespace blurs or hides that: the web app blurs its frame",
+            "description": "its asset is flagged NSFW where its namespace blurs or hides that: the web app blurs its frame",
             "default": false
           }
         },
@@ -54289,7 +54289,7 @@
               }
             ],
             "title": "T",
-            "description": "when the second part starts, in ms (default: when its first word was said)"
+            "description": "when the second part starts, in ms (default: when its first word starts)"
           },
           "speaker": {
             "anyOf": [
@@ -54301,7 +54301,7 @@
               }
             ],
             "title": "Speaker",
-            "description": "the second part's speaker (an id in the namespace, or null); leave out to keep the line's"
+            "description": "the second part's person (an id in the namespace, or null); leave out to keep the line's"
           }
         },
         "additionalProperties": false,
@@ -54340,7 +54340,7 @@
         "additionalProperties": false,
         "type": "object",
         "title": "SegmentUpdate",
-        "description": "Send ``text``, ``speaker`` (a speaker id in the same namespace, or null), or both."
+        "description": "Send ``text``, ``speaker`` (a person id in the same namespace, or null), or both."
       },
       "SemanticStatus": {
         "properties": {
@@ -54412,12 +54412,12 @@
           "recordings": {
             "type": "integer",
             "title": "Recordings",
-            "description": "recordings in the archive"
+            "description": "assets in the archive"
           },
           "indexed": {
             "type": "integer",
             "title": "Indexed",
-            "description": "recordings indexed with the configured model"
+            "description": "assets indexed with the configured model"
           },
           "min_similarity": {
             "type": "number",
@@ -57098,7 +57098,7 @@
               "transcript"
             ],
             "title": "Documents As",
-            "description": "PDFs, Word and text files become documents (their pages kept and read), or transcripts (their text only)",
+            "description": "PDFs, Word and text files become documents (their pages kept and read), or text only (`transcript`)",
             "default": "document"
           }
         },
@@ -57349,12 +57349,12 @@
           "a": {
             "type": "integer",
             "title": "A",
-            "description": "this namespace's speaker"
+            "description": "this namespace's person"
           },
           "b": {
             "type": "integer",
             "title": "B",
-            "description": "the speaker in another namespace"
+            "description": "the person in another namespace"
           },
           "a_name": {
             "anyOf": [
@@ -57444,7 +57444,7 @@
             },
             "type": "array",
             "title": "Cross",
-            "description": "likely the same voice in another shared namespace you can read (speakers.cross_namespace: suggest), best first; not linked, and not said to be different"
+            "description": "likely the same person in another shared namespace you can read (speakers.cross_namespace: suggest), best first; not linked, and not marked as different"
           }
         },
         "additionalProperties": true,
@@ -57560,7 +57560,7 @@
           "with": {
             "type": "integer",
             "title": "With",
-            "description": "a speaker in another namespace: the same person"
+            "description": "a person in another namespace: the same person"
           }
         },
         "additionalProperties": false,
@@ -57653,7 +57653,7 @@
               }
             ],
             "title": "Recordings",
-            "description": "how many recordings' lines moved to the remaining speaker"
+            "description": "how many assets' lines moved to the remaining person"
           },
           "segments": {
             "anyOf": [
@@ -57704,7 +57704,7 @@
           "into": {
             "type": "integer",
             "title": "Into",
-            "description": "the speaker that remains"
+            "description": "the person that remains"
           }
         },
         "additionalProperties": false,
@@ -57738,7 +57738,7 @@
           "with": {
             "type": "integer",
             "title": "With",
-            "description": "the other speaker"
+            "description": "the other person"
           }
         },
         "additionalProperties": false,
@@ -57827,13 +57827,13 @@
           "talk_ms": {
             "type": "integer",
             "title": "Talk Ms",
-            "description": "how long they talk in the range's recordings",
+            "description": "how long they speak in the range's assets",
             "default": 0
           },
           "recordings": {
             "type": "integer",
             "title": "Recordings",
-            "description": "how many of the range's recordings they talk in",
+            "description": "how many of the range's assets they are in",
             "default": 0
           }
         },
@@ -57966,7 +57966,7 @@
           "key": {
             "type": "string",
             "title": "Key",
-            "description": "saved as outputs.<key> on the recording"
+            "description": "saved as outputs.<key> on the asset"
           },
           "template": {
             "anyOf": [
@@ -58027,7 +58027,7 @@
               }
             ],
             "title": "Queued",
-            "description": "how many recordings were queued, or \"scanning\""
+            "description": "how many assets were queued, or \"scanning\""
           }
         },
         "additionalProperties": true,
@@ -58363,7 +58363,7 @@
           "changed": {
             "type": "integer",
             "title": "Changed",
-            "description": "how many recordings' tags changed"
+            "description": "how many assets' tags changed"
           }
         },
         "additionalProperties": true,
@@ -59189,12 +59189,12 @@
           "count": {
             "type": "integer",
             "title": "Count",
-            "description": "how often it's said"
+            "description": "how often it appears"
           },
           "recordings": {
             "type": "integer",
             "title": "Recordings",
-            "description": "in how many recordings"
+            "description": "in how many assets"
           }
         },
         "additionalProperties": true,
@@ -59464,12 +59464,12 @@
           "label": {
             "type": "string",
             "title": "Label",
-            "description": "what summaries say recordings are about, which no topic covers yet"
+            "description": "what summaries say assets are about, which no topic covers yet"
           },
           "recordings": {
             "type": "integer",
             "title": "Recordings",
-            "description": "how many recordings' summaries say it"
+            "description": "how many assets' summaries say it"
           }
         },
         "additionalProperties": true,
@@ -59788,7 +59788,7 @@
           "recordings": {
             "type": "integer",
             "title": "Recordings",
-            "description": "recordings about it (accepted)",
+            "description": "assets about it (accepted)",
             "default": 0
           },
           "narrower": {
@@ -60679,7 +60679,7 @@
               }
             ],
             "title": "Attach",
-            "description": "the transcript-only recording it becomes the audio of"
+            "description": "the text-only asset it becomes the audio of"
           },
           "pipeline": {
             "anyOf": [
@@ -60703,7 +60703,7 @@
               }
             ],
             "title": "Recording",
-            "description": "the recording it became (or was attached to), once done"
+            "description": "the asset it became (or was attached to), once done"
           },
           "job": {
             "anyOf": [
@@ -60792,7 +60792,7 @@
           "namespace": {
             "type": "string",
             "title": "Namespace",
-            "description": "a namespace you edit; admins may name a new one, created when the upload finishes (default: the recording's)",
+            "description": "a namespace you edit; admins may name a new one, created when the upload finishes (default: the asset's)",
             "default": ""
           },
           "recording": {
@@ -60805,7 +60805,7 @@
               }
             ],
             "title": "Recording",
-            "description": "attach the file to this transcript-only recording as its audio, instead of making a recording of it"
+            "description": "attach the file to this text-only asset as its audio, instead of making an asset of it"
           },
           "filename": {
             "type": "string",
@@ -60830,7 +60830,7 @@
               }
             ],
             "title": "Title",
-            "description": "the recording's title (default: the file's name)"
+            "description": "the asset's title (default: the file's name)"
           },
           "pipeline": {
             "anyOf": [
@@ -60854,7 +60854,7 @@
               }
             ],
             "title": "Collection",
-            "description": "a collection of the namespace to put the recording in (default: its default collection; not with `recording`)"
+            "description": "a collection of the namespace to put the asset in (default: its default collection; not with `recording`)"
           },
           "modified": {
             "anyOf": [
@@ -60867,7 +60867,7 @@
               }
             ],
             "title": "Modified",
-            "description": "the file's last-modified time in milliseconds since 1970; dates the recording when its name doesn't"
+            "description": "the file's last-modified time in milliseconds since 1970; dates the asset when its name doesn't"
           },
           "hold": {
             "type": "boolean",
@@ -61514,7 +61514,7 @@
               }
             ],
             "title": "Speaker",
-            "description": "a speaker's name: whoever has it in the namespaces shown"
+            "description": "a person's name: whoever has it in the namespaces shown"
           },
           "date": {
             "type": "string",
@@ -61639,7 +61639,7 @@
               }
             ],
             "title": "Field",
-            "description": "a custom field of the view's namespace: the recordings with a value for it"
+            "description": "a custom field of the view's namespace: the assets with a value for it"
           },
           "value": {
             "anyOf": [
@@ -62061,7 +62061,7 @@
               }
             ],
             "title": "Kinds",
-            "description": "what to pick up: audio (and video), transcripts, both of those (PDFs read as transcripts), documents (PDFs and images), or all of them (PDFs as documents; the default)"
+            "description": "what to pick up: audio (and video), transcripts, both of those (PDFs read as text), documents (PDFs and images), or all of them (PDFs as documents; the default)"
           },
           "poll_minutes": {
             "anyOf": [
@@ -62263,7 +62263,7 @@
               }
             ],
             "title": "Kinds",
-            "description": "what to pick up: audio (and video), transcripts, both of those (PDFs read as transcripts), documents (PDFs and images), or all of them (PDFs as documents; the default)"
+            "description": "what to pick up: audio (and video), transcripts, both of those (PDFs read as text), documents (PDFs and images), or all of them (PDFs as documents; the default)"
           },
           "include": {
             "anyOf": [
@@ -62320,7 +62320,7 @@
               }
             ],
             "title": "Kinds",
-            "description": "what to pick up: audio (and video), transcripts, both of those (PDFs read as transcripts), documents (PDFs and images), or all of them (PDFs as documents; the default)"
+            "description": "what to pick up: audio (and video), transcripts, both of those (PDFs read as text), documents (PDFs and images), or all of them (PDFs as documents; the default)"
           },
           "poll_minutes": {
             "anyOf": [
@@ -63116,7 +63116,7 @@
               }
             ],
             "title": "Recording",
-            "description": "the recording to try a recording workflow on"
+            "description": "the asset to try a recording workflow on"
           },
           "namespaces": {
             "items": {

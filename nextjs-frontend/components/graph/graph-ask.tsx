@@ -233,7 +233,7 @@ export function GraphAsk({
           value={text}
           onChange={(e) => setText(e.target.value)}
           aria-label="Ask the graph in plain words, or write Cypher"
-          placeholder="Ask the graph (who talks about Acme?) or write Cypher (MATCH …)"
+          placeholder="Ask the graph (who mentions Acme?) or write Cypher (MATCH …)"
           className="h-9 min-w-0 flex-1 bg-transparent text-[13.5px] text-fg outline-hidden placeholder:text-fg-muted"
         />
         <span className={cn("hidden text-[11px] font-semibold text-fg-muted sm:inline", !text.trim() && "invisible")}>

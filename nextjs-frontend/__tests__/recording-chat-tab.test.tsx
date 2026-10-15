@@ -43,7 +43,7 @@ it("opens with a quote from Ask in chat without React's effect error", async () 
     </QueryClientProvider>,
   );
 
-  expect(await screen.findByLabelText("Ask about this recording")).toHaveValue("> “the capsid model” (0:04)\n\n");
+  expect(await screen.findByLabelText("Ask about this asset")).toHaveValue("> “the capsid model” (0:04)\n\n");
   expect(error.mock.calls.flat().join(" ")).not.toMatch(/must not return anything besides a function/);
   error.mockRestore();
 });

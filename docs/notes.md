@@ -3,7 +3,7 @@
 Every resource, entity and topic in Lens has a page of its own, and next to them sit free notes that people and the
 assistant write. The assistant is the main writer and organiser; people can do everything it can.
 
-Status: **built**: pages (free notes in a tree, a page per recording, entity, topic, collection or speaker), @ and #
+Status: **built**: pages (free notes in a tree, a page per asset, entity, topic, collection or person), @ and #
 links with backlinks (# links topics), the tree in the left navigation, the page view with the BlockSuite editor, the
 model keeping titles and summaries up to date, assistant tools to find, read, write and update notes, and MCP tools to
 find, read and write them ([MCP](mcp.md)), page history with restore, suggested links to what a note names, the
@@ -25,7 +25,7 @@ project or area a note fits under, and images and attachments kept where Setting
 | author | `person` or `assistant` |
 
 A thing's page is made the first time someone writes on it; until then `GET /api/v1/notes/about/{kind}/{id}` returns a
-draft with its name and the pages that already link to it. A page follows its recording to another namespace. When a
+draft with its name and the pages that already link to it. A page follows its asset to another namespace. When a
 thing is deleted, or an entity is merged into another, its page stays as a free note at the top of the tree, so
 nothing written on it is lost.
 
@@ -113,7 +113,7 @@ way, beside recordings, pages and settings.
 ## Access
 
 Pages belong to a namespace: anyone with a role there reads them, editors write, move and delete them. The pages of
-recordings also need access to the recording.
+assets also need access to the asset.
 
 ## Editor
 

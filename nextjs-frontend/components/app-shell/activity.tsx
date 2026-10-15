@@ -70,7 +70,7 @@ export function ActivityPill() {
     if (job.status === "succeeded" && job.recording != null)
       toast({
         tone: "green",
-        title: `${job.title ?? "A recording"} is ready`,
+        title: `${job.title ?? "An asset"} is ready`,
         body: `${specs.length} ${specs.length === 1 ? "step" : "steps"}${took != null ? ` · ${span(took)}` : ""}`,
         action: {
           label: "Open",
@@ -208,7 +208,7 @@ function ActivityList({ jobs, loading, error }: { jobs: JobRecord[]; loading: bo
             key={j.id}
             status={j.status}
             href={`/activity/${j.id}`}
-            title={`${j.status === "succeeded" ? "" : `${step} · `}${j.title ?? `Recording ${j.recording}`}`}
+            title={`${j.status === "succeeded" ? "" : `${step} · `}${j.title ?? `Asset ${j.recording}`}`}
             meta={meta}
             metaTone={j.status === "failed" ? "red" : "muted"}
             sub={sub}

@@ -134,7 +134,7 @@ export function PlaceDialog({
       open={open}
       onOpenChange={(o) => !place.isPending && onOpenChange(o)}
       title={`Move ${title} to a collection`}
-      description={`Collections of ${ns}. Recordings live in one collection; IIIF lists them there.`}
+      description={`Collections of ${ns}. Assets live in one collection; IIIF lists them there.`}
       actions={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -229,7 +229,7 @@ export function CollectionsDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={`Collections in ${ns}`}
-      description="Every recording lives in one collection. New recordings go to the default unless someone picks another."
+      description="Every asset lives in one collection. New assets go to the default unless someone picks another."
       className="max-w-[640px]"
       actions={
         <>
@@ -516,9 +516,9 @@ export function CollectionsDialog({
 }
 
 const ROLE_HINT: Record<CollectionMember["role"], string> = {
-  viewer: "Sees its recordings",
-  editor: "Sees and edits its recordings",
-  admin: "Runs it: arranges it, gives roles, acts as an owner of its recordings",
+  viewer: "Sees its assets",
+  editor: "Sees and edits its assets",
+  admin: "Runs it: arranges it, gives roles, acts as an owner of its assets",
 };
 
 const ROLE_OPTIONS = [
