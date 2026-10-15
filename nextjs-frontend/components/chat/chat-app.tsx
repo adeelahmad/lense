@@ -568,7 +568,7 @@ export function ChatApp() {
   return (
     <div
       className={cn(
-        "grid h-[calc(100dvh-4rem)] grid-cols-1 md:grid-cols-[260px_minmax(0,1fr)]",
+        "grid h-[calc(100dvh-4rem-var(--lens-banner,0px))] grid-cols-1 md:grid-cols-[260px_minmax(0,1fr)]",
         !setupChat && "xl:grid-cols-[260px_minmax(0,1fr)_360px]",
       )}
     >

@@ -350,18 +350,28 @@ def _span(event):
     return f"{_shown(s)} to {_shown(end)}"
 
 
+def _skipped(event):
+    """The occurrences of a repeating event that don't happen (its EXDATEs), in order."""
+    out = [when(p, x, event.get("zones")) for p, v in all_of(event, "EXDATE") for x in (v or "").split(",")]
+    return sorted((t for t in out if t is not None), key=iso)
+
+
 def event_text(event):
-    """An event as Markdown: its summary as the heading, when and where, who, how it repeats, then its description.
-    The details are 'Label — value' lines, so the transcript reader doesn't take them for speakers."""
+    """An event as Markdown: its summary as the heading, when and where, who, how it repeats (and the occurrences that
+    don't happen), its video call, then its description. The details are 'Label — value' lines, so the transcript
+    reader doesn't take them for speakers."""
     title = summary(event) or "(no title)"
     rows = [("When", _span(event))]
     rows.append(("Where", unescape(first(event, "LOCATION")[1] or "").strip()))
     p, v = first(event, "ORGANIZER")
     rows.append(("Organizer", _person(p, v) if v else ""))
     rows.append(("Attendees", ", ".join(_person(p, v) for p, v in all_of(event, "ATTENDEE"))))
-    rows.append(("Repeats", (first(event, "RRULE")[1] or "").strip()))
+    rule = (first(event, "RRULE")[1] or "").strip()
+    rows.append(("Repeats", rule))
+    rows.append(("Except", "; ".join(_shown(t) for t in _skipped(event)) if rule else ""))
     status = (first(event, "STATUS")[1] or "").strip().lower()
     rows.append(("Status", status if status and status != "confirmed" else ""))
+    rows.append(("Meeting", (first(event, "CONFERENCE")[1] or "").strip()))
     rows.append(("Link", (first(event, "URL")[1] or "").strip()))
     head = [f"{k} — {v}" for k, v in rows if v]
     desc = unescape(first(event, "DESCRIPTION")[1] or "").strip()

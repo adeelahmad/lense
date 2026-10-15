@@ -147,7 +147,12 @@ export function VideoLayout({
   );
 
   return (
-    <div className={cn("flex flex-col", !compact && mode === "side" && "h-[calc(100dvh-4rem)] overflow-hidden")}>
+    <div
+      className={cn(
+        "flex flex-col",
+        !compact && mode === "side" && "h-[calc(100dvh-4rem-var(--lens-banner,0px))] overflow-hidden",
+      )}
+    >
       {compact ? (
         <div className="flex items-center gap-1.5 border-b border-border px-2 pb-2 pt-1">
           <Link
