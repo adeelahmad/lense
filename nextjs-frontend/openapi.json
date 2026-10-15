@@ -53121,6 +53121,12 @@
             ],
             "description": "what the process running it says; none while it's off"
           },
+          "add_files": {
+            "type": "boolean",
+            "title": "Add Files",
+            "description": "whether files people add through it are imported (shares.add_files)",
+            "default": false
+          },
           "webdav": {
             "$ref": "#/components/schemas/ShareServer"
           },
@@ -55835,6 +55841,12 @@
               }
             ],
             "description": "what the process running it says; none while it's off"
+          },
+          "add_files": {
+            "type": "boolean",
+            "title": "Add Files",
+            "description": "whether files people add through it are imported (shares.add_files)",
+            "default": false
           }
         },
         "additionalProperties": true,

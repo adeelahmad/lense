@@ -4,6 +4,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Files added over S3 and WebDAV are imported.** Copy a file into a collection's folder (`rclone copy`, Finder,
+  Windows Explorer, any S3 client) and it's imported there as an upload is, with the same checks and the namespace's
+  pipeline; a new folder under `Collections` is a new collection, and a file anywhere else goes to the namespace's
+  default collection. It takes the import permission (or an editor's role on the collection), files the system writes
+  for itself (`.DS_Store`, `Thumbs.db`, half-written files) are never imported, and a re-sync copies nothing twice.
+  The S3 server now takes streamed and multipart uploads; WebDAV takes PUT, MKCOL and Finder's and Explorer's ways of
+  copying. This is on whenever the shares are; **Import files people add** in Settings, File shares
+  (`shares.add_files`) turns it off and makes them read-only again ([Adding files](docs/file-tree.md#adding-files)).
+
 ## 0.10.0 <small>October 15, 2026</small> {id="0.10.0"}
 
 - **The assistant always answers.** When a question used up its tool steps (`ai.max_steps`), the assistant used to stop

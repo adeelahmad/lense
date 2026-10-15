@@ -14937,6 +14937,12 @@ export type S3Status = {
    * what the process running it says; none while it's off
    */
   service?: S3Service | null;
+  /**
+   * Add Files
+   *
+   * whether files people add through it are imported (shares.add_files)
+   */
+  add_files?: boolean;
   webdav: ShareServer;
   /**
    * Keys
@@ -16454,6 +16460,12 @@ export type ShareServer = {
    * what the process running it says; none while it's off
    */
   service?: S3Service | null;
+  /**
+   * Add Files
+   *
+   * whether files people add through it are imported (shares.add_files)
+   */
+  add_files?: boolean;
   [key: string]: unknown;
 };
 

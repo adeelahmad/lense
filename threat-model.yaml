@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:f430a4e9bedcf37ca6a5f5e2e782a3e72a9ac674b6dc78ebc91fc152af9e92a4"
+prose_version: "threat-model.md@sha256:00a211d9cad408ad3e7b856b7902e404c0ab9ab1fc2057d4f12020911d6796f3"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -1113,7 +1113,7 @@ build_flags:
     default: "off"
     security_relevant: true
     maintainer_stance: supported
-    x-scope: "opens the read-only S3 and WebDAV servers for the asset tree on shares.s3_port and shares.webdav_port"
+    x-scope: "opens the S3 and WebDAV servers for the asset tree on shares.s3_port and shares.webdav_port; with shares.add_files (on) files people add are imported where they may import"
     affects_properties:
       - {property_id: P-SHARES, effect: narrows}
     provenance: {kind: documented, source: 'docs/file-tree.md "Off until an admin turns it on"'}
@@ -1552,9 +1552,9 @@ properties_claimed:
     kind: authentication
     components: [optional]
     tier: security-critical
-    conditions: "the file shares (S3, WebDAV) are off until an admin enables them; every request carries a person's own access key (SigV4 or Basic), reads as them and never writes"
+    conditions: "the file shares (S3, WebDAV) are off until an admin enables them; every request carries a person's own access key (SigV4 or Basic) and reads as them; files written are imported only where that person may import, checked and size-capped as uploads, never over an asset or a file Lens made; shares.add_files off: read-only"
     violation_symptoms: [info-leak, integrity-bypass]
-    x-voided-by: "plain HTTP on the network with LENS_BIND=0.0.0.0 (WebDAV's Basic secret in clear); secrets sealed with the server key, not hashed (domain/s3.py)"
+    x-voided-by: "plain HTTP on the network with LENS_BIND=0.0.0.0 (WebDAV's Basic secret in clear); secrets sealed with the server key, not hashed (domain/s3.py); a leaked key adds files as its owner can (domain/share_import.py)"
     provenance: {kind: documented, source: 'docs/file-tree.md "Off until an admin turns it on"'}
   - id: P-CHILD-SECRETS
     kind: confidentiality

@@ -143,15 +143,10 @@ def _home(db, sid, collection):
         return store.default_collection(db, sid)
 
 
-def start(db, cfg, ns, filename, size, by, title=None, modified=None, attach=None, pipeline=None, collection=None, hold=False):
-    """A new upload into namespace `ns`, by `by` ({id, email}). Its name, type and size are checked, and the disk
-    must have room for it; nothing is in the archive until the last byte arrives. `modified` is the file's own time
-    (milliseconds since 1970), which dates the recording when its name doesn't. `attach` is a transcript-only
-    recording in `ns` the file becomes the audio of, instead of a recording of its own; `pipeline` runs instead of the
-    namespace's once a new recording is made; `collection` (one of the namespace's) is where it goes, else the
-    namespace's default. `hold` keeps it out of the archive once it's all here (state "held", no namespace yet), for
-    the assistant to place with `place` (a file dropped into a conversation)."""
-    sweep(db, cfg)
+def check(cfg, filename, size, attach=None):
+    """The name a file is kept under, once its type and size are ones that can be uploaded here (ValueError, or
+    TooLarge, saying why not): what start() checks before anything is sent, for servers that ask before they read a
+    file (the file shares, share_import.py)."""
     u = cfg["uploads"]
     name = clean_name(filename)
     ext = pathlib.Path(name).suffix
@@ -169,6 +164,19 @@ def start(db, cfg, ns, filename, size, by, title=None, modified=None, attach=Non
         raise ValueError("the file is empty")
     if size > u["max_mb"] * MB:
         raise TooLarge(f"files up to {u['max_mb']} MB")
+    return name
+
+
+def start(db, cfg, ns, filename, size, by, title=None, modified=None, attach=None, pipeline=None, collection=None, hold=False):
+    """A new upload into namespace `ns`, by `by` ({id, email}). Its name, type and size are checked, and the disk
+    must have room for it; nothing is in the archive until the last byte arrives. `modified` is the file's own time
+    (milliseconds since 1970), which dates the recording when its name doesn't. `attach` is a transcript-only
+    recording in `ns` the file becomes the audio of, instead of a recording of its own; `pipeline` runs instead of the
+    namespace's once a new recording is made; `collection` (one of the namespace's) is where it goes, else the
+    namespace's default. `hold` keeps it out of the archive once it's all here (state "held", no namespace yet), for
+    the assistant to place with `place` (a file dropped into a conversation)."""
+    sweep(db, cfg)
+    name = check(cfg, filename, size, attach)
     folder = _dir(cfg) / ".partial"
     folder.mkdir(parents=True, exist_ok=True)
     if shutil.disk_usage(folder).free < size + ROOM:
@@ -434,12 +442,14 @@ def _attach(db, cfg, rid, sid, dest, st, fp, by, probed):
     return jobs.add_steps(db, rid, ATTACH_STEPS, by=by)
 
 
-def take(db, cfg, ns, path, filename, by, title=None, pipeline=None, collection=None, hold=False):
-    """A whole file that arrived some other way (an import webhook, a chat channel), at `path` on the same disk as the
-    uploads folder, uploaded into namespace `ns` in one go: it's checked as start() checks a file, moved into place
-    and finished as if its last chunk had just arrived. The namespace must exist; with `hold` there's none yet (ns ""):
-    it's held for the assistant to place, as a file dropped into a conversation is. Returns the upload."""
-    row = start(db, cfg, ns, filename, os.path.getsize(path), by, title=title, pipeline=pipeline, collection=collection, hold=hold)
+def take(db, cfg, ns, path, filename, by, title=None, pipeline=None, collection=None, hold=False, modified=None):
+    """A whole file that arrived some other way (an import webhook, a chat channel, a file share), at `path` on the same
+    disk as the uploads folder, uploaded into namespace `ns` in one go: it's checked as start() checks a file, moved
+    into place and finished as if its last chunk had just arrived. The namespace must exist; with `hold` there's none
+    yet (ns ""): it's held for the assistant to place, as a file dropped into a conversation is. `modified` is the
+    file's own time, as for start(). Returns the upload."""
+    size = os.path.getsize(path)
+    row = start(db, cfg, ns, filename, size, by, title=title, modified=modified, pipeline=pipeline, collection=collection, hold=hold)
     os.replace(path, _part(cfg, row["id"]))
     try:
         return received(db, cfg, row["id"])

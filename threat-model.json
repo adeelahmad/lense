@@ -1119,7 +1119,7 @@
       "property": "P-SHARES",
       "violation_symptom": "info-leak, integrity-bypass",
       "severity_tier": "security",
-      "conditions": "the file shares (S3, WebDAV) are off until an admin enables them; every request carries a person's own access key (SigV4 or Basic), reads as them and never writes",
+      "conditions": "the file shares (S3, WebDAV) are off until an admin enables them; every request carries a person's own access key (SigV4 or Basic) and reads as them; files written are imported only where that person may import, checked and size-capped as uploads, never over an asset or a file Lens made; shares.add_files off: read-only",
       "provenance": "documented",
       "source": "docs/file-tree.md \"Off until an admin turns it on\""
     },

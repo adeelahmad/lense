@@ -1,5 +1,6 @@
-"""File shares (docs/file-tree.md): the servers that share the graph as files (filetree.py) on the network, read-only, with
-people's own access keys (s3.py): S3 (s3.py) and WebDAV (webdav.py).
+"""File shares (docs/file-tree.md): the servers that share the graph as files (filetree.py) on the network, with
+people's own access keys (s3.py): S3 (s3.py) and WebDAV (webdav.py). Files people add through them are imported
+(share_import.py) while `shares.add_files` is on.
 
 Off until an admin turns them on (`shares.enabled`, then `s3` and `webdav`); the process that runs routines (`lens
 worker`) follows the settings as they change, as the sensor hub does, and says what each server is doing in
@@ -126,10 +127,12 @@ def start(db, cfg_fn, stop, log=None, name=None):
 
 
 def status(db, cfg):
-    """{protocol: {enabled, port, service}}: whether it's on, its port, and what the process running it says."""
+    """{protocol: {enabled, port, service, add_files}}: whether it's on, its port, what the process running it says,
+    and whether files people add are imported."""
     s, out = settings_of(cfg), {}
     for proto, (_, port) in PROTOCOLS.items():
         row = db.one("SELECT * FROM $r", r=_row(proto)) or {}
         row.pop("id", None)
-        out[proto] = {"enabled": bool(s.get("enabled") and s.get(proto)), "port": int(s[port]), "service": row or None}
+        out[proto] = {"enabled": bool(s.get("enabled") and s.get(proto)), "port": int(s[port]), "service": row or None,
+                      "add_files": bool(s.get("add_files"))}  # fmt: skip
     return out

@@ -54,8 +54,11 @@ export function S3Keys() {
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <h2 className="text-[18px] font-bold leading-[1.2] text-fg">File share access keys</h2>
           <p className="text-[13.5px] leading-[1.4] text-fg-secondary">
-            Read the archive as folders and files from any S3 client (rclone, Cyberduck, the AWS CLI). A key reads as
-            you; nothing can be changed through it.
+            Read the archive as folders and files from any S3 client (rclone, Cyberduck, the AWS CLI), or mount it as a
+            drive over WebDAV. A key acts as you
+            {status.data?.add_files
+              ? ": files you copy into a collection’s folder are imported there, where you may add files."
+              : "; nothing can be changed through it."}
             {status.data && !status.data.enabled && " An admin turns sharing on in Settings, File shares."}
           </p>
         </div>
