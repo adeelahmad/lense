@@ -202,7 +202,7 @@ export function SourcesPage() {
     const oauth = Boolean(s.oauth);
     return (
       <div className="flex shrink-0 items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-        {bad && s.type === "gcal" && /Google account/.test(s.health?.error ?? "") ? (
+        {bad && (s.type === "gcal" || s.type === "gmail") && /Google account/.test(s.health?.error ?? "") ? (
           <Button
             size="sm"
             variant="secondary"

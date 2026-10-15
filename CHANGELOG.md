@@ -20,6 +20,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   was. Deleted notes wait in Recently deleted, at the bottom of the Notes page, for 30 days with their files and
   history, to put back with one click or delete for good; then they go on their own
   ([Deleting and putting back](docs/notes.md#deleting-and-putting-back)).
+- **Connect Gmail with Google.** Add connection › Gmail now has the Google account and Service account choice and
+  **Connect with Google**, as Google Calendar does: Google asks to read mail (read only; all of Gmail to read over
+  IMAP), the account's address becomes the connection's, and its labels open to pick one to watch. A service account
+  takes its key and the address it reads, and says which client ID and scope a Workspace admin allows. A Gmail
+  connection whose sign-in stopped working has **Connect Google account** on its row
+  ([Gmail and Google Workspace](docs/processing.md#gmail-and-google-workspace)).
 - **Connect with Google.** A Google Calendar connection signs in to a Google account from a button now: Google's consent
   screen asks for read-only calendar access and sends you back to Sources with the account connected and its calendars
   open. It uses the Google sign-in provider's OAuth client, an earlier connection's, or one entered in the form, which

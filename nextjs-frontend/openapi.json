@@ -20328,7 +20328,7 @@
           "sources"
         ],
         "summary": "Connect Google",
-        "description": "Connect a Google account to a Google source (Google Calendar): open the returned address in this browser, consent\nthere, and Google sends you back to the Sources page with the account connected. Its refresh token is kept sealed on\nthe source. Without a client here, the Google sign-in provider's (Settings \u203a Sign-in) or an earlier connection's is\nused. Only from the web app: the consent comes back to the browser that asked (an agent saves an authorized user\nJSON it already has as the source's `token` instead). Audited as `source.google_connect`.",
+        "description": "Connect a Google account to a Google source (Gmail, Google Calendar): open the returned address in this browser,\nconsent there, and Google sends you back to the Sources page with the account connected. Its refresh token is kept\nsealed on the source. Without a client here, the Google sign-in provider's (Settings \u203a Sign-in) or an earlier connection's is\nused. Only from the web app: the consent comes back to the browser that asked (an agent saves an authorized user\nJSON it already has as the source's `token` instead). Audited as `source.google_connect`.",
         "operationId": "connect_google",
         "parameters": [
           {

@@ -17,6 +17,7 @@ export const TYPE_ORDER: SourceType[] = [
   "webdav",
   "local",
   "imap",
+  "gmail",
   "ical",
   "gcal",
 ];
@@ -79,6 +80,7 @@ export const FIELD_LABEL: Record<string, string> = {
   security: "Security",
   calendars: "Calendars",
   days_back: "Days back",
+  via: "Read through",
 };
 
 export const S3_PROVIDERS = [
@@ -104,6 +106,16 @@ export const IMAP_SECURITY = [
   { value: "starttls", label: "STARTTLS (port 143)" },
   { value: "none", label: "None (not encrypted)" },
 ];
+
+export const GMAIL_VIA = [
+  { value: "api", label: "Gmail API (read only)" },
+  { value: "imap", label: "IMAP (Google asks for all of Gmail)" },
+];
+
+/** What a Gmail source reads with, the way it reads: what a Workspace admin allows a service account. */
+export function gmailScope(via: string | undefined): string {
+  return via === "imap" ? "https://mail.google.com/" : "https://www.googleapis.com/auth/gmail.readonly";
+}
 
 const IMAP_HOSTS: Record<string, string> = {
   "gmail.com": "imap.gmail.com",
@@ -432,8 +444,8 @@ export type ConnForm = {
   sftpAuth: "pass" | "key_pem";
   /** What was pasted from `rclone authorize` (OAuth types). */
   tokenText: string;
-  /** Google Drive and Google Calendar sign in as a Google account (a token), or as a service account (its JSON key
-   * file). */
+  /** Google Drive, Google Calendar and Gmail sign in as a Google account (a token), or as a service account (its JSON
+   * key file). */
   driveAuth: "token" | "service_account";
   /** How an OAuth connection (Dropbox, Google Drive, OneDrive) gets its token: signing in through rclone on the
    * server, or pasting what `rclone authorize` printed on another computer. */
@@ -449,7 +461,10 @@ export const SIGNIN_SERVICE: Partial<Record<SourceType, string>> = {
   onedrive: "Microsoft",
 };
 
-export type ServiceAccountKey = { ok: true; email: string } | { ok: false; error: string };
+/** The types that sign in as a Google account or as a service account. */
+export const GOOGLE: SourceType[] = ["drive", "gcal", "gmail"];
+
+export type ServiceAccountKey = { ok: true; email: string; clientId: string } | { ok: false; error: string };
 
 export type GoogleAccountCheck = { ok: true; json: string } | { ok: false; error: string } | { ok: null };
 
@@ -472,7 +487,7 @@ export function parseGoogleAccount(text: string): GoogleAccountCheck {
 
 /** A Google Cloud service account key file: what it signs in as, or why it isn't one. */
 export function parseServiceAccountKey(text: string): ServiceAccountKey {
-  let o: { type?: unknown; client_email?: unknown; private_key?: unknown } | null;
+  let o: { type?: unknown; client_email?: unknown; client_id?: unknown; private_key?: unknown } | null;
   try {
     o = JSON.parse(text);
   } catch {
@@ -489,7 +504,7 @@ export function parseServiceAccountKey(text: string): ServiceAccountKey {
       ok: false,
       error: "That isn’t a service account key. In Google Cloud: IAM › Service accounts › Keys › Add key › JSON.",
     };
-  return { ok: true, email: o.client_email };
+  return { ok: true, email: o.client_email, clientId: typeof o.client_id === "string" ? o.client_id : "" };
 }
 
 export function emptyForm(spec: BackendSpec, source?: Pick<Source, "name" | "params" | "secrets"> | null): ConnForm {
@@ -511,6 +526,7 @@ export function emptyForm(spec: BackendSpec, source?: Pick<Source, "name" | "par
 
 /** A name for a new connection, from what was typed ("SFTP · calls-gw", "S3 · eu-central-1", "Dropbox"). */
 export function suggestName(type: SourceType, params: Record<string, string>): string {
+  if (type === "gmail") return params.user?.trim() ? `Gmail · ${params.user.trim()}` : "Gmail";
   const host = (params.host || params.url || "").replace(/^(https?|webcals?):\/\//i, "").split(/[/:]/)[0];
   const extra =
     type === "s3" ? [params.provider !== "AWS" ? params.provider : "", params.region].filter(Boolean).join(" ") : host;
@@ -534,7 +550,7 @@ export function validateForm(
     if (!str(form.params[k])) e[k] = msg;
   };
   const secret = (k: string) => (form.secrets[k] === undefined ? editing && isSet(k) : Boolean(form.secrets[k]));
-  const serviceAccount = (type === "drive" || type === "gcal") && form.driveAuth === "service_account";
+  const serviceAccount = GOOGLE.includes(type) && form.driveAuth === "service_account";
   if (serviceAccount) {
     const k = form.secrets.service_account_credentials;
     const key = k ? parseServiceAccountKey(k) : null;
@@ -570,12 +586,13 @@ export function validateForm(
     if (form.params.port && !/^\d{1,5}$/.test(form.params.port.trim())) e.port = "A port is a number, e.g. 993.";
     if (!secret("pass")) e.pass = "Enter the password (an app password, where the provider has them).";
   }
+  if ((type === "gcal" || type === "gmail") && form.driveAuth === "token") {
+    const t = parseGoogleAccount(form.secrets.token ?? "");
+    if (t.ok === false) e.token = t.error;
+    else if (t.ok === null && !secret("token")) e.token = "Connect a Google account first.";
+  }
+  if (type === "gmail" && serviceAccount) need("user", "Enter the address of the person whose mail Lens reads.");
   if (type === "gcal") {
-    if (form.driveAuth === "token") {
-      const t = parseGoogleAccount(form.secrets.token ?? "");
-      if (t.ok === false) e.token = t.error;
-      else if (t.ok === null && !secret("token")) e.token = "Connect a Google account first.";
-    }
     if (form.params.days_back && !/^\d{1,5}$/.test(form.params.days_back.trim()))
       e.days_back = "A number of days, or empty for every event.";
   }
@@ -601,9 +618,7 @@ export function buildPayload(
     const v = form.secrets[k];
     const other =
       (type === "sftp" && k !== form.sftpAuth) ||
-      ((type === "drive" || type === "gcal") &&
-        k === "service_account_credentials" &&
-        form.driveAuth !== "service_account");
+      (GOOGLE.includes(type) && k === "service_account_credentials" && form.driveAuth !== "service_account");
     if (other) {
       // Signing in one way drops the other secret only when it was explicitly cleared.
       if (v === "") secrets[k] = null;
@@ -612,17 +627,17 @@ export function buildPayload(
     if (v === undefined) continue;
     secrets[k] = v === "" ? null : type === "sftp" && k === "key_pem" ? v.replace(/\r\n/g, "\n") : v;
   }
-  if (type === "gcal") {
+  if (type === "gcal" || type === "gmail") {
     const t = parseGoogleAccount(form.secrets.token ?? "");
     if (form.driveAuth === "service_account") {
       if (secrets.service_account_credentials) {
         secrets.token = null; // a key file signs in before the account would
-        params.account = "";
+        if (type === "gcal") params.account = "";
       }
     } else if (t.ok) {
       secrets.token = t.json;
       secrets.service_account_credentials = null;
-      params.account = ""; // a pasted account doesn't say whose it is
+      if (type === "gcal") params.account = ""; // a pasted account doesn't say whose it is (Gmail's user is typed)
     }
   } else if (type === "drive" && form.driveAuth === "service_account") {
     if (secrets.service_account_credentials) secrets.token = null; // rclone would sign in as the account anyway
