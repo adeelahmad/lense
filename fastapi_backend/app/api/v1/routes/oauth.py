@@ -21,7 +21,7 @@ from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api.deps import Cfg, CurrentUser, Db, client_ip, domain_errors, visitor_address
+from app.api.deps import MCP_RESOURCE, Cfg, CurrentUser, Db, client_ip, domain_errors, visitor_address
 from app.config import settings
 from app.domain import auth, oauth
 from app.schemas.common import Ok
@@ -117,10 +117,11 @@ def _client_credentials(request: Request, client_id: str | None, client_secret: 
 async def bearer_challenge(request: Request, exc: StarletteHTTPException) -> Response:
     """401s that ask for a bearer token say where to find out how to get one (RFC 9728 §5.1), as MCP clients expect."""
     if exc.status_code == 401 and (exc.headers or {}).get("WWW-Authenticate") == "Bearer" and _on(request):
-        # the MCP server is a resource of its own (/mcp), so clients that check what the metadata names see their URL;
-        # its tools only read, so that's all it asks for
-        mcp = request.url.path == MCP
-        meta = f"{public_base(request)}/.well-known/oauth-protected-resource" + (MCP if mcp else "")
+        # the MCP server is a resource of its own (/mcp), as is each namespace's (/mcp/<namespace>), so clients that
+        # check what the metadata names see their URL; its tools only read, so that's all it asks for
+        path = request.url.path.rstrip("/")
+        mcp = path == MCP or MCP_RESOURCE.match(path) is not None
+        meta = f"{public_base(request)}/.well-known/oauth-protected-resource" + (path if mcp else "")
         challenge = f'Bearer resource_metadata="{meta}"' + (f', scope="{MCP_SCOPE}"' if mcp else "")
         exc = StarletteHTTPException(401, exc.detail, headers={**(exc.headers or {}), "WWW-Authenticate": challenge})
     return await http_exception_handler(request, exc)
@@ -160,7 +161,7 @@ def protected_resource(request: Request, rest: str = "") -> JSONResponse:
         "resource": f"{base}/{rest}" if rest else base,
         "authorization_servers": [base],
         "bearer_methods_supported": ["header"],
-        "scopes_supported": [MCP_SCOPE] if f"/{rest}" == MCP else list(oauth.SCOPES),
+        "scopes_supported": [MCP_SCOPE] if f"/{rest}" == MCP or MCP_RESOURCE.match(f"/{rest}") else list(oauth.SCOPES),
         "resource_name": settings.PROJECT_NAME,
     }
     return _discovery(doc)

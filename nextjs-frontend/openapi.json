@@ -6385,6 +6385,100 @@
         }
       }
     },
+    "/api/v1/namespaces/{name}/integrations": {
+      "get": {
+        "tags": [
+          "namespaces"
+        ],
+        "summary": "Get Namespace Integrations",
+        "description": "Whether the namespace's own MCP server is on, and its address.",
+        "operationId": "get_namespace_integrations",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NamespaceIntegrations"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "namespaces"
+        ],
+        "summary": "Update Namespace Integrations",
+        "description": "Owners: turn the namespace's own MCP server on or off. Off, it answers 403; apps keep their access to the rest of\nLens as before.",
+        "operationId": "update_namespace_integrations",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NamespaceIntegrationsUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NamespaceIntegrations"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/namespaces/{name}/collections": {
       "get": {
         "tags": [
@@ -43664,6 +43758,68 @@
           "merges"
         ],
         "title": "NamespaceFaces"
+      },
+      "NamespaceIntegrations": {
+        "properties": {
+          "mcp": {
+            "type": "boolean",
+            "title": "Mcp",
+            "description": "the namespace's own MCP server answers, seeing this namespace alone"
+          },
+          "mcp_url": {
+            "type": "string",
+            "title": "Mcp Url",
+            "description": "where MCP clients connect to it"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "mcp",
+          "mcp_url"
+        ],
+        "title": "NamespaceIntegrations"
+      },
+      "NamespaceIntegrationsUpdate": {
+        "properties": {
+          "mcp": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mcp"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "NamespaceIntegrationsUpdate",
+        "description": "Only the fields you send change."
       },
       "NamespaceMetadata": {
         "properties": {

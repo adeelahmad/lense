@@ -40,6 +40,7 @@ from app.domain import (
     feeds,
     filetree,
     graph_history,
+    integrations,
     library,
     monitoring,
     notebook,
@@ -75,6 +76,7 @@ class Context:
     cfg: dict[str, Any]
     acl: Access
     web: str
+    ns: str | None = None  # a namespace's own MCP server (/mcp/<namespace>): the one namespace it sees
 
     @property
     def user(self) -> Principal:
@@ -199,16 +201,21 @@ class Tool:
     args: tuple[Arg, ...]
     run: Callable[..., dict[str, Any]] = field(compare=False)
     writes: bool = False  # asks for a change: needs a write-scope token, and says so in its annotations
+    admin: bool = False  # about the server, not the archive: admins only, and not on a namespace's own server
 
-    def definition(self) -> dict[str, Any]:
+    def definition(self, ns: str | None = None) -> dict[str, Any]:
+        """As tools/list has it; on namespace `ns`'s own server, its namespace argument is that one unless given."""
+        props = {a.name: a.schema() for a in self.args}
+        if ns and "namespace" in props:
+            props["namespace"]["description"] += f" (this server sees {ns} alone, the default)"
         return {
             "name": self.name,
             "title": self.title,
             "description": self.description,
             "inputSchema": {
                 "type": "object",
-                "properties": {a.name: a.schema() for a in self.args},
-                "required": [a.name for a in self.args if a.required],
+                "properties": props,
+                "required": [a.name for a in self.args if a.required and not (ns and a.name == "namespace")],
                 "additionalProperties": False,
             },
             "annotations": {
@@ -225,17 +232,22 @@ TOOLS: dict[str, Tool] = {}
 
 
 def tool(
-    name: str, title: str, description: str, *args: Arg, writes: bool = False
+    name: str, title: str, description: str, *args: Arg, writes: bool = False, admin: bool = False
 ) -> Callable[[Callable[..., dict[str, Any]]], Callable[..., dict[str, Any]]]:
     def register(fn: Callable[..., dict[str, Any]]) -> Callable[..., dict[str, Any]]:
-        TOOLS[name] = Tool(name, title, description, args, fn, writes)
+        TOOLS[name] = Tool(name, title, description, args, fn, writes, admin)
         return fn
 
     return register
 
 
-def listing() -> list[dict[str, Any]]:
-    return [t.definition() for t in TOOLS.values()]
+def offered(ns: str | None = None) -> dict[str, Tool]:
+    """The tools a server offers: all of them, or on namespace `ns`'s own server those about the archive."""
+    return {n: t for n, t in TOOLS.items() if not (ns and t.admin)}
+
+
+def listing(ns: str | None = None) -> list[dict[str, Any]]:
+    return [t.definition(ns) for t in offered(ns).values()]
 
 
 def _neutral(value: Any) -> Any:
@@ -271,6 +283,8 @@ def call(ctx: Context, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     with isError, as MCP has it, so the model sees it and can try again."""
     t = TOOLS[name]
     known = {a.name for a in t.args}
+    if ctx.ns and "namespace" in known and arguments.get("namespace") in (None, ""):
+        arguments = {**arguments, "namespace": ctx.ns}  # a namespace's own server: its namespace, unless named
     try:
         unknown = sorted(set(arguments) - known)
         if unknown:
@@ -1741,6 +1755,46 @@ def mark_nsfw(ctx: Context, recording_id: int, verdict: str) -> dict[str, Any]:
     return {"recording_id": recording_id, "nsfw": got, "url": ctx.link(recording_id)}
 
 
+# ---------- a namespace's own ways in for other apps (integrations.py) ----------
+def _integrations(ctx: Context, namespace: str, sid: int) -> dict[str, Any]:
+    return {
+        "namespace": namespace,
+        **integrations.profile(ctx.db, sid),
+        "mcp_url": f"{ctx.web}/mcp/{namespace}",
+        "settings": f"{ctx.web}/admin/namespaces/{namespace}#connect-apps",
+    }
+
+
+@tool(
+    "namespace_integrations",
+    "A namespace's own MCP server",
+    "Whether a namespace has its own MCP server on (mcp), seeing that namespace alone, and its address (mcp_url) to "
+    "give an agent that should see nothing else. Off unless the namespace's owner turns it on.",
+    Arg("namespace", "string", "the namespace (see list_namespaces)", required=True),
+)
+def namespace_integrations(ctx: Context, namespace: str) -> dict[str, Any]:
+    return _integrations(ctx, namespace, ctx.acl.namespace(namespace))
+
+
+@tool(
+    "set_namespace_integrations",
+    "Turn a namespace's own MCP server on or off",
+    "Turn on (mcp true) or off a namespace's own MCP server, which sees that namespace alone: agents connected to it "
+    "read only that namespace, with the roles of the person who signs them in. Owners of the namespace, with a token "
+    "that has the write scope.",
+    Arg("namespace", "string", "the namespace", required=True),
+    Arg("mcp", "boolean", "on or off", required=True),
+    writes=True,
+)
+def set_namespace_integrations(ctx: Context, namespace: str, mcp: bool) -> dict[str, Any]:
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to change this")
+    sid = ctx.acl.namespace(namespace, "manage")
+    integrations.save(ctx.db, sid, mcp, ctx.user.email)
+    auth.audit(ctx.db, ctx.user.as_audit(), "namespace.integrations", namespace, {"mcp": mcp, "via": "mcp"})
+    return _integrations(ctx, namespace, sid)
+
+
 # ---------- the graph as files ----------
 FILE_CHARS = 100_000  # the most of a file read_file returns at once; offset pages through the rest
 
@@ -1808,6 +1862,7 @@ def _admin(ctx: Context) -> None:
     "connection (S3, Google Drive, Dropbox, OneDrive, SFTP, SMB, WebDAV) under a folder, optionally through rclone "
     "crypt; and the connections it could use. check writes, reads back and removes a small file there. Admins only.",
     Arg("check", "boolean", "also check that it works", default=False),
+    admin=True,
 )
 def file_storage(ctx: Context, check: bool = False) -> dict[str, Any]:
     _admin(ctx)
@@ -1839,6 +1894,7 @@ def file_storage(ctx: Context, check: bool = False) -> dict[str, Any]:
     Arg("folder", "string", "where on it: for S3 the bucket and a path, for a folder here its full path", max_length=200),
     Arg("crypt", "boolean", "also wrap it in rclone crypt", default=False),
     writes=True,
+    admin=True,
 )
 def set_file_storage(
     ctx: Context, store: str, connection: int | None = None, folder: str | None = None, crypt: bool = False
@@ -1870,6 +1926,7 @@ def set_file_storage(
     "Monitoring",
     "Whether Prometheus, node-exporter and Grafana run next to Lens (charts of Lens and this machine over time), how "
     "the machine's last change went, and Grafana's port. Admins only.",
+    admin=True,
 )
 def monitoring_status(ctx: Context) -> dict[str, Any]:
     if not ctx.user.admin:
@@ -1885,6 +1942,7 @@ def monitoring_status(ctx: Context) -> dict[str, Any]:
     "a token that has the write scope.",
     Arg("on", "boolean", "start (true) or stop (false)", required=True),
     writes=True,
+    admin=True,
 )
 def set_monitoring(ctx: Context, on: bool) -> dict[str, Any]:
     if not ctx.user.admin:
@@ -1907,6 +1965,7 @@ def set_monitoring(ctx: Context, on: bool) -> dict[str, Any]:
     "full, with LibreOffice and Chromium to read Office files, web pages and emails, or lean); null where Lens doesn't "
     "know. Also whether this machine's upgrade agent can change them (agent), the install line to run on the machine "
     "for each choice when it can't (manual), and how the last change went (reconfigure). Admins only.",
+    admin=True,
 )
 def install_settings(ctx: Context) -> dict[str, Any]:
     if not ctx.user.admin:
@@ -1928,6 +1987,7 @@ def install_settings(ctx: Context) -> dict[str, Any]:
     Arg("public", "boolean", "reachable from other machines on the network (true) or this machine only (false)"),
     Arg("target", "string", "the edition: full or lean", enum=updates.TARGETS),
     writes=True,
+    admin=True,
 )
 def set_install_settings(ctx: Context, public: bool | None = None, target: str | None = None) -> dict[str, Any]:
     if not ctx.user.admin:
