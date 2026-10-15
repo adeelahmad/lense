@@ -180,6 +180,25 @@ GET    /api/v1/activity/top
 leaving out the ones you can't see; `estimate` marks a figure as a floor. `/activity/top` lists the costliest
 resources (admins).
 
+## activities
+
+```
+GET    /api/v1/activities
+GET    /api/v1/activities/kinds
+GET    /api/v1/activities/{activity_id}
+```
+
+`GET /activities` is what happened in Lens, newest first, from every source: Activity Streams 2.0 activities with a
+Lens `kind` (the shape is in [Automations](automations.md#activities)). Filters, each optional: `kinds` (repeat it,
+or separate with commas; the kinds under each count too), `actor` (an actor's id, like `lens:account/1`),
+`namespace` (by name), `tag` (an entity's id or name), `since` (published after) and `until` (at or before),
+`q` (words in the summary) and `where` (a [match tree](automations.md#match-trees) on the activity, as JSON).
+`limit` is 1 to 200 (50). The answer is `{items, next, namespaces}`: give `next` as `before` for the page after (it is
+null at the end); `namespaces` names the namespaces in the page by id. Noisy kinds are left out unless named. People
+see the activities of the namespaces they can read, their own (`lens.audience` owner), and admins also those for
+admins alone. `/activities/kinds` lists the kinds of activity with their schemas and samples; `/activities/{id}`
+reads one activity, like `create-recording-7`.
+
 ## vaults
 
 ```

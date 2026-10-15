@@ -109,6 +109,27 @@ export type AccountToken = {
 };
 
 /**
+ * ActivityActor
+ */
+export type ActivityActor = {
+  /**
+   * Type
+   */
+  type: "Service" | "Person" | "Application";
+  /**
+   * Id
+   *
+   * a Lens reference, like lens:account/1 or lens:automation/4
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  [key: string]: unknown;
+};
+
+/**
  * ActivityCosts
  */
 export type ActivityCosts = {
@@ -209,6 +230,182 @@ export type ActivityEntry = {
    * Detail
    */
   detail?: unknown;
+  [key: string]: unknown;
+};
+
+/**
+ * ActivityKind
+ */
+export type ActivityKind = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Source
+   */
+  source: string;
+  /**
+   * Type
+   *
+   * the Activity Streams verb its activities have
+   */
+  type: string;
+  /**
+   * Object Type
+   */
+  object_type: string;
+  /**
+   * Parent
+   */
+  parent?: string | null;
+  /**
+   * Children
+   */
+  children?: Array<string>;
+  /**
+   * Fields
+   *
+   * JSON Schemas of its own object, actor or target fields
+   */
+  fields?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Schema
+   *
+   * a JSON Schema of its activities, with every field
+   */
+  schema: {
+    [key: string]: unknown;
+  };
+  /**
+   * Untrusted
+   */
+  untrusted?: Array<string>;
+  /**
+   * Noisy
+   *
+   * left out of the timeline unless named
+   */
+  noisy?: boolean;
+  /**
+   * Sample
+   */
+  sample?: {
+    [key: string]: unknown;
+  } | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ActivityLens
+ */
+export type ActivityLens = {
+  /**
+   * Source
+   *
+   * the source that made it, like recordings or log
+   */
+  source: string;
+  /**
+   * Pos
+   *
+   * the source's position, [time, id]; for the stream machinery
+   */
+  pos: Array<unknown>;
+  /**
+   * Untrusted
+   *
+   * dotted paths holding text from outside Lens
+   */
+  untrusted?: Array<string>;
+  /**
+   * Cause
+   *
+   * {automation, run, depth} when an automation caused it
+   */
+  cause?: {
+    [key: string]: number;
+  } | null;
+  /**
+   * Spaces
+   *
+   * every namespace it belongs to, when there are several
+   */
+  spaces?: Array<number> | null;
+  /**
+   * Audience
+   *
+   * who may see it (default: space)
+   */
+  audience?: "space" | "owner" | "admins" | null;
+  /**
+   * Owner
+   *
+   * the account that alone sees it, with audience owner
+   */
+  owner?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ActivityObject
+ *
+ * What the activity is about; each kind adds its own fields (GET /activities/kinds has its schema).
+ */
+export type ActivityObject = {
+  /**
+   * Type
+   */
+  type: string;
+  /**
+   * Id
+   *
+   * a Lens reference, like lens:recording/7
+   */
+  id?: string | null;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Url
+   *
+   * its page in the web app, relative to it
+   */
+  url?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ActivityPage
+ */
+export type ActivityPage = {
+  /**
+   * Items
+   *
+   * newest first
+   */
+  items: Array<StreamActivity>;
+  /**
+   * Next
+   *
+   * give it as before for the page after; null at the end
+   */
+  next?: string | null;
+  /**
+   * Namespaces
+   *
+   * the names of the namespaces in items, by id
+   */
+  namespaces?: {
+    [key: string]: string;
+  };
   [key: string]: unknown;
 };
 
@@ -18395,6 +18592,60 @@ export type Stream = {
 };
 
 /**
+ * StreamActivity
+ */
+export type StreamActivity = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Type
+   *
+   * the Activity Streams verb, like Create
+   */
+  type: string;
+  /**
+   * Kind
+   *
+   * the Lens kind triggers subscribe to, like asset.added
+   */
+  kind: string;
+  /**
+   * Published
+   *
+   * when it happened, ISO 8601 in UTC
+   */
+  published: string;
+  actor: ActivityActor;
+  object: ActivityObject;
+  /**
+   * Target
+   */
+  target?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Tag
+   */
+  tag?: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Summary
+   */
+  summary: string;
+  /**
+   * Space
+   *
+   * its namespace's id, or null
+   */
+  space?: number | null;
+  lens: ActivityLens;
+  [key: string]: unknown;
+};
+
+/**
  * Suggestion
  */
 export type Suggestion = {
@@ -24280,6 +24531,138 @@ export type TopResourcesResponses = {
 };
 
 export type TopResourcesResponse = TopResourcesResponses[keyof TopResourcesResponses];
+
+export type ListActivitiesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Kinds
+     *
+     * kinds of activity, like asset.added (the kinds under them count too)
+     */
+    kinds?: Array<string> | null;
+    /**
+     * Actor
+     *
+     * who did it, by the actor's id, like lens:account/1
+     */
+    actor?: Array<string> | null;
+    /**
+     * Namespace
+     *
+     * only these namespaces, by name
+     */
+    namespace?: Array<string> | null;
+    /**
+     * Tag
+     *
+     * tagged with this entity, by its id (lens:entity/9) or name
+     */
+    tag?: string | null;
+    /**
+     * Since
+     *
+     * published after this time (ISO 8601)
+     */
+    since?: string | null;
+    /**
+     * Until
+     *
+     * published at or before this time (ISO 8601)
+     */
+    until?: string | null;
+    /**
+     * Q
+     *
+     * words in the summary
+     */
+    q?: string | null;
+    /**
+     * Where
+     *
+     * a match tree on the activity, as JSON
+     */
+    where?: string | null;
+    /**
+     * Before
+     *
+     * the next of the page before
+     */
+    before?: string | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/activities";
+};
+
+export type ListActivitiesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListActivitiesError = ListActivitiesErrors[keyof ListActivitiesErrors];
+
+export type ListActivitiesResponses = {
+  /**
+   * Successful Response
+   */
+  200: ActivityPage;
+};
+
+export type ListActivitiesResponse = ListActivitiesResponses[keyof ListActivitiesResponses];
+
+export type ListActivityKindsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/activities/kinds";
+};
+
+export type ListActivityKindsResponses = {
+  /**
+   * Response Activities-List Activity Kinds
+   *
+   * Successful Response
+   */
+  200: Array<ActivityKind>;
+};
+
+export type ListActivityKindsResponse = ListActivityKindsResponses[keyof ListActivityKindsResponses];
+
+export type GetActivityData = {
+  body?: never;
+  path: {
+    /**
+     * Activity Id
+     */
+    activity_id: string;
+  };
+  query?: never;
+  url: "/api/v1/activities/{activity_id}";
+};
+
+export type GetActivityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetActivityError = GetActivityErrors[keyof GetActivityErrors];
+
+export type GetActivityResponses = {
+  /**
+   * Successful Response
+   */
+  200: StreamActivity;
+};
+
+export type GetActivityResponse = GetActivityResponses[keyof GetActivityResponses];
 
 export type RemoveBudgetData = {
   body?: never;

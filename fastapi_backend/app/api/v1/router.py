@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.routes import (
+    activities,
     activity,
     admin,
     auth,
@@ -81,6 +82,7 @@ for module in (
     backups,  # before updates: its /admin/backups/remote would otherwise be read as a backup's name
     updates,
     activity,
+    activities,
     budgets,
     fedora,
     setup,

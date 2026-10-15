@@ -98,6 +98,8 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `set_namespace_integrations` | turn a namespace's own MCP server or chat completions on or off, and pick the read tools its chat completions may use. Owners, with a write-scope token |
 | `list_files` | a folder of [the graph as files](file-tree.md): your namespaces, then their collections, topics (nested by narrower topics) and entities, each holding its assets' files |
 | `read_file` | a text file of that tree (an asset's `.txt` text or `.json` metadata), a page at a time; other files' download link |
+| `timeline` | what happened in Lens, newest first ([Automations](automations.md#timeline-reads)): each activity's kind, who did it, what it is about, when, and a one-line summary; by kinds, actor, namespace, entity, time, words or a match tree, a page at a time. Fields holding outside text are listed in `lens.untrusted` |
+| `event_kinds` | the kinds of activity there are: label, source, parent and children, a schema with each field's title, the fields holding outside text, and a sample |
 | `file_storage` | where Lens keeps its own files (notes' images and attachments) and the connections it could use; `check` tests it. Admins only |
 | `set_file_storage` | keep new files on this machine or a storage connection (folder, rclone crypt); checked before it's saved. Admins only, with a write-scope token |
 | `install_settings` | whether other devices on the network reach Lens and its edition (full or lean), whether the machine's upgrade agent can change them, and the install line to run when it can't. Admins only |

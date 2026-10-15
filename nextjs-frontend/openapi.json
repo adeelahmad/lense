@@ -4764,6 +4764,295 @@
         }
       }
     },
+    "/api/v1/activities": {
+      "get": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "List Activities",
+        "description": "What happened in Lens, newest first: new assets and everything else the stream holds, each an Activity Streams\n2.0 activity with a Lens kind. Give `next` as `before` for the page after. Noisy kinds (like sensor readings) are\nleft out unless named in `kinds`. Text from outside Lens is listed in each activity's `lens.untrusted`.",
+        "operationId": "list_activities",
+        "parameters": [
+          {
+            "name": "kinds",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "kinds of activity, like asset.added (the kinds under them count too)",
+              "title": "Kinds"
+            },
+            "description": "kinds of activity, like asset.added (the kinds under them count too)"
+          },
+          {
+            "name": "actor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "who did it, by the actor's id, like lens:account/1",
+              "title": "Actor"
+            },
+            "description": "who did it, by the actor's id, like lens:account/1"
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only these namespaces, by name",
+              "title": "Namespace"
+            },
+            "description": "only these namespaces, by name"
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "tagged with this entity, by its id (lens:entity/9) or name",
+              "title": "Tag"
+            },
+            "description": "tagged with this entity, by its id (lens:entity/9) or name"
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "published after this time (ISO 8601)",
+              "title": "Since"
+            },
+            "description": "published after this time (ISO 8601)"
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "published at or before this time (ISO 8601)",
+              "title": "Until"
+            },
+            "description": "published at or before this time (ISO 8601)"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "words in the summary",
+              "title": "Q"
+            },
+            "description": "words in the summary"
+          },
+          {
+            "name": "where",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 20000
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a match tree on the activity, as JSON",
+              "title": "Where"
+            },
+            "description": "a match tree on the activity, as JSON"
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 4000
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the next of the page before",
+              "title": "Before"
+            },
+            "description": "the next of the page before"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/activities/kinds": {
+      "get": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "List Activity Kinds",
+        "description": "Every kind of activity: its label, the source that makes it, its parent and children (a trigger on a kind\nmatches the kinds under it), a JSON Schema of its activities with each field's title, the fields holding text\nfrom outside Lens, and a sample.",
+        "operationId": "list_activity_kinds",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ActivityKind"
+                  },
+                  "type": "array",
+                  "title": "Response Activities-List Activity Kinds"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/activities/{activity_id}": {
+      "get": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "Get Activity",
+        "description": "One activity by its id, like create-recording-7.",
+        "operationId": "get_activity",
+        "parameters": [
+          {
+            "name": "activity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Activity Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StreamActivity"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/budgets": {
       "get": {
         "tags": [
@@ -28507,6 +28796,36 @@
         "title": "AccountToken",
         "description": "Anyone's key, for admins."
       },
+      "ActivityActor": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "Service",
+              "Person",
+              "Application"
+            ],
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "a Lens reference, like lens:account/1 or lens:automation/4"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "name"
+        ],
+        "title": "ActivityActor"
+      },
       "ActivityCosts": {
         "properties": {
           "period": {
@@ -28691,6 +29010,274 @@
           "action"
         ],
         "title": "ActivityEntry"
+      },
+      "ActivityKind": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "the Activity Streams verb its activities have"
+          },
+          "object_type": {
+            "type": "string",
+            "title": "Object Type"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent"
+          },
+          "children": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Children"
+          },
+          "fields": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Fields",
+            "description": "JSON Schemas of its own object, actor or target fields"
+          },
+          "schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Schema",
+            "description": "a JSON Schema of its activities, with every field"
+          },
+          "untrusted": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Untrusted"
+          },
+          "noisy": {
+            "type": "boolean",
+            "title": "Noisy",
+            "description": "left out of the timeline unless named",
+            "default": false
+          },
+          "sample": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sample"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "source",
+          "type",
+          "object_type",
+          "schema"
+        ],
+        "title": "ActivityKind"
+      },
+      "ActivityLens": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "the source that made it, like recordings or log"
+          },
+          "pos": {
+            "items": {},
+            "type": "array",
+            "title": "Pos",
+            "description": "the source's position, [time, id]; for the stream machinery"
+          },
+          "untrusted": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Untrusted",
+            "description": "dotted paths holding text from outside Lens"
+          },
+          "cause": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cause",
+            "description": "{automation, run, depth} when an automation caused it"
+          },
+          "spaces": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spaces",
+            "description": "every namespace it belongs to, when there are several"
+          },
+          "audience": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "space",
+                  "owner",
+                  "admins"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audience",
+            "description": "who may see it (default: space)"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner",
+            "description": "the account that alone sees it, with audience owner"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "source",
+          "pos"
+        ],
+        "title": "ActivityLens"
+      },
+      "ActivityObject": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "description": "a Lens reference, like lens:recording/7"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "its page in the web app, relative to it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "ActivityObject",
+        "description": "What the activity is about; each kind adds its own fields (GET /activities/kinds has its schema)."
+      },
+      "ActivityPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StreamActivity"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "newest first"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next",
+            "description": "give it as before for the page after; null at the end"
+          },
+          "namespaces": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Namespaces",
+            "description": "the names of the namespaces in items, by id"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "ActivityPage"
       },
       "ActivityTop": {
         "properties": {
@@ -59881,6 +60468,87 @@
           "name"
         ],
         "title": "Stream"
+      },
+      "StreamActivity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "the Activity Streams verb, like Create"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "the Lens kind triggers subscribe to, like asset.added"
+          },
+          "published": {
+            "type": "string",
+            "title": "Published",
+            "description": "when it happened, ISO 8601 in UTC"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/ActivityActor"
+          },
+          "object": {
+            "$ref": "#/components/schemas/ActivityObject"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "tag": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Tag"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "space": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Space",
+            "description": "its namespace's id, or null"
+          },
+          "lens": {
+            "$ref": "#/components/schemas/ActivityLens"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "kind",
+          "published",
+          "actor",
+          "object",
+          "summary",
+          "lens"
+        ],
+        "title": "StreamActivity"
       },
       "Suggestion": {
         "properties": {

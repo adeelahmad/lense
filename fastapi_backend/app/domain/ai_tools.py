@@ -17,6 +17,7 @@ from . import (
     entities,
     extensions,
     entity_map,
+    events,
     graph_ask,
     graph_model,
     entity_setup,
@@ -63,6 +64,15 @@ TOOLS = [
         "list_recordings",
         "List assets (recordings, documents, images and text) in scope, newest first, optionally by namespace, dates (YYYY-MM-DD), person, entity or media.",
         {"namespace": _S, "from": _S, "to": _S, "speaker_id": _I, "entity_id": _I, "media": _S, "limit": _I},
+        [],
+        False,
+    ),
+    (
+        "timeline",
+        "What happened in Lens, newest first (new assets, and every other kind of activity there is): who did it, what "
+        "it is about, when, and a one-line summary. Optionally by kinds (such as asset.added), namespace, entity tag, "
+        "time (since, until: ISO 8601), words in the summary; give next as before for more.",
+        {"kinds": {"type": "array", "items": _S}, "namespace": _S, "tag": _S, "since": _S, "until": _S, "q": _S, "before": _S, "limit": _I},
         [],
         False,
     ),
@@ -876,6 +886,34 @@ class Toolbox(ops_tools.OpsTools):
             for r in sorted(rows, key=lambda r: r.get("recorded_at") or "", reverse=True)
         ]
         return {"total": len(ids), "recordings": out}, f"Listed {len(ids)} asset(s)"
+
+    def t_timeline(self, kinds=None, namespace=None, tag=None, since=None, until=None, q=None, before=None, limit=20):
+        names = store.space_names(self.db)
+        spaces = self.readable
+        if namespace:
+            spaces = {s for s in self.readable if names.get(s) == namespace}
+            if not spaces:
+                raise ValueError(f"namespace {namespace} isn't in this conversation")
+        # admins see what is for admins alone too, unless the conversation is about some namespaces
+        who = events.viewer(self.user["id"], self.readable, admin=bool(self.admin) and not self.scope.get("namespaces"))
+        flt = {"kinds": kinds or None, "tag": tag, "since": since, "until": until, "q": q, "spaces": sorted(spaces) if namespace else None}
+        page = events.page(self.db, self.cfg, who, before, {k: v for k, v in flt.items() if v}, min(int(limit or 20), 50))
+        items = page["items"]
+        if self.allowed is not None:  # a conversation about some assets: only what is about them
+            items = [a for a in items if events.ref_id((a.get("object") or {}).get("id"), "recording") in self.allowed]
+        out = [
+            {
+                "id": a["id"],
+                "kind": a["kind"],
+                "published": a["published"],
+                "summary": a["summary"],
+                "actor": a["actor"]["name"],
+                "object": a["object"],
+                "namespace": names.get(a.get("space")),
+            }
+            for a in items
+        ]
+        return {"activities": out, "next": page["next"]}, f"Read {len(out)} activit{'y' if len(out) == 1 else 'ies'} from the timeline"
 
     def t_read_transcript(self, recording_id, start_seconds=0, end_seconds=None, max_lines=60):
         cap = self.cfg["ai"].get("max_transcript_reads") or 20

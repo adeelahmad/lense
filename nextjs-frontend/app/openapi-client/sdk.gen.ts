@@ -471,6 +471,9 @@ import type {
   ForgotPasswordData,
   ForgotPasswordErrors,
   ForgotPasswordResponses,
+  GetActivityData,
+  GetActivityErrors,
+  GetActivityResponses,
   GetAudioData,
   GetAudioErrors,
   GetAudioResponses,
@@ -763,6 +766,11 @@ import type {
   ListAccessRequestsData,
   ListAccessRequestsErrors,
   ListAccessRequestsResponses,
+  ListActivitiesData,
+  ListActivitiesErrors,
+  ListActivitiesResponses,
+  ListActivityKindsData,
+  ListActivityKindsResponses,
   ListAllTokensData,
   ListAllTokensResponses,
   ListApprovalsData,
@@ -3682,6 +3690,54 @@ export class Activity {
   ): RequestResult<TopResourcesResponses, TopResourcesErrors, ThrowOnError> {
     return (options?.client ?? client).get<TopResourcesResponses, TopResourcesErrors, ThrowOnError>({
       url: "/api/v1/activity/top",
+      ...options,
+    });
+  }
+}
+
+export class Activities {
+  /**
+   * List Activities
+   *
+   * What happened in Lens, newest first: new assets and everything else the stream holds, each an Activity Streams
+   * 2.0 activity with a Lens kind. Give `next` as `before` for the page after. Noisy kinds (like sensor readings) are
+   * left out unless named in `kinds`. Text from outside Lens is listed in each activity's `lens.untrusted`.
+   */
+  public static listActivities<ThrowOnError extends boolean = false>(
+    options?: Options<ListActivitiesData, ThrowOnError>,
+  ): RequestResult<ListActivitiesResponses, ListActivitiesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListActivitiesResponses, ListActivitiesErrors, ThrowOnError>({
+      url: "/api/v1/activities",
+      ...options,
+    });
+  }
+
+  /**
+   * List Activity Kinds
+   *
+   * Every kind of activity: its label, the source that makes it, its parent and children (a trigger on a kind
+   * matches the kinds under it), a JSON Schema of its activities with each field's title, the fields holding text
+   * from outside Lens, and a sample.
+   */
+  public static listActivityKinds<ThrowOnError extends boolean = false>(
+    options?: Options<ListActivityKindsData, ThrowOnError>,
+  ): RequestResult<ListActivityKindsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListActivityKindsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/activities/kinds",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Activity
+   *
+   * One activity by its id, like create-recording-7.
+   */
+  public static getActivity<ThrowOnError extends boolean = false>(
+    options: Options<GetActivityData, ThrowOnError>,
+  ): RequestResult<GetActivityResponses, GetActivityErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetActivityResponses, GetActivityErrors, ThrowOnError>({
+      url: "/api/v1/activities/{activity_id}",
       ...options,
     });
   }
