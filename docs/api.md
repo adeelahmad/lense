@@ -186,6 +186,8 @@ resources (admins).
 GET    /api/v1/activities
 GET    /api/v1/activities/kinds
 GET    /api/v1/activities/{activity_id}
+POST   /api/v1/activities/mark
+POST   /api/v1/activities/{activity_id}/mark
 ```
 
 `GET /activities` is what happened in Lens, newest first, from every source: Activity Streams 2.0 activities with a
@@ -198,6 +200,11 @@ null at the end); `namespaces` names the namespaces in the page by id. Noisy kin
 see the activities of the namespaces they can read, their own (`lens.audience` owner), and admins also those for
 admins alone. `/activities/kinds` lists the kinds of activity with their schemas and samples; `/activities/{id}`
 reads one activity, like `create-recording-7`.
+
+Each person marks activities `reviewed`, `important` or `hidden` for themselves alone ([Timeline](timeline.md#review-marks)):
+`POST /activities/{id}/mark` with any of the three (true or false; one left out stays) answers the marks on it now,
+and `POST /activities/mark` with `ids` (up to 500) answers `{marks, unknown}`. `GET /activities` has your marks on
+the page in `marks` and filters by them with `reviewed`, `important` and `hidden` (true or false).
 
 ## vaults
 

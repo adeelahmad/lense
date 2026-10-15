@@ -1265,6 +1265,10 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS event_claim SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS event_claim_at ON event_claim FIELDS at",
     "DEFINE INDEX IF NOT EXISTS upload_recording ON upload FIELDS recording",
+    # review marks on the timeline (domain/event_marks.py, docs/timeline.md): each person's reviewed, important and
+    # hidden flags on an activity, event_mark:<hash of account and activity> (the id keeps the pair unique)
+    "DEFINE TABLE IF NOT EXISTS event_mark SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS event_mark_account ON event_mark FIELDS account",
     # every line of a run's log, in chunks (jobs.RunLog): job_log:<random>
     "DEFINE TABLE IF NOT EXISTS job_log SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_log_job ON job_log FIELDS job",

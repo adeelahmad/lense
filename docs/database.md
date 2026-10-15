@@ -73,7 +73,8 @@ kept anyway, such as `recording.created_at`. What no row records goes in `event_
 `published`, kept for `events.keep_days`), with the keys it was emitted with in `event_log_key:<hash>`. Each consumer
 of the stream keeps where its next look starts in `event_cursor:<consumer>` (a position per source), and claims what
 it handles in `event_claim:<hash of consumer and key>`; a claim is a `CREATE` only one process wins, and claims go
-after a day.
+after a day. Each person's review marks on the timeline ([Timeline](timeline.md#review-marks)) are
+`event_mark:<hash of account and activity>`, a row only while one of its flags is set.
 
 ## Upgrades
 

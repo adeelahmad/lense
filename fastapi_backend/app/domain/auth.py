@@ -192,6 +192,7 @@ def remove_account(db, uid, lose_vaults=False):
                     "iiif_token",
                     "iiif_cookie",
                     "highlight",
+                    "event_mark",
                 )
             ),
             "DELETE note WHERE account = $a AND (shared ?? false) = false",
