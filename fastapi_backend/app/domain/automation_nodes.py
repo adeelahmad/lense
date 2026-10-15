@@ -215,13 +215,14 @@ def context(db, cfg, automation, run, trigger, event, events, user, now=None):
 
 
 def untrusted(ctx):
-    """Whether the run read text from outside Lens: any activity it started from marks some of its fields untrusted."""
+    """Whether the run read text from outside Lens: an activity it started from marks some of its fields untrusted, or
+    a node that ran passed on outside text (its output says `untrusted`, like a web page's answer)."""
     acts = [ctx.get("event") or {}, *((ctx.get("events") or {}).values())]
     for a in acts:
         for x in a if isinstance(a, list) else [a]:
             if isinstance(x, dict) and ((x.get("lens") or {}).get("untrusted")):
                 return True
-    return False
+    return any(isinstance(out, dict) and out.get("untrusted") for out in (ctx.get("steps") or {}).values())
 
 
 def _reads_outside(params, ctx):
@@ -375,9 +376,17 @@ def _action(r, f, node):
         "status": "failed",
     }
     try:
-        params = actions.check_params(spec, render(raw, ctx))
+        filled = actions.check_params(spec, raw)  # defaults first, so a default that is a template is filled in too
+        prompts = set(actions.prompt_params(spec))
+        params = actions.check_params(
+            spec,
+            {
+                k: actions.render_prompt(v, ctx, r.cfg) if k in prompts and isinstance(v, str) else render(v, ctx, f"params.{k}")
+                for k, v in filled.items()
+            },
+        )
         intent["params"] = params
-        intent["untrusted"] = _reads_outside(raw, ctx)
+        intent["untrusted"] = _reads_outside(filled, ctx)
         intent["effect"] = actions.effect_of(spec, params)
         intent["risk"] = actions.resolve_risk(spec, params, {**ctx, "node": nid}, box.policy)
         if c.get("delay") is not None:

@@ -182,6 +182,46 @@ def test_actions_render_from_the_run_context_and_pass_their_output_on(db, cfg, m
     assert any(line.startswith("action b: would tell me") for line in out["log"])
 
 
+def test_prompts_mark_outside_text_and_template_defaults_are_filled_in(db, cfg, made):
+    def ask(db, cfg, intent, user, dry):
+        return {"reply": "a web page said so", "untrusted": True}
+
+    spec = ActionSpec(
+        name="ask",
+        label="Ask the model",
+        group="AI",
+        params={
+            "type": "object",
+            "properties": {"prompt": {"type": "string", "format": "prompt"}, "about": {"type": "object", "default": "{{ event }}"}},
+        },
+        required=("prompt",),
+        effect="read",
+        perform=ask,
+    )
+    actions.register(spec)
+    try:
+        g = graph(
+            node("a", "action", action="ask", params={"prompt": "Sum up {{ event.object.name }} for {{ user.name }}"}),
+            node("s", "action", action="log_line", params={"text": "{{ steps.a.reply }}"}),
+            node("f", "action", action="log_line", params={"text": "fixed"}),
+            edges=[edge("in", "a"), edge("a", "s"), edge("a", "f")],
+        )
+        out = _try(db, cfg, g)
+        by = {i["node"]: i for i in out["intents"]}
+        prompt = by["a"]["params"]["prompt"]
+        # in a prompt, what the run read from outside Lens is marked as data; the person's own words stay as written
+        assert prompt.startswith("Sum up <untrusted-") and SAMPLE["object"]["name"] in prompt and prompt.endswith(" for Sam")
+        # a default that is a template is filled in like the params the person gave
+        assert by["a"]["params"]["about"]["id"] == SAMPLE["id"]
+        # a node that passed on outside text counts as outside text for the params that read it, like an activity's
+        quiet = {**SAMPLE, "lens": {**SAMPLE["lens"], "untrusted": []}}
+        by = {i["node"]: i for i in _try(db, cfg, g, activity=quiet)["intents"]}
+        assert by["a"]["untrusted"] is False and by["s"]["untrusted"] is True and by["f"]["untrusted"] is False
+        assert "<untrusted-" not in by["a"]["params"]["prompt"]
+    finally:
+        actions._ACTIONS.pop("ask", None)
+
+
 def test_an_intent_that_asks_first_or_fails_passes_nothing_on(db, cfg, made):
     after = node("l", "action", action="log_line", params={"text": "after"})
     # a change to another asset asks first: the node passes nothing on and what comes after it is skipped

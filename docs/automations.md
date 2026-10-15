@@ -356,7 +356,9 @@ its own:
 
 - **Action** (`action`, configured `{action, params, delay?, when?}`): one action from the registry. When it runs,
   it fills its params in from the run context (`"text": "New: {{ event.object.name }}"`; a param that is exactly one
-  `{{ }}` expression keeps its type, so a list stays a list), works out its effect and risk and makes an
+  `{{ }}` expression keeps its type, so a list stays a list; the action's defaults are filled in first, so a default
+  that is a template, like `ask_agent`'s `about`, is filled in too; a prompt param is rendered with outside text
+  marked, as [The model and the agent](#the-model-and-the-agent) says), works out its effect and risk and makes an
   [intent](#actions-and-intents). A routine intent is carried out there and then: what it gives back passes on along
   `out` and goes in `steps.<node id>` for later nodes. One that asks first waits for the person's pick, and one with
   a `delay` (like `30m`) or a time (`when`, a time or a template giving one) waits for its time: such a node passes
@@ -381,8 +383,8 @@ canvas's list of workflows leaves it out (`GET /api/v1/workflows?scope=event` li
 runs it on that kind's sample, and `"activity": "<id>"` on a real activity you can see. Nothing is kept and nothing is
 sent: each action says what it would do (`would write “New: Call with the school” to the run log`), and `intents`
 lists each one with its params, effect, risk, status (`done`, `waiting`, `scheduled` or `failed`) and what it gave
-back. Text from outside Lens (`lens.untrusted` on the activity) that reaches an action's params marks its intent
-`untrusted`.
+back. Text from outside Lens (`lens.untrusted` on the activity, or what a node passed on when its output says
+`untrusted`, like a web page's answer) that reaches an action's params marks its intent `untrusted`.
 
 ## Refine later
 
