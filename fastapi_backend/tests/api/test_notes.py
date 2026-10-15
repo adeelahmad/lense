@@ -175,7 +175,7 @@ def test_note_limits(db, cfg, folder, monkeypatch):
     monkeypatch.setattr(notes, "MAX_NOTES", 2)
     notes.create(db, a, space, 7, "one")
     notes.create(db, a, space, 7, "two")
-    with pytest.raises(ValueError, match="2 notes on this recording already"):
+    with pytest.raises(ValueError, match="2 notes on this asset already"):
         notes.create(db, a, space, 7, "three")
     notes.create(db, a, space, 8, "someone else's")  # per person
     nid = notes.create(db, a, space, 8, "a long quote", 0, 10, "word " * 400)

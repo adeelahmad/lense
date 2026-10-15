@@ -353,15 +353,15 @@ def _recording(ctx: Context, rid: int) -> dict[str, Any]:
 @tool(
     "search",
     "Search the archive",
-    "Full-text search for moments in the archive: what was said in recordings (transcripts), text shown on screen in "
-    "videos or written in documents and images, supplementary files, and kinds of object seen. Words are all required "
+    "Full-text search for moments in the archive: the text of every asset — speech in audio and video (transcripts), "
+    "text shown on screen in videos or written in documents and images, supplementary files, and kinds of object seen. Words are all required "
     '(matched after stemming), "quoted phrases" must appear as written, OR separates alternatives. Results are the best '
-    "moments first, each with the recording, who said it, when in the recording, the matching text (matches in **bold**) "
-    "and a url that opens the recording at that moment. Use get_transcript for the lines around a moment.",
+    "moments first, each with the asset, the person (who said or wrote it), where in it, the matching text (matches in **bold**) "
+    "and a url that opens the asset at that moment. Use get_transcript for the lines around a moment.",
     Arg("query", "string", 'what to look for: words, "a phrase", or alternatives separated by OR', required=True, max_length=500),
     Arg("namespace", "string", "only this namespace (see list_namespaces)"),
-    Arg("speaker_id", "integer", "only what this speaker said (ids from list_speakers or get_recording)"),
-    Arg("recording_id", "integer", "only within this recording"),
+    Arg("speaker_id", "integer", "only lines from this person (ids from list_speakers or get_recording)"),
+    Arg("recording_id", "integer", "only within this asset"),
     Arg("limit", "integer", "how many moments", default=10, minimum=1, maximum=50),
     Arg("offset", "integer", "skip this many (for the next page)", default=0, minimum=0, maximum=10000),
 )
@@ -418,16 +418,16 @@ def search(
 @tool(
     "find_similar",
     "Find similar content",
-    "The recordings, documents and images most like a text (a sentence, a passage, a title), a recording, a topic or "
+    "The assets (recordings, documents and images) most like a text (a sentence, a passage, a title), an asset, a topic or "
     "an entity: give exactly one. Best first, each with why it's alike: `match` (meaning: close in meaning, when an "
     "embedding model is set up; words: shares key words; topics: about the same topics; entities: mentions the same "
     "people, organisations, places...), the moments that show it (text with the key words in **bold**, and a url that "
-    "opens it there), and the words, topics and entities in common. A recording is never listed as like itself.",
+    "opens it there), and the words, topics and entities in common. An asset is never listed as like itself.",
     Arg("text", "string", "what to find more like: a sentence, a passage, a title", max_length=2000),
-    Arg("recording_id", "integer", "a recording: the others most like it"),
+    Arg("recording_id", "integer", "an asset: the others most like it"),
     Arg("topic_id", "integer", "a topic (from list_topics): what's most like its labels and definition, and about it"),
     Arg("entity_id", "integer", "an entity (from list_entities): what's most like its name and description, and mentions it"),
-    Arg("exclude_recording_id", "integer", "leave this recording out too (the one the text is from)"),
+    Arg("exclude_recording_id", "integer", "leave this asset out too (the one the text is from)"),
     Arg("limit", "integer", "how many", default=10, minimum=1, maximum=50),
     Arg("offset", "integer", "skip this many (for the next page)", default=0, minimum=0, maximum=10000),
 )
@@ -498,7 +498,7 @@ def find_similar(
 @tool(
     "list_namespaces",
     "List namespaces",
-    "The namespaces (separate parts of the archive) you can read, with how many recordings and hours each has and your "
+    "The namespaces (separate parts of the archive) you can read, with how many assets and hours each has and your "
     "role there. `partial` ones you see only some collections of.",
 )
 def list_namespaces(ctx: Context) -> dict[str, Any]:
@@ -525,15 +525,15 @@ MEDIA = ("audio", "video", "transcript", "document", "image")
 
 @tool(
     "list_recordings",
-    "List recordings",
-    "Recordings (and documents, images and transcripts) you can read, newest first by default, with filters. `query` "
-    "matches words in the title, the namespace or a speaker's name; use search for what is said in them.",
+    "List assets",
+    "Assets (audio, video, documents, images and text) you can read, newest first by default, with filters. `query` "
+    "matches words in the title, the namespace or a person's name; use search for what is in them.",
     Arg("namespace", "string", "only this namespace"),
-    Arg("query", "string", "words that must all appear in the title, the namespace or a speaker's name", max_length=200),
-    Arg("date_from", "string", "recorded on or after this day (YYYY-MM-DD)"),
-    Arg("date_to", "string", "recorded on or before this day (YYYY-MM-DD)"),
-    Arg("speaker_id", "integer", "only recordings this speaker is in"),
-    Arg("tag", "string", "only recordings with this tag", max_length=100),
+    Arg("query", "string", "words that must all appear in the title, the namespace or a person's name", max_length=200),
+    Arg("date_from", "string", "dated on or after this day (YYYY-MM-DD)"),
+    Arg("date_to", "string", "dated on or before this day (YYYY-MM-DD)"),
+    Arg("speaker_id", "integer", "only assets this person is in"),
+    Arg("tag", "string", "only assets with this tag", max_length=100),
     Arg("media", "string", "only this kind", enum=MEDIA),
     Arg(
         "sensitive",
@@ -604,11 +604,12 @@ def list_recordings(
 
 @tool(
     "list_speakers",
-    "List speakers",
-    "The speakers (voices) of the namespaces you have a role in, the ones who talk most first: their ids filter search "
+    "List people",
+    "The people (recognised by voice and face) of the namespaces you have a role in, the most present first: their ids "
+    "filter search "
     "and list_recordings.",
     Arg("namespace", "string", "only this namespace"),
-    Arg("query", "string", "only speakers whose name contains this", max_length=100),
+    Arg("query", "string", "only people whose name contains this", max_length=100),
     Arg("limit", "integer", "how many", default=50, minimum=1, maximum=500),
 )
 def list_speakers(ctx: Context, namespace: str | None, query: str | None, limit: int) -> dict[str, Any]:
@@ -634,10 +635,10 @@ def list_speakers(ctx: Context, namespace: str | None, query: str | None, limit:
 # ---------- reading ----------
 @tool(
     "get_recording",
-    "Get a recording",
-    "One recording: what it is, when it was recorded, its speakers, summary, chapters (sections), the entities and "
-    "keywords most mentioned in it, and a url to it. Read what was said with get_transcript.",
-    Arg("recording_id", "integer", "the recording", required=True),
+    "Get an asset",
+    "One asset: what it is, its date, the people in it, summary, chapters (sections), the entities and "
+    "keywords most mentioned in it, and a url to it. Read its text with get_transcript.",
+    Arg("recording_id", "integer", "the asset", required=True),
 )
 def get_recording(ctx: Context, recording_id: int) -> dict[str, Any]:
     rec = recording_routes.get_recording(recording_id, ctx.acl, ctx.db, ctx.cfg)
@@ -694,13 +695,14 @@ def get_recording(ctx: Context, recording_id: int) -> dict[str, Any]:
 
 @tool(
     "get_transcript",
-    "Read a transcript",
-    "The lines of a recording's transcript (or a document's or image's text), in order: who said what, when, each with "
-    "a url that opens the recording at that line. Read a long one in pages: from_line (next_line of the last page) or "
+    "Read an asset's text",
+    "The lines of an asset's text (the transcript of audio or video, or a document's or image's text), in order: who "
+    "said or wrote what, and when, each with "
+    "a url that opens the asset at that line. Read a long one in pages: from_line (next_line of the last page) or "
     "a time window in seconds.",
-    Arg("recording_id", "integer", "the recording", required=True),
+    Arg("recording_id", "integer", "the asset", required=True),
     Arg("from_line", "integer", "start at this line (0 is the first)", minimum=0),
-    Arg("start_seconds", "number", "start at the line being said at this second", minimum=0),
+    Arg("start_seconds", "number", "start at the line at this second", minimum=0),
     Arg("end_seconds", "number", "stop before the lines that start after this second", minimum=0),
     Arg("limit", "integer", "the most lines", default=200, minimum=1, maximum=1000),
 )
@@ -735,15 +737,15 @@ def get_transcript(
 
 @tool(
     "fetch",
-    "Fetch a recording's text",
-    "A recording's whole text at once, as timestamped lines ([m:ss] Speaker: words), with its title and url; ids come "
+    "Fetch an asset's text",
+    "An asset's whole text at once, as timestamped lines ([m:ss] Speaker: words), with its title and url; ids come "
     "from search or list_recordings. A very long one is cut, and says where get_transcript can go on from.",
-    Arg("id", "string", "the recording id", required=True, max_length=40),
+    Arg("id", "string", "the asset id", required=True, max_length=40),
 )
 def fetch(ctx: Context, id: str) -> dict[str, Any]:
     m = re.match(r"\s*(\d+)", id)
     if not m:
-        raise ToolError("id is a recording id, like 12")
+        raise ToolError("id is an asset id, like 12")
     rid = int(m.group(1))
     rec = _recording(ctx, rid)
     segs = _segments(ctx.db, rid)
@@ -770,7 +772,7 @@ def fetch(ctx: Context, id: str) -> dict[str, Any]:
         meta["next_line"] = cut_at
     return {
         "id": str(rid),
-        "title": rec.get("title") or f"Recording {rid}",
+        "title": rec.get("title") or f"Asset {rid}",
         "text": "\n".join(parts),
         "url": ctx.link(rid),
         "metadata": {k: v for k, v in meta.items() if v is not None},
@@ -780,10 +782,10 @@ def fetch(ctx: Context, id: str) -> dict[str, Any]:
 @tool(
     "cite",
     "Cite a moment",
-    "A citation for a moment of a recording: the exact words (one line, or a few from there), who said them, the "
-    "recording, when it was recorded, the time in it, a url that opens it there, and the whole citation as Markdown. "
+    "A citation for a moment of an asset: the exact words (one line, or a few from there), who said or wrote them, "
+    "the asset, its date, the time in it, a url that opens it there, and the whole citation as Markdown. "
     "Name the moment by line (from search or get_transcript) or by second.",
-    Arg("recording_id", "integer", "the recording", required=True),
+    Arg("recording_id", "integer", "the asset", required=True),
     Arg("line", "integer", "the line (from search or get_transcript)", minimum=0),
     Arg("seconds", "number", "or the moment, in seconds from the start", minimum=0),
     Arg("lines", "integer", "how many lines to quote from there", default=1, minimum=1, maximum=10),
@@ -795,18 +797,18 @@ def cite(ctx: Context, recording_id: int, line: int | None, seconds: float | Non
     if line is not None:
         segs = _segments(ctx.db, recording_id, " AND idx >= $i", lines, i=line)
         if not segs or segs[0]["idx"] != line:
-            raise ToolError(f"recording {recording_id} has no line {line}")
+            raise ToolError(f"asset {recording_id} has no line {line}")
     else:
         ms = int((seconds or 0) * 1000)
         # the line being said then, else the next one
         segs = _segments(ctx.db, recording_id, " AND t1 > $ms", lines, ms=ms)
         if not segs:
-            raise ToolError(f"nothing is said in recording {recording_id} at or after {store.tc(ms)}")
+            raise ToolError(f"asset {recording_id} has no line at or after {store.tc(ms)}")
     names = _names(ctx.db, [s.get("speaker") for s in segs])
     first = segs[0]
     who = list(dict.fromkeys(names[s["speaker"]] for s in segs if s.get("speaker") and s["speaker"] in names))
     quote = " ".join((s.get("text") or "").strip() for s in segs)
-    title = rec.get("title") or f"Recording {recording_id}"
+    title = rec.get("title") or f"Asset {recording_id}"
     space = store.space_names(ctx.db).get(rec["space"])
     when = (rec.get("recorded_at") or "")[:10] or None
     page = first.get("page")
@@ -850,12 +852,12 @@ def _entity_row(e: dict[str, Any]) -> dict[str, Any]:
 @tool(
     "list_entities",
     "Find entities",
-    "Entities: the people, organisations, products, places, events, works and terms mentioned in recordings, the most "
+    "Entities: the people, organisations, products, places, events, works and terms mentioned in assets, the most "
     "mentioned first. Find one by name with query; its entity_id opens it in get_entity and the graph.",
     Arg("query", "string", "a name, or part of one", max_length=200),
     Arg("types", "string[]", "only these types", enum=ENTITY_TYPES),
     Arg("namespace", "string", "only this namespace"),
-    Arg("recording_id", "integer", "only those mentioned in this recording"),
+    Arg("recording_id", "integer", "only those mentioned in this asset"),
     Arg("sort", "string", "order", default="mentions", enum=("mentions", "recordings", "recent", "rising", "name")),
     Arg("limit", "integer", "how many", default=25, minimum=1, maximum=100),
     Arg("offset", "integer", "skip this many (for the next page)", default=0, minimum=0, maximum=10000),
@@ -987,7 +989,7 @@ def get_entity(ctx: Context, entity_id: int, mentions: int, mentions_offset: int
 def _node(n: str | None, entity_id: int | None, speaker_id: int | None, name: str) -> str:
     if n:
         if not re.fullmatch(r"[es]\d+", n):
-            raise ToolError(f"{name} is a node id: e<entity id> or s<speaker id>, like e12")
+            raise ToolError(f"{name} is a node id: e<entity id> or s<person id>, like e12")
         return n
     if entity_id is not None:
         return f"e{entity_id}"
@@ -1003,12 +1005,12 @@ def _scope(namespace: str | None) -> str:
 @tool(
     "explore_graph",
     "Explore the knowledge graph",
-    "The knowledge graph around an entity or a speaker: what and who it is connected to (mentioned together, or "
+    "The knowledge graph around an entity or a person: what and who it is connected to (mentioned together, or "
     "mentioned by), the strongest first, one or two steps out. Without a namespace it covers the namespaces that share "
     "their graph; a namespace with an isolated graph is explored on its own (namespace=...).",
-    Arg("node", "string", "the node: e<entity id> or s<speaker id>", max_length=20),
+    Arg("node", "string", "the node: e<entity id> or s<person id>", max_length=20),
     Arg("entity_id", "integer", "or the entity"),
-    Arg("speaker_id", "integer", "or the speaker"),
+    Arg("speaker_id", "integer", "or the person"),
     Arg("namespace", "string", "only this namespace's graph"),
     Arg("depth", "integer", "how many steps out", default=1, minimum=1, maximum=2),
     Arg("types", "string[]", "only entities of these types", enum=ENTITY_TYPES),
@@ -1048,9 +1050,9 @@ def explore_graph(
 @tool(
     "find_path",
     "Find how two things connect",
-    "The shortest chain of links between two entities or speakers in the knowledge graph, with lines from the "
-    "recordings that show each link (each with a url to that moment).",
-    Arg("from_node", "string", "one end: e<entity id> or s<speaker id>", required=True, max_length=20),
+    "The shortest chain of links between two entities or people in the knowledge graph, with lines from the "
+    "assets that show each link (each with a url to that moment).",
+    Arg("from_node", "string", "one end: e<entity id> or s<person id>", required=True, max_length=20),
     Arg("to_node", "string", "the other end", required=True, max_length=20),
     Arg("namespace", "string", "only this namespace's graph"),
 )
@@ -1074,9 +1076,9 @@ def find_path(ctx: Context, from_node: str, to_node: str, namespace: str | None)
 @tool(
     "sparql",
     "Query the archive with SPARQL",
-    "A read-only SPARQL query (SELECT, ASK, CONSTRUCT or DESCRIBE) over one namespace's linked data: recordings "
+    "A read-only SPARQL query (SELECT, ASK, CONSTRUCT or DESCRIBE) over one namespace's linked data: assets "
     "described with Dublin Core (dcterms:title, creator, subject, created, references the entities they mention, …), "
-    "collections, entities (skos:Concept with skos:prefLabel) and speakers (foaf:Person). Prefixes dcterms, dcmitype, "
+    "collections, entities (skos:Concept with skos:prefLabel) and people (foaf:Person). Prefixes dcterms, dcmitype, "
     "foaf, skos, owl, rdf, rdfs, xsd and lens are known. SELECT and ASK give SPARQL JSON results; CONSTRUCT and "
     "DESCRIBE give Turtle.",
     Arg("namespace", "string", "the namespace to query", required=True),
@@ -1194,8 +1196,8 @@ def graph_paths(ctx: Context, from_node: str, to_node: str, max_depth: int, shor
 @tool(
     "list_topics",
     "Find topics",
-    "Topics: each namespace's controlled vocabulary of what its recordings are about (SKOS concepts), by label, with "
-    "other labels, a definition, broader topics and how many recordings are about each. query matches any label.",
+    "Topics: each namespace's controlled vocabulary of what its assets are about (SKOS concepts), by label, with "
+    "other labels, a definition, broader topics and how many assets are about each. query matches any label.",
     Arg("query", "string", "a label, or part of one", max_length=200),
     Arg("namespace", "string", "only this namespace"),
     Arg("top", "boolean", "only topics with no broader topic", default=False),
@@ -1231,7 +1233,7 @@ def list_topics(
 @tool(
     "get_topic",
     "Get a topic",
-    "One topic: its labels and definition, its broader, narrower and related topics, and the recordings about it "
+    "One topic: its labels and definition, its broader, narrower and related topics, and the assets about it "
     "(accepted, and suggested ones waiting for someone), each with a url.",
     Arg("topic_id", "integer", "the topic (from list_topics or the graph's t<id>)", required=True),
 )
@@ -1252,11 +1254,11 @@ def get_topic(ctx: Context, topic_id: int) -> dict[str, Any]:
 
 @tool(
     "suggest_topic",
-    "Suggest a topic for recordings",
-    "Say recordings are about a topic, as a suggestion that waits for someone to accept it on the recording or the "
+    "Suggest a topic for assets",
+    "Say assets are about a topic, as a suggestion that waits for someone to accept it on the asset or the "
     "topic. What they accepted or dismissed stays. Needs a token with the write scope and editor access.",
     Arg("topic_id", "integer", "the topic", required=True),
-    Arg("recording_ids", "integer[]", "the recordings, in the topic's namespace", required=True, maximum=500),
+    Arg("recording_ids", "integer[]", "the assets, in the topic's namespace", required=True, maximum=500),
     writes=True,
 )
 def suggest_topic(ctx: Context, topic_id: int, recording_ids: list[int]) -> dict[str, Any]:
@@ -1269,7 +1271,7 @@ def suggest_topic(ctx: Context, topic_id: int, recording_ids: list[int]) -> dict
     for rid in recording_ids:
         ctx.acl.recording(rid)
     made = topicmod.propose(ctx.db, topic_id, recording_ids, "assistant", ctx.user.email)
-    return {"suggested_for": made, "waiting": "for someone to accept on the recording or the topic"}
+    return {"suggested_for": made, "waiting": "for someone to accept on the asset or the topic"}
 
 
 @tool(
@@ -1401,7 +1403,7 @@ def edit_topic(
 @tool(
     "merge_topics",
     "Merge topics",
-    "Fold other topics of the same namespace into one: their labels become its other labels and the recordings about "
+    "Fold other topics of the same namespace into one: their labels become its other labels and the assets about "
     "them are about it. undo_id takes it back with undo_topic_change. Needs a token with the write scope and editor "
     "access.",
     Arg("keep_id", "integer", "the topic that stays", required=True),
@@ -1417,7 +1419,7 @@ def merge_topics(ctx: Context, keep_id: int, other_ids: list[int]) -> dict[str, 
 @tool(
     "delete_topic",
     "Delete a topic",
-    "Delete a topic: its narrower topics move up to its broader ones and recordings stop being about it. undo_id takes "
+    "Delete a topic: its narrower topics move up to its broader ones and assets stop being about it. undo_id takes "
     "it back with undo_topic_change. Needs a token with the write scope and editor access.",
     Arg("topic_id", "integer", "the topic", required=True),
     writes=True,
@@ -1431,7 +1433,7 @@ def delete_topic(ctx: Context, topic_id: int) -> dict[str, Any]:
 @tool(
     "undo_topic_change",
     "Undo a topic merge or delete",
-    "Take back a merge_topics or delete_topic (by its undo_id): the topics come back with their labels, recordings and "
+    "Take back a merge_topics or delete_topic (by its undo_id): the topics come back with their labels, assets and "
     "pages. Refused when another topic has taken one of their labels since. Needs a token with the write scope and "
     "editor access.",
     Arg("undo_id", "integer", "what merge_topics or delete_topic gave back", required=True),
@@ -1451,10 +1453,10 @@ def _note_url(ctx: Context, pid: int) -> str:
 @tool(
     "find_notes",
     "Find notes",
-    "Notes in the namespaces you can read: free notes and the pages of recordings, entities, topics, collections and "
-    "speakers, found by words in their title, one-line summary or text (title matches first, then the latest). Each "
-    "has its id, one-line summary, where it is filed (PARA: project, area, resource, archive), what it is the page of, "
-    "and a url.",
+    "Notes in the namespaces you can read: free notes and the pages of assets, entities, topics, collections and "
+    "people, found by words in their title, one-line summary or text (title matches first, then the latest). Each "
+    "has its id, one-line summary, the words around the match in its text, where it is filed (PARA: project, area, "
+    "resource, archive), the note it is inside, what it is the page of, and a url.",
     Arg("query", "string", "words to look for", max_length=200),
     Arg("namespace", "string", "only this namespace"),
     Arg("place", "string", "only notes filed here", enum=notebook.PLACES),
@@ -1475,6 +1477,8 @@ def find_notes(ctx: Context, query: str | None, namespace: str | None, place: st
                     "place": r.get("place"),
                     "page_of": r.get("about"),
                     "namespace": names.get(r["space"]),
+                    "inside": r.get("parent"),
+                    "snippet": r.get("snippet"),
                     "updated": r.get("updated_at"),
                     "url": _note_url(ctx, r["id"]),
                 }
@@ -1719,8 +1723,8 @@ def set_nsfw(
 
 @tool(
     "mark_nsfw",
-    "Mark a recording NSFW or not",
-    "A person's own call on a recording, document or image, where NSFW classification is on in its namespace: nsfw or "
+    "Mark an asset NSFW or not",
+    "A person's own call on an asset (a recording, document or image), where NSFW classification is on in its namespace: nsfw or "
     "not_nsfw wins over the model's score; model lets the score decide again. Editors, with a token that has the write "
     "scope.",
     Arg("recording_id", "integer", "the recording", required=True),
@@ -1729,7 +1733,7 @@ def set_nsfw(
 )
 def mark_nsfw(ctx: Context, recording_id: int, verdict: str) -> dict[str, Any]:
     if not ctx.user.can_write:
-        raise ToolError("this token is read-only: ask for a token with the write scope to mark recordings")
+        raise ToolError("this token is read-only: ask for a token with the write scope to mark assets")
     ctx.acl.recording(recording_id, "editor")
     flagged = {"nsfw": True, "not_nsfw": False, "model": None}[verdict]
     got = nsfw.mark(ctx.db, ctx.cfg, recording_id, flagged, ctx.user.email)

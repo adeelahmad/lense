@@ -283,8 +283,8 @@ export function RoutinesPage() {
             </Button>
           }
         >
-          A routine does things on a schedule, like a cron job: sync sources, run pipelines on new recordings, or
-          organise the entity graph overnight.
+          A routine does things on a schedule, like a cron job: sync sources, run pipelines on new assets, or organise
+          the entity graph overnight.
         </EmptyState>
       ) : (
         <div className="overflow-hidden rounded-md border border-border">

@@ -45,14 +45,14 @@ _S = {"type": "string"}
 TOOLS = [
     (
         "search_transcripts",
-        "Search what was said (and text shown on screen in videos) across the recordings in scope.",
+        "Search the text of the assets in scope: transcripts of speech, document text, and text shown on screen in videos.",
         {"query": _S, "namespace": _S, "limit": _I},
         ["query"],
         False,
     ),
     (
         "find_similar",
-        "Find the recordings, documents and images in scope most like a text, a recording, a topic or an entity (give "
+        "Find the assets (recordings, documents and images) in scope most like a text, an asset, a topic or an entity (give "
         "one): close in meaning (when search by meaning is set up), sharing key words, about the same topics, mentioning "
         "the same entities; each with the moments that show it.",
         {"text": _S, "recording_id": _I, "topic_id": _I, "entity_id": _I, "limit": _I},
@@ -61,21 +61,21 @@ TOOLS = [
     ),
     (
         "list_recordings",
-        "List recordings in scope, newest first, optionally by namespace, dates (YYYY-MM-DD), speaker, entity or media.",
+        "List assets (recordings, documents, images and text) in scope, newest first, optionally by namespace, dates (YYYY-MM-DD), person, entity or media.",
         {"namespace": _S, "from": _S, "to": _S, "speaker_id": _I, "entity_id": _I, "media": _S, "limit": _I},
         [],
         False,
     ),
     (
         "read_transcript",
-        "Read part of one recording's transcript, by seconds.",
+        "Read part of one asset's text (its transcript, for audio and video), by seconds.",
         {"recording_id": _I, "start_seconds": {"type": "number"}, "end_seconds": {"type": "number"}, "max_lines": _I},
         ["recording_id"],
         False,
     ),
     (
         "recording_outputs",
-        "A recording's summary and saved outputs (such as meeting notes).",
+        "An asset's summary and saved outputs (such as meeting notes).",
         {"recording_id": _I},
         ["recording_id"],
         False,
@@ -89,7 +89,7 @@ TOOLS = [
     ),
     (
         "entity_mentions",
-        "Where an entity was mentioned: recording, time, speaker and the line.",
+        "Where an entity was mentioned: asset, time, person and the line.",
         {"entity_id": _I, "limit": _I},
         ["entity_id"],
         False,
@@ -97,22 +97,22 @@ TOOLS = [
     ("entity_timeline", "How often an entity was mentioned per month.", {"entity_id": _I}, ["entity_id"], False),
     (
         "find_topics",
-        "Find topics: each namespace's controlled vocabulary of what recordings are about, with other labels, a "
-        "definition, broader topics and how many recordings are about each.",
+        "Find topics: each namespace's controlled vocabulary of what assets are about, with other labels, a "
+        "definition, broader topics and how many assets are about each.",
         {"query": _S, "namespace": _S, "limit": _I},
         [],
         False,
     ),
     (
         "topic_recordings",
-        "One topic: its broader, narrower and related topics and the recordings about it (accepted, and suggested).",
+        "One topic: its broader, narrower and related topics and the assets about it (accepted, and suggested).",
         {"topic_id": _I},
         ["topic_id"],
         False,
     ),
     (
         "suggest_topic",
-        "Suggest that recordings are about a topic. It waits on the recording and the topic for someone to accept; "
+        "Suggest that assets are about a topic. It waits on the asset and the topic for someone to accept; "
         "nothing they accepted or dismissed changes.",
         {"topic_id": _I, "recording_ids": {"type": "array", "items": _I}},
         ["topic_id", "recording_ids"],
@@ -120,15 +120,21 @@ TOOLS = [
     ),
     (
         "graph_neighbours",
-        "Who and what is connected to an entity or speaker in the knowledge graph.",
+        "Who and what is connected to an entity or person in the knowledge graph.",
         {"entity_id": _I, "speaker_id": _I, "limit": _I},
         [],
         False,
     ),
-    ("speaker_stats", "Speakers in a namespace with talk time and recordings.", {"namespace": _S}, ["namespace"], False),
+    (
+        "speaker_stats",
+        "The people in a namespace (known individuals, recognised by voice or face) with their talk time and the assets they appear in.",
+        {"namespace": _S},
+        ["namespace"],
+        False,
+    ),
     (
         "find_notes",
-        "Find notes (free notes and the pages of recordings, entities, collections and speakers) in scope by words in "
+        "Find notes (free notes and the pages of assets, entities, collections and people) in scope by words in "
         "their title, summary or text. Each has an id, title, one-line summary, where it's filed (PARA) and what it's "
         "the page of.",
         {"query": _S, "namespace": _S, "place": _S, "limit": _I},
@@ -180,7 +186,7 @@ TOOLS = [
     ),
     (
         "graph_schema",
-        "What the graph holds (namespaces, collections, recordings, speakers, entities, topics and how they link), with example "
+        "What the graph holds (namespaces, collections, assets as Recording nodes, people as Speaker nodes, entities, topics and how they link), with example "
         "Cypher. Read it before graph_query.",
         {"namespace": _S},
         [],
@@ -196,8 +202,8 @@ TOOLS = [
     ),
     (
         "graph_related",
-        "A node's parents, children, ancestors, descendants (recording, collection, namespace...) or neighbours. Nodes "
-        "are n<id> namespaces, c<id> collections, r<id> recordings, s<id> speakers, e<id> entities, t<id> topics.",
+        "A node's parents, children, ancestors, descendants (asset, collection, namespace...) or neighbours. Nodes "
+        "are n<id> namespaces, c<id> collections, r<id> assets, s<id> people, e<id> entities, t<id> topics.",
         {
             "node": _S,
             "relation": {"type": "string", "enum": ["parents", "children", "ancestors", "descendants", "neighbours"]},
@@ -216,7 +222,7 @@ TOOLS = [
     ),
     (
         "run_template",
-        "Run a template (such as meeting notes) on recordings. Needs the person's approval.",
+        "Run a template (such as meeting notes) on assets. Needs the person's approval.",
         {"template_id": _I, "recording_ids": {"type": "array", "items": _I}, "collection_id": _I},
         ["template_id"],
         True,
@@ -232,7 +238,7 @@ TOOLS = [
     (
         "propose_entity_change",
         "Propose a change to the entities, which needs the person's approval: merge others into an entity, rename or "
-        "retype it, describe it (a description and the other ways it's said), hide it, or define a new entity on a "
+        "retype it, describe it (a description and the other names it goes by), hide it, or define a new entity on a "
         "namespace's list (define: namespace, new_name, new_type; no entity_id).",
         {
             "action": {"type": "string", "enum": ["merge", "rename", "retype", "describe", "hide", "define"]},
@@ -250,7 +256,7 @@ TOOLS = [
     (
         "propose_topic_change",
         "Propose a change to the topics, which needs the person's approval: merge other topics into a topic (their "
-        "labels become its other labels, their recordings are about it), rename it, describe it (a definition and its "
+        "labels become its other labels, their assets are about it), rename it, describe it (a definition and its "
         "other labels), or delete it. Merges and deletes can be undone afterwards.",
         {
             "action": {"type": "string", "enum": ["merge", "rename", "describe", "delete"]},
@@ -448,7 +454,7 @@ class Toolbox(ops_tools.OpsTools):
                 if spaces[rid] not in self.readable:
                     continue
                 n = self.ref(rid, m.get("t0") or 0, m["text"], title=m.get("title"), source="memory")
-                lines.append(f"[{n}] {m['text']} (memory {m['id']}, kept {day}, from {m.get('title') or 'a recording'} at {m.get('time')})")
+                lines.append(f"[{n}] {m['text']} (memory {m['id']}, kept {day}, from {m.get('title') or 'an asset'} at {m.get('time')})")
             else:
                 told = "told in a conversation" if m.get("author") == "assistant" else "written by a person"
                 lines.append(f"- {m['text']} (memory {m['id']}, {told}, {day})")
@@ -518,7 +524,7 @@ class Toolbox(ops_tools.OpsTools):
     def _ok(self, rid):
         row = self.db.one("SELECT space, title FROM $r", r=R("recording", int(rid)))
         if not row or row["space"] not in self.readable or (self.allowed is not None and int(rid) not in self.allowed):
-            raise ValueError(f"recording {rid} isn't available in this conversation")
+            raise ValueError(f"asset {rid} isn't available in this conversation")
         return row
 
     def untrusted(self, name):
@@ -869,12 +875,12 @@ class Toolbox(ops_tools.OpsTools):
             }
             for r in sorted(rows, key=lambda r: r.get("recorded_at") or "", reverse=True)
         ]
-        return {"total": len(ids), "recordings": out}, f"Listed {len(ids)} recording(s)"
+        return {"total": len(ids), "recordings": out}, f"Listed {len(ids)} asset(s)"
 
     def t_read_transcript(self, recording_id, start_seconds=0, end_seconds=None, max_lines=60):
         cap = self.cfg["ai"].get("max_transcript_reads") or 20
         if self.reads >= cap:
-            raise ValueError(f"the limit of {cap} transcript reads per question is reached; answer with what you have")
+            raise ValueError(f"the limit of {cap} text reads per question is reached; answer with what you have")
         row = self._ok(recording_id)
         self.reads += 1
         d = render.player_data(self.db, int(recording_id))
@@ -999,7 +1005,7 @@ class Toolbox(ops_tools.OpsTools):
         for rid in recording_ids or []:
             self._ok(rid)
         made = topics.propose(self.db, int(topic_id), recording_ids, "assistant", self.user.get("email"))
-        return {"suggested_for": made, "note": "waiting for someone to accept"}, f"Suggested {row['label']} for {len(made)} recording(s)"
+        return {"suggested_for": made, "note": "waiting for someone to accept"}, f"Suggested {row['label']} for {len(made)} asset(s)"
 
     def t_graph_neighbours(self, entity_id=None, speaker_id=None, limit=15):
         if not entity_id and not speaker_id:
@@ -1025,7 +1031,7 @@ class Toolbox(ops_tools.OpsTools):
             {"id": s["id"], "name": s["display"], "talk": store.tc(s["talk_ms"]), "recordings": s["recordings"]}
             for s in spk.list_speakers(self.db, sid)[:30]
         ]
-        return {"speakers": out}, f"Read speaker stats for {namespace}"
+        return {"speakers": out}, f"Read the people in {namespace}"
 
     # ---- the graph as a property graph, in Cypher (graph_model.py, cypher.py) ----
     def _graph(self, namespace=None):
@@ -1108,7 +1114,7 @@ class Toolbox(ops_tools.OpsTools):
         ids, skipped = batches.select(self.db, spec, self.readable, self.editable)
         steps, label = batches.steps_for(self.db, {"template": t["id"]})
         est = batches.estimate(self.db, self.cfg, ids, steps)
-        return self._approval("run_template", {"template_id": t["id"], "recordings": ids}, f"Run {label} on {len(ids)} recording(s)", est)
+        return self._approval("run_template", {"template_id": t["id"], "recordings": ids}, f"Run {label} on {len(ids)} asset(s)", est)
 
     # ---- notes (notebook.py): the assistant reads and writes them at once; they're its notebook ----
     def _note(self, note_id, edit=False):
@@ -1140,6 +1146,8 @@ class Toolbox(ops_tools.OpsTools):
                     "place": r.get("place"),
                     "page_of": r.get("about"),
                     "namespace": names.get(r["space"]),
+                    "inside": r.get("parent"),
+                    "snippet": r.get("snippet"),
                 }
             )
             for r in hits
@@ -1281,7 +1289,7 @@ class Toolbox(ops_tools.OpsTools):
             "retype": f"Change {e['name']} to {new_type}",
             "describe": f"Describe {e['name']}"
             + (f" as “{description}”" if description else "")
-            + (f" (also said as {', '.join(also_said_as)})" if also_said_as else ""),
+            + (f" (also known as {', '.join(also_said_as)})" if also_said_as else ""),
             "hide": f"Hide {e['name']}",
         }[action]
         return self._approval("propose_entity_change", {**args, "entity_id": e["id"]}, what)

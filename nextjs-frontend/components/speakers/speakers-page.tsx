@@ -57,9 +57,9 @@ export function SpeakersPage() {
   if (!namespaces.length)
     return (
       <div className="px-4 py-6 md:px-6">
-        <PageHeader title="Speakers" />
+        <PageHeader title="People" />
         <EmptyState icon={<AudioLines />} title="No namespaces yet">
-          Speakers are kept per namespace. Once you have access to one, its voices show here.
+          People are kept per namespace. Once you have access to one, the people in it show here.
         </EmptyState>
       </div>
     );
@@ -68,8 +68,8 @@ export function SpeakersPage() {
     <div className="flex flex-col gap-3 px-4 py-6 md:px-6">
       <PageHeader
         className="mb-0"
-        title="Speakers"
-        meta={ns && dir.data ? `${ns} · ${plural(speakers.length, "speaker")}` : undefined}
+        title="People"
+        meta={ns && dir.data ? `${ns} · ${plural(speakers.length, "person", "people")}` : undefined}
         actions={
           namespaces.length > 1 && (
             <label className="flex items-center gap-2 text-[13px] font-semibold text-fg-secondary">
@@ -87,7 +87,7 @@ export function SpeakersPage() {
         }
       />
       <Tabs
-        aria-label="Speakers views"
+        aria-label="People views"
         value={tab}
         onChange={(v) => set("tab", v === "registry" ? null : v)}
         items={[
@@ -114,7 +114,7 @@ export function SpeakersPage() {
         {dir.isError && (
           <Banner
             tone="error"
-            title="Couldn’t load the speakers."
+            title="Couldn’t load the people."
             action={
               <Button size="sm" variant="secondary" onClick={() => dir.refetch()}>
                 Try again
@@ -131,15 +131,15 @@ export function SpeakersPage() {
             ) : (
               <EmptyState
                 icon={<AudioLines />}
-                title={`No speakers in ${ns} yet`}
+                title={`No people in ${ns} yet`}
                 className="rounded-lg border border-border"
               >
-                Speakers appear once recordings are diarized, or when an imported transcript names them.
+                People appear once recordings are diarized, or when an imported transcript names them.
               </EmptyState>
             )}
             <p className="m-0 text-[12.5px] leading-snug text-fg-secondary">
-              Voiceprints are built from clean audio (Settings → Voice IDs). Speakers without one are still matched,
-              less reliably.
+              Voiceprints are built from clean audio (Settings → Voice IDs). People without one are still matched, less
+              reliably.
             </p>
           </div>
         )}

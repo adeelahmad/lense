@@ -1,6 +1,6 @@
 """Linked data: the URIs the archive's RDF uses (domain/rdf.py), each answering with RDF or a page.
 
-`/id/<kind>/<id>` is what a recording, collection, namespace, entity or speaker is called in RDF. An RDF client
+`/id/<kind>/<id>` is what an asset, collection, namespace, entity or person is called in RDF. An RDF client
 (Accept: text/turtle, application/ld+json, application/n-triples or application/rdf+xml, or `?format=`) gets its
 description; a browser is sent to its page (303 See Other, as linked data does). A recording is open to everyone when it
 is public (its IIIF manifest is), and to whoever may see it otherwise; the rest are for the namespace's members, and

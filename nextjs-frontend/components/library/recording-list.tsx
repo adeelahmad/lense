@@ -28,7 +28,7 @@ export function RecordingList({ rows, jobs, reviews, selected, onToggle, onOpen 
   const shift = useRef(false);
   const any = selected.size > 0;
   return (
-    <ul aria-label="Recordings" className="border-t border-border">
+    <ul aria-label="Assets" className="border-t border-border">
       {rows.map((r, i) => {
         const view = statusView(r, jobs.get(r.id), undefined, reviews?.get(r.id));
         const sel = selected.has(r.id);
@@ -68,7 +68,7 @@ export function RecordingList({ rows, jobs, reviews, selected, onToggle, onOpen 
                 <Checkbox
                   checked={sel}
                   onCheckedChange={() => onToggle(r.id, i, shift.current)}
-                  aria-label={`Select ${r.title ?? "recording"}`}
+                  aria-label={`Select ${r.title ?? "asset"}`}
                 />
               </span>
             </span>
@@ -127,7 +127,7 @@ export function RecordingList({ rows, jobs, reviews, selected, onToggle, onOpen 
 /** Library L5 (phone): rows become two-line cards with the status on the right and a progress line while running. */
 export function RecordingCards({ rows, jobs, reviews, selected, onOpen }: RowProps) {
   return (
-    <ul aria-label="Recordings" className="border-t border-border">
+    <ul aria-label="Assets" className="border-t border-border">
       {rows.map((r) => {
         const view = statusView(r, jobs.get(r.id), undefined, reviews?.get(r.id));
         const spk = speakerList(r.speakers).slice(0, 4);

@@ -224,7 +224,7 @@ def delete(db, cid):
     if db.values("SELECT VALUE id FROM collection WHERE parent = $c LIMIT 1", c=c["id"]):
         raise ValueError("It holds other collections: move or delete them first.")
     if db.values("SELECT VALUE id FROM recording WHERE collection = $c LIMIT 1", c=c["id"]):
-        raise ValueError("It holds recordings: move them to another collection first.")
+        raise ValueError("It holds assets: move them to another collection first.")
     from . import fields  # fields builds on this module
 
     fields.delete_for_collection(db, c["id"])  # the fields defined on it, and their values
@@ -243,7 +243,7 @@ def place(db, rids, cid):
     if len(rows) != len(set(int(r) for r in rids)):
         raise KeyError("recording")
     if any(r["space"] != c["space"] for r in rows):
-        raise ValueError("A recording can only go into a collection of its own namespace; move it to that namespace first.")
+        raise ValueError("An asset can only go into a collection of its own namespace; move it to that namespace first.")
     moving = [r["id"] for r in rows if r.get("collection") != c["id"]]
     if moving:
         db.q("UPDATE recording SET collection = $c WHERE id IN $ids", c=c["id"], ids=[R("recording", r) for r in moving])

@@ -3,7 +3,7 @@
 Every resource, entity and topic in Lens has a page of its own, and next to them sit free notes that people and the
 assistant write. The assistant is the main writer and organiser; people can do everything it can.
 
-Status: **built**: pages (free notes in a tree, a page per recording, entity, topic, collection or speaker), @ and #
+Status: **built**: pages (free notes in a tree, a page per asset, entity, topic, collection or person), @ and #
 links with backlinks (# links topics), the tree in the left navigation, the page view with the BlockSuite editor, the
 model keeping titles and summaries up to date, assistant tools to find, read, write and update notes, and MCP tools to
 find, read and write them ([MCP](mcp.md)), page history with restore, suggested links to what a note names, the
@@ -27,7 +27,7 @@ recordings and the other things that have pages.
 | author | `person` or `assistant` |
 
 A thing's page is made the first time someone writes on it; until then `GET /api/v1/notes/about/{kind}/{id}` returns a
-draft with its name and the pages that already link to it. A page follows its recording to another namespace. When a
+draft with its name and the pages that already link to it. A page follows its asset to another namespace. When a
 thing is deleted, or an entity is merged into another, its page stays as a free note at the top of the tree, so
 nothing written on it is lost.
 
@@ -121,10 +121,23 @@ refining it, or someone else always starts a new one. **History** on a page list
 it; pick one to read it, and editors can restore it. Restoring keeps the page as it was too, so it can be undone.
 `GET /api/v1/notes/{id}/history`, `GET .../history/{version}` and `POST .../history/{version}/restore`.
 
+## Finding notes
+
+The **Notes** page lists the free notes in view, the latest changed first, each with the notes it sits inside
+("In Home lab › Parts"), where it's filed and when it changed. The box at the top finds notes by the words in their
+title, one-line summary or text, the pages of recordings, entities and topics too: those with the words in the title
+come first, each with the words around the match, and Enter opens the first. **Projects**, **Areas**, **Resources** and
+**Archive** show only the notes filed there, with how many each has. **Jump to** (⌘K or Ctrl+K) finds notes the same
+way, beside recordings, pages and settings.
+
+`GET /api/v1/notes/search?q=&ns=&place=&free=` is the same search, in every namespace you can read unless `ns` names one;
+`free=true` leaves out the pages of things. The assistant's and MCP's `find_notes` give the same words around the match
+(`snippet`) and the note each is inside (`inside`).
+
 ## Access
 
 Pages belong to a namespace: anyone with a role there reads them, editors write, move and delete them. The pages of
-recordings also need access to the recording.
+assets also need access to the asset.
 
 ## Editor
 

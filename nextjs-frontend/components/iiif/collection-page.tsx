@@ -190,7 +190,7 @@ export function CollectionPage({ ns }: { ns: string }) {
                 value: "series",
                 label: "By series",
                 disabled: true,
-                reason: "Not available yet: recordings have no series field",
+                reason: "Not available yet: assets have no series field",
               },
               { value: "date", label: "By date" },
               {
@@ -230,7 +230,7 @@ export function CollectionPage({ ns }: { ns: string }) {
             variant="ghost"
             icon={<Upload />}
             disabled
-            disabledReason="CSV import isn’t available yet: the server can’t match CSV rows to recordings by identifier"
+            disabledReason="CSV import isn’t available yet: the server can’t match CSV rows to assets by identifier"
           >
             Import metadata CSV
           </Button>
@@ -246,17 +246,17 @@ export function CollectionPage({ ns }: { ns: string }) {
             <EmptyState
               tone="error"
               icon={<FolderOpen />}
-              title="Couldn’t load the recordings"
+              title="Couldn’t load the assets"
               actions={<Button onClick={() => list.refetch()}>Try again</Button>}
             >
               {list.error.message}
             </EmptyState>
           ) : !total ? (
-            <EmptyState icon={<FileAudio />} title="No recordings in this namespace yet">
-              Import or connect a source; each recording becomes a Manifest in this Collection.
+            <EmptyState icon={<FileAudio />} title="No assets in this namespace yet">
+              Import or connect a source; each asset becomes a Manifest in this Collection.
             </EmptyState>
           ) : (
-            <ul aria-label={`Recordings in ${ns}`} aria-busy={loadingMeta || undefined}>
+            <ul aria-label={`Assets in ${ns}`} aria-busy={loadingMeta || undefined}>
               {items.map((it) => (
                 <ItemRow
                   key={it.id}
@@ -315,7 +315,7 @@ export function CollectionPage({ ns }: { ns: string }) {
           <>
             <div className="flex gap-3 border-b border-border px-[18px] py-2.5 text-[12.5px]">
               <Link href={`/resources/${open.id}`} className="font-semibold text-fg-accent hover:underline">
-                Open recording
+                Open asset
               </Link>
               <Link href={`/iiif/metadata/${open.id}`} className="font-semibold text-fg-accent hover:underline">
                 Edit metadata
@@ -338,7 +338,7 @@ export function CollectionPage({ ns }: { ns: string }) {
             ? {
                 field: "access",
                 value: "public",
-                title: `Publish every recording in ${ns}?`,
+                title: `Publish every asset in ${ns}?`,
               }
             : { field: "access", value: "private", title: `Unpublish ${ns}?` }
         }
@@ -516,7 +516,7 @@ function CollectionMetaDialog({ ns, onClose, meta }: { ns: string; onClose: () =
       open
       onOpenChange={(o) => !o && onClose()}
       title={`${ns} · Collection metadata`}
-      description="What IIIF viewers show for this Collection. Recording metadata is edited per recording."
+      description="What IIIF viewers show for this Collection. Asset metadata is edited per asset."
       actions={
         <>
           <Button variant="ghost" onClick={onClose}>

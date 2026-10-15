@@ -74,12 +74,12 @@ describe("RDF helpers", () => {
     expect(rdfFileName({ recording: 4 }, "turtle")).toBe("recording-4.ttl");
   });
   it("sums up an import", () => {
-    expect(importSummary(result({}))).toBe("1 recording would change");
+    expect(importSummary(result({}))).toBe("1 asset would change");
     expect(
       importSummary(
         result({ dry_run: false, matched: 3, changed: 2, unmatched: [{ subject: "https://e/1", title: null }] }),
       ),
-    ).toBe("2 recordings changed, 1 description already said, 1 description matched nothing");
+    ).toBe("2 assets changed, 1 description already up to date, 1 description matched nothing");
   });
 });
 
@@ -129,8 +129,8 @@ describe("the RDF import dialog", () => {
     wrap(<RdfImportDialog ns="pods" open onClose={onClose} />);
     fireEvent.change(screen.getByLabelText("RDF"), { target: { value: "<a> <b> <c> ." } });
     fireEvent.click(screen.getByRole("button", { name: "Preview" }));
-    expect(await screen.findByText(/1 recording would change, 1 description matched nothing/)).toBeInTheDocument();
-    expect(screen.getByText(/No recording for “Elsewhere”/)).toBeInTheDocument();
+    expect(await screen.findByText(/1 asset would change, 1 description matched nothing/)).toBeInTheDocument();
+    expect(screen.getByText(/No asset for “Elsewhere”/)).toBeInTheDocument();
     expect(m(Rdf.importNamespaceRdf).mock.calls[0][0]).toMatchObject({
       path: { name: "pods" },
       body: { data: "<a> <b> <c> .", dry_run: true },

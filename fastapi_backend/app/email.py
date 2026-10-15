@@ -149,9 +149,9 @@ async def send_access_request_email(
     from pydantic import NameEmail
 
     message_ = MessageSchema(
-        subject=f"{who} asked for access to {title or f'recording {rid}'}",
+        subject=f"{who} asked for access to {title or f'asset {rid}'}",
         recipients=[NameEmail(o, o) for o in owners],
-        template_body={"who": who, "title": title or f"Recording {rid}", "namespace": namespace, "message": message, "link": link},
+        template_body={"who": who, "title": title or f"Asset {rid}", "namespace": namespace, "message": message, "link": link},
         subtype=MessageType.html,
     )
     await _mailer(cfg).send_message(message_, template_name="access_request.html")

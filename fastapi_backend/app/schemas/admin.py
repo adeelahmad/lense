@@ -328,13 +328,13 @@ class SemanticStatus(ResponseModel):
     current: bool = Field(description="the stored vectors are the configured model's, so searches can use them")
     dimension: int | None = None
     passages: int = Field(description="passages embedded")
-    recordings: int = Field(description="recordings in the archive")
-    indexed: int = Field(description="recordings indexed with the configured model")
+    recordings: int = Field(description="assets in the archive")
+    indexed: int = Field(description="assets indexed with the configured model")
     min_similarity: float = Field(description="how alike a passage must be to a query to be a hit")
 
 
 class IndexQueued(ResponseModel):
-    recordings: int = Field(description="recordings queued to be indexed")
+    recordings: int = Field(description="assets queued to be indexed")
     remaining: bool = Field(description="more are waiting than were queued; run it again, or let the hourly routine")
 
 

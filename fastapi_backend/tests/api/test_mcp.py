@@ -224,7 +224,7 @@ def test_search_and_cite(client, env):
     at = tool(client, h, "cite", recording_id=ep1, seconds=c["seconds"] + 0.5)  # the line being said then
     assert at["line"] == 1 and at["quote"].startswith("Wow, really?")
     assert tool_error(client, h, "cite", recording_id=ep1) == "give line or seconds"
-    assert tool_error(client, h, "cite", recording_id=ep1, line=99) == f"recording {ep1} has no line 99"
+    assert tool_error(client, h, "cite", recording_id=ep1, line=99) == f"asset {ep1} has no line 99"
     assert tool_error(client, h, "cite", recording_id=call, line=0) == "not found, or not something you can read"
 
 
@@ -473,6 +473,7 @@ def test_note_tools(client, db, env):
     found = tool(client, h, "find_notes", query="capsid")
     assert [(n["note_id"], n["summary"], n["place"]) for n in found["notes"]] == [(plan, "Shipping capsids", "project")]
     assert found["notes"][0]["url"].endswith(f"/notes/{plan}")
+    assert tool(client, h, "find_notes", query="friday")["notes"][0]["snippet"] == "Ship on Friday, see ep1."
     assert tool(client, h, "find_notes", place="area")["total"] == 0
     got = tool(client, h, "read_note", note_id=plan)
     assert got["body"].startswith("Ship on Friday") and got["links"] == [{"target": f"recording:{a}", "name": got["links"][0]["name"]}]

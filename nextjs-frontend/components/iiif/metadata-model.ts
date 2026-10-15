@@ -87,7 +87,7 @@ export const FIELD_LABEL: Record<Field, string> = {
   attribution: "Required attribution",
   provider: "Provider",
   navDate: "Date",
-  language: "Languages spoken",
+  language: "Languages",
   creators: "Creators",
   contributors: "Contributors",
   subjects: "Subjects",

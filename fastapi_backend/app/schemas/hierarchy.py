@@ -18,10 +18,10 @@ class CollectionNode(ResponseModel):
     parent: int | None = Field(None, description="the collection it's in; null: the top of its namespace")
     depth: int = Field(0, description="0 at the top")
     path: list[str] = Field(default_factory=list, description="names from the top of the namespace down to it")
-    recordings: int = Field(0, description="recordings it holds")
-    total: int = Field(0, description="recordings it and the collections inside it hold")
+    recordings: int = Field(0, description="assets it holds")
+    total: int = Field(0, description="assets it and the collections inside it hold")
     children: int = Field(0, description="collections directly inside it")
-    default: bool = Field(False, description="new recordings go here when nobody says where")
+    default: bool = Field(False, description="new assets go here when nobody says where")
     created_at: str | None = None
     created_by: str | None = None
     updated_at: str | None = None
@@ -44,7 +44,7 @@ class CollectionNodeUpdate(RequestModel):
     name: str | None = Field(None, min_length=1, max_length=120)
     description: str | None = Field(None, max_length=2000)
     parent: int | None = Field(None, description="move it inside this collection; null: to the top")
-    default: bool | None = Field(None, description="true: new recordings go here when nobody says where")
+    default: bool | None = Field(None, description="true: new assets go here when nobody says where")
 
 
 class CollectionStep(ResponseModel):

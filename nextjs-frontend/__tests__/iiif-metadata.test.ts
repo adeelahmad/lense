@@ -214,7 +214,7 @@ describe("IIIF panel", () => {
       ["Search inside", "Content Search 2.0", true, false],
       ["Descriptive records", "schema.org · Dublin Core", true, false],
     ]);
-    expect(includedFrom({ items: [{ items: [{ items: [] }] }] })[0]).toMatchObject({ label: "Audio", on: false });
+    expect(includedFrom({ items: [{ items: [{ items: [] }] }] })[0]).toMatchObject({ label: "Media", on: false });
     expect(formatExt("audio/mpeg; codecs=mp3")).toBe("mp3");
   });
 

@@ -64,7 +64,7 @@ export function noteCounts(notes: Note[]): { mine: number; shared: number } {
 /** The question before deleting: a shared note goes for everyone. */
 export function deleteQuestion(n: Pick<Note, "mine" | "shared" | "created_by" | "created_by_name">): string {
   if (!n.shared) return "Delete this note?";
-  return n.mine ? "Delete it for everyone who can read this recording?" : `Delete ${writer(n)}’s note for everyone?`;
+  return n.mine ? "Delete it for everyone who can read this asset?" : `Delete ${writer(n)}’s note for everyone?`;
 }
 
 /** The body for a new note: its text, its moment (the draft's, or the player's time when pinned to it), sharing. */

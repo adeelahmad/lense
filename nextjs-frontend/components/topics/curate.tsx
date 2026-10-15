@@ -94,7 +94,7 @@ export function useTopicChanges() {
             keep.label,
             rest.map((o) => o.label),
           ),
-          body: "Their labels and recordings are this one’s now.",
+          body: "Their labels and assets are this one’s now.",
           tone: "green",
           duration: 10000,
           action: { label: "Undo", onClick: () => void undo(r.undo, "Merge") },
@@ -117,7 +117,7 @@ export function useTopicChanges() {
         refresh();
         toast({
           title: `Deleted ${t.label}`,
-          body: "Its narrower topics moved up, and recordings aren’t about it any more.",
+          body: "Its narrower topics moved up, and assets aren’t about it any more.",
           tone: "green",
           duration: 10000,
           action: { label: "Undo", onClick: () => void undo(r.undo, "Delete") },
@@ -159,7 +159,7 @@ export function TopicFind({
   const items = findTopics(all, q, exclude).map((t) => ({
     id: t.id,
     name: t.label,
-    meta: plural(t.recordings, "recording"),
+    meta: plural(t.recordings, "asset"),
   }));
   const typed = q.trim();
   return (

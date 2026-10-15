@@ -109,7 +109,7 @@ def clear_entity_setup(name: str, cid: int, user: Writer, acl: Acl, db: Db) -> O
 
 @router.post("/namespaces/{name}/entity-setup/apply")
 def apply_entity_setup(name: str, body: EntitySetupApply, user: Writer, acl: Acl, db: Db) -> EntitySetupApplied:
-    """Analyse the recordings of the namespace (or of a collection and those inside it) again, so their entities follow
+    """Analyse the assets of the namespace (or of a collection and those inside it) again, so their entities follow
     the setup as it is now."""
     sid = acl.nsid(name)
     if body.collection is not None:
