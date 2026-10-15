@@ -9,6 +9,7 @@ export const SOURCE_TYPE_LABEL: Record<string, string> = {
   webdav: "WebDAV",
   local: "Local",
   imap: "Email",
+  gmail: "Gmail",
   ical: "Calendar",
 };
 
