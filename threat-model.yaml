@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:866a8ecadd07a9c98b1846abb66ef740fa3ba5809698d42f531a66fc5d720db4"
+prose_version: "threat-model.md@sha256:15139a8c048dbb4982d18de5199aa0bfb8ba69f00ce75168406b1c91a2f563fd"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -1614,6 +1614,7 @@ properties_disclaimed:
   - {id: N-BRIDGE, components: [outbound], tier: security-critical, false_friend: false, conditions: "per-person access in chat rooms; the bridge (Matterbridge, the Telegram bot or the assistant's mailbox) answers as one account, the turning-on admin by default; everyone in the room reads what that account reads (exposure posture: Q28); the mailbox answers only mailbox.users whose provider vouched for From", provenance: {kind: documented, source: 'docs/chat-rooms.md "answers as the admin who turned it on"'}}
   - {id: N-PUBLIC, components: [authz], tier: correctness-only, false_friend: false, conditions: "privacy of a public recording's open parts: anyone may use them; open parts only; closed parts and restricted or private recordings are P-ACCESS-PARTS", provenance: {kind: documented, source: 'docs/access.md "the parts of a public recording anyone may use"'}}
   - {id: N-DESCRIPTION, components: [authz], tier: correctness-only, false_friend: false, conditions: "hiding a recording's description when its parts are closed; anyone who may see the page", provenance: {kind: documented, source: 'docs/access.md "never a closed part"'}}
+  - {id: N-NSFW, components: [web, authz], tier: correctness-only, false_friend: true, conditions: "access control from NSFW classification; blurring and hiding flagged resources are display preferences of the web app, and the score can be wrong; anyone who may read a resource still opens it, sees its pictures (sensitive=include, signed frame links, public pages, IIIF, embeds) and reads its classification", x-false-friend-note: "'hidden' reads as restricted", provenance: {kind: documented, source: 'docs/nsfw.md "display preferences, not access control"'}}
   - {id: N-RDF-XML, components: [query], tier: security-critical, false_friend: false, conditions: "XML parsing in RDF import; RDF/XML is refused, so XXE and billion-laughs do not apply there; RDF import only, not docx", provenance: {kind: documented, source: 'rdf_import.py docstring "RDF/XML isn''t read"'}}
 
 x-false-friends-without-row:

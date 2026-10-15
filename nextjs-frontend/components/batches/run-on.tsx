@@ -39,6 +39,7 @@ const STEP_ORDER = [
   "ocr",
   "faces",
   "objects",
+  "nsfw",
   "describe",
   "analyze",
   "embed",

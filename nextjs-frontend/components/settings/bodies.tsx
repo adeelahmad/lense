@@ -293,6 +293,26 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           </p>
         </>
       );
+    case "nsfw":
+      return (
+        <>
+          <F ctx={ctx} id="nsfw.enabled" />
+          <div className="grid gap-3 sm:grid-cols-3">
+            <F ctx={ctx} id="nsfw.threshold" />
+            <F ctx={ctx} id="nsfw.display" />
+            <F ctx={ctx} id="nsfw.max_frames" />
+          </div>
+          <p className="text-[12.5px] leading-[1.45] text-fg-muted">
+            The model is AdamCodd/vit-base-nsfw-detector (Apache-2.0), run with ONNX Runtime on this server: pictures
+            aren’t sent anywhere. It’s strict, so editors can mark a resource NSFW or not by hand. A namespace’s owner
+            can turn it on or off, and set its threshold and display, on{" "}
+            <Link href="/admin/namespaces" className="font-semibold text-fg-accent hover:underline">
+              the namespace’s page
+            </Link>
+            . Blurring and hiding are display preferences, not access control.
+          </p>
+        </>
+      );
     case "workers":
       return (
         <>

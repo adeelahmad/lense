@@ -6,6 +6,7 @@ import {
   Captions,
   Clapperboard,
   Eye,
+  EyeOff,
   FileOutput,
   FileText,
   FlaskConical,
@@ -58,6 +59,7 @@ const ICON: Record<string, LucideIcon> = {
   ocr: ScanText,
   faces: ScanFace,
   objects: Shapes,
+  nsfw: EyeOff,
   describe: Eye,
   analyze: TextSearch,
   embed: ScanSearch,
@@ -68,7 +70,7 @@ const ICON: Record<string, LucideIcon> = {
   workflow: Workflow,
 };
 const TONE = { intent: "blue", red: "red", green: "green", gate: "gold", neutral: "neutral" } as const;
-const ASSETS = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe"];
+const ASSETS = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe"];
 const METADATA = ["analyze", "embed", "summarize", "llm", "report", "export"];
 
 /** A pipeline drawn as a graph: asset steps, metadata steps and workflows, an edge saying what runs after what. */

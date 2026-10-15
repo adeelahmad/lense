@@ -204,6 +204,7 @@ describe("the list query", () => {
         objects: ["car", "dog"],
         collection: 12,
         field: { id: 7, value: " Lecture " },
+        sensitive: "only",
       },
       "all",
       { key: "duration", dir: "desc" },
@@ -226,6 +227,7 @@ describe("the list query", () => {
       collection: 12,
       field: 7,
       value: "Lecture",
+      sensitive: "only",
     });
     // a field with any value
     expect(libraryQuery({ ...NO_FILTERS, field: { id: 7, value: " " } }, "all", byDate, "pods", NOW)).toEqual({

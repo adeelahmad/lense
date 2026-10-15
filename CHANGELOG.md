@@ -4,6 +4,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **NSFW classification, with a model on your server.** Turn it on in Settings → NSFW for every namespace, or on a
+  namespace's page for that one (off by default). The new `nsfw` step scores a video's sampled frames, a document's
+  pages or an image with an Apache-2.0 model (fetched on first use, about 105 MB with ONNX Runtime) and flags the
+  resource when a picture scores at least the threshold. Flagged resources are blurred until someone chooses to see
+  them, left out of the Library, or shown with a label; editors can mark one NSFW or not by hand, and **Classify
+  existing** classifies what was there before. Agents use it through the API and MCP (`nsfw_settings`, `set_nsfw`,
+  `mark_nsfw`) ([NSFW classification](docs/nsfw.md)).
+
 - **Apache Tika.** Lens can use an Apache Tika server (`--profile tika` in the compose files, or one of your own, set
   in Settings → Documents). Documents nothing here can make into a PDF, such as Word files on a lean server or a
   Raspberry Pi, are read by Tika as text, and every document's own title, authors, language and dates are read as

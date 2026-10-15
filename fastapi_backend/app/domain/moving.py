@@ -29,6 +29,7 @@ from . import (
     keyring,
     metadata as md,
     notebook,
+    nsfw,
     render,
     sources,
     speakers as spk,
@@ -278,6 +279,7 @@ def _move(db, cfg, rid, dst, rec, names, home, rediarize, revoke_shares, by):
     deletion.orphans(db, old_speakers, old_faces)  # unnamed ones nothing else has any more
     job = jobs.enqueue(db, rid, (["diarize"] if rediarize else []) + ["analyze", "embed", "report"], by=by)
     md.touched(db, cfg, rid)  # harvesters see an Update: the manifest's collection changed
+    nsfw.reflag(db, cfg, [dst], rid)  # flagged NSFW or not by the new namespace's threshold
     return {
         "title": rec.get("title"),
         "from": names[src],

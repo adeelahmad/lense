@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
+import { RevealCover, useBlur } from "@/components/nsfw/nsfw";
 import { usePlayerApi, usePlayerState, usePlayerTick } from "@/components/player/media";
 import { PlayButton, SpeedMenu } from "@/components/player/transport";
 import { useRec } from "@/components/recording/context";
@@ -45,6 +46,7 @@ export function VideoStage({
   className?: string;
 }) {
   const { model, speakers } = useRec();
+  const blur = useBlur();
   const api = usePlayerApi();
   const { time, status, hasMedia } = usePlayerState();
   const color = useFaceColors();
@@ -77,7 +79,7 @@ export function VideoStage({
             preload="metadata"
             playsInline
             onClick={() => api.toggle()}
-            className="absolute inset-0 size-full cursor-pointer bg-black object-contain"
+            className={cn("absolute inset-0 size-full cursor-pointer bg-black object-contain", blur)}
             aria-label={`Video: ${model.title}`}
           />
         ) : (
@@ -85,6 +87,7 @@ export function VideoStage({
             The video file isn&apos;t available.
           </div>
         )}
+        <RevealCover />
         {status === "error" && (
           <div className="absolute inset-0 grid place-items-center bg-black/70 text-[13px] text-white">
             The video couldn&apos;t be loaded.

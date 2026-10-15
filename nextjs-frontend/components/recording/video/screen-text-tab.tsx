@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 
 import { Video } from "@/app/openapi-client";
 import { usePlayerApi, usePlayerState } from "@/components/player/media";
+import { useBlur } from "@/components/nsfw/nsfw";
 import { useRec } from "@/components/recording/context";
 import { rk } from "@/components/recording/hooks";
 import type { ScreenText } from "@/components/recording/model";
@@ -26,6 +27,7 @@ import { cn } from "@/lib/utils";
  */
 export function ScreenTextTab({ why }: { why?: string | null }) {
   const { model, id, canEdit, ns } = useRec();
+  const blur = useBlur();
   const api = usePlayerApi();
   const { time } = usePlayerState();
   const toast = useToast();
@@ -102,7 +104,7 @@ export function ScreenTextTab({ why }: { why?: string | null }) {
                   <img
                     src={(g.lines[0].frame ?? g.shot?.frame) as string}
                     alt=""
-                    className="size-full object-cover"
+                    className={cn("size-full object-cover", blur)}
                     loading="lazy"
                   />
                 )}
