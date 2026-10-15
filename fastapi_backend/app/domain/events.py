@@ -449,6 +449,8 @@ class Source:
       shown) or from the newest, with what `viewer` may see and the filters it can apply cheaply; the core checks
       every filter again.
     - `get(db, cfg, activity_id)`: one activity by its id, or None (also for ids that aren't its own).
+    - `get_many(db, cfg, ids)`: the activities among `ids` that are its own, in any order; by default one `get` each,
+      so a source with a table to read overrides it with one query for all of them.
     - `now(db)` and `back(db, seconds)`: the position of now, and of `seconds` ago, in its own terms.
     - `key(a)`: the position `page` orders by, [time, id]; its `lens.pos` unless it pages by another column.
     """
@@ -464,6 +466,9 @@ class Source:
 
     def get(self, db, cfg, activity_id):
         return None
+
+    def get_many(self, db, cfg, ids):
+        return [a for a in (self.get(db, cfg, i) for i in ids) if a]
 
     def now(self, db):
         return [store.now(), None]
@@ -722,6 +727,13 @@ class LogSource(Source):
             return None
         r = db.one(f"SELECT {LOG_FIELDS} FROM $r", r=R("event_log", int(m.group(1))))
         return _from_log(r) if r and r.get("kind") in _KINDS else None
+
+    def get_many(self, db, cfg, ids):
+        ns = [int(m.group(1)) for m in (re.match(r"^log-(\d+)$", i) for i in ids) if m]
+        if not ns:
+            return []
+        rows = db.rows(f"SELECT {LOG_FIELDS} FROM event_log WHERE id IN $rs", rs=[R("event_log", n) for n in ns])
+        return [_from_log(r) for r in rows if r.get("kind") in _KINDS]
 
     def key(self, a):
         return [a["published"], a["lens"]["pos"][1]]
@@ -998,10 +1010,11 @@ def _decode(before):
         raise ValueError("before is the `next` of an earlier page") from None
 
 
-def page(db, cfg, who, before=None, flt=None, limit=50):
+def page(db, cfg, who, before=None, flt=None, limit=50, keep=None):
     """A page of the timeline for `who` (viewer), newest first: {items, next}. `next` goes in `before` for the page
     after (None at the end). Filters (check_filter) thin a page out; it reads on, up to PAGE_ROUNDS source pages each,
-    so a filtered page isn't short while there is more."""
+    so a filtered page isn't short while there is more. `keep(activities) -> ids kept` thins it out further by what
+    another table holds (the timeline's review marks), called once for each source page read, not for each row."""
     flt = check_filter(flt)
     limit = max(1, min(int(limit), 200))
     want = _wanted(flt)
@@ -1012,9 +1025,13 @@ def page(db, cfg, who, before=None, flt=None, limit=50):
     got: dict[str, list] = {s.name: [] for s in srcs}
     reads = dict.fromkeys(got, 0)
     done: set[str] = set()
+    kept: set[str] = set()
+
+    def fits(a):
+        return a.get("kind") in want and visible(a, who) and _matches(a, flt)
 
     def ok(a):
-        return a.get("kind") in want and visible(a, who) and _matches(a, flt)
+        return fits(a) and (keep is None or a["id"] in kept)
 
     def k(s, a):
         return (a["published"], s.name, _ikey(s.key(a)[1]))
@@ -1023,6 +1040,8 @@ def page(db, cfg, who, before=None, flt=None, limit=50):
         rows = s.page(db, cfg, at[s.name], who, sflt, limit)[:limit]
         reads[s.name] += 1
         got[s.name] += rows
+        if keep is not None:
+            kept.update(keep([a for a in rows if fits(a)]))
         if rows:
             at[s.name] = s.key(rows[-1])
         if len(rows) < limit:
@@ -1070,6 +1089,20 @@ def get(db, cfg, activity_id, who):
         if a:
             return a if visible(a, who) else None
     return None
+
+
+def get_many(db, cfg, ids, who):
+    """The activities among `ids` that `who` may see, by id ({} for none), with one look per source for all of them
+    (Source.get_many) rather than one per id."""
+    left = [i for i in dict.fromkeys(ids) if isinstance(i, str) and ID_RX.match(i)]
+    out = {}
+    for s in sources():
+        if not left:
+            break
+        found = {a["id"]: a for a in s.get_many(db, cfg, left) if a and a.get("id") in left}
+        out |= {i: a for i, a in found.items() if visible(a, who)}
+        left = [i for i in left if i not in found]
+    return out
 
 
 # ---------- keeping it small ----------

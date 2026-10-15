@@ -15,6 +15,7 @@ from . import (
     batches,
     cypher,
     entities,
+    event_marks,
     extensions,
     entity_map,
     events,
@@ -71,9 +72,33 @@ TOOLS = [
         "timeline",
         "What happened in Lens, newest first (new assets, and every other kind of activity there is): who did it, what "
         "it is about, when, and a one-line summary. Optionally by kinds (such as asset.added), namespace, entity tag, "
-        "time (since, until: ISO 8601), words in the summary; give next as before for more.",
-        {"kinds": {"type": "array", "items": _S}, "namespace": _S, "tag": _S, "since": _S, "until": _S, "q": _S, "before": _S, "limit": _I},
+        "time (since, until: ISO 8601), words in the summary, unreviewed (those the person hasn't marked reviewed); "
+        "give next as before for more.",
+        {
+            "kinds": {"type": "array", "items": _S},
+            "namespace": _S,
+            "tag": _S,
+            "since": _S,
+            "until": _S,
+            "q": _S,
+            "unreviewed": {"type": "boolean"},
+            "before": _S,
+            "limit": _I,
+        },
         [],
+        False,
+    ),
+    (
+        "mark_activities",
+        "Mark activities of the timeline (by their ids from timeline) reviewed, important or hidden, or clear those "
+        "marks (false), for the person alone; marks left out stay as they are.",
+        {
+            "ids": {"type": "array", "items": _S},
+            "reviewed": {"type": "boolean"},
+            "important": {"type": "boolean"},
+            "hidden": {"type": "boolean"},
+        },
+        ["ids"],
         False,
     ),
     (
@@ -361,7 +386,7 @@ def builtin_names():
 # tools whose results the model may take as Lens's own word: the server's state and settings, the skills the person
 # chose, what the graph holds, and what the built-in tools that change things report (ids, what waits for approval).
 # What every other tool gives back is third-party text, marked as data (untrusted.py).
-OWN_RESULTS = {"server_status", "find_model_servers", "read_settings", "file_storage", "graph_schema", "use_skill"} | {
+OWN_RESULTS = {"server_status", "find_model_servers", "read_settings", "file_storage", "graph_schema", "use_skill", "mark_activities"} | {
     t[0] for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS if t[4]
 }
 
@@ -887,20 +912,26 @@ class Toolbox(ops_tools.OpsTools):
         ]
         return {"total": len(ids), "recordings": out}, f"Listed {len(ids)} asset(s)"
 
-    def t_timeline(self, kinds=None, namespace=None, tag=None, since=None, until=None, q=None, before=None, limit=20):
+    def _viewer(self):
+        # admins see what is for admins alone too, unless the conversation is about some namespaces
+        return events.viewer(self.user["id"], self.readable, admin=bool(self.admin) and not self.scope.get("namespaces"))
+
+    def _about_allowed(self, a):
+        """Whether an activity is about the assets of a conversation about some assets (any, in one that isn't)."""
+        return self.allowed is None or events.ref_id((a.get("object") or {}).get("id"), "recording") in self.allowed
+
+    def t_timeline(self, kinds=None, namespace=None, tag=None, since=None, until=None, q=None, unreviewed=None, before=None, limit=20):
         names = store.space_names(self.db)
         spaces = self.readable
         if namespace:
             spaces = {s for s in self.readable if names.get(s) == namespace}
             if not spaces:
                 raise ValueError(f"namespace {namespace} isn't in this conversation")
-        # admins see what is for admins alone too, unless the conversation is about some namespaces
-        who = events.viewer(self.user["id"], self.readable, admin=bool(self.admin) and not self.scope.get("namespaces"))
         flt = {"kinds": kinds or None, "tag": tag, "since": since, "until": until, "q": q, "spaces": sorted(spaces) if namespace else None}
-        page = events.page(self.db, self.cfg, who, before, {k: v for k, v in flt.items() if v}, min(int(limit or 20), 50))
-        items = page["items"]
-        if self.allowed is not None:  # a conversation about some assets: only what is about them
-            items = [a for a in items if events.ref_id((a.get("object") or {}).get("id"), "recording") in self.allowed]
+        keep = event_marks.keeper(self.db, self.user["id"], {"reviewed": False} if unreviewed else None)
+        page = events.page(self.db, self.cfg, self._viewer(), before, {k: v for k, v in flt.items() if v}, min(int(limit or 20), 50), keep)
+        items = [a for a in page["items"] if self._about_allowed(a)]  # a conversation about some assets: only what is about them
+        marks = event_marks.of(self.db, self.user["id"], [a["id"] for a in items])
         out = [
             {
                 "id": a["id"],
@@ -910,10 +941,29 @@ class Toolbox(ops_tools.OpsTools):
                 "actor": a["actor"]["name"],
                 "object": a["object"],
                 "namespace": names.get(a.get("space")),
+                **({"marked": [f for f in event_marks.FLAGS if marks[a["id"]][f]]} if a["id"] in marks else {}),
             }
             for a in items
         ]
         return {"activities": out, "next": page["next"]}, f"Read {len(out)} activit{'y' if len(out) == 1 else 'ies'} from the timeline"
+
+    def t_mark_activities(self, ids, reviewed=None, important=None, hidden=None):
+        flags = event_marks.check({"reviewed": reviewed, "important": important, "hidden": hidden})
+        ids = [str(i) for i in ([ids] if isinstance(ids, str) else ids or [])]
+        if not ids or len(ids) > event_marks.MAX_IDS:
+            raise ValueError(f"give the ids of 1 to {event_marks.MAX_IDS} activities, from timeline")
+        seen = {i: a for i, a in events.get_many(self.db, self.cfg, ids, self._viewer()).items() if self._about_allowed(a)}
+        known, unknown = [i for i in dict.fromkeys(ids) if i in seen], [i for i in dict.fromkeys(ids) if i not in seen]
+        said = ", ".join(f"{'' if v else 'not '}{k}" for k, v in flags.items())
+        what = f"{len(known)} activit{'y' if len(known) == 1 else 'ies'} {said}"
+        if not known:
+            return {"marks": {}, "unknown": unknown}, "Marked no activities: none of those can be seen here"
+        # what it read from outside Lens (the timeline's own titles too) may have asked it to take things out of the
+        # person's sight: hiding them or marking them reviewed asks first then; the other marks only bring things back
+        if self.wary() and (flags.get("hidden") or flags.get("reviewed")):
+            return self._approval("mark_activities", {"ids": known, **flags}, f"Mark {what}" + self.why())
+        marks = event_marks.mark(self.db, self.user["id"], known, flags)
+        return {"marks": marks, "unknown": unknown}, f"Marked {what}"
 
     def t_read_transcript(self, recording_id, start_seconds=0, end_seconds=None, max_lines=60):
         cap = self.cfg["ai"].get("max_transcript_reads") or 20
@@ -1412,6 +1462,9 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
         result = author_extension(db, a["tool"], args, user, admin, readable if readable is not None else editable, editable)
     elif a["tool"] in ("change_settings", "create_namespace", "import_files", "import_urls", "invite_person", "change_person"):
         result = ops_tools.apply(db, cfg, base or cfg, a["tool"], args, user, editable, admin)
+    elif a["tool"] == "mark_activities":  # the person's own marks, on activities they could see when it was asked
+        flags = {k: v for k, v in args.items() if k in event_marks.FLAGS}
+        result = {"marked": len(event_marks.mark(db, user["id"], args["ids"], flags))}
     elif a["tool"] == "forget_memory":
         sid = {v: k for k, v in store.space_names(db).items()}.get(args["namespace"])
         if sid not in editable:

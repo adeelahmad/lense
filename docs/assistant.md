@@ -96,7 +96,10 @@ When the configured model supports function calling, chat becomes an agent.
 - **What it can look things up with:** assets' text (transcripts and documents, and on-screen text), assets, passages,
   outputs, entities and their mentions and timelines, the knowledge graph, people, and content similar to a text,
   an asset, a topic or an entity (`find_similar`), and what happened in Lens, newest first (`timeline`, the
-  [stream of activities](automations.md#timeline-reads)).
+  [stream of activities](automations.md#timeline-reads); `unreviewed` for what the person hasn't marked reviewed).
+- **The person's review marks:** `mark_activities` marks activities of the timeline reviewed, important or hidden for
+  the person ([Timeline](timeline.md#review-marks)). After it has read text from outside Lens, hiding or marking
+  reviewed waits for their yes; marking important or bringing things back acts at once.
 - **Limits:** everything is limited to what the person can read and to the conversation's scope, and capped by
   `ai.max_steps` (Settings → AI assistant, Tool steps per answer; 6 by default) and `ai.max_transcript_reads`.
 - **Always an answer:** the model is told its step budget. When the steps run out, or it replies with nothing, it is
