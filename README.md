@@ -117,8 +117,10 @@ Everything below is built and merged. Work that is still in a pull request is li
   with everything Lens found about it, or the parts you pick. ([Podcasts](docs/podcasts.md), [notes](docs/notes.md),
   [evidence PDFs](docs/api.md#evidence-pdfs))
 - **Automate it.** Pipelines and workflows on a canvas, routines on a schedule, batch runs over a collection, and
-  notifications to webhooks, Slack, Discord and Matterbridge. ([Processing](docs/processing.md#workflows-and-the-canvas),
-  [notifications](docs/notifications.md))
+  notifications to webhooks, Slack, Discord and Matterbridge. What happens in Lens is kept as a stream of activities
+  (W3C Activity Streams) that agents read through the API, MCP (`timeline`) and the assistant; so far it holds new
+  assets, and automations that act on it are in progress. ([Processing](docs/processing.md#workflows-and-the-canvas),
+  [notifications](docs/notifications.md), [automations](docs/automations.md))
 - **See what it costs.** An activity ledger of every model call, with reports, charts and budgets that cap spending.
   Setup asks for one overall budget after a cloud model, with a soft limit that warns and a hard limit that stops paid
   calls. A meter in the top bar shows spend against the budget, and the Costs page breaks it down by day, model and
@@ -178,6 +180,8 @@ These are open pull requests, not yet part of Lens:
   ([#400](https://github.com/adeelahmad/lense/pull/400)).
 - **Notes:** download a note, or all of a namespace's notes, as Markdown
   ([#419](https://github.com/adeelahmad/lense/pull/419)).
+- **Automations:** a Settings section for the stream of activities
+  ([#429](https://github.com/adeelahmad/lense/pull/429)); storing and running automations, and the studio, are planned.
 - **Shares:** S3 and WebDAV reached through remote access ([#402](https://github.com/adeelahmad/lense/pull/402)),
   and files added over them imported ([#408](https://github.com/adeelahmad/lense/pull/408)).
 
@@ -204,7 +208,7 @@ The guides are on the [docs site](https://adeelahmad.github.io/lense/) and in th
   [the assistant by email](docs/assistant-email.md), [podcasts](docs/podcasts.md), [notes](docs/notes.md),
   [web clipper](docs/web-clipper.md), [the assistant in your browser](docs/browser-assistant.md),
   [sensors](docs/sensors.md), [processing](docs/processing.md), [video](docs/video.md),
-  [NSFW classification](docs/nsfw.md), [notifications](docs/notifications.md)
+  [NSFW classification](docs/nsfw.md), [notifications](docs/notifications.md), [automations](docs/automations.md)
 - **Knowledge:** [graph and Cypher](docs/graph.md), [graph history](docs/graph-history.md), [topics](docs/topics.md),
   [the graph as files](docs/file-tree.md), [NFS share](docs/file-shares.md), [SMB share](docs/smb.md),
   [linked data (RDF)](docs/rdf.md), [IIIF](docs/iiif.md), [Fedora](docs/fedora.md)
