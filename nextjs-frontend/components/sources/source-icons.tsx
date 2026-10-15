@@ -24,6 +24,7 @@ export const TYPE_ICON: Record<SourceType, LucideIcon> = {
   webdav: Globe,
   local: Folder,
   imap: Mail,
+  gmail: Mail,
   ical: CalendarDays,
 };
 

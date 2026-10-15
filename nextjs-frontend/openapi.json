@@ -19505,6 +19505,49 @@
         }
       }
     },
+    "/api/v1/sources/{sid}/google": {
+      "post": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Sign In To Google",
+        "description": "Sign a Gmail source in to Google as a person: open the returned address in this browser. Google asks them to\nlet Lens read their mail, then sends them back to the source's page. Uses the Google client set up in Settings \u203a\nSign-in. Audited as `source.google` when it's done.",
+        "operationId": "sign_in_to_google",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalRedirect"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sources/{sid}/browse": {
       "get": {
         "tags": [
@@ -28916,7 +28959,7 @@
               }
             ],
             "title": "Oauth",
-            "description": "the command that produces the token, for OAuth backends"
+            "description": "for OAuth backends: the command that produces the token, or `google` when the source signs in with Google from Lens (POST /sources/{id}/google)"
           }
         },
         "additionalProperties": true,
@@ -56572,6 +56615,7 @@
               "webdav",
               "local",
               "imap",
+              "gmail",
               "ical"
             ],
             "title": "Type"
@@ -56667,6 +56711,7 @@
               "webdav",
               "local",
               "imap",
+              "gmail",
               "ical"
             ],
             "title": "Type"

@@ -31,6 +31,7 @@ export const TYPE_NAME: Record<SourceType, string> = {
   webdav: "WebDAV",
   local: "This machine",
   imap: "Email (IMAP)",
+  gmail: "Gmail",
   ical: "Calendar feed",
 };
 
@@ -45,6 +46,7 @@ export const STORAGE_NOUN: Record<SourceType, string> = {
   webdav: "the WebDAV server",
   local: "the folder",
   imap: "the mailbox",
+  gmail: "the mailbox",
   ical: "the calendar",
 };
 
@@ -147,6 +149,8 @@ export function sourceSubtitle(s: Pick<Source, "type" | "params">): string {
       return `WebDAV · ${str(p.url) || "no URL"}`;
     case "imap":
       return `IMAP · ${str(p.user) ? `${str(p.user)}@` : ""}${str(p.host) || "no host"}${str(p.port) ? `:${str(p.port)}` : ""}`;
+    case "gmail":
+      return `Gmail · ${str(p.user) || "not signed in"} · ${str(p.via) === "imap" ? "IMAP" : "API"}`;
     case "ical":
       return "Calendar feed · address kept secret";
     default:

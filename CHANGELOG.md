@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Gmail and Google Workspace as a sensor.** A new kind of email source reads a Gmail or Google Workspace mailbox
+  through Google's Gmail API (read only) or over IMAP. It signs in with Google as a person, through the Google client
+  already set up for signing in to Lens, or as a Workspace service account with domain-wide delegation, so nobody has
+  to sign in. Labels are its folders, and a watch follows Gmail's history: it reads only what arrived, and one that
+  leaves what's there reads nothing old. The connection dialog's Gmail option is in progress; until it lands, add one
+  through the API ([Gmail and Google Workspace](docs/processing.md#gmail-and-google-workspace)).
 - **The assistant always answers.** When a question used up its tool steps (`ai.max_steps`), the assistant used to stop
   with "I ran out of steps before finishing". Now it's asked to answer from what it found, with the tools off, and says
   what it didn't get to check; a reply with nothing in it is asked again the same way. It also knows its step budget up

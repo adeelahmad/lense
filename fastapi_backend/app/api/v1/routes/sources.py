@@ -5,12 +5,14 @@ from __future__ import annotations
 import logging
 from collections import Counter
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
 
-from app.api.deps import Acl, AdminReader, AdminWriter, Cfg, CurrentUser, Db
-from app.domain import auth, sources, store
+from app.api.deps import Acl, AdminReader, AdminWriter, Cfg, CurrentUser, Db, web_origin
+from app.api.v1.routes.external import set_flow_cookie
+from app.domain import auth, google_auth, sources, store
 from app.domain.store import DB
 from app.schemas.admin import Started
+from app.schemas.auth import ExternalRedirect
 from app.schemas.common import Created, Ok
 from app.schemas.sources import (
     Backend,
@@ -94,6 +96,26 @@ def test_source(sid: int, user: AdminWriter, db: Db, cfg: Cfg) -> SourceHealth:
     return sources.test(db, cfg, sid)
 
 
+@router.post("/sources/{sid}/google")
+def sign_in_to_google(sid: int, user: AdminWriter, request: Request, response: Response, db: Db, cfg: Cfg) -> ExternalRedirect:
+    """Sign a Gmail source in to Google as a person: open the returned address in this browser. Google asks them to
+    let Lens read their mail, then sends them back to the source's page. Uses the Google client set up in Settings ›
+    Sign-in. Audited as `source.google` when it's done."""
+    if user.via != "access":
+        raise HTTPException(403, "sign in to the web app to connect Google; API tokens and apps can't")
+    try:
+        src = sources.get(db, sid)
+    except KeyError:
+        raise HTTPException(404, "not found") from None
+    origin = web_origin(request)
+    try:
+        url, browser = google_auth.start(db, cfg, src, origin, user.id)
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(400, str(e)) from None
+    set_flow_cookie(response, origin, browser)
+    return ExternalRedirect(url=url)
+
+
 @router.get("/sources/{sid}/browse")
 def browse_source(sid: int, user: AdminReader, db: Db, cfg: Cfg, path: str = "") -> list[BrowseEntry]:
     """The folders and files at one path of a source (for local sources, no path lists the allowed roots), with the
@@ -134,7 +156,7 @@ def create_watch(body: WatchCreate, user: AdminWriter, db: Db, cfg: Cfg) -> Crea
 def preview_watch(body: WatchPreviewRequest, user: AdminWriter, db: Db, cfg: Cfg) -> WatchPreview:
     """How many files a watched folder would pick up (the backfill count), before creating it."""
     try:
-        files = sources.list_files(db, cfg, sources.get(db, body.source), body.path)
+        files = sources.list_files(db, cfg, sources.get(db, body.source), body.path, headers=False)
     except KeyError:
         raise HTTPException(400, "no such source") from None
     except (ValueError, RuntimeError) as e:

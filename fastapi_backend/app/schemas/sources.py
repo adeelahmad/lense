@@ -1,4 +1,4 @@
-"""Storage sources (where files live, through rclone; email accounts and calendar feeds) and watched folders (admins)."""
+"""Storage sources (where files live, through rclone; email accounts, Gmail and calendar feeds) and watched folders (admins)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pydantic import Field
 
 from app.schemas.common import Created, Ok, RequestModel, ResponseModel
 
-SourceType = Literal["s3", "dropbox", "drive", "onedrive", "sftp", "smb", "webdav", "local", "imap", "ical"]
+SourceType = Literal["s3", "dropbox", "drive", "onedrive", "sftp", "smb", "webdav", "local", "imap", "gmail", "ical"]
 WatchKinds = Literal["audio", "transcripts", "both", "documents", "all"]
 KINDS_HELP = (
     "what to pick up: audio (and video), transcripts, both of those (PDFs read as transcripts), documents (PDFs and "
@@ -20,7 +20,11 @@ class Backend(ResponseModel):
     label: str
     fields: dict[str, str] = Field(description="parameters and their defaults")
     secrets: list[str]
-    oauth: str | None = Field(default=None, description="the command that produces the token, for OAuth backends")
+    oauth: str | None = Field(
+        default=None,
+        description="for OAuth backends: the command that produces the token, or `google` when the source signs in with "
+        "Google from Lens (POST /sources/{id}/google)",
+    )
 
 
 class SourceHealth(ResponseModel):

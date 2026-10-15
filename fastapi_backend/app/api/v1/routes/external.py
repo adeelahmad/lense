@@ -15,7 +15,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 
 from app.api.deps import AdminWriter, Cfg, CurrentUser, Db, Writer, domain_errors, web_origin
-from app.domain import auth, external_login, passkeys
+from app.domain import auth, external_login, google_auth, passkeys, sources
 from app.schemas.auth import (
     ExternalIdentity,
     ExternalProvider,
@@ -30,7 +30,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 COOKIE = "lens_external"
 
 
-def _cookie(response: Response, origin: str, value: str) -> None:
+def set_flow_cookie(response: Response, origin: str, value: str) -> None:
+    """The cookie that ties a round trip through a provider to this browser (sign-in, or a source signing in)."""
     response.set_cookie(
         COOKIE,
         value,
@@ -50,7 +51,7 @@ def _redirect(response: Response, request: Request, db: Db, cfg: Cfg, key: str, 
         raise HTTPException(404, "no such sign-in provider") from None
     except ValueError as e:
         raise HTTPException(400, str(e)) from None
-    _cookie(response, origin, browser)
+    set_flow_cookie(response, origin, browser)
     return ExternalRedirect(url=url)
 
 
@@ -96,6 +97,8 @@ def external_callback(
         flow = external_login.claim(db, state, request.cookies.get(COOKIE))
     except ValueError as e:
         return _back(web_origin(request), error=str(e), next="/login")
+    if flow.get("mode") == "source":
+        return _source_signed_in(db, cfg, flow, code, error, error_description)
     origin, connect = flow["origin"], flow.get("mode") == "connect"
     away = "/account" if connect else "/login"
     if error or not code:
@@ -112,6 +115,26 @@ def external_callback(
         auth.audit(db, u, "external.connect", f"account:{u['id']}", [key])
         return _back(origin, connected=label, next="/account")
     return _back(origin, ticket=passkeys.issue_ticket(db, u["id"], f"external:{key}"), next=flow.get("next") or "/")
+
+
+def _source_signed_in(db: Db, cfg: Cfg, flow: dict, code: str, error: str, error_description: str) -> RedirectResponse:
+    """A source signed in to Google (google_auth.py): back to its page, tested."""
+    origin, away = flow["origin"], flow.get("next") or "/sensors"
+    if error or not code:
+        why = "you cancelled" if error == "access_denied" else (error_description or error or "no code came back")
+        return _back(origin, error=f"signing in to Google didn't finish: {why}", next=away)
+    u = auth.active_account(db, flow.get("account"))
+    if not u or not u.get("admin"):
+        return _back(origin, error="only admins can sign sources in", next=away)
+    try:
+        sid, address = google_auth.finish(db, cfg, flow, code)
+    except KeyError:
+        return _back(origin, error="that source was removed", next="/sensors")
+    except (ValueError, RuntimeError) as e:
+        return _back(origin, error=str(e), next=away)
+    auth.audit(db, u, "source.google", f"storage_source:{sid}", [address])
+    sources.test(db, cfg, sid)
+    return _back(origin, connected=address, next=away)
 
 
 # ---------- your outside accounts ----------

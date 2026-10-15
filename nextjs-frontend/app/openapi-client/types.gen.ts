@@ -911,7 +911,7 @@ export type Backend = {
   /**
    * Oauth
    *
-   * the command that produces the token, for OAuth backends
+   * for OAuth backends: the command that produces the token, or `google` when the source signs in with Google from Lens (POST /sources/{id}/google)
    */
   oauth?: string | null;
   [key: string]: unknown;
@@ -16925,7 +16925,7 @@ export type Source = {
   /**
    * Type
    */
-  type: "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "ical";
+  type: "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "gmail" | "ical";
   /**
    * Label
    */
@@ -16969,7 +16969,7 @@ export type SourceCreate = {
   /**
    * Type
    */
-  type: "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "ical";
+  type: "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "gmail" | "ical";
   /**
    * Params
    */
@@ -32495,6 +32495,36 @@ export type TestSourceResponses = {
 };
 
 export type TestSourceResponse = TestSourceResponses[keyof TestSourceResponses];
+
+export type SignInToGoogleData = {
+  body?: never;
+  path: {
+    /**
+     * Sid
+     */
+    sid: number;
+  };
+  query?: never;
+  url: "/api/v1/sources/{sid}/google";
+};
+
+export type SignInToGoogleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SignInToGoogleError = SignInToGoogleErrors[keyof SignInToGoogleErrors];
+
+export type SignInToGoogleResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExternalRedirect;
+};
+
+export type SignInToGoogleResponse = SignInToGoogleResponses[keyof SignInToGoogleResponses];
 
 export type BrowseSourceData = {
   body?: never;

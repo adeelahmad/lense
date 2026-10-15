@@ -289,7 +289,7 @@ A folder scan and a routine run are each claimed first, so several processes doi
 ## Storage sources
 
 Admins add sources in the app (`/api/v1/sources`): S3 or S3-compatible, Dropbox, Google Drive, OneDrive, SFTP, SMB,
-WebDAV, or a folder on this machine; or an email account (IMAP) or a calendar feed (iCal), below. A watched folder maps a path on a source to a namespace, with include/exclude
+WebDAV, or a folder on this machine; or an email account (IMAP, or Gmail and Google Workspace) or a calendar feed (iCal), below. A watched folder maps a path on a source to a namespace, with include/exclude
 patterns, audio and/or transcripts, a polling interval, how long a file must be unchanged before it is picked up, and
 whether files already there are imported (backfill). New audio is queued for the full pipeline; new transcripts are
 imported and analysed. Audio stays where it is: it is copied to a cache for processing and streamed from the source for
@@ -335,6 +335,7 @@ importing chosen ones and watching work as above.
   exists (rules never create one); mail for a namespace deleted since goes to the watch's. Rules apply to messages that
   arrive after they're saved. `POST /api/v1/watches/routes/preview` shows where the latest messages would go before
   saving, and a scan's stats count the messages `routed` elsewhere.
+- **Gmail and Google Workspace**: see [below](#gmail-and-google-workspace).
 - **Calendar feed (iCal)**: the calendar's iCal address (`https://` or `webcal://`; a user and password if it asks for
   one). The address is kept encrypted like a password and never shown again, since a private calendar's address is
   all it takes to read it. It is fetched the way web pages are captured: public addresses only (and the networks in
@@ -345,6 +346,45 @@ importing chosen ones and watching work as above.
   are. Time zones are read as IANA names, Windows' names (as Outlook writes them), or the calendar's own VTIMEZONE. An event that changes (its LAST-MODIFIED,
   or its size) is read again into the resource it already is, rather than made a second one.
 - `.eml` and `.ics` files in any source, and uploaded through Import, can be read as text this way too.
+
+### Gmail and Google Workspace
+
+A Gmail or Google Workspace mailbox (type `gmail`) is read through Google's Gmail API, read only (`gmail.readonly`),
+or over IMAP (`via: imap`). For a personal Gmail account, an email (IMAP) connection with an app password works too,
+with nothing to set up at Google. A Gmail source signs in one of two ways:
+
+- **Sign in with Google.** **Sign in with Google** on the connection sends you to Google, which asks you to let Lens
+  read your mail, then brings you back to the sensor's page (`POST /api/v1/sources/{id}/google` starts it, from a
+  signed-in browser). Lens keeps the refresh token Google gives, encrypted like a password, and the address you signed
+  in with. It uses the Google client set up for signing in to Lens (Settings › Sign-in, its client id and secret, and
+  its redirect URI; signing in to Lens with Google can stay off), so nothing else is registered at Google. In Google
+  Cloud, turn on the Gmail API in that client's project and add the Gmail scope to its consent screen. Google reviews
+  apps that read Gmail before people outside your Workspace domain can use them without a warning: an app in testing
+  works for its test users, whose sign-ins Google ends after seven days (sign in again), and an unreviewed app in
+  production shows a warning page people can click through. Unticking the mail permission on Google's page leaves the
+  source unconnected, and says so.
+- **A service account** (Google Workspace). Upload the service account's JSON key and enter the address of the person
+  whose mail Lens reads; nobody signs in. A Workspace admin lets the account's client id use
+  `https://www.googleapis.com/auth/gmail.readonly` (or `https://mail.google.com/` to read over IMAP) under Admin
+  console › Security › API controls › Domain-wide delegation. One source reads one person's mailbox.
+- An agent can give a source a token it already has instead: the `token` secret as JSON with `refresh_token`,
+  `client_id` and `client_secret`.
+
+Labels are the folders: the inbox, sent, starred, important, the inbox's categories (Primary, Social, Promotions,
+Updates, Forums) and your own labels. A message is a file `<label id>/<message id>.eml`, read as Gmail keeps it, so it
+becomes an email document as an IMAP message does. Watching the whole mailbox (no path) takes everything but spam, the
+bin, drafts and chats, each message once. A watch follows Gmail's history: a scan asks only for what arrived since the
+last one (and, on a label, messages the label was put on since), and a watch that doesn't take what's there already
+reads nothing old at all. Messages are taken as soon as Gmail lists them, with no wait for them to settle. When Gmail
+no longer keeps the history a watch points into (it keeps about a week), the watch reads what arrived from an hour
+before its last scan on, and skips what it already has. Browsing a label shows its newest 200 messages; Import → From a
+source takes any message chosen. Routing rules work as for IMAP, and a message's `mailbox` is its labels.
+
+Over IMAP, a Gmail source works as an IMAP account does, at imap.gmail.com with the Google sign-in (XOAUTH2). That
+needs Google's all-of-Gmail scope, since Google has no read-only one for IMAP; Lens still only reads. Changing `via`
+starts the source's watches again as new ones (taking what's there only if they backfill), since the two name folders
+and messages differently: check their folders. Each access token Google gives, each listing and each message read is a
+row in the activity ledger (`google.token`, `gmail.list`, `gmail.read`); none costs anything.
 
 ## Pipelines and templates
 

@@ -90,7 +90,7 @@ export function WatchEditor({
   path: string;
   watch?: Watch | null;
 }) {
-  const email = source.type === "imap";
+  const email = source.type === "imap" || source.type === "gmail";
   const client = useApiClient();
   const qc = useQueryClient();
   const toast = useToast();

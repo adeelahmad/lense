@@ -1336,6 +1336,9 @@ import type {
   SigninLinkUseData,
   SigninLinkUseErrors,
   SigninLinkUseResponses,
+  SignInToGoogleData,
+  SignInToGoogleErrors,
+  SignInToGoogleResponses,
   SkipTopicCandidateData,
   SkipTopicCandidateErrors,
   SkipTopicCandidateResponses,
@@ -7995,6 +7998,22 @@ export class Sources {
   ): RequestResult<TestSourceResponses, TestSourceErrors, ThrowOnError> {
     return (options.client ?? client).post<TestSourceResponses, TestSourceErrors, ThrowOnError>({
       url: "/api/v1/sources/{sid}/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Sign In To Google
+   *
+   * Sign a Gmail source in to Google as a person: open the returned address in this browser. Google asks them to
+   * let Lens read their mail, then sends them back to the source's page. Uses the Google client set up in Settings ›
+   * Sign-in. Audited as `source.google` when it's done.
+   */
+  public static signInToGoogle<ThrowOnError extends boolean = false>(
+    options: Options<SignInToGoogleData, ThrowOnError>,
+  ): RequestResult<SignInToGoogleResponses, SignInToGoogleErrors, ThrowOnError> {
+    return (options.client ?? client).post<SignInToGoogleResponses, SignInToGoogleErrors, ThrowOnError>({
+      url: "/api/v1/sources/{sid}/google",
       ...options,
     });
   }
