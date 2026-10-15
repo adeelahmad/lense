@@ -16,6 +16,7 @@ import {
   Video,
 } from "@/app/openapi-client";
 import type { CommentCreate, FileUpdate, HighlightCreate, NoteCreate, Recording } from "@/app/openapi-client/types.gen";
+import type { EvidencePart } from "@/components/evidence/parts-dialog";
 import type { FileRole } from "@/components/recording/files-model";
 import { isActive, normalizeJob, visualNotes, type JobInfo } from "@/components/recording/jobs";
 import { normalizePlayer } from "@/components/recording/model";
@@ -589,14 +590,15 @@ export function useExport(id: number) {
   });
 }
 
-/** Download the resource as an evidence PDF (anytopdf): its pages, then the file's SHA-256 on a provenance page. */
+/** Download the resource as an evidence PDF (anytopdf): its pages, then what Lens found about it, then the file's
+ * SHA-256 on a provenance page. `include` picks the parts (none: everything Lens found). */
 export function useEvidence(id: number) {
   const client = useApiClient();
   const toast = useToast();
   return useMutation({
-    mutationFn: async ({ title }: { title: string }) => {
+    mutationFn: async ({ title, include }: { title: string; include?: EvidencePart[] }) => {
       const blob = (await data(
-        Resources.evidencePdf({ client, path: { rid: id }, parseAs: "blob" }),
+        Resources.evidencePdf({ client, path: { rid: id }, query: include ? { include } : undefined, parseAs: "blob" }),
       )) as unknown as Blob;
       saveBlob(blob, `${slug(title)}-evidence.pdf`);
     },

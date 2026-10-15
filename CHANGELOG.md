@@ -4,6 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Evidence PDFs hold everything Lens found.** After each resource's own file come pages of what Lens knows about
+  it: its details, metadata and custom fields, tags, topics, the summary and analysis models wrote, its sections,
+  speakers, emotion and sounds (overall, by speaker, and marked on each transcript line, such as "(Happy, Laughter)"),
+  entities, keywords, the faces, objects, descriptions and text on screen seen in it, and the places and dates found
+  in it. Notes, highlights and comments people shared go in when picked. Export › Choose what goes in it… (and the
+  button beside a collection's Evidence PDF) picks the parts, and `include` does the same in the API
+  ([Evidence PDFs](docs/api.md#evidence-pdfs)).
 - **Apache Tika.** Lens can use an Apache Tika server (`--profile tika` in the compose files, or one of your own, set
   in Settings → Documents). Documents nothing here can make into a PDF, such as Word files on a lean server or a
   Raspberry Pi, are read by Tika as text, and every document's own title, authors, language and dates are read as

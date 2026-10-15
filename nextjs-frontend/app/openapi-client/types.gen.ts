@@ -24700,7 +24700,30 @@ export type EvidencePdfData = {
      */
     rid: number;
   };
-  query?: never;
+  query?: {
+    /**
+     * Include
+     *
+     * the parts of the PDF; repeat for several. Without it: every part but notes. file: its own file: a document's pages, an image, or audio and video with Lens's transcript; details: what it is, when it was made and added, its length, language, content type and where it came from; metadata: its description as saved and derived (Dublin Core terms, rights, creators) and its custom fields; tags: its tags; topics: the topics it is about, accepted and suggested; summary: the summary a model wrote: key points, follow-ups, people, overall tone and importance; analysis: what its pipeline's model steps saved; sections: the sections analysis split it into; speakers: who spoke, for how long, and how each was recognised; emotion: the emotion of what was said and the sounds heard, overall and by speaker, marked on each transcript line; entities: the people, organisations, places and other names it mentions; keywords: its keywords; visual: the faces, objects, descriptions and text on screen seen in it; places: the places and dates anytopdf found in it, and where a photo was taken; notes: the notes, highlights and comments people shared on it
+     */
+    include?: Array<
+      | "file"
+      | "details"
+      | "metadata"
+      | "tags"
+      | "topics"
+      | "summary"
+      | "analysis"
+      | "sections"
+      | "speakers"
+      | "emotion"
+      | "entities"
+      | "keywords"
+      | "visual"
+      | "places"
+      | "notes"
+    > | null;
+  };
   url: "/api/v1/resources/{rid}/evidence.pdf";
 };
 
@@ -33219,7 +33242,30 @@ export type CollectionEvidenceData = {
      */
     cid: number;
   };
-  query?: never;
+  query?: {
+    /**
+     * Include
+     *
+     * the parts of the PDF; repeat for several. Without it: every part but notes. file: its own file: a document's pages, an image, or audio and video with Lens's transcript; details: what it is, when it was made and added, its length, language, content type and where it came from; metadata: its description as saved and derived (Dublin Core terms, rights, creators) and its custom fields; tags: its tags; topics: the topics it is about, accepted and suggested; summary: the summary a model wrote: key points, follow-ups, people, overall tone and importance; analysis: what its pipeline's model steps saved; sections: the sections analysis split it into; speakers: who spoke, for how long, and how each was recognised; emotion: the emotion of what was said and the sounds heard, overall and by speaker, marked on each transcript line; entities: the people, organisations, places and other names it mentions; keywords: its keywords; visual: the faces, objects, descriptions and text on screen seen in it; places: the places and dates anytopdf found in it, and where a photo was taken; notes: the notes, highlights and comments people shared on it
+     */
+    include?: Array<
+      | "file"
+      | "details"
+      | "metadata"
+      | "tags"
+      | "topics"
+      | "summary"
+      | "analysis"
+      | "sections"
+      | "speakers"
+      | "emotion"
+      | "entities"
+      | "keywords"
+      | "visual"
+      | "places"
+      | "notes"
+    > | null;
+  };
   url: "/api/v1/collections/{cid}/evidence.pdf";
 };
 

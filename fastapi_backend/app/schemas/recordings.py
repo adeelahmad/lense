@@ -9,6 +9,24 @@ from app.schemas.hierarchy import CollectionStep
 
 # Recording statuses, plus two job states: a job queued or running (processing), the latest job failed (failed).
 RecordingState = Literal["new", "transcribed", "diarized", "analyzed", "error", "processing", "failed"]
+# the parts of an evidence PDF (domain/evidence_report.py PARTS)
+EvidencePart = Literal[
+    "file",
+    "details",
+    "metadata",
+    "tags",
+    "topics",
+    "summary",
+    "analysis",
+    "sections",
+    "speakers",
+    "emotion",
+    "entities",
+    "keywords",
+    "visual",
+    "places",
+    "notes",
+]
 MediaKind = Literal["audio", "video", "transcript", "document", "image"]
 RecordingSort = Literal[
     "date",

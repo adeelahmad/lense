@@ -33,6 +33,7 @@ import { Fragment, useState, type ReactNode } from "react";
 import { AccessBadge } from "@/components/access/access-fields";
 import { libraryHref } from "@/components/library/collections-model";
 import { usePlayerApi } from "@/components/player/media";
+import { EvidencePartsDialog } from "@/components/evidence/parts-dialog";
 import { CreatePodcastDialog } from "@/components/podcasts/create-dialog";
 import { useRec } from "@/components/recording/context";
 import { pageAt, pagesSummary } from "@/components/recording/document/model";
@@ -222,45 +223,58 @@ export function ExportMenu({ trigger }: { trigger?: ReactNode }) {
   const { id, model, rec, paged } = useRec();
   const exp = useExport(id);
   const evidence = useEvidence(id);
+  const [picking, setPicking] = useState(false);
   // a document's text has no times for subtitles
   const formats = paged ? EXPORTS.filter(([fmt]) => fmt !== "srt" && fmt !== "vtt") : EXPORTS;
   return (
-    <Menu>
-      <MenuTrigger asChild>
-        {trigger ?? (
-          <Button variant="secondary" size="sm" icon={<Download />} disabled={exp.isPending}>
-            Export
-          </Button>
-        )}
-      </MenuTrigger>
-      <MenuContent>
-        <MenuLabel>{paged ? "Download the text" : "Download the transcript"}</MenuLabel>
-        {formats.map(([fmt, label]) => (
-          <MenuItem key={fmt} onSelect={() => exp.mutate({ fmt, title: model.title })} shortcut={`.${fmt}`}>
-            {label}
-          </MenuItem>
-        ))}
-        <MenuSeparator />
-        <MenuItem
-          onSelect={() => evidence.mutate({ title: model.title })}
-          disabled={evidence.isPending}
-          shortcut=".pdf"
-        >
-          Evidence PDF
-        </MenuItem>
-        {rec.report_url && (
-          <>
-            <MenuSeparator />
-            <MenuItem asChild>
-              <a href={rec.report_url} target="_blank" rel="noreferrer" className="flex items-center gap-2.5">
-                <ExternalLink />
-                <span className="flex-1">Open the recording report</span>
-              </a>
+    <>
+      <Menu>
+        <MenuTrigger asChild>
+          {trigger ?? (
+            <Button variant="secondary" size="sm" icon={<Download />} disabled={exp.isPending}>
+              Export
+            </Button>
+          )}
+        </MenuTrigger>
+        <MenuContent>
+          <MenuLabel>{paged ? "Download the text" : "Download the transcript"}</MenuLabel>
+          {formats.map(([fmt, label]) => (
+            <MenuItem key={fmt} onSelect={() => exp.mutate({ fmt, title: model.title })} shortcut={`.${fmt}`}>
+              {label}
             </MenuItem>
-          </>
-        )}
-      </MenuContent>
-    </Menu>
+          ))}
+          <MenuSeparator />
+          <MenuLabel>Evidence PDF: the file and everything Lens found</MenuLabel>
+          <MenuItem
+            onSelect={() => evidence.mutate({ title: model.title })}
+            disabled={evidence.isPending}
+            shortcut=".pdf"
+          >
+            Evidence PDF
+          </MenuItem>
+          <MenuItem onSelect={() => setPicking(true)} disabled={evidence.isPending}>
+            Choose what goes in it…
+          </MenuItem>
+          {rec.report_url && (
+            <>
+              <MenuSeparator />
+              <MenuItem asChild>
+                <a href={rec.report_url} target="_blank" rel="noreferrer" className="flex items-center gap-2.5">
+                  <ExternalLink />
+                  <span className="flex-1">Open the recording report</span>
+                </a>
+              </MenuItem>
+            </>
+          )}
+        </MenuContent>
+      </Menu>
+      <EvidencePartsDialog
+        open={picking}
+        onOpenChange={setPicking}
+        what={`“${model.title}”`}
+        onDownload={(include) => evidence.mutate({ title: model.title, include })}
+      />
+    </>
   );
 }
 

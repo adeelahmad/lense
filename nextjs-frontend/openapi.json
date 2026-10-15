@@ -8259,7 +8259,7 @@
           "resources"
         ],
         "summary": "Evidence Pdf",
-        "description": "The resource as an evidence PDF, made by anytopdf (a download): its own file's pages (audio and video with\ntheir transcript), searchable, then a provenance page with the file's SHA-256 and size. 503 when anytopdf can't\nrun here (it's fetched on first use unless Settings \u203a Documents says never to use it).",
+        "description": "The resource as an evidence PDF, made by anytopdf (a download): its own file's pages (audio and video with\ntheir transcript, each line marked with its emotion and sound), searchable, then the pages of what Lens found\nabout it (details, metadata, tags, topics, summary, analysis, sections, speakers, emotion, entities, keywords,\nwhat is seen, places and dates; notes when asked for), then a provenance page with each file's SHA-256 and size.\n`include` picks the parts. 503 when anytopdf can't run here (it's fetched on first use unless Settings \u203a\nDocuments says never to use it).",
         "operationId": "evidence_pdf",
         "parameters": [
           {
@@ -8270,6 +8270,44 @@
               "type": "integer",
               "title": "Rid"
             }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "file",
+                      "details",
+                      "metadata",
+                      "tags",
+                      "topics",
+                      "summary",
+                      "analysis",
+                      "sections",
+                      "speakers",
+                      "emotion",
+                      "entities",
+                      "keywords",
+                      "visual",
+                      "places",
+                      "notes"
+                    ],
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the parts of the PDF; repeat for several. Without it: every part but notes. file: its own file: a document's pages, an image, or audio and video with Lens's transcript; details: what it is, when it was made and added, its length, language, content type and where it came from; metadata: its description as saved and derived (Dublin Core terms, rights, creators) and its custom fields; tags: its tags; topics: the topics it is about, accepted and suggested; summary: the summary a model wrote: key points, follow-ups, people, overall tone and importance; analysis: what its pipeline's model steps saved; sections: the sections analysis split it into; speakers: who spoke, for how long, and how each was recognised; emotion: the emotion of what was said and the sounds heard, overall and by speaker, marked on each transcript line; entities: the people, organisations, places and other names it mentions; keywords: its keywords; visual: the faces, objects, descriptions and text on screen seen in it; places: the places and dates anytopdf found in it, and where a photo was taken; notes: the notes, highlights and comments people shared on it",
+              "title": "Include"
+            },
+            "description": "the parts of the PDF; repeat for several. Without it: every part but notes. file: its own file: a document's pages, an image, or audio and video with Lens's transcript; details: what it is, when it was made and added, its length, language, content type and where it came from; metadata: its description as saved and derived (Dublin Core terms, rights, creators) and its custom fields; tags: its tags; topics: the topics it is about, accepted and suggested; summary: the summary a model wrote: key points, follow-ups, people, overall tone and importance; analysis: what its pipeline's model steps saved; sections: the sections analysis split it into; speakers: who spoke, for how long, and how each was recognised; emotion: the emotion of what was said and the sounds heard, overall and by speaker, marked on each transcript line; entities: the people, organisations, places and other names it mentions; keywords: its keywords; visual: the faces, objects, descriptions and text on screen seen in it; places: the places and dates anytopdf found in it, and where a photo was taken; notes: the notes, highlights and comments people shared on it"
           }
         ],
         "responses": {
@@ -22217,7 +22255,7 @@
           "collections"
         ],
         "summary": "Collection Evidence",
-        "description": "The collection's recordings you can read (a list in its order, a filter's oldest first) as one evidence PDF made by anytopdf (a download): each\none's pages, then a provenance page with every file's SHA-256 and size. At most 50 recordings.",
+        "description": "The collection's recordings you can read (a list in its order, a filter's oldest first) as one evidence PDF made by anytopdf (a download): each\none's pages and what Lens found about it, then a provenance page with every file's SHA-256 and size. `include` picks the parts, as for a\nresource's evidence PDF. At most 50 recordings.",
         "operationId": "collection_evidence",
         "parameters": [
           {
@@ -22228,6 +22266,44 @@
               "type": "integer",
               "title": "Cid"
             }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "file",
+                      "details",
+                      "metadata",
+                      "tags",
+                      "topics",
+                      "summary",
+                      "analysis",
+                      "sections",
+                      "speakers",
+                      "emotion",
+                      "entities",
+                      "keywords",
+                      "visual",
+                      "places",
+                      "notes"
+                    ],
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the parts of the PDF; repeat for several. Without it: every part but notes. file: its own file: a document's pages, an image, or audio and video with Lens's transcript; details: what it is, when it was made and added, its length, language, content type and where it came from; metadata: its description as saved and derived (Dublin Core terms, rights, creators) and its custom fields; tags: its tags; topics: the topics it is about, accepted and suggested; summary: the summary a model wrote: key points, follow-ups, people, overall tone and importance; analysis: what its pipeline's model steps saved; sections: the sections analysis split it into; speakers: who spoke, for how long, and how each was recognised; emotion: the emotion of what was said and the sounds heard, overall and by speaker, marked on each transcript line; entities: the people, organisations, places and other names it mentions; keywords: its keywords; visual: the faces, objects, descriptions and text on screen seen in it; places: the places and dates anytopdf found in it, and where a photo was taken; notes: the notes, highlights and comments people shared on it",
+              "title": "Include"
+            },
+            "description": "the parts of the PDF; repeat for several. Without it: every part but notes. file: its own file: a document's pages, an image, or audio and video with Lens's transcript; details: what it is, when it was made and added, its length, language, content type and where it came from; metadata: its description as saved and derived (Dublin Core terms, rights, creators) and its custom fields; tags: its tags; topics: the topics it is about, accepted and suggested; summary: the summary a model wrote: key points, follow-ups, people, overall tone and importance; analysis: what its pipeline's model steps saved; sections: the sections analysis split it into; speakers: who spoke, for how long, and how each was recognised; emotion: the emotion of what was said and the sounds heard, overall and by speaker, marked on each transcript line; entities: the people, organisations, places and other names it mentions; keywords: its keywords; visual: the faces, objects, descriptions and text on screen seen in it; places: the places and dates anytopdf found in it, and where a photo was taken; notes: the notes, highlights and comments people shared on it"
           }
         ],
         "responses": {
