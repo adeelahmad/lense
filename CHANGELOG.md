@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Every entity has its own page.** An entity's page is named by its name, as a wiki names pages:
+  `/wiki/<namespace>/<Name>` (spaces as underscores), so Ada Lovelace in `work` is `/wiki/work/Ada_Lovelace`. It shows
+  what the entity is, the notes people and the assistant keep on it in the BlockSuite editor, every line that says it,
+  and the recordings, people and entities it comes up with. Its name on the Entities page now opens it (the rest of
+  the row still opens the side panel), as do `@` links in notes, the graph panel and the entity's RDF URI. Any case, a
+  name it had before a rename, or the name of one merged into it opens it too ([Entity pages](docs/notes.md#entity-pages)).
 - **Backups hold Lens's files too.** Each backup now also keeps the files under `data_dir` (uploads, objects, media,
   frames, renditions, web pages, reports, exports, podcasts, certificates), and restoring one puts them back. Files
   that haven't changed since the previous backup are hard links, so a backup takes only the room of what changed; the
