@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Notes tree menu.** Each note in the tree in the left navigation has a ⋯ menu to add a note inside, rename it in
+  place, move it (find the note to put it in by name, or move it to the top) and delete it with Undo, so nothing needs
+  dragging and it works on a phone. The navigation links and the tree now scroll together, so a long tree has room
+  ([The tree](docs/notes.md#the-tree)).
 - **Delete a note with Undo.** Deleting a note no longer asks first: the notice has Undo, which puts it back where it
   was. Deleted notes wait in Recently deleted, at the bottom of the Notes page, for 30 days with their files and
   history, to put back with one click or delete for good; then they go on their own
