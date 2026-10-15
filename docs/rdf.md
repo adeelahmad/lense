@@ -25,7 +25,7 @@ URIs use the address Lens publishes (`iiif.base_url`, or the address a request a
 
 Each URI uses content negotiation. An `Accept` of `text/turtle`, `application/ld+json`, `application/n-triples` or
 `application/rdf+xml`, or `?format=turtle|json-ld|nt|xml`, returns RDF. A browser is sent to the page instead
-(303 See Other).
+(303 See Other); an entity's page is named by its name, `/wiki/<namespace>/<Name>` ([Notes](notes.md#entity-pages)).
 
 A public asset's URI is open to everyone, just like its IIIF manifest. Visitors get its metadata and published
 custom fields. Members also get the entities it mentions (`dcterms:references`), its access and its internal fields.

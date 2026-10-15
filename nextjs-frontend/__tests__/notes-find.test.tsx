@@ -94,10 +94,10 @@ describe("the Notes page", () => {
     const hit = await screen.findByRole("link", { name: /Weekly call/ });
     expect(hit).toHaveTextContent("Page of entity");
     expect(hit).toHaveTextContent("…we talked about capsids…");
-    expect(hit).toHaveAttribute("href", "/notes/about/entity/5");
+    expect(hit).toHaveAttribute("href", "/entities/5");
     expect(m(Notes.searchPages).mock.calls.at(-1)[0].query).toMatchObject({ q: "capsids", ns: "home", place: null });
     fireEvent.keyDown(box, { key: "Enter" });
-    expect(push).toHaveBeenCalledWith("/notes/about/entity/5");
+    expect(push).toHaveBeenCalledWith("/entities/5");
   });
 
   it("says when no note has the words", async () => {

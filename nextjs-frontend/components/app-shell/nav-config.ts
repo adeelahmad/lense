@@ -92,6 +92,8 @@ export function isActive(pathname: string, href: string): boolean {
   if (href === "/sensors" && (pathname === "/sources" || pathname.startsWith("/sources/"))) return true;
   // Members opening /sensors see their Sources page.
   if (href === "/sources" && pathname === "/sensors") return true;
+  // An entity's page is under /wiki, by name.
+  if (href === "/entities" && pathname.startsWith("/wiki/")) return true;
   // Speakers live in Settings; a speaker's profile keeps its own address.
   if (href === "/settings" && (pathname === "/speakers" || pathname.startsWith("/speakers/"))) return true;
   return pathname === href || pathname.startsWith(`${href}/`);
