@@ -671,6 +671,10 @@ export const JOURNEYS = [
     from: "/",
     async run(ctx) {
       const { page, meter } = ctx;
+      // An entity is in the graph once something links it twice (graph.min_edge_weight), which takes import-file's
+      // pi-episode as well; a slow machine can still be reading it here
+      const twice = page.getByRole("heading", { name: /^Where it.s said \([2-9]\d*\)$/ });
+      await madeInBackground(ctx, "/wiki/interviews/Raspberry_Pi", twice, "/", "Raspberry Pi said in both imports");
       await go(ctx, "Graph");
       const find = page.getByRole("combobox", { name: "Find in graph" });
       await page.getByRole("region", { name: "Graph" }).waitFor();
