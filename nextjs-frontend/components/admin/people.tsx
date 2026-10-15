@@ -37,7 +37,8 @@ type Dialogs =
   | { kind: "reset"; person: Person }
   | { kind: "rename"; person: Person }
   | { kind: "link"; person: Person }
-  | { kind: "passkeys"; person: Person };
+  | { kind: "passkeys"; person: Person }
+  | { kind: "remove"; person: Person };
 
 /** People: accounts with their role in every namespace (Admin AD1); create, reset, disable (AD2). */
 export function PeoplePage() {
@@ -205,11 +206,12 @@ export function PeoplePage() {
       {dialog?.kind === "passkeys" && <PasskeysDialog person={dialog.person} onClose={() => setDialog(null)} />}
       {dialog?.kind === "reset" && <ResetDialog person={dialog.person} onClose={() => setDialog(null)} />}
       {dialog?.kind === "rename" && <RenameDialog person={dialog.person} onClose={() => setDialog(null)} />}
+      {dialog?.kind === "remove" && <RemoveDialog person={dialog.person} onClose={() => setDialog(null)} />}
     </AdminFrame>
   );
 }
 
-type Action = "reset" | "disable" | "enable" | "rename" | "link" | "passkeys";
+type Action = "reset" | "disable" | "enable" | "rename" | "link" | "passkeys" | "remove";
 
 /** The role matrix, an ARIA grid: arrows move between cells, Enter opens the cell's control, Escape comes back. */
 function RoleGrid({
@@ -458,6 +460,11 @@ function RoleGrid({
                         {me ? "You can’t disable yourself" : "Disable account"}
                       </MenuItem>
                     )}
+                    {!me && (
+                      <MenuItem danger onSelect={() => onAction("remove", p)}>
+                        Remove for good…
+                      </MenuItem>
+                    )}
                   </MenuContent>
                 </Menu>
               </div>
@@ -549,13 +556,16 @@ function Done({ title, password }: { title: string; password: string }) {
 }
 
 /** A one-time sign-in link to share privately: it adds a passkey on the device it's opened on. */
-function LinkDone({ title, url }: { title: string; url: string }) {
+function LinkDone({ title, url, emailed }: { title: string; url: string; emailed?: boolean }) {
   return (
     <div className="flex flex-col gap-2">
       <Banner tone="success">{title}</Banner>
       <span className="text-[13px] text-fg-secondary">
-        Send them this sign-in link privately. It works once, for three days, and isn’t shown again. Opening it adds a
-        passkey (fingerprint, face or device PIN) on their device.
+        {emailed
+          ? "We emailed them this sign-in link. You can also send it yourself; it"
+          : "Send them this sign-in link privately. It"}{" "}
+        works once, for three days, and isn’t shown again. Opening it adds a passkey (fingerprint, face or device PIN)
+        on their device.
       </span>
       <CodeBlock text={url} label="sign-in link" />
     </div>
@@ -591,7 +601,10 @@ function CreateDialog({ passwords, onClose }: { passwords: boolean; onClose: () 
       // a role in a namespace in the same step, so nobody is sent to the role matrix afterwards
       if (!admin && ns && role !== "none")
         await data(Users.setMember({ client, path: { name: ns }, body: { account: made.id, role } }));
-      return usePassword ? null : await data(Users.makeSigninLink({ client, path: { uid: made.id } }));
+      // emailed to them when mail is set up, and shown here either way
+      return usePassword
+        ? null
+        : await data(Users.makeSigninLink({ client, path: { uid: made.id }, query: { email: true } }));
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["users"] });
@@ -632,7 +645,11 @@ function CreateDialog({ passwords, onClose }: { passwords: boolean; onClose: () 
     >
       {create.isSuccess ? (
         create.data ? (
-          <LinkDone title={`Created ${shownName || email.trim()}.`} url={create.data.url} />
+          <LinkDone
+            title={`Created ${shownName || email.trim()}.`}
+            url={create.data.url}
+            emailed={create.data.emailed}
+          />
         ) : (
           <Done title={`Created ${shownName || email.trim()}.`} password={password} />
         )
@@ -808,7 +825,9 @@ function RenameDialog({ person, onClose }: { person: Person; onClose: () => void
 function LinkDialog({ person, onClose }: { person: Person; onClose: () => void }) {
   const client = useApiClient();
   const who = person.name || person.email;
-  const make = useMutation({ mutationFn: () => data(Users.makeSigninLink({ client, path: { uid: person.id } })) });
+  const make = useMutation({
+    mutationFn: () => data(Users.makeSigninLink({ client, path: { uid: person.id }, query: { email: true } })),
+  });
   return (
     <Dialog
       open
@@ -836,7 +855,9 @@ function LinkDialog({ person, onClose }: { person: Person; onClose: () => void }
         )
       }
     >
-      {make.isSuccess && <LinkDone title={`The link for ${who} is ready.`} url={make.data.url} />}
+      {make.isSuccess && (
+        <LinkDone title={`The link for ${who} is ready.`} url={make.data.url} emailed={make.data.emailed} />
+      )}
       {make.isError && <Banner tone="error">{make.error.message}</Banner>}
     </Dialog>
   );
@@ -873,6 +894,72 @@ function PasskeysDialog({ person, onClose }: { person: Person; onClose: () => vo
       }
     >
       {drop.isError && <Banner tone="error">{drop.error.message}</Banner>}
+    </Dialog>
+  );
+}
+
+/** Removing can't be undone, so unlike disabling it asks first, and offers disabling instead. */
+function RemoveDialog({ person, onClose }: { person: Person; onClose: () => void }) {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const who = person.name || person.email;
+  const [loseVaults, setLoseVaults] = useState(false);
+  const remove = useMutation({
+    mutationFn: () =>
+      data(
+        Users.removeUser({ client, path: { uid: person.id }, query: loseVaults ? { lose_vaults: true } : undefined }),
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["users"] });
+      void qc.invalidateQueries({ queryKey: ["members"] });
+      toast({ title: `Removed ${who}`, body: "What they shared stays under their name.", tone: "green" });
+      onClose();
+    },
+  });
+  const disable = useMutation({
+    mutationFn: () => data(Users.updateUser({ client, path: { uid: person.id }, body: { disabled: true } })),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["users"] });
+      toast({ title: `Disabled ${who}`, body: "Roles, notes and edits are kept.", tone: "green" });
+      onClose();
+    },
+  });
+  const vault = remove.error instanceof ApiError && /vault|lost for good/i.test(remove.error.message);
+  return (
+    <Dialog
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title={`Remove ${who} for good?`}
+      description="They can't sign in again, and their roles, permissions, API tokens and apps go. So do their chats, private notes, highlights and saved views. Notes, views and comments they shared stay under their name. You can invite the same email again later. This can't be undone; disabling can."
+      actions={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          {!person.disabled && (
+            <Button disabled={disable.isPending || remove.isPending} onClick={() => disable.mutate()}>
+              Disable instead
+            </Button>
+          )}
+          <Button
+            variant="danger"
+            disabled={remove.isPending || (vault && !loseVaults)}
+            onClick={() => remove.mutate()}
+          >
+            {remove.isPending ? "Removing…" : "Remove for good"}
+          </Button>
+        </>
+      }
+    >
+      {remove.isError && <Banner tone="error">{remove.error.message}</Banner>}
+      {vault && (
+        <Switch
+          checked={loseVaults}
+          onCheckedChange={setLoseVaults}
+          label="Remove anyway and lose that vault's files"
+        />
+      )}
     </Dialog>
   );
 }

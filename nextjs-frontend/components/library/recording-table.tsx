@@ -12,6 +12,7 @@ import {
   EmotionCell,
   ImportanceCell,
   MediaIcon,
+  NsfwBadge,
   SpeakersCell,
   StatusCell,
   TagsCell,
@@ -284,6 +285,7 @@ export function RecordingTable({
                         {r.title || "Untitled"}
                       </Link>
                       {r.media_kind === "transcript" && <TextBadge />}
+                      <NsfwBadge state={r.nsfw} paged={r.media_kind === "document" || r.media_kind === "image"} />
                     </span>
                     <span className="flex items-center gap-[5px] whitespace-nowrap text-[12px] leading-none text-fg-muted">
                       <MediaIcon kind={r.media_kind} />

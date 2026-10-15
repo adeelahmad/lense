@@ -86,6 +86,7 @@ nav:
       - Sensors: sensors.md
       - Processing: processing.md
       - Video: video.md
+      - NSFW classification: nsfw.md
       - Notifications: notifications.md
   - Knowledge:
       - Graph and Cypher: graph.md

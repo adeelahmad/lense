@@ -7,7 +7,8 @@
 # how it went into .lens-control/upgrade-status and upgrade.log, which the web app shows.
 #
 # It takes a release tag (vX.Y.Z), or the branch this install already follows; nothing else, whoever wrote the
-# request. Run by hand: sh packaging/host/lens-upgrade.sh <install folder>
+# request. An empty ref sets up the version running again, as Settings › HTTPS does with https=1 or 0 to open or close
+# the HTTPS ports (docs/https.md). Run by hand: sh packaging/host/lens-upgrade.sh <install folder>
 #
 # A request with action=services turns the monitoring containers on or off instead (docs/prometheus.md): it adds or
 # removes `monitoring` in COMPOSE_PROFILES in .env and starts or stops Prometheus, node-exporter and Grafana, and says
@@ -87,6 +88,7 @@ id="$(val id "$REQ")"
 ref="$(val ref "$REQ")"
 action="$(val action "$REQ")"
 monitoring="$(val monitoring "$REQ")"
+https="$(val https "$REQ")"
 rm -f "$REQ"
 now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 env_of() { [ -f "$DIR/.env" ] && sed -n "s/^$1=//p" "$DIR/.env" | head -1; }
@@ -108,6 +110,11 @@ started="$(now)"
 : >"$CTL/upgrade.log"
 
 branch="$(git -C "$DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+if [ -z "$ref" ]; then # the version running: this install's branch, or the release tag it's on
+  ref="$branch"
+  [ "$ref" = HEAD ] && ref="$(git -C "$DIR" describe --tags --exact-match 2>/dev/null || true)"
+fi
+case "$https" in 0 | 1 | "") ;; *) https="" ;; esac
 if ! printf '%s' "$ref" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' && [ "$ref" != "$branch" ]; then
   echo "Not upgrading to '$ref': only a release tag (vX.Y.Z) or this install's branch ($branch)." >>"$CTL/upgrade.log"
   status failed "finished_at=$(now)" "code=2" "error=only a release tag (vX.Y.Z) or this install's branch can be installed"
@@ -121,6 +128,7 @@ set +e
   cd "$DIR" &&
     LENS_DIR="$DIR" LENS_REF="$ref" LENS_NO_OPEN=1 LENS_YES=1 LENS_WIZARD=0 LENS_AGENT_RUN=1 \
       LENS_REPO="$(env_of LENS_REPO)" LENS_TARGET="$(env_of LENS_TARGET)" LENS_BACKEND="$(env_of LENS_BACKEND)" \
+      LENS_HTTPS="${https:-$(env_of LENS_HTTPS)}" \
       GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$DIR" \
       sh "$DIR/install.sh"
 ) >>"$CTL/upgrade.log" 2>&1 </dev/null

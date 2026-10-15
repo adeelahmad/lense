@@ -161,6 +161,7 @@ class SigninLinkInfo(ResponseModel):
 class SigninLink(ResponseModel):
     url: str = Field(description="open it on the device to sign in with; it works once")
     expires_at: str
+    emailed: bool = Field(False, description="whether Lens emailed it to them (email=true, with mail set up)")
 
 
 class LoginTicket(ResponseModel):

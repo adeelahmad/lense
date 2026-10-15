@@ -375,7 +375,7 @@ def test_a_steps_list_from_before_the_video_steps_runs_them_too(db, cfg):
     w = jobs.Worker(db, lambda: {**cfg, "workers": {**cfg["workers"], "steps": old}}, name="old", log=said.append)
     assert w.can == set(jobs.STEPS) and not said
     w = jobs.Worker(db, lambda: {**cfg, "workers": {**cfg["workers"], "steps": [*old, "shots"]}}, name="chosen", log=said.append)
-    assert "ocr" not in w.can and "leaves out describe, faces, objects, ocr" in said[0]
+    assert "ocr" not in w.can and "leaves out describe, faces, nsfw, objects, ocr" in said[0]
     assert jobs.Worker(db, lambda: cfg, name="mac", steps=["transcribe"], log=said.append).can == {"transcribe"} and len(said) == 1
 
 

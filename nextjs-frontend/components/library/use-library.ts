@@ -226,6 +226,17 @@ export function useObjectCounts(ns: string | null) {
   });
 }
 
+/** NSFW classification in the recordings shown: whether it's on in any of their namespaces, how many are flagged and
+ * how many of those are hidden (docs/nsfw.md). */
+export function useNsfwCounts(ns: string | null) {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: ["recording-nsfw", ns],
+    queryFn: () => data(Resources.nsfwCounts({ client, query: ns ? { ns } : {} })),
+    staleTime: 60_000,
+  });
+}
+
 export function useTagCounts(ns: string | null) {
   const client = useApiClient();
   return useQuery({

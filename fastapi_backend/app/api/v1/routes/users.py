@@ -18,7 +18,8 @@ router = APIRouter(tags=["users"])
 def list_users(user: AdminReader, db: Db) -> list[UserWithRoles]:
     """Every account, with its role in each namespace."""
     people = db.rows(
-        "SELECT record::id(id) AS id, email, name, admin, disabled, created_at, last_login_at, pw != NONE AS password FROM account ORDER BY id"
+        "SELECT record::id(id) AS id, email, name, admin, disabled, created_at, last_login_at, pw != NONE AS password FROM account "
+        "WHERE removed_at = NONE ORDER BY id"
     )
     keys: dict[int, int] = defaultdict(int)
     for a in db.values("SELECT VALUE account FROM passkey"):
@@ -50,11 +51,33 @@ def update_user(uid: int, body: UserUpdate, user: AdminWriter, db: Db, cfg: Cfg)
         raise HTTPException(400, "passwords are turned off here; send a sign-in link instead")
     if uid == user.id and (body.admin is False or body.disabled):
         raise HTTPException(400, "you can't remove your own admin rights or disable yourself")
-    if not auth.get_account(db, uid):
+    target = auth.get_account(db, uid)
+    if not target or target.get("removed_at"):
         raise HTTPException(404, "not found")
     with domain_errors():
         auth.update_account(db, uid, body.name, body.admin, body.disabled, body.password)
     auth.audit(db, user.as_audit(), "user.update", f"account:{uid}", body.model_dump(exclude_unset=True, exclude={"password"}))
+    return Ok()
+
+
+@router.delete("/users/{uid}")
+def remove_user(uid: int, user: AdminWriter, db: Db, cfg: Cfg, lose_vaults: bool = False) -> Ok:
+    """Remove someone for good (docs/authentication.md#removing-someone): their sign-ins, roles, permissions and
+    private things go; what they shared stays under their name, and their email can be invited again. Disabling
+    (PATCH) is the reversible way. Refused (409) for the account Matterbridge answers as, and when their passkeys are
+    the only way into a vault, unless lose_vaults=true. Audited as `user.remove`."""
+    if uid == user.id:
+        raise HTTPException(400, "you can't remove yourself")
+    u = auth.get_account(db, uid)
+    if not u or u.get("removed_at"):
+        raise HTTPException(404, "not found")
+    if ((cfg.get("bridge") or {}).get("account") or "").strip().lower() == u["email"]:
+        raise HTTPException(409, "Matterbridge answers as this account: choose another one in Settings first")
+    try:
+        auth.remove_account(db, uid, lose_vaults)
+    except ValueError as e:
+        raise HTTPException(409, str(e)) from None
+    auth.audit(db, user.as_audit(), "user.remove", f"account:{uid}", {"email": u["email"]})
     return Ok()
 
 

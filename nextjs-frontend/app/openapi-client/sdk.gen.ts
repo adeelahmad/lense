@@ -106,6 +106,9 @@ import type {
   CheckMessageResponses,
   CheckUpdatesData,
   CheckUpdatesResponses,
+  ClassifyNamespaceNsfwData,
+  ClassifyNamespaceNsfwErrors,
+  ClassifyNamespaceNsfwResponses,
   ClearEntitySetupData,
   ClearEntitySetupErrors,
   ClearEntitySetupResponses,
@@ -530,6 +533,9 @@ import type {
   GetNamespaceMetadataData,
   GetNamespaceMetadataErrors,
   GetNamespaceMetadataResponses,
+  GetNamespaceNsfwData,
+  GetNamespaceNsfwErrors,
+  GetNamespaceNsfwResponses,
   GetNamespaceRdfData,
   GetNamespaceRdfErrors,
   GetNamespaceRdfResponses,
@@ -668,6 +674,9 @@ import type {
   HomeSuggestionsData,
   HomeSuggestionsErrors,
   HomeSuggestionsResponses,
+  HttpsPortsData,
+  HttpsPortsErrors,
+  HttpsPortsResponses,
   HttpsProvidersData,
   HttpsProvidersResponses,
   HttpsStatusData,
@@ -954,6 +963,9 @@ import type {
   MarkEntitiesNotSameData,
   MarkEntitiesNotSameErrors,
   MarkEntitiesNotSameResponses,
+  MarkRecordingNsfwData,
+  MarkRecordingNsfwErrors,
+  MarkRecordingNsfwResponses,
   MeData,
   MeResponses,
   MergeEntitiesData,
@@ -991,6 +1003,9 @@ import type {
   NotSameSpeakerData,
   NotSameSpeakerErrors,
   NotSameSpeakerResponses,
+  NsfwCountsData,
+  NsfwCountsErrors,
+  NsfwCountsResponses,
   OpenRecordingToIpGroupData,
   OpenRecordingToIpGroupErrors,
   OpenRecordingToIpGroupResponses,
@@ -1116,6 +1131,9 @@ import type {
   RemoveRecordingPermissionData,
   RemoveRecordingPermissionErrors,
   RemoveRecordingPermissionResponses,
+  RemoveUserData,
+  RemoveUserErrors,
+  RemoveUserResponses,
   RemoveVaultPasskeyData,
   RemoveVaultPasskeyErrors,
   RemoveVaultPasskeyResponses,
@@ -1487,6 +1505,9 @@ import type {
   UpdateNamespaceMetadataData,
   UpdateNamespaceMetadataErrors,
   UpdateNamespaceMetadataResponses,
+  UpdateNamespaceNsfwData,
+  UpdateNamespaceNsfwErrors,
+  UpdateNamespaceNsfwResponses,
   UpdateNamespaceResponses,
   UpdateNoteData,
   UpdateNoteErrors,
@@ -2254,7 +2275,8 @@ export class Users {
    * Make Signin Link
    *
    * A one-time link for this person to add a passkey and sign in (a new person, or one who lost theirs). It lasts
-   * three days; making another stops the last one. Share it privately. Audited as `user.signin_link`.
+   * three days; making another stops the last one. Share it privately, or with email=true Lens emails it to them
+   * when mail is set up (`emailed` says whether it did). Audited as `user.signin_link`.
    */
   public static makeSigninLink<ThrowOnError extends boolean = false>(
     options: Options<MakeSigninLinkData, ThrowOnError>,
@@ -2311,6 +2333,23 @@ export class Users {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Remove User
+   *
+   * Remove someone for good (docs/authentication.md#removing-someone): their sign-ins, roles, permissions and
+   * private things go; what they shared stays under their name, and their email can be invited again. Disabling
+   * (PATCH) is the reversible way. Refused (409) for the account Matterbridge answers as, and when their passkeys are
+   * the only way into a vault, unless lose_vaults=true. Audited as `user.remove`.
+   */
+  public static removeUser<ThrowOnError extends boolean = false>(
+    options: Options<RemoveUserData, ThrowOnError>,
+  ): RequestResult<RemoveUserResponses, RemoveUserErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveUserResponses, RemoveUserErrors, ThrowOnError>({
+      url: "/api/v1/users/{uid}",
+      ...options,
     });
   }
 
@@ -2685,6 +2724,25 @@ export class Admin {
     return (options?.client ?? client).get<HttpsStatusResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/https/status",
       ...options,
+    });
+  }
+
+  /**
+   * Https Ports
+   *
+   * Open (or close) the HTTPS ports: this machine's upgrade agent runs install.sh again for the version running,
+   * with LENS_HTTPS=1 (or 0), and Lens restarts. Without an agent, `manual` is the line to run there instead.
+   */
+  public static httpsPorts<ThrowOnError extends boolean = false>(
+    options?: Options<HttpsPortsData, ThrowOnError>,
+  ): RequestResult<HttpsPortsResponses, HttpsPortsErrors, ThrowOnError> {
+    return (options?.client ?? client).post<HttpsPortsResponses, HttpsPortsErrors, ThrowOnError>({
+      url: "/api/v1/settings/https/ports",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
     });
   }
 
@@ -3782,6 +3840,56 @@ export class Namespaces {
   }
 
   /**
+   * Get Namespace Nsfw
+   *
+   * NSFW classification here (docs/nsfw.md): whether it's on, the threshold and how flagged resources show, what the
+   * namespace chose for itself and the archive's settings, and how many resources are classified and flagged.
+   */
+  public static getNamespaceNsfw<ThrowOnError extends boolean = false>(
+    options: Options<GetNamespaceNsfwData, ThrowOnError>,
+  ): RequestResult<GetNamespaceNsfwResponses, GetNamespaceNsfwErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetNamespaceNsfwResponses, GetNamespaceNsfwErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/nsfw",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Namespace Nsfw
+   *
+   * Owners: turn NSFW classification on or off for this namespace, or give it its own threshold or display; null
+   * follows the archive's setting again. A new threshold re-flags what's classified at once. `classify` also queues the
+   * nsfw step for its videos, documents and images not classified yet. Audited as `namespace.nsfw`.
+   */
+  public static updateNamespaceNsfw<ThrowOnError extends boolean = false>(
+    options: Options<UpdateNamespaceNsfwData, ThrowOnError>,
+  ): RequestResult<UpdateNamespaceNsfwResponses, UpdateNamespaceNsfwErrors, ThrowOnError> {
+    return (options.client ?? client).put<UpdateNamespaceNsfwResponses, UpdateNamespaceNsfwErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/nsfw",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Classify Namespace Nsfw
+   *
+   * Editors: queue the nsfw step for the namespace's videos, documents and images not classified yet (those added
+   * while it's on are classified by their pipeline). 409 where classification is off.
+   */
+  public static classifyNamespaceNsfw<ThrowOnError extends boolean = false>(
+    options: Options<ClassifyNamespaceNsfwData, ThrowOnError>,
+  ): RequestResult<ClassifyNamespaceNsfwResponses, ClassifyNamespaceNsfwErrors, ThrowOnError> {
+    return (options.client ?? client).post<ClassifyNamespaceNsfwResponses, ClassifyNamespaceNsfwErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/nsfw/classify",
+      ...options,
+    });
+  }
+
+  /**
    * Get Namespace Wordcloud
    *
    * The namespace's word cloud. Accepts a bearer token or the signed link from the namespace list.
@@ -4215,6 +4323,21 @@ export class Resources {
   }
 
   /**
+   * Nsfw Counts
+   *
+   * NSFW classification in the recordings you can read (or one namespace's): whether it's on in any of their
+   * namespaces, how many are flagged, and how many of those the Library leaves out (docs/nsfw.md).
+   */
+  public static nsfwCounts<ThrowOnError extends boolean = false>(
+    options?: Options<NsfwCountsData, ThrowOnError>,
+  ): RequestResult<NsfwCountsResponses, NsfwCountsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<NsfwCountsResponses, NsfwCountsErrors, ThrowOnError>({
+      url: "/api/v1/resources/nsfw",
+      ...options,
+    });
+  }
+
+  /**
    * Place Recordings
    *
    * Move recordings into a collection of their namespace: editors of each recording (through the namespace or the
@@ -4274,6 +4397,25 @@ export class Resources {
   ): RequestResult<UpdateRecordingResponses, UpdateRecordingErrors, ThrowOnError> {
     return (options.client ?? client).patch<UpdateRecordingResponses, UpdateRecordingErrors, ThrowOnError>({
       url: "/api/v1/resources/{rid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Mark Recording Nsfw
+   *
+   * Mark a resource NSFW or not by hand (editors), where NSFW classification is on in its namespace; your call wins
+   * over the model's score until you send null. 409 where classification is off. Audited as `recording.nsfw`.
+   */
+  public static markRecordingNsfw<ThrowOnError extends boolean = false>(
+    options: Options<MarkRecordingNsfwData, ThrowOnError>,
+  ): RequestResult<MarkRecordingNsfwResponses, MarkRecordingNsfwErrors, ThrowOnError> {
+    return (options.client ?? client).put<MarkRecordingNsfwResponses, MarkRecordingNsfwErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/nsfw",
       ...options,
       headers: {
         "Content-Type": "application/json",

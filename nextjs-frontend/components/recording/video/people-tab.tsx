@@ -7,6 +7,7 @@ import { useState, type FormEvent } from "react";
 
 import { Video } from "@/app/openapi-client";
 import { usePlayerApi } from "@/components/player/media";
+import { useBlur } from "@/components/nsfw/nsfw";
 import { useRec } from "@/components/recording/context";
 import { rk, useNamespaceFaces } from "@/components/recording/hooks";
 import { facePages, pageRef } from "@/components/recording/document/model";
@@ -22,6 +23,7 @@ import { useToast } from "@/components/ui/toast";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
 import { tc } from "@/lib/format";
 import { needRole, useArchive } from "@/lib/hooks/session";
+import { cn } from "@/lib/utils";
 
 type NsFace = {
   id: number;
@@ -208,6 +210,7 @@ function PersonRow({
   onPage?: (page: number) => void;
 }) {
   const { model } = useRec();
+  const blur = useBlur();
   const api = usePlayerApi();
   const m = useFaceMutations();
   const [renaming, setRenaming] = useState(false);
@@ -239,7 +242,7 @@ function PersonRow({
         >
           {track.cover ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={track.cover} alt="" className="size-full object-cover" loading="lazy" />
+            <img src={track.cover} alt="" className={cn("size-full object-cover", blur)} loading="lazy" />
           ) : (
             "face"
           )}

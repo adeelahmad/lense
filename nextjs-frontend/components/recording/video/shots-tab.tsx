@@ -3,6 +3,7 @@
 import { Clapperboard, Eye } from "lucide-react";
 
 import { usePlayerApi, usePlayerState } from "@/components/player/media";
+import { useBlur } from "@/components/nsfw/nsfw";
 import { useRec } from "@/components/recording/context";
 import { descriptionOf } from "@/components/recording/model";
 import { shotAt } from "@/components/recording/video/model";
@@ -16,6 +17,7 @@ import { cn } from "@/lib/utils";
  */
 export function ShotsTab() {
   const { model } = useRec();
+  const blur = useBlur();
   const api = usePlayerApi();
   const { time } = usePlayerState();
   const cur = shotAt(model.shots, time);
@@ -61,7 +63,12 @@ export function ShotsTab() {
                 <span className="block aspect-video overflow-hidden rounded-[6px] bg-black">
                   {s.frame && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={s.frame} alt={shows?.text ?? ""} loading="lazy" className="size-full object-cover" />
+                    <img
+                      src={s.frame}
+                      alt={shows?.text ?? ""}
+                      loading="lazy"
+                      className={cn("size-full object-cover", blur)}
+                    />
                   )}
                 </span>
                 <span className="flex min-w-0 flex-col gap-1">
