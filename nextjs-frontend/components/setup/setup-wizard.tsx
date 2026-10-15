@@ -43,6 +43,8 @@ const STEPS = [
   { id: "telemetry", label: "Telemetry" },
 ] as const;
 type StepId = (typeof STEPS)[number]["id"];
+/** Steps with a default: not asked, but a click away for whoever wants to choose (and all in Settings). */
+const OPTIONAL: StepId[] = ["namespace", "storage", "apps", "telemetry"];
 
 /** The .env variable that sets each locked field (fastapi_backend/app/domain/settings.py, ENV_OVERRIDES). */
 const LLM_ENV: Record<string, string> = {
@@ -76,11 +78,13 @@ function errorText(e: unknown): string {
 }
 
 /**
- * First-run setup for a fresh install (the admin already exists): the first namespace, the model provider, an overall
- * AI budget (a soft limit that warns, a hard limit that stops paid model calls; none unless chosen), storage,
- * whether apps and AI assistants may sign people in (OAuth, on unless turned off) and whether to send telemetry (off
- * unless chosen), one step at a time. Each step can be skipped, and the whole wizard too; everything stays in Settings.
- * Fields .env sets are shown locked, since the environment wins.
+ * First-run setup for a fresh install (the admin already exists). It asks only what has no answer yet and no default
+ * (the server's `todo`): the model provider while there is none, then an overall AI budget for a paid (cloud) model (a
+ * soft limit that warns, a hard limit that stops paid model calls; none unless chosen). With nothing left to ask (the
+ * web installer set the model) it finishes on its own. The first namespace, storage, whether apps and AI assistants may
+ * sign people in (OAuth, on unless turned off) and telemetry (off unless chosen) have defaults: their steps are a
+ * click away, and in Settings. Each step can be skipped, and the whole wizard too. Fields .env sets are shown locked,
+ * since the environment wins.
  */
 export function SetupWizard() {
   const client = useApiClient();
@@ -91,20 +95,13 @@ export function SetupWizard() {
     queryKey: ["setup"],
     queryFn: () => data(Setup.getSetup({ client })),
   });
-  const [step, setStep] = useState<StepId>("namespace");
+  const [step, setStep] = useState<StepId>("llm");
   const [done, setDone] = useState<Set<StepId>>(new Set(["admin"]));
   // A namespace seeded before the wizard (archive.yaml, LENS_NAMESPACE, an install script) counts as set up.
   const seeded = Boolean(view.data?.namespace.existing.length);
   useEffect(() => {
     if (seeded) setDone((d) => (d.has("namespace") ? d : new Set(d).add("namespace")));
   }, [seeded]);
-  // With nothing to choose for the namespace (seeded, or set in archive.yaml), start at the model provider.
-  const started = useRef(false);
-  useEffect(() => {
-    if (!view.data || started.current) return;
-    started.current = true;
-    if (seeded || view.data.namespace.locked) setStep((s) => (s === "namespace" ? "llm" : s));
-  }, [view.data, seeded]);
 
   const finish = useMutation({
     mutationFn: (skipped: boolean) => data(Setup.finish({ client, body: { skipped } })),
@@ -114,6 +111,20 @@ export function SetupWizard() {
       router.refresh();
     },
   });
+
+  // What to walk through, fixed when the wizard opens: the model provider (then the budget, if it's paid), or the
+  // budget alone; nothing, and it finishes.
+  const [flow, setFlow] = useState<StepId[] | null>(null);
+  const [reached, setReached] = useState(0); // how far along the flow the person is
+  useEffect(() => {
+    if (!view.data || flow) return;
+    const todo = view.data.todo ?? ["llm"];
+    const f: StepId[] = todo.includes("llm") ? ["llm", "budget"] : [...todo];
+    setFlow(f);
+    if (f.length) setStep(f[0]);
+    else finish.mutate(false);
+  }, [view.data, flow, finish]);
+  const ready = Boolean(flow?.length); // the steps show once it's known what to ask
 
   // Once a model answers, the assistant can do the rest by conversation (a setup chat makes the changes itself).
   const llmSet = Boolean(
@@ -130,18 +141,24 @@ export function SetupWizard() {
   // The budget step is for a paid (cloud) model; one on this machine or its network costs nothing, so it's skipped.
   const [modelUrl, setModelUrl] = useState<string | null>(null);
   const url = modelUrl ?? (view.data?.llm.values as { base_url?: string | null } | undefined)?.base_url ?? null;
-  const paid = Boolean(url) && !isLocalModel(url);
-  const steps = STEPS.filter((s) => s.id !== "budget" || paid);
+  const flowFor = (u: string | null | undefined) =>
+    (flow ?? []).filter((s) => s !== "budget" || (u && !isLocalModel(u)));
+  const asked = flowFor(url);
+  const steps = STEPS.filter((s) => s.id === "admin" || asked.includes(s.id));
+  const more = STEPS.filter((s) => OPTIONAL.includes(s.id));
 
+  // After a step of the flow, the next one; after one of the optional steps, back to where the person was. Past the
+  // last, the wizard finishes.
   const next = (from: StepId, saved: boolean, baseUrl?: string) => {
     if (saved) setDone((d) => new Set(d).add(from));
     queryClient.invalidateQueries({ queryKey: ["setup"] });
-    const shown =
-      baseUrl === undefined ? steps : STEPS.filter((s) => s.id !== "budget" || (baseUrl && !isLocalModel(baseUrl)));
     if (baseUrl !== undefined) setModelUrl(baseUrl);
-    const i = shown.findIndex((s) => s.id === from);
-    if (i === shown.length - 1) finish.mutate(false);
-    else setStep(shown[i + 1].id);
+    const shown = flowFor(baseUrl === undefined ? url : baseUrl);
+    const i = shown.indexOf(from);
+    const at = i >= 0 ? i + 1 : reached;
+    if (i >= 0) setReached(at);
+    if (at >= shown.length) finish.mutate(false);
+    else setStep(shown[at]);
   };
 
   return (
@@ -161,43 +178,64 @@ export function SetupWizard() {
       <div className="flex flex-col gap-1.5">
         <h1 className="text-[24px] font-bold leading-[1.25] text-fg">Welcome to Lens</h1>
         <p className="text-[14px] leading-normal text-fg-secondary">
-          A few choices get this server ready. Each step can be skipped and changed later in Settings; values set in the
-          server&apos;s <code className="font-mono text-[12.5px] text-fg-strong">.env</code> are shown locked.
+          Only what Lens can&apos;t choose for you is asked here; the rest has a default. Each step can be skipped and
+          changed later in Settings; values set in the server&apos;s{" "}
+          <code className="font-mono text-[12.5px] text-fg-strong">.env</code> are shown locked.
         </p>
       </div>
 
-      <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3" aria-label="Setup steps">
-        {steps.map((s, i) => {
-          const on = s.id === step;
-          const ok = done.has(s.id);
-          return (
-            <li key={s.id}>
-              <button
-                type="button"
-                disabled={s.id === "admin"}
+      {ready && (
+        <>
+          <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3" aria-label="Setup steps">
+            {steps.map((s, i) => {
+              const on = s.id === step;
+              const ok = done.has(s.id);
+              return (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    disabled={s.id === "admin"}
+                    onClick={() => setStep(s.id)}
+                    aria-current={on ? "step" : undefined}
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-[12.5px] font-semibold transition-colors",
+                      on ? "border-blue bg-blue-surface text-fg" : "border-border bg-background text-fg-secondary",
+                      s.id !== "admin" && !on && "hover:text-fg",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex size-5 shrink-0 items-center justify-center rounded-full text-[11px]",
+                        ok ? "bg-green text-white" : on ? "bg-blue text-white" : "bg-surface-neutral text-fg-secondary",
+                      )}
+                      aria-hidden
+                    >
+                      {ok ? <Check className="size-3" /> : i + 1}
+                    </span>
+                    {s.label}
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+          <div className="-mt-2 flex flex-wrap items-center gap-1 text-[12.5px] text-fg-secondary">
+            <span className="mr-1">With defaults, if you&apos;d like to choose:</span>
+            {more.map((s) => (
+              <Button
+                key={s.id}
+                variant="ghost"
+                size="sm"
                 onClick={() => setStep(s.id)}
-                aria-current={on ? "step" : undefined}
-                className={cn(
-                  "flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-[12.5px] font-semibold transition-colors",
-                  on ? "border-blue bg-blue-surface text-fg" : "border-border bg-background text-fg-secondary",
-                  s.id !== "admin" && !on && "hover:text-fg",
-                )}
+                aria-current={s.id === step ? "step" : undefined}
+                className={cn(s.id === step && "bg-blue-surface text-fg")}
               >
-                <span
-                  className={cn(
-                    "flex size-5 shrink-0 items-center justify-center rounded-full text-[11px]",
-                    ok ? "bg-green text-white" : on ? "bg-blue text-white" : "bg-surface-neutral text-fg-secondary",
-                  )}
-                  aria-hidden
-                >
-                  {ok ? <Check className="size-3" /> : i + 1}
-                </span>
+                {done.has(s.id) && <Check className="size-3 text-green" aria-hidden />}
                 {s.label}
-              </button>
-            </li>
-          );
-        })}
-      </ol>
+              </Button>
+            ))}
+          </div>
+        </>
+      )}
 
       {llmSet && step !== "llm" && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-border bg-blue-surface px-4 py-3">
@@ -228,10 +266,10 @@ export function SetupWizard() {
       )}
 
       <section className="flex flex-col gap-4 rounded-xl border border-border bg-background p-6 sm:p-7">
-        {view.isPending ? (
-          <Skeleton className="h-40" />
-        ) : view.error ? (
+        {view.error ? (
           <AuthAlert tone="error">{errorText(view.error)}</AuthAlert>
+        ) : !ready || !view.data ? (
+          <Skeleton className="h-40" />
         ) : step === "namespace" ? (
           <NamespaceStep view={view.data} onNext={(saved) => next("namespace", saved)} />
         ) : step === "llm" ? (
@@ -1185,7 +1223,7 @@ function TelemetryStep({
             }
             disabled={save.isPending || pending || badEndpoint || missing}
           >
-            {save.isPending || pending ? "Saving…" : "Save and finish"}
+            {save.isPending || pending ? "Saving…" : "Save and continue"}
           </Button>
         </div>
       </div>

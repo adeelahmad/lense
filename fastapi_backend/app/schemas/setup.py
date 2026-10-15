@@ -59,6 +59,9 @@ class SetupBudgetView(ResponseModel):
 
 class SetupView(ResponseModel):
     pending: bool
+    # the steps the wizard still has to ask, in order: "llm" (the model provider) while there is none, "budget" for a
+    # paid model with no overall budget; the rest has defaults and stays in Settings
+    todo: list[Literal["llm", "budget"]] = []
     admin: SetupAdmin
     namespace: SetupNamespaceView
     llm: SetupLlmView
