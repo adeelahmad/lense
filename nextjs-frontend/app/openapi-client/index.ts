@@ -1921,6 +1921,8 @@ export type {
   ListWorkersResponse,
   ListWorkersResponses,
   ListWorkflowsData,
+  ListWorkflowsError,
+  ListWorkflowsErrors,
   ListWorkflowsResponse,
   ListWorkflowsResponses,
   LlmEstimate,

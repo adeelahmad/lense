@@ -10,7 +10,9 @@ merge runs when anything reaches it). What reaches a port is what an output port
 value on only along yes or along no, a switch only along the case that matched, so the nodes after the other ports
 are skipped, and so are the ones after those.
 
-The primitives, in every workflow (a scope adds its own nodes: workflows.py, organize.py):
+The primitives, in every workflow (a scope adds its own nodes: workflows.py, organize.py, tool_nodes.py,
+automation_nodes.py). A scope's Kit may also give its nodes their own ports (`ports`), count nodes that pass things on
+as what the workflow does (`keeps`), and add a check of the whole graph (`check_graph`).
 
 - `input`: where a workflow starts (the recording, or the namespaces a routine runs over).
 - `pick`: one part of the value, by a dotted path (`action_items.0.text`).
@@ -80,11 +82,18 @@ STARTS = ("input", "arg")
 
 class Kit:
     """What a scope adds to the primitives: its node types and their settings, a check for those settings, how they
-    run, which keep something (a top-level graph needs one), and what a top-level graph's input is called."""
+    run, which keep something (a top-level graph needs one), and what a top-level graph's input is called.
 
-    def __init__(self, scope, types, config, check, run, terminal, needs):
+    Three optional hooks change the defaults for the kit's own nodes: `ports(node)` gives a node's (input ports, output
+    ports, input ports that take several edges), or None for the default (`in` and `out`; none out for a terminal
+    node); `keeps(node)` says whether a node counts as doing something even though it passes things on (a terminal
+    node always does); `check_graph(nodes, edges)` checks rules about the whole graph, and every body in it, once its
+    nodes and edges are checked (ValueError naming the first problem)."""
+
+    def __init__(self, scope, types, config, check, run, terminal, needs, ports=None, keeps=None, check_graph=None):
         self.scope, self.types, self.config, self.check, self.run = scope, tuple(types), config, check, run
         self.terminal, self.needs = set(terminal), needs
+        self.ports, self.keeps, self.check_graph = ports, keeps, check_graph
 
     @property
     def all_types(self):
@@ -196,6 +205,10 @@ def ports(node, kit, defs=None):
     if t == "custom":
         d = (defs or {}).get((c.get("node"), c.get("version")))
         return (list(d["inputs"]), list(d["outputs"]), set()) if d else ([], [], set())
+    if kit.ports is not None and t in kit.types and t not in PRIMITIVES:
+        got = kit.ports(node)
+        if got is not None:
+            return got
     if t in kit.terminal:
         return ["in"], [], set()
     return ["in"], ["out"], set()
@@ -321,14 +334,23 @@ def check_graph(db, graph, kit, body=None, depth=0, where=""):
             raise ValueError(f"connect input {missing[0]} of {n['type']} node {n['id']}{where}")
     if len(order(out_nodes, out_edges)) != len(out_nodes):
         raise ValueError(f"the workflow has a loop{where}; use a for each or repeat node to go over things again")
+    if kit.check_graph is not None:
+        kit.check_graph(out_nodes, out_edges)
     if body in LOOP_ARGS:
         if "out" not in body_ports({"nodes": out_nodes})[1]:
             raise ValueError(f"the body{where} needs a return node called out: what it gives back")
-    elif body and not body_ports({"nodes": out_nodes})[1] and not any(n["type"] in kit.terminal for n in out_nodes):
+    elif body and not body_ports({"nodes": out_nodes})[1] and not any(_does(kit, n) for n in out_nodes):
         raise ValueError(f"the body{where} needs a return node, or it gives nothing back")
     if not body and not keeps(db, out_nodes, kit):
         raise ValueError(kit.needs)
     return {"nodes": out_nodes, "edges": out_edges}
+
+
+def _does(kit, n):
+    """Whether a node keeps something, or does something the kit counts as such (its `keeps` hook)."""
+    if n["type"] in kit.terminal:
+        return True
+    return kit.keeps is not None and n["type"] in kit.types and n["type"] not in PRIMITIVES and bool(kit.keeps(n))
 
 
 def keeps(db, nodes, kit):
@@ -337,7 +359,7 @@ def keeps(db, nodes, kit):
 
     for n in nodes:
         c = n["config"]
-        if n["type"] in kit.terminal:
+        if _does(kit, n):
             return True
         if n["type"] in BODIES and keeps(db, c["body"]["nodes"], kit):
             return True

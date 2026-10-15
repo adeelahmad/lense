@@ -17,6 +17,8 @@ merged is called built.
 | The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
 | The action registry with risk from each action's effect, and one action, `log_line` (`app/domain/actions.py`) | built |
 | Settings → Automations: how often followers look and how long the event log is kept | built |
+| The event workflow scope: what an automation does, drawn with action nodes and tried on an activity (`app/domain/automation_nodes.py`) | built |
+| The decide node (the decision model picks a branch) | planned |
 | Storing and running automations, schedules and timers, joins, the real actions, approvals, variables, the timeline page, the studio | planned |
 
 ## Contract
@@ -251,6 +253,43 @@ worked out, it counts as `out`. An action's own `risk` function may make it stri
 | --- | --- | --- | --- |
 | `log_line` | puts a line (`text`, `level` info or warning) in the run's log | read | `{line, level}` |
 
+### The event workflow scope
+
+Built: what an automation does is a workflow of scope `event` (`app/domain/automation_nodes.py`), saved and
+versioned like any workflow (`POST /api/v1/workflows` with `"scope": "event"`). Its `input` node passes on the
+[run context](#run-context), and between the primitives (condition, switch, set, merge, loops...) it has two nodes of
+its own:
+
+- **Action** (`action`, configured `{action, params, delay?, when?}`): one action from the registry. When it runs,
+  it fills its params in from the run context (`"text": "New: {{ event.object.name }}"`; a param that is exactly one
+  `{{ }}` expression keeps its type, so a list stays a list), works out its effect and risk and makes an
+  [intent](#actions-and-intents). A routine intent is carried out there and then: what it gives back passes on along
+  `out` and goes in `steps.<node id>` for later nodes. One that asks first waits for the person's pick, and one with
+  a `delay` (like `30m`) or a time (`when`, a time or a template giving one) waits for its time: such a node passes
+  nothing on, so the nodes after it are skipped and the run's log says where it stopped and why. An action that
+  fails is marked failed on its node, and the rest of the graph goes on.
+- **Decide** (`decide`, configured `{question, options, input?, min_confidence?}`): the decision model picks one of
+  its options, with an output port per option and `unsure`. Planned with the decision model; until then a decide node
+  is refused when the workflow is saved, as coming soon. Use a condition or switch node.
+
+Checked when it is saved, on every path (create, a new version, a body):
+
+- It needs an action node, each action is one the registry has (`GET /api/v1/automations/actions` will list them)
+  with params that fit its schema, and each template in its params is valid.
+- **The leaf rule:** an action that reaches outside Lens or other people (effect `out`, worked out from its params)
+  or that waits has nothing connected after it, as it can't pass anything on while it waits for a yes or its time.
+- Waiting before an action (`delay`, `when`) is refused as coming soon until timers are built.
+
+Its automation runs it: an event workflow isn't run on an asset, as a pipeline step or as a routine's action, and the
+canvas's list of workflows leaves it out (`GET /api/v1/workflows?scope=event` lists them).
+
+**Try it** with `POST /api/v1/workflows/test` (admins): `{"scope": "event", "graph": ..., "kind": "asset.added"}`
+runs it on that kind's sample, and `"activity": "<id>"` on a real activity you can see. Nothing is kept and nothing is
+sent: each action says what it would do (`would write “New: Call with the school” to the run log`), and `intents`
+lists each one with its params, effect, risk, status (`done`, `waiting`, `scheduled` or `failed`) and what it gave
+back. Text from outside Lens (`lens.untrusted` on the activity) that reaches an action's params marks its intent
+`untrusted`.
+
 ## Refine later
 
 - More operators: `in`, `matches` (bounded regular expressions), `between`, times against now, `changed`.
@@ -260,3 +299,5 @@ worked out, it counts as `out`. An action's own `risk` function may make it stri
   no row records; pushing instead of polling.
 - People given only some collections of a namespace see that namespace's activities about those collections.
 - Name an automation actor by its automation's name once automations are stored.
+- The canvas draws and edits event workflows (today they are saved and tried through the API).
+- An action's outputs in the variable picker, typed from its `output` schema.

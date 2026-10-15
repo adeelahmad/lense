@@ -155,6 +155,8 @@ def _check_action(db, k, a):
             w = workflows.get(db, int(a.get("workflow") or 0), a.get("version"))
         except (KeyError, TypeError, ValueError):
             raise ValueError(f"action {k}: choose a workflow") from None
+        if w["scope"] == "event":
+            raise ValueError(f"action {k}: {w['name']} {workflows.RUN_BY['event']}")
         if a.get("propose_only") and w["scope"] != "graph":
             raise ValueError(f"action {k}: propose_only is for workflows that organise the graph")
     return store.clean(a)
