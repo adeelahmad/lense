@@ -8323,9 +8323,9 @@ export class Sources {
   /**
    * Connect Google
    *
-   * Connect a Google account to a Google source (Google Calendar): open the returned address in this browser, consent
-   * there, and Google sends you back to the Sources page with the account connected. Its refresh token is kept sealed on
-   * the source. Without a client here, the Google sign-in provider's (Settings › Sign-in) or an earlier connection's is
+   * Connect a Google account to a Google source (Gmail, Google Calendar): open the returned address in this browser,
+   * consent there, and Google sends you back to the Sources page with the account connected. Its refresh token is kept
+   * sealed on the source. Without a client here, the Google sign-in provider's (Settings › Sign-in) or an earlier connection's is
    * used. Only from the web app: the consent comes back to the browser that asked (an agent saves an authorized user
    * JSON it already has as the source's `token` instead). Audited as `source.google_connect`.
    */
