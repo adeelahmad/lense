@@ -16,8 +16,9 @@ merged is called built.
 | The timeline API (`GET /api/v1/activities`), the MCP tools `timeline` and `event_kinds`, the assistant's `timeline` | built |
 | The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
 | The action registry with risk from each action's effect, and one action, `log_line` (`app/domain/actions.py`) | built |
+| Telling a person: the `notify` action and `channels.tell` (their own chat, a notification target, a Matterbridge room) | built |
 | Settings → Automations: how often followers look and how long the event log is kept | built |
-| Storing and running automations, schedules and timers, joins, the real actions, approvals, variables, the timeline page, the studio | planned |
+| Storing and running automations, schedules and timers, joins, the other actions, approvals, variables, the timeline page, the studio | planned |
 
 ## Contract
 
@@ -247,9 +248,29 @@ policy with the node in `ctx["node"]`):
 An effect may be worked out from the params (`notify` to "me" is `self`, to a room is `out`); when it can't be
 worked out, it counts as `out`. An action's own `risk` function may make it stricter, never looser.
 
+An action acts for the automation's person (`run_as`), with their permissions as they are when it runs
+(`actions.person`): an automation whose person was switched off or removed does nothing.
+
 | Action | Does | Effect | Output |
 | --- | --- | --- | --- |
 | `log_line` | puts a line (`text`, `level` info or warning) in the run's log | read | `{line, level}` |
+| `notify` | sends `text` (and a `link`; Lens's own paths become full links) `to` `me` (your own chat app), `target:<id>` (one of the namespace's [notification targets](notifications.md)) or `gateway:<name>` (a Matterbridge room) | self for `me`, else out | `{to, text, sent, failed}`: where it went |
+
+#### Telling a person
+
+`notify` to `me` goes through `channels.tell(db, cfg, account, text, links=())`: every chat channel that answers as
+your account (the Telegram bot, the Slack app) keeps the private chat it last had with someone on its list of people
+who may talk to Lens (`chat_route:<channel>`, updated as it answers), and the message goes there. A group or a room is
+never used, since it reaches other people, and neither is Matterbridge, where a gateway is a room. With no such chat
+the action fails with "no chat app linked", saying how to link one. The result names each channel and chat it used,
+so a reply there can be matched to what was sent.
+
+Chat apps fetch what a message links to show a preview, so a web address built from what the run read would carry it
+out before anyone clicks. When the run read text from outside Lens (the intent's `untrusted`), web addresses in the
+message are broken up (`hxxps://evil[.]example/...`), except Lens's own; when it read none, the person wrote them and
+they stay. The same goes for notification targets and Matterbridge rooms. A notification target must be in one of the
+automation's namespaces, switched on, and the automation's person must be able to edit that namespace; a Matterbridge
+room needs the bridge on and answering as the automation's person (or the person to be an admin).
 
 ## Refine later
 
@@ -260,3 +281,7 @@ worked out, it counts as `out`. An action's own `risk` function may make it stri
   no row records; pushing instead of polling.
 - People given only some collections of a namespace see that namespace's activities about those collections.
 - Name an automation actor by its automation's name once automations are stored.
+- Telling a person: buttons on chat approvals (Telegram inline keyboards, Slack Block Kit); email as a `notify`
+  channel; web push; private chats through Matterbridge (it can't tell them from rooms); with several people let in,
+  "me" is whoever last wrote privately, until each chat user has a Lens account of their own; telling which links in a
+  message the person's template wrote, so they stay when the run read outside text.

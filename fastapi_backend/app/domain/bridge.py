@@ -514,6 +514,10 @@ def handle(db, cfg, base, m, ch=None):
         return False
     account = _account(db, cfg)
     cid = conversation(db, account, m, ns if sid is not None else None, ch.label)
+    try:  # a private chat with someone the channel vouches for is where the account's person is told things
+        channels.remember(db, cfg, ch, account, m, cid)
+    except Exception:  # noqa: BLE001 - answering comes first
+        log.warning("%s: couldn't keep where to tell %s things", ch.key, account["email"], exc_info=True)
     note = None
     cmd = chat.command(q)
     if cmd:  # /clear or /compact, for this room's conversation
