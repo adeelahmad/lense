@@ -101,6 +101,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   only the version showing. In the web app, Regenerate (and Regenerate with… another model) replaces Try another
   model, and `‹ 2 / 3 ›` under a question or an answer moves between its versions. Existing conversations are upgraded
   on the next start (`chat-tree`) ([Versions](docs/assistant.md)).
+- **Files added over SMB are imported.** Copy files into a collection's folder on the SMB share and each is imported
+  when it's closed, as an upload is; a new folder under `Collections` is a new collection. Files of a type Lens doesn't
+  take are refused as they're made, files over the upload limit are cut off as they're written, and a file deleted as
+  it's closed or left open when its client goes away isn't imported. The system's own files (`.DS_Store`, `Thumbs.db`,
+  Office's `~$` files) are kept aside, and renaming a file saved under a temporary name imports it. **Import files
+  people add** in Settings, SMB share (`smb.add_files`, on) turns it off and makes the share read-only again ([Adding
+  files](docs/smb.md#adding-files)).
 - **The assistant searches the web.** With web search on (off by default; Settings → AI assistant → Web search), the
   assistant gets `web_search` and `web_read`: it searches with DuckDuckGo (no key), your own SearXNG, Brave Search or
   Tavily, and reads pages and online PDFs, public addresses only, through the same guard as captured pages. Pages are
