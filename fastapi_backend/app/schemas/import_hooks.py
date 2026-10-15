@@ -63,3 +63,14 @@ class HookItem(ResponseModel):
 class HookPushed(ResponseModel):
     namespace: str
     items: list[HookItem]
+
+
+class ImportTarget(ResponseModel):
+    """Where pushes with a token go (GET /hooks/import)."""
+
+    kind: Literal["hook", "person"] = Field(description="an import webhook's token, or a person's own")
+    hook: str | None = Field(None, description="the hook's name")
+    email: str | None = Field(None, description="whom a person's own token acts as")
+    namespace: str | None = Field(None, description="where a push goes without ?namespace=; null when there's a choice")
+    namespaces: list[str] = Field(default_factory=list, description="every namespace this token can push into")
+    write: bool = Field(description="false for a read-only API token, which can't push")

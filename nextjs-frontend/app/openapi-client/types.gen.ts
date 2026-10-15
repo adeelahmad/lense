@@ -7089,6 +7089,51 @@ export type ImportResult = {
 };
 
 /**
+ * ImportTarget
+ *
+ * Where pushes with a token go (GET /hooks/import).
+ */
+export type ImportTarget = {
+  /**
+   * Kind
+   *
+   * an import webhook's token, or a person's own
+   */
+  kind: "hook" | "person";
+  /**
+   * Hook
+   *
+   * the hook's name
+   */
+  hook?: string | null;
+  /**
+   * Email
+   *
+   * whom a person's own token acts as
+   */
+  email?: string | null;
+  /**
+   * Namespace
+   *
+   * where a push goes without ?namespace=; null when there's a choice
+   */
+  namespace?: string | null;
+  /**
+   * Namespaces
+   *
+   * every namespace this token can push into
+   */
+  namespaces?: Array<string>;
+  /**
+   * Write
+   *
+   * false for a read-only API token, which can't push
+   */
+  write: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * ImportedAs
  */
 export type ImportedAs = {
@@ -36787,6 +36832,22 @@ export type NewImportHookTokenResponses = {
 
 export type NewImportHookTokenResponse = NewImportHookTokenResponses[keyof NewImportHookTokenResponses];
 
+export type ImportTargetData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/hooks/import";
+};
+
+export type ImportTargetResponses = {
+  /**
+   * Successful Response
+   */
+  200: ImportTarget;
+};
+
+export type ImportTargetResponse = ImportTargetResponses[keyof ImportTargetResponses];
+
 export type PushToImportHookData = {
   /**
    * HookPush
@@ -36825,6 +36886,12 @@ export type PushToImportHookData = {
      * its title (default: the file's name, or the page's)
      */
     title?: string | null;
+    /**
+     * Namespace
+     *
+     * with your own token: the namespace it goes into (default: the only one you can import into)
+     */
+    namespace?: string | null;
   };
   url: "/api/v1/hooks/import";
 };

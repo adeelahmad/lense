@@ -26349,12 +26349,32 @@
       }
     },
     "/api/v1/hooks/import": {
+      "get": {
+        "tags": [
+          "import hooks"
+        ],
+        "summary": "Import Target",
+        "description": "Where pushes with this bearer token go, without importing anything: an import webhook's token goes into its\nnamespace; a person's own token (an API token, an app's, or the web app's) into any namespace they can import into,\nnamed with `?namespace=`. 401 for a token Lens doesn't know, saying which kind it is; 403 while a hook is paused.",
+        "operationId": "import_target",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportTarget"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "import hooks"
         ],
         "summary": "Push To Import Hook",
-        "description": "Push something into an import webhook's namespace, with its token as a bearer token. Three ways:\n\n- a file as the raw body, named by `?filename=`, Content-Disposition or X-Filename: audio, video, documents and\n  images become recordings and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as\n  transcripts;\n- multipart form files (field `file`, up to 20), with optional `title`, `url` and `text` fields;\n- JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as a transcript), with an optional\n  `title`.\n\nEach runs the hook's pipeline, or the namespace's. 401 for an unknown token, 403 while the hook is paused, 413 over\nuploads.max_mb. Audited as `import.hook`.",
+        "description": "Push something into an import webhook's namespace, with its token as a bearer token, or into one of your own\nnamespaces with your own token (an API token with write access, an app's, or the web app's) and `?namespace=`.\nThree ways:\n\n- a file as the raw body, named by `?filename=`, Content-Disposition or X-Filename: audio, video, documents and\n  images become recordings and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as\n  transcripts;\n- multipart form files (field `file`, up to 20), with optional `title`, `url` and `text` fields;\n- JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as a transcript), with an optional\n  `title`.\n\nEach runs the hook's pipeline, or the namespace's. 401 for an unknown token, saying which kind it is; 403 while the\nhook is paused, for a read-only token, or without the import permission; 413 over uploads.max_mb. Audited as\n`import.hook` (by the hook) or `import.push` (by the person).",
         "operationId": "push_to_import_hook",
         "parameters": [
           {
@@ -26394,6 +26414,25 @@
               "title": "Title"
             },
             "description": "its title (default: the file's name, or the page's)"
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "with your own token: the namespace it goes into (default: the only one you can import into)",
+              "title": "Namespace"
+            },
+            "description": "with your own token: the namespace it goes into (default: the only one you can import into)"
           }
         ],
         "responses": {
@@ -26509,7 +26548,7 @@
           "import hooks"
         ],
         "summary": "Push To Import Hook Token",
-        "description": "The same, with the token in the address, for services that can only be given a URL. Prefer the bearer token:\naddresses end up in logs.",
+        "description": "The same, with an import webhook's token in the address, for services that can only be given a URL. Prefer the\nbearer token: addresses end up in logs. A person's own token is never taken here.",
         "operationId": "push_to_import_hook_token",
         "parameters": [
           {
@@ -39631,6 +39670,76 @@
           "job"
         ],
         "title": "ImportResult"
+      },
+      "ImportTarget": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "hook",
+              "person"
+            ],
+            "title": "Kind",
+            "description": "an import webhook's token, or a person's own"
+          },
+          "hook": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hook",
+            "description": "the hook's name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email",
+            "description": "whom a person's own token acts as"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "where a push goes without ?namespace=; null when there's a choice"
+          },
+          "namespaces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Namespaces",
+            "description": "every namespace this token can push into"
+          },
+          "write": {
+            "type": "boolean",
+            "title": "Write",
+            "description": "false for a read-only API token, which can't push"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "kind",
+          "write"
+        ],
+        "title": "ImportTarget",
+        "description": "Where pushes with a token go (GET /hooks/import)."
       },
       "ImportedAs": {
         "properties": {
