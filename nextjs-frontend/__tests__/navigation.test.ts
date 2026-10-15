@@ -20,6 +20,20 @@ describe("navigation", () => {
     );
   });
 
+  it("keeps each group together, in order: every day, Explore, Automate, Manage", () => {
+    for (const admin of [true, false]) {
+      const groups = navFor(admin).map((i) => i.group);
+      const order = groups.filter((g, i) => g !== groups[i - 1]);
+      expect(order).toEqual(["", "Explore", "Automate", "Manage"]);
+    }
+    expect(navFor(true).filter((i) => i.group === "Manage").map((i) => i.label)).toEqual([
+      "Costs",
+      "Analytics",
+      "Settings",
+      "Admin",
+    ]);
+  });
+
   it("matches the active section", () => {
     expect(isActive("/", "/")).toBe(true);
     expect(isActive("/library", "/")).toBe(false);
