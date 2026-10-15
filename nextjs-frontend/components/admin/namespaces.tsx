@@ -9,6 +9,7 @@ import { Namespaces, Pipelines, Users } from "@/app/openapi-client";
 import { IpGroupsSection } from "@/components/access/ip-groups";
 import { NsAssistantSection } from "@/components/assistant/ns-assistant-section";
 import { ImportHooksSection } from "@/components/imports/import-hooks";
+import { ConnectAppsSection } from "@/components/integrations/connect-apps-section";
 import { AdminFrame, usePeople, useRoles } from "@/components/admin/admin-frame";
 import { roleLabel, type Role } from "@/components/admin/people-model";
 import { ActivityPanel, BudgetPanel, CostCell, useBudgets, useCosts } from "@/components/costs/costs";
@@ -477,6 +478,7 @@ export function NamespaceDetail({ ns }: { ns: string }) {
             )}
           </section>
           <NsAssistantSection ns={ns} isOwner={isOwner} />
+          <ConnectAppsSection ns={ns} isOwner={isOwner} />
           {known && <NsfwSection ns={ns} isOwner={isOwner} />}
           <IpGroupsSection ns={ns} isOwner={isOwner} admin={admin} />
           <ImportHooksSection ns={ns} isOwner={isOwner} />

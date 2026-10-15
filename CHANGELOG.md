@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **An MCP server for each namespace.** A namespace's owner can turn on its own MCP server under Admin → Namespaces →
+  the namespace → Connect apps, which copies its address (`/mcp/<namespace>`). An agent connected there has the same
+  tools but sees that namespace alone, whatever else the person who signs it in can read, and a token an app gets for
+  it opens nothing else in Lens. Off by default ([One namespace's MCP server](docs/mcp.md#one-namespaces-mcp-server)).
 - **The assistant always answers.** When a question used up its tool steps (`ai.max_steps`), the assistant used to stop
   with "I ran out of steps before finishing". Now it's asked to answer from what it found, with the tools off, and says
   what it didn't get to check; a reply with nothing in it is asked again the same way. It also knows its step budget up
