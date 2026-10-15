@@ -641,7 +641,9 @@ export const JOURNEYS = [
   },
   {
     id: "entity-merge",
-    ns: "",
+    // the namespace the imports above went to: with all namespaces picked, Entities opens the first by name, which
+    // namespace-create has made the empty customer-calls
+    ns: "interviews",
     module: "Entities",
     feature: "Merge two entities into one, then undo it",
     note: "The merge happens at once and the notice has Undo, so nothing asks to confirm; Undo puts both back.",
