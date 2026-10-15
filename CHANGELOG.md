@@ -46,6 +46,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   `delete_topic`, `undo_topic_change` and `undo_graph_change` (with a write-scope token and editor access), and the
   assistant proposes topic merges, renames, definitions and deletes for the person to approve
   (`propose_topic_change`) ([MCP](docs/mcp.md), [Topics](docs/topics.md)).
+- **The update notice no longer pushes pages off the screen.** While *Lens vX is out* shows above them, Chat, the
+  graph and a recording's page are that much shorter, so a phone's question box and a recording's player stay in
+  sight.
 
 ## 0.9.0 <small>October 15, 2026</small> {id="0.9.0"}
 

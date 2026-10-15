@@ -60,7 +60,7 @@ export function MobileLayout() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-4rem)] flex-col overflow-hidden">
+    <div className="flex h-[calc(100dvh-4rem-var(--lens-banner,0px))] flex-col overflow-hidden">
       <div className="flex items-center gap-1.5 border-b border-border px-2 pb-2 pt-1">
         <Link
           href="/library"
