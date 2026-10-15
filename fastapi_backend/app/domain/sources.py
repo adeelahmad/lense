@@ -328,6 +328,30 @@ def cached_copy(db, cfg, sid, path, space=None):
 
 
 # ---------- managing sources ----------
+DRIVE_FOLDER = re.compile(r"/folders/([\w-]+)|[?&]id=([\w-]+)")
+
+
+def _drive_folder(k, v):
+    """A Drive folder's id from its link as the browser shows it (…/drive/u/0/folders/<id>?usp=sharing, open?id=<id>),
+    or the id as given."""
+    v = str(v or "").strip()
+    if "/" not in v and "?" not in v:
+        return v
+    if "/file/d/" in v or "/document/d/" in v or "/spreadsheets/d/" in v:
+        raise ValueError(f"{k}: that link is a file's; open the folder it's in and paste that link")
+    m = DRIVE_FOLDER.search(v)
+    if not m:
+        raise ValueError(f"{k}: paste the folder's link from Drive, or its id")
+    return m[1] or m[2]
+
+
+def tidy(typ, params):
+    """Options as people paste them, as rclone wants them: a Drive folder's or shared drive's link becomes its id."""
+    if typ != "drive" or not params:
+        return params
+    return {k: _drive_folder(k, v) if k in ("root_folder_id", "team_drive") and v else v for k, v in params.items()}
+
+
 def _check_params(typ, params, secret_values):
     spec = BACKENDS.get(typ)
     if not spec:
@@ -354,6 +378,7 @@ def _secret(typ, k, v):
 
 def create(db, cfg, name, typ, params=None, secret_values=None, user=None):
     spec = _check_params(typ, params, secret_values)
+    params = tidy(typ, params)
     plain = {k: _secret(typ, k, v) for k, v in (secret_values or {}).items() if isinstance(v, str) and v}
     sid = db.next_id("storage_source")
     sealed = {k: settings.seal(cfg, v, f"source:{sid}:{k}") for k, v in plain.items()}
@@ -377,6 +402,7 @@ def create(db, cfg, name, typ, params=None, secret_values=None, user=None):
 def update(db, cfg, sid, name=None, params=None, secret_values=None):
     src = get(db, sid)
     _check_params(src["type"], params, secret_values)
+    params = tidy(src["type"], params)
     sealed = dict(src.get("sealed") or {})
     for k, v in (secret_values or {}).items():
         if v is None or v == "":
