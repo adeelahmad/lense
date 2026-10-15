@@ -1428,6 +1428,9 @@ SCHEMA = [
     # what a page was before each change (notebook.snapshot): its history, to look back at and restore
     "DEFINE TABLE IF NOT EXISTS note_version SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS note_version_page ON note_version FIELDS page",
+    # deleted pages, under their own id, until they're put back or TRASH_DAYS pass (notebook.delete)
+    "DEFINE TABLE IF NOT EXISTS note_trash SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS note_trash_space ON note_trash FIELDS space",
     # the files on a note page (images, attachments), kept where Settings → Storage says (notebook.py, blobs.py)
     "DEFINE TABLE IF NOT EXISTS note_file SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS note_file_page ON note_file FIELDS page, key",

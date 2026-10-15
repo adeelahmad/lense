@@ -17,7 +17,7 @@ import contextlib
 import ipaddress
 import re
 from collections.abc import Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Annotated, Any, Literal
 
 from fastapi import Depends, HTTPException, Request
@@ -65,6 +65,30 @@ class Principal:
         return {"id": self.id, "email": self.email}
 
 
+def within(p: Principal, sid: int) -> Principal:
+    """The same person seeing namespace `sid` alone (a namespace's own MCP server): their role there (an admin's is
+    owner's), their roles on its collections, and no administration."""
+    return replace(
+        p,
+        admin=False,
+        roles={s: r for s, r in p.roles.items() if s == sid},
+        perms={s: x for s, x in p.perms.items() if s == sid},
+        collections={s: c for s, c in p.collections.items() if s == sid},
+    )
+
+
+MCP_RESOURCE = re.compile(r"^/mcp/([a-z0-9_-]+)/?$")
+
+
+def bound_to(resource: str | None) -> str | None:
+    """The namespace an app's token was given for (RFC 8707), when that's a namespace's own MCP server
+    (…/mcp/<namespace>): such a token opens that server and nothing else."""
+    from urllib.parse import urlsplit
+
+    m = MCP_RESOURCE.match(urlsplit(resource).path) if resource else None
+    return m.group(1) if m else None
+
+
 def _principal(request: Request, db: DB) -> Principal | None:
     p = _resolve(request, db)
     if p:  # graph changes made in this request are recorded as theirs (graph_history.py)
@@ -87,6 +111,11 @@ def _resolve(request: Request, db: DB) -> Principal | None:
     elif raw.startswith("lo_"):
         # with OAuth turned off, apps' tokens stop working at once (their grants stay, so turning it back on restores them)
         u = oauth.token_account(db, raw) if oauth.enabled(request.app.state.settings.current()) else None
+        ns = bound_to(u.get("resource")) if u else None
+        if ns is not None:  # given for one namespace's MCP server: it opens that, and not the rest of Lens
+            here = MCP_RESOURCE.match(request.url.path)
+            if not here or here.group(1) != ns:
+                u = None
         if u:
             p = Principal(u["id"], u["email"], u.get("name"), bool(u.get("admin")), "oauth", u["scope"], resource=u.get("resource"))
     elif raw:

@@ -4,12 +4,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
-- **File shares through Remote access.** S3 and WebDAV can now be reached at the web app's own address, `/s3` and
-  `/dav`, so they work through the Cloudflare tunnel and HTTPS as well as on the network, and on Cloudron, which
-  publishes only the web app. It's off until an admin turns on **At the web app's address too** in Settings › File
-  shares; then a new access key's dialog gives those addresses. Signing in is the same: a person's own access key,
-  read-only. MQTT, syslog, SMB and NFS aren't HTTP and stay on their own ports
-  ([The graph as files](docs/file-tree.md#at-the-web-apps-address), [Remote access](docs/remote-access.md#what-it-reaches)).
+- **Notes tree menu.** Each note in the tree in the left navigation has a ⋯ menu to add a note inside, rename it in
+  place, move it (find the note to put it in by name, or move it to the top) and delete it with Undo, so nothing needs
+  dragging and it works on a phone. The navigation links and the tree now scroll together, so a long tree has room
+  ([The tree](docs/notes.md#the-tree)).
+- **Delete a note with Undo.** Deleting a note no longer asks first: the notice has Undo, which puts it back where it
+  was. Deleted notes wait in Recently deleted, at the bottom of the Notes page, for 30 days with their files and
+  history, to put back with one click or delete for good; then they go on their own
+  ([Deleting and putting back](docs/notes.md#deleting-and-putting-back)).
 - **Every entity has its own page.** An entity's page is named by its name, as a wiki names pages:
   `/wiki/<namespace>/<Name>` (spaces as underscores), so Ada Lovelace in `work` is `/wiki/work/Ada_Lovelace`. It shows
   what the entity is, the notes people and the assistant keep on it in the BlockSuite editor, every line that says it,
@@ -19,6 +21,16 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **The update notice no longer pushes pages off the screen.** While *Lens vX is out* shows above them, Chat, the
   graph and a recording's page are that much shorter, so a phone's question box and a recording's player stay in
   sight.
+- **An MCP server for each namespace.** A namespace's owner can turn on its own MCP server under Admin → Namespaces →
+  the namespace → Connect apps, which copies its address (`/mcp/<namespace>`). An agent connected there has the same
+  tools but sees that namespace alone, whatever else the person who signs it in can read, and a token an app gets for
+  it opens nothing else in Lens. Off by default ([One namespace's MCP server](docs/mcp.md#one-namespaces-mcp-server)).
+- **File shares through Remote access.** S3 and WebDAV can now be reached at the web app's own address, `/s3` and
+  `/dav`, so they work through the Cloudflare tunnel and HTTPS as well as on the network, and on Cloudron, which
+  publishes only the web app. It's off until an admin turns on **At the web app's address too** in Settings › File
+  shares; then a new access key's dialog gives those addresses. Signing in is the same: a person's own access key,
+  read-only. MQTT, syslog, SMB and NFS aren't HTTP and stay on their own ports
+  ([The graph as files](docs/file-tree.md#at-the-web-apps-address), [Remote access](docs/remote-access.md#what-it-reaches)).
 
 ## 0.11.0 <small>October 15, 2026</small> {id="0.11.0"}
 

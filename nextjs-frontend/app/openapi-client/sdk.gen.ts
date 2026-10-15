@@ -288,6 +288,9 @@ import type {
   DeleteCustomNodeData,
   DeleteCustomNodeErrors,
   DeleteCustomNodeResponses,
+  DeletedPagesData,
+  DeletedPagesErrors,
+  DeletedPagesResponses,
   DeleteEntityData,
   DeleteEntityErrors,
   DeleteEntityResponses,
@@ -547,6 +550,9 @@ import type {
   GetNamespaceFacesData,
   GetNamespaceFacesErrors,
   GetNamespaceFacesResponses,
+  GetNamespaceIntegrationsData,
+  GetNamespaceIntegrationsErrors,
+  GetNamespaceIntegrationsResponses,
   GetNamespaceMetadataData,
   GetNamespaceMetadataErrors,
   GetNamespaceMetadataResponses,
@@ -1084,6 +1090,9 @@ import type {
   ProposeGraphChangeData,
   ProposeGraphChangeErrors,
   ProposeGraphChangeResponses,
+  PurgeDeletedData,
+  PurgeDeletedErrors,
+  PurgeDeletedResponses,
   PushData,
   PushResponses,
   PushStreamData,
@@ -1195,6 +1204,9 @@ import type {
   RestoreBackupData,
   RestoreBackupErrors,
   RestoreBackupResponses,
+  RestoreDeletedData,
+  RestoreDeletedErrors,
+  RestoreDeletedResponses,
   RestoreVersionData,
   RestoreVersionErrors,
   RestoreVersionResponses,
@@ -1536,6 +1548,9 @@ import type {
   UpdateNamespaceCollectionResponses,
   UpdateNamespaceData,
   UpdateNamespaceErrors,
+  UpdateNamespaceIntegrationsData,
+  UpdateNamespaceIntegrationsErrors,
+  UpdateNamespaceIntegrationsResponses,
   UpdateNamespaceMetadataData,
   UpdateNamespaceMetadataErrors,
   UpdateNamespaceMetadataResponses,
@@ -4240,6 +4255,44 @@ export class Namespaces {
   }
 
   /**
+   * Get Namespace Integrations
+   *
+   * Whether the namespace's own MCP server is on, and its address.
+   */
+  public static getNamespaceIntegrations<ThrowOnError extends boolean = false>(
+    options: Options<GetNamespaceIntegrationsData, ThrowOnError>,
+  ): RequestResult<GetNamespaceIntegrationsResponses, GetNamespaceIntegrationsErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      GetNamespaceIntegrationsResponses,
+      GetNamespaceIntegrationsErrors,
+      ThrowOnError
+    >({ url: "/api/v1/namespaces/{name}/integrations", ...options });
+  }
+
+  /**
+   * Update Namespace Integrations
+   *
+   * Owners: turn the namespace's own MCP server on or off. Off, it answers 403; apps keep their access to the rest of
+   * Lens as before.
+   */
+  public static updateNamespaceIntegrations<ThrowOnError extends boolean = false>(
+    options: Options<UpdateNamespaceIntegrationsData, ThrowOnError>,
+  ): RequestResult<UpdateNamespaceIntegrationsResponses, UpdateNamespaceIntegrationsErrors, ThrowOnError> {
+    return (options.client ?? client).patch<
+      UpdateNamespaceIntegrationsResponses,
+      UpdateNamespaceIntegrationsErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/namespaces/{name}/integrations",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * List Namespace Collections
    *
    * The namespace's collections, depth first and by name, each with its place in the tree, how many assets it
@@ -5144,6 +5197,48 @@ export class Notes {
   }
 
   /**
+   * Deleted Pages
+   *
+   * Pages deleted in the last 30 days, the latest first: each can be put back until then.
+   */
+  public static deletedPages<ThrowOnError extends boolean = false>(
+    options?: Options<DeletedPagesData, ThrowOnError>,
+  ): RequestResult<DeletedPagesResponses, DeletedPagesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<DeletedPagesResponses, DeletedPagesErrors, ThrowOnError>({
+      url: "/api/v1/notes/deleted",
+      ...options,
+    });
+  }
+
+  /**
+   * Restore Deleted
+   *
+   * Put a deleted page back where it was, with its links, files and history (Undo after Delete). Editors.
+   */
+  public static restoreDeleted<ThrowOnError extends boolean = false>(
+    options: Options<RestoreDeletedData, ThrowOnError>,
+  ): RequestResult<RestoreDeletedResponses, RestoreDeletedErrors, ThrowOnError> {
+    return (options.client ?? client).post<RestoreDeletedResponses, RestoreDeletedErrors, ThrowOnError>({
+      url: "/api/v1/notes/deleted/{pid}/restore",
+      ...options,
+    });
+  }
+
+  /**
+   * Purge Deleted
+   *
+   * Delete a deleted page for good now, with its files and history, rather than after 30 days. Editors.
+   */
+  public static purgeDeleted<ThrowOnError extends boolean = false>(
+    options: Options<PurgeDeletedData, ThrowOnError>,
+  ): RequestResult<PurgeDeletedResponses, PurgeDeletedErrors, ThrowOnError> {
+    return (options.client ?? client).delete<PurgeDeletedResponses, PurgeDeletedErrors, ThrowOnError>({
+      url: "/api/v1/notes/deleted/{pid}",
+      ...options,
+    });
+  }
+
+  /**
    * Page About
    *
    * The page of an asset, entity, topic, collection or person: its page, or a draft while nobody has written one.
@@ -5160,7 +5255,8 @@ export class Notes {
   /**
    * Delete Page
    *
-   * Delete a page; the pages inside it move up a level. Needs editor access.
+   * Delete a page; the pages inside it move up a level. It can be put back from recently deleted for
+   * `TRASH_DAYS` (30) days (`POST /notes/deleted/{pid}/restore`). Needs editor access.
    */
   public static deletePage<ThrowOnError extends boolean = false>(
     options: Options<DeletePageData, ThrowOnError>,

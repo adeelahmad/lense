@@ -9,6 +9,7 @@ import { useMemo, useState } from "react";
 import { Notes } from "@/app/openapi-client";
 import type { NotePageItem } from "@/app/openapi-client/types.gen";
 import { PLACES, pageOf } from "@/components/notes/links";
+import { RecentlyDeleted } from "@/components/notes/recently-deleted";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/field";
 import { EmptyState, PageHeader, SkeletonRows } from "@/components/ui/states";
@@ -213,6 +214,7 @@ export function NotesHome() {
           )}
         </>
       )}
+      <RecentlyDeleted ns={namespace} />
     </div>
   );
 }

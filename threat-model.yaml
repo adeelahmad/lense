@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:56c3e9f4be8876a05575d3e828d653dceef2ec7e3bbebeadd3dba548a126ec7e"
+prose_version: "threat-model.md@sha256:489dd2cdee57c59aa87b9ae8e1af61585150ed6995e8426d604179101d1c22f3"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -1350,7 +1350,7 @@ properties_claimed:
     kind: authentication
     components: [identity]
     tier: security-critical
-    conditions: "PKCE (S256) required; redirects must match a registered URI; addresses with a user name or backslash refused; the consent page cannot be framed; app tokens act as the person and never administer; /mcp refuses a token issued for another server, caps bodies at 1 MB and batches at 20"
+    conditions: "PKCE (S256) required; redirects must match a registered URI; addresses with a user name or backslash refused; the consent page cannot be framed; app tokens act as the person and never administer; /mcp refuses a token issued for another server, caps bodies at 1 MB and batches at 20; a namespace's own MCP server (/mcp/<namespace>) sees that namespace alone, and a token issued for it opens nothing else"
     violation_symptoms: [integrity-bypass]
     x-voided-by: "tokens.oauth_enabled off (domain/oauth.py:54); loopback redirects may change the port (domain/oauth.py:114); tokens naming no server pass /mcp (api/mcp.py:228-229, Q13)"
     provenance: {kind: documented, source: 'docs/authentication.md "PKCE is required"'}

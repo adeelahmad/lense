@@ -9221,6 +9221,45 @@ export type NamespaceFaces = {
 };
 
 /**
+ * NamespaceIntegrations
+ */
+export type NamespaceIntegrations = {
+  /**
+   * Mcp
+   *
+   * the namespace's own MCP server answers, seeing this namespace alone
+   */
+  mcp: boolean;
+  /**
+   * Mcp Url
+   *
+   * where MCP clients connect to it
+   */
+  mcp_url: string;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Updated By
+   */
+  updated_by?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * NamespaceIntegrationsUpdate
+ *
+ * Only the fields you send change.
+ */
+export type NamespaceIntegrationsUpdate = {
+  /**
+   * Mcp
+   */
+  mcp?: boolean | null;
+};
+
+/**
  * NamespaceMetadata
  */
 export type NamespaceMetadata = {
@@ -9781,6 +9820,41 @@ export type NoteCreate = {
    * share it with everyone who can read the asset (needs editor access)
    */
   shared?: boolean;
+};
+
+/**
+ * NoteDeleted
+ */
+export type NoteDeleted = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * About
+   *
+   * what it was the page of, like "recording:12"; null for a free note
+   */
+  about?: string | null;
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Deleted At
+   */
+  deleted_at: string;
+  /**
+   * Deleted By
+   *
+   * who deleted it (their email)
+   */
+  deleted_by?: string | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -24857,6 +24931,69 @@ export type UpdateAssistantMemoryResponses = {
 
 export type UpdateAssistantMemoryResponse = UpdateAssistantMemoryResponses[keyof UpdateAssistantMemoryResponses];
 
+export type GetNamespaceIntegrationsData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/integrations";
+};
+
+export type GetNamespaceIntegrationsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetNamespaceIntegrationsError = GetNamespaceIntegrationsErrors[keyof GetNamespaceIntegrationsErrors];
+
+export type GetNamespaceIntegrationsResponses = {
+  /**
+   * Successful Response
+   */
+  200: NamespaceIntegrations;
+};
+
+export type GetNamespaceIntegrationsResponse =
+  GetNamespaceIntegrationsResponses[keyof GetNamespaceIntegrationsResponses];
+
+export type UpdateNamespaceIntegrationsData = {
+  body: NamespaceIntegrationsUpdate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/integrations";
+};
+
+export type UpdateNamespaceIntegrationsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateNamespaceIntegrationsError =
+  UpdateNamespaceIntegrationsErrors[keyof UpdateNamespaceIntegrationsErrors];
+
+export type UpdateNamespaceIntegrationsResponses = {
+  /**
+   * Successful Response
+   */
+  200: NamespaceIntegrations;
+};
+
+export type UpdateNamespaceIntegrationsResponse =
+  UpdateNamespaceIntegrationsResponses[keyof UpdateNamespaceIntegrationsResponses];
+
 export type ListNamespaceCollectionsData = {
   body?: never;
   path: {
@@ -26868,6 +27005,100 @@ export type SearchPagesResponses = {
 };
 
 export type SearchPagesResponse = SearchPagesResponses[keyof SearchPagesResponses];
+
+export type DeletedPagesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Ns
+     *
+     * only this namespace (default: every one you can read)
+     */
+    ns?: string | null;
+  };
+  url: "/api/v1/notes/deleted";
+};
+
+export type DeletedPagesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeletedPagesError = DeletedPagesErrors[keyof DeletedPagesErrors];
+
+export type DeletedPagesResponses = {
+  /**
+   * Response Notes-Deleted Pages
+   *
+   * Successful Response
+   */
+  200: Array<NoteDeleted>;
+};
+
+export type DeletedPagesResponse = DeletedPagesResponses[keyof DeletedPagesResponses];
+
+export type RestoreDeletedData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/deleted/{pid}/restore";
+};
+
+export type RestoreDeletedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RestoreDeletedError = RestoreDeletedErrors[keyof RestoreDeletedErrors];
+
+export type RestoreDeletedResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type RestoreDeletedResponse = RestoreDeletedResponses[keyof RestoreDeletedResponses];
+
+export type PurgeDeletedData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/deleted/{pid}";
+};
+
+export type PurgeDeletedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PurgeDeletedError = PurgeDeletedErrors[keyof PurgeDeletedErrors];
+
+export type PurgeDeletedResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type PurgeDeletedResponse = PurgeDeletedResponses[keyof PurgeDeletedResponses];
 
 export type PageAboutData = {
   body?: never;
