@@ -56681,7 +56681,8 @@
               "webdav",
               "local",
               "imap",
-              "ical"
+              "ical",
+              "gcal"
             ],
             "title": "Type"
           },
@@ -56776,7 +56777,8 @@
               "webdav",
               "local",
               "imap",
-              "ical"
+              "ical",
+              "gcal"
             ],
             "title": "Type"
           },
