@@ -26,21 +26,38 @@ jest.mock("next/navigation", () => ({
 }));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
 jest.mock("@/lib/hooks/session", () => ({
-  useArchive: () => ({ admin: false, namespaces: [{ id: 3, name: "family" }, { id: 4, name: "work" }] }),
+  useArchive: () => ({
+    admin: false,
+    namespaces: [
+      { id: 3, name: "family" },
+      { id: 4, name: "work" },
+    ],
+  }),
 }));
 
 const ok = (data: unknown) => Promise.resolve({ data, response: { ok: true, status: 200 } });
 const m = (f: unknown) => f as jest.Mock;
 const NOW = Date.now();
 
-function act_(id: string, minutesAgo: number, kind = "email.received", actor = ["lens:source/1", "Work Gmail"]): StreamActivity {
+function act_(
+  id: string,
+  minutesAgo: number,
+  kind = "email.received",
+  actor = ["lens:source/1", "Work Gmail"],
+): StreamActivity {
   return {
     id,
     type: "Create",
     kind,
     published: new Date(NOW - minutesAgo * 60_000).toISOString(),
     actor: { type: "Service", id: actor[0], name: actor[1] },
-    object: { type: "Note", id: `lens:recording/${id}`, name: `Mail ${id}`, url: `/resources/${id}`, subject: `Mail ${id}` },
+    object: {
+      type: "Note",
+      id: `lens:recording/${id}`,
+      name: `Mail ${id}`,
+      url: `/resources/${id}`,
+      subject: `Mail ${id}`,
+    },
     summary: `${actor[1]} received “Mail ${id}”`,
     space: 3,
     tag: [],
@@ -49,13 +66,13 @@ function act_(id: string, minutesAgo: number, kind = "email.received", actor = [
 }
 
 // three emails from one mailbox within minutes (one line), then an upload by a person an hour earlier
-const ITEMS = [
-  act_("e3", 1),
-  act_("e2", 2),
-  act_("e1", 3),
-  act_("u1", 90, "asset.added", ["lens:account/1", "Adeel"]),
-];
-const PAGE: ActivityPage = { items: ITEMS, next: null, namespaces: { "3": "family" }, marks: { u1: { reviewed: true } } };
+const ITEMS = [act_("e3", 1), act_("e2", 2), act_("e1", 3), act_("u1", 90, "asset.added", ["lens:account/1", "Adeel"])];
+const PAGE: ActivityPage = {
+  items: ITEMS,
+  next: null,
+  namespaces: { "3": "family" },
+  marks: { u1: { reviewed: true } },
+};
 
 function wrap(ui: ReactNode) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -74,7 +91,14 @@ beforeEach(() => {
   m(Activities.listActivityKinds).mockReturnValue(
     ok([
       { name: "email.received", label: "Email received", source: "x", type: "Create", object_type: "Note", schema: {} },
-      { name: "asset.added", label: "Asset added", source: "recordings", type: "Create", object_type: "Note", schema: {} },
+      {
+        name: "asset.added",
+        label: "Asset added",
+        source: "recordings",
+        type: "Create",
+        object_type: "Note",
+        schema: {},
+      },
     ]),
   );
   m(Activities.markActivities).mockImplementation(({ body }) =>
@@ -98,7 +122,10 @@ test("the list groups a run of emails into one line that opens to its items, and
   // the page asks for what isn't hidden
   expect(m(Activities.listActivities).mock.calls[0][0].query).toMatchObject({ hidden: false, limit: 50 });
   fireEvent.click(within(rows[0]).getByRole("button", { name: "Show the 3" }));
-  expect(within(rows[0]).getByRole("link", { name: "Work Gmail received “Mail e1”" })).toHaveAttribute("href", "/resources/e1");
+  expect(within(rows[0]).getByRole("link", { name: "Work Gmail received “Mail e1”" })).toHaveAttribute(
+    "href",
+    "/resources/e1",
+  );
   // one item opens to its details
   fireEvent.click(within(rows[1]).getByRole("button", { name: "Show details" }));
   expect(within(rows[1]).getByText("Subject")).toBeInTheDocument();
@@ -142,7 +169,9 @@ test("keys: j and k move, r marks reviewed, i marks important", async () => {
   expect(rows[1]).toHaveFocus();
   fireEvent.keyDown(window, { key: "r" }); // u1 was reviewed: r clears it
   await waitFor(() =>
-    expect(m(Activities.markActivities)).toHaveBeenCalledWith(expect.objectContaining({ body: { ids: ["u1"], reviewed: false } })),
+    expect(m(Activities.markActivities)).toHaveBeenCalledWith(
+      expect.objectContaining({ body: { ids: ["u1"], reviewed: false } }),
+    ),
   );
   fireEvent.keyDown(window, { key: "k" });
   expect(rows[0]).toHaveFocus();
@@ -165,7 +194,9 @@ test("hiding takes an item out of sight, with an undo", async () => {
   fireEvent.click(within(rows[1]).getByRole("button", { name: "Show details" }));
   fireEvent.click(within(rows[1]).getByRole("button", { name: "Hide" }));
   await waitFor(() => expect(screen.getAllByTestId("timeline-row")).toHaveLength(1));
-  expect(m(Activities.markActivities)).toHaveBeenCalledWith(expect.objectContaining({ body: { ids: ["u1"], hidden: true } }));
+  expect(m(Activities.markActivities)).toHaveBeenCalledWith(
+    expect.objectContaining({ body: { ids: ["u1"], hidden: true } }),
+  );
   fireEvent.click(await screen.findByRole("button", { name: "Undo" }));
   await waitFor(() => expect(screen.getAllByTestId("timeline-row")).toHaveLength(2));
 });
@@ -215,9 +246,14 @@ test("filters in the address make the query, and an empty address brings back th
 });
 
 test("Home's Latest card lists what you haven't reviewed", async () => {
-  m(Activities.listActivities).mockReturnValue(ok({ items: ITEMS.slice(0, 2), next: null, namespaces: { "3": "family" } }));
+  m(Activities.listActivities).mockReturnValue(
+    ok({ items: ITEMS.slice(0, 2), next: null, namespaces: { "3": "family" } }),
+  );
   wrap(<LatestCard />);
-  expect(await screen.findByRole("link", { name: "Work Gmail received “Mail e3”" })).toHaveAttribute("href", "/resources/e3");
+  expect(await screen.findByRole("link", { name: "Work Gmail received “Mail e3”" })).toHaveAttribute(
+    "href",
+    "/resources/e3",
+  );
   expect(m(Activities.listActivities).mock.calls[0][0].query).toEqual({ reviewed: false, hidden: false, limit: 5 });
   expect(screen.getByRole("link", { name: "Timeline" })).toHaveAttribute("href", "/timeline?unreviewed=1");
   expect(screen.queryByRole("button", { name: /Mark/ })).not.toBeInTheDocument();

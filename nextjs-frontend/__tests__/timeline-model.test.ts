@@ -21,7 +21,13 @@ import {
 const MIN = 60_000;
 const T0 = Date.parse("2026-10-15T12:00:00.000Z");
 
-function act(id: string, minutesAgo: number, kind = "asset.added", actor = "lens:source/1", name = "Work Gmail"): Activity {
+function act(
+  id: string,
+  minutesAgo: number,
+  kind = "asset.added",
+  actor = "lens:source/1",
+  name = "Work Gmail",
+): Activity {
   return {
     id,
     type: "Create",
@@ -68,7 +74,14 @@ describe("filters in the address", () => {
 
   it("make the API's query, always leaving out what you hid", () => {
     expect(toQuery(NO_FILTERS)).toEqual({ hidden: false });
-    const q = toQuery({ ...NO_FILTERS, unreviewed: true, important: true, automation: "4", from: "2026-10-01", to: "2026-10-02" });
+    const q = toQuery({
+      ...NO_FILTERS,
+      unreviewed: true,
+      important: true,
+      automation: "4",
+      from: "2026-10-01",
+      to: "2026-10-02",
+    });
     expect(q.reviewed).toBe(false);
     expect(q.important).toBe(true);
     expect(q.where).toBe(automationWhere("4"));
@@ -94,9 +107,9 @@ describe("grouping", () => {
     const gs = group([...sync, other]);
     expect(gs).toHaveLength(2);
     expect(groupSummary(gs[0])).toBe("Work Gmail received 37 emails");
-    expect(groupSummary({ key: "k", items: [act("1", 0, "thing.done"), act("2", 1, "thing.done")] }, "Thing done")).toBe(
-      "Work Gmail: 2 × thing done",
-    );
+    expect(
+      groupSummary({ key: "k", items: [act("1", 0, "thing.done"), act("2", 1, "thing.done")] }, "Thing done"),
+    ).toBe("Work Gmail: 2 × thing done");
   });
 });
 
