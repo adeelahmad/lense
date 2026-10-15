@@ -939,8 +939,16 @@ export type Backup = {
   kind: "export" | "folder";
   /**
    * Bytes
+   *
+   * the database's part and the files kept with it
    */
   bytes: number;
+  /**
+   * Files
+   *
+   * the files under data_dir are kept with it, and put back when it is restored
+   */
+  files?: boolean;
   /**
    * Taken At
    */
@@ -23083,7 +23091,7 @@ export type BackupFileError = BackupFileErrors[keyof BackupFileErrors];
 
 export type BackupFileResponses = {
   /**
-   * the backup (an embedded one as a .tar.gz)
+   * the backup: an export with no files as it is, anything else as a .tar.gz
    */
   200: Blob | File;
 };

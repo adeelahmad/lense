@@ -4093,7 +4093,7 @@
         ],
         "responses": {
           "200": {
-            "description": "the backup (an embedded one as a .tar.gz)",
+            "description": "the backup: an export with no files as it is, anything else as a .tar.gz",
             "content": {
               "application/gzip": {}
             }
@@ -28850,7 +28850,14 @@
           },
           "bytes": {
             "type": "integer",
-            "title": "Bytes"
+            "title": "Bytes",
+            "description": "the database's part and the files kept with it"
+          },
+          "files": {
+            "type": "boolean",
+            "title": "Files",
+            "description": "the files under data_dir are kept with it, and put back when it is restored",
+            "default": false
           },
           "taken_at": {
             "type": "string",

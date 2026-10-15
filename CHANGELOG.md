@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Backups hold Lens's files too.** Each backup now also keeps the files under `data_dir` (uploads, objects, media,
+  frames, renditions, web pages, reports, exports, podcasts, certificates), and restoring one puts them back. Files
+  that haven't changed since the previous backup are hard links, so a backup takes only the room of what changed; the
+  first one takes as much room as the files. Downloads and copies on a storage connection carry them as well. Older
+  backups show *database only* ([Backups](docs/database.md#backups)).
 - **Analytics.** A new Analytics page (admins) shows active people per day, week and month, stickiness, churn rate,
   retention by sign-up week and feature use, worked out on the server from the activity ledger and sign-ins. Each day
   Lens also keeps a few counted events (install, daily active, feature used, upgrade, inactive, return). They can
