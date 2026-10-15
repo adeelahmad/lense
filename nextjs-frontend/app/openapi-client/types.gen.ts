@@ -2004,6 +2004,88 @@ export type ChatCapabilities = {
 };
 
 /**
+ * ChatCompletion
+ */
+export type ChatCompletion = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Object
+   */
+  object?: string;
+  /**
+   * Created
+   */
+  created: number;
+  /**
+   * Model
+   */
+  model: string;
+  /**
+   * Choices
+   */
+  choices: Array<CompletionChoice>;
+  /**
+   * Citations
+   *
+   * the links of what it can cite, in order: [n] is the n-th
+   */
+  citations: Array<string>;
+  lens: CompletionLens;
+  [key: string]: unknown;
+};
+
+/**
+ * ChatCompletionRequest
+ *
+ * OpenAI's request. Fields it has that aren't listed here (n, top_p, user, max_tokens, tools, …) are taken and
+ * left alone.
+ */
+export type ChatCompletionRequest = {
+  /**
+   * Messages
+   *
+   * the conversation: system, user, assistant (and tool) messages; the last is the question
+   */
+  messages: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Model
+   *
+   * lens (the configured model), or one people may pick in Lens's chat; anything else is lens
+   */
+  model?: string | null;
+  /**
+   * Stream
+   *
+   * send the answer as server-sent events, OpenAI's chunks, ending in data: [DONE]
+   */
+  stream?: boolean;
+  /**
+   * Temperature
+   */
+  temperature?: number | null;
+  /**
+   * Stream Options
+   */
+  stream_options?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Response Format
+   *
+   * any format asked for: the answer then has no Sources list after it (the format itself isn't enforced yet)
+   */
+  response_format?: {
+    [key: string]: unknown;
+  } | null;
+  [key: string]: unknown;
+};
+
+/**
  * ChatCreate
  */
 export type ChatCreate = {
@@ -2880,6 +2962,149 @@ export type CommentUpdate = {
    * resolve or reopen the thread: its writer, or an editor of the resource
    */
   resolved?: boolean | null;
+};
+
+/**
+ * CompletionChoice
+ */
+export type CompletionChoice = {
+  /**
+   * Index
+   */
+  index?: number;
+  message: CompletionMessage;
+  /**
+   * Finish Reason
+   */
+  finish_reason?: string;
+  [key: string]: unknown;
+};
+
+/**
+ * CompletionLens
+ */
+export type CompletionLens = {
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Sources
+   */
+  sources: Array<CompletionSource>;
+  /**
+   * Steps
+   *
+   * the tools it looked things up with
+   */
+  steps?: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Notice
+   */
+  notice?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * CompletionMessage
+ */
+export type CompletionMessage = {
+  /**
+   * Role
+   */
+  role?: string;
+  /**
+   * Content
+   */
+  content: string;
+  [key: string]: unknown;
+};
+
+/**
+ * CompletionModel
+ */
+export type CompletionModel = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Object
+   */
+  object?: string;
+  /**
+   * Created
+   */
+  created?: number;
+  /**
+   * Owned By
+   */
+  owned_by?: string;
+  [key: string]: unknown;
+};
+
+/**
+ * CompletionModels
+ */
+export type CompletionModels = {
+  /**
+   * Object
+   */
+  object?: string;
+  /**
+   * Data
+   */
+  data: Array<CompletionModel>;
+  [key: string]: unknown;
+};
+
+/**
+ * CompletionSource
+ */
+export type CompletionSource = {
+  /**
+   * N
+   *
+   * what the answer cites it as: [n]
+   */
+  n: number;
+  /**
+   * Recording Id
+   *
+   * the asset it comes from
+   */
+  recording_id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Time
+   *
+   * the moment, as "12:34", or a document's page, as "p. 2"
+   */
+  time?: string | null;
+  /**
+   * Speaker
+   *
+   * who spoke, in audio or video
+   */
+  speaker?: string | null;
+  /**
+   * Url
+   *
+   * the moment in the web app
+   */
+  url: string;
+  /**
+   * Cited
+   *
+   * whether the answer cites it
+   */
+  cited: boolean;
+  [key: string]: unknown;
 };
 
 /**
@@ -7217,6 +7442,21 @@ export type InstallStatus = {
 };
 
 /**
+ * IntegrationTool
+ */
+export type IntegrationTool = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description: string;
+  [key: string]: unknown;
+};
+
+/**
  * IpGroup
  *
  * Address ranges whose visitors see all of some of the namespace's assets without signing in (docs/access.md).
@@ -9237,6 +9477,30 @@ export type NamespaceIntegrations = {
    */
   mcp_url: string;
   /**
+   * Chat
+   *
+   * the namespace's own chat completions answer apps, from this namespace alone
+   */
+  chat?: boolean;
+  /**
+   * Chat Url
+   *
+   * the base URL OpenAI-compatible apps are given (they add /chat/completions)
+   */
+  chat_url?: string;
+  /**
+   * Tools
+   *
+   * the read tools the model may use there (none: one search)
+   */
+  tools?: Array<string>;
+  /**
+   * Tool Choices
+   *
+   * the tools that can be offered there
+   */
+  tool_choices?: Array<IntegrationTool>;
+  /**
    * Updated At
    */
   updated_at?: string | null;
@@ -9257,6 +9521,14 @@ export type NamespaceIntegrationsUpdate = {
    * Mcp
    */
   mcp?: boolean | null;
+  /**
+   * Chat
+   */
+  chat?: boolean | null;
+  /**
+   * Tools
+   */
+  tools?: Array<string> | null;
 };
 
 /**
@@ -24987,6 +25259,114 @@ export type UpdateNamespaceIntegrationsResponses = {
 
 export type UpdateNamespaceIntegrationsResponse =
   UpdateNamespaceIntegrationsResponses[keyof UpdateNamespaceIntegrationsResponses];
+
+export type ListCompletionModelsData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/models";
+};
+
+export type ListCompletionModelsErrors = {
+  /**
+   * OpenAI's error shape: {error: {message, type, code}}
+   */
+  400: unknown;
+  /**
+   * no token, or one that doesn't open this namespace
+   */
+  401: unknown;
+  /**
+   * the namespace's chat completions are off
+   */
+  403: unknown;
+  /**
+   * no such namespace, or not one you can read
+   */
+  404: unknown;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+  /**
+   * a budget is used up
+   */
+  429: unknown;
+  /**
+   * the model server failed
+   */
+  502: unknown;
+};
+
+export type ListCompletionModelsError = ListCompletionModelsErrors[keyof ListCompletionModelsErrors];
+
+export type ListCompletionModelsResponses = {
+  /**
+   * Successful Response
+   */
+  200: CompletionModels;
+};
+
+export type ListCompletionModelsResponse = ListCompletionModelsResponses[keyof ListCompletionModelsResponses];
+
+export type CreateChatCompletionData = {
+  body: ChatCompletionRequest;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/chat/completions";
+};
+
+export type CreateChatCompletionErrors = {
+  /**
+   * OpenAI's error shape: {error: {message, type, code}}
+   */
+  400: unknown;
+  /**
+   * no token, or one that doesn't open this namespace
+   */
+  401: unknown;
+  /**
+   * the namespace's chat completions are off
+   */
+  403: unknown;
+  /**
+   * no such namespace, or not one you can read
+   */
+  404: unknown;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+  /**
+   * a budget is used up
+   */
+  429: unknown;
+  /**
+   * the model server failed
+   */
+  502: unknown;
+};
+
+export type CreateChatCompletionError = CreateChatCompletionErrors[keyof CreateChatCompletionErrors];
+
+export type CreateChatCompletionResponses = {
+  /**
+   * Successful Response
+   */
+  200: ChatCompletion;
+};
+
+export type CreateChatCompletionResponse = CreateChatCompletionResponses[keyof CreateChatCompletionResponses];
 
 export type ListNamespaceCollectionsData = {
   body?: never;

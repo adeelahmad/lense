@@ -139,6 +139,9 @@ import type {
   CreateBatchData,
   CreateBatchErrors,
   CreateBatchResponses,
+  CreateChatCompletionData,
+  CreateChatCompletionErrors,
+  CreateChatCompletionResponses,
   CreateChatData,
   CreateChatErrors,
   CreateChatResponses,
@@ -784,6 +787,9 @@ import type {
   ListCommentsData,
   ListCommentsErrors,
   ListCommentsResponses,
+  ListCompletionModelsData,
+  ListCompletionModelsErrors,
+  ListCompletionModelsResponses,
   ListComponentsData,
   ListComponentsResponses,
   ListContentTypesData,
@@ -4257,7 +4263,7 @@ export class Namespaces {
   /**
    * Get Namespace Integrations
    *
-   * Whether the namespace's own MCP server is on, and its address.
+   * Whether the namespace's own MCP server and chat completions are on, their addresses, and the tools offered.
    */
   public static getNamespaceIntegrations<ThrowOnError extends boolean = false>(
     options: Options<GetNamespaceIntegrationsData, ThrowOnError>,
@@ -4272,8 +4278,8 @@ export class Namespaces {
   /**
    * Update Namespace Integrations
    *
-   * Owners: turn the namespace's own MCP server on or off. Off, it answers 403; apps keep their access to the rest of
-   * Lens as before.
+   * Owners: turn the namespace's own MCP server or chat completions on or off, or pick the read tools the model may
+   * use in its chat completions. Off, each answers 403; apps keep their access to the rest of Lens as before.
    */
   public static updateNamespaceIntegrations<ThrowOnError extends boolean = false>(
     options: Options<UpdateNamespaceIntegrationsData, ThrowOnError>,
@@ -4414,6 +4420,45 @@ export class Namespaces {
   ): RequestResult<SetCollectionMemberResponses, SetCollectionMemberErrors, ThrowOnError> {
     return (options.client ?? client).put<SetCollectionMemberResponses, SetCollectionMemberErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}/collections/{cid}/members",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class ChatCompletions {
+  /**
+   * List Completion Models
+   *
+   * OpenAI's model list for the namespace's chat completions: lens (the configured model) and the models people may
+   * pick in Lens's chat.
+   */
+  public static listCompletionModels<ThrowOnError extends boolean = false>(
+    options: Options<ListCompletionModelsData, ThrowOnError>,
+  ): RequestResult<ListCompletionModelsResponses, ListCompletionModelsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListCompletionModelsResponses, ListCompletionModelsErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/models",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Chat Completion
+   *
+   * OpenAI's chat completions, answered from this namespace alone: the last user message is the question, the
+   * messages before it the conversation and system messages the app's instructions. The answer cites what it read as
+   * [n], with a Sources list after it, `citations` (the n-th link for [n]) and `lens.sources`. With `stream`, it comes
+   * as OpenAI's chunks (server-sent events) ending in `data: [DONE]`. Off until an owner of the namespace turns it on;
+   * read-only tokens are enough. 429 when the namespace's budget or Lens's overall one is used up.
+   */
+  public static createChatCompletion<ThrowOnError extends boolean = false>(
+    options: Options<CreateChatCompletionData, ThrowOnError>,
+  ): RequestResult<CreateChatCompletionResponses, CreateChatCompletionErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateChatCompletionResponses, CreateChatCompletionErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/chat/completions",
       ...options,
       headers: {
         "Content-Type": "application/json",

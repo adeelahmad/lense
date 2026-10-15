@@ -21,6 +21,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   the namespace → Connect apps, which copies its address (`/mcp/<namespace>`). An agent connected there has the same
   tools but sees that namespace alone, whatever else the person who signs it in can read, and a token an app gets for
   it opens nothing else in Lens. Off by default ([One namespace's MCP server](docs/mcp.md#one-namespaces-mcp-server)).
+- **Chat completions for any app, from one namespace.** A namespace can answer OpenAI's chat completions API at
+  `/api/v1/namespaces/<namespace>`, so any app that speaks it (with a Lens API key and the model `lens`) gets answers
+  from the configured model, grounded in that namespace and citing it: `[n]` with a Sources list, `citations` and
+  `lens.sources`, streamed or not. Its owners pick the read tools the model may use there (none by default: one search,
+  one model call). Calls count for the namespace's budget. Off by default; turned on under Admin → Namespaces → the
+  namespace → Connect apps ([Chat completions for any app](docs/api.md#chat-completions-for-any-app)).
 
 ## 0.11.0 <small>October 15, 2026</small> {id="0.11.0"}
 

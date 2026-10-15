@@ -6391,7 +6391,7 @@
           "namespaces"
         ],
         "summary": "Get Namespace Integrations",
-        "description": "Whether the namespace's own MCP server is on, and its address.",
+        "description": "Whether the namespace's own MCP server and chat completions are on, their addresses, and the tools offered.",
         "operationId": "get_namespace_integrations",
         "parameters": [
           {
@@ -6432,7 +6432,7 @@
           "namespaces"
         ],
         "summary": "Update Namespace Integrations",
-        "description": "Owners: turn the namespace's own MCP server on or off. Off, it answers 403; apps keep their access to the rest of\nLens as before.",
+        "description": "Owners: turn the namespace's own MCP server or chat completions on or off, or pick the read tools the model may\nuse in its chat completions. Off, each answers 403; apps keep their access to the rest of Lens as before.",
         "operationId": "update_namespace_integrations",
         "parameters": [
           {
@@ -6465,6 +6465,138 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/models": {
+      "get": {
+        "tags": [
+          "chat completions"
+        ],
+        "summary": "List Completion Models",
+        "description": "OpenAI's model list for the namespace's chat completions: lens (the configured model) and the models people may\npick in Lens's chat.",
+        "operationId": "list_completion_models",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompletionModels"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "OpenAI's error shape: {error: {message, type, code}}"
+          },
+          "401": {
+            "description": "no token, or one that doesn't open this namespace"
+          },
+          "403": {
+            "description": "the namespace's chat completions are off"
+          },
+          "404": {
+            "description": "no such namespace, or not one you can read"
+          },
+          "429": {
+            "description": "a budget is used up"
+          },
+          "502": {
+            "description": "the model server failed"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/chat/completions": {
+      "post": {
+        "tags": [
+          "chat completions"
+        ],
+        "summary": "Create Chat Completion",
+        "description": "OpenAI's chat completions, answered from this namespace alone: the last user message is the question, the\nmessages before it the conversation and system messages the app's instructions. The answer cites what it read as\n[n], with a Sources list after it, `citations` (the n-th link for [n]) and `lens.sources`. With `stream`, it comes\nas OpenAI's chunks (server-sent events) ending in `data: [DONE]`. Off until an owner of the namespace turns it on;\nread-only tokens are enough. 429 when the namespace's budget or Lens's overall one is used up.",
+        "operationId": "create_chat_completion",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatCompletionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatCompletion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "OpenAI's error shape: {error: {message, type, code}}"
+          },
+          "401": {
+            "description": "no token, or one that doesn't open this namespace"
+          },
+          "403": {
+            "description": "the namespace's chat completions are off"
+          },
+          "404": {
+            "description": "no such namespace, or not one you can read"
+          },
+          "429": {
+            "description": "a budget is used up"
+          },
+          "502": {
+            "description": "the model server failed"
           },
           "422": {
             "description": "Validation Error",
@@ -31408,6 +31540,133 @@
         ],
         "title": "ChatCapabilities"
       },
+      "ChatCompletion": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "object": {
+            "type": "string",
+            "title": "Object",
+            "default": "chat.completion"
+          },
+          "created": {
+            "type": "integer",
+            "title": "Created"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "choices": {
+            "items": {
+              "$ref": "#/components/schemas/CompletionChoice"
+            },
+            "type": "array",
+            "title": "Choices"
+          },
+          "citations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Citations",
+            "description": "the links of what it can cite, in order: [n] is the n-th"
+          },
+          "lens": {
+            "$ref": "#/components/schemas/CompletionLens"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "created",
+          "model",
+          "choices",
+          "citations",
+          "lens"
+        ],
+        "title": "ChatCompletion"
+      },
+      "ChatCompletionRequest": {
+        "properties": {
+          "messages": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "title": "Messages",
+            "description": "the conversation: system, user, assistant (and tool) messages; the last is the question"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "lens (the configured model), or one people may pick in Lens's chat; anything else is lens"
+          },
+          "stream": {
+            "type": "boolean",
+            "title": "Stream",
+            "description": "send the answer as server-sent events, OpenAI's chunks, ending in data: [DONE]",
+            "default": false
+          },
+          "temperature": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 2.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature"
+          },
+          "stream_options": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stream Options"
+          },
+          "response_format": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Format",
+            "description": "any format asked for: the answer then has no Sources list after it (the format itself isn't enforced yet)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "messages"
+        ],
+        "title": "ChatCompletionRequest",
+        "description": "OpenAI's request. Fields it has that aren't listed here (n, top_p, user, max_tokens, tools, \u2026) are taken and\nleft alone."
+      },
       "ChatCreate": {
         "properties": {
           "title": {
@@ -33039,6 +33298,209 @@
         "additionalProperties": false,
         "type": "object",
         "title": "CommentUpdate"
+      },
+      "CompletionChoice": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index",
+            "default": 0
+          },
+          "message": {
+            "$ref": "#/components/schemas/CompletionMessage"
+          },
+          "finish_reason": {
+            "type": "string",
+            "title": "Finish Reason",
+            "default": "stop"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "CompletionChoice"
+      },
+      "CompletionLens": {
+        "properties": {
+          "namespace": {
+            "type": "string",
+            "title": "Namespace"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/CompletionSource"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "steps": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Steps",
+            "description": "the tools it looked things up with"
+          },
+          "notice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notice"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "namespace",
+          "sources"
+        ],
+        "title": "CompletionLens"
+      },
+      "CompletionMessage": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "title": "Role",
+            "default": "assistant"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "title": "CompletionMessage"
+      },
+      "CompletionModel": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "object": {
+            "type": "string",
+            "title": "Object",
+            "default": "model"
+          },
+          "created": {
+            "type": "integer",
+            "title": "Created",
+            "default": 0
+          },
+          "owned_by": {
+            "type": "string",
+            "title": "Owned By",
+            "default": "lens"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "CompletionModel"
+      },
+      "CompletionModels": {
+        "properties": {
+          "object": {
+            "type": "string",
+            "title": "Object",
+            "default": "list"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CompletionModel"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CompletionModels"
+      },
+      "CompletionSource": {
+        "properties": {
+          "n": {
+            "type": "integer",
+            "title": "N",
+            "description": "what the answer cites it as: [n]"
+          },
+          "recording_id": {
+            "type": "integer",
+            "title": "Recording Id",
+            "description": "the asset it comes from"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time",
+            "description": "the moment, as \"12:34\", or a document's page, as \"p. 2\""
+          },
+          "speaker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker",
+            "description": "who spoke, in audio or video"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "the moment in the web app"
+          },
+          "cited": {
+            "type": "boolean",
+            "title": "Cited",
+            "description": "whether the answer cites it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "n",
+          "recording_id",
+          "url",
+          "cited"
+        ],
+        "title": "CompletionSource"
       },
       "Component": {
         "properties": {
@@ -40360,6 +40822,25 @@
         ],
         "title": "InstallStatus"
       },
+      "IntegrationTool": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "description"
+        ],
+        "title": "IntegrationTool"
+      },
       "IpGroup": {
         "properties": {
           "id": {
@@ -43771,6 +44252,34 @@
             "title": "Mcp Url",
             "description": "where MCP clients connect to it"
           },
+          "chat": {
+            "type": "boolean",
+            "title": "Chat",
+            "description": "the namespace's own chat completions answer apps, from this namespace alone",
+            "default": false
+          },
+          "chat_url": {
+            "type": "string",
+            "title": "Chat Url",
+            "description": "the base URL OpenAI-compatible apps are given (they add /chat/completions)",
+            "default": ""
+          },
+          "tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tools",
+            "description": "the read tools the model may use there (none: one search)"
+          },
+          "tool_choices": {
+            "items": {
+              "$ref": "#/components/schemas/IntegrationTool"
+            },
+            "type": "array",
+            "title": "Tool Choices",
+            "description": "the tools that can be offered there"
+          },
           "updated_at": {
             "anyOf": [
               {
@@ -43814,6 +44323,32 @@
               }
             ],
             "title": "Mcp"
+          },
+          "chat": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chat"
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools"
           }
         },
         "additionalProperties": false,
