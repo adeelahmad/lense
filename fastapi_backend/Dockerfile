@@ -4,7 +4,7 @@
 # for most scripts. Heavy Python extras and models (speech, voice IDs, faces, objects) are in neither: a worker fetches
 # them in the background, at run time, when a job first needs them or they're turned on in Settings → Components.
 # Outlook .msg emails also need the msg extra (extract-msg, GPL-3.0): --build-arg EXTRAS="msg".
-FROM python:3.12-slim-bookworm AS base
+FROM python:3.12-slim-trixie AS base
 
 # UV_NO_CACHE: no package cache left in the image (it doubled its size) or in the container (what workers fetch); the
 # build's own `uv sync` steps use a BuildKit cache mount instead, outside the image, so a rerun after a failed or
@@ -20,9 +20,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
     PATH="/opt/venv/bin:$PATH"
 
-# ffmpeg: audio and video; tesseract: text on screen; antiword + poppler: legacy .doc and PDF fallbacks
+# ffmpeg: audio and video; tesseract: text on screen; antiword + poppler: legacy .doc and PDF fallbacks; libgomp1:
+# llama.cpp's server, for a local model (docs/local-models.md), which Lens fetches on first use
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg tesseract-ocr antiword poppler-utils ca-certificates \
+    && apt-get install -y --no-install-recommends ffmpeg tesseract-ocr antiword poppler-utils ca-certificates libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 # rclone reaches S3, Dropbox, Google Drive, OneDrive, SFTP, SMB and WebDAV sources
 COPY --from=rclone/rclone:1.75.1 /usr/local/bin/rclone /usr/local/bin/rclone
@@ -36,7 +37,7 @@ ARG EXTRAS=""
 ARG DEV=false
 # docTR's OpenCV (opencv-python, not the headless build) needs libGL and GLib
 RUN case " $EXTRAS " in *" doctr "*) apt-get update \
-      && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*;; esac
+      && apt-get install -y --no-install-recommends libgl1 libglib2.0-0t64 && rm -rf /var/lib/apt/lists/*;; esac
 
 # No speech-to-text engine is baked in (light by default: cloud speech users never need one). The worker fetches the
 # configured one on first use (components.py); EXTRAS="whisper" bakes faster-whisper in, EXTRAS="sensevoice" SenseVoice.

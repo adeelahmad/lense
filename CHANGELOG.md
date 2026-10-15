@@ -4,6 +4,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **A local model runs on arm64 in Docker** (a Raspberry Pi, Docker on a Mac). The backend image is now built on
+  Debian 13 (trixie) instead of Debian 12, as llama.cpp's Linux arm64 build needs its newer system library (glibc
+  2.38). Upgrading rebuilds the image; nothing else changes ([Local models](docs/local-models.md#use-it)).
 - **A local model starts again.** llama.cpp's versioned releases (v0.6.0 on) carry only the source, so Lens found no
   llama.cpp build to fetch and a model picked under Settings → Local model didn't run (*llama.cpp v0.6.0 has no build
   for linux arm64*). Lens now takes the build that release names, and says why when the build it fetched can't start

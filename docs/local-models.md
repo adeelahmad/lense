@@ -21,8 +21,8 @@ Lens then, in the background:
   `local_llm.server` names it in archive.yaml. The release build for Linux x64, Linux arm64 and macOS (Metal on Apple
   Silicon) goes into `data_dir/bin/llama.cpp`. It comes from llama.cpp's latest release, or, as its versioned releases
   (v0.6.0 on) carry only the source, from the build that release names in its `nightly-tag.txt`. Lens checks that the
-  build starts on this machine: llama.cpp's Linux arm64 build needs glibc 2.38 or newer (Debian 13, Ubuntu 24.04), and
-  when it can't start, the page says why;
+  build starts on this machine: llama.cpp's Linux arm64 build needs glibc 2.38 or newer (Debian 13, Ubuntu 24.04),
+  which the backend image (Debian 13) has, and when it can't start, the page says why;
 - downloads the model into `data_dir/models/gguf`, resuming an interrupted download. Listed models are pinned to a
   revision and checked against their SHA-256;
 - starts the server with its own random API key (not on the command line), and once it answers makes it the LLM
