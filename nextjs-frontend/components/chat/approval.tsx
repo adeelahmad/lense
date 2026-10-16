@@ -82,11 +82,14 @@ export function ApprovalCard({
   canAct,
   model,
   chatId,
+  onDecided,
 }: {
   a: ApprovalView;
   canAct: boolean;
   model: string | null;
   chatId: number | null;
+  /** After a pick, besides the conversation's approvals being read again (the inbox reads its own). */
+  onDecided?: () => void;
 }) {
   const client = useApiClient();
   const qc = useQueryClient();
@@ -99,7 +102,10 @@ export function ApprovalCard({
           body: { decision },
         }),
       ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["approvals", chatId] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["approvals", chatId] });
+      onDecided?.();
+    },
   });
   const decided = decide.data ?? null;
   if ((a.status && a.status !== "pending") || decided)

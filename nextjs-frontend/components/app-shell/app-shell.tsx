@@ -14,6 +14,8 @@ import { NamespaceSwitcher } from "@/components/app-shell/namespace-switcher";
 import { Nav } from "@/components/app-shell/nav";
 import { Shortcuts } from "@/components/app-shell/shortcuts";
 import { UpdateBanner } from "@/components/app-shell/update-banner";
+import { ApprovalsBadge } from "@/components/approvals/approvals-badge";
+import { useApprovalCount } from "@/components/approvals/use-approvals";
 import { BudgetMeter } from "@/components/costs/budget-meter";
 import { WelcomeTour } from "@/components/home/welcome-tour";
 import { PageChat } from "@/components/page-chat/page-chat";
@@ -52,8 +54,8 @@ function PartialNamespace({ ns, onAll }: { ns: string; onAll: () => void }) {
   );
 }
 
-/** The signed-in frame: nav rail, top bar (namespace, ⌘K, budget, activity, import, alerts, account), the page and the page
- * chat beside it. */
+/** The signed-in frame: nav rail, top bar (namespace, ⌘K, budget, activity, import, approvals, alerts, account), the
+ * page and the page chat beside it. */
 export function AppShell({ user, children }: { user: SessionUser; children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -114,7 +116,8 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
     enabled: Boolean(namespace) && can("viewer", namespace), // speakers are the namespace's members' only
     staleTime: 60_000,
   });
-  const counts = { recordings, reviews: reviews.data };
+  const approvals = useApprovalCount();
+  const counts = { recordings, reviews: reviews.data, approvals: approvals.data?.waiting || undefined };
   const canImport = can("editor", namespace);
 
   return (
@@ -191,6 +194,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
               <Upload />
             </Link>
           )}
+          <ApprovalsBadge />
           <IconButton label="Needs attention" onClick={() => (window.location.href = "/#attention")}>
             <Bell />
           </IconButton>
