@@ -12,7 +12,6 @@ import logging
 
 from . import (
     auth,
-    automations as automationsmod,
     batches,
     cypher,
     entities,
@@ -1861,3 +1860,7 @@ def author_extension(db, tool, args, user, admin, readable, editable):
         n = extensions.save_version(db, me, same["id"], manifest, args.get("notes"), origin="chat")
         return {"extension": same["id"], "version": n}
     return {"extension": extensions.create(db, me, manifest, origin="chat"), "version": 1}
+
+
+# last, because automations imports the actions, and the agent's action (actions_ai.Box) builds on Toolbox above
+from . import automations as automationsmod  # noqa: E402
