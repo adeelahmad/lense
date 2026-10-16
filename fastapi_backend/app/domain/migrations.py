@@ -49,7 +49,7 @@ LEGACY = ("access-levels", "collection-homes")
 
 def steps():
     """[(name, fn(db))] in the order they run. Append only."""
-    from . import access, auth, hierarchy, jobs
+    from . import access, auth, hierarchy, jobs, mcp_servers
 
     return [
         # IIIF-only access levels (public, transcript, signed-in, private) become the access setting
@@ -60,6 +60,8 @@ def steps():
         ("tour-seen", auth.migrate_tours),
         # documents and images queued to be transcribed are read instead, and those that failed there run again
         ("document-read-step", jobs.migrate_document_steps),
+        # MCP servers' tokens and keys in headers and env are sealed, as they now are when saved
+        ("mcp-sealed-secrets", mcp_servers.migrate_seal),
     ]
 
 

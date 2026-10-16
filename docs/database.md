@@ -102,6 +102,16 @@ tables, or changing or removing an index that already exists, is a named step in
 * `lens migrations` lists every step (done, pending, failed, or unknown when a newer Lens ran it) without running
   anything, so it works while an upgrade is failing; `lens migrations --run` runs the pending ones.
 
+The steps so far:
+
+| Step | What it does |
+|---|---|
+| `access-levels` | IIIF-only access levels (public, transcript, signed-in, private) become the access setting |
+| `collection-homes` | every namespace gets its default collection and every recording a home |
+| `tour-seen` | people who signed in before the welcome tour existed don't get it |
+| `document-read-step` | documents and images queued to be transcribed are read instead, and failed ones run again |
+| `mcp-sealed-secrets` | the tokens and keys MCP servers kept in plain text in their headers and env are sealed, in every version ([Adding an MCP server](assistant.md#adding-an-mcp-server)); sealed ones are left as they are |
+
 To add a step:
 
 1. Write a function `fn(db)` next to the code it serves. It must be safe to run twice, since a start that stops half

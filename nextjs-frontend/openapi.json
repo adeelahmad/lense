@@ -24141,6 +24141,90 @@
         }
       }
     },
+    "/api/v1/extensions/mcp/read": {
+      "post": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Read Mcp Config",
+        "description": "The MCP servers in a config pasted from another app (Claude's .mcp.json, VS Code's mcp.json), ready to add: each\nas an MCP extension keeps it, and what was left out and why. Nothing is reached or saved.",
+        "operationId": "read_mcp_config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpConfigText"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpConfig"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/extensions/mcp/test": {
+      "post": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Test Mcp Server",
+        "description": "Ask an MCP server for its tools without saving it (admins). With `extension`, values sent as \u2022\u2022\u2022\u2022 are that\nserver's saved ones.",
+        "operationId": "test_mcp_server",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpServerTry"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpServerTools"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/extensions/{eid}": {
       "get": {
         "tags": [
@@ -24316,6 +24400,59 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ExtensionVersionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/extensions/{eid}/tools": {
+      "patch": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Switch Mcp Tool",
+        "description": "Switch one of an MCP server's tools on or off, or say whether it asks first (admins): a new version.",
+        "operationId": "switch_mcp_tool",
+        "parameters": [
+          {
+            "name": "eid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Eid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpToolSwitch"
               }
             }
           }
@@ -47989,6 +48126,190 @@
           "run"
         ],
         "title": "MatterbridgeStatus"
+      },
+      "McpConfig": {
+        "properties": {
+          "servers": {
+            "items": {
+              "$ref": "#/components/schemas/McpServerFound"
+            },
+            "type": "array",
+            "title": "Servers",
+            "default": []
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/McpServerSkipped"
+            },
+            "type": "array",
+            "title": "Skipped",
+            "default": []
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "McpConfig"
+      },
+      "McpConfigText": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "an MCP config from another app: Claude's .mcp.json or mcpServers, VS Code's servers, or one server"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "McpConfigText"
+      },
+      "McpServerFound": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "a name for it, from the config or guessed from its package or address"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "spec": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Spec",
+            "description": "{url, headers}, or {command, args, env} for one that runs as a program"
+          },
+          "fill": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fill",
+            "description": "values written as ${NAME}, which its app filled in and Lens can't"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "spec"
+        ],
+        "title": "McpServerFound"
+      },
+      "McpServerSkipped": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "why": {
+            "type": "string",
+            "title": "Why"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "why"
+        ],
+        "title": "McpServerSkipped"
+      },
+      "McpServerTools": {
+        "properties": {
+          "tools": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Tools",
+            "description": "its tools, as it lists them now: {name, description, schema, read_only}"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "tools"
+        ],
+        "title": "McpServerTools"
+      },
+      "McpServerTry": {
+        "properties": {
+          "spec": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Spec",
+            "description": "{url, headers}, or {command, args, env} for one that runs as a program"
+          },
+          "extension": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extension",
+            "description": "the MCP server whose saved secrets fill in values sent as \u2022\u2022\u2022\u2022"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "spec"
+        ],
+        "title": "McpServerTry"
+      },
+      "McpToolSwitch": {
+        "properties": {
+          "tool": {
+            "type": "string",
+            "title": "Tool",
+            "description": "the tool's name, as the server lists it"
+          },
+          "on": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On",
+            "description": "switch it on or off"
+          },
+          "ask": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ask",
+            "description": "whether it asks first (default: unless the server says it only reads)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tool"
+        ],
+        "title": "McpToolSwitch"
       },
       "Me": {
         "properties": {
