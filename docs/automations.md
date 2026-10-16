@@ -33,7 +33,7 @@ merged is called built.
 | A webhook address per automation trigger, and calls to it as `webhook.received` ([Webhook trigger](#webhook-trigger)) | built |
 | Timers that outlast a restart and fire once across the API and the worker (`app/domain/timers.py`, [Time](#time)) | built |
 | The timers behind schedule, `at` and `relative` triggers, the `clock.tick` kind and what's coming ([Time](#time)); automations set them once they are stored | built |
-| Actions that wait (`delay`, `when`) ([Time](#time)) | planned |
+| Actions that wait (`delay`, `when`): kept as timers, carried out at their time, asking first when they should then ([Time](#time)) | built |
 | The Timeline page with filters, grouping, review keys and new items, and Home's Latest card ([Timeline](timeline.md)) | built |
 | Storing and running automations, joins, approvals, variables, the studio | planned |
 
@@ -422,7 +422,8 @@ Checked when it is saved, on every path (create, a new version, a body):
   with params that fit its schema, and each template in its params is valid.
 - **The leaf rule:** an action that reaches outside Lens or other people (effect `out`, worked out from its params)
   or that waits has nothing connected after it, as it can't pass anything on while it waits for a yes or its time.
-- Waiting before an action (`delay`, `when`) is refused as coming soon until timers are built.
+- Waiting before an action takes a `delay` (more than 0, like `30m`) or a `when` (a time, or a template giving one),
+  not both; it is kept as a timer ([Actions that wait](#actions-that-wait)).
 
 Its automation runs it: an event workflow isn't run on an asset, as a pipeline step or as a routine's action, and the
 canvas's list of workflows leaves it out (`GET /api/v1/workflows?scope=event` lists them).
@@ -636,6 +637,30 @@ timers.clock_state(db, automation)           # each schedule and at trigger: wai
   schedule with `GET /api/v1/routines/schedule`, which now reads weekdays, single days and days of the month in
   words too ("every weekday at 07:00", "at 09:00 on the 20th of every month").
 
+### Actions that wait
+
+Built as timers; the automation's run hands them over once automations are stored. An action node with a `delay`
+(`2h`) or a `when` (a time, or a template giving one) makes an intent with that time and status `scheduled`, and
+`timers.later(db, intent)` keeps it as the timer `intent-<intent key>` (its run and node, like `intent-51-n7`), giving
+back `{timer, at}` to keep with the intent. The run's page shows it as "scheduled for 18:22".
+
+When its time comes, its risk is worked out again (`timers.risk_now`) from the automation as it is then, not as it
+was when the run made the intent:
+
+- `read` and `self` run on their own.
+- `lens` runs on its own only if it did when the run made it (the event's own object) and its namespaces are still
+  the automation's.
+- `out` runs on its own only while the person still has that node set to run on its own; otherwise it asks.
+- The action's own check may only make it stricter. The effect is the stricter of the intent's and what its params
+  give now.
+
+A routine one is carried out through `actions.perform` as the automation (its person's permissions as they are then),
+inside its run's cause (what it makes carries `lens.cause`, for the loop guard) and its ledger scope
+(`automation:<id>`, `automation_run:<run>`). One that should ask becomes an approval (`approvals.ask`, once approvals
+are built; until then it waits, saying why). The run hears of each step through `automations.update_intent`: done
+with what it gave back, failed with why, waiting, or expired when the automation was switched off or removed first,
+the timer was cancelled, or Lens was off past the catch-up window.
+
 ## Refine later
 
 - More operators: `in`, `matches` (bounded regular expressions), `between`, times against now, `changed`.
@@ -674,7 +699,7 @@ timers.clock_state(db, automation)           # each schedule and at trigger: wai
 - Calling a web address: secrets in the address itself (a Slack or Discord webhook URL) sealed like headers; PATCH and
   DELETE (DELETE would count as deleting); OAuth sign-in for an API; form-encoded bodies; retries with backoff;
   networks allowed for automations apart from notifications.
-- Time: calendar-aware schedules ("first workday of the month", holidays); sunrise and sunset triggers; an all-day
+- Time: an action that waits shown in the person's time zone in `upcoming` (today UTC); calendar-aware schedules ("first workday of the month", holidays); sunrise and sunset triggers; an all-day
   event's date in the person's time zone rather than UTC; upcoming relative timers in the person's time zone; an
   event that's cancelled calling off its relative timers; the timeline's kind filter leaving out `clock.tick`, which
   is never stored; sub-second timers woken by `events.wake()` alone; telling the other process (the worker) at once when the
