@@ -582,7 +582,7 @@
     },
     {
       "entry_point": "automations",
-      "parameter": "/api/v1/automations (save, try, run now, decide): triggers, where and If match trees, the event workflow graph (action params are Jinja templates), policy, limits, an activity id; the text of the activities an automation runs on",
+      "parameter": "/api/v1/automations (save, try, run now, decide), the MCP and assistant automation tools: triggers, where and If match trees, the event workflow graph (action params are Jinja templates), policy, limits, an activity id; the text of the activities an automation runs on",
       "attacker_controllable": "yes",
       "component": "assistant",
       "caller_must_enforce": "none — it runs as its maker with their permissions at run time (P-AUTOMATION-ACTOR); actions reaching outside Lens ask first; outside text marks intents untrusted and breaks up links (P-INJECTION-EGRESS); chains and bursts are bounded (P-AUTOMATION-LOOP)",
@@ -1235,7 +1235,7 @@
       "property": "P-AUTOMATION-ACTOR",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",
-      "conditions": "an automation acts only for its maker (run_as), with their permissions when it runs, in namespaces they edit, on activities they may see published after it was switched on; a maker who lost access fails its next run and switches it off; actions reaching outside Lens or other people ask first unless the person, signed in to the web app, set the node to auto (API keys, apps, agents and drafts cannot)",
+      "conditions": "an automation acts only for its maker (run_as), with their permissions when it runs, in namespaces they edit, on activities they may see published after it was switched on; a maker who lost access fails its next run and switches it off; actions reaching outside Lens or other people ask first unless the person, signed in to the web app, set the node to auto (API keys, apps, agents and drafts cannot); the assistant saves automations switched off, and switching one on or running one waits for the person's approval",
       "provenance": "documented",
       "source": "docs/automations.md \"Running automations\""
     },

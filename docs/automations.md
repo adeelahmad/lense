@@ -45,6 +45,7 @@ merged is called built.
 | The Approvals page (`/approvals`), its badge in the top bar and nav, and Home's Needs attention row | built |
 | Saving automations: checks, namespaces, switching on and off, delete and restore, the policy, the API (`app/domain/automations.py`) | built |
 | Running automations: following the stream, limits, budgets, runs as `automation.ran`, trying and running now, the API (`app/domain/automations.py`) | built |
+| Automations for agents: the MCP tools and the assistant's, switching on and running now by approval | built |
 | Joins, the studio | planned |
 
 ## Contract
@@ -977,6 +978,18 @@ person who made it (`run_as`), with their permissions, in namespaces they can ed
 
 `GET /api/v1/automations/actions` lists what an action node can do: each action's params (a JSON Schema), its effect
 and what it gives back.
+
+### Agents
+
+Built. Over [MCP](mcp.md) an agent uses `automations` (list them, read one with its latest runs, or one run),
+`automation_actions`, `save_automation`, `test_automation` and `run_automation`, with the same checks as the API; a
+body that doesn't fit comes back in plain words, naming the field. A new automation is saved switched off unless the
+agent says `enabled: true`, and saving and running need a token with the write scope.
+
+The [assistant](assistant.md) has the same tools. Saving there is made at once and always switched off; switching one
+on, or running one now, becomes an approval card the person decides, which says what it listens for and the actions
+it takes. Switching one off is made at once. Neither MCP nor the assistant lets a node run on its own (`auto`): only the
+person, signed in to the web app, does.
 
 ## Running automations
 

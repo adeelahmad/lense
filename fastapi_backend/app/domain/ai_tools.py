@@ -12,6 +12,7 @@ import logging
 
 from . import (
     auth,
+    automations as automationsmod,
     batches,
     cypher,
     entities,
@@ -125,6 +126,24 @@ TOOLS = [
         "automation's run records that it was declined.",
         {"id": _I},
         ["id"],
+        False,
+    ),
+    (
+        "automations",
+        "The person's automations (when something happens in Lens, if a test passes, do something, as them): each "
+        "one's triggers, whether it's on, its last run and what waits for their pick. With automation_id, one in full "
+        "(its If, its graph, its policy) with its latest runs; with run_id, one run with what its actions did.",
+        {"automation_id": _I, "run_id": _I},
+        [],
+        False,
+    ),
+    (
+        "test_automation",
+        "Try an automation without keeping, sending or counting anything: a saved one (automation_id) or a draft (what "
+        "save_automation takes, with if for its condition), on an activity (its id, from timeline) or a kind's sample "
+        "(default: its first trigger's kind). Says whether its If passes and what each action would do.",
+        {"automation_id": _I, "draft": {"type": "object"}, "activity": _S, "kind": _S},
+        [],
         False,
     ),
     (
@@ -374,6 +393,40 @@ AUTHOR_TOOLS = [
     ),
 ]
 
+# automations (automations.py): saving one is made at once, switched off; switching one on or running it now acts, so
+# it waits for the person's approval
+AUTOMATION_TOOLS = [
+    (
+        "save_automation",
+        "Make an automation for the person, or change one of theirs (automation_id): when something happens in Lens, "
+        "if a test passes, do something, as them, in namespaces they edit. Saved switched off; enabled true then asks "
+        "the person to switch it on. For a new one give name, triggers ([{as: name, on: event, kinds: [asset.added], "
+        "where?: a match tree}] or [{as, on: manual}]) and graph (a workflow of scope event: an input node, then action "
+        "nodes {id, type: action, config: {action: log_line or notify, params: {text: 'New: {{ event.object.name }}'}}}, "
+        "and edges); condition is its If, a match tree over the run context ({} drops it). Try it with test_automation.",
+        {
+            "automation_id": _I,
+            "name": _S,
+            "description": _S,
+            "triggers": {"type": "array", "items": {"type": "object"}},
+            "condition": {"type": "object"},
+            "graph": {"type": "object"},
+            "namespaces": {"type": "array", "items": _S},
+            "enabled": {"type": "boolean"},
+        },
+        [],
+        True,
+    ),
+    (
+        "run_automation",
+        "Run one of the person's automations now, on an activity (its id, from timeline), else the newest one its "
+        "triggers listen for. Needs the person's approval.",
+        {"automation_id": _I, "activity": _S},
+        ["automation_id"],
+        True,
+    ),
+]
+
 
 # a namespace's own assistant (ns_assistant.py), in conversations scoped to that namespace while it's on: remembering
 # is routine and made at once (by people who edit the namespace), forgetting waits for the person's yes
@@ -405,7 +458,7 @@ MEMORY_TOOLS = [
 
 def builtin_names():
     """The assistant's own tool names, which extensions can't take."""
-    every = TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS + browsermod.TOOLS
+    every = TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS + AUTOMATION_TOOLS + browsermod.TOOLS
     return {t[0] for t in every} | {"use_skill"}
 
 
@@ -421,7 +474,7 @@ OWN_RESULTS = {
     "use_skill",
     "mark_activities",
     "decline_approval",
-} | {t[0] for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS if t[4]}
+} | {t[0] for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS + AUTOMATION_TOOLS if t[4]}
 
 
 def read_before(history, summary=None):
@@ -561,6 +614,8 @@ class Toolbox(ops_tools.OpsTools):
             tools += ops_tools.FILE_TOOLS
         if self.cfg["ai"].get("extensions", True):
             tools += [t for t in AUTHOR_TOOLS if can_act or self.admin or not t[4]]
+        if can_act or self.admin:
+            tools += AUTOMATION_TOOLS
         if self.home:
             tools += [t for t in MEMORY_TOOLS if self.home[0] in self.editable or not t[4]]
         if self.browser:
@@ -1042,6 +1097,110 @@ class Toolbox(ops_tools.OpsTools):
             return self._approval("decline_approval", {"approval": a["id"]}, f"Decline “{a.get('summary')}”" + self.why())
         out = approve(self.db, self.cfg, a["id"], self.user, self.editable, "decline", via="agent")
         return {"approval": a["id"], "status": out.get("status")}, f"Declined “{a.get('summary')}”"
+
+    # ---- automations (automations.py) ----
+    def _automation(self, automation_id):
+        """One of the person's automations (ValueError when there's none they manage)."""
+        try:
+            row = automationsmod.get(self.db, int(automation_id))
+        except KeyError:
+            row = None
+        me = {"id": self.user["id"], "admin": bool(self.admin)}
+        if not row or not automationsmod.manages(row, automationsmod.editable(self.db, me), bool(self.admin)):
+            raise ValueError(f"there's no automation {automation_id} of yours")
+        return row
+
+    @staticmethod
+    def _automation_line(a):
+        return store.clean(
+            {
+                "automation_id": a["id"],
+                "name": a["name"],
+                "enabled": a["enabled"],
+                "triggers": a["triggers"],
+                "last_run_at": a.get("last_run_at"),
+                "last_status": a.get("last_status"),
+                "waiting": a.get("waiting") or None,
+            }
+        )
+
+    def t_automations(self, automation_id=None, run_id=None):
+        if run_id is not None:
+            r = automationsmod.get_run(self.db, int(run_id))
+            self._automation(r["automation"])
+            return r, f"Read run {run_id} of automation {r['automation']}"
+        if automation_id is not None:
+            a = self._automation(automation_id)
+            a["runs"] = automationsmod.runs(self.db, a["id"], limit=5)
+            return a, f"Read automation {a['name']}"
+        me = {"id": self.user["id"], "admin": bool(self.admin)}
+        rows = automationsmod.list_automations(self.db, None if self.admin else automationsmod.editable(self.db, me))
+        out = [self._automation_line(a) for a in automationsmod.extras(self.db, rows)]
+        return {"automations": out}, f"Listed {len(out)} automation(s)"
+
+    def t_test_automation(self, automation_id=None, draft=None, activity=None, kind=None):
+        if (automation_id is None) == (draft is None):
+            raise ValueError("give automation_id or draft")
+        a = None
+        if activity:
+            a = events.get(self.db, self.cfg, str(activity), self._viewer())
+            if a is None:
+                raise ValueError(f"there's no activity {activity} you can see")
+        elif kind:
+            try:
+                a = events.kind_info(kind)["sample"]
+            except KeyError:
+                raise ValueError(f"there's no kind {kind} (such as asset.added)") from None
+        if automation_id is not None:
+            got = automationsmod.test(self.db, self.cfg, self._automation(automation_id)["id"], activity=a)
+        else:
+            got = automationsmod.test(self.db, self.cfg, draft={**dict(draft), "enabled": False}, activity=a, user=self.user)
+        return {k: got[k] for k in ("status", "why", "intents", "log", "error")}, f"Tried it: {got['status']}"
+
+    def t_save_automation(
+        self, automation_id=None, name=None, description=None, triggers=None, condition=None, graph=None, namespaces=None, enabled=None
+    ):
+        names = {v: k for k, v in store.space_names(self.db).items()}
+        d = {"name": name, "description": description, "triggers": triggers, "graph": graph}
+        d = {k: v for k, v in d.items() if v is not None}
+        if namespaces:
+            unknown = [n for n in namespaces if n not in names]
+            if unknown:
+                raise ValueError(f"there's no namespace {unknown[0]}")
+            d["spaces"] = [names[n] for n in namespaces]
+        if condition is not None:
+            d["if"] = condition or None
+        if automation_id is None:
+            aid = automationsmod.create(self.db, self.cfg, {**d, "enabled": False}, self.user)["id"]
+            what = f"Saved automation {d.get('name')}, switched off"
+        else:
+            row = self._automation(automation_id)
+            aid = row["id"]
+            if d:
+                automationsmod.update(self.db, self.cfg, aid, d, self.user["email"])
+            if enabled is False:
+                automationsmod.enable(self.db, self.cfg, aid, False, self.user["email"])
+            what = f"Saved automation {row['name']}"
+        row = automationsmod.get(self.db, aid)
+        out = {"automation_id": aid, "enabled": row["enabled"]}
+        if enabled and not row["enabled"]:
+            kinds = sorted({k for t in row["triggers"] for k in t.get("kinds") or []})
+            does = sorted(_actions_in(row["graph"]))
+            on = f"when {', '.join(kinds)} happens" if kinds else "when it's run by hand"
+            asked, _ = self._approval(
+                "switch_automation",
+                {"automation_id": aid, "name": row["name"]},
+                f"Switch on automation {row['name']}: {on}, it does {', '.join(does)}",
+            )
+            out["switching_on"] = asked
+        return out, what
+
+    def t_run_automation(self, automation_id, activity=None):
+        row = self._automation(automation_id)
+        if activity and events.get(self.db, self.cfg, str(activity), self._viewer()) is None:
+            raise ValueError(f"there's no activity {activity} you can see")
+        on = f" on {activity}" if activity else ""
+        return self._approval("run_automation", {"automation_id": row["id"], "activity": activity}, f"Run automation {row['name']} now{on}")
 
     def t_read_transcript(self, recording_id, start_seconds=0, end_seconds=None, max_lines=60):
         cap = self.cfg["ai"].get("max_transcript_reads") or 20
@@ -1550,6 +1709,8 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
         result = run_extension(db, cfg, args, user, admin, box.readable, box)
     elif a["tool"] in ("save_extension", "switch_extension"):
         result = author_extension(db, a["tool"], args, user, admin, readable if readable is not None else editable, editable)
+    elif a["tool"] in ("switch_automation", "run_automation"):
+        result = _automation_approved(db, cfg, a["tool"], args, user, admin)
     elif a["tool"] in ("change_settings", "create_namespace", "import_files", "import_urls", "invite_person", "change_person"):
         result = ops_tools.apply(db, cfg, base or cfg, a["tool"], args, user, editable, admin)
     elif a["tool"] == "decline_approval":  # the person's yes to declining another of their approvals
@@ -1639,6 +1800,40 @@ def _topic_change(db, args, user, editable):
     else:
         topics.update(db, tid, alt=args.get("other_labels"), definition=args.get("definition"), user=by)
     return {"topic": tid}
+
+
+def _actions_in(graph):
+    """The actions an event workflow's nodes take, bodies included."""
+    out = set()
+    for n in (graph or {}).get("nodes") or []:
+        cfg = n.get("config") or {}
+        if n.get("type") == "action" and cfg.get("action"):
+            out.add(str(cfg["action"]))
+        if isinstance(cfg.get("body"), dict):
+            out |= _actions_in(cfg["body"])
+    return out
+
+
+def _automation_approved(db, cfg, tool, args, user, admin):
+    """An approved switch-on or run of an automation, if the person still manages it."""
+    aid = int(args["automation_id"])
+    me = {"id": user["id"], "admin": bool(admin)}
+    try:
+        row = automationsmod.get(db, aid)
+    except KeyError:
+        row = None
+    if not row or not automationsmod.manages(row, automationsmod.editable(db, me), bool(admin)):
+        raise PermissionError("that automation was deleted, or isn't yours to change any more")
+    if tool == "switch_automation":
+        automationsmod.enable(db, cfg, aid, True, user["email"])
+        return {"automation": aid, "enabled": True}
+    act = None
+    if args.get("activity"):
+        viewer = automationsmod._viewer(db, automationsmod._account(db, user["id"]) or {"id": user["id"]})
+        act = events.get(db, cfg, args["activity"], viewer)
+        if act is None:
+            raise PermissionError("that activity is gone, or isn't one you can see any more")
+    return automationsmod.run_now(db, cfg, aid, user, activity=act)
 
 
 def run_extension(db, cfg, args, user, admin, readable, toolbox=None):

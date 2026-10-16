@@ -9,6 +9,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   each run shows what its actions did. Try one on an activity without keeping or sending anything, or run it now;
   Settings → Automations switches them all off and sets how far they may go
   ([Running automations](docs/automations.md#running-automations)).
+- **Automations for agents.** Agents list, save, try and run automations through the MCP tools `automations`,
+  `automation_actions`, `save_automation`, `test_automation` and `run_automation`, with problems in plain words. The
+  assistant saves them switched off and asks before switching one on or running it
+  ([Agents](docs/automations.md#agents)).
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 
