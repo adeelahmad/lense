@@ -113,6 +113,7 @@ def actors(db, labels):
         "watch": set(),
         "source": set(),
         "routine": set(),
+        "automation": set(),
         "hook": set(),
         "name": set(),
     }
@@ -130,6 +131,7 @@ def actors(db, labels):
                 "source": "source",
                 "sensor": "source",
                 "routine": "routine",
+                "automation": "automation",
                 "import_hook": "hook",
             }
             if table in key:
@@ -144,6 +146,7 @@ def actors(db, labels):
     accounts = _lookup(db, "account", want["account"], "name, email")
     people = _lookup(db, "account", want["email"], "name", by="email")
     routines = _lookup(db, "routine", want["routine"])
+    automations = _lookup(db, "automation", want["automation"])
     hooks = _lookup(db, "import_hook", want["hook"], "name, space")
     named: dict = {}
     if want["name"]:
@@ -163,7 +166,8 @@ def actors(db, labels):
         if m:
             table, n = m.group(1), int(m.group(2))
             if table == "automation":
-                return {"type": "Application", "id": f"lens:automation/{n}", "name": f"Automation {n}"}
+                name = (automations.get(n) or {}).get("name") or f"Automation {n}"
+                return {"type": "Application", "id": f"lens:automation/{n}", "name": name}
             if table == "account":
                 return one(n, space)
             if table == "watch":

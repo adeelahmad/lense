@@ -46,7 +46,7 @@ In Docker, `localhost` is the container itself: point the endpoint at a collecto
 | Trace | each call to the model server (`chat llama3.1`) | model, server host, temperature, tokens in and out, estimated cost |
 | Metric | `http.server.request.duration` | method, route, status code |
 | Metric | `lens.job.step.duration`, `lens.jobs` | step type, outcome |
-| Metric | `lens.routine.runs`, `lens.workflow.runs` | outcome |
+| Metric | `lens.routine.runs`, `lens.automation.runs`, `lens.workflow.runs` | outcome |
 | Metric | `gen_ai.client.operation.duration`, `gen_ai.client.token.usage` | model, token type |
 | Metric | `lens.llm.cost` (USD) | model |
 

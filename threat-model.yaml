@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:13cc8a0a99bec38c3d23d231b4fb9c6b159c9923b66fb7db1d5f7943cb621b7b"
+prose_version: "threat-model.md@sha256:618d9989344100746e99d02fbd79a6936c5e7e9c947bb8622f45f3e0a00ccead"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -533,6 +533,15 @@ entry_points:
         control_kinds: [data, x-prompt-injection]
         caller_must_enforce: "none — the curate permission in each namespace touched and a write-capable principal (the web app's own route functions); the assistant's changes wait for the person's approval; merges and deletes are kept to undo, and audited"
         provenance: {kind: documented, source: 'docs/mcp.md "curate entities and topics as an editor does"'}
+  - id: "automations"
+    component: assistant
+    parameters:
+      - name: "/api/v1/automations (save, try, run now, decide): triggers, where and If match trees, the event workflow graph (action params are Jinja templates), policy, limits, an activity id; the text of the activities an automation runs on"
+        attacker_controllable: true
+        x-condition: "any editor, for automations in namespaces they edit; indirectly through activity text (mail, titles, chat) that reaches action params"
+        control_kinds: [callback/code, data, x-prompt-injection]
+        caller_must_enforce: "none — it runs as its maker with their permissions at run time (P-AUTOMATION-ACTOR); actions reaching outside Lens ask first; outside text marks intents untrusted and breaks up links (P-INJECTION-EGRESS); chains and bursts are bounded (P-AUTOMATION-LOOP)"
+        provenance: {kind: documented, source: 'docs/automations.md "Running automations"'}
   - id: "microsandbox program requests"
     component: authz
     parameters:
@@ -1665,6 +1674,22 @@ properties_claimed:
     violation_symptoms: [hang]
     x-voided-by: "none identified (not required for this symptom; no exhaustive search)"
     provenance: {kind: documented, source: 'domain/flow.py docstring "Graphs never loop back"'}
+  - id: P-AUTOMATION-ACTOR
+    kind: integrity
+    components: [assistant, authz]
+    tier: security-critical
+    conditions: "an automation acts only for its maker (run_as), with their permissions when it runs, in namespaces they edit, on activities they may see published after it was switched on; a maker who lost access fails its next run and switches it off; actions reaching outside Lens or other people ask first unless the person, signed in to the web app, set the node to auto (API keys, apps, agents and drafts cannot)"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "an admin manages every automation and can run one now on any activity in its namespaces its person may see (api/v1/routes/automations.py); a node set to auto acts on outside text without asking (P-INJECTION-EGRESS still applies)"
+    provenance: {kind: documented, source: 'docs/automations.md "Running automations"'}
+  - id: P-AUTOMATION-LOOP
+    kind: correctness
+    components: [assistant]
+    tier: correctness-only
+    conditions: "activities an automation made start another only with from_automations; a chain stops at automations.max_depth runs (3); each automation has a cooldown and a most runs an hour (60) under a most runs a minute for all (60); a run over a limit does nothing, is counted and logged at most hourly"
+    violation_symptoms: [x-cap-exceeded]
+    x-voided-by: "fixed hour and minute windows let up to twice a limit run across the turn of one; an admin can raise max_depth to 10 and max_runs_per_minute to 6000"
+    provenance: {kind: documented, source: 'docs/automations.md "Running automations"'}
   - id: P-BROWSER
     kind: integrity
     components: [assistant]

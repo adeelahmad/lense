@@ -463,15 +463,20 @@ Where namespaces may send notifications ([Notifications](notifications.md)). Set
 
 ## Automations
 
-The stream of activities automations follow ([Automations](automations.md#contract)), their timers, and
-how long their [approvals](automations.md#approvals) wait. Settings → Automations:
+How automations run ([Running automations](automations.md#running-automations)), the stream of activities they
+follow ([Automations](automations.md#contract)), their timers, and how long their
+[approvals](automations.md#approvals) wait. Settings → Automations:
 
 | Setting | Default | |
 |---|---|---|
+| `automations.enabled` | true | off: no automation runs and nothing is lost; back on, they react to what happens from then on |
+| `automations.max_depth` | 3 | how long a chain of automations setting each other off may get, 1–10 |
+| `automations.max_runs_per_minute` | 60 | runs a minute, all automations together, 1–6000 |
+| `automations.keep_runs_days` | 30 | how long runs are kept, 1–3650 days; each automation keeps its last 20 whatever their age |
+| `automations.catch_up` | `1h` | how late a timer (a schedule, an action that waits) may still fire after Lens was off, `0s` to `7d`; older ones are missed ([Time](automations.md#time)) |
+| `automations.approval_days` | 7 | how long an automation's action waits for your pick before it expires and nothing runs, 1–365 days |
 | `events.poll_seconds` | 5 | how often followers look for new activities when nothing wakes them, 1–3600 |
 | `events.keep_days` | 30 | how long activities with no row of their own (the event log) are kept, 1–3650 days |
-| `automations.approval_days` | 7 | how long an automation's action waits for your pick before it expires and nothing runs, 1–365 days |
-| `automations.catch_up` | `1h` | how late a timer (a schedule, an action that waits) may still fire after Lens was off, `0s` to `7d`; older ones are missed ([Time](automations.md#time)) |
 
 ## Trusted proxies
 

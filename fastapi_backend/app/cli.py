@@ -264,6 +264,7 @@ def platform_main(argv, config):
 
     from .domain import (
         auth,
+        automations,
         channels,
         https,
         jobs,
@@ -386,6 +387,7 @@ def platform_main(argv, config):
                 notify.start(db, C, stop, name=wk.name, log=say)  # sends notifications too (docs/notifications.md)
                 if not (a.steps or a.no_schedule):  # and scans watched folders and runs routines, as `lens watch` does
                     routines.start(db, C, stop, log=say)
+                    automations.start(db, C, stop, log=say)  # and automations, following the stream
                     sensors.start(db, C, stop, log=say, name=wk.name)  # and the sensor hub, while sensors are on
                     smb_share.start(db, C, stop, name=wk.name, log=say)  # and the SMB share of the file tree, while it's on
                     shares.start(db, C, stop, log=say, name=wk.name)  # and the file shares (S3, WebDAV), while they're on

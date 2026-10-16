@@ -144,6 +144,9 @@ import type {
   ControlWorkerResponses,
   CountApprovalsData,
   CountApprovalsResponses,
+  CreateAutomationData,
+  CreateAutomationErrors,
+  CreateAutomationResponses,
   CreateBatchData,
   CreateBatchErrors,
   CreateBatchResponses,
@@ -270,6 +273,9 @@ import type {
   DecideApprovalData,
   DecideApprovalErrors,
   DecideApprovalResponses,
+  DecideHeldRun2Data,
+  DecideHeldRun2Errors,
+  DecideHeldRun2Responses,
   DecideHeldRunData,
   DecideHeldRunErrors,
   DecideHeldRunResponses,
@@ -281,6 +287,9 @@ import type {
   DefineEntityData,
   DefineEntityErrors,
   DefineEntityResponses,
+  DeleteAutomationData,
+  DeleteAutomationErrors,
+  DeleteAutomationResponses,
   DeleteBackupData,
   DeleteBackupErrors,
   DeleteBackupResponses,
@@ -418,6 +427,9 @@ import type {
   EditSegmentData,
   EditSegmentErrors,
   EditSegmentResponses,
+  EnableAutomationData,
+  EnableAutomationErrors,
+  EnableAutomationResponses,
   EntityToTopicData,
   EntityToTopicErrors,
   EntityToTopicResponses,
@@ -485,6 +497,9 @@ import type {
   GetAudioData,
   GetAudioErrors,
   GetAudioResponses,
+  GetAutomationData,
+  GetAutomationErrors,
+  GetAutomationResponses,
   GetAutomationVarsData,
   GetAutomationVarsErrors,
   GetAutomationVarsResponses,
@@ -641,6 +656,9 @@ import type {
   GetRoutineData,
   GetRoutineErrors,
   GetRoutineResponses,
+  GetRun2Data,
+  GetRun2Errors,
+  GetRun2Responses,
   GetRunData,
   GetRunErrors,
   GetRunResponses,
@@ -780,6 +798,8 @@ import type {
   ListAccessRequestsData,
   ListAccessRequestsErrors,
   ListAccessRequestsResponses,
+  ListActionsData,
+  ListActionsResponses,
   ListActivitiesData,
   ListActivitiesErrors,
   ListActivitiesResponses,
@@ -796,6 +816,9 @@ import type {
   ListAuditData,
   ListAuditErrors,
   ListAuditResponses,
+  ListAutomationsData,
+  ListAutomationsErrors,
+  ListAutomationsResponses,
   ListBackendsData,
   ListBackendsResponses,
   ListBackupsData,
@@ -947,6 +970,9 @@ import type {
   ListRolesResponses,
   ListRoutinesData,
   ListRoutinesResponses,
+  ListRuns2Data,
+  ListRuns2Errors,
+  ListRuns2Responses,
   ListRunsData,
   ListRunsErrors,
   ListRunsResponses,
@@ -1253,6 +1279,9 @@ import type {
   ResourceTotalsData,
   ResourceTotalsErrors,
   ResourceTotalsResponses,
+  RestoreAutomationData,
+  RestoreAutomationErrors,
+  RestoreAutomationResponses,
   RestoreBackupData,
   RestoreBackupErrors,
   RestoreBackupResponses,
@@ -1300,6 +1329,9 @@ import type {
   RotateNotifySecretData,
   RotateNotifySecretErrors,
   RotateNotifySecretResponses,
+  RunAutomationData,
+  RunAutomationErrors,
+  RunAutomationResponses,
   RunData,
   RunErrors,
   RunPipelineData,
@@ -1309,6 +1341,9 @@ import type {
   RunRoutineData,
   RunRoutineErrors,
   RunRoutineResponses,
+  RunsCausedData,
+  RunsCausedErrors,
+  RunsCausedResponses,
   RunWorkflowData,
   RunWorkflowErrors,
   RunWorkflowResponses,
@@ -1391,6 +1426,9 @@ import type {
   SetNamespaceFacesModeData,
   SetNamespaceFacesModeErrors,
   SetNamespaceFacesModeResponses,
+  SetPolicyData,
+  SetPolicyErrors,
+  SetPolicyResponses,
   SetRecordingContentTypeData,
   SetRecordingContentTypeErrors,
   SetRecordingContentTypeResponses,
@@ -1460,12 +1498,18 @@ import type {
   TelemetryStatusResponses,
   TestAnalyticsData,
   TestAnalyticsResponses,
+  TestAutomationData,
+  TestAutomationErrors,
+  TestAutomationResponses,
   TestBridgeData,
   TestBridgeResponses,
   TestConversionNodeData,
   TestConversionNodeResponses,
   TestDecisionsData,
   TestDecisionsResponses,
+  TestDraftData,
+  TestDraftErrors,
+  TestDraftResponses,
   TestEmbeddingsData,
   TestEmbeddingsResponses,
   TestExtensionData,
@@ -1553,9 +1597,15 @@ import type {
   UnsealVaultData,
   UnsealVaultErrors,
   UnsealVaultResponses,
+  UpcomingData,
+  UpcomingErrors,
+  UpcomingResponses,
   UpdateAssistantMemoryData,
   UpdateAssistantMemoryErrors,
   UpdateAssistantMemoryResponses,
+  UpdateAutomationData,
+  UpdateAutomationErrors,
+  UpdateAutomationResponses,
   UpdateChatData,
   UpdateChatErrors,
   UpdateChatResponses,
@@ -3939,6 +3989,283 @@ export class Automations {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * List Automations
+   *
+   * Your automations: every one for an admin, else those that work only in namespaces you can edit. `removed`
+   * lists the deleted ones instead, to restore.
+   */
+  public static listAutomations<ThrowOnError extends boolean = false>(
+    options?: Options<ListAutomationsData, ThrowOnError>,
+  ): RequestResult<ListAutomationsResponses, ListAutomationsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListAutomationsResponses, ListAutomationsErrors, ThrowOnError>({
+      url: "/api/v1/automations",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Automation
+   *
+   * A new automation that acts for you. Its Then is a graph (saved as a workflow of scope event) or a saved
+   * workflow; its namespaces default to each one you can edit. Nodes ask first unless you let one run on its own
+   * (POST /automations/{id}/policy).
+   */
+  public static createAutomation<ThrowOnError extends boolean = false>(
+    options: Options<CreateAutomationData, ThrowOnError>,
+  ): RequestResult<CreateAutomationResponses, CreateAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateAutomationResponses, CreateAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Actions
+   *
+   * What an action node can do: each action's params (a JSON Schema), what it reaches (its effect) and what it
+   * gives back.
+   */
+  public static listActions<ThrowOnError extends boolean = false>(
+    options?: Options<ListActionsData, ThrowOnError>,
+  ): RequestResult<ListActionsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListActionsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/automations/actions",
+      ...options,
+    });
+  }
+
+  /**
+   * Delete Automation
+   *
+   * Delete it: switched off and hidden; POST /automations/{id}/restore undoes it.
+   */
+  public static deleteAutomation<ThrowOnError extends boolean = false>(
+    options: Options<DeleteAutomationData, ThrowOnError>,
+  ): RequestResult<DeleteAutomationResponses, DeleteAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteAutomationResponses, DeleteAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Automation
+   */
+  public static getAutomation<ThrowOnError extends boolean = false>(
+    options: Options<GetAutomationData, ThrowOnError>,
+  ): RequestResult<GetAutomationResponses, GetAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetAutomationResponses, GetAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Automation
+   *
+   * Change what is sent: a new graph is saved as a new version of its workflow; `if: null` drops its If,
+   * `version: null` follows the published version.
+   */
+  public static updateAutomation<ThrowOnError extends boolean = false>(
+    options: Options<UpdateAutomationData, ThrowOnError>,
+  ): RequestResult<UpdateAutomationResponses, UpdateAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateAutomationResponses, UpdateAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Enable Automation
+   *
+   * Switch it on (it reacts to what happens from now on, never to what happened while it was off) or off.
+   */
+  public static enableAutomation<ThrowOnError extends boolean = false>(
+    options: Options<EnableAutomationData, ThrowOnError>,
+  ): RequestResult<EnableAutomationResponses, EnableAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<EnableAutomationResponses, EnableAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/enable",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Restore Automation
+   *
+   * Undo a delete: it comes back switched off.
+   */
+  public static restoreAutomation<ThrowOnError extends boolean = false>(
+    options: Options<RestoreAutomationData, ThrowOnError>,
+  ): RequestResult<RestoreAutomationResponses, RestoreAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<RestoreAutomationResponses, RestoreAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/restore",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Policy
+   *
+   * Whether an action node asks you first (ask) or runs on its own (auto). Only you, signed in to the web app,
+   * let a node run on its own: never an API key, an app or an agent.
+   */
+  public static setPolicy<ThrowOnError extends boolean = false>(
+    options: Options<SetPolicyData, ThrowOnError>,
+  ): RequestResult<SetPolicyResponses, SetPolicyErrors, ThrowOnError> {
+    return (options.client ?? client).post<SetPolicyResponses, SetPolicyErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/policy",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Runs Caused
+   *
+   * What an activity caused: the runs of your automations it started (it was their event, or one of a join's).
+   */
+  public static runsCaused<ThrowOnError extends boolean = false>(
+    options: Options<RunsCausedData, ThrowOnError>,
+  ): RequestResult<RunsCausedResponses, RunsCausedErrors, ThrowOnError> {
+    return (options.client ?? client).get<RunsCausedResponses, RunsCausedErrors, ThrowOnError>({
+      url: "/api/v1/automations/runs",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Run
+   *
+   * One run: what each node did (trace), its log, and what its actions did, asked or wait to do (intents).
+   */
+  public static getRun<ThrowOnError extends boolean = false>(
+    options: Options<GetRunData, ThrowOnError>,
+  ): RequestResult<GetRunResponses, GetRunErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetRunResponses, GetRunErrors, ThrowOnError>({
+      url: "/api/v1/automations/runs/{run}",
+      ...options,
+    });
+  }
+
+  /**
+   * Decide Held Run
+   *
+   * Pick for a run held over a budget: run it now, once, whatever its budgets say, or skip it.
+   */
+  public static decideHeldRun<ThrowOnError extends boolean = false>(
+    options: Options<DecideHeldRunData, ThrowOnError>,
+  ): RequestResult<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError> {
+    return (options.client ?? client).post<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError>({
+      url: "/api/v1/automations/runs/{run}/decide",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Test Draft
+   *
+   * Try an automation before you save it: a dry run on an activity, or on a kind's sample (default: its first
+   * trigger's kind). Says whether its If passes and what each action would do; keeps, sends and counts nothing.
+   */
+  public static testDraft<ThrowOnError extends boolean = false>(
+    options: Options<TestDraftData, ThrowOnError>,
+  ): RequestResult<TestDraftResponses, TestDraftErrors, ThrowOnError> {
+    return (options.client ?? client).post<TestDraftResponses, TestDraftErrors, ThrowOnError>({
+      url: "/api/v1/automations/test",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Test Automation
+   *
+   * Try a saved automation: a dry run on an activity, or on a kind's sample (default: its first trigger's kind).
+   * Keeps, sends and counts nothing.
+   */
+  public static testAutomation<ThrowOnError extends boolean = false>(
+    options: Options<TestAutomationData, ThrowOnError>,
+  ): RequestResult<TestAutomationResponses, TestAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<TestAutomationResponses, TestAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/test",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Run Automation
+   *
+   * Run it now: on an activity, else the newest one its triggers listen for, else as started by hand. It acts as it
+   * would on its own: limits and budgets apply, and actions that ask first wait for your pick.
+   */
+  public static runAutomation<ThrowOnError extends boolean = false>(
+    options: Options<RunAutomationData, ThrowOnError>,
+  ): RequestResult<RunAutomationResponses, RunAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<RunAutomationResponses, RunAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/run",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Runs
+   *
+   * Its runs, newest first; `next` pages on.
+   */
+  public static listRuns<ThrowOnError extends boolean = false>(
+    options: Options<ListRunsData, ThrowOnError>,
+  ): RequestResult<ListRunsResponses, ListRunsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListRunsResponses, ListRunsErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/runs",
+      ...options,
+    });
+  }
+
+  /**
+   * Upcoming
+   *
+   * When it runs next, from its schedules and timers (coming soon: empty until schedules are built).
+   */
+  public static upcoming<ThrowOnError extends boolean = false>(
+    options: Options<UpcomingData, ThrowOnError>,
+  ): RequestResult<UpcomingResponses, UpcomingErrors, ThrowOnError> {
+    return (options.client ?? client).get<UpcomingResponses, UpcomingErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/upcoming",
+      ...options,
     });
   }
 }
@@ -10450,9 +10777,9 @@ export class Routines {
    * Pick for a run held over a budget: run it now, once, whatever its budgets say, or skip it.
    */
   public static decideHeldRun<ThrowOnError extends boolean = false>(
-    options: Options<DecideHeldRunData, ThrowOnError>,
-  ): RequestResult<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError> {
-    return (options.client ?? client).post<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError>({
+    options: Options<DecideHeldRun2Data, ThrowOnError>,
+  ): RequestResult<DecideHeldRun2Responses, DecideHeldRun2Errors, ThrowOnError> {
+    return (options.client ?? client).post<DecideHeldRun2Responses, DecideHeldRun2Errors, ThrowOnError>({
       url: "/api/v1/routines/runs/{run_id}/decide",
       ...options,
       headers: {
@@ -10466,9 +10793,9 @@ export class Routines {
    * List Runs
    */
   public static listRuns<ThrowOnError extends boolean = false>(
-    options: Options<ListRunsData, ThrowOnError>,
-  ): RequestResult<ListRunsResponses, ListRunsErrors, ThrowOnError> {
-    return (options.client ?? client).get<ListRunsResponses, ListRunsErrors, ThrowOnError>({
+    options: Options<ListRuns2Data, ThrowOnError>,
+  ): RequestResult<ListRuns2Responses, ListRuns2Errors, ThrowOnError> {
+    return (options.client ?? client).get<ListRuns2Responses, ListRuns2Errors, ThrowOnError>({
       url: "/api/v1/routines/{rid}/runs",
       ...options,
     });
@@ -10478,9 +10805,9 @@ export class Routines {
    * Get Run
    */
   public static getRun<ThrowOnError extends boolean = false>(
-    options: Options<GetRunData, ThrowOnError>,
-  ): RequestResult<GetRunResponses, GetRunErrors, ThrowOnError> {
-    return (options.client ?? client).get<GetRunResponses, GetRunErrors, ThrowOnError>({
+    options: Options<GetRun2Data, ThrowOnError>,
+  ): RequestResult<GetRun2Responses, GetRun2Errors, ThrowOnError> {
+    return (options.client ?? client).get<GetRun2Responses, GetRun2Errors, ThrowOnError>({
       url: "/api/v1/routine-runs/{run_id}",
       ...options,
     });

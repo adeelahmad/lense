@@ -109,6 +109,55 @@ export type AccountToken = {
 };
 
 /**
+ * ActionInfo
+ */
+export type ActionInfo = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Group
+   */
+  group: string;
+  /**
+   * Description
+   */
+  description?: string;
+  /**
+   * Params
+   *
+   * a JSON Schema (type object) of its params; a string holding {{ }} stands for any type
+   */
+  params: {
+    [key: string]: unknown;
+  };
+  /**
+   * Required
+   */
+  required?: Array<string>;
+  /**
+   * Effect
+   *
+   * what it reaches: read and self run at once; lens asks unless it changes the event's own object; out asks first unless you let it run on its own; depends: worked out from its params
+   */
+  effect: "read" | "self" | "lens" | "out" | "depends";
+  /**
+   * Output
+   *
+   * a JSON Schema of what it gives back, for later nodes (steps.<node id>)
+   */
+  output?: {
+    [key: string]: unknown;
+  } | null;
+  [key: string]: unknown;
+};
+
+/**
  * ActivityActor
  */
 export type ActivityActor = {
@@ -1365,6 +1414,817 @@ export type AuthStatus = {
    */
   passwords?: boolean;
   [key: string]: unknown;
+};
+
+/**
+ * Automation
+ */
+export type Automation = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Enabled At
+   *
+   * when it was last switched on: it reacts only to what happens after
+   */
+  enabled_at?: string | null;
+  /**
+   * Spaces
+   *
+   * the namespaces it works in; none for every one (admins)
+   */
+  spaces?: Array<number> | null;
+  /**
+   * Namespace Names
+   */
+  namespace_names?: Array<string | null> | null;
+  /**
+   * Run As
+   *
+   * the account it acts for, with that person's permissions: its maker
+   */
+  run_as: number;
+  /**
+   * Triggers
+   *
+   * each {as, on, ...}: {as, on: event, kinds, where?, from_automations?}, {as, on: manual}; on schedule, at, relative and webhook are coming soon (docs/automations.md, Triggers)
+   */
+  triggers: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Join
+   *
+   * how several triggers make one run: {mode: any} (each on its own)
+   */
+  join: {
+    [key: string]: unknown;
+  };
+  /**
+   * If
+   *
+   * a match tree over the run context, tested before the Then runs, like {all: [{path, op, value}]}
+   */
+  if?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Workflow
+   *
+   * its workflow (scope event)
+   */
+  workflow: number;
+  /**
+   * Version
+   *
+   * the workflow version it runs; none follows the published one
+   */
+  version?: number | null;
+  /**
+   * Runs Version
+   *
+   * the version it runs now
+   */
+  runs_version?: number | null;
+  /**
+   * Graph
+   *
+   * the Then: a workflow graph of scope event (an input node, then action nodes and the flow primitives)
+   */
+  graph?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Policy
+   *
+   * {action node id: ask or auto}
+   */
+  policy?: {
+    [key: string]: "ask" | "auto";
+  };
+  /**
+   * Limits
+   *
+   * {cooldown (like 10m), max_per_hour}
+   */
+  limits: {
+    [key: string]: unknown;
+  };
+  /**
+   * Counters
+   *
+   * {runs, skipped (its If was false), limited (over a limit), missed}
+   */
+  counters: {
+    [key: string]: number;
+  };
+  /**
+   * Last Run At
+   */
+  last_run_at?: string | null;
+  /**
+   * Last Status
+   */
+  last_status?: string | null;
+  /**
+   * Created By
+   */
+  created_by?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Removed At
+   *
+   * when it was deleted (restore brings it back)
+   */
+  removed_at?: string | null;
+  /**
+   * Waiting
+   *
+   * in lists: its actions waiting for your pick or for their time
+   */
+  waiting?: number | null;
+  /**
+   * Cost Month
+   *
+   * in lists: what it cost this month {cost_usd, estimate (true when some calls had no price)}
+   */
+  cost_month?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Next At
+   *
+   * in lists: when it runs next, from its schedules (coming soon)
+   */
+  next_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationCatalog
+ */
+export type AutomationCatalog = {
+  /**
+   * Automations
+   */
+  automations: Array<Automation>;
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationCreate
+ */
+export type AutomationCreate = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Enabled
+   *
+   * switched on, it reacts to what happens from now on
+   */
+  enabled?: boolean;
+  /**
+   * Spaces
+   *
+   * namespace ids you can edit; default: each one you can edit (every one, for admins)
+   */
+  spaces?: Array<number> | null;
+  /**
+   * Triggers
+   *
+   * each {as, on, ...}: {as, on: event, kinds, where?, from_automations?}, {as, on: manual}; on schedule, at, relative and webhook are coming soon (docs/automations.md, Triggers)
+   */
+  triggers: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Join
+   *
+   * default {mode: any}: each trigger starts a run of its own
+   */
+  join?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * If
+   *
+   * a match tree over the run context, tested before the Then runs, like {all: [{path, op, value}]}
+   */
+  if?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Graph
+   *
+   * the Then: a workflow graph of scope event (an input node, then action nodes and the flow primitives); or name a saved one in workflow
+   */
+  graph?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Workflow
+   *
+   * a saved workflow of scope event, instead of a graph
+   */
+  workflow?: number | null;
+  /**
+   * Version
+   *
+   * with workflow: the version to run; none follows the published one
+   */
+  version?: number | null;
+  /**
+   * Policy
+   *
+   * {action node id: ask}; only you, signed in, let a node run on its own (POST /automations/{id}/policy)
+   */
+  policy?: {
+    [key: string]: "ask";
+  } | null;
+  /**
+   * Limits
+   *
+   * {cooldown: 0s, max_per_hour: 60}
+   */
+  limits?: {
+    [key: string]: unknown;
+  } | null;
+};
+
+/**
+ * AutomationDraftTry
+ */
+export type AutomationDraftTry = {
+  /**
+   * Activity
+   *
+   * an activity's id to run it on (GET /api/v1/activities)
+   */
+  activity?: string | null;
+  /**
+   * As
+   *
+   * which trigger it runs as (its `as`); default: the first that fits
+   */
+  as?: string | null;
+  /**
+   * Kind
+   *
+   * else a kind of activity, to run it on that kind's sample
+   */
+  kind?: string | null;
+  /**
+   * the automation as you would save it
+   */
+  draft: AutomationCreate;
+};
+
+/**
+ * AutomationPolicy
+ */
+export type AutomationPolicy = {
+  /**
+   * Node
+   *
+   * an action node's id
+   */
+  node: string;
+  /**
+   * Value
+   *
+   * ask: it asks you first; auto: it runs on its own
+   */
+  value: "ask" | "auto";
+};
+
+/**
+ * AutomationRun
+ */
+export type AutomationRun = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Automation
+   */
+  automation: number;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Version
+   *
+   * the workflow version it ran
+   */
+  version?: number | null;
+  /**
+   * Trigger
+   *
+   * the trigger (its `as`) that started it
+   */
+  trigger?: string | null;
+  /**
+   * Trigger On
+   */
+  trigger_on?: string | null;
+  /**
+   * Event
+   *
+   * the activity that started it (an id)
+   */
+  event?: string | null;
+  /**
+   * Event Ids
+   *
+   * every activity it ran on (a join's are several)
+   */
+  event_ids?: Array<string>;
+  /**
+   * Status
+   *
+   * running, done, partly (some actions failed), failed, waiting (actions wait for your pick or their time), held (over a budget: decide), released or skipped (your pick on a held run)
+   */
+  status: string;
+  /**
+   * By
+   *
+   * who started it by hand
+   */
+  by?: string | null;
+  /**
+   * Started At
+   */
+  started_at?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Counts
+   *
+   * its actions: {done, waiting, scheduled, failed}
+   */
+  counts?: {
+    [key: string]: number;
+  };
+  /**
+   * Cost Usd
+   */
+  cost_usd?: number | null;
+  /**
+   * Tokens
+   */
+  tokens?: number | null;
+  /**
+   * Cost Estimate
+   *
+   * true when some calls had no price, so the cost is a floor
+   */
+  cost_estimate?: boolean | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Why
+   *
+   * why it was held
+   */
+  why?: string | null;
+  /**
+   * Hold
+   *
+   * a held run: the budget it is over and how many runs it missed
+   */
+  hold?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Cause Depth
+   *
+   * how many automations' runs led to this one
+   */
+  cause_depth?: number | null;
+  /**
+   * Space
+   */
+  space?: number | null;
+  /**
+   * Dry
+   */
+  dry?: boolean | null;
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationRunDetail
+ */
+export type AutomationRunDetail = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Automation
+   */
+  automation: number;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Version
+   *
+   * the workflow version it ran
+   */
+  version?: number | null;
+  /**
+   * Trigger
+   *
+   * the trigger (its `as`) that started it
+   */
+  trigger?: string | null;
+  /**
+   * Trigger On
+   */
+  trigger_on?: string | null;
+  /**
+   * Event
+   *
+   * the activity that started it (an id)
+   */
+  event?: string | null;
+  /**
+   * Event Ids
+   *
+   * every activity it ran on (a join's are several)
+   */
+  event_ids?: Array<string>;
+  /**
+   * Status
+   *
+   * running, done, partly (some actions failed), failed, waiting (actions wait for your pick or their time), held (over a budget: decide), released or skipped (your pick on a held run)
+   */
+  status: string;
+  /**
+   * By
+   *
+   * who started it by hand
+   */
+  by?: string | null;
+  /**
+   * Started At
+   */
+  started_at?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Counts
+   *
+   * its actions: {done, waiting, scheduled, failed}
+   */
+  counts?: {
+    [key: string]: number;
+  };
+  /**
+   * Cost Usd
+   */
+  cost_usd?: number | null;
+  /**
+   * Tokens
+   */
+  tokens?: number | null;
+  /**
+   * Cost Estimate
+   *
+   * true when some calls had no price, so the cost is a floor
+   */
+  cost_estimate?: boolean | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Why
+   *
+   * why it was held
+   */
+  why?: string | null;
+  /**
+   * Hold
+   *
+   * a held run: the budget it is over and how many runs it missed
+   */
+  hold?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Cause Depth
+   *
+   * how many automations' runs led to this one
+   */
+  cause_depth?: number | null;
+  /**
+   * Space
+   */
+  space?: number | null;
+  /**
+   * Dry
+   */
+  dry?: boolean | null;
+  /**
+   * Trace
+   *
+   * by node id: what each node took in and passed on
+   */
+  trace?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Log
+   */
+  log?: Array<string>;
+  /**
+   * Intents
+   *
+   * what its actions did, asked or wait to do: action, params, effect, risk, status, result
+   */
+  intents?: Array<{
+    [key: string]: unknown;
+  }>;
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationRunNow
+ */
+export type AutomationRunNow = {
+  /**
+   * Activity
+   *
+   * an activity's id to run it on (GET /api/v1/activities)
+   */
+  activity?: string | null;
+  /**
+   * As
+   *
+   * which trigger it runs as (its `as`); default: the first that fits
+   */
+  as?: string | null;
+};
+
+/**
+ * AutomationRuns
+ */
+export type AutomationRuns = {
+  /**
+   * Runs
+   */
+  runs: Array<AutomationRun>;
+  /**
+   * Next
+   *
+   * for the page after: pass it as `before`
+   */
+  next?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationSaved
+ */
+export type AutomationSaved = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Hooks
+   *
+   * new webhook triggers' addresses and signing secrets {as, url, secret}, shown this once
+   */
+  hooks?: Array<{
+    [key: string]: string;
+  }>;
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationStarted
+ */
+export type AutomationStarted = {
+  /**
+   * Run
+   *
+   * the run's id (GET /automations/runs/{run}); none when nothing ran
+   */
+  run?: number | null;
+  /**
+   * Status
+   */
+  status?: string | null;
+  /**
+   * Why
+   *
+   * why it didn't run, or was held
+   */
+  why?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationSwitch
+ */
+export type AutomationSwitch = {
+  /**
+   * On
+   */
+  on?: boolean;
+};
+
+/**
+ * AutomationTried
+ */
+export type AutomationTried = {
+  /**
+   * Status
+   *
+   * done, waiting, partly or failed as it would end; skipped when its If is false (limits and budgets aren't checked: a try costs no run)
+   */
+  status?: string | null;
+  /**
+   * Why
+   */
+  why?: string | null;
+  /**
+   * Trace
+   */
+  trace?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Log
+   */
+  log?: Array<string>;
+  /**
+   * Intents
+   *
+   * what each action would do (nothing is done)
+   */
+  intents?: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Steps
+   */
+  steps?: number;
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationTry
+ */
+export type AutomationTry = {
+  /**
+   * Activity
+   *
+   * an activity's id to run it on (GET /api/v1/activities)
+   */
+  activity?: string | null;
+  /**
+   * As
+   *
+   * which trigger it runs as (its `as`); default: the first that fits
+   */
+  as?: string | null;
+  /**
+   * Kind
+   *
+   * else a kind of activity, to run it on that kind's sample
+   */
+  kind?: string | null;
+};
+
+/**
+ * AutomationUpcoming
+ */
+export type AutomationUpcoming = {
+  /**
+   * Times
+   *
+   * when it runs next, from its schedules and timers (coming soon)
+   */
+  times?: Array<unknown>;
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationUpdate
+ */
+export type AutomationUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean | null;
+  /**
+   * Spaces
+   */
+  spaces?: Array<number> | null;
+  /**
+   * Triggers
+   */
+  triggers?: Array<{
+    [key: string]: unknown;
+  }> | null;
+  /**
+   * Join
+   */
+  join?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * If
+   *
+   * a match tree over the run context, tested before the Then runs, like {all: [{path, op, value}]}; null for none
+   */
+  if?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Graph
+   *
+   * a new Then, saved as a new version of its workflow
+   */
+  graph?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Workflow
+   */
+  workflow?: number | null;
+  /**
+   * Version
+   *
+   * the workflow version to run; null follows the published one
+   */
+  version?: number | null;
+  /**
+   * Policy
+   *
+   * {action node id: ask}; a node already set to auto may stay auto, and only you set auto (its own route)
+   */
+  policy?: {
+    [key: string]: "ask" | "auto";
+  } | null;
+  /**
+   * Limits
+   */
+  limits?: {
+    [key: string]: unknown;
+  } | null;
 };
 
 /**
@@ -25622,6 +26482,524 @@ export type PreviewTemplateResponses = {
 
 export type PreviewTemplateResponse = PreviewTemplateResponses[keyof PreviewTemplateResponses];
 
+export type ListAutomationsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Removed
+     */
+    removed?: boolean;
+  };
+  url: "/api/v1/automations";
+};
+
+export type ListAutomationsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListAutomationsError = ListAutomationsErrors[keyof ListAutomationsErrors];
+
+export type ListAutomationsResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationCatalog;
+};
+
+export type ListAutomationsResponse = ListAutomationsResponses[keyof ListAutomationsResponses];
+
+export type CreateAutomationData = {
+  body: AutomationCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/automations";
+};
+
+export type CreateAutomationErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateAutomationError = CreateAutomationErrors[keyof CreateAutomationErrors];
+
+export type CreateAutomationResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationSaved;
+};
+
+export type CreateAutomationResponse = CreateAutomationResponses[keyof CreateAutomationResponses];
+
+export type ListActionsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/automations/actions";
+};
+
+export type ListActionsResponses = {
+  /**
+   * Response Automations-List Actions
+   *
+   * Successful Response
+   */
+  200: Array<ActionInfo>;
+};
+
+export type ListActionsResponse = ListActionsResponses[keyof ListActionsResponses];
+
+export type DeleteAutomationData = {
+  body?: never;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/{aid}";
+};
+
+export type DeleteAutomationErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteAutomationError = DeleteAutomationErrors[keyof DeleteAutomationErrors];
+
+export type DeleteAutomationResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteAutomationResponse = DeleteAutomationResponses[keyof DeleteAutomationResponses];
+
+export type GetAutomationData = {
+  body?: never;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/{aid}";
+};
+
+export type GetAutomationErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetAutomationError = GetAutomationErrors[keyof GetAutomationErrors];
+
+export type GetAutomationResponses = {
+  /**
+   * Successful Response
+   */
+  200: Automation;
+};
+
+export type GetAutomationResponse = GetAutomationResponses[keyof GetAutomationResponses];
+
+export type UpdateAutomationData = {
+  body: AutomationUpdate;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/{aid}";
+};
+
+export type UpdateAutomationErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateAutomationError = UpdateAutomationErrors[keyof UpdateAutomationErrors];
+
+export type UpdateAutomationResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationSaved;
+};
+
+export type UpdateAutomationResponse = UpdateAutomationResponses[keyof UpdateAutomationResponses];
+
+export type EnableAutomationData = {
+  body: AutomationSwitch;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/{aid}/enable";
+};
+
+export type EnableAutomationErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type EnableAutomationError = EnableAutomationErrors[keyof EnableAutomationErrors];
+
+export type EnableAutomationResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type EnableAutomationResponse = EnableAutomationResponses[keyof EnableAutomationResponses];
+
+export type RestoreAutomationData = {
+  body?: never;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/{aid}/restore";
+};
+
+export type RestoreAutomationErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RestoreAutomationError = RestoreAutomationErrors[keyof RestoreAutomationErrors];
+
+export type RestoreAutomationResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RestoreAutomationResponse = RestoreAutomationResponses[keyof RestoreAutomationResponses];
+
+export type SetPolicyData = {
+  body: AutomationPolicy;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/{aid}/policy";
+};
+
+export type SetPolicyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetPolicyError = SetPolicyErrors[keyof SetPolicyErrors];
+
+export type SetPolicyResponses = {
+  /**
+   * Response Automations-Set Policy
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: string;
+  };
+};
+
+export type SetPolicyResponse = SetPolicyResponses[keyof SetPolicyResponses];
+
+export type RunsCausedData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Activity
+     *
+     * an activity's id
+     */
+    activity: string;
+  };
+  url: "/api/v1/automations/runs";
+};
+
+export type RunsCausedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RunsCausedError = RunsCausedErrors[keyof RunsCausedErrors];
+
+export type RunsCausedResponses = {
+  /**
+   * Response Automations-Runs Caused
+   *
+   * Successful Response
+   */
+  200: Array<AutomationRun>;
+};
+
+export type RunsCausedResponse = RunsCausedResponses[keyof RunsCausedResponses];
+
+export type GetRunData = {
+  body?: never;
+  path: {
+    /**
+     * Run
+     */
+    run: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/runs/{run}";
+};
+
+export type GetRunErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetRunError = GetRunErrors[keyof GetRunErrors];
+
+export type GetRunResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationRunDetail;
+};
+
+export type GetRunResponse = GetRunResponses[keyof GetRunResponses];
+
+export type DecideHeldRunData = {
+  body: HeldRunDecision;
+  path: {
+    /**
+     * Run
+     */
+    run: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/runs/{run}/decide";
+};
+
+export type DecideHeldRunErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DecideHeldRunError = DecideHeldRunErrors[keyof DecideHeldRunErrors];
+
+export type DecideHeldRunResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationStarted;
+};
+
+export type DecideHeldRunResponse = DecideHeldRunResponses[keyof DecideHeldRunResponses];
+
+export type TestDraftData = {
+  body: AutomationDraftTry;
+  path?: never;
+  query?: never;
+  url: "/api/v1/automations/test";
+};
+
+export type TestDraftErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TestDraftError = TestDraftErrors[keyof TestDraftErrors];
+
+export type TestDraftResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationTried;
+};
+
+export type TestDraftResponse = TestDraftResponses[keyof TestDraftResponses];
+
+export type TestAutomationData = {
+  /**
+   * Body
+   */
+  body?: AutomationTry | null;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/{aid}/test";
+};
+
+export type TestAutomationErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TestAutomationError = TestAutomationErrors[keyof TestAutomationErrors];
+
+export type TestAutomationResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationTried;
+};
+
+export type TestAutomationResponse = TestAutomationResponses[keyof TestAutomationResponses];
+
+export type RunAutomationData = {
+  /**
+   * Body
+   */
+  body?: AutomationRunNow | null;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/{aid}/run";
+};
+
+export type RunAutomationErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RunAutomationError = RunAutomationErrors[keyof RunAutomationErrors];
+
+export type RunAutomationResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationStarted;
+};
+
+export type RunAutomationResponse = RunAutomationResponses[keyof RunAutomationResponses];
+
+export type ListRunsData = {
+  body?: never;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: {
+    /**
+     * Before
+     *
+     * a run id: the runs before it
+     */
+    before?: number | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/automations/{aid}/runs";
+};
+
+export type ListRunsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListRunsError = ListRunsErrors[keyof ListRunsErrors];
+
+export type ListRunsResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationRuns;
+};
+
+export type ListRunsResponse = ListRunsResponses[keyof ListRunsResponses];
+
+export type UpcomingData = {
+  body?: never;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: {
+    /**
+     * N
+     */
+    n?: number;
+  };
+  url: "/api/v1/automations/{aid}/upcoming";
+};
+
+export type UpcomingErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpcomingError = UpcomingErrors[keyof UpcomingErrors];
+
+export type UpcomingResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationUpcoming;
+};
+
+export type UpcomingResponse = UpcomingResponses[keyof UpcomingResponses];
+
 export type RemoveBudgetData = {
   body?: never;
   path?: never;
@@ -25629,7 +27007,7 @@ export type RemoveBudgetData = {
     /**
      * Resource
      *
-     * all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     * all (everything Lens spends), routine:<id>, automation:<id>, pipeline:<id>, workflow:<id> or space:<id>
      */
     resource: string;
   };
@@ -25679,7 +27057,7 @@ export type SetBudgetData = {
     /**
      * Resource
      *
-     * all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     * all (everything Lens spends), routine:<id>, automation:<id>, pipeline:<id>, workflow:<id> or space:<id>
      */
     resource: string;
   };
@@ -25755,7 +27133,7 @@ export type BudgetStatusData = {
     /**
      * Resource
      *
-     * all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     * all (everything Lens spends), routine:<id>, automation:<id>, pipeline:<id>, workflow:<id> or space:<id>
      */
     resource: string;
   };
@@ -38405,7 +39783,7 @@ export type RunRoutineResponses = {
 
 export type RunRoutineResponse = RunRoutineResponses[keyof RunRoutineResponses];
 
-export type DecideHeldRunData = {
+export type DecideHeldRun2Data = {
   body: HeldRunDecision;
   path: {
     /**
@@ -38417,25 +39795,25 @@ export type DecideHeldRunData = {
   url: "/api/v1/routines/runs/{run_id}/decide";
 };
 
-export type DecideHeldRunErrors = {
+export type DecideHeldRun2Errors = {
   /**
    * Validation Error
    */
   422: HttpValidationError;
 };
 
-export type DecideHeldRunError = DecideHeldRunErrors[keyof DecideHeldRunErrors];
+export type DecideHeldRun2Error = DecideHeldRun2Errors[keyof DecideHeldRun2Errors];
 
-export type DecideHeldRunResponses = {
+export type DecideHeldRun2Responses = {
   /**
    * Successful Response
    */
   200: Ok;
 };
 
-export type DecideHeldRunResponse = DecideHeldRunResponses[keyof DecideHeldRunResponses];
+export type DecideHeldRun2Response = DecideHeldRun2Responses[keyof DecideHeldRun2Responses];
 
-export type ListRunsData = {
+export type ListRuns2Data = {
   body?: never;
   path: {
     /**
@@ -38452,16 +39830,16 @@ export type ListRunsData = {
   url: "/api/v1/routines/{rid}/runs";
 };
 
-export type ListRunsErrors = {
+export type ListRuns2Errors = {
   /**
    * Validation Error
    */
   422: HttpValidationError;
 };
 
-export type ListRunsError = ListRunsErrors[keyof ListRunsErrors];
+export type ListRuns2Error = ListRuns2Errors[keyof ListRuns2Errors];
 
-export type ListRunsResponses = {
+export type ListRuns2Responses = {
   /**
    * Response Routines-List Runs
    *
@@ -38470,9 +39848,9 @@ export type ListRunsResponses = {
   200: Array<RoutineRun>;
 };
 
-export type ListRunsResponse = ListRunsResponses[keyof ListRunsResponses];
+export type ListRuns2Response = ListRuns2Responses[keyof ListRuns2Responses];
 
-export type GetRunData = {
+export type GetRun2Data = {
   body?: never;
   path: {
     /**
@@ -38484,23 +39862,23 @@ export type GetRunData = {
   url: "/api/v1/routine-runs/{run_id}";
 };
 
-export type GetRunErrors = {
+export type GetRun2Errors = {
   /**
    * Validation Error
    */
   422: HttpValidationError;
 };
 
-export type GetRunError = GetRunErrors[keyof GetRunErrors];
+export type GetRun2Error = GetRun2Errors[keyof GetRun2Errors];
 
-export type GetRunResponses = {
+export type GetRun2Responses = {
   /**
    * Successful Response
    */
   200: RoutineRun;
 };
 
-export type GetRunResponse = GetRunResponses[keyof GetRunResponses];
+export type GetRun2Response = GetRun2Responses[keyof GetRun2Responses];
 
 export type UndoRunData = {
   body?: never;

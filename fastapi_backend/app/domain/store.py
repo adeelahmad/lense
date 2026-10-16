@@ -622,10 +622,19 @@ DEFAULTS = {
     # the stream of activities automations follow (docs/automations.md): keep_days: how long activities with no row
     # of their own (the event log) are kept; poll_seconds: how often followers look when nothing wakes them
     "events": {"keep_days": 30, "poll_seconds": 5},
-    # automations (docs/automations.md): approval_days: how long an automation's action waits for your pick before it
+    # automations (domain/automations.py): enabled false stops every run and keeps everything; max_depth is how many
+    # automations may follow one another (one's run starting the next); runs past keep_runs_days are dropped, each
+    # automation keeping its last 20; approval_days: how long an automation's action waits for your pick before it
     # expires and nothing runs; catch_up: how late a timer (a schedule, a waiting action) may still fire after Lens
-    # was off; older ones are missed
-    "automations": {"approval_days": 7, "catch_up": "1h"},
+    # was off, older ones being missed
+    "automations": {
+        "enabled": True,
+        "max_depth": 3,
+        "max_runs_per_minute": 60,
+        "keep_runs_days": 30,
+        "approval_days": 7,
+        "catch_up": "1h",
+    },
     # database backups (docs/database.md, Backups): schedule is a cron expression in timezone, or none (the default)
     # for none; the newest `keep` scheduled backups are kept. connection: a storage connection (sources.py) every new
     # backup is also copied to, under folder, encrypted with a key from secret.key first (none: kept here only)
@@ -1277,6 +1286,18 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS timer_due ON timer FIELDS status, at",
     "DEFINE INDEX IF NOT EXISTS timer_automation ON timer FIELDS automation, status",
     "DEFINE INDEX IF NOT EXISTS timer_done ON timer FIELDS done_at",
+    # automations (domain/automations.py, docs/automations.md): automation:<n>
+    "DEFINE TABLE IF NOT EXISTS automation SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS automation_enabled ON automation FIELDS enabled",
+    # its runs (automation_run:<n>), what their action nodes meant to do (automation_intent:<run>-<node>) and the
+    # counters its limits are kept with (automation_limit:<automation or all>-<hour or minute>)
+    "DEFINE TABLE IF NOT EXISTS automation_run SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS automation_run_a ON automation_run FIELDS automation",
+    "DEFINE INDEX IF NOT EXISTS automation_run_finished ON automation_run FIELDS finished_at",
+    "DEFINE TABLE IF NOT EXISTS automation_intent SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS automation_intent_run ON automation_intent FIELDS run",
+    "DEFINE INDEX IF NOT EXISTS automation_intent_a ON automation_intent FIELDS automation, status",
+    "DEFINE TABLE IF NOT EXISTS automation_limit SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS upload_recording ON upload FIELDS recording",
     # automations' saved variables (domain/variables.py, docs/automations.md, Saved variables): an automation's own or
     # its namespace's, automation_var:<hash of whose and name> (the id keeps the name unique)
