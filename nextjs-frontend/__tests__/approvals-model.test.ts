@@ -88,7 +88,7 @@ describe("the approvals inbox's model", () => {
     expect(badgeCount(140)).toBe("99+");
     for (const admin of [true, false]) {
       const item = navFor(admin).find((i) => i.href === "/approvals");
-      expect(item).toMatchObject({ label: "Approvals", countKey: "approvals", group: "Automate" });
+      expect(item).toMatchObject({ label: "Approvals", countKey: "approvals", whileCounted: true, group: "Automate" });
     }
     const home = (waiting: number, automations: number) =>
       buildAttention({ latestJobs: new Map(), recent: [], nsById: new Map(), approvals: { waiting, automations } });

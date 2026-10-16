@@ -649,14 +649,15 @@ expires, seen by its person alone ([Approvals as activities](#approvals-as-activ
 target can send `approval.waiting` to a team chat or webhook ([Notifications](notifications.md#events)); it is off
 until a target asks for it.
 
-**The Approvals page** (`/approvals`, in the nav under Automate) lists what waits for your pick, each automation's
+**The Approvals page** (`/approvals`, or ⌘K (Ctrl+K) → Approvals) lists what waits for your pick, each automation's
 together and the assistant's by conversation: what it would do, why (a link to the activity that caused it), whether
 it reaches outside Lens, when it expires, and its params. The first is in focus, so Enter approves it and focus moves
 to the next; Tab moves between them. **Edit** changes the params in place (Enter approves with the changes),
 **Always allow** shows where the node can be allowed, and **Decline** takes it out at once with Undo on the notice
 for a few seconds instead of a question. The link you were told (`/approvals?id=12`) brings that one first, or says
-what became of it. Below, what was decided lately. A badge in the top bar counts what waits (nothing shows while
-none do), the nav item carries the same count, and Home's Needs attention has a row for them.
+what became of it. Below, what was decided lately. While anything waits, a badge in the top bar counts it, the nav
+has an Approvals item under Automate with the same count, and Home's Needs attention has a row for them; with nothing
+waiting, none of them shows, so the nav stays as short as it was.
 
 The inbox reads `GET /api/v1/approvals` (newest first; `status`, `origin=automation|chat`, `automation`, `chat_id`,
 and `before` with `limit` to page), `GET /api/v1/approvals/{aid}` and `GET /api/v1/approvals/count` (`{waiting,
