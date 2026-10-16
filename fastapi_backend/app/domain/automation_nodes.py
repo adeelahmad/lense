@@ -36,7 +36,7 @@ CONFIG = {"action": {"action", "params", "delay", "when"}, "decide": {"question"
 NEEDS = "an automation's workflow needs an action node, or it does nothing"
 NAMES_RX = re.compile(r"\{[{%](.*?)[%}]\}", re.S)
 WORD_RX = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
-READS = {"event", "events", "steps"}  # context keys that can hold text from outside Lens
+READS = {"event", "events", "steps", "vars"}  # context keys that can hold text from outside Lens
 
 
 def _templated(v):
@@ -193,13 +193,16 @@ def context(db, cfg, automation, run, trigger, event, events, user, now=None):
 
 
 def untrusted(ctx):
-    """Whether the run read text from outside Lens: an activity it started from marks some of its fields untrusted, or
-    a node that ran passed on outside text (its output says `untrusted`, like a web page's answer)."""
+    """Whether the run read text from outside Lens: an activity it started from marks some of its fields untrusted, a
+    node that ran passed on outside text (its output says `untrusted`, like a web page's answer), or a saved variable
+    was set from outside text."""
     acts = [ctx.get("event") or {}, *((ctx.get("events") or {}).values())]
     for a in acts:
         for x in a if isinstance(a, list) else [a]:
             if isinstance(x, dict) and ((x.get("lens") or {}).get("untrusted")):
                 return True
+    if getattr(ctx.get("vars"), "_outside", None):  # a saved variable an earlier run set from outside text
+        return True
     return any(isinstance(out, dict) and out.get("untrusted") for out in (ctx.get("steps") or {}).values())
 
 

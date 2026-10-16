@@ -5289,6 +5289,194 @@
         }
       }
     },
+    "/api/v1/automations/{aid}/vars": {
+      "get": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Get Automation Vars",
+        "description": "The automation's own saved variables: what its runs keep between them (set_variable), by name.",
+        "operationId": "get_automation_vars",
+        "parameters": [
+          {
+            "name": "aid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Aid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationVars"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Put Automation Vars",
+        "description": "Set or clear the automation's variables: each one named gets its value, null clears it, the others stay.",
+        "operationId": "put_automation_vars",
+        "parameters": [
+          {
+            "name": "aid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Aid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutomationVarsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationVars"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/automation-vars": {
+      "get": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Get Namespace Vars",
+        "description": "The namespace's saved variables: what its automations share, read as vars.<name> (an automation's own win).",
+        "operationId": "get_namespace_vars",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationVars"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Put Namespace Vars",
+        "description": "Set or clear the namespace's variables (editors): each one named gets its value, null clears it.",
+        "operationId": "put_namespace_vars",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutomationVarsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationVars"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/budgets": {
       "get": {
         "tags": [
@@ -31286,6 +31474,86 @@
           "setup_required"
         ],
         "title": "AuthStatus"
+      },
+      "AutomationVar": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "value": {
+            "title": "Value",
+            "description": "JSON up to 16 KB"
+          },
+          "untrusted": {
+            "type": "boolean",
+            "title": "Untrusted",
+            "description": "set from text from outside Lens: prompts mark it as data",
+            "default": false
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By",
+            "description": "who set it last: an email, or automation:<id>"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "AutomationVar"
+      },
+      "AutomationVars": {
+        "properties": {
+          "vars": {
+            "items": {
+              "$ref": "#/components/schemas/AutomationVar"
+            },
+            "type": "array",
+            "title": "Vars"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "vars"
+        ],
+        "title": "AutomationVars"
+      },
+      "AutomationVarsIn": {
+        "properties": {
+          "vars": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Vars",
+            "description": "{name: value}: each one set to its value (JSON up to 16 KB), null clears it; the others stay"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "vars"
+        ],
+        "title": "AutomationVarsIn"
       },
       "Backend": {
         "properties": {

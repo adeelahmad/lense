@@ -27,7 +27,8 @@ merged is called built.
 | Telling a person: the `notify` action and `channels.tell` (their own chat, a notification target, a Matterbridge room) | built |
 | The model and the agent: the `ask_model`, `call_tool` and `ask_agent` actions, and prompts with outside text marked | built |
 | Templates in params and prompts: the run context, one expression keeping its type, errors that name the nearest variable, saved prompt templates, filters for times, text and addresses ([Variables and templates](#variables-and-templates)) | built |
-| Saved variables (`vars`, the `set_variable` action), the variable picker's catalog and a preview of what a template gives | planned |
+| Saved variables: `vars` in the run context, the `set_variable` action, the API and MCP tools ([Saved variables](#saved-variables)) | built |
+| The variable picker's catalog and a preview of what a template gives | planned |
 | Calling a web address: the `http_request` action, with credentials in headers kept sealed | built |
 | Running Lens work: the `run_workflow`, `run_pipeline` and `run_routine` actions | built |
 | Changing assets and writing notes: the `set_field`, `add_to_collection` and `write_note` actions | built |
@@ -42,7 +43,7 @@ merged is called built.
 | Approvals as activities (`approval.waiting`, `approval.decided`) and the `approval.waiting` notification | built |
 | Agents' approval tools: `approvals` and `decline_approval` over MCP and in the assistant, and no way for an agent to approve | built |
 | The Approvals page and its badge | planned |
-| Storing and running automations, joins, variables, the studio | planned |
+| Storing and running automations, joins, the studio | planned |
 
 ## Contract
 
@@ -791,7 +792,7 @@ namespace when the automation works there, else its first.
 A prompt (a param with `"format": "prompt"`) renders with every value read from outside Lens marked as data with
 `untrusted.wrap`: the source is the activity's kind and actor (`email.received from Work Gmail`), and anything that
 looks like a marker or a chat model's control token is broken up. That covers each activity's `lens.untrusted`
-fields, everything earlier nodes passed on (`steps`) and saved variables (`vars`), which a run may have set from
+fields, everything earlier nodes passed on (`steps`) and the [saved variables](#saved-variables) a run set from
 outside text. The person's own words, Lens's own fields (a summary, ids, times) and numbers stay as written.
 Filters and string methods work on the words of marked text and give back marked text, so `| plain | truncate(4000)`
 or `.upper()` can't drop or cut the markers; comparisons (`==`, `in`, `length`) read the words themselves, so `{% if
@@ -812,7 +813,7 @@ and `tc`:
 
 | Filter | Gives |
 | --- | --- |
-| `date(fmt, tz=None)` | a time written with a `strftime` format, in `tz` (default the run's time zone): `{{ x \| date('%a %d %b, %H:%M') }}` |
+| `date(fmt, tz=None)` | a time written with a `strftime` format, in `tz` (default the run's time zone): <code>{{ x &#124; date('%a %d %b, %H:%M') }}</code> |
 | `local` | a time in the run's time zone, as ISO 8601 with its offset |
 | `ago` | how long ago a time was, from the run's `now`: `3 hours ago`, `in 2 days`, `just now` |
 | `plain` | HTML as plain text, a line per block |
@@ -841,6 +842,40 @@ Subject: {{ event.object.subject }}
 
 The model sees the subject and the body between `<untrusted-…>` markers, with the rules that say marked text is
 material to read, not instructions to follow; your question stays as written.
+
+A counter (a `set_variable` node `count`, then a `notify` node after it):
+
+```json
+{"action": "set_variable", "params": {"name": "door_opened", "op": "increment"}}
+```
+
+```text
+The front door has opened {{ steps.count.value }} times.
+```
+
+### Saved variables
+
+An automation keeps values between runs as `vars.<name>`: a counter, when it last alerted, the last ten senders. Each
+is the automation's own, or its namespace's, which every automation working there reads (an automation's own wins on
+a name). A run reads them as they were when it started; a `set_variable` node changes them for the runs after it and
+gives what it set as `steps.<node>.value` (and `.previous`) for the nodes after it in the same run.
+
+The `set_variable` action (group Run, routine: it changes nothing outside the automation) takes:
+
+| Param | |
+| --- | --- |
+| `name` | lowercase letters, digits and `_`, starting with a letter, up to 40 |
+| `op` | `set` (default) to `value`, `increment` by `value` (a number, default 1), `append` `value` to a list of the last 100, or `clear` |
+| `value` | any JSON up to 16 KB, often a template: <code>"{{ event.object.from &#124; emails &#124; first }}"</code> |
+| `scope` | `automation` (default) or `namespace` |
+| `namespace` | for `scope: namespace`, its id; the automation's only namespace when left out. Changing a namespace's variables needs the automation's owner to be an editor there |
+
+Two runs changing one variable at once both count: a write that loses the race reads the value again (up to five
+times). A scope keeps up to 100 variables. A variable set from a template that reads what the run got from outside
+Lens (its activities, earlier steps or such variables) is marked so, and prompts then wrap it as outside text; other
+variables stay as written. People change them with
+`GET`/`PUT /api/v1/automations/{id}/vars` and `/api/v1/namespaces/{name}/automation-vars` ([API](api.md#automations)),
+and agents with the `automation_vars` and `set_automation_vars` MCP tools.
 
 ## Refine later
 
@@ -875,9 +910,11 @@ material to read, not instructions to follow; your question stays as written.
 - The canvas draws and edits event workflows (today they are saved and tried through the API).
 - An action's outputs in the variable picker, typed from its `output` schema.
 - Variables and templates: secrets as variables (sealed, never rendered into prompts); typed variable declarations
-  with defaults per automation; marking only the saved variables that were set from outside text (today every saved
-  variable's text is marked in prompts); a time zone of each person's own, rather than the triggers'; wrapping
-  outside text the same way in `tool_nodes.ask_model` (pipeline workflows) and extensions' prompt tools.
+  with defaults per automation; a time zone of each person's own, rather than the triggers'; wrapping outside text
+  the same way in `tool_nodes.ask_model` (pipeline workflows) and extensions' prompt tools; variables in the
+  Settings page of an automation (the studio, M11); an activity when a person changes a variable; marking a variable
+  from outside text only when the value itself came from it, not whenever the run read some; removing an
+  automation's variables when it is deleted (M6).
 - The model and the agent: per-node model picks in the studio; streaming an agent's steps into the run's log as they
   happen; a namespace assistant's memory for automations (`remember` is left out today); approving an agent's
   proposals from the chat app it told you in; count the automation's own budget once budgets take `automation:<id>`.

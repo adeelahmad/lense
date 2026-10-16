@@ -15,7 +15,7 @@ an intent out, or with `dry` says what it would do and changes nothing. An actio
 what the run read from outside Lens as data; such a param may name a saved prompt template ({"template": 5}) instead.
 `log_line` ships here; the other actions are registered by a module per group, loaded with this one: actions_messages.py (notify), actions_ai.py (ask_model, call_tool, ask_agent),
 actions_web.py (http_request), actions_run.py (run_workflow, run_pipeline, run_routine), actions_lens.py (set_field, add_to_collection,
-write_note).
+write_note), variables.py (set_variable).
 """
 
 from __future__ import annotations
@@ -308,8 +308,6 @@ def render_prompt(text, ctx, cfg=None, db=None):
     marked as data first (untrusted.wrap): each activity's `lens.untrusted` paths, everything earlier steps passed on
     (a model's reply, a web page) and saved variables. The person's own words stay as written. `text` may name a saved
     prompt template ({"template": 5, "version": 2}), read with `db`. ValueError naming the problem."""
-    from . import variables
-
     try:
         return variables.prompt(text, ctx, None, cfg, db)["text"]
     except ValueError as e:
@@ -358,4 +356,4 @@ register(
 )
 
 
-from . import actions_ai, actions_lens, actions_messages, actions_run, actions_web  # noqa: E402, F401 - they register their actions; loaded with the catalog
+from . import actions_ai, actions_lens, actions_messages, actions_run, actions_web, variables  # noqa: E402, F401 - they register their actions; loaded with the catalog
