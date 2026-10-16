@@ -50,6 +50,8 @@ id lens >/dev/null 2>&1 || useradd --uid 1000 lens
 OPT="$work/opt"
 PROGRAMS="$OPT/programs"
 mkdir -p "$OPT/apt"
+# shellcheck source=SCRIPTDIR/wipe.sh
+. "$here/wipe.sh"
 # shellcheck source=SCRIPTDIR/programs.sh
 . "$here/programs.sh"
 
