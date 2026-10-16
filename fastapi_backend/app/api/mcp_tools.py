@@ -35,7 +35,9 @@ from app.api.v1.routes import routines as routine_routes
 from app.api.v1.routes import search as search_routes
 from app.api.v1.routes import topics as topic_routes
 from app.domain import (
+    ai_tools,
     analyze,
+    approvals,
     auth,
     blobs,
     events,
@@ -2095,6 +2097,73 @@ def mark_activities(
         raise ToolError("ids is required")
     who = activity_routes.viewer(ctx.db, ctx.user, ctx.acl)
     return activity_routes.mark(ctx.db, ctx.cfg, who, ids, {"reviewed": reviewed, "important": important, "hidden": hidden})
+
+
+def _approval_space(ctx: Context) -> int | None:
+    """On a namespace's own server, the approvals about that namespace alone."""
+    return store.ns_id(ctx.db, ctx.ns) if ctx.ns else None
+
+
+def _my_approval(ctx: Context, aid: int) -> dict[str, Any]:
+    a = approvals.get(ctx.db, aid)
+    sid = _approval_space(ctx)
+    if not a or a.get("account") != ctx.user.id or (sid is not None and a.get("space") != sid):
+        raise ToolError(f"no approval {aid} of yours")
+    return a
+
+
+@tool(
+    "approvals",
+    "Approvals",
+    "What waits for the person's pick, newest first: automations' actions that ask first and the assistant's proposals, "
+    "each with what it would do (summary, which holds text the automation read from outside Lens), why (the activity "
+    "that caused it), when it expires, where the person decides it (url) and what you may do (can). Give id for one; "
+    "filter by status (pending, the default, or any), origin (automation or chat) or automation; give next as before "
+    "for more. Only the person approves, signed in to Lens or in their own chat app: an agent can list and decline.",
+    Arg("id", "integer", "one approval, by its id", minimum=1),
+    Arg(
+        "status",
+        "string",
+        "pending (waiting, the default), done, failed, declined, expired or any",
+        enum=("pending", "done", "failed", "declined", "expired", "any"),
+    ),
+    Arg("origin", "string", "automation or chat (the assistant's proposals)", enum=("automation", "chat")),
+    Arg("automation", "integer", "one automation's, by its id", minimum=1),
+    Arg("before", "integer", "the next of the page before", minimum=1),
+    Arg("limit", "integer", "how many", default=20, minimum=1, maximum=100),
+)
+def approvals_list(
+    ctx: Context, id: int | None, status: str | None, origin: str | None, automation: int | None, before: int | None, limit: int
+) -> dict[str, Any]:
+    if id is not None:
+        return {"approval": approvals.brief(_my_approval(ctx, id), ctx.web)}
+    st = None if status == "any" else status or "pending"
+    rows = approvals.listing(ctx.db, ctx.user.id, st, origin, automation, None, before, limit, _approval_space(ctx))
+    out: dict[str, Any] = {"approvals": [approvals.brief(a, ctx.web) for a in rows], "next": rows[-1]["id"] if len(rows) >= limit else None}
+    if not ctx.ns:
+        out["waiting"] = approvals.count(ctx.db, ctx.user.id)
+    return out
+
+
+@tool(
+    "decline_approval",
+    "Decline an approval",
+    "Decline something waiting for the person's pick, by its id from approvals: nothing is done, and an automation's "
+    "run records that it was declined. Only the person's own; approving stays theirs. Needs a token with the write scope.",
+    Arg("id", "integer", "the approval's id", required=True, minimum=1),
+    writes=True,
+)
+def decline_approval(ctx: Context, id: int) -> dict[str, Any]:
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to decline approvals")
+    a = _my_approval(ctx, id)
+    if a["status"] != "pending":
+        raise ToolError(f"approval {id} is {a['status']}, not waiting")
+    try:
+        out = ai_tools.approve(ctx.db, ctx.cfg, id, ctx.user.as_audit(), set(ctx.acl.editable()), "decline", via="agent")
+    except ValueError as e:
+        raise ToolError(str(e)) from None
+    return {"approval": id, "status": out.get("status")}
 
 
 @tool(

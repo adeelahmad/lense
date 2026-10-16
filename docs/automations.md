@@ -38,7 +38,8 @@ merged is called built.
 | Approvals: an automation's action that asks first waits for your pick (approve, decline, edit, allow from now on), told once in your chat app, capped and expiring (`app/domain/approvals.py`) | built |
 | Deciding an automation's action with a yes in the chat it told you in | built |
 | Approvals as activities (`approval.waiting`, `approval.decided`) and the `approval.waiting` notification | built |
-| The Approvals page and its badge, agents' approval tools | planned |
+| Agents' approval tools: `approvals` and `decline_approval` over MCP and in the assistant, and no way for an agent to approve | built |
+| The Approvals page and its badge | planned |
 | Storing and running automations, joins, variables, the studio | planned |
 
 ## Contract
@@ -622,7 +623,9 @@ Deciding (`POST /api/v1/approvals/{aid}`):
 Approving, editing and `always` are yours: signed in to Lens, on the approval's card, or approving with a yes in your
 own chat app (below). An API key, an app, MCP and the assistant can list and decline approvals, never approve them,
 since approving is the person's pick; each approval's `can` says what the caller may do with it. This is the one
-place where an agent can't do what you can. The assistant's own approvals in a conversation are decided as before.
+place where an agent can't do what you can: agents read them with `approvals` and decline with `decline_approval`
+(over [MCP](mcp.md#tools) and in the [assistant](assistant.md#the-assistants-tools)), and there is no tool to approve.
+The assistant's own approvals in a conversation are decided as before.
 
 **In your chat app.** A reply of "yes" in the private chat you were told in approves an automation's action, under
 the rules a chat room's approvals follow ([Chat rooms](chat-rooms.md#what-it-does)), and only when all of these hold:

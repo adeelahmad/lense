@@ -38,7 +38,7 @@ MAX_STEPS = 12
 ABOUT_CHARS = 12000
 OUTSIDE = "the activity that started this automation"
 KEPT = ("id", "type", "kind", "published", "actor", "object", "target", "tag", "summary", "space")
-LEFT_OUT = {"remember"}  # a namespace assistant's memory is for conversations with it
+LEFT_OUT = {"remember", "decline_approval"}  # a namespace assistant's memory is for conversations with it; the person's picks are theirs
 
 
 def _short(text, n=80):
