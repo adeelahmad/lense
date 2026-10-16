@@ -28,7 +28,7 @@ merged is called built.
 | The model and the agent: the `ask_model`, `call_tool` and `ask_agent` actions, and prompts with outside text marked | built |
 | Templates in params and prompts: the run context, one expression keeping its type, errors that name the nearest variable, saved prompt templates, filters for times, text and addresses ([Variables and templates](#variables-and-templates)) | built |
 | Saved variables: `vars` in the run context, the `set_variable` action, the API and MCP tools ([Saved variables](#saved-variables)) | built |
-| The variable picker's catalog and a preview of what a template gives | planned |
+| The variable picker's catalog and a preview of what a template gives, through the API and MCP ([The variable picker and preview](#the-variable-picker-and-preview)) | built |
 | Calling a web address: the `http_request` action, with credentials in headers kept sealed | built |
 | Running Lens work: the `run_workflow`, `run_pipeline` and `run_routine` actions | built |
 | Changing assets and writing notes: the `set_field`, `add_to_collection` and `write_note` actions | built |
@@ -42,7 +42,7 @@ merged is called built.
 | Deciding an automation's action with a yes in the chat it told you in | built |
 | Approvals as activities (`approval.waiting`, `approval.decided`) and the `approval.waiting` notification | built |
 | Agents' approval tools: `approvals` and `decline_approval` over MCP and in the assistant, and no way for an agent to approve | built |
-| The Approvals page and its badge | planned |
+| The Approvals page (`/approvals`), its badge in the top bar and nav, and Home's Needs attention row | built |
 | Storing and running automations, joins, the studio | planned |
 
 ## Contract
@@ -653,6 +653,16 @@ expires, seen by its person alone ([Approvals as activities](#approvals-as-activ
 target can send `approval.waiting` to a team chat or webhook ([Notifications](notifications.md#events)); it is off
 until a target asks for it.
 
+**The Approvals page** (`/approvals`, or ⌘K (Ctrl+K) → Approvals) lists what waits for your pick, each automation's
+together and the assistant's by conversation: what it would do, why (a link to the activity that caused it), whether
+it reaches outside Lens, when it expires, and its params. The first is in focus, so Enter approves it and focus moves
+to the next; Tab moves between them. **Edit** changes the params in place (Enter approves with the changes),
+**Always allow** shows where the node can be allowed, and **Decline** takes it out at once with Undo on the notice
+for a few seconds instead of a question. The link you were told (`/approvals?id=12`) brings that one first, or says
+what became of it. Below, what was decided lately. While anything waits, a badge in the top bar counts it, the nav
+has an Approvals item under Automate with the same count, and Home's Needs attention has a row for them; with nothing
+waiting, none of them shows, so the nav stays as short as it was.
+
 The inbox reads `GET /api/v1/approvals` (newest first; `status`, `origin=automation|chat`, `automation`, `chat_id`,
 and `before` with `limit` to page), `GET /api/v1/approvals/{aid}` and `GET /api/v1/approvals/count` (`{waiting,
 automations}`, for a badge).
@@ -877,6 +887,41 @@ variables stay as written. People change them with
 `GET`/`PUT /api/v1/automations/{id}/vars` and `/api/v1/namespaces/{name}/automation-vars` ([API](api.md#automations)),
 and agents with the `automation_vars` and `set_automation_vars` MCP tools.
 
+### The variable picker and preview
+
+Both work on an automation as it is being written (a draft: `{triggers, join?, workflow?, spaces?, id?, name?}`,
+with `workflow` a saved workflow's id or a graph, which may be unfinished), so the builder can help before anything
+is saved:
+
+```python
+variables.catalog(db, cfg, draft, node=None, user=None)   # [{path, type, label, example, group, untrusted}]
+variables.preview(db, cfg, template, draft, user, activity=None, trigger=None, node=None, as_prompt=False)
+```
+
+`POST /api/v1/automations/variables {draft, node?}` lists what a template there can read, for the picker that opens
+on `{{`:
+
+- the run context's keys and their fields (`user.email`, `namespace.name`, `now`...);
+- each trigger's activity, `events.<as>.<field>`, from its kind's schema (a schedule's or an `at`'s is the clock's
+  `clock.tick`, a webhook's `webhook.received`); `event.<field>` for the fields all the triggers' kinds share; a
+  batch's activities as a list (`events.mail.0.object.subject`);
+- the saved variables there are (the automation's own when the draft has its `id`, and its namespaces');
+- with `node`, what the action and decide nodes before it pass on, `steps.<id>.<field>`, from each action's output
+  schema (an `ask_model` with a `json_schema` gives the object it describes).
+
+Each has its type, a label from the schema's titles, an example (from the kind's sample, or the variable's value),
+a `group` for the picker's headings and `untrusted` for text from outside Lens, which prompts mark as data.
+
+`POST /api/v1/automations/preview {template, draft, activity?, trigger?, node?, prompt?}` shows what a template gives
+before it is saved: against a real activity by id (404 for one you can't see) or the kind's sample of the trigger
+that fires (`trigger`, by its `as`; default the first). A param's `value` keeps its type and `text` is it written
+out; with `prompt` (or a saved prompt template, `{"template": 5}`) the text is what the model will see, outside text
+marked, with `rules`. The steps before `node` are stand-ins named by their path (`[steps.ask.trip]`), as a preview
+runs no node; a run's real values come from a test run. A template that fails answers with `error` and `line`, like
+`text: events.mail.object.subjct is not defined; did you mean subject?`; a draft that doesn't check answers 400.
+Anyone signed in may use both, with their own namespaces (none named: theirs) and only an automation they may change.
+Agents have the `automation_variables` and `preview_template` MCP tools.
+
 ## Refine later
 
 - More operators: `in`, `matches` (bounded regular expressions), `between`, times against now, `changed`.
@@ -908,13 +953,14 @@ and agents with the `automation_vars` and `set_automation_vars` MCP tools.
   "me" is whoever last wrote privately, until each chat user has a Lens account of their own; telling which links in a
   message the person's template wrote, so they stay when the run read outside text.
 - The canvas draws and edits event workflows (today they are saved and tried through the API).
-- An action's outputs in the variable picker, typed from its `output` schema.
 - Variables and templates: secrets as variables (sealed, never rendered into prompts); typed variable declarations
   with defaults per automation; a time zone of each person's own, rather than the triggers'; wrapping outside text
   the same way in `tool_nodes.ask_model` (pipeline workflows) and extensions' prompt tools; variables in the
   Settings page of an automation (the studio, M11); an activity when a person changes a variable; marking a variable
   from outside text only when the value itself came from it, not whenever the run read some; removing an
-  automation's variables when it is deleted (M6).
+  automation's variables when it is deleted (M6); a preview that runs the nodes before the template's (dry) rather
+  than standing in for their outputs; the picker listing a saved prompt template's output schema for the node that
+  uses it; matching on variables in triggers and the If (M5).
 - The model and the agent: per-node model picks in the studio; streaming an agent's steps into the run's log as they
   happen; a namespace assistant's memory for automations (`remember` is left out today); approving an agent's
   proposals from the chat app it told you in; count the automation's own budget once budgets take `automation:<id>`.
@@ -944,4 +990,5 @@ and agents with the `automation_vars` and `set_automation_vars` MCP tools.
 - Approvals: a cost estimate on actions that ask (a run on another asset could say what it would cost); approve
   buttons in Telegram and Slack (today a yes decides only actions inside Lens); approvals that need two people; one
   card for many alike ("approve all 12"); trying a failed one again; expiring an automation's approvals when it is
-  removed.
+  removed; on the page, keys for decline and edit, live updates instead of reading again each minute, and the
+  assistant's proposals shown with their estimates.

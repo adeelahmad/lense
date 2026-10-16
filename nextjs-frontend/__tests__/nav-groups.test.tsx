@@ -8,10 +8,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 jest.mock("next/navigation", () => ({ usePathname: () => "/settings/llm" }));
 jest.mock("@/components/notes/notes-tree", () => ({ NotesTree: () => null }));
 
-const nav = (collapsed: boolean) =>
+const nav = (collapsed: boolean, counts = {}) =>
   render(
     <TooltipProvider>
-      <Nav admin collapsed={collapsed} counts={{}} />
+      <Nav admin collapsed={collapsed} counts={counts} />
     </TooltipProvider>,
   );
 
@@ -38,4 +38,16 @@ test("the timeline is under Explore for everyone", () => {
     expect(t?.group).toBe("Explore");
   }
   expect(isActive("/timeline", "/timeline")).toBe(true);
+});
+
+test("Approvals is in the nav only while something waits, and Automate keeps its name either way", () => {
+  const { unmount } = nav(false);
+  expect(screen.queryByRole("link", { name: /Approvals/ })).not.toBeInTheDocument();
+  expect(screen.getByText("Automate")).toBeInTheDocument();
+  unmount();
+  nav(false, { approvals: 2 });
+  expect(screen.getByRole("link", { name: "Approvals 2" })).toHaveAttribute("href", "/approvals");
+  const text = screen.getByRole("navigation", { name: "Primary" }).textContent ?? "";
+  expect(text.indexOf("Automate")).toBeLessThan(text.indexOf("Approvals"));
+  expect(text.indexOf("Approvals")).toBeLessThan(text.indexOf("Pipelines"));
 });

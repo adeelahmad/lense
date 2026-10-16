@@ -5477,6 +5477,90 @@
         }
       }
     },
+    "/api/v1/automations/variables": {
+      "post": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Variable Catalog",
+        "description": "What a draft automation's templates can read, for the variable picker: the run context, each trigger's activity\nfields, the saved variables and, with node, what the nodes before it pass on; with types, labels and examples.",
+        "operationId": "variable_catalog",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VariableCatalogIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VariableCatalog"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/automations/preview": {
+      "post": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Preview Template",
+        "description": "What a template gives for a draft automation before it is saved, against an activity (by id; 404 for one you\ncan't see) or the trigger kind's sample. A prompt shows outside text marked as the model sees it. A template that\nfails answers 200 with error and line; a draft that doesn't check answers 400.",
+        "operationId": "preview_template",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplatePreviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplatePreviewOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/budgets": {
       "get": {
         "tags": [
@@ -52246,6 +52330,43 @@
         "type": "object",
         "title": "PodcastVoices"
       },
+      "PreviewActivity": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "sample": {
+            "type": "boolean",
+            "title": "Sample",
+            "description": "the kind's sample, not a real activity"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "sample"
+        ],
+        "title": "PreviewActivity"
+      },
       "PreviewLine": {
         "properties": {
           "time": {
@@ -62498,6 +62619,153 @@
         ],
         "title": "TemplatePreview"
       },
+      "TemplatePreviewIn": {
+        "properties": {
+          "template": {
+            "title": "Template",
+            "description": "a param's value (text with {{ }}, or a list or object of them), or a prompt"
+          },
+          "draft": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Draft",
+            "description": "the automation as drafted, as for /automations/variables"
+          },
+          "activity": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity",
+            "description": "an activity's id to render against; default the trigger kind's sample"
+          },
+          "trigger": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger",
+            "description": "which trigger fired (as); default the first"
+          },
+          "node": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node",
+            "description": "the node the template is in: earlier steps are filled with stand-ins"
+          },
+          "prompt": {
+            "type": "boolean",
+            "title": "Prompt",
+            "description": "render it as a prompt, with outside text marked as the model sees it",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "template",
+          "draft"
+        ],
+        "title": "TemplatePreviewIn"
+      },
+      "TemplatePreviewOut": {
+        "properties": {
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "what it gives, written out"
+          },
+          "value": {
+            "title": "Value",
+            "description": "what a param gets: one {{ }} expression keeps its type"
+          },
+          "prompt": {
+            "type": "boolean",
+            "title": "Prompt",
+            "default": false
+          },
+          "rules": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rules",
+            "description": "for a prompt: the system prompt's paragraph about marked text"
+          },
+          "system": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System",
+            "description": "a saved prompt template's own instructions"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why it can't be rendered: the missing variable and its nearest name"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line"
+          },
+          "activity": {
+            "$ref": "#/components/schemas/PreviewActivity"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "activity"
+        ],
+        "title": "TemplatePreviewOut"
+      },
       "TemplatePreviewRequest": {
         "properties": {
           "recording": {
@@ -64827,6 +65095,103 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VariableCatalog": {
+        "properties": {
+          "variables": {
+            "items": {
+              "$ref": "#/components/schemas/VariableEntry"
+            },
+            "type": "array",
+            "title": "Variables"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "variables"
+        ],
+        "title": "VariableCatalog"
+      },
+      "VariableCatalogIn": {
+        "properties": {
+          "draft": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Draft",
+            "description": "the automation as drafted: {triggers, join?, workflow? (an id or a graph), spaces?, id?, name?}"
+          },
+          "node": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node",
+            "description": "a node of its workflow: what the nodes before it pass on is listed too"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "draft"
+        ],
+        "title": "VariableCatalogIn"
+      },
+      "VariableEntry": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "what a template writes: {{ events.mail.object.subject }}"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "example": {
+            "title": "Example"
+          },
+          "group": {
+            "type": "string",
+            "title": "Group",
+            "description": "where it comes from, for the picker's headings"
+          },
+          "untrusted": {
+            "type": "boolean",
+            "title": "Untrusted",
+            "description": "text from outside Lens: prompts mark it as data",
+            "default": false
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "path",
+          "type",
+          "label",
+          "group"
+        ],
+        "title": "VariableEntry"
       },
       "VaultAnswer": {
         "properties": {

@@ -13499,6 +13499,27 @@ export type PodcastVoices = {
 };
 
 /**
+ * PreviewActivity
+ */
+export type PreviewActivity = {
+  /**
+   * Id
+   */
+  id?: string | null;
+  /**
+   * Kind
+   */
+  kind?: string | null;
+  /**
+   * Sample
+   *
+   * the kind's sample, not a real activity
+   */
+  sample: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * PreviewLine
  */
 export type PreviewLine = {
@@ -19461,6 +19482,96 @@ export type TemplatePreview = {
 };
 
 /**
+ * TemplatePreviewIn
+ */
+export type TemplatePreviewIn = {
+  /**
+   * Template
+   *
+   * a param's value (text with {{ }}, or a list or object of them), or a prompt
+   */
+  template: unknown;
+  /**
+   * Draft
+   *
+   * the automation as drafted, as for /automations/variables
+   */
+  draft: {
+    [key: string]: unknown;
+  };
+  /**
+   * Activity
+   *
+   * an activity's id to render against; default the trigger kind's sample
+   */
+  activity?: string | null;
+  /**
+   * Trigger
+   *
+   * which trigger fired (as); default the first
+   */
+  trigger?: string | null;
+  /**
+   * Node
+   *
+   * the node the template is in: earlier steps are filled with stand-ins
+   */
+  node?: string | null;
+  /**
+   * Prompt
+   *
+   * render it as a prompt, with outside text marked as the model sees it
+   */
+  prompt?: boolean;
+};
+
+/**
+ * TemplatePreviewOut
+ */
+export type TemplatePreviewOut = {
+  /**
+   * Text
+   *
+   * what it gives, written out
+   */
+  text?: string | null;
+  /**
+   * Value
+   *
+   * what a param gets: one {{ }} expression keeps its type
+   */
+  value?: unknown;
+  /**
+   * Prompt
+   */
+  prompt?: boolean;
+  /**
+   * Rules
+   *
+   * for a prompt: the system prompt's paragraph about marked text
+   */
+  rules?: string | null;
+  /**
+   * System
+   *
+   * a saved prompt template's own instructions
+   */
+  system?: string | null;
+  /**
+   * Error
+   *
+   * why it can't be rendered: the missing variable and its nearest name
+   */
+  error?: string | null;
+  /**
+   * Line
+   */
+  line?: number | null;
+  activity: PreviewActivity;
+  [key: string]: unknown;
+};
+
+/**
  * TemplatePreviewRequest
  *
  * A saved template (`template`, optional `version`), or the unsaved text in the editor (`body` and friends).
@@ -20823,6 +20934,78 @@ export type ValidationError = {
   ctx?: {
     [key: string]: unknown;
   };
+};
+
+/**
+ * VariableCatalog
+ */
+export type VariableCatalog = {
+  /**
+   * Variables
+   */
+  variables: Array<VariableEntry>;
+  [key: string]: unknown;
+};
+
+/**
+ * VariableCatalogIn
+ */
+export type VariableCatalogIn = {
+  /**
+   * Draft
+   *
+   * the automation as drafted: {triggers, join?, workflow? (an id or a graph), spaces?, id?, name?}
+   */
+  draft: {
+    [key: string]: unknown;
+  };
+  /**
+   * Node
+   *
+   * a node of its workflow: what the nodes before it pass on is listed too
+   */
+  node?: string | null;
+};
+
+/**
+ * VariableEntry
+ */
+export type VariableEntry = {
+  /**
+   * Path
+   *
+   * what a template writes: {{ events.mail.object.subject }}
+   */
+  path: string;
+  /**
+   * Type
+   */
+  type: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Example
+   */
+  example?: unknown;
+  /**
+   * Group
+   *
+   * where it comes from, for the picker's headings
+   */
+  group: string;
+  /**
+   * Untrusted
+   *
+   * text from outside Lens: prompts mark it as data
+   */
+  untrusted?: boolean;
+  /**
+   * Description
+   */
+  description?: string | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -25388,6 +25571,56 @@ export type PutNamespaceVarsResponses = {
 };
 
 export type PutNamespaceVarsResponse = PutNamespaceVarsResponses[keyof PutNamespaceVarsResponses];
+
+export type VariableCatalogData = {
+  body: VariableCatalogIn;
+  path?: never;
+  query?: never;
+  url: "/api/v1/automations/variables";
+};
+
+export type VariableCatalogErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type VariableCatalogError = VariableCatalogErrors[keyof VariableCatalogErrors];
+
+export type VariableCatalogResponses = {
+  /**
+   * Successful Response
+   */
+  200: VariableCatalog;
+};
+
+export type VariableCatalogResponse = VariableCatalogResponses[keyof VariableCatalogResponses];
+
+export type PreviewTemplateData = {
+  body: TemplatePreviewIn;
+  path?: never;
+  query?: never;
+  url: "/api/v1/automations/preview";
+};
+
+export type PreviewTemplateErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PreviewTemplateError = PreviewTemplateErrors[keyof PreviewTemplateErrors];
+
+export type PreviewTemplateResponses = {
+  /**
+   * Successful Response
+   */
+  200: TemplatePreviewOut;
+};
+
+export type PreviewTemplateResponse = PreviewTemplateResponses[keyof PreviewTemplateResponses];
 
 export type RemoveBudgetData = {
   body?: never;
@@ -35111,30 +35344,30 @@ export type CreateTemplateResponses = {
 
 export type CreateTemplateResponse = CreateTemplateResponses[keyof CreateTemplateResponses];
 
-export type PreviewTemplateData = {
+export type PreviewTemplate2Data = {
   body: TemplatePreviewRequest;
   path?: never;
   query?: never;
   url: "/api/v1/templates/preview";
 };
 
-export type PreviewTemplateErrors = {
+export type PreviewTemplate2Errors = {
   /**
    * Validation Error
    */
   422: HttpValidationError;
 };
 
-export type PreviewTemplateError = PreviewTemplateErrors[keyof PreviewTemplateErrors];
+export type PreviewTemplate2Error = PreviewTemplate2Errors[keyof PreviewTemplate2Errors];
 
-export type PreviewTemplateResponses = {
+export type PreviewTemplate2Responses = {
   /**
    * Successful Response
    */
   200: TemplatePreview;
 };
 
-export type PreviewTemplateResponse = PreviewTemplateResponses[keyof PreviewTemplateResponses];
+export type PreviewTemplate2Response = PreviewTemplate2Responses[keyof PreviewTemplate2Responses];
 
 export type GetTemplateData = {
   body?: never;
