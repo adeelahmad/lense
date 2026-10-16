@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, HTTPException
 
 from app.api.deps import Acl, AdminWriter, Cfg, CurrentUser, Db, Writer, domain_errors
 from app.api.v1.routes.custom_nodes import me
-from app.domain import auth, custom_nodes, flow, jobs, store, workflows
+from app.domain import auth, custom_nodes, events, flow, jobs, store, workflows
 from app.schemas.common import Created, Ok
 from app.schemas.pipelines import JobQueued
 from app.schemas.templates import VersionSaved
@@ -25,7 +27,7 @@ from app.schemas.workflows import (
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 
-DYNAMIC = {"switch": "outputs", "set": "inputs", "group": "both", "custom": "both"}
+DYNAMIC = {"switch": "outputs", "set": "inputs", "group": "both", "custom": "both", "decide": "outputs"}
 
 
 def _node_type(t):
@@ -40,19 +42,19 @@ def _node_type(t):
         input_ports=ins,
         dynamic=DYNAMIC.get(t),
         primitive=t in flow.PRIMITIVES,
-        keeps=t in workflows.TERMINAL,
+        keeps=t in workflows.TERMINAL or t == "action",
     )
 
 
 @router.get("")
-def list_workflows(user: CurrentUser, db: Db) -> WorkflowCatalog:
+def list_workflows(user: CurrentUser, db: Db, scope: Literal["recording", "graph", "tool", "event"] | None = None) -> WorkflowCatalog:
     """Saved workflows, plus the nodes a workflow can be built from: the primitives, each scope's own nodes, and the
-    custom nodes you can use."""
+    custom nodes you can use. Automations' workflows (scope event) are listed only when asked for with scope."""
     return WorkflowCatalog(
         node_types=[_node_type(t) for t in workflows.NODE_TYPES],
         operators=list(workflows.OPS),
         entity_types=list(workflows.ENTITY_TYPES),
-        workflows=workflows.list_workflows(db),
+        workflows=workflows.list_workflows(db, scope),
         custom_nodes=custom_nodes.visible(db, me(user)),
     )
 
@@ -60,16 +62,39 @@ def list_workflows(user: CurrentUser, db: Db) -> WorkflowCatalog:
 @router.post("/test")
 def try_workflow(body: WorkflowTryRequest, user: AdminWriter, acl: Acl, db: Db, cfg: Cfg) -> WorkflowTry:
     """Run a graph (saved or not) once without keeping anything: what each node passed on, for the canvas. Nodes
-    that would save something say what they would save; models are still asked."""
+    that would save something say what they would save; models are still asked. An automation's workflow (scope
+    event) runs on an activity (by id) or a kind's sample, and its actions say what they would do (intents)."""
     spaces = None
     if body.scope == "recording":
         if body.recording is None:
             raise HTTPException(400, "choose an asset to try it on")
         acl.recording(body.recording, "process")
+    elif body.scope == "event":
+        return _try_event(body, user, acl, db, cfg)
     else:
         spaces = [acl.namespace(n) for n in body.namespaces] if body.namespaces else sorted(store.space_names(db))
     with domain_errors():
         return WorkflowTry(**workflows.try_graph(db, cfg, body.graph.model_dump(), body.scope, body.recording, spaces, user.email))
+
+
+def _try_event(body: WorkflowTryRequest, user, acl, db, cfg) -> WorkflowTry:
+    spaces = [acl.namespace(n) for n in body.namespaces] if body.namespaces else None
+    if body.activity:
+        a = events.get(db, cfg, body.activity, events.viewer(user.id, acl.readable(), user.admin))
+        if a is None:
+            raise HTTPException(404, "no such activity")
+    elif body.kind:
+        try:
+            a = events.kind_info(body.kind)["sample"]
+        except KeyError:
+            raise HTTPException(400, f"no kind {body.kind}; GET /api/v1/activities/kinds lists them") from None
+        if a is None:
+            raise HTTPException(400, f"{body.kind} has no sample to try it on; give an activity")
+    else:
+        raise HTTPException(400, "give an activity (its id) or a kind of activity to try it on")
+    who = {"id": user.id, "email": user.email, "name": user.name, "admin": user.admin}
+    with domain_errors():
+        return WorkflowTry(**workflows.try_graph(db, cfg, body.graph.model_dump(), "event", spaces=spaces, user=who, activity=a))
 
 
 @router.post("")
@@ -117,7 +142,7 @@ def run_workflow(wid: int, body: WorkflowRunRequest, user: Writer, acl: Acl, db:
     except KeyError:
         raise HTTPException(400, "no such workflow") from None
     if w["scope"] != "recording":
-        raise HTTPException(400, "this workflow organises the graph; a routine runs it")
+        raise HTTPException(400, f"this workflow {workflows.RUN_BY.get(w['scope'], 'runs elsewhere')}")
     return JobQueued(
         job=jobs.add_steps(db, body.recording, [{"type": "workflow", "workflow": wid, "version": w["version"]}], by=user.email)
     )

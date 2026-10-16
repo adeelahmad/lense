@@ -21,6 +21,8 @@ merged is called built.
 | The timeline API (`GET /api/v1/activities`), the MCP tools `timeline` and `event_kinds`, the assistant's `timeline` | built |
 | Review marks on the timeline (reviewed, important, hidden), their filters and `mark_activities` ([Timeline](timeline.md)) | built |
 | The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
+| The event workflow scope: what an automation does, drawn with action nodes and tried on an activity (`app/domain/automation_nodes.py`) | built |
+| The decide node (the decision model picks a branch) | planned |
 | The action registry with risk from each action's effect, and one action, `log_line` (`app/domain/actions.py`) | built |
 | Telling a person: the `notify` action and `channels.tell` (their own chat, a notification target, a Matterbridge room) | built |
 | The model and the agent: the `ask_model`, `call_tool` and `ask_agent` actions, and prompts with outside text marked | built |
@@ -369,6 +371,45 @@ titles, for the variable picker):
 | `vars` | the automation's and its namespace's saved variables |
 | `steps` | what each node passed on so far, by node id, such as `steps.n3` |
 
+### The event workflow scope
+
+Built: what an automation does is a workflow of scope `event` (`app/domain/automation_nodes.py`), saved and
+versioned like any workflow (`POST /api/v1/workflows` with `"scope": "event"`). Its `input` node passes on the
+[run context](#run-context), and between the primitives (condition, switch, set, merge, loops...) it has two nodes of
+its own:
+
+- **Action** (`action`, configured `{action, params, delay?, when?}`): one action from the registry. When it runs,
+  it fills its params in from the run context (`"text": "New: {{ event.object.name }}"`; a param that is exactly one
+  `{{ }}` expression keeps its type, so a list stays a list; the action's defaults are filled in first, so a default
+  that is a template, like `ask_agent`'s `about`, is filled in too; a prompt param is rendered with outside text
+  marked, as [The model and the agent](#the-model-and-the-agent) says), works out its effect and risk and makes an
+  [intent](#actions-and-intents). A routine intent is carried out there and then: what it gives back passes on along
+  `out` and goes in `steps.<node id>` for later nodes. One that asks first waits for the person's pick, and one with
+  a `delay` (like `30m`) or a time (`when`, a time or a template giving one) waits for its time: such a node passes
+  nothing on, so the nodes after it are skipped and the run's log says where it stopped and why. An action that
+  fails is marked failed on its node, and the rest of the graph goes on.
+- **Decide** (`decide`, configured `{question, options, input?, min_confidence?}`): the decision model picks one of
+  its options, with an output port per option and `unsure`. Planned with the decision model; until then a decide node
+  is refused when the workflow is saved, as coming soon. Use a condition or switch node.
+
+Checked when it is saved, on every path (create, a new version, a body):
+
+- It needs an action node, each action is one the registry has (`GET /api/v1/automations/actions` will list them)
+  with params that fit its schema, and each template in its params is valid.
+- **The leaf rule:** an action that reaches outside Lens or other people (effect `out`, worked out from its params)
+  or that waits has nothing connected after it, as it can't pass anything on while it waits for a yes or its time.
+- Waiting before an action (`delay`, `when`) is refused as coming soon until timers are built.
+
+Its automation runs it: an event workflow isn't run on an asset, as a pipeline step or as a routine's action, and the
+canvas's list of workflows leaves it out (`GET /api/v1/workflows?scope=event` lists them).
+
+**Try it** with `POST /api/v1/workflows/test` (admins): `{"scope": "event", "graph": ..., "kind": "asset.added"}`
+runs it on that kind's sample, and `"activity": "<id>"` on a real activity you can see. Nothing is kept and nothing is
+sent: each action says what it would do (`would write “New: Call with the school” to the run log`), and `intents`
+lists each one with its params, effect, risk, status (`done`, `waiting`, `scheduled` or `failed`) and what it gave
+back. Text from outside Lens (`lens.untrusted` on the activity, or what a node passed on when its output says
+`untrusted`, like a web page's answer) that reaches an action's params marks its intent `untrusted`.
+
 ### Actions and intents
 
 Built: the registry (`app/domain/actions.py`). An action is registered with `actions.register(ActionSpec(name,
@@ -568,6 +609,8 @@ def _(db, cfg, payload): ...                              # payload + late (true
   channel; web push; private chats through Matterbridge (it can't tell them from rooms); with several people let in,
   "me" is whoever last wrote privately, until each chat user has a Lens account of their own; telling which links in a
   message the person's template wrote, so they stay when the run read outside text.
+- The canvas draws and edits event workflows (today they are saved and tried through the API).
+- An action's outputs in the variable picker, typed from its `output` schema.
 - The model and the agent: per-node model picks in the studio; streaming an agent's steps into the run's log as they
   happen; a namespace assistant's memory for automations (`remember` is left out today); approving an agent's
   proposals from the chat app it told you in; count the automation's own budget once budgets take `automation:<id>`.

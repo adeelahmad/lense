@@ -21439,7 +21439,7 @@ export type WorkflowCreate = {
   /**
    * Scope
    */
-  scope?: "recording" | "graph";
+  scope?: "recording" | "graph" | "event";
 };
 
 /**
@@ -21497,7 +21497,7 @@ export type WorkflowSummary = {
   /**
    * Scope
    *
-   * recording (run by pipelines) or graph (run over namespaces by routines)
+   * recording (run by pipelines), graph (run over namespaces by routines) or event (what an automation does)
    */
   scope?: string;
   /**
@@ -21541,6 +21541,14 @@ export type WorkflowTry = {
    * Steps
    */
   steps: number;
+  /**
+   * Intents
+   *
+   * an automation's workflow: what its action nodes would do (status done: at once; waiting: asks you first; scheduled: waits for its time; failed), with each one's params, effect, risk and what it would give back (result)
+   */
+  intents?: Array<{
+    [key: string]: unknown;
+  }>;
   [key: string]: unknown;
 };
 
@@ -21552,7 +21560,7 @@ export type WorkflowTryRequest = {
   /**
    * Scope
    */
-  scope?: "recording" | "graph";
+  scope?: "recording" | "graph" | "event";
   /**
    * Recording
    *
@@ -21562,9 +21570,21 @@ export type WorkflowTryRequest = {
   /**
    * Namespaces
    *
-   * the namespaces to try a graph workflow over (default: all)
+   * the namespaces to try a graph workflow over, or an automation's workflow in (default: all)
    */
   namespaces?: Array<string>;
+  /**
+   * Activity
+   *
+   * an automation's workflow: the activity to try it on, by its id
+   */
+  activity?: string | null;
+  /**
+   * Kind
+   *
+   * an automation's workflow: try it on this kind of activity's sample
+   */
+  kind?: string | null;
 };
 
 /**
@@ -35123,9 +35143,23 @@ export type SetRecordingContentTypeResponse = SetRecordingContentTypeResponses[k
 export type ListWorkflowsData = {
   body?: never;
   path?: never;
-  query?: never;
+  query?: {
+    /**
+     * Scope
+     */
+    scope?: "recording" | "graph" | "tool" | "event" | null;
+  };
   url: "/api/v1/workflows";
 };
+
+export type ListWorkflowsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListWorkflowsError = ListWorkflowsErrors[keyof ListWorkflowsErrors];
 
 export type ListWorkflowsResponses = {
   /**

@@ -986,6 +986,7 @@ import type {
   ListWorkersData,
   ListWorkersResponses,
   ListWorkflowsData,
+  ListWorkflowsErrors,
   ListWorkflowsResponses,
   LlmProvidersData,
   LlmProvidersResponses,
@@ -8909,12 +8910,12 @@ export class Workflows {
    * List Workflows
    *
    * Saved workflows, plus the nodes a workflow can be built from: the primitives, each scope's own nodes, and the
-   * custom nodes you can use.
+   * custom nodes you can use. Automations' workflows (scope event) are listed only when asked for with scope.
    */
   public static listWorkflows<ThrowOnError extends boolean = false>(
     options?: Options<ListWorkflowsData, ThrowOnError>,
-  ): RequestResult<ListWorkflowsResponses, unknown, ThrowOnError> {
-    return (options?.client ?? client).get<ListWorkflowsResponses, unknown, ThrowOnError>({
+  ): RequestResult<ListWorkflowsResponses, ListWorkflowsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListWorkflowsResponses, ListWorkflowsErrors, ThrowOnError>({
       url: "/api/v1/workflows",
       ...options,
     });
@@ -8940,7 +8941,8 @@ export class Workflows {
    * Try Workflow
    *
    * Run a graph (saved or not) once without keeping anything: what each node passed on, for the canvas. Nodes
-   * that would save something say what they would save; models are still asked.
+   * that would save something say what they would save; models are still asked. An automation's workflow (scope
+   * event) runs on an activity (by id) or a kind's sample, and its actions say what they would do (intents).
    */
   public static tryWorkflow<ThrowOnError extends boolean = false>(
     options: Options<TryWorkflowData, ThrowOnError>,
