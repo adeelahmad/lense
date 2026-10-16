@@ -6948,6 +6948,19 @@ export type HighlightUpdate = {
 };
 
 /**
+ * HookCalled
+ */
+export type HookCalled = {
+  /**
+   * Id
+   *
+   * the webhook.received activity the call made (the same one again for a retried call)
+   */
+  id: string;
+  [key: string]: unknown;
+};
+
+/**
  * HookItem
  */
 export type HookItem = {
@@ -24848,6 +24861,56 @@ export type MarkActivityResponses = {
 };
 
 export type MarkActivityResponse = MarkActivityResponses[keyof MarkActivityResponses];
+
+export type CallAutomationHookData = {
+  body?: unknown;
+  path: {
+    /**
+     * Token
+     */
+    token: string;
+  };
+  query?: never;
+  url: "/api/v1/automations/hooks/{token}";
+};
+
+export type CallAutomationHookErrors = {
+  /**
+   * not a webhook's token, or a signature that doesn't match
+   */
+  401: unknown;
+  /**
+   * the automation is switched off
+   */
+  403: unknown;
+  /**
+   * over 64 KB
+   */
+  413: unknown;
+  /**
+   * neither JSON, a form nor text
+   */
+  415: unknown;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+  /**
+   * over 60 calls a minute to this webhook
+   */
+  429: unknown;
+};
+
+export type CallAutomationHookError = CallAutomationHookErrors[keyof CallAutomationHookErrors];
+
+export type CallAutomationHookResponses = {
+  /**
+   * Successful Response
+   */
+  202: HookCalled;
+};
+
+export type CallAutomationHookResponse = CallAutomationHookResponses[keyof CallAutomationHookResponses];
 
 export type RemoveBudgetData = {
   body?: never;

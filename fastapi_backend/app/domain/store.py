@@ -1267,6 +1267,10 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS event_cursor SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS event_claim SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS event_claim_at ON event_claim FIELDS at",
+    # an automation trigger's webhook (domain/automation_hooks.py): automation_hook:<n>, the token kept only as a hash
+    "DEFINE TABLE IF NOT EXISTS automation_hook SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS automation_hook_token ON automation_hook FIELDS token_hash UNIQUE",
+    "DEFINE INDEX IF NOT EXISTS automation_hook_automation ON automation_hook FIELDS automation",
     # timers (domain/timers.py, docs/automations.md, Time): timer:<hash of key>, what runs when, for which automation
     "DEFINE TABLE IF NOT EXISTS timer SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS timer_due ON timer FIELDS status, at",

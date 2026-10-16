@@ -15,7 +15,7 @@ merged is called built.
 | New assets by kind: emails received, calendar events, files from storage, uploads, pages saved from the web, imports | built |
 | Runs that finished or failed, deletions and calendar events that moved | built |
 | Comments, notes written and saved, and changes to the entity graph | built |
-| More kinds: sensors, chat, webhooks, system events | planned |
+| More kinds: sensors, chat, system events | planned |
 | The timeline API (`GET /api/v1/activities`), the MCP tools `timeline` and `event_kinds`, the assistant's `timeline` | built |
 | Review marks on the timeline (reviewed, important, hidden), their filters and `mark_activities` ([Timeline](timeline.md)) | built |
 | The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
@@ -24,11 +24,13 @@ merged is called built.
 | The model and the agent: the `ask_model`, `call_tool` and `ask_agent` actions, and prompts with outside text marked | built |
 | Calling a web address: the `http_request` action, with credentials in headers kept sealed | built |
 | Running Lens work: the `run_workflow`, `run_pipeline` and `run_routine` actions | built |
+| Changing assets and writing notes: the `set_field`, `add_to_collection` and `write_note` actions | built |
 | Settings → Automations: how often followers look, how long the event log is kept, and how late a timer may fire | built |
+| A webhook address per automation trigger, and calls to it as `webhook.received` ([Webhook trigger](#webhook-trigger)) | built |
 | Timers that outlast a restart and fire once across the API and the worker (`app/domain/timers.py`, [Time](#time)) | built |
 | Schedule, `at` and `relative` triggers, and actions that wait ([Time](#time)) | planned |
 | The Timeline page with filters, grouping, review keys and new items, and Home's Latest card ([Timeline](timeline.md)) | built |
-| Storing and running automations, joins, the other actions, approvals, variables, the studio | planned |
+| Storing and running automations, joins, approvals, variables, the studio | planned |
 
 ## Contract
 
@@ -102,6 +104,7 @@ and the paths holding outside text are in `GET /api/v1/activities/kinds` (`event
 | `note.created` | | `note_pages` | a `Page`: `summary`, `about` (what it's the page of), `place`, `author` (person or assistant) | Assistant wrote the note “St Mary's School” |
 | `note.saved` | | `note_versions` | as `note.created`, with `version` (the page as it was before) and `why` | Sam edited the note “School trip plans” |
 | `entity.changed` | | `graph` | `op` (created, renamed, merged, split, linked, unlinked, deleted, rolled back, changed), `change` (the graph's own op), `entityType`, `before` (a renamed entity's name), `version`, `count`; tagged with its entities | Sam renamed “St Marys” to “St Mary's School” |
+| `webhook.received` | | `log` | `{type: Note, hook: the webhook's id, payload: what was sent (JSON, a form's fields or text), content_type, query}`; the actor is the webhook (`Service`, `lens:automation_hook/<id>`, "Webhook for <automation>") | Webhook for Front door was called |
 
 A new asset is one activity, of the most specific kind its row tells, decided by its content type and where it came
 from, never by reading its file: an email (content type email, or from an IMAP or Gmail mailbox), a calendar event
@@ -266,6 +269,41 @@ gives a cleaned copy, or a ValueError naming the first problem.
 - `check_policy(p, nodes, allow_auto=False)`: `{action node id: ask or auto}`. Only a person in a signed-in session
   lets a node run on its own; everywhere else (agents, drafts, the workflow API) `auto` is refused.
 
+### Webhook trigger
+
+Built (`app/domain/automation_hooks.py`, `POST /api/v1/automations/hooks/{token}`). A trigger `{"on": "webhook"}`
+is a secret address anything that can send HTTP calls to set the automation off: Home Assistant's `rest_command`, a
+phone shortcut, another service. No webhook exists until an automation with such a trigger is saved.
+
+- `automation_hooks.token_for(db, cfg, automation_id, alias, signed=False)` makes the hook for one trigger when the
+  automation is saved: `{"hook": id, "url": address, "path": address without the server, "secret": signing secret}`.
+  The address and secret are shown this once; the row (`automation_hook {automation, alias, token_hash, secret,
+  signed, created_at, last_called_at, calls}`) keeps only the token's hash and the secret sealed with the server's
+  key. Calling it again for the same trigger replaces the hook, and the old address stops working. The trigger keeps
+  the hook's id in `hook`. `automation_hooks.revoke(db, hook)` deletes it (when the trigger or the automation goes);
+  `for_automation(db, id)` lists an automation's hooks.
+- A call needs only the token in the address (`lah_...`). It takes JSON, a form (text fields; files are refused) or
+  text, up to 64 KB, at most 60 calls a minute per hook (in the API process; 429 with `Retry-After` past it), and
+  answers 202 `{"id": activity}` at once. 401 for a token that isn't a hook's, 403 while the automation is switched
+  off, 413 over 64 KB, 415 for anything but JSON, a form or text.
+- What was sent becomes a `webhook.received` activity in the event log, with the payload, its content type and the
+  query as outside text. Its namespace is the automation's (admins see it while the automation isn't stored).
+- Signed calls: a caller that signs the Standard Webhooks way (`webhook-id`, `webhook-timestamp` in seconds,
+  `webhook-signature: v1,<base64 HMAC-SHA256 of "<id>.<timestamp>.<body>">` keyed with the secret, as Lens signs its
+  own [notification webhooks](notifications.md#webhooks)) has the signature checked, and the time must be within five minutes.
+  A hook made with `signed=True` refuses calls that aren't signed. A call naming its message (`webhook-id`, or an
+  `Idempotency-Key` header) is logged once however often the sender retries it.
+- In Docker the API runs no background work, so the worker's automations see the call on their next look (5
+  seconds, `events.poll_seconds`).
+
+Lens has three kinds of webhook address; they don't share tokens or do each other's jobs:
+
+| Address | Made by | What a call does |
+| --- | --- | --- |
+| `POST /api/v1/automations/hooks/{token}` | saving an automation with a webhook trigger | sets that automation off with what was sent (`webhook.received`); nothing is kept but the activity |
+| `POST /api/v1/sensors/push/{token}` ([Sensors](sensors.md)) | an admin adding a webhook sensor | keeps readings (numbers, on/off, text) for charts, with the sensor's handling |
+| `POST /api/v1/hooks/import/{token}` ([Import webhooks](api.md#import-webhooks)) | a namespace's owner | imports files, web pages or text as assets |
+
 ### Run context
 
 What an automation's If, its nodes and its templates see (`automation_spec.context_paths()` lists the keys, with
@@ -331,6 +369,9 @@ or removed does nothing. What it writes is by the automation itself, `automation
 | `run_workflow` | runs a recording `workflow` (its published `version`, or the one named) on an `asset` as a job | lens | `{job, workflow, version, asset}` |
 | `run_pipeline` | processes an `asset` again with a `pipeline` (or the one its namespace uses), keeping its outputs | lens | `{job, pipeline, asset}` |
 | `run_routine` | asks the scheduler to run a `routine` now (`propose_only` to only propose its changes) | lens, so it asks | `{routine, requested, propose_only}` |
+| `set_field` | sets one of an `asset`'s custom fields (`field`: its id or label) to `value` (empty clears it) | lens | `{asset, field, label, value, changed}` |
+| `add_to_collection` | moves an `asset` into a `collection` of its namespace | lens | `{asset, collection, name, moved, newly_see}` |
+| `write_note` | writes `text` (Markdown) `on` a notebook `page` (with a `title`, `about` a thing, in a `namespace`) or on an `asset` (`shared` or not) | self for a private note on an asset, else lens | `{on, page or note, added, url}` |
 
 #### Telling a person
 
@@ -393,6 +434,23 @@ namespace, queue a job (after whatever the asset's job still has to do) that sho
 on the job's id. `run_routine` asks the scheduler to start a routine's run within half a minute, as Run in Settings
 does: routines are an admin's, the routine must work only in the automation's namespaces, a run over one of its budgets
 is refused, and it always asks first. The run's id shows in the routine's runs.
+
+#### Changing assets and writing notes
+
+`set_field` and `add_to_collection` take an `asset` like the Run actions and need the automation's person to be able
+to edit assets in that namespace. A field's change goes in the asset's metadata history as by "automation: <name>", so
+it can be reverted like any edit, and both are in the audit log. Moving an asset into a collection also shows it to the
+people given a role on that collection: when that would let someone see it who can't now, the action never does it
+on its own (it fails, naming them) and moves it only once you approved it.
+
+`write_note` writes a notebook page in the namespace of what it is `about` (an asset, entity, topic, collection or
+speaker, which has one page each: a second note about it goes at that page's end, its history keeping the rest), or
+the one named, or the automation's only namespace; the page is written by the automation. `on: asset` writes a note on
+the asset instead, as yours: a private one (the default) only you see, so it runs at once, while a `shared` one
+everyone who reads the asset sees.
+
+Calendar events aren't written: Lens signs in to Google Calendar read-only, and writing needs a new consent. Meanwhile
+the agent can draft an event as a note.
 
 ## Time
 
@@ -473,3 +531,8 @@ def _(db, cfg, payload): ...                              # payload + late (true
   API sets a timer, rather than within a minute.
 - Running Lens work: a routine run's id passed on (today the scheduler starts it later); waiting for the job and passing
   on its outputs; roles on collections counting for `process`; running a pipeline on every asset a join collected.
+- Changing assets: asking first instead of failing when a move would show an asset to new people (risk that reads the
+  database); fields on collections and files; tags; roles on collections counting for `edit`.
+- Writing calendar events (a new Google consent, so it changes existing installs).
+- Webhook trigger: signed answers to the caller (what the run did); a rate limit shared by every API process (today
+  each counts its own); showing a hook's last call in the studio.
