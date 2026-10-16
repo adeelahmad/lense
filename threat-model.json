@@ -1039,7 +1039,7 @@
       "property": "P-AUTOMATION-APPROVAL",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",
-      "conditions": "an automation's action that asks first waits as an approval of the automation's person and nothing runs until they pick; approving, editing or always need them signed in (API keys, apps, MCP and the assistant only list and decline); a decision is claimed once; at most 100 wait per automation, each tells the person once, and undecided ones expire after automations.approval_days",
+      "conditions": "an automation's action that asks first waits as an approval of the automation's person and nothing runs until they pick; approving, editing or always need them signed in, or (approving an action inside Lens) a yes in the private chat they were told in, from someone the channel lets approve, while it is the only one waiting there or named by number (API keys, apps, MCP and the assistant only list and decline); a decision is claimed once; at most 100 wait per automation, each tells the person once, and undecided ones expire after automations.approval_days",
       "provenance": "documented",
       "source": "docs/automations.md \"Approvals\""
     },

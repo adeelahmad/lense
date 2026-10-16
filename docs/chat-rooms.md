@@ -119,7 +119,10 @@ That's all. Without an account given, it answers as the admin who turned it on.
   several waiting, "yes all" or "yes 12". Only the chat usernames listed may message Lens and approve, so it needs
   that list; **Approving in the room: only in the web app** turns it off. Settings, imports, batch runs, extensions
   and forgetting are always approved in the web app. Each approval is in the audit log with "via chat room" and who
-  said yes. Without a list, anyone in the room may be someone the account doesn't vouch for, so their messages count
+  said yes. An [automation's action](automations.md#approvals) that changes something inside Lens is approved the same
+  way, in the private chat it told you about it in, when it's the only thing waiting there (or by its number); one
+  that reaches outside Lens or other people is approved on its card in Lens, and "no" declines either.
+  Without a list, anyone in the room may be someone the account doesn't vouch for, so their messages count
   as text from outside Lens: web tools and other servers' tools wait for approval in the web app too
   ([third-party content](assistant.md#third-party-content-and-prompt-injection)).
 - **Links it can't be made to send.** Slack, Telegram, WhatsApp and most chat apps open the links in a message to

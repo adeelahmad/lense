@@ -334,8 +334,9 @@ def where(ch, r):
 
 def tell(db, cfg, account, text, links=()):
     """Tell `account`'s own person `text` in their chat apps: through each channel that answers as that account, in the
-    private chat it last had with someone it vouches for (routes()). Web addresses in it are broken up as a room's
-    answers' are (bridge.safe_links) unless they are in `links` (what the person or Lens wrote) or Lens's own.
+    private chat it last had with someone it vouches for (routes()). `text` may be fn(channel, its view, its
+    chat_route) giving the text for that chat. Web addresses in it are broken up as a room's answers' are
+    (bridge.safe_links) unless they are in `links` (what the person or Lens wrote) or Lens's own.
     Returns {sent: [{channel, label, chat, conversation, target}], failed: [{channel, error}], error}, `error` saying
     why nothing was sent (NOT_LINKED when no channel can reach them)."""
     from . import bridge
@@ -345,7 +346,8 @@ def tell(db, cfg, account, text, links=()):
     for ch, v, r in found:
         error = None
         try:
-            ch.send(v, r["target"], bridge.safe_links(v, db, text, links))
+            said = text(ch, v, r) if callable(text) else text
+            ch.send(v, r["target"], bridge.safe_links(v, db, said, links))
         except (ChannelError, RuntimeError, OSError, ValueError) as e:
             error = str(e) or type(e).__name__
             failed.append({"channel": ch.key, "error": error})
