@@ -33,10 +33,12 @@ merged is called built.
 | A webhook address per automation trigger, and calls to it as `webhook.received` ([Webhook trigger](#webhook-trigger)) | built |
 | Timers that outlast a restart and fire once across the API and the worker (`app/domain/timers.py`, [Time](#time)) | built |
 | The timers behind schedule, `at` and `relative` triggers, the `clock.tick` kind and what's coming ([Time](#time)), set when an automation is saved | built |
-| Actions that wait (`delay`, `when`) ([Time](#time)) | planned |
+| Actions that wait (`delay`, `when`): kept as timers, carried out at their time, asking first when they should then ([Time](#time)) | built |
 | The Timeline page with filters, grouping, review keys and new items, and Home's Latest card ([Timeline](timeline.md)) | built |
+| Approvals: an automation's action that asks first waits for your pick (approve, decline, edit, allow from now on), told once in your chat app, capped and expiring (`app/domain/approvals.py`) | built |
+| The Approvals page and its badge, a yes in your chat app, approval activities and notifications, agents' approval tools | planned |
 | Saving automations: checks, namespaces, switching on and off, delete and restore, the policy, the API (`app/domain/automations.py`) | built |
-| Running automations, joins, approvals, variables, the studio | planned |
+| Running automations, joins, variables, the studio | planned |
 
 ## Contract
 
@@ -423,7 +425,8 @@ Checked when it is saved, on every path (create, a new version, a body):
   with params that fit its schema, and each template in its params is valid.
 - **The leaf rule:** an action that reaches outside Lens or other people (effect `out`, worked out from its params)
   or that waits has nothing connected after it, as it can't pass anything on while it waits for a yes or its time.
-- Waiting before an action (`delay`, `when`) is refused as coming soon until timers are built.
+- Waiting before an action takes a `delay` (more than 0, like `30m`) or a `when` (a time, or a template giving one),
+  not both; it is kept as a timer ([Actions that wait](#actions-that-wait)).
 
 Its automation runs it: an event workflow isn't run on an asset, as a pipeline step or as a routine's action, and the
 canvas's list of workflows leaves it out (`GET /api/v1/workflows?scope=event` lists them).
@@ -565,6 +568,53 @@ everyone who reads the asset sees.
 Calendar events aren't written: Lens signs in to Google Calendar read-only, and writing needs a new consent. Meanwhile
 the agent can draft an event as a note.
 
+## Approvals
+
+Built: everything that waits for your pick is an approval in one table (`app/domain/approvals.py`): the assistant's
+proposals in a conversation, as before, and an automation's actions that ask first. When an action node's intent asks
+(its effect is `out`, or `lens` on anything but the event's own object), the engine hands it to
+`approvals.ask(db, cfg, intent, event=None)`, which keeps:
+
+| Field | |
+| --- | --- |
+| `origin` | `{automation, run, node}`: the run that asked (null for the assistant's own approvals) |
+| `intent` | the intent, with the params as the run filled them in |
+| `summary`, `automation`, `why` | what it would do (the action's `describe`), the automation's name, and the activity that caused it (`{activity, kind, summary, published, url}`) |
+| `account`, `space` | the automation's person, whose pick it is, and the namespace it is about |
+| `expires_at` | when it expires: `automations.approval_days` (7) after it asked |
+| `told` | the chats you were told in |
+| `status` | `pending` (waiting), `running`, `done`, `failed`, `declined` or `expired`; `decided_by`, `decided_at`, `result`, `error` |
+
+You are told once, in your own chat app when one is linked ([Telling a person](#telling-a-person)): "School emails
+wants to post in the Matterbridge gateway family: “Trip on Friday”. Open <link> to decide." The link opens the approval
+in Lens. Handing the same intent over again gives the same approval. At most 100 wait for one automation: past that its
+intents are dropped, and the run says so, so a flood of activities can't bury your inbox or your chat.
+
+Deciding (`POST /api/v1/approvals/{aid}`):
+
+- `approve` carries the intent out through `actions.perform`, for its person and as the automation (what it writes is
+  by `automation:<id>`, model calls count in the activity ledger under the run, and what it causes carries the run as
+  its cause). Its outcome, `done` with what it gave back or `failed` with why, goes on the approval and on the run.
+- `decline` does nothing, and the run says it was declined.
+- `edit` with `params` changes them first (a param given as null is left out), checked against the action's schema;
+  what the run filled in from a template stays as it is now. A credential header shows as `••••`, and given back as
+  `••••` it keeps its sealed value.
+- `always` approves it, then lets that action node run without asking from now on (the automation's policy, `auto`).
+  Only an action that reaches outside Lens or other people asks each time, so only those can be allowed.
+
+Approving, editing and `always` are yours: signed in to Lens, on the approval's card. An API key, an app, MCP and the
+assistant can list and decline approvals, never approve them, since approving is the person's pick; each approval's
+`can` says what the caller may do with it. This is the one place where an agent can't do what you can. The
+assistant's own approvals in a conversation are decided as before.
+
+Undecided approvals expire after `automations.approval_days` (Settings → Automations, 1–365, default 7): a sweep
+called from the scheduler once an hour marks them `expired`, nothing runs, and the run says so. The assistant's own
+approvals don't expire.
+
+The inbox reads `GET /api/v1/approvals` (newest first; `status`, `origin=automation|chat`, `automation`, `chat_id`,
+and `before` with `limit` to page), `GET /api/v1/approvals/{aid}` and `GET /api/v1/approvals/count` (`{waiting,
+automations}`, for a badge).
+
 ## Time
 
 Time is a trigger and a step: "every weekday at 7:00", "at 9:00 on the 20th", "30 minutes before a calendar event",
@@ -636,6 +686,30 @@ timers.clock_state(db, automation)           # each schedule and at trigger: wai
   at 16:30 (UTC)"; `untrusted` says the description quotes outside text (the event's title). The builder previews a
   schedule with `GET /api/v1/routines/schedule`, which now reads weekdays, single days and days of the month in
   words too ("every weekday at 07:00", "at 09:00 on the 20th of every month").
+
+### Actions that wait
+
+Built as timers; the automation's run hands them over once automations are stored. An action node with a `delay`
+(`2h`) or a `when` (a time, or a template giving one) makes an intent with that time and status `scheduled`, and
+`timers.later(db, intent)` keeps it as the timer `intent-<intent key>` (its run and node, like `intent-51-n7`), giving
+back `{timer, at}` to keep with the intent. The run's page shows it as "scheduled for 18:22".
+
+When its time comes, its risk is worked out again (`timers.risk_now`) from the automation as it is then, not as it
+was when the run made the intent:
+
+- `read` and `self` run on their own.
+- `lens` runs on its own only if it did when the run made it (the event's own object) and its namespaces are still
+  the automation's.
+- `out` runs on its own only while the person still has that node set to run on its own; otherwise it asks.
+- The action's own check may only make it stricter. The effect is the stricter of the intent's and what its params
+  give now.
+
+A routine one is carried out through `actions.perform` as the automation (its person's permissions as they are then),
+inside its run's cause (what it makes carries `lens.cause`, for the loop guard) and its ledger scope
+(`automation:<id>`, `automation_run:<run>`). One that should ask becomes an approval (`approvals.ask`, once approvals
+are built; until then it waits, saying why). The run hears of each step through `automations.update_intent`: done
+with what it gave back, failed with why, waiting, or expired when the automation was switched off or removed first,
+the timer was cancelled, or Lens was off past the catch-up window.
 
 ## Saving automations
 
@@ -722,7 +796,7 @@ and what it gives back.
 - Calling a web address: secrets in the address itself (a Slack or Discord webhook URL) sealed like headers; PATCH and
   DELETE (DELETE would count as deleting); OAuth sign-in for an API; form-encoded bodies; retries with backoff;
   networks allowed for automations apart from notifications.
-- Time: calendar-aware schedules ("first workday of the month", holidays); sunrise and sunset triggers; an all-day
+- Time: an action that waits shown in the person's time zone in `upcoming` (today UTC); calendar-aware schedules ("first workday of the month", holidays); sunrise and sunset triggers; an all-day
   event's date in the person's time zone rather than UTC; upcoming relative timers in the person's time zone; an
   event that's cancelled calling off its relative timers; the timeline's kind filter leaving out `clock.tick`, which
   is never stored; sub-second timers woken by `events.wake()` alone; telling the other process (the worker) at once when the
@@ -747,3 +821,6 @@ and what it gives back.
   new address for a trigger without saving it again.
 - Lens itself: a run held over budget, waiting for someone's pick, as an activity of its own; backups taken before
   upgrades or with `lens backup` (only those from Settings, the API and the schedule are activities today).
+- Approvals: a cost estimate on actions that ask (a run on another asset could say what it would cost); buttons in
+  Telegram and Slack; approvals that need two people; one card for many alike ("approve all 12"); trying a failed one
+  again; expiring an automation's approvals when it is removed.

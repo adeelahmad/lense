@@ -622,9 +622,10 @@ DEFAULTS = {
     # the stream of activities automations follow (docs/automations.md): keep_days: how long activities with no row
     # of their own (the event log) are kept; poll_seconds: how often followers look when nothing wakes them
     "events": {"keep_days": 30, "poll_seconds": 5},
-    # automations (docs/automations.md): catch_up: how late a timer (a schedule, a waiting action) may still fire
-    # after Lens was off; older ones are missed
-    "automations": {"catch_up": "1h"},
+    # automations (docs/automations.md): approval_days: how long an automation's action waits for your pick before it
+    # expires and nothing runs; catch_up: how late a timer (a schedule, a waiting action) may still fire after Lens
+    # was off; older ones are missed
+    "automations": {"approval_days": 7, "catch_up": "1h"},
     # database backups (docs/database.md, Backups): schedule is a cron expression in timezone, or none (the default)
     # for none; the newest `keep` scheduled backups are kept. connection: a storage connection (sources.py) every new
     # backup is also copied to, under folder, encrypted with a key from secret.key first (none: kept here only)
@@ -1502,6 +1503,10 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS job_batch ON job FIELDS batch",
     "DEFINE TABLE IF NOT EXISTS approval SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS approval_chat ON approval FIELDS chat",
+    # the inbox (approvals.py): a person's waiting approvals, an automation's (capped), and the expiry sweep
+    "DEFINE INDEX IF NOT EXISTS approval_waiting ON approval FIELDS account, status",
+    "DEFINE INDEX IF NOT EXISTS approval_automation ON approval FIELDS origin.automation",
+    "DEFINE INDEX IF NOT EXISTS approval_expires ON approval FIELDS expires_at",
     # the scheduled backup (domain/backups.py): backup_schedule:next holds when it's next due and how the last went
     "DEFINE TABLE IF NOT EXISTS backup_schedule SCHEMALESS",
     # backup_remote:last: how copying the last backup to backups.connection went

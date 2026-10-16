@@ -1396,8 +1396,18 @@ POST   /api/v1/chats/{cid}/messages
 POST   /api/v1/chats/{cid}/stop
 POST   /api/v1/chats/{cid}/messages/{mid}/check
 GET    /api/v1/approvals
+GET    /api/v1/approvals/count
+GET    /api/v1/approvals/{aid}
 POST   /api/v1/approvals/{aid}
 ```
+
+`GET /approvals` lists what waits for your pick and what became of it, newest first: the assistant's proposals and
+automations' actions ([Approvals](automations.md#approvals)); filter by `status`, `origin` (`automation` or `chat`),
+`automation` or `chat_id`, and page with `before` (the last id of the page before) and `limit`. `/approvals/count`
+gives `{waiting, automations}`. `POST /approvals/{aid} {decision, params?}` decides one: `approve`, `sample` (a batch
+run on 3 assets first), `decline`, `edit` (an automation's action with `params` changed) or `always` (approved, and
+that node runs without asking from now on). Approving, editing and `always` on an automation's action need a signed-in
+session (403 for an API key or an app); each approval's `can` says what you may do with it.
 
 `GET /chats/capabilities` tells anyone signed in whether a language model is set up (`configured`), which (`model`),
 whether it uses tools (`tools`, `max_steps`), whether answers can be checked (`check`) and the `models` people may pick

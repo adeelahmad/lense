@@ -81,6 +81,7 @@ describe("finding a setting", () => {
     expect(fieldsOf("automations").map((f) => fieldId(f))).toEqual([
       "events.poll_seconds",
       "events.keep_days",
+      "automations.approval_days",
       "automations.catch_up",
     ]);
     expect(findSettings("missed", true).some((h) => h.section === "automations")).toBe(true);
