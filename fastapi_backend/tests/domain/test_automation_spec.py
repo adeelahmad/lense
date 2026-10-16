@@ -136,6 +136,7 @@ def test_if_policy_and_context():
         "namespace",
         "user",
         "now",
+        "now_local",
         "timezone",
         "vars",
         "steps",

@@ -112,6 +112,11 @@ def neutral(text):
     return _CONTROL.sub(lambda m: "< " if m.group(0) == "<" else "[ " if m.group(0) == "[" else " >", text)
 
 
+def visible(text):
+    """`text` without the invisible tag characters that would smuggle instructions to a model that reads it later."""
+    return _HIDDEN.sub("", text or "")
+
+
 def check(cfg):
     """How text is checked for instructions to an AI: patterns (free, the default), classifier, model, or off."""
     got = ((cfg or {}).get("ai") or {}).get("injection_check") or "patterns"
@@ -196,6 +201,86 @@ def wrap(text, source, cfg=None, why=None):
     warn = f' warning="reads like instructions to an AI: {_source("; ".join(why), 240)}"' if why else ""
     code = secrets.token_hex(4)
     return f'<{TAG}-{code} source="{_source(source)}"{warn}>\n{neutral(text)}\n</{TAG}-{code}>'
+
+
+MARKER_RX = re.compile(rf"</?{TAG}-[0-9a-f]{{8}}(?: [^<>\n]*)?>")  # a marker wrap wrote (neutral breaks up look-alikes)
+
+
+class Marked(str):
+    """Outside text marked as data (`wrap`), as a template sees it. Written out, joined or formatted, it carries its
+    markers. Compared, tested (`in`), measured, sliced, or given to a filter or a string method (templates.py), it is
+    its own words, and what comes of it is marked again with the same source and warning (`_again`). Its attributes
+    start with _ so the sandbox keeps templates from reading the words unmarked."""
+
+    def __new__(cls, text, source, why=()):
+        text = neutral(text)
+        why = list(why)
+        warn = f' warning="reads like instructions to an AI: {_source("; ".join(why), 240)}"' if why else ""
+        code = secrets.token_hex(4)
+        self = super().__new__(cls, f'<{TAG}-{code} source="{_source(source)}"{warn}>\n{text}\n</{TAG}-{code}>')
+        self._text, self._source, self._why = text, source, why
+        return self
+
+    def __reduce__(self):
+        return (_restore, (str(self), self._text, self._source, self._why))
+
+    def _again(self, value):
+        """`value`, made of these words, marked like them: text, or the text in a list or dict."""
+        if isinstance(value, Marked):
+            return value
+        if isinstance(value, str):
+            return Marked(value, self._source, self._why)
+        if isinstance(value, (list, tuple)):
+            return [self._again(x) for x in value]
+        if isinstance(value, dict):
+            return {k: self._again(x) for k, x in value.items()}
+        if hasattr(value, "__next__"):  # what select, map and unique give
+            return (self._again(x) for x in value)
+        return value
+
+    def __eq__(self, other):
+        return self._text == (other._text if isinstance(other, Marked) else other)
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash(self._text)
+
+    def __lt__(self, other):
+        return self._text < (other._text if isinstance(other, Marked) else other)
+
+    def __le__(self, other):
+        return self._text <= (other._text if isinstance(other, Marked) else other)
+
+    def __gt__(self, other):
+        return self._text > (other._text if isinstance(other, Marked) else other)
+
+    def __ge__(self, other):
+        return self._text >= (other._text if isinstance(other, Marked) else other)
+
+    def __contains__(self, x):
+        return (x._text if isinstance(x, Marked) else x) in self._text
+
+    def __len__(self):
+        return len(self._text)
+
+    def __getitem__(self, k):
+        return self._again(self._text[k])
+
+
+def _restore(content, text, source, why):
+    m = str.__new__(Marked, content)
+    m._text, m._source, m._why = text, source, why
+    return m
+
+
+def mark(text, source, cfg=None, why=None):
+    """`text` as a template in a prompt reads it: Marked (wrap's markers, its words for tests and filters), with a
+    warning when it reads like instructions to an AI; as it was when marking is off."""
+    if cfg is not None and not enabled(cfg):
+        return text or ""
+    return Marked(text or "", source, flags(text, cfg) if why is None else why)
 
 
 def rules(cfg=None):

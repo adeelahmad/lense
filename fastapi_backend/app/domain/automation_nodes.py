@@ -29,15 +29,14 @@ import datetime as dt
 import importlib
 import re
 
-from . import actions, automation_spec, flow, store, templates
+from . import actions, automation_spec, flow, templates, variables
 
 OWN_NODES = ("action", "decide")
 CONFIG = {"action": {"action", "params", "delay", "when"}, "decide": {"question", "options", "input", "min_confidence"}}
 NEEDS = "an automation's workflow needs an action node, or it does nothing"
-WHOLE_RX = re.compile(r"^\{\{\s*([^{}]+?)\s*\}\}$")
 NAMES_RX = re.compile(r"\{[{%](.*?)[%}]\}", re.S)
 WORD_RX = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
-READS = {"event", "events", "steps"}  # context keys that can hold text from outside Lens
+READS = {"event", "events", "steps", "vars"}  # context keys that can hold text from outside Lens
 
 
 def _templated(v):
@@ -101,12 +100,17 @@ def check_config(db, nid, t, cfg):
         actions.check_params(spec, cfg.get("params"))
     except ValueError as e:
         raise ValueError(f"action node {nid}: {e}") from None
-    for s in _strings(cfg.get("params") or {}):
-        if _templated(s):
-            try:
-                templates.check(s)
-            except templates.TemplateProblem as e:
-                raise ValueError(f"action node {nid}: {e}") from None
+    prompts = set(actions.prompt_params(spec))
+    for k, v in (cfg.get("params") or {}).items():
+        try:
+            if k in prompts:
+                variables.check_prompt(db, v)  # its template, or the saved prompt template it names
+                continue
+            for s in _strings(v):
+                if _templated(s):
+                    templates.check(s)
+        except (templates.TemplateProblem, ValueError) as e:
+            raise ValueError(f"action node {nid}: {k}: {e}") from None
     delay, when = cfg.get("delay"), cfg.get("when")
     if delay is not None and when is not None:
         raise ValueError(f"action node {nid}: wait for a delay or until a time (when), not both")
@@ -182,46 +186,23 @@ def _z(d):
 
 
 def context(db, cfg, automation, run, trigger, event, events, user, now=None):
-    """The run context (docs/automations.md, Run context). `automation` is {id, name, version, spaces} (spaces None:
-    every namespace), `run` {id, dry}, `trigger` {as, on, timezone?}, `user` the account the automation acts for. The
-    variables module builds it when it is there; until then this gives the same keys, with no saved variables."""
-    from . import events as ev
-
-    build = provided("variables", "context")
-    if build is not None:
-        return build(db, cfg, automation, run, trigger, event, events, user)
-    spaces = automation.get("spaces")
-    names = store.space_names(db)
-    here = [s for s in ev.spaces_of(event or {}) if spaces is None or s in spaces]
-    sid = here[0] if here else (sorted(spaces)[0] if spaces else None)
-    return {
-        "event": event or {},
-        "events": dict(events or {}),
-        "trigger": {"as": trigger.get("as"), "on": trigger.get("on")},
-        "automation": {
-            "id": automation.get("id"),
-            "name": automation.get("name"),
-            "version": automation.get("version"),
-            "spaces": None if spaces is None else sorted(spaces),
-        },
-        "run": {"id": run.get("id"), "dry": bool(run.get("dry"))},
-        "namespace": {"id": sid, "name": names.get(sid)} if sid is not None else None,
-        "user": {"id": (user or {}).get("id"), "name": (user or {}).get("name"), "email": (user or {}).get("email")},
-        "now": _z(now or dt.datetime.now(dt.timezone.utc)),
-        "timezone": trigger.get("timezone") or "UTC",
-        "vars": {},
-        "steps": {},
-    }
+    """The run context (docs/automations.md, Run context): variables.context. `automation` is {id, name, version,
+    spaces} (spaces None: every namespace), `run` {id, dry}, `trigger` {as, on, timezone?}, `user` the account the
+    automation acts for."""
+    return variables.context(db, cfg, automation, run, trigger, event, events, user, now=now)
 
 
 def untrusted(ctx):
-    """Whether the run read text from outside Lens: an activity it started from marks some of its fields untrusted, or
-    a node that ran passed on outside text (its output says `untrusted`, like a web page's answer)."""
+    """Whether the run read text from outside Lens: an activity it started from marks some of its fields untrusted, a
+    node that ran passed on outside text (its output says `untrusted`, like a web page's answer), or a saved variable
+    was set from outside text."""
     acts = [ctx.get("event") or {}, *((ctx.get("events") or {}).values())]
     for a in acts:
         for x in a if isinstance(a, list) else [a]:
             if isinstance(x, dict) and ((x.get("lens") or {}).get("untrusted")):
                 return True
+    if getattr(ctx.get("vars"), "_outside", None):  # a saved variable an earlier run set from outside text
+        return True
     return any(isinstance(out, dict) and out.get("untrusted") for out in (ctx.get("steps") or {}).values())
 
 
@@ -236,59 +217,15 @@ def _reads_outside(params, ctx):
     return False
 
 
-def render(value, ctx, where="params"):
-    """Params with their templates filled in from the run context: a string that is exactly one expression keeps its
-    type (a list stays a list), others render as text (templates.render_body, sandboxed). The variables module renders
-    when it is there."""
-    fn = provided("variables", "render")
-    if fn is not None:
-        return fn(value, ctx, untrusted_paths(ctx))
-    return _render(value, ctx, where)
+def render(value, ctx, where=""):
+    """Params with their templates filled in from the run context (variables.render): a string that is exactly one
+    expression keeps its type (a list stays a list), others render as text, sandboxed. ValueError naming `where`."""
+    return variables.render(value, ctx, untrusted_paths(ctx), where)
 
 
 def untrusted_paths(ctx):
-    """The run context's paths that hold outside text: each activity's `lens.untrusted`, under event and events."""
-    out = []
-    ev = ctx.get("event") or {}
-    out += [f"event.{p}" for p in (ev.get("lens") or {}).get("untrusted") or []]
-    for alias, a in (ctx.get("events") or {}).items():
-        if isinstance(a, dict):
-            out += [f"events.{alias}.{p}" for p in (a.get("lens") or {}).get("untrusted") or []]
-    return out
-
-
-def _render(value, ctx, where):
-    if isinstance(value, dict):
-        return {k: _render(v, ctx, f"{where}.{k}") for k, v in value.items()}
-    if isinstance(value, list):
-        return [_render(v, ctx, f"{where}.{k}") for k, v in enumerate(value)]
-    if not _templated(value):
-        return value
-    whole = WHOLE_RX.match(value.strip())
-    try:
-        if whole:
-            return _expression(whole.group(1), ctx)
-        return templates.render_body(value, ctx, "prompt")
-    except templates.TemplateProblem as e:
-        raise ValueError(f"{where}: {e}") from None
-
-
-def _expression(expr, ctx):
-    """One `{{ }}` expression's value, its type kept."""
-    from jinja2 import TemplateSyntaxError, Undefined
-    from jinja2.exceptions import SecurityError, UndefinedError
-
-    try:
-        got = templates._env(False).compile_expression(expr, undefined_to_none=False)(**ctx)
-    except SecurityError as e:
-        raise templates.TemplateProblem(f"not allowed in templates: {e}") from None
-    except TemplateSyntaxError as e:
-        raise templates.TemplateProblem(e.message or "it isn't a template") from None
-    except (UndefinedError, TypeError, ValueError) as e:
-        raise templates.TemplateProblem(str(e)) from None
-    if isinstance(got, Undefined):
-        raise templates.TemplateProblem(f"{expr.strip()} is not defined")
-    return got
+    """The run context's paths that hold outside text (variables.outside_paths)."""
+    return variables.outside_paths(ctx)
 
 
 # ---------- running ----------
@@ -377,14 +314,9 @@ def _action(r, f, node):
     }
     try:
         filled = actions.check_params(spec, raw)  # defaults first, so a default that is a template is filled in too
-        prompts = set(actions.prompt_params(spec))
-        params = actions.check_params(
-            spec,
-            {
-                k: actions.render_prompt(v, ctx, r.cfg) if k in prompts and isinstance(v, str) else render(v, ctx, f"params.{k}")
-                for k, v in filled.items()
-            },
-        )
+        prompts = actions.prompt_params(spec)
+        rendered = {k: v if k in prompts else render(v, ctx, k) for k, v in filled.items()}
+        params = actions.check_params(spec, variables.fill_prompts(spec, rendered, ctx, r.cfg, r.db, prompts))
         intent["params"] = params
         intent["untrusted"] = _reads_outside(filled, ctx)
         intent["effect"] = actions.effect_of(spec, params)
