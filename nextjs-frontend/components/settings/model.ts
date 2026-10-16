@@ -395,7 +395,7 @@ export const SECTIONS: SectionSpec[] = [
     label: "Automations",
     backend: ["events", "automations"],
     description:
-      "The stream of activities automations follow (new assets and what else happens in Lens): how often followers look for new ones, how long activities with no row of their own are kept, and how long an automation’s action waits for your pick.",
+      "The stream of activities automations follow (new assets and what else happens in Lens): how often followers look for new ones, how long activities with no row of their own are kept, how long an automation’s action waits for your pick, and how late a timer may still fire after Lens was off.",
   },
   {
     id: "startup",
@@ -2705,6 +2705,22 @@ export const FIELDS: FieldSpec[] = [
     min: 1,
     max: 365,
     hint: "Then it expires and nothing runs; you decide in Approvals",
+  },
+  {
+    section: "automations",
+    key: "catch_up",
+    label: "After Lens was off, still run timers up to",
+    kind: "select",
+    options: [
+      { value: "0s", label: "Don’t: count them as missed" },
+      { value: "5m", label: "5 minutes late" },
+      { value: "15m", label: "15 minutes late" },
+      { value: "1h", label: "1 hour late" },
+      { value: "6h", label: "6 hours late" },
+      { value: "1d", label: "1 day late" },
+      { value: "7d", label: "7 days late" },
+    ],
+    hint: "Schedules and actions that wait; one that missed several times runs once, and older ones count as missed",
   },
   // Usage analytics (Google Analytics opt-in)
   {

@@ -10,6 +10,11 @@ thing happens.
   once per pattern per hour, whatever the sensor keeps of its lines.
 - `sensor.joined` (source `sensors`): a device or host that made itself a sensor by reporting (`storage_source` rows
   discovery made), by `created_at`.
+- `chat.message` (source `chat_messages`): what a person said to Lens, in the web app or a chat app (Telegram, Slack,
+  Matterbridge, the mailbox): `chat_message` rows with role user, read by (created_at, id) over the index on
+  (role, created_at). Only messages addressed to Lens are stored, so a room's other talk never is; a question an
+  automation asked its agent (`origin` on the row) isn't a person's. A web-app chat is its person's alone (`lens.audience`
+  owner); a chat app's belongs to the namespace its room answers in, else to the account the channel answers as.
 - `webhook.received`: a call to an automation's webhook address (automation_hooks.py), emitted by the route that
   takes it. Its payload and query are outside text.
 
@@ -27,6 +32,8 @@ R = store.R
 SENSOR_RX = re.compile(r"^lens:sensor/(\d+)$")
 READING_RX = re.compile(r"^reading-([a-z0-9]{1,100})$")
 JOINED_RX = re.compile(r"^joined-sensor-(\d+)$")
+SAID_RX = re.compile(r"^said-(\d+)$")
+REF_UNSAFE = re.compile(r"[^A-Za-z0-9_.:@+-]")
 TEXT_MOST = 1000  # characters of a reading's text an activity carries
 
 
@@ -385,6 +392,144 @@ def alert(db, pid, pt, sensor, count):
     )
 
 
+# ---------- chat ----------
+SAID_FIELDS = "id, record::id(id) AS n, chat, content, created_at, attachments"
+SAID_WHERE = "role = 'user' AND origin = NONE"
+
+
+def _short(text, most):
+    text = " ".join(str(text or "").split())
+    return text if len(text) <= most else text[: most - 1].rstrip() + "…"
+
+
+def _said(db, rows):
+    """chat_message rows (role user) as chat.message activities; a message whose chat is gone, or whose time isn't one,
+    is skipped."""
+    rows = [r for r in rows if r and isinstance(r.get("n"), int)]
+    if not rows:
+        return []
+    chats = events_content._lookup(db, "chat", {r.get("chat") for r in rows}, "account, kind, scope, via, title")
+    ids = {name: sid for sid, name in store.space_names(db).items()}
+    people = events_content.actors(db, [(c.get("account"), None) for c in chats.values() if (c.get("kind") or "chat") != "bridge"])
+    out = []
+    for r in rows:
+        c = chats.get(r.get("chat"))
+        if not c:
+            continue
+        try:
+            published = events.stamp(r["created_at"])
+        except (TypeError, ValueError, KeyError):
+            continue
+        spaces = [ids[n] for n in ((c.get("scope") or {}).get("namespaces") or []) if n in ids]
+        text = str(r.get("content") or "")[:TEXT_MOST]
+        via = c.get("via") or {}
+        if (c.get("kind") or "chat") == "bridge":
+            label = str(via.get("label") or "a chat room")
+            room = via.get("room") or None
+            channel, direct = str(via.get("channel") or "bridge"), bool(via.get("private"))
+            who = via.get("userid") or via.get("user")
+            name = _short(via.get("user") or via.get("userid") or c.get("title") or "Someone", 200)
+            key = REF_UNSAFE.sub("_", f"{channel}:{who}")[:200] if who else f"chat-{r['chat']}"
+            actor = {"type": "Person", "id": f"lens:chat_user/{key}", "name": name}
+            where = f"{label} · {room}" if room else label
+            summary = f"{name} wrote in {where}: “{_short(text, 120)}”"
+            seen = (
+                {"space": spaces[0], "audience": None, "owner": None}
+                if spaces
+                else {"space": None, "audience": "owner", "owner": c.get("account")}
+            )
+        else:
+            actor = people.get((c.get("account"), None)) or {"type": "Person", "id": "lens:account", "name": "Someone"}
+            channel, room, direct = "web", None, True
+            summary = f"{actor['name']} wrote: “{_short(text, 120)}”"
+            seen = {"space": spaces[0] if spaces else None, "audience": "owner", "owner": c.get("account")}
+        obj = store.clean(
+            {
+                "type": "Note",
+                "id": f"lens:chat_message/{r['n']}",
+                "name": _short(text, 120) or "a message",
+                "url": f"/chat/{r['chat']}",
+                "text": text,
+                "channel": channel,
+                "room": room,
+                "chat": r["chat"],
+                "direct": direct,
+                "attachments": len(r["attachments"]) if isinstance(r.get("attachments"), list) and r["attachments"] else None,
+            }
+        )
+        out.append(
+            events.build(
+                f"said-{r['n']}",
+                "chat.message",
+                actor=actor,
+                obj=obj,
+                summary=summary,
+                source="chat_messages",
+                pos=[r["created_at"], r["n"]],
+                published=published,
+                spaces=spaces if len(spaces) > 1 else None,
+                **seen,
+            )
+        )
+    return out
+
+
+def _said_rows(db, pos, op, limit, since=None, until=None):
+    """Messages past `pos` ([created_at, id]; op ">" oldest first, "<" newest first): those at its time with a later
+    id, then those after it, so the (role, created_at) index's range and order do the work."""
+    order = "created_at, id" if op == ">" else "created_at DESC, id DESC"
+    bounds, p = "", {}
+    if since:
+        bounds += " AND created_at > $since"
+        p["since"] = events_content._sec(since)
+    if until:
+        bounds += " AND created_at <= $until"
+        p["until"] = events_content._sec(until)
+    rows = []
+    if pos is not None and pos[1] is not None:
+        rows += db.rows(
+            f"SELECT {SAID_FIELDS} FROM chat_message WHERE {SAID_WHERE} AND created_at = $pt AND id {op} $pi{bounds} "
+            f"ORDER BY {order} LIMIT {int(limit)}",
+            pt=pos[0],
+            pi=R("chat_message", pos[1]),
+            **p,
+        )
+    where = "true" if pos is None else f"created_at {op} $pt"
+    if pos is not None:
+        p["pt"] = pos[0]
+    rows += db.rows(
+        f"SELECT {SAID_FIELDS} FROM chat_message WHERE {SAID_WHERE} AND {where}{bounds} ORDER BY {order} LIMIT {int(limit)}", **p
+    )
+    return rows[: int(limit)]
+
+
+class ChatSource(events.Source):
+    """What people said to Lens (chat_message rows with role user) as chat.message, read by (created_at, id)."""
+
+    name = "chat_messages"
+
+    def read(self, db, cfg, pos, spaces, limit, hint=None):
+        return _said(db, _said_rows(db, pos, ">", limit))  # follow keeps the namespaces asked for
+
+    def page(self, db, cfg, before, who, flt, limit):
+        return _said(db, _said_rows(db, before, "<", limit, flt.get("since"), flt.get("until")))
+
+    def get(self, db, cfg, activity_id):
+        got = self.get_many(db, cfg, [activity_id])
+        return got[0] if got else None
+
+    def get_many(self, db, cfg, ids):
+        ns = [int(m.group(1)) for m in (SAID_RX.match(i) for i in ids) if m]
+        if not ns:
+            return []
+        return _said(
+            db, db.rows(f"SELECT {SAID_FIELDS} FROM chat_message WHERE id IN $rs AND {SAID_WHERE}", rs=[R("chat_message", n) for n in ns])
+        )
+
+
+events.register_source(ChatSource())
+
+
 _SENSOR_OBJECT = {
     "stream": _s("Stream"),
     "value": _s("Value", "number"),
@@ -531,5 +676,48 @@ events.kind(
         "sensors",
         ["2026-10-15T16:21:58+00:00", 5],
         JOINED_UNTRUSTED,
+    ),
+)
+CHAT_UNTRUSTED = ("actor.name", "object.name", "object.text", "object.room")
+events.kind(
+    "chat.message",
+    label="Message to Lens",
+    source="chat_messages",
+    as_type="Create",
+    object_type="Note",
+    fields={
+        "object": {
+            "type": "object",
+            "properties": {
+                "text": _s("What was said"),
+                "channel": _s("Where", enum=["web", "telegram", "slack", "bridge", "mailbox"]),
+                "room": _s("Room"),
+                "chat": _s("Conversation", "integer"),
+                "direct": _s("A private chat with Lens", "boolean"),
+                "attachments": _s("Files sent with it", "integer"),
+            },
+        }
+    },
+    untrusted=CHAT_UNTRUSTED,
+    sample=_sample(
+        "said-81",
+        "chat.message",
+        "Create",
+        {"type": "Person", "id": "lens:chat_user/telegram:5528", "name": "sam"},
+        {
+            "type": "Note",
+            "id": "lens:chat_message/81",
+            "name": "groceries: milk, eggs",
+            "url": "/chat/12",
+            "text": "groceries: milk, eggs",
+            "channel": "telegram",
+            "chat": 12,
+            "direct": True,
+        },
+        "sam wrote in Telegram: “groceries: milk, eggs”",
+        "chat_messages",
+        ["2026-10-15T16:21:58+00:00", 81],
+        CHAT_UNTRUSTED,
+        space=3,
     ),
 )

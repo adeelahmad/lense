@@ -22111,8 +22111,32 @@
           "workflows"
         ],
         "summary": "List Workflows",
-        "description": "Saved workflows, plus the nodes a workflow can be built from: the primitives, each scope's own nodes, and the\ncustom nodes you can use.",
+        "description": "Saved workflows, plus the nodes a workflow can be built from: the primitives, each scope's own nodes, and the\ncustom nodes you can use. Automations' workflows (scope event) are listed only when asked for with scope.",
         "operationId": "list_workflows",
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "recording",
+                    "graph",
+                    "tool",
+                    "event"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scope"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -22120,6 +22144,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/WorkflowCatalog"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -22133,14 +22167,14 @@
         "summary": "Create Workflow",
         "operationId": "create_workflow",
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/WorkflowCreate"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -22172,7 +22206,7 @@
           "workflows"
         ],
         "summary": "Try Workflow",
-        "description": "Run a graph (saved or not) once without keeping anything: what each node passed on, for the canvas. Nodes\nthat would save something say what they would save; models are still asked.",
+        "description": "Run a graph (saved or not) once without keeping anything: what each node passed on, for the canvas. Nodes\nthat would save something say what they would save; models are still asked. An automation's workflow (scope\nevent) runs on an activity (by id) or a kind's sample, and its actions say what they would do (intents).",
         "operationId": "try_workflow",
         "requestBody": {
           "content": {
@@ -66271,7 +66305,8 @@
             "type": "string",
             "enum": [
               "recording",
-              "graph"
+              "graph",
+              "event"
             ],
             "title": "Scope",
             "default": "recording"
@@ -66361,7 +66396,7 @@
           "scope": {
             "type": "string",
             "title": "Scope",
-            "description": "recording (run by pipelines) or graph (run over namespaces by routines)",
+            "description": "recording (run by pipelines), graph (run over namespaces by routines) or event (what an automation does)",
             "default": "recording"
           },
           "current": {
@@ -66428,6 +66463,15 @@
           "steps": {
             "type": "integer",
             "title": "Steps"
+          },
+          "intents": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Intents",
+            "description": "an automation's workflow: what its action nodes would do (status done: at once; waiting: asks you first; scheduled: waits for its time; failed), with each one's params, effect, risk and what it would give back (result)"
           }
         },
         "additionalProperties": true,
@@ -66448,7 +66492,8 @@
             "type": "string",
             "enum": [
               "recording",
-              "graph"
+              "graph",
+              "event"
             ],
             "title": "Scope",
             "default": "recording"
@@ -66471,7 +66516,31 @@
             },
             "type": "array",
             "title": "Namespaces",
-            "description": "the namespaces to try a graph workflow over (default: all)"
+            "description": "the namespaces to try a graph workflow over, or an automation's workflow in (default: all)"
+          },
+          "activity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity",
+            "description": "an automation's workflow: the activity to try it on, by its id"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind",
+            "description": "an automation's workflow: try it on this kind of activity's sample"
           }
         },
         "additionalProperties": false,

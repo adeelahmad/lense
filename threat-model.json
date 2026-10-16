@@ -457,7 +457,7 @@
       "parameter": "prompt text; model-chosen tool calls",
       "attacker_controllable": "yes",
       "component": "assistant",
-      "caller_must_enforce": "none — P-RETRIEVAL",
+      "caller_must_enforce": "none — P-RETRIEVAL; what people say to Lens reaches automations as outside text (chat.message, lens.untrusted)",
       "provenance": "documented",
       "source": "docs/assistant.md \"limited to what the person can read\""
     },

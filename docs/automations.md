@@ -16,22 +16,27 @@ merged is called built.
 | Runs that finished or failed, deletions and calendar events that moved | built |
 | Comments, notes written and saved, and changes to the entity graph | built |
 | Sensors: readings a sensor keeps, alert and notable log patterns, devices that report for the first time ([Sensors](#sensors-as-activities)) | built |
-| More kinds: chat, system events | planned |
+| What people say to Lens, in the web app and chat apps, as `chat.message` ([Chat](#chat-as-activities)) | built |
+| More kinds: system events | planned |
 | The timeline API (`GET /api/v1/activities`), the MCP tools `timeline` and `event_kinds`, the assistant's `timeline` | built |
 | Review marks on the timeline (reviewed, important, hidden), their filters and `mark_activities` ([Timeline](timeline.md)) | built |
 | The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
+| The event workflow scope: what an automation does, drawn with action nodes and tried on an activity (`app/domain/automation_nodes.py`) | built |
+| The decide node (the decision model picks a branch) | planned |
 | The action registry with risk from each action's effect, and one action, `log_line` (`app/domain/actions.py`) | built |
 | Telling a person: the `notify` action and `channels.tell` (their own chat, a notification target, a Matterbridge room) | built |
 | The model and the agent: the `ask_model`, `call_tool` and `ask_agent` actions, and prompts with outside text marked | built |
 | Calling a web address: the `http_request` action, with credentials in headers kept sealed | built |
 | Running Lens work: the `run_workflow`, `run_pipeline` and `run_routine` actions | built |
 | Changing assets and writing notes: the `set_field`, `add_to_collection` and `write_note` actions | built |
-| Settings → Automations: how often followers look and how long the event log is kept | built |
+| Settings → Automations: how often followers look, how long the event log is kept, and how late a timer may fire | built |
 | A webhook address per automation trigger, and calls to it as `webhook.received` ([Webhook trigger](#webhook-trigger)) | built |
+| Timers that outlast a restart and fire once across the API and the worker (`app/domain/timers.py`, [Time](#time)) | built |
+| Schedule, `at` and `relative` triggers, and actions that wait ([Time](#time)) | planned |
 | The Timeline page with filters, grouping, review keys and new items, and Home's Latest card ([Timeline](timeline.md)) | built |
 | Approvals: an automation's action that asks first waits for your pick (approve, decline, edit, allow from now on), told once in your chat app, capped and expiring (`app/domain/approvals.py`) | built |
 | The Approvals page and its badge, a yes in your chat app, approval activities and notifications, agents' approval tools | planned |
-| Storing and running automations, schedules and timers, joins, variables, the studio | planned |
+| Storing and running automations, joins, variables, the studio | planned |
 
 ## Contract
 
@@ -108,6 +113,7 @@ and the paths holding outside text are in `GET /api/v1/activities/kinds` (`event
 | `sensor.reading` | | `sensor_readings` | `{type: Note, id: lens:sensor_reading/<id>, name: "<stream>: <what it said>", url: /sensors/<id>}`, `stream`, `value`, `text`, `fields` (a JSON reading's numbers), `level` (syslog), `pattern`, `label` (the line's pattern and its label); noisy | Kitchen sensor temperature: 31.2 |
 | `sensor.alert` | | `log` | `{type: Note, id: lens:sensor_pattern/<id>}`, `label` (alert or notable), `pattern`, `example` (a line it fits), `count` (lines in all), `lines` (in the batch that raised it), `hour` | 192.168.1.1 logged an alert: wlan<n>: authentication failed for <mac> |
 | `sensor.joined` | | `sensors` | `{type: Service, id: lens:sensor/<id>, url: /sensors/<id>}`, `sensor_type` (mqtt, syslog, ...), `device`, `status` | A new MQTT device reported: zigbee2mqtt/kitchen |
+| `chat.message` | | `chat_messages` | `{type: Note, id: lens:chat_message/<id>, name: the start of it, url: /chat/<id>}`, `text`, `channel` (web, telegram, slack, bridge, mailbox), `room`, `chat`, `direct` (a private chat or the web app), `attachments` (how many files) | sam wrote in Telegram: “groceries: milk, eggs” |
 | `webhook.received` | | `log` | `{type: Note, hook: the webhook's id, payload: what was sent (JSON, a form's fields or text), content_type, query}`; the actor is the webhook (`Service`, `lens:automation_hook/<id>`, "Webhook for <automation>") | Webhook for Front door was called |
 
 A new asset is one activity, of the most specific kind its row tells, decided by its content type and where it came
@@ -160,6 +166,22 @@ outside text.
 - `sensor.joined` is a device or host that made itself a sensor by reporting for the first time (MQTT, syslog),
   read from its `storage_source` row by `created_at`; a sensor added by hand isn't news.
 
+#### Chat as activities
+
+Built (`app/domain/events_streams.py`). `chat.message` is what a person said to Lens: a question in the web app (Chat,
+the setup conversation) or a message to Lens in a chat app (Telegram, Slack, Matterbridge, the assistant's mailbox).
+It reads the messages Lens already keeps (`chat_message` with role user), so nothing new is stored, and what isn't
+said to Lens in a room is never kept, so it is never an activity. Its text and names are outside text.
+
+- In the web app the actor is the person (`lens:account/<id>`), and the activity is theirs alone (`lens.audience`
+  owner): not even admins or others in the namespace see it. Its namespace is the conversation's scope.
+- In a chat app the actor is who wrote (`Person`, `lens:chat_user/<channel>:<their id there>`, their name there),
+  since a chat user isn't a Lens account. A room given to a namespace's assistant belongs to that namespace; any
+  other conversation (a private chat, an open room) is the answering account's alone. The conversation keeps where
+  it is (`chat.via`: the channel, the room, who, a private chat or not) from its next message on.
+- A question an automation's `ask_agent` asks (`origin` on the message) isn't a person's, so it is never a
+  `chat.message`, and an automation can't set itself off that way.
+
 ### Sources and the event log
 
 Built. A source (`events.Source`, added with `events.register_source`) reads rows Lens already keeps as activities,
@@ -192,6 +214,8 @@ A kind belongs to the source named in its `source`, and a source may list more i
 - `sensor_readings` (`app/domain/events_streams.py`) reads `sensor_reading` by `at` (microseconds), the id breaking
   ties, one sensor at a time, as `sensor.reading`; `sensors` reads the `storage_source` rows discovery made by
   `created_at`, as `sensor.joined`.
+- `chat_messages` (`app/domain/events_streams.py`) reads `chat_message` rows with role user by `created_at` over the
+  index on (role, created_at), the id breaking ties, as `chat.message`.
 - `log` reads `event_log`: activities no row of their own records (a deletion, a webhook call), written by
   `events.emit(db, kind, *, actor, obj, space, summary, target=None, tag=None, key=None, published=None, spaces=None,
   audience=None, owner=None, untrusted=None)`, which gives the id (`log-<n>`). Emitting a `key` again changes
@@ -348,6 +372,45 @@ titles, for the variable picker):
 | `now`, `timezone` | when the run started (ISO 8601 in UTC) and the person's time zone |
 | `vars` | the automation's and its namespace's saved variables |
 | `steps` | what each node passed on so far, by node id, such as `steps.n3` |
+
+### The event workflow scope
+
+Built: what an automation does is a workflow of scope `event` (`app/domain/automation_nodes.py`), saved and
+versioned like any workflow (`POST /api/v1/workflows` with `"scope": "event"`). Its `input` node passes on the
+[run context](#run-context), and between the primitives (condition, switch, set, merge, loops...) it has two nodes of
+its own:
+
+- **Action** (`action`, configured `{action, params, delay?, when?}`): one action from the registry. When it runs,
+  it fills its params in from the run context (`"text": "New: {{ event.object.name }}"`; a param that is exactly one
+  `{{ }}` expression keeps its type, so a list stays a list; the action's defaults are filled in first, so a default
+  that is a template, like `ask_agent`'s `about`, is filled in too; a prompt param is rendered with outside text
+  marked, as [The model and the agent](#the-model-and-the-agent) says), works out its effect and risk and makes an
+  [intent](#actions-and-intents). A routine intent is carried out there and then: what it gives back passes on along
+  `out` and goes in `steps.<node id>` for later nodes. One that asks first waits for the person's pick, and one with
+  a `delay` (like `30m`) or a time (`when`, a time or a template giving one) waits for its time: such a node passes
+  nothing on, so the nodes after it are skipped and the run's log says where it stopped and why. An action that
+  fails is marked failed on its node, and the rest of the graph goes on.
+- **Decide** (`decide`, configured `{question, options, input?, min_confidence?}`): the decision model picks one of
+  its options, with an output port per option and `unsure`. Planned with the decision model; until then a decide node
+  is refused when the workflow is saved, as coming soon. Use a condition or switch node.
+
+Checked when it is saved, on every path (create, a new version, a body):
+
+- It needs an action node, each action is one the registry has (`GET /api/v1/automations/actions` will list them)
+  with params that fit its schema, and each template in its params is valid.
+- **The leaf rule:** an action that reaches outside Lens or other people (effect `out`, worked out from its params)
+  or that waits has nothing connected after it, as it can't pass anything on while it waits for a yes or its time.
+- Waiting before an action (`delay`, `when`) is refused as coming soon until timers are built.
+
+Its automation runs it: an event workflow isn't run on an asset, as a pipeline step or as a routine's action, and the
+canvas's list of workflows leaves it out (`GET /api/v1/workflows?scope=event` lists them).
+
+**Try it** with `POST /api/v1/workflows/test` (admins): `{"scope": "event", "graph": ..., "kind": "asset.added"}`
+runs it on that kind's sample, and `"activity": "<id>"` on a real activity you can see. Nothing is kept and nothing is
+sent: each action says what it would do (`would write “New: Call with the school” to the run log`), and `intents`
+lists each one with its params, effect, risk, status (`done`, `waiting`, `scheduled` or `failed`) and what it gave
+back. Text from outside Lens (`lens.untrusted` on the activity, or what a node passed on when its output says
+`untrusted`, like a web page's answer) that reaches an action's params marks its intent `untrusted`.
 
 ### Actions and intents
 
@@ -526,6 +589,45 @@ The inbox reads `GET /api/v1/approvals` (newest first; `status`, `origin=automat
 and `before` with `limit` to page), `GET /api/v1/approvals/{aid}` and `GET /api/v1/approvals/count` (`{waiting,
 automations}`, for a badge).
 
+## Time
+
+Time is a trigger and a step: "every weekday at 7:00", "at 9:00 on the 20th", "30 minutes before a calendar event",
+"wait 2 hours, then...", and the clock behind a join's "if no reply within 2 days". All of it rests on timers.
+
+### Timers
+
+Built (`app/domain/timers.py`). A timer is one row per key in the `timer` table: when it is due, what runs then (its
+kind), what that gets (its payload), and the automation it is for. Status: `waiting`, then `fired`, or `failed`,
+`cancelled` or `missed`.
+
+```python
+timers.set(db, key, at, kind, payload, automation=None)  # makes it, or replaces the one with that key
+timers.cancel(db, key)                                    # True when one was waiting
+timers.cancel_for(db, automation)                         # every waiting one of an automation (deleted, switched off)
+timers.get(db, key)
+
+@timers.handler("join.absent")                            # what runs when one of this kind fires
+def _(db, cfg, payload): ...                              # payload + late (true or false) + timer {key, at, automation}
+```
+
+- **Once.** A thread started with the routines' threads (so in the API's background work and in `lens worker`) looks
+  every 5 seconds, and at once after `events.wake()`. Each due timer is claimed with a compare-and-set update that
+  only one process wins, then its handler runs. A process that stops while a handler runs leaves that firing done:
+  a timer fires at most once, never twice.
+- **Repeating.** A handler registered with `again(payload, after)` (a schedule's next time) is re-armed in the same
+  update that claims it, so a repeating timer is never lost; its row keeps waiting, with `last` saying how the last
+  firing went.
+- **Lens was off.** A timer due within `automations.catch_up` (1 hour; Settings → Automations) fires late, with
+  `late: true`; an older one is `missed` and counted on its automation (`missed`). A repeating one that missed
+  several times fires once, for its latest time if that is within the window, then waits for its next. A timer fired
+  within 2 minutes of its time is on time.
+- **Kept small.** An automation has at most 1000 timers waiting; setting more is refused, saying so. Timers that
+  ended are dropped after 7 days, by a tidy `routines.run_due` calls (once an hour). A kind nothing handles fails
+  with a note.
+- **Light.** No timer exists until an automation uses time. While none waits the thread doesn't query the table: it
+  checks once a minute, and at once when this process sets one. A timer set by the other process (the API, when the
+  worker fires them) can so fire up to a minute late.
+
 ## Refine later
 
 - More operators: `in`, `matches` (bounded regular expressions), `between`, times against now, `changed`.
@@ -556,12 +658,16 @@ automations}`, for a badge).
   channel; web push; private chats through Matterbridge (it can't tell them from rooms); with several people let in,
   "me" is whoever last wrote privately, until each chat user has a Lens account of their own; telling which links in a
   message the person's template wrote, so they stay when the run read outside text.
+- The canvas draws and edits event workflows (today they are saved and tried through the API).
+- An action's outputs in the variable picker, typed from its `output` schema.
 - The model and the agent: per-node model picks in the studio; streaming an agent's steps into the run's log as they
   happen; a namespace assistant's memory for automations (`remember` is left out today); approving an agent's
   proposals from the chat app it told you in; count the automation's own budget once budgets take `automation:<id>`.
 - Calling a web address: secrets in the address itself (a Slack or Discord webhook URL) sealed like headers; PATCH and
   DELETE (DELETE would count as deleting); OAuth sign-in for an API; form-encoded bodies; retries with backoff;
   networks allowed for automations apart from notifications.
+- Time: sub-second timers woken by `events.wake()` alone; telling the other process (the worker) at once when the
+  API sets a timer, rather than within a minute.
 - Running Lens work: a routine run's id passed on (today the scheduler starts it later); waiting for the job and passing
   on its outputs; roles on collections counting for `process`; running a pipeline on every asset a join collected.
 - Changing assets: asking first instead of failing when a move would show an asset to new people (risk that reads the
@@ -572,6 +678,9 @@ automations}`, for a badge).
 - Sensors: a threshold per reading in the intake (only readings over a value become activities, for sensors that
   keep everything); a reading's unit, which sensors don't record yet; an alert as soon as a pattern is labelled, for
   the lines already seen that hour.
+- Chat: recording every message in a room as an activity (opt-in per channel, off by default); a chat user who is
+  also a Lens account as that person; a timeline page of others' private messages is read and left out, up to five
+  source pages, so narrow it by account if that proves slow.
 - Approvals: a cost estimate on actions that ask (a run on another asset could say what it would cost); buttons in
   Telegram and Slack; approvals that need two people; one card for many alike ("approve all 12"); trying a failed one
   again; expiring an automation's approvals when it is removed.

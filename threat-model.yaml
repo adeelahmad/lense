@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:2f79a2f8395a4c5d553fddae543f9019fd93c52bd8458ab1166bc7096ff82a34"
+prose_version: "threat-model.md@sha256:13b27d6226e07e84f218d5c283b63c61b92be326a6c131ed3ec7fd95f6f6ebd2"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -386,7 +386,7 @@ entry_points:
         attacker_controllable: true
         x-condition: "also indirectly through content"
         control_kinds: [data, x-prompt-injection]
-        caller_must_enforce: "none — P-RETRIEVAL"
+        caller_must_enforce: "none — P-RETRIEVAL; what people say to Lens reaches automations as outside text (chat.message, lens.untrusted)"
         provenance: {kind: documented, source: 'docs/assistant.md "limited to what the person can read"'}
   - id: "Lens extension side panel"
     component: assistant

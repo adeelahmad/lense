@@ -134,6 +134,10 @@ That's all. Without an account given, it answers as the admin who turned it on.
   "Matterbridge · room · person", listed in Chat with the account's other conversations. Follow-ups keep their context,
   and older messages are folded into a running summary ([Long conversations](assistant.md)). `Lens /clear` starts
   the conversation afresh and `Lens /compact` summarises it now.
+- **Automations hear what's said to Lens.** Each message said to Lens (and only those: the room's other talk is never
+  kept) is a `chat.message` activity an automation can trigger on, "when someone messages Lens 'groceries' in
+  Telegram" ([Automations](automations.md#chat-as-activities)). A room given to a namespace belongs to it; any other
+  conversation is the answering account's alone.
 - **A namespace's own assistant.** **Rooms for a namespace's assistant** gives a room to a namespace
   (`team = pods`, or one channel: `team/general = pods`). Conversations there are scoped to that namespace, so when its
   assistant is on ([A namespace's own assistant](assistant.md#a-namespaces-own-assistant)) it answers with its

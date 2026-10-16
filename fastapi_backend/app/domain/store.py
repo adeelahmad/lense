@@ -623,8 +623,9 @@ DEFAULTS = {
     # of their own (the event log) are kept; poll_seconds: how often followers look when nothing wakes them
     "events": {"keep_days": 30, "poll_seconds": 5},
     # automations (docs/automations.md): approval_days: how long an automation's action waits for your pick before it
-    # expires and nothing runs
-    "automations": {"approval_days": 7},
+    # expires and nothing runs; catch_up: how late a timer (a schedule, a waiting action) may still fire after Lens
+    # was off; older ones are missed
+    "automations": {"approval_days": 7, "catch_up": "1h"},
     # database backups (docs/database.md, Backups): schedule is a cron expression in timezone, or none (the default)
     # for none; the newest `keep` scheduled backups are kept. connection: a storage connection (sources.py) every new
     # backup is also copied to, under folder, encrypted with a key from secret.key first (none: kept here only)
@@ -1271,6 +1272,11 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS automation_hook SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS automation_hook_token ON automation_hook FIELDS token_hash UNIQUE",
     "DEFINE INDEX IF NOT EXISTS automation_hook_automation ON automation_hook FIELDS automation",
+    # timers (domain/timers.py, docs/automations.md, Time): timer:<hash of key>, what runs when, for which automation
+    "DEFINE TABLE IF NOT EXISTS timer SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS timer_due ON timer FIELDS status, at",
+    "DEFINE INDEX IF NOT EXISTS timer_automation ON timer FIELDS automation, status",
+    "DEFINE INDEX IF NOT EXISTS timer_done ON timer FIELDS done_at",
     "DEFINE INDEX IF NOT EXISTS upload_recording ON upload FIELDS recording",
     # review marks on the timeline (domain/event_marks.py, docs/timeline.md): each person's reviewed, important and
     # hidden flags on an activity, event_mark:<hash of account and activity> (the id keeps the pair unique)
@@ -1375,6 +1381,8 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS chat_account ON chat FIELDS account",
     "DEFINE TABLE IF NOT EXISTS chat_message SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS chat_message_chat ON chat_message FIELDS chat",
+    # what people said to Lens, by time, as chat.message (events_streams.py)
+    "DEFINE INDEX IF NOT EXISTS chat_message_said ON chat_message FIELDS role, created_at",
     # what each namespace's assistant remembers (ns_assistant.py); its name and instructions are space.assistant
     "DEFINE TABLE IF NOT EXISTS assistant_memory SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS assistant_memory_space ON assistant_memory FIELDS space",

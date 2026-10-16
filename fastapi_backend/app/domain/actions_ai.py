@@ -257,7 +257,7 @@ def _ask_agent(db, cfg, intent, user, dry):
     if about:
         url = (about.get("object") or {}).get("url") if isinstance(about.get("object"), dict) else None
         page = {"url": str(url or f"/timeline?activity={about.get('id') or ''}"), "title": _short(happened, 300)}
-    chat.add(db, cid, "user", instructions, context=page)
+    chat.add(db, cid, "user", instructions, context=page, origin=box.origin)
     # reading the activity counts as reading outside text for this conversation from now on (ai_tools.read_before)
     steps = (
         [{"tool": "automation_event", "args": {"id": about.get("id")}, "summary": f"Read what happened: {_short(happened, 200)}"}]

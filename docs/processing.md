@@ -538,7 +538,8 @@ log.
 
 ### Organising the graph
 
-A workflow's scope is either assets (above) or the graph. Graph workflows have their own nodes:
+A workflow's scope is assets (above), the graph, or an event: an automation's workflow, run by its automation
+([The event workflow scope](automations.md#the-event-workflow-scope)). Graph workflows have their own nodes:
 
 - **Candidates** finds pairs of entities that may be one thing, by the same rules as the merge suggestions (same
   letters, acronym, spelling, sounds alike, one name inside the other): inside each namespace (merge) or across

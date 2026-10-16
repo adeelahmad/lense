@@ -82,7 +82,9 @@ describe("finding a setting", () => {
       "events.poll_seconds",
       "events.keep_days",
       "automations.approval_days",
+      "automations.catch_up",
     ]);
+    expect(findSettings("missed", true).some((h) => h.section === "automations")).toBe(true);
   });
 
   it("finds only People for people who aren't admins", () => {
