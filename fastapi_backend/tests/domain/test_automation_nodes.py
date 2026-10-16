@@ -85,7 +85,7 @@ def _problem(db, g):
     return str(e.value)
 
 
-def test_event_workflows_are_checked_on_save(db, made):
+def test_event_workflows_are_checked_on_save(db, made, monkeypatch):
     assert "needs an action node" in _problem(db, graph(node("p", "pick", path="event"), edges=[edge("in", "p")]))
     assert "choose an action" in _problem(db, graph(node("a", "action", action="nope"), edges=[edge("in", "a")]))
     assert "needs Line (text)" in _problem(db, graph(node("a", "action", action="log_line"), edges=[edge("in", "a")]))
@@ -101,9 +101,12 @@ def test_event_workflows_are_checked_on_save(db, made):
         node("a", "action", action="tag", params={"object": "{{ event.object.id }}", "tags": "{{ event.tag }}"}), edges=[edge("in", "a")]
     )
     assert workflows.validate_graph(db, ok, "event")["nodes"][1]["config"]["params"]["tags"] == "{{ event.tag }}"
-    # waiting before an action comes with the time module; until then it is refused, as are both kinds of wait
+    # waiting before an action comes with the time module (timers.later); without it, it is refused
     waits = graph(node("a", "action", action="log_line", params={"text": "x"}, delay="5m"), edges=[edge("in", "a")])
-    assert "coming soon" in _problem(db, waits)
+    assert workflows.validate_graph(db, waits, "event")["nodes"][1]["config"]["delay"] == "5m"
+    with monkeypatch.context() as m:
+        m.setattr(automation_nodes, "_timers", lambda: None)
+        assert "coming soon" in _problem(db, waits)
     assert "not both" in _problem(
         db,
         graph(
