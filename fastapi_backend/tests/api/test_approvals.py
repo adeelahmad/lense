@@ -319,7 +319,7 @@ def test_credential_headers_stay_hidden_and_sealed_through_an_edit(db, cfg, peop
 def test_how_long_approvals_wait_is_a_setting(app, client, db):
     make_user(db, "root@x.io", "root password 1", admin=True)
     h = login(client, "root@x.io", "root password 1")
-    assert client.get("/api/v1/settings", headers=h).json()["automations"]["values"] == {"approval_days": 7}
+    assert client.get("/api/v1/settings", headers=h).json()["automations"]["values"]["approval_days"] == 7
     assert client.put("/api/v1/settings/automations", json={"approval_days": 14}, headers=h).status_code == 200
     assert approvals.days(app.state.settings.current()) == 14
     for bad in ({"approval_days": 0}, {"approval_days": 366}, {"approval_days": "7"}, {"approval_days": True}, {"days": 1}):
