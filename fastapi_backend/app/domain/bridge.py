@@ -18,7 +18,9 @@ namespace's assistant goes to that namespace; otherwise the decision model picks
 
 The assistant's reversible changes (entity merges and edits, new namespaces: ROOM_SAFE) can be approved by replying
 "yes" (or "no") in the room, when bridge.approve is "low_risk" and the sender is one of bridge.users; everything else
-waits for approval in the web app, linked from the answer.
+waits for approval in the web app, linked from the answer. So can an automation's action that changes something inside
+Lens, in the private chat its person was told about it in (approvals.ask), when it's the only thing waiting there or
+named by its number; one that reaches outside Lens is decided on its card in Lens.
 
 What happens in a room is the same in every chat channel (channels.py): Matterbridge is one adapter, Telegram's own
 bot (telegram.py) another. handle() takes a message from any of them, with their voice notes (transcribed) and files
@@ -398,24 +400,36 @@ def room_approver(cfg, m=None):
     return (m.get("username") or "").strip("<> ").lower() in allowed or (m.get("userid") or "").lower() in allowed
 
 
-def pending(db, cid):
-    return db.rows("SELECT record::id(id) AS id, tool, summary FROM approval WHERE chat = $c AND status = 'pending' ORDER BY id", c=cid)
+def pending(db, cid, account=None):
+    """What waits in a conversation: what the assistant proposed there, and the automations' actions the account's
+    person was told about there (approvals.ask), oldest first."""
+    return db.rows(
+        "SELECT record::id(id) AS id, tool, summary, intent FROM approval WHERE status = 'pending'"
+        + (" AND account = $a" if account is not None else "")
+        + " AND (chat = $c OR told.*.conversation CONTAINS $c) ORDER BY id",
+        c=cid,
+        a=account,
+    )
 
 
 def decide_in_room(db, cfg, base, account, cid, m, q):
-    """A "yes" or "no" to what this conversation is waiting on: carried out (the ROOM_SAFE ones) or declined, and the
-    reply to post. None when q isn't one, or nothing waits."""
+    """A "yes" or "no" to what this conversation is waiting on: carried out (the ROOM_SAFE ones, and an automation's
+    action that changes something inside Lens) or declined, and the reply to post. None when q isn't one, or nothing
+    waits. An automation's action is decided by a reply only when it is the one thing waiting here or named by its
+    number; one that reaches outside Lens is decided on its card in Lens."""
     yes, no = YES_RX.match(q.strip()), NO_RX.match(q.strip())
     if not (yes or no) or not room_approver(cfg, m):
         return None
-    waiting = pending(db, cid)
+    waiting = pending(db, cid, account["id"])
     if not waiting:
         return None
     pick = (yes or no).group(1)
+    one = len(waiting) == 1
     if pick and pick.lower() != "all":
         waiting = [a for a in waiting if a["id"] == int(pick)]
         if not waiting:
             return f"Nothing is waiting as #{pick}."
+        one = True
     elif not pick and len(waiting) > 1 and yes:  # "yes" to several things is ambiguous: say which
         listed = "; ".join(f"#{a['id']} {a['summary']}" for a in waiting)
         return f"Several things are waiting: {listed}. Say “yes all” or “yes <number>”."
@@ -423,29 +437,46 @@ def decide_in_room(db, cfg, base, account, cid, m, q):
     readable, editable = set(roles), {s for s in roles if auth.allows(roles, s, "editor")}
     who = (m.get("username") or "").strip("<> ")
     user = {"id": account["id"], "email": account["email"]}
-    lines, web = [], []
+    lines, web, held = [], [], []
     for a in waiting:
-        if yes and a["tool"] not in ROOM_SAFE:
+        if a.get("intent") and not one:  # "no" or "all" to several: an automation's action is picked on its own
+            held.append(a)
+            continue
+        if yes and (a["intent"].get("effect") != "lens" if a.get("intent") else a["tool"] not in ROOM_SAFE):
             web.append(a)
             continue
         decision = "approve" if yes else "decline"
         try:
             with graph_history.acting(why=f"approved in a chat room by {who}" if yes else None):
-                out = ai_tools.approve(db, cfg, a["id"], user, editable, decision, base, account["admin"], readable)
+                out = ai_tools.approve(db, cfg, a["id"], user, editable, decision, base, account["admin"], readable, via="chat")
         except (ValueError, PermissionError, KeyError) as e:
             lines.append(f"Couldn't do “{a['summary']}”: {e}")
             continue
         auth.audit(db, user, "assistant.approval", f"approval:{a['id']}", {"decision": decision, "via": "chat room", "by": who, **out})
+        if out.get("status") == "failed":
+            lines.append(f"Couldn't do “{a['summary']}”: {out.get('error')}")
+            continue
         lines.append(("Done: " if yes else "Declined: ") + a["summary"])
+    if held:
+        listed = "; ".join(f"#{a['id']} {a['summary']}" for a in held)
+        lines.append(f"Still waiting, one at a time: {listed}. Say “yes <number>” or “no <number>”.")
     if web:
         lines.append(_web_line(cfg, db, cid, web))
     return "\n".join(lines)
 
 
 def _web_line(cfg, db, cid, approvals):
+    """Where to decide what a reply here can't: the conversation in Lens, or an automation's action on its card."""
     from app.email import app_url
 
-    return "Waiting for approval in Lens: " + "; ".join(a["summary"] for a in approvals) + f"\n{app_url(cfg, db)}/chat/{cid}"
+    base, out = app_url(cfg, db), []
+    asked = [a for a in approvals if not a.get("intent")]
+    if asked:
+        out.append("Waiting for approval in Lens: " + "; ".join(a["summary"] for a in asked) + f"\n{base}/chat/{cid}")
+    for a in approvals:
+        if a.get("intent"):
+            out.append(f"Decide in Lens: {a['summary']}\n{base}/approvals?id={a['id']}")
+    return "\n".join(out)
 
 
 def reply_text(cfg, text, approvals, cid, db=None):

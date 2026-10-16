@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:13b27d6226e07e84f218d5c283b63c61b92be326a6c131ed3ec7fd95f6f6ebd2"
+prose_version: "threat-model.md@sha256:49635f5cfd67e9218920c51b245a579497d5a8bc9ba8a98104676a086c28d759"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -1470,7 +1470,7 @@ properties_claimed:
     kind: integrity
     components: [assistant]
     tier: security-critical
-    conditions: "an automation's action that asks first waits as an approval of the automation's person and nothing runs until they pick; approving, editing or always need them signed in (API keys, apps, MCP and the assistant only list and decline); a decision is claimed once; at most 100 wait per automation, each tells the person once, and undecided ones expire after automations.approval_days"
+    conditions: "an automation's action that asks first waits as an approval of the automation's person and nothing runs until they pick; approving, editing or always need them signed in, or (approving an action inside Lens) a yes in the private chat they were told in, from someone the channel lets approve, while it is the only one waiting there or named by number (API keys, apps, MCP and the assistant only list and decline); a decision is claimed once; at most 100 wait per automation, each tells the person once, and undecided ones expire after automations.approval_days"
     violation_symptoms: [integrity-bypass]
     x-voided-by: "the person setting a node to auto (always, or the builder's toggle); an admin raising automations.approval_days; the summary and the message told hold outside text, with links broken up (P-INJECTION-EGRESS)"
     provenance: {kind: documented, source: 'docs/automations.md "Approvals"'}

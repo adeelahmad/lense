@@ -122,10 +122,24 @@ def link(cfg, db, aid):
     return f"{app_url(cfg, db)}/approvals?id={aid}"
 
 
-def message(name, what, url):
-    """What the person is told when an automation's action waits for them."""
+def message(name, what, url, yes=False):
+    """What the person is told when an automation's action waits for them; `yes`: a reply there decides it."""
     said = what[:1].lower() + what[1:] if what else "do something"
+    if yes:
+        return f"{name} wants to {said}. Reply “yes” to do it or “no” not to, or open {url} to decide."
     return f"{name} wants to {said}. Open {url} to decide."
+
+
+def yes_counts(db, v, r, aid, effect):
+    """Whether a yes in the chat of chat_route `r` (channel view `v`) would decide approval `aid`: only for an action
+    that changes something inside Lens (one that reaches outside is decided on its card), when the channel lets the
+    person in that chat approve (bridge.room_approver: approving on, and they're on its list of people), and when
+    nothing else waits in that chat (a bare yes would be ambiguous)."""
+    from . import bridge
+
+    if effect != "lens" or r.get("conversation") is None or not bridge.room_approver(v, r.get("target") or {}):
+        return False
+    return not [a for a in bridge.pending(db, r["conversation"], r.get("account")) if a["id"] != aid]
 
 
 def ask(db, cfg, intent, event=None):
@@ -174,17 +188,22 @@ def ask(db, cfg, intent, event=None):
             }
         ),
     )
-    told = tell(db, cfg, person, aid, name, what)
+    told = tell(db, cfg, person, aid, name, what, i["effect"])
     if told:
         db.q("UPDATE $r SET told = $t", r=R("approval", aid), t=told)
     return aid
 
 
-def tell(db, cfg, person, aid, name, what):
-    """Tell the person once, in their own chat apps, that something waits: the chats it went to."""
+def tell(db, cfg, person, aid, name, what, effect=None):
+    """Tell the person once, in their own chat apps, that something waits, saying a reply decides it where it would
+    (yes_counts): the chats it went to."""
     url = link(cfg, db, aid)
+
+    def text(ch, v, r):
+        return message(name, what, url, yes_counts(db, v, r, aid, effect))
+
     try:
-        got = channels.tell(db, cfg, person, message(name, what, url), links=(url,))
+        got = channels.tell(db, cfg, person, text, links=(url,))
     except Exception:  # noqa: BLE001 - the approval waits in the inbox either way
         log.warning("approval %s: couldn't tell %s", aid, person.get("email"), exc_info=True)
         return []
@@ -319,7 +338,9 @@ def decide(db, cfg, row, user, decision="approve", params=None, via="web"):
         with (
             activity.scope(db, f"automation:{intent['automation']}", f"automation_run:{intent['run']}", cfg=cfg),
             events.caused_by(cause),
-            graph_history.acting(actor=who["email"], via=who["id"], why=f"approved by {user.get('email')}", approval=row["id"]),
+            graph_history.acting(
+                actor=who["email"], via=who["id"], why=None if via == "chat" else f"approved by {user.get('email')}", approval=row["id"]
+            ),
         ):
             result = actions.perform(db, cfg, {**intent, "status": "waiting"}, person)
     except Exception as e:  # noqa: BLE001 - recorded on the approval and the run

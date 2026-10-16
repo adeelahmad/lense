@@ -36,7 +36,8 @@ merged is called built.
 | Actions that wait (`delay`, `when`): kept as timers, carried out at their time, asking first when they should then ([Time](#time)) | built |
 | The Timeline page with filters, grouping, review keys and new items, and Home's Latest card ([Timeline](timeline.md)) | built |
 | Approvals: an automation's action that asks first waits for your pick (approve, decline, edit, allow from now on), told once in your chat app, capped and expiring (`app/domain/approvals.py`) | built |
-| The Approvals page and its badge, a yes in your chat app, approval activities and notifications, agents' approval tools | planned |
+| Deciding an automation's action with a yes in the chat it told you in | built |
+| The Approvals page and its badge, approval activities and notifications, agents' approval tools | planned |
 | Saving automations: checks, namespaces, switching on and off, delete and restore, the policy, the API (`app/domain/automations.py`) | built |
 | Running automations, joins, variables, the studio | planned |
 
@@ -602,10 +603,23 @@ Deciding (`POST /api/v1/approvals/{aid}`):
 - `always` approves it, then lets that action node run without asking from now on (the automation's policy, `auto`).
   Only an action that reaches outside Lens or other people asks each time, so only those can be allowed.
 
-Approving, editing and `always` are yours: signed in to Lens, on the approval's card. An API key, an app, MCP and the
-assistant can list and decline approvals, never approve them, since approving is the person's pick; each approval's
-`can` says what the caller may do with it. This is the one place where an agent can't do what you can. The
-assistant's own approvals in a conversation are decided as before.
+Approving, editing and `always` are yours: signed in to Lens, on the approval's card, or approving with a yes in your
+own chat app (below). An API key, an app, MCP and the assistant can list and decline approvals, never approve them,
+since approving is the person's pick; each approval's `can` says what the caller may do with it. This is the one
+place where an agent can't do what you can. The assistant's own approvals in a conversation are decided as before.
+
+**In your chat app.** A reply of "yes" in the private chat you were told in approves an automation's action, under
+the rules a chat room's approvals follow ([Chat rooms](chat-rooms.md#what-it-does)), and only when all of these hold:
+
+- the action changes something inside Lens (effect `lens`); one that reaches outside Lens or other people is
+  approved on its card in Lens, and the reply says where;
+- the channel lets you approve there (approving in the room is on, and you are on its list of people who may talk to
+  Lens);
+- it is the only thing waiting in that chat: with several, a bare "yes" lists them and "yes 12" picks one ("yes all"
+  leaves an automation's actions waiting, to be picked one at a time).
+
+"No" declines it, whatever it does. The message that told you says "Reply “yes” to do it or “no” not to" only when a
+yes there would count; otherwise it gives the link.
 
 Undecided approvals expire after `automations.approval_days` (Settings → Automations, 1–365, default 7): a sweep
 called from the scheduler once an hour marks them `expired`, nothing runs, and the run says so. The assistant's own
@@ -821,6 +835,7 @@ and what it gives back.
   new address for a trigger without saving it again.
 - Lens itself: a run held over budget, waiting for someone's pick, as an activity of its own; backups taken before
   upgrades or with `lens backup` (only those from Settings, the API and the schedule are activities today).
-- Approvals: a cost estimate on actions that ask (a run on another asset could say what it would cost); buttons in
-  Telegram and Slack; approvals that need two people; one card for many alike ("approve all 12"); trying a failed one
-  again; expiring an automation's approvals when it is removed.
+- Approvals: a cost estimate on actions that ask (a run on another asset could say what it would cost); approve
+  buttons in Telegram and Slack (today a yes decides only actions inside Lens); approvals that need two people; one
+  card for many alike ("approve all 12"); trying a failed one again; expiring an automation's approvals when it is
+  removed.
