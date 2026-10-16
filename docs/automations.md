@@ -17,7 +17,7 @@ merged is called built.
 | Comments, notes written and saved, and changes to the entity graph | built |
 | Sensors: readings a sensor keeps, alert and notable log patterns, devices that report for the first time ([Sensors](#sensors-as-activities)) | built |
 | What people say to Lens, in the web app and chat apps, as `chat.message` ([Chat](#chat-as-activities)) | built |
-| More kinds: system events | planned |
+| Lens itself: routine runs, budget warnings, backups and new releases ([Lens itself](#lens-itself-as-activities)) | built |
 | The timeline API (`GET /api/v1/activities`), the MCP tools `timeline` and `event_kinds`, the assistant's `timeline` | built |
 | Review marks on the timeline (reviewed, important, hidden), their filters and `mark_activities` ([Timeline](timeline.md)) | built |
 | The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
@@ -112,6 +112,10 @@ and the paths holding outside text are in `GET /api/v1/activities/kinds` (`event
 | `sensor.alert` | | `log` | `{type: Note, id: lens:sensor_pattern/<id>}`, `label` (alert or notable), `pattern`, `example` (a line it fits), `count` (lines in all), `lines` (in the batch that raised it), `hour` | 192.168.1.1 logged an alert: wlan<n>: authentication failed for <mac> |
 | `sensor.joined` | | `sensors` | `{type: Service, id: lens:sensor/<id>, url: /sensors/<id>}`, `sensor_type` (mqtt, syslog, ...), `device`, `status` | A new MQTT device reported: zigbee2mqtt/kitchen |
 | `chat.message` | | `chat_messages` | `{type: Note, id: lens:chat_message/<id>, name: the start of it, url: /chat/<id>}`, `text`, `channel` (web, telegram, slack, bridge, mailbox), `room`, `chat`, `direct` (a private chat or the web app), `attachments` (how many files) | sam wrote in Telegram: “groceries: milk, eggs” |
+| `routine.ran` | | `routine_runs` | `{type: Note, id: lens:routine_run/<id>, url: /routines/<id>}`, `status` (done, partly, error, skipped), `trigger` (schedule, manual), `startTime`, `endTime`, `actions`, `failed`, `error`, `changes` (graph changes applied and proposed), `cost_usd`, `tokens` | Nightly tidy ran |
+| `budget.warned` | | `log` | `{type: Note, id: lens:budget/<resource>, url: /costs}`, `resource` (all, space:<id>, routine:<id>, ...), `state` (near, over), `share`, `usd`, `tokens`, `estimate`, `cap_usd`, `cap_tokens`, `period`, `since` | The pods namespace has used 82% of its budget |
+| `backup.finished` | | `log` | `{type: Document, id: lens:backup/<name>, url: /settings/backups}`, `label` (manual, scheduled), `ok`, `error`, `kind` (export, folder), `bytes`, `files`, `copied` (to the storage connection) | A scheduled backup finished: scheduled-20261015-020000.surql.gz |
+| `lens.release` | | `log` | `{type: Note, id: lens:release/<tag>, url: its release notes}`, `tag`, `title`, `current` (what this server runs), `published_at` | Lens v0.7.0 is out (this server runs 0.6.0) |
 | `webhook.received` | | `log` | `{type: Note, hook: the webhook's id, payload: what was sent (JSON, a form's fields or text), content_type, query}`; the actor is the webhook (`Service`, `lens:automation_hook/<id>`, "Webhook for <automation>") | Webhook for Front door was called |
 
 A new asset is one activity, of the most specific kind its row tells, decided by its content type and where it came
@@ -180,6 +184,22 @@ said to Lens in a room is never kept, so it is never an activity. Its text and n
 - A question an automation's `ask_agent` asks (`origin` on the message) isn't a person's, so it is never a
   `chat.message`, and an automation can't set itself off that way.
 
+#### Lens itself as activities
+
+Built (`app/domain/events_streams.py`). What Lens does on its own is for admins, unless it is about one namespace.
+Each is logged once, however many processes see it happen.
+
+- `routine.ran` is a routine run that ended: done, partly (some actions failed), error, or skipped over budget once
+  someone picked to skip it. Its actor is the routine (`Application`, `lens:routine/<id>`). A run held over budget is
+  one when it ends; one someone let run anyway runs again as a new run, and that run is the activity. A routine of
+  one namespace makes activities in it.
+- `budget.warned` is a budget crossing its warning share (`warn_at`) or its cap, once per period and state, logged by
+  the same check that alerts on it ([Budgets](budgets.md#warnings)). A namespace's budget makes it in that namespace.
+- `backup.finished` is a backup taken in Settings or through the API, or on the schedule, which says whether it
+  worked (a scheduled one that failed says why) and whether it was copied to the storage connection.
+- `lens.release` is a newer Lens release, once per release, when Lens tells the admins and notification targets
+  ([Updates](updates.md#being-told)).
+
 ### Sources and the event log
 
 Built. A source (`events.Source`, added with `events.register_source`) reads rows Lens already keeps as activities,
@@ -212,6 +232,8 @@ A kind belongs to the source named in its `source`, and a source may list more i
 - `sensor_readings` (`app/domain/events_streams.py`) reads `sensor_reading` by `at` (microseconds), the id breaking
   ties, one sensor at a time, as `sensor.reading`; `sensors` reads the `storage_source` rows discovery made by
   `created_at`, as `sensor.joined`.
+- `routine_runs` (`app/domain/events_streams.py`) reads `routine_run` rows that ended by `finished_at`, the id
+  breaking ties, as `routine.ran`.
 - `chat_messages` (`app/domain/events_streams.py`) reads `chat_message` rows with role user by `created_at` over the
   index on (role, created_at), the id breaking ties, as `chat.message`.
 - `log` reads `event_log`: activities no row of their own records (a deletion, a webhook call), written by
@@ -632,3 +654,5 @@ def _(db, cfg, payload): ...                              # payload + late (true
 - Chat: recording every message in a room as an activity (opt-in per channel, off by default); a chat user who is
   also a Lens account as that person; a timeline page of others' private messages is read and left out, up to five
   source pages, so narrow it by account if that proves slow.
+- Lens itself: a run held over budget, waiting for someone's pick, as an activity of its own; backups taken before
+  upgrades or with `lens backup` (only those from Settings, the API and the schedule are activities today).

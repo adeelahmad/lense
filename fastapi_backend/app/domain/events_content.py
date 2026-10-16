@@ -60,13 +60,13 @@ _names_lock = threading.Lock()
 
 def _lookup(db, table, keys, fields="name", by="id"):
     """{key: row} for these keys of a table (record ids, or the values of the indexed field `by`), one query for the
-    ones not looked up in the last NAME_SECONDS."""
+    ones not looked up (with these `fields`) in the last NAME_SECONDS."""
     keys = [k for k in dict.fromkeys(keys) if k is not None]
     now, out, todo = time.monotonic(), {}, []
     with _names_lock:
         mine = _names.setdefault(db, {})
         for k in keys:
-            hit = mine.get((table, by, k))
+            hit = mine.get((table, by, fields, k))
             if hit and now - hit[0] < NAME_SECONDS:
                 if hit[1] is not None:
                     out[k] = hit[1]
@@ -83,7 +83,7 @@ def _lookup(db, table, keys, fields="name", by="id"):
             if len(mine) > 20000:
                 mine.clear()
             for k in todo:
-                mine[(table, by, k)] = (now, got.get(k))
+                mine[(table, by, fields, k)] = (now, got.get(k))
         out.update(got)
     return out
 

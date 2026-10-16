@@ -22,6 +22,7 @@ When a check finds a release newer than the one running, Lens says so once per r
 * **by email** to every admin (`updates.email`, on by default; needs an email server in Settings › Email);
 * **to notification targets** (webhooks, Matterbridge, Slack, Discord) whose namespace owners chose the
   **A new Lens release is out** event (`lens.release`, [Notifications](notifications.md));
+* to automations, as a `lens.release` activity ([Automations](automations.md#lens-itself-as-activities));
 * in the server log.
 
 ## Upgrading
