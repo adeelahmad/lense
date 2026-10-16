@@ -14,7 +14,7 @@ from app.domain.store import R
 
 # Every step that has shipped, in order. A database remembers steps by name, so these may never be renamed, reordered
 # or removed: add new steps to the end of migrations.steps() and here.
-SHIPPED = ["access-levels", "collection-homes", "tour-seen", "document-read-step"]
+SHIPPED = ["access-levels", "collection-homes", "tour-seen", "document-read-step", "chat-tree"]
 
 
 def test_steps_are_append_only():
@@ -62,8 +62,8 @@ def test_steps_an_older_lens_counted_are_not_run_again(db):
     db.q("DELETE migration")
     db.q("UPSERT $r SET n = 1", r=R("seq", "migrations"))
     rid = _old_shape(db)
-    assert migrations.pending(db) == ["collection-homes", "tour-seen", "document-read-step"]
-    assert store.migrate(db) == ["collection-homes", "tour-seen", "document-read-step"]
+    assert migrations.pending(db) == ["collection-homes", "tour-seen", "document-read-step", "chat-tree"]
+    assert store.migrate(db) == ["collection-homes", "tour-seen", "document-read-step", "chat-tree"]
     row = db.one("SELECT meta_json, collection FROM $r", r=R("recording", rid))
     assert json.loads(row["meta_json"]) == {"access": "signed-in"}  # access-levels was counted as done, so not rerun
     assert row["collection"] == store.default_collection(db, store.ns_id(db, "pods"))
@@ -139,7 +139,7 @@ def test_lens_migrations_lists_and_runs(tmp_path, monkeypatch, capsys):
     assert "pending  access-levels" in out and "pending  collection-homes" in out
     cli.main(["--config", str(cfg_path), "migrations", "--run"])
     out = capsys.readouterr().out
-    assert "ran 4 upgrade(s): access-levels, collection-homes, tour-seen, document-read-step" in out
+    assert "ran 5 upgrade(s): access-levels, collection-homes, tour-seen, document-read-step, chat-tree" in out
     assert "done     access-levels" in out
 
 
@@ -265,3 +265,36 @@ def test_documents_waiting_to_be_transcribed_are_read_instead(db):
         assert [s["type"] for s in job[n]["steps"]] == ["read", "analyze", "report"]
         assert (job[n]["next_step"], job[n]["status"]) == ("read", "queued")
     assert job["song"]["next_step"] == "transcribe" and len(job["song"]["steps"]) == 4
+
+
+def test_conversations_from_before_versions_become_one_line(db):
+    from app.domain import chat
+
+    def older(n):
+        """A conversation as an older Lens saved it: messages with no parent, and no head."""
+        cid, ids = chat.create(db, 1), []
+        for i in range(n):
+            ids.append(db.next_id("chat_message"))
+            said = {"chat": cid, "role": "user" if i % 2 == 0 else "assistant", "content": f"m{i}"}
+            db.q("CREATE $r CONTENT $d", r=R("chat_message", ids[-1]), d=said)
+        return cid, ids
+
+    read, _ = older(3)
+    assert [m["content"] for m in chat.path(db, read)] == ["m0", "m1", "m2"]  # read right before the step runs, too
+    old, ids = older(5)
+    empty = chat.create(db, 1)
+    branched = chat.create(db, 1)  # a conversation with versions already is left alone
+    first = chat.add(db, branched, "user", "q")
+    chat.add(db, branched, "assistant", "a")
+    chat.add(db, branched, "user", "q, edited", parent=None)
+    before = db.rows("SELECT * FROM chat_message WHERE chat = $c ORDER BY id", c=branched)
+    dict(migrations.steps())["chat-tree"](db)
+    once = _everything(db)
+    dict(migrations.steps())["chat-tree"](db)  # safe to run twice
+    assert _everything(db) == once
+    assert [n.get("parent") for n in chat.tree(db, old)] == [None, *ids[:-1]] and chat.head(db, old) == ids[-1]
+    assert [m["content"] for m in chat.path(db, old)] == [f"m{i}" for i in range(5)]
+    assert chat.head(db, empty) is None
+    assert db.rows("SELECT * FROM chat_message WHERE chat = $c ORDER BY id", c=branched) == before
+    assert [m["content"] for m in chat.path(db, branched)] == ["q, edited"]
+    assert chat.versions(chat.tree(db, branched))[first]["count"] == 2
