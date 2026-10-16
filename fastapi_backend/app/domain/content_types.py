@@ -55,6 +55,7 @@ DEFAULTS = [
     ("archive", "text", "Archive", "A zip or tar file, and the files in it", {"extensions": [".tar", ".tgz", ".zip"]}),
     ("email", "text", "Email", "A message, with its attachments", {"extensions": [".eml", ".msg"]}),
     ("calendar_event", "text", "Calendar event", "An invitation or a calendar entry", {"extensions": [".ics"]}),
+    ("feed_post", "text", "Feed post", "A post from a news feed (RSS or Atom)", {"extensions": [".atom"]}),
 ]  # fmt: skip
 
 

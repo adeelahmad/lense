@@ -52791,7 +52791,8 @@
                   "imap",
                   "gmail",
                   "ical",
-                  "gcal"
+                  "gcal",
+                  "rss"
                 ]
               },
               {
@@ -59482,7 +59483,8 @@
               "imap",
               "gmail",
               "ical",
-              "gcal"
+              "gcal",
+              "rss"
             ],
             "title": "Type"
           },
@@ -59579,7 +59581,8 @@
               "imap",
               "gmail",
               "ical",
-              "gcal"
+              "gcal",
+              "rss"
             ],
             "title": "Type"
           },

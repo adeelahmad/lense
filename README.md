@@ -84,13 +84,14 @@ Everything below is built and merged. Work that is still in a pull request is li
   ([Extending the assistant](docs/assistant.md#extending-the-assistant-tools-skills-hooks-and-plugins),
   [the MCP runner](docs/assistant.md#the-mcp-runner))
 - **Bring in everything.** Watched folders on S3, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV or local disks (a
-  local folder in four clicks); IMAP mail, Gmail and Google Workspace, iCal calendars and Google Calendar; a built-in
-  MQTT broker, syslog and webhook streams; import webhooks for scanners and phone shortcuts. Google accounts connect
-  with Connect with Google once Lens has a Google client, and Dropbox, OneDrive and Google Drive can sign in through
-  rclone on the Lens server, with no app of your own to register. Upload audio, video, PDFs, Office files, photos, JSON
-  and zip or tar archives, and, with an Apache Tika server (an opt-in extra), documents nothing else here can read;
-  capture web pages one at a time, from a link list or a bookmarks file, by API or by asking the assistant, from private
-  networks you allow in Settings too; and import videos and podcasts by their address (off by default).
+  local folder in four clicks); IMAP mail, Gmail and Google Workspace, iCal calendars, Google Calendar and RSS and Atom
+  news feeds; a built-in MQTT broker, syslog and webhook streams; import webhooks for scanners and phone shortcuts.
+  Google accounts connect with Connect with Google once Lens has a Google client, and Dropbox, OneDrive and Google
+  Drive can sign in through rclone on the Lens server, with no app of your own to register. Upload audio, video, PDFs,
+  Office files, photos, JSON and zip or tar archives, and, with an Apache Tika server (an opt-in extra), documents
+  nothing else here can read; capture web pages one at a time, from a link list or a bookmarks file, by API or by asking
+  the assistant, from private networks you allow in Settings too; and import videos and podcasts by their address (off
+  by default).
   ([Sensors](docs/sensors.md), [processing](docs/processing.md), [Apache Tika](docs/configuration.md#apache-tika),
   [import webhooks](docs/api.md#import-webhooks))
 - **Clip from the browser.** The Lens web clipper for Chrome, Edge, Firefox and Safari turns a page, a selection or a

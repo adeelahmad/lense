@@ -293,7 +293,8 @@ A folder scan and a routine run are each claimed first, so several processes doi
 ## Storage sources
 
 Admins add sources in the app (`/api/v1/sources`): S3 or S3-compatible, Dropbox, Google Drive, OneDrive, SFTP, SMB,
-WebDAV, or a folder on this machine; or an email account (IMAP, or Gmail and Google Workspace), a calendar feed (iCal) or Google Calendar, below. A watched folder maps a path on a source to a namespace, with include/exclude
+WebDAV, or a folder on this machine; or an email account (IMAP, or Gmail and Google Workspace), a calendar feed (iCal),
+Google Calendar or a [news feed](#news-feeds-rss-and-atom) (RSS or Atom), below. A watched folder maps a path on a source to a namespace, with include/exclude
 patterns, audio and/or transcripts, a polling interval, how long a file must be unchanged before it is picked up, and
 whether files already there are imported (backfill). New audio is queued for the full pipeline; new transcripts are
 imported and analysed. Audio stays where it is: it is copied to a cache for processing and streamed from the source for
@@ -345,8 +346,8 @@ files, then Import (`POST /api/v1/import/source`). The listing marks files that 
 
 ### Email (IMAP), calendar feeds (iCal) and Google Calendar
 
-Three kinds of source aren't storage and don't use rclone; their messages and events are shown as files, so browsing,
-importing chosen ones and watching work as above.
+These kinds of source aren't storage and don't use rclone; their messages and events are shown as files, so browsing,
+importing chosen ones and watching work as above. [News feeds](#news-feeds-rss-and-atom) work the same way.
 
 - **Email (IMAP)**: host, port, security (SSL/TLS, STARTTLS or none), user and password (an app password where the
   provider has them). Mailboxes are the folders, and each message is a file `<mailbox>/<uidvalidity>-<uid>.eml`,
@@ -413,6 +414,38 @@ importing chosen ones and watching work as above.
     interrupts is tried again at the next poll. The token endpoint is always Google's own, whatever a key file says. Without a Google Cloud project,
     a Google calendar's secret address in iCal format (Settings › Integrate calendar) works as a calendar feed.
 - `.eml` and `.ics` files in any source, and uploaded through Import, can be read as text this way too.
+
+### News feeds (RSS and Atom)
+
+A news feed (type `rss`) is a source too: Settings › Sources › Add › News feed, then watch it. Watching a feed
+subscribes to it: each new post becomes a text resource of the namespace, titled and dated by the post, so answers cite
+it and its link.
+
+- **Address**: the feed's own (`https://`, or `feed://`), or a page of the site: when the page names its feed
+  (`<link rel="alternate" type="application/rss+xml">`, as blogs and news sites do), the first feed it names is read.
+  A user and password if the feed asks for one. The address is kept encrypted like a password and never shown again,
+  since a private feed's address often carries its key. It is fetched as calendar feeds are: public addresses only
+  (and the networks in `documents.web_networks`), on ports 80 and 443, and the password is never sent to another
+  server, including one that a page names as its feed's.
+- **Posts**: the feed is one folder of posts, each a file `<id>.atom` named by its date and title. RSS (0.9x, 1.0,
+  2.0) and Atom (0.3, 1.0) are read by [feedparser](https://github.com/kurtmckee/feedparser) (BSD), which drops
+  scripts, styles and event handlers from the posts' HTML and makes their links absolute. Whatever the feed, each post
+  is kept as an Atom entry document of its own (RFC 4287): its title, the post's page, enclosures (a podcast's audio),
+  when it was published and updated, its authors, categories, summary and content, and the feed's title and site
+  (never its address). It comes in as text: the title, its link, who wrote it, when, the feed, its categories and
+  enclosures, then its text. Its content type is Feed post, so a namespace can give feed posts a pipeline of their own
+  (Settings › Content types).
+- **New posts only, unless you backfill**: as for any watch, a new watch on a feed takes the posts published after it
+  starts; turn on backfill to bring in those the feed lists already. The newest 500 posts of a feed are listed.
+- **Light on the network**: a feed read is reused for a minute, then asked for again with its `ETag` and
+  `Last-Modified`, so a feed that hasn't changed costs one small request. A post is known by its id (an RSS item's
+  `guid`), so a feed that reorders or retitles its posts doesn't bring them in twice; a post whose text changes is read
+  again into the resource it already is. A post the feed drops later keeps its resource and its file.
+- `.atom` files uploaded through Import (a single post, or a whole Atom feed) are read as text the same way.
+
+Refine later: JSON Feed (feedparser reads RSS and Atom only); an option to capture each post's whole page, for feeds
+that carry only a summary; podcast feeds bringing in each episode's audio to transcribe; OPML import of a feed list;
+subscribing in one step (address and namespace) from Settings.
 
 ### Gmail and Google Workspace
 
