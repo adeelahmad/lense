@@ -82,6 +82,9 @@ import type {
   BulkUpdateMetadataData,
   BulkUpdateMetadataErrors,
   BulkUpdateMetadataResponses,
+  CallAutomationHookData,
+  CallAutomationHookErrors,
+  CallAutomationHookResponses,
   CancelJobData,
   CancelJobErrors,
   CancelJobResponses,
@@ -3781,6 +3784,30 @@ export class Activities {
   ): RequestResult<MarkActivityResponses, MarkActivityErrors, ThrowOnError> {
     return (options.client ?? client).post<MarkActivityResponses, MarkActivityErrors, ThrowOnError>({
       url: "/api/v1/activities/{activity_id}/mark",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Automations {
+  /**
+   * Call Automation Hook
+   *
+   * Set an automation off: what is sent (JSON, a form or text, up to 64 KB) becomes a `webhook.received` activity
+   * for the automation whose trigger this address is. No session: the token in the address is the credential. Signed
+   * the Standard Webhooks way (webhook-id, webhook-timestamp, webhook-signature), the signature must match the webhook's
+   * secret; `webhook-id` or `Idempotency-Key` makes a retried call count once. Answers at once, before the automation
+   * runs.
+   */
+  public static callAutomationHook<ThrowOnError extends boolean = false>(
+    options: Options<CallAutomationHookData, ThrowOnError>,
+  ): RequestResult<CallAutomationHookResponses, CallAutomationHookErrors, ThrowOnError> {
+    return (options.client ?? client).post<CallAutomationHookResponses, CallAutomationHookErrors, ThrowOnError>({
+      url: "/api/v1/automations/hooks/{token}",
       ...options,
       headers: {
         "Content-Type": "application/json",

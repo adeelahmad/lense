@@ -15,10 +15,12 @@ merged is called built.
 | New assets by kind: emails received, calendar events, files from storage, uploads, pages saved from the web, imports | built |
 | Runs that finished or failed, deletions and calendar events that moved | built |
 | Comments, notes written and saved, and changes to the entity graph | built |
-| More kinds: sensors, chat, webhooks, system events | planned |
+| More kinds: sensors, chat, system events | planned |
 | The timeline API (`GET /api/v1/activities`), the MCP tools `timeline` and `event_kinds`, the assistant's `timeline` | built |
 | Review marks on the timeline (reviewed, important, hidden), their filters and `mark_activities` ([Timeline](timeline.md)) | built |
 | The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
+| The event workflow scope: what an automation does, drawn with action nodes and tried on an activity (`app/domain/automation_nodes.py`) | built |
+| The decide node (the decision model picks a branch) | planned |
 | The action registry with risk from each action's effect, and one action, `log_line` (`app/domain/actions.py`) | built |
 | Telling a person: the `notify` action and `channels.tell` (their own chat, a notification target, a Matterbridge room) | built |
 | The model and the agent: the `ask_model`, `call_tool` and `ask_agent` actions, and prompts with outside text marked | built |
@@ -26,8 +28,7 @@ merged is called built.
 | Running Lens work: the `run_workflow`, `run_pipeline` and `run_routine` actions | built |
 | Changing assets and writing notes: the `set_field`, `add_to_collection` and `write_note` actions | built |
 | Settings → Automations: how often followers look and how long the event log is kept | built |
-| The event workflow scope: what an automation does, drawn with action nodes and tried on an activity (`app/domain/automation_nodes.py`) | built |
-| The decide node (the decision model picks a branch) | planned |
+| A webhook address per automation trigger, and calls to it as `webhook.received` ([Webhook trigger](#webhook-trigger)) | built |
 | The Timeline page with filters, grouping, review keys and new items, and Home's Latest card ([Timeline](timeline.md)) | built |
 | Storing and running automations, schedules and timers, joins, approvals, variables, the studio | planned |
 
@@ -103,6 +104,7 @@ and the paths holding outside text are in `GET /api/v1/activities/kinds` (`event
 | `note.created` | | `note_pages` | a `Page`: `summary`, `about` (what it's the page of), `place`, `author` (person or assistant) | Assistant wrote the note “St Mary's School” |
 | `note.saved` | | `note_versions` | as `note.created`, with `version` (the page as it was before) and `why` | Sam edited the note “School trip plans” |
 | `entity.changed` | | `graph` | `op` (created, renamed, merged, split, linked, unlinked, deleted, rolled back, changed), `change` (the graph's own op), `entityType`, `before` (a renamed entity's name), `version`, `count`; tagged with its entities | Sam renamed “St Marys” to “St Mary's School” |
+| `webhook.received` | | `log` | `{type: Note, hook: the webhook's id, payload: what was sent (JSON, a form's fields or text), content_type, query}`; the actor is the webhook (`Service`, `lens:automation_hook/<id>`, "Webhook for <automation>") | Webhook for Front door was called |
 
 A new asset is one activity, of the most specific kind its row tells, decided by its content type and where it came
 from, never by reading its file: an email (content type email, or from an IMAP or Gmail mailbox), a calendar event
@@ -267,6 +269,41 @@ gives a cleaned copy, or a ValueError naming the first problem.
 - `check_policy(p, nodes, allow_auto=False)`: `{action node id: ask or auto}`. Only a person in a signed-in session
   lets a node run on its own; everywhere else (agents, drafts, the workflow API) `auto` is refused.
 
+### Webhook trigger
+
+Built (`app/domain/automation_hooks.py`, `POST /api/v1/automations/hooks/{token}`). A trigger `{"on": "webhook"}`
+is a secret address anything that can send HTTP calls to set the automation off: Home Assistant's `rest_command`, a
+phone shortcut, another service. No webhook exists until an automation with such a trigger is saved.
+
+- `automation_hooks.token_for(db, cfg, automation_id, alias, signed=False)` makes the hook for one trigger when the
+  automation is saved: `{"hook": id, "url": address, "path": address without the server, "secret": signing secret}`.
+  The address and secret are shown this once; the row (`automation_hook {automation, alias, token_hash, secret,
+  signed, created_at, last_called_at, calls}`) keeps only the token's hash and the secret sealed with the server's
+  key. Calling it again for the same trigger replaces the hook, and the old address stops working. The trigger keeps
+  the hook's id in `hook`. `automation_hooks.revoke(db, hook)` deletes it (when the trigger or the automation goes);
+  `for_automation(db, id)` lists an automation's hooks.
+- A call needs only the token in the address (`lah_...`). It takes JSON, a form (text fields; files are refused) or
+  text, up to 64 KB, at most 60 calls a minute per hook (in the API process; 429 with `Retry-After` past it), and
+  answers 202 `{"id": activity}` at once. 401 for a token that isn't a hook's, 403 while the automation is switched
+  off, 413 over 64 KB, 415 for anything but JSON, a form or text.
+- What was sent becomes a `webhook.received` activity in the event log, with the payload, its content type and the
+  query as outside text. Its namespace is the automation's (admins see it while the automation isn't stored).
+- Signed calls: a caller that signs the Standard Webhooks way (`webhook-id`, `webhook-timestamp` in seconds,
+  `webhook-signature: v1,<base64 HMAC-SHA256 of "<id>.<timestamp>.<body>">` keyed with the secret, as Lens signs its
+  own [notification webhooks](notifications.md#webhooks)) has the signature checked, and the time must be within five minutes.
+  A hook made with `signed=True` refuses calls that aren't signed. A call naming its message (`webhook-id`, or an
+  `Idempotency-Key` header) is logged once however often the sender retries it.
+- In Docker the API runs no background work, so the worker's automations see the call on their next look (5
+  seconds, `events.poll_seconds`).
+
+Lens has three kinds of webhook address; they don't share tokens or do each other's jobs:
+
+| Address | Made by | What a call does |
+| --- | --- | --- |
+| `POST /api/v1/automations/hooks/{token}` | saving an automation with a webhook trigger | sets that automation off with what was sent (`webhook.received`); nothing is kept but the activity |
+| `POST /api/v1/sensors/push/{token}` ([Sensors](sensors.md)) | an admin adding a webhook sensor | keeps readings (numbers, on/off, text) for charts, with the sensor's handling |
+| `POST /api/v1/hooks/import/{token}` ([Import webhooks](api.md#import-webhooks)) | a namespace's owner | imports files, web pages or text as assets |
+
 ### Run context
 
 What an automation's If, its nodes and its templates see (`automation_spec.context_paths()` lists the keys, with
@@ -284,6 +321,45 @@ titles, for the variable picker):
 | `now`, `timezone` | when the run started (ISO 8601 in UTC) and the person's time zone |
 | `vars` | the automation's and its namespace's saved variables |
 | `steps` | what each node passed on so far, by node id, such as `steps.n3` |
+
+### The event workflow scope
+
+Built: what an automation does is a workflow of scope `event` (`app/domain/automation_nodes.py`), saved and
+versioned like any workflow (`POST /api/v1/workflows` with `"scope": "event"`). Its `input` node passes on the
+[run context](#run-context), and between the primitives (condition, switch, set, merge, loops...) it has two nodes of
+its own:
+
+- **Action** (`action`, configured `{action, params, delay?, when?}`): one action from the registry. When it runs,
+  it fills its params in from the run context (`"text": "New: {{ event.object.name }}"`; a param that is exactly one
+  `{{ }}` expression keeps its type, so a list stays a list; the action's defaults are filled in first, so a default
+  that is a template, like `ask_agent`'s `about`, is filled in too; a prompt param is rendered with outside text
+  marked, as [The model and the agent](#the-model-and-the-agent) says), works out its effect and risk and makes an
+  [intent](#actions-and-intents). A routine intent is carried out there and then: what it gives back passes on along
+  `out` and goes in `steps.<node id>` for later nodes. One that asks first waits for the person's pick, and one with
+  a `delay` (like `30m`) or a time (`when`, a time or a template giving one) waits for its time: such a node passes
+  nothing on, so the nodes after it are skipped and the run's log says where it stopped and why. An action that
+  fails is marked failed on its node, and the rest of the graph goes on.
+- **Decide** (`decide`, configured `{question, options, input?, min_confidence?}`): the decision model picks one of
+  its options, with an output port per option and `unsure`. Planned with the decision model; until then a decide node
+  is refused when the workflow is saved, as coming soon. Use a condition or switch node.
+
+Checked when it is saved, on every path (create, a new version, a body):
+
+- It needs an action node, each action is one the registry has (`GET /api/v1/automations/actions` will list them)
+  with params that fit its schema, and each template in its params is valid.
+- **The leaf rule:** an action that reaches outside Lens or other people (effect `out`, worked out from its params)
+  or that waits has nothing connected after it, as it can't pass anything on while it waits for a yes or its time.
+- Waiting before an action (`delay`, `when`) is refused as coming soon until timers are built.
+
+Its automation runs it: an event workflow isn't run on an asset, as a pipeline step or as a routine's action, and the
+canvas's list of workflows leaves it out (`GET /api/v1/workflows?scope=event` lists them).
+
+**Try it** with `POST /api/v1/workflows/test` (admins): `{"scope": "event", "graph": ..., "kind": "asset.added"}`
+runs it on that kind's sample, and `"activity": "<id>"` on a real activity you can see. Nothing is kept and nothing is
+sent: each action says what it would do (`would write “New: Call with the school” to the run log`), and `intents`
+lists each one with its params, effect, risk, status (`done`, `waiting`, `scheduled` or `failed`) and what it gave
+back. Text from outside Lens (`lens.untrusted` on the activity, or what a node passed on when its output says
+`untrusted`, like a web page's answer) that reaches an action's params marks its intent `untrusted`.
 
 ### Actions and intents
 
@@ -415,45 +491,6 @@ everyone who reads the asset sees.
 Calendar events aren't written: Lens signs in to Google Calendar read-only, and writing needs a new consent. Meanwhile
 the agent can draft an event as a note.
 
-### The event workflow scope
-
-Built: what an automation does is a workflow of scope `event` (`app/domain/automation_nodes.py`), saved and
-versioned like any workflow (`POST /api/v1/workflows` with `"scope": "event"`). Its `input` node passes on the
-[run context](#run-context), and between the primitives (condition, switch, set, merge, loops...) it has two nodes of
-its own:
-
-- **Action** (`action`, configured `{action, params, delay?, when?}`): one action from the registry. When it runs,
-  it fills its params in from the run context (`"text": "New: {{ event.object.name }}"`; a param that is exactly one
-  `{{ }}` expression keeps its type, so a list stays a list; the action's defaults are filled in first, so a default
-  that is a template, like `ask_agent`'s `about`, is filled in too; a prompt param is rendered with outside text
-  marked, as [The model and the agent](#the-model-and-the-agent) says), works out its effect and risk and makes an
-  [intent](#actions-and-intents). A routine intent is carried out there and then: what it gives back passes on along
-  `out` and goes in `steps.<node id>` for later nodes. One that asks first waits for the person's pick, and one with
-  a `delay` (like `30m`) or a time (`when`, a time or a template giving one) waits for its time: such a node passes
-  nothing on, so the nodes after it are skipped and the run's log says where it stopped and why. An action that
-  fails is marked failed on its node, and the rest of the graph goes on.
-- **Decide** (`decide`, configured `{question, options, input?, min_confidence?}`): the decision model picks one of
-  its options, with an output port per option and `unsure`. Planned with the decision model; until then a decide node
-  is refused when the workflow is saved, as coming soon. Use a condition or switch node.
-
-Checked when it is saved, on every path (create, a new version, a body):
-
-- It needs an action node, each action is one the registry has (`GET /api/v1/automations/actions` will list them)
-  with params that fit its schema, and each template in its params is valid.
-- **The leaf rule:** an action that reaches outside Lens or other people (effect `out`, worked out from its params)
-  or that waits has nothing connected after it, as it can't pass anything on while it waits for a yes or its time.
-- Waiting before an action (`delay`, `when`) is refused as coming soon until timers are built.
-
-Its automation runs it: an event workflow isn't run on an asset, as a pipeline step or as a routine's action, and the
-canvas's list of workflows leaves it out (`GET /api/v1/workflows?scope=event` lists them).
-
-**Try it** with `POST /api/v1/workflows/test` (admins): `{"scope": "event", "graph": ..., "kind": "asset.added"}`
-runs it on that kind's sample, and `"activity": "<id>"` on a real activity you can see. Nothing is kept and nothing is
-sent: each action says what it would do (`would write “New: Call with the school” to the run log`), and `intents`
-lists each one with its params, effect, risk, status (`done`, `waiting`, `scheduled` or `failed`) and what it gave
-back. Text from outside Lens (`lens.untrusted` on the activity, or what a node passed on when its output says
-`untrusted`, like a web page's answer) that reaches an action's params marks its intent `untrusted`.
-
 ## Refine later
 
 - More operators: `in`, `matches` (bounded regular expressions), `between`, times against now, `changed`.
@@ -497,3 +534,5 @@ back. Text from outside Lens (`lens.untrusted` on the activity, or what a node p
 - Changing assets: asking first instead of failing when a move would show an asset to new people (risk that reads the
   database); fields on collections and files; tags; roles on collections counting for `edit`.
 - Writing calendar events (a new Google consent, so it changes existing installs).
+- Webhook trigger: signed answers to the caller (what the run did); a rate limit shared by every API process (today
+  each counts its own); showing a hook's last call in the studio.

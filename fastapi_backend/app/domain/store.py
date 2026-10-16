@@ -1264,6 +1264,10 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS event_cursor SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS event_claim SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS event_claim_at ON event_claim FIELDS at",
+    # an automation trigger's webhook (domain/automation_hooks.py): automation_hook:<n>, the token kept only as a hash
+    "DEFINE TABLE IF NOT EXISTS automation_hook SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS automation_hook_token ON automation_hook FIELDS token_hash UNIQUE",
+    "DEFINE INDEX IF NOT EXISTS automation_hook_automation ON automation_hook FIELDS automation",
     "DEFINE INDEX IF NOT EXISTS upload_recording ON upload FIELDS recording",
     # review marks on the timeline (domain/event_marks.py, docs/timeline.md): each person's reviewed, important and
     # hidden flags on an activity, event_mark:<hash of account and activity> (the id keeps the pair unique)

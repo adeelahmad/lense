@@ -5202,6 +5202,93 @@
         }
       }
     },
+    "/api/v1/automations/hooks/{token}": {
+      "post": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Call Automation Hook",
+        "description": "Set an automation off: what is sent (JSON, a form or text, up to 64 KB) becomes a `webhook.received` activity\nfor the automation whose trigger this address is. No session: the token in the address is the credential. Signed\nthe Standard Webhooks way (webhook-id, webhook-timestamp, webhook-signature), the signature must match the webhook's\nsecret; `webhook-id` or `Idempotency-Key` makes a retried call count once. Answers at once, before the automation\nruns.",
+        "operationId": "call_automation_hook",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HookCalled"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "not a webhook's token, or a signature that doesn't match"
+          },
+          "403": {
+            "description": "the automation is switched off"
+          },
+          "413": {
+            "description": "over 64 KB"
+          },
+          "415": {
+            "description": "neither JSON, a form nor text"
+          },
+          "429": {
+            "description": "over 60 calls a minute to this webhook"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {}
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            },
+            "text/plain": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/budgets": {
       "get": {
         "tags": [
@@ -40709,6 +40796,21 @@
         "additionalProperties": false,
         "type": "object",
         "title": "HighlightUpdate"
+      },
+      "HookCalled": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "the webhook.received activity the call made (the same one again for a retried call)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "HookCalled"
       },
       "HookItem": {
         "properties": {

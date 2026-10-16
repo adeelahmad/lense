@@ -131,6 +131,7 @@
     {
       "name": "optional",
       "entry_points": [
+        "POST /automations/hooks/{token} (an automation's webhook)",
         "MQTT 1883, syslog 5514, POST /sensors/push/{token}/{stream}",
         "SMB share (port 1445 on the host, 4445 in the worker)"
       ],
@@ -486,6 +487,15 @@
       "caller_must_enforce": "admin is trusted",
       "provenance": "documented",
       "source": "maintainer ruling, 2026-10"
+    },
+    {
+      "entry_point": "POST /automations/hooks/{token} (an automation's webhook)",
+      "parameter": "body (JSON, a form's text fields or text), query, Standard Webhooks headers, token in the path",
+      "attacker_controllable": "yes",
+      "component": "optional",
+      "caller_must_enforce": "the person keeps the address and secret to the services that call it; Lens keeps the token hashed, caps size and rate, checks signatures sent, and treats what was sent as outside text",
+      "provenance": "documented",
+      "source": "docs/automations.md \"No webhook exists until an automation with such a trigger is saved\""
     },
     {
       "entry_point": "MQTT 1883, syslog 5514, POST /sensors/push/{token}/{stream}",
