@@ -225,6 +225,26 @@ KB, 415 for other bodies, 429 past 60 calls a minute.
 curl -H "Content-Type: application/json" -d '{"event": "doorbell"}' https://lens.example/api/v1/automations/hooks/lah_...
 ```
 
+```
+GET    /api/v1/automations/{id}/vars
+PUT    /api/v1/automations/{id}/vars
+GET    /api/v1/namespaces/{name}/automation-vars
+PUT    /api/v1/namespaces/{name}/automation-vars
+```
+
+The values automations keep between runs ([Saved variables](automations.md#saved-variables)): an automation's own,
+or a namespace's, which every automation working there reads. `GET` answers `{"vars": [{name, value, untrusted,
+updated_at, updated_by}]}` by name; `untrusted` says a run set it from text from outside Lens. `PUT {"vars": {name:
+value}}` sets several at once (`null` clears one) and answers the same list. An automation's are for admins and
+whoever may change it (it works only in namespaces they edit); a namespace's are read by its readers and changed by
+its editors. 404 for an automation you can't see, 400 for a bad name (lowercase letters, digits and `_`, up to 40),
+a value over 16 KB, or past 100 variables.
+
+```
+curl -X PUT -H "Authorization: Bearer $LENS_TOKEN" -H "Content-Type: application/json" \
+  -d '{"vars": {"alerts": 0, "last_alert": null}}' https://lens.example/api/v1/automations/7/vars
+```
+
 ## vaults
 
 ```

@@ -15,6 +15,11 @@ every trigger's activity, the person, the time and what earlier nodes passed on,
   set from outside text). The prompt is inline text or a saved, versioned prompt template ({"template": 5, "version":
   2}), and comes back with the system rules to add (untrusted.rules).
 
+Saved variables keep values between runs ("last alert at", a counter): `automation_var` rows, an automation's own or
+its namespace's (`get_vars`, `set_var`), read as `vars.<name>` and written by the `set_variable` action. A value is
+JSON up to 16 KB; a list kept by `append` holds the last 100 items. A variable set from outside text is marked so
+(`untrusted`): prompts mark it as data and the intents that read it as outside text.
+
 The filters templates have for times, text and addresses (date, ago, local, plain, emails, defang) are in templates.py,
 so every template in Lens has them.
 """
@@ -24,13 +29,15 @@ from __future__ import annotations
 import copy
 import datetime as dt
 import difflib
+import hashlib
+import json
 import re
 
 from jinja2 import TemplateSyntaxError, Undefined, nodes
 from jinja2.exceptions import SecurityError, UndefinedError
 
+from . import actions, auth, schedule, store, templates, untrusted
 from . import events as ev
-from . import schedule, store, templates, untrusted
 
 WHOLE_RX = re.compile(r"^\{\{\s*([^{}]+?)\s*\}\}$")
 LINE_RX = re.compile(r"^line (\d+): ")
@@ -43,6 +50,13 @@ GUARDS = {"default", "d"}  # filters that stand in for a missing value
 OWN = {"loop", "self", "caller", "varargs", "kwargs", "super"}  # names Jinja gives a template itself
 TESTS = {"defined", "undefined", "none"}
 UTC = dt.timezone.utc
+R = store.R
+VAR_RX = re.compile(r"^[a-z][a-z0-9_]{0,39}$")
+OPS = ("set", "increment", "append", "clear")
+MAX_BYTES = 16 * 1024  # a value, as JSON
+MAX_ITEMS = 100  # what append keeps
+MAX_VARS = 100  # in one automation, or one namespace
+TRIES = 5  # a write that loses a race with another run reads the value again
 
 
 class Problem(ValueError):
@@ -114,7 +128,7 @@ def context(db, cfg, automation, run, trigger, event, events, user, now=None):
         "now": _z(now),
         "now_local": now.astimezone(schedule.zone(tz)).isoformat(timespec="seconds"),
         "timezone": tz,
-        "vars": {},
+        "vars": get_vars(db, automation.get("id"), sid),
         "steps": {},
     }
 
@@ -136,7 +150,13 @@ def outside_paths(ctx):
                 of(x, f"events.{alias}.{i}")
         else:
             of(a, f"events.{alias}")
-    out += [k for k in ("steps", "vars") if ctx.get(k)]
+    if ctx.get("steps"):
+        out.append("steps")
+    saved = ctx.get("vars")
+    if isinstance(saved, Vars):
+        out += [f"vars.{n}" for n in sorted(saved._outside) if n in saved]
+    elif saved:
+        out.append("vars")  # where they came from isn't known: all of them
     return out
 
 
@@ -408,3 +428,226 @@ def fill_prompts(spec, params, ctx, cfg=None, db=None, prompts=()):
         if (got["schema"] or {}).get("properties") and "json_schema" in props and not out.get("json_schema"):
             out["json_schema"] = got["schema"]
     return out
+
+
+# ---------- saved variables ----------
+class Vars(dict):
+    """Saved variables by name, as the run context has them; `_outside` names those set from outside text."""
+
+    def __init__(self, values=(), outside=()):
+        super().__init__(values)
+        self._outside = frozenset(outside)
+
+
+def check_name(name):
+    if not isinstance(name, str) or not VAR_RX.match(name):
+        raise ValueError(f"a variable is named with lowercase letters, digits and _, starting with a letter, not {str(name)[:60]!r}")
+    return name
+
+
+def check_value(value):
+    try:
+        size = len(json.dumps(value, ensure_ascii=False).encode())
+    except (TypeError, ValueError):
+        raise ValueError("a variable holds JSON: text, a number, true or false, a list or an object") from None
+    if size > MAX_BYTES:
+        raise ValueError(f"a variable holds up to {MAX_BYTES // 1024} KB, not {size // 1024} KB")
+    return value
+
+
+def _scope(automation, space):
+    if (automation is None) == (space is None):
+        raise ValueError("a variable is an automation's or a namespace's")
+    return ("automation", int(automation)) if automation is not None else ("space", int(space))
+
+
+def _rid(name, automation=None, space=None):
+    kind, n = _scope(automation, space)
+    return R("automation_var", hashlib.sha1(f"{kind}:{n}:{name}".encode()).hexdigest()[:24])
+
+
+def _where(automation, space):
+    kind, n = _scope(automation, space)
+    return ("automation = $n AND space = NONE", n) if kind == "automation" else ("space = $n AND automation = NONE", n)
+
+
+def list_vars(db, automation=None, space=None):
+    """An automation's variables (`automation`) or a namespace's (`space`): [{name, value, untrusted, updated_at,
+    updated_by}], by name."""
+    where, n = _where(automation, space)
+    rows = db.rows(f"SELECT * FROM automation_var WHERE {where}", n=n)  # `value` is a SurrealQL keyword
+    keep = ("name", "value", "updated_at", "updated_by")
+    return sorted(({**{k: r.get(k) for k in keep}, "untrusted": bool(r.get("untrusted"))} for r in rows), key=lambda r: r["name"])
+
+
+def get_vars(db, automation=None, space=None):
+    """What a run reads as `vars`: the namespace's variables, then the automation's own (which win on a name), as Vars."""
+    rows = []
+    if space is not None:
+        rows += list_vars(db, space=space)
+    if automation is not None:
+        rows += list_vars(db, automation=automation)
+    values, outside = {}, set()
+    for r in rows:
+        values[r["name"]] = r.get("value")
+        outside.discard(r["name"])
+        if r["untrusted"]:
+            outside.add(r["name"])
+    return Vars(values, outside)
+
+
+def _next(op, old, value, name):
+    if op == "set":
+        return value
+    if op == "increment":
+        by = 1 if value is None else value
+        if not isinstance(by, (int, float)) or isinstance(by, bool):
+            raise ValueError(f"increment {name} by a number, not {str(by)[:40]!r}")
+        if old is None:
+            return by
+        if not isinstance(old, (int, float)) or isinstance(old, bool):
+            raise ValueError(f"{name} holds {type(old).__name__}, not a number, so it can't be incremented")
+        return old + by
+    if op == "append":
+        items = [] if old is None else old if isinstance(old, list) else [old]
+        return [*items, value][-MAX_ITEMS:]
+    raise ValueError(f"the operation is one of {', '.join(OPS)}")
+
+
+def set_var(db, name, value=None, automation=None, space=None, op="set", by=None, untrusted=False):
+    """Change one saved variable, an automation's or a namespace's: `set` it to `value`, `increment` it by `value`
+    (default 1), `append` `value` to it (a list of the last 100), or `clear` it. Returns {name, value, previous}
+    (value None once cleared). A write that races another run's reads the value again; ValueError naming a problem."""
+    check_name(name)
+    if op not in OPS:
+        raise ValueError(f"the operation is one of {', '.join(OPS)}")
+    rid = _rid(name, automation, space)
+    for _ in range(TRIES):
+        row = db.one("SELECT * FROM $r", r=rid)
+        old = (row or {}).get("value")
+        if op == "clear":
+            if row is None or db.rows("DELETE $r WHERE rev = $rev RETURN BEFORE", r=rid, rev=row.get("rev")):
+                return {"name": name, "value": None, "previous": old}
+            continue
+        new = check_value(_next(op, old, value, name))
+        fields = {"value": new, "untrusted": bool(untrusted), "updated_at": store.now(), "updated_by": by}
+        if row is None:
+            where, n = _where(automation, space)
+            if len(db.values(f"SELECT VALUE id FROM automation_var WHERE {where} LIMIT {MAX_VARS}", n=n)) >= MAX_VARS:
+                raise ValueError(f"there are {MAX_VARS} variables already; clear one first")
+            kind, n = _scope(automation, space)
+            content = {
+                **fields,
+                "name": name,
+                "rev": 1,
+                "automation": n if kind == "automation" else None,
+                "space": n if kind == "space" else None,
+            }
+            try:
+                db.q("CREATE $r CONTENT $d", r=rid, d=store.clean(content))
+            except Exception:  # noqa: BLE001 - another run made it first: read it again
+                continue
+        elif not db.rows(
+            "UPDATE $r MERGE $d WHERE rev = $rev RETURN AFTER", r=rid, d={**fields, "rev": row.get("rev", 0) + 1}, rev=row.get("rev")
+        ):
+            continue
+        return {"name": name, "value": new, "previous": old}
+    raise ValueError(f"{name} is being changed by other runs; try again")
+
+
+def put_vars(db, values, automation=None, space=None, by=None):
+    """Set several variables at once, as a person does ({name: value}, None clears one); the variables as they are now."""
+    if not isinstance(values, dict):
+        raise ValueError("give the variables as {name: value}, null to clear one")
+    for name, value in values.items():
+        check_name(name)
+        if value is not None:
+            check_value(value)
+    for name, value in values.items():
+        set_var(db, name, value, automation, space, "clear" if value is None else "set", by)
+    return list_vars(db, automation, space)
+
+
+def manages(db, aid, admin=False, editable=()):
+    """Whether someone who can edit `editable` (namespace ids; an admin every one) may see and change automation `aid`
+    and its variables: admins any, others one that works only in namespaces they can edit. False when there's none."""
+    try:
+        row = db.one("SELECT spaces, removed_at FROM $r", r=R("automation", int(aid)))
+    except Exception:  # noqa: BLE001 - automations aren't stored on this install yet
+        row = None
+    if not row or row.get("removed_at"):
+        return False
+    return bool(admin) or (row.get("spaces") is not None and set(row["spaces"]) <= set(editable))
+
+
+# ---------- the set_variable action ----------
+def _set_variable(db, cfg, intent, user, dry):
+    p = intent["params"]
+    name, op, value = check_name(p["name"]), p.get("op") or "set", p.get("value")
+    account = actions.person(db, intent, user)
+    automation, space = intent.get("automation"), None
+    if p.get("scope") == "namespace":
+        automation, space = None, p.get("namespace")
+        if space is None and len(intent["spaces"]) == 1:
+            space = intent["spaces"][0]  # the automation's only namespace
+        if space is None:
+            raise ValueError("set_variable: name the namespace (namespace), or keep it the automation's own")
+        space = int(space)
+        if intent["spaces"] and space not in intent["spaces"]:
+            raise ValueError(f"namespace {space} isn't one of this automation's")
+        if not auth.allows(auth.roles(db, account), space, "editor"):
+            raise ValueError(f"{account['name']} can't edit that namespace, so its variables stay as they are")
+    elif automation is None and not dry:
+        raise ValueError("set_variable: a draft keeps no variables; save the automation first")
+    if dry:
+        old = (get_vars(db, automation, space) if (automation or space) is not None else {}).get(name)
+        new = None if op == "clear" else check_value(_next(op, old, value, name))
+        return {"name": name, "value": new, "previous": old, "would": describe_set(p)}
+    return set_var(db, name, value, automation, space, op, f"automation:{intent.get('automation')}", bool(intent.get("untrusted")))
+
+
+def describe_set(p):
+    name, op, value = p.get("name"), p.get("op") or "set", p.get("value")
+    where = "the namespace's" if p.get("scope") == "namespace" else "the automation's"
+    shown = json.dumps(value, ensure_ascii=False)[:60] if value is not None else ""
+    return {
+        "set": f"Set {where} variable {name} to {shown}",
+        "increment": f"Add {shown or 1} to {where} variable {name}",
+        "append": f"Add {shown} to {where} list {name}",
+        "clear": f"Clear {where} variable {name}",
+    }.get(op, f"Change {where} variable {name}")
+
+
+actions.register(
+    actions.ActionSpec(
+        name="set_variable",
+        label="Set a variable",
+        group="Run",
+        description=(
+            "Keeps a value between runs, read as vars.<name>: set it, add to a number (a counter), add to a list (the "
+            "last 100), or clear it. The automation's own, or its namespace's to share with its other automations."
+        ),
+        params={
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "title": "Variable", "maxLength": 40, "description": "lowercase letters, digits and _"},
+                "op": {"type": "string", "title": "Do", "enum": list(OPS), "default": "set"},
+                "value": {"title": "Value", "description": "JSON up to 16 KB; for increment a number (default 1)"},
+                "scope": {"type": "string", "title": "Whose", "enum": ["automation", "namespace"], "default": "automation"},
+                "namespace": {
+                    "type": "integer",
+                    "title": "Namespace",
+                    "description": "for scope namespace: its id (default the automation's only namespace), or {{ namespace.id }}",
+                },
+            },
+        },
+        required=("name",),
+        effect="self",
+        output={
+            "type": "object",
+            "properties": {"name": {"type": "string"}, "value": {"title": "Value now"}, "previous": {"title": "Value before"}},
+        },
+        perform=_set_variable,
+        describe=describe_set,
+    )
+)

@@ -77,7 +77,9 @@ after a day. Each person's review marks on the timeline ([Timeline](timeline.md#
 `event_mark:<hash of account and activity>`, a row only while one of its flags is set. An automation trigger's
 webhook is `automation_hook:<n>` (its automation and trigger, the hash of its token, its signing secret sealed).
 Automations' timers ([Time](automations.md#time)) are `timer:<hash of key>` (by `status` and `at`, and by
-`automation`); one that ended goes after 7 days. So that it can be read
+`automation`); one that ended goes after 7 days. Saved variables ([Saved variables](automations.md#saved-variables))
+are `automation_var:<hash of scope and name>` (`automation` or `space`, `name`, `value`, `rev` for writes that
+race, `untrusted`, who set it and when). So that it can be read
 without opening files, a resource made from an email keeps the message's addressing as it was listed
 (`recording.mail`) and one made from a calendar event its times, place and people (`recording.event`); both are
 optional, and older resources simply don't have them.
