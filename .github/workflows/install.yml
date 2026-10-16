@@ -290,6 +290,31 @@ jobs:
           grep -q "Stopping the Lens that's running" again.log || { echo "the second run didn't stop the running sandbox first"; exit 1; }
           curl -fsS -o /dev/null "$(cat setup-url)"
 
+      - name: An update after a build that stopped partway builds again, though rm can't remove all of what it left
+        run: |
+          export PATH="$HOME/.local/bin:$HOME/.microsandbox/bin:$PATH"
+          # As on the Mac where an update stopped at "Building Lens": a build that stopped partway left its copy of
+          # the web app in the volume, with a file rm can't remove yet (there, virtio-fs listed the folder empty while
+          # the Mac still had the file, containers/libkrun#541; here it's made immutable on this machine)
+          # shellcheck disable=SC2016 # expanded in the sandbox
+          msb exec lens -- sh -c 'd=/data/.lens/web-src/node_modules/.pnpm/next/dist && mkdir -p "$d" &&
+            echo held >"$d/held.js" && touch "$d/server.js" && echo stale >/data/.lens/build-id'
+          held="$(sudo find "$HOME/.microsandbox" -path '*/.lens/web-src/node_modules/.pnpm/next/dist/held.js' -print -quit)"
+          test -n "$held" || { echo "the volume isn't a folder under ~/.microsandbox"; sudo find "$HOME/.microsandbox" -maxdepth 4 -type d; exit 1; }
+          lens_dir="${held%/web-src/*}"
+          sudo chattr +i "$held"
+          LENS_BACKEND='' sh < install.sh | tee rebuilt.log
+          status="${PIPESTATUS[0]}"
+          sudo find "$lens_dir" -name held.js -exec chattr -i {} +
+          test "$status" = 0 || { echo "install.sh failed"; exit 1; }
+          grep -q '  Building Lens' rebuilt.log || { echo "it didn't build again"; exit 1; }
+          msb logs lens | grep "Couldn't remove all of /data/.lens/web-src yet: moved it to /data/.lens/trash/web-src\." ||
+            { echo "the sandbox didn't move what it couldn't remove aside"; exit 1; }
+          msb exec lens -- test ! -e /data/.lens/web-src || { echo "the earlier build's copy is still in its place"; exit 1; }
+          # shellcheck disable=SC2016 # expanded in the sandbox
+          msb exec lens -- sh -c 'test "$(cat /data/.lens/build-id)" != stale' || { echo "the build didn't finish"; exit 1; }
+          curl -fsS -o /dev/null "$(cat setup-url)"
+
       - name: A lean install stays lean when the line runs again without LENS_TARGET
         run: |
           LENS_BACKEND='' LENS_TARGET='' sh < install.sh >/dev/null
