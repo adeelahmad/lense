@@ -6103,6 +6103,48 @@
         }
       }
     },
+    "/api/v1/automations/draft": {
+      "post": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Draft Automation",
+        "description": "Describe an automation in words: the model (one call, in the activity ledger, refused over budget) turns the\nsentence into a draft with the kinds of activity, the match operators and the actions as its vocabulary. What\ndoesn't fit is dropped and said; nothing is saved. Try it with POST /automations/test, then save it.",
+        "operationId": "draft_automation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutomationDraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationDrafted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/automations/test": {
       "post": {
         "tags": [
@@ -32919,6 +32961,37 @@
         ],
         "title": "AutomationCreate"
       },
+      "AutomationDraftRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Text",
+            "description": "what it should do, in a sentence, like: when a recording is added to pods, log its title"
+          },
+          "spaces": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spaces",
+            "description": "namespace ids it would work in; default: each one you can edit"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "AutomationDraftRequest"
+      },
       "AutomationDraftTry": {
         "properties": {
           "activity": {
@@ -32968,6 +33041,38 @@
           "draft"
         ],
         "title": "AutomationDraftTry"
+      },
+      "AutomationDrafted": {
+        "properties": {
+          "draft": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Draft",
+            "description": "what POST /automations takes, switched off: name, triggers, if, graph"
+          },
+          "dropped": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dropped",
+            "description": "parts of the model's draft that didn't fit, and why"
+          },
+          "unmapped": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unmapped",
+            "description": "parts of the sentence it couldn't express (schedules, say)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "draft"
+        ],
+        "title": "AutomationDrafted"
       },
       "AutomationPolicy": {
         "properties": {

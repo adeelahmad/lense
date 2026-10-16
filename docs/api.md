@@ -186,6 +186,7 @@ resources (admins).
 GET    /api/v1/automations
 POST   /api/v1/automations
 GET    /api/v1/automations/actions
+POST   /api/v1/automations/draft
 GET    /api/v1/automations/{id}
 PATCH  /api/v1/automations/{id}
 DELETE /api/v1/automations/{id}
@@ -206,7 +207,9 @@ Automations act for the person who made them in namespaces they can edit ([Savin
 automations](automations.md#saving-automations)). Admins see and change all of them; anyone else the ones that work
 only in namespaces they can edit (`?removed=true` lists deleted ones, to restore). A save answers `{id, hooks}`.
 `/policy` lets an action node run without asking (`auto`) only from a signed-in session in the web app.
-`/actions` lists what action nodes can do. The list adds each one's actions waiting (`waiting`) and cost this month
+`/actions` lists what action nodes can do. `/draft {"text": ...}` asks the model to turn a sentence into a draft to
+try and save, saying what didn't fit (`dropped`) and what it couldn't express (`unmapped`) ([Describe it in
+words](automations.md#describe-it-in-words)). The list adds each one's actions waiting (`waiting`) and cost this month
 (`cost_month`). `/test` tries a saved automation, and `POST /automations/test {"draft": ...}` an unsaved one, on an
 activity (`activity`) or a kind's sample (`kind`) without keeping or sending anything; `/run` runs it now (on
 `activity`, else the newest one its triggers listen for). `/runs` pages its runs (`before`, `limit`; `next` for the

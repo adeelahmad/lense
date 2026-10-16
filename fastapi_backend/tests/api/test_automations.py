@@ -339,3 +339,22 @@ def test_a_run_held_over_budget_waits_for_the_persons_pick(client, db, cfg, env)
     assert client.get(f"{URL}/runs/{held['run']}", headers=he).json()["status"] == "released"
     r = client.post(f"{URL}/runs/{held['run']}/decide", headers=he, json={"run": False})
     assert r.status_code == 400 and "isn't waiting on a budget" in r.json()["detail"]
+
+
+def test_an_automation_is_drafted_from_a_sentence(client, db, env, monkeypatch):
+    from app.domain import automation_draft
+
+    reply = {"name": "Say new", "triggers": NEW, "actions": [{"action": "log_line", "params": {"text": "New: {{ event.object.name }}"}}]}
+    monkeypatch.setattr(automation_draft.llm, "configured", lambda cfg: True)
+    monkeypatch.setattr(automation_draft.llm, "json_out", lambda cfg, system, user, schema, model=None: reply)
+    r = client.post(f"{URL}/draft", headers=env["he"], json={"text": "when something new comes in, log its name"})
+    assert r.status_code == 200, r.text
+    got = r.json()
+    assert got["draft"]["enabled"] is False and got["draft"]["triggers"] == [{**NEW[0], "from_automations": False}]
+    assert got["dropped"] == [] and got["unmapped"] == []
+    # it tries and saves as it is; drafting saved nothing
+    assert db.rows("SELECT id FROM automation") == []
+    assert client.post(f"{URL}/test", headers=env["he"], json={"draft": got["draft"]}).json()["status"] == "done"
+    assert client.post(URL, headers=env["he"], json=got["draft"]).status_code == 200
+    assert "can't edit any namespace" in problem(client, env["hv"], {"text": "log it"}, f"{URL}/draft")
+    assert client.post(f"{URL}/draft", headers=env["he"], json={"text": "x" * 2001}).status_code == 422

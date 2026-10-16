@@ -1679,6 +1679,24 @@ export type AutomationCreate = {
 };
 
 /**
+ * AutomationDraftRequest
+ */
+export type AutomationDraftRequest = {
+  /**
+   * Text
+   *
+   * what it should do, in a sentence, like: when a recording is added to pods, log its title
+   */
+  text: string;
+  /**
+   * Spaces
+   *
+   * namespace ids it would work in; default: each one you can edit
+   */
+  spaces?: Array<number> | null;
+};
+
+/**
  * AutomationDraftTry
  */
 export type AutomationDraftTry = {
@@ -1704,6 +1722,33 @@ export type AutomationDraftTry = {
    * the automation as you would save it
    */
   draft: AutomationCreate;
+};
+
+/**
+ * AutomationDrafted
+ */
+export type AutomationDrafted = {
+  /**
+   * Draft
+   *
+   * what POST /automations takes, switched off: name, triggers, if, graph
+   */
+  draft: {
+    [key: string]: unknown;
+  };
+  /**
+   * Dropped
+   *
+   * parts of the model's draft that didn't fit, and why
+   */
+  dropped?: Array<string>;
+  /**
+   * Unmapped
+   *
+   * parts of the sentence it couldn't express (schedules, say)
+   */
+  unmapped?: Array<string>;
+  [key: string]: unknown;
 };
 
 /**
@@ -26807,6 +26852,31 @@ export type DecideHeldRunResponses = {
 };
 
 export type DecideHeldRunResponse = DecideHeldRunResponses[keyof DecideHeldRunResponses];
+
+export type DraftAutomationData = {
+  body: AutomationDraftRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/automations/draft";
+};
+
+export type DraftAutomationErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DraftAutomationError = DraftAutomationErrors[keyof DraftAutomationErrors];
+
+export type DraftAutomationResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationDrafted;
+};
+
+export type DraftAutomationResponse = DraftAutomationResponses[keyof DraftAutomationResponses];
 
 export type TestDraftData = {
   body: AutomationDraftTry;
