@@ -23835,7 +23835,7 @@
           "chats"
         ],
         "summary": "List Approvals",
-        "description": "Work the assistant proposed for you to approve (and what became of it), newest first.",
+        "description": "What waits for your pick (and what became of it), newest first: the assistant's proposals and automations'\nactions. Filter by `status` (pending is waiting), `origin` (automation or chat), one `automation` or one chat\n(`chat_id`); page with `before`.",
         "operationId": "list_approvals",
         "parameters": [
           {
@@ -23852,6 +23852,96 @@
                 }
               ],
               "title": "Chat Id"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pending",
+                    "running",
+                    "done",
+                    "failed",
+                    "declined",
+                    "expired"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "origin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "automation",
+                    "chat"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          },
+          {
+            "name": "automation",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Automation"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ids below this one: the last id of the page before",
+              "title": "Before"
+            },
+            "description": "ids below this one: the last id of the page before"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
             }
           }
         ],
@@ -23883,13 +23973,76 @@
         }
       }
     },
+    "/api/v1/approvals/count": {
+      "get": {
+        "tags": [
+          "chats"
+        ],
+        "summary": "Count Approvals",
+        "description": "How many approvals wait for you, for the badge in the top bar.",
+        "operationId": "count_approvals",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalCount"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/approvals/{aid}": {
+      "get": {
+        "tags": [
+          "chats"
+        ],
+        "summary": "Get Approval",
+        "description": "One of your approvals.",
+        "operationId": "get_approval",
+        "parameters": [
+          {
+            "name": "aid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Aid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Approval"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "chats"
         ],
         "summary": "Decide Approval",
-        "description": "Approve (or run a sample of, or decline) something the assistant proposed. Each approval is decided once.",
+        "description": "Approve (or run a sample of, or decline) something the assistant proposed or an automation's action. Each\napproval is decided once. An automation's action can also be edited (`params`) and then carried out, or allowed\nfrom now on for that automation (`always`); approving one needs you signed in, since it's your pick: an API key\nor an app can only decline it.",
         "operationId": "decide_approval",
         "parameters": [
           {
@@ -30200,7 +30353,8 @@
           },
           "status": {
             "type": "string",
-            "title": "Status"
+            "title": "Status",
+            "description": "pending (waiting), running, done, failed, declined or expired"
           },
           "created_at": {
             "anyOf": [
@@ -30215,6 +30369,124 @@
           },
           "result": {
             "title": "Result"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApprovalOrigin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the automation run that asked, when one did"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApprovalIntent"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "an automation's action: what it would do"
+          },
+          "automation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Automation",
+            "description": "the automation's name"
+          },
+          "space": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Space"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApprovalWhy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At",
+            "description": "when it expires and nothing runs (automations only)"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "told": {
+            "items": {
+              "$ref": "#/components/schemas/ApprovalTold"
+            },
+            "type": "array",
+            "title": "Told",
+            "description": "the chats you were told in"
+          },
+          "can": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApprovalCan"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": true,
@@ -30226,6 +30498,54 @@
         ],
         "title": "Approval"
       },
+      "ApprovalCan": {
+        "properties": {
+          "approve": {
+            "type": "boolean",
+            "title": "Approve",
+            "default": false
+          },
+          "decline": {
+            "type": "boolean",
+            "title": "Decline",
+            "default": false
+          },
+          "edit": {
+            "type": "boolean",
+            "title": "Edit",
+            "default": false
+          },
+          "always": {
+            "type": "boolean",
+            "title": "Always",
+            "default": false
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "ApprovalCan",
+        "description": "What you can do with it from where you asked: approving an automation's action is yours, signed in or in the\nchat it told you in; an API key, an app or an agent can only decline it."
+      },
+      "ApprovalCount": {
+        "properties": {
+          "waiting": {
+            "type": "integer",
+            "title": "Waiting"
+          },
+          "automations": {
+            "type": "integer",
+            "title": "Automations",
+            "description": "of them, waiting for an automation"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "waiting",
+          "automations"
+        ],
+        "title": "ApprovalCount"
+      },
       "ApprovalDecision": {
         "properties": {
           "decision": {
@@ -30233,15 +30553,161 @@
             "enum": [
               "approve",
               "sample",
-              "decline"
+              "decline",
+              "edit",
+              "always"
             ],
             "title": "Decision",
+            "description": "sample: a batch run on 3 assets first; edit: an automation's action with `params` changed, then carried out; always: carried out, and that action node of the automation runs without asking from now on (signed in only)",
             "default": "approve"
+          },
+          "params": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Params",
+            "description": "edit: the params to change (null leaves one out)"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "ApprovalDecision"
+      },
+      "ApprovalIntent": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params"
+          },
+          "effect": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effect"
+          },
+          "risk": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk"
+          },
+          "untrusted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Untrusted",
+            "description": "its run read text from outside Lens"
+          },
+          "node": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "spaces": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spaces"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "ApprovalIntent",
+        "description": "What an automation's action would do, as the inbox shows it (credential headers hidden)."
+      },
+      "ApprovalOrigin": {
+        "properties": {
+          "automation": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Automation"
+          },
+          "run": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run"
+          },
+          "node": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "ApprovalOrigin"
       },
       "ApprovalOutcome": {
         "properties": {
@@ -30260,6 +30726,34 @@
             ],
             "title": "Batch",
             "description": "the batch run started, for run_template"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why an automation's action failed"
+          },
+          "result": {
+            "title": "Result",
+            "description": "what an automation's action gave back"
+          },
+          "always": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Always",
+            "description": "that node runs without asking from now on"
           }
         },
         "additionalProperties": true,
@@ -30268,6 +30762,101 @@
           "status"
         ],
         "title": "ApprovalOutcome"
+      },
+      "ApprovalTold": {
+        "properties": {
+          "channel": {
+            "type": "string",
+            "title": "Channel"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "chat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chat"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "channel"
+        ],
+        "title": "ApprovalTold"
+      },
+      "ApprovalWhy": {
+        "properties": {
+          "activity": {
+            "type": "string",
+            "title": "Activity"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "published": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "activity"
+        ],
+        "title": "ApprovalWhy",
+        "description": "The activity that caused it, as it was when it asked."
       },
       "AssistantMemory": {
         "properties": {

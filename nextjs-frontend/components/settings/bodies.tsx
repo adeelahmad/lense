@@ -475,6 +475,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <div className="grid gap-3 sm:grid-cols-2">
             <F ctx={ctx} id="events.poll_seconds" />
             <F ctx={ctx} id="events.keep_days" />
+            <F ctx={ctx} id="automations.approval_days" />
           </div>
           <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
             Agents read the same stream with the timeline tool (MCP and the assistant) or GET /api/v1/activities.

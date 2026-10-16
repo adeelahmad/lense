@@ -393,9 +393,9 @@ export const SECTIONS: SectionSpec[] = [
   {
     id: "automations",
     label: "Automations",
-    backend: ["events"],
+    backend: ["events", "automations"],
     description:
-      "The stream of activities automations follow (new assets and what else happens in Lens): how often followers look for new ones, and how long activities with no row of their own are kept.",
+      "The stream of activities automations follow (new assets and what else happens in Lens): how often followers look for new ones, how long activities with no row of their own are kept, and how long an automation’s action waits for your pick.",
   },
   {
     id: "startup",
@@ -2696,6 +2696,15 @@ export const FIELDS: FieldSpec[] = [
     min: 1,
     max: 3650,
     hint: "Activities with no row of their own, such as an automation’s; new assets and other rows stay as long as they do",
+  },
+  {
+    section: "automations",
+    key: "approval_days",
+    label: "An automation’s action waits for your pick (days)",
+    kind: "int",
+    min: 1,
+    max: 365,
+    hint: "Then it expires and nothing runs; you decide in Approvals",
   },
   // Usage analytics (Google Analytics opt-in)
   {

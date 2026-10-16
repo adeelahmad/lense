@@ -56,6 +56,7 @@ EDITABLE = {
     "updates": ("check", "check_hours", "auto_install", "email"),
     "activity": None,
     "events": None,
+    "automations": None,
     "backups": None,
     "encryption": None,
     "fedora": None,
@@ -479,6 +480,8 @@ def _check(section, key, value, default):
         return _activity_setting(key, value)
     if section == "events":
         return _events_setting(key, value)
+    if section == "automations":
+        return _automations_setting(key, value)
     if section == "backups":
         return _backup_setting(key, value)
     if section == "fedora":
@@ -1025,6 +1028,17 @@ def _events_setting(key, value):
     lo, hi, what = limits[key]
     if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
         raise ValueError(f"events.{key} is {what} from {lo} to {hi}")
+    return value
+
+
+def _automations_setting(key, value):
+    """Automations (docs/automations.md): how long an automation's action waits for the person's pick."""
+    limits = {"approval_days": (1, 365, "a whole number of days")}
+    if key not in limits:
+        raise ValueError(f"unknown setting automations.{key}")
+    lo, hi, what = limits[key]
+    if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+        raise ValueError(f"automations.{key} is {what} from {lo} to {hi}")
     return value
 
 

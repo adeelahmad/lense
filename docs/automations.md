@@ -27,7 +27,9 @@ merged is called built.
 | Changing assets and writing notes: the `set_field`, `add_to_collection` and `write_note` actions | built |
 | Settings → Automations: how often followers look and how long the event log is kept | built |
 | The Timeline page with filters, grouping, review keys and new items, and Home's Latest card ([Timeline](timeline.md)) | built |
-| Storing and running automations, schedules and timers, joins, approvals, variables, the studio | planned |
+| Approvals: an automation's action that asks first waits for your pick (approve, decline, edit, allow from now on), told once in your chat app, capped and expiring (`app/domain/approvals.py`) | built |
+| The Approvals page and its badge, a yes in your chat app, approval activities and notifications, agents' approval tools | planned |
+| Storing and running automations, schedules and timers, joins, variables, the studio | planned |
 
 ## Contract
 
@@ -413,6 +415,53 @@ everyone who reads the asset sees.
 Calendar events aren't written: Lens signs in to Google Calendar read-only, and writing needs a new consent. Meanwhile
 the agent can draft an event as a note.
 
+## Approvals
+
+Built: everything that waits for your pick is an approval in one table (`app/domain/approvals.py`): the assistant's
+proposals in a conversation, as before, and an automation's actions that ask first. When an action node's intent asks
+(its effect is `out`, or `lens` on anything but the event's own object), the engine hands it to
+`approvals.ask(db, cfg, intent, event=None)`, which keeps:
+
+| Field | |
+| --- | --- |
+| `origin` | `{automation, run, node}`: the run that asked (null for the assistant's own approvals) |
+| `intent` | the intent, with the params as the run filled them in |
+| `summary`, `automation`, `why` | what it would do (the action's `describe`), the automation's name, and the activity that caused it (`{activity, kind, summary, published, url}`) |
+| `account`, `space` | the automation's person, whose pick it is, and the namespace it is about |
+| `expires_at` | when it expires: `automations.approval_days` (7) after it asked |
+| `told` | the chats you were told in |
+| `status` | `pending` (waiting), `running`, `done`, `failed`, `declined` or `expired`; `decided_by`, `decided_at`, `result`, `error` |
+
+You are told once, in your own chat app when one is linked ([Telling a person](#telling-a-person)): "School emails
+wants to post in the Matterbridge gateway family: “Trip on Friday”. Open <link> to decide." The link opens the approval
+in Lens. Handing the same intent over again gives the same approval. At most 100 wait for one automation: past that its
+intents are dropped, and the run says so, so a flood of activities can't bury your inbox or your chat.
+
+Deciding (`POST /api/v1/approvals/{aid}`):
+
+- `approve` carries the intent out through `actions.perform`, for its person and as the automation (what it writes is
+  by `automation:<id>`, model calls count in the activity ledger under the run, and what it causes carries the run as
+  its cause). Its outcome, `done` with what it gave back or `failed` with why, goes on the approval and on the run.
+- `decline` does nothing, and the run says it was declined.
+- `edit` with `params` changes them first (a param given as null is left out), checked against the action's schema;
+  what the run filled in from a template stays as it is now. A credential header shows as `••••`, and given back as
+  `••••` it keeps its sealed value.
+- `always` approves it, then lets that action node run without asking from now on (the automation's policy, `auto`).
+  Only an action that reaches outside Lens or other people asks each time, so only those can be allowed.
+
+Approving, editing and `always` are yours: signed in to Lens, on the approval's card. An API key, an app, MCP and the
+assistant can list and decline approvals, never approve them, since approving is the person's pick; each approval's
+`can` says what the caller may do with it. This is the one place where an agent can't do what you can. The
+assistant's own approvals in a conversation are decided as before.
+
+Undecided approvals expire after `automations.approval_days` (Settings → Automations, 1–365, default 7): a sweep
+called from the scheduler once an hour marks them `expired`, nothing runs, and the run says so. The assistant's own
+approvals don't expire.
+
+The inbox reads `GET /api/v1/approvals` (newest first; `status`, `origin=automation|chat`, `automation`, `chat_id`,
+and `before` with `limit` to page), `GET /api/v1/approvals/{aid}` and `GET /api/v1/approvals/count` (`{waiting,
+automations}`, for a badge).
+
 ## Refine later
 
 - More operators: `in`, `matches` (bounded regular expressions), `between`, times against now, `changed`.
@@ -454,3 +503,6 @@ the agent can draft an event as a note.
 - Changing assets: asking first instead of failing when a move would show an asset to new people (risk that reads the
   database); fields on collections and files; tags; roles on collections counting for `edit`.
 - Writing calendar events (a new Google consent, so it changes existing installs).
+- Approvals: a cost estimate on actions that ask (a run on another asset could say what it would cost); buttons in
+  Telegram and Slack; approvals that need two people; one card for many alike ("approve all 12"); trying a failed one
+  again; expiring an automation's approvals when it is removed.

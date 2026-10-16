@@ -911,6 +911,8 @@ export type Approval = {
   estimate?: unknown;
   /**
    * Status
+   *
+   * pending (waiting), running, done, failed, declined or expired
    */
   status: string;
   /**
@@ -921,6 +923,93 @@ export type Approval = {
    * Result
    */
   result?: unknown;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * the automation run that asked, when one did
+   */
+  origin?: ApprovalOrigin | null;
+  /**
+   * an automation's action: what it would do
+   */
+  intent?: ApprovalIntent | null;
+  /**
+   * Automation
+   *
+   * the automation's name
+   */
+  automation?: string | null;
+  /**
+   * Space
+   */
+  space?: number | null;
+  why?: ApprovalWhy | null;
+  /**
+   * Expires At
+   *
+   * when it expires and nothing runs (automations only)
+   */
+  expires_at?: string | null;
+  /**
+   * Decided By
+   */
+  decided_by?: string | null;
+  /**
+   * Decided At
+   */
+  decided_at?: string | null;
+  /**
+   * Told
+   *
+   * the chats you were told in
+   */
+  told?: Array<ApprovalTold>;
+  can?: ApprovalCan | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ApprovalCan
+ *
+ * What you can do with it from where you asked: approving an automation's action is yours, signed in or in the
+ * chat it told you in; an API key, an app or an agent can only decline it.
+ */
+export type ApprovalCan = {
+  /**
+   * Approve
+   */
+  approve?: boolean;
+  /**
+   * Decline
+   */
+  decline?: boolean;
+  /**
+   * Edit
+   */
+  edit?: boolean;
+  /**
+   * Always
+   */
+  always?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * ApprovalCount
+ */
+export type ApprovalCount = {
+  /**
+   * Waiting
+   */
+  waiting: number;
+  /**
+   * Automations
+   *
+   * of them, waiting for an automation
+   */
+  automations: number;
   [key: string]: unknown;
 };
 
@@ -930,8 +1019,82 @@ export type Approval = {
 export type ApprovalDecision = {
   /**
    * Decision
+   *
+   * sample: a batch run on 3 assets first; edit: an automation's action with `params` changed, then carried out; always: carried out, and that action node of the automation runs without asking from now on (signed in only)
    */
-  decision?: "approve" | "sample" | "decline";
+  decision?: "approve" | "sample" | "decline" | "edit" | "always";
+  /**
+   * Params
+   *
+   * edit: the params to change (null leaves one out)
+   */
+  params?: {
+    [key: string]: unknown;
+  } | null;
+};
+
+/**
+ * ApprovalIntent
+ *
+ * What an automation's action would do, as the inbox shows it (credential headers hidden).
+ */
+export type ApprovalIntent = {
+  /**
+   * Action
+   */
+  action: string;
+  /**
+   * Params
+   */
+  params?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Effect
+   */
+  effect?: string | null;
+  /**
+   * Risk
+   */
+  risk?: string | null;
+  /**
+   * Untrusted
+   *
+   * its run read text from outside Lens
+   */
+  untrusted?: boolean | null;
+  /**
+   * Node
+   */
+  node?: string | null;
+  /**
+   * Status
+   */
+  status?: string | null;
+  /**
+   * Spaces
+   */
+  spaces?: Array<number> | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ApprovalOrigin
+ */
+export type ApprovalOrigin = {
+  /**
+   * Automation
+   */
+  automation?: number | null;
+  /**
+   * Run
+   */
+  run?: number | null;
+  /**
+   * Node
+   */
+  node?: string | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -948,6 +1111,72 @@ export type ApprovalOutcome = {
    * the batch run started, for run_template
    */
   batch?: number | null;
+  /**
+   * Error
+   *
+   * why an automation's action failed
+   */
+  error?: string | null;
+  /**
+   * Result
+   *
+   * what an automation's action gave back
+   */
+  result?: unknown;
+  /**
+   * Always
+   *
+   * that node runs without asking from now on
+   */
+  always?: boolean | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ApprovalTold
+ */
+export type ApprovalTold = {
+  /**
+   * Channel
+   */
+  channel: string;
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Chat
+   */
+  chat?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ApprovalWhy
+ *
+ * The activity that caused it, as it was when it asked.
+ */
+export type ApprovalWhy = {
+  /**
+   * Activity
+   */
+  activity: string;
+  /**
+   * Kind
+   */
+  kind?: string | null;
+  /**
+   * Summary
+   */
+  summary?: string | null;
+  /**
+   * Published
+   */
+  published?: string | null;
+  /**
+   * Url
+   */
+  url?: string | null;
   [key: string]: unknown;
 };
 
@@ -36196,6 +36425,28 @@ export type ListApprovalsData = {
      * Chat Id
      */
     chat_id?: number | null;
+    /**
+     * Status
+     */
+    status?: "pending" | "running" | "done" | "failed" | "declined" | "expired" | null;
+    /**
+     * Origin
+     */
+    origin?: "automation" | "chat" | null;
+    /**
+     * Automation
+     */
+    automation?: number | null;
+    /**
+     * Before
+     *
+     * ids below this one: the last id of the page before
+     */
+    before?: number | null;
+    /**
+     * Limit
+     */
+    limit?: number;
   };
   url: "/api/v1/approvals";
 };
@@ -36219,6 +36470,52 @@ export type ListApprovalsResponses = {
 };
 
 export type ListApprovalsResponse = ListApprovalsResponses[keyof ListApprovalsResponses];
+
+export type CountApprovalsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/approvals/count";
+};
+
+export type CountApprovalsResponses = {
+  /**
+   * Successful Response
+   */
+  200: ApprovalCount;
+};
+
+export type CountApprovalsResponse = CountApprovalsResponses[keyof CountApprovalsResponses];
+
+export type GetApprovalData = {
+  body?: never;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: never;
+  url: "/api/v1/approvals/{aid}";
+};
+
+export type GetApprovalErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetApprovalError = GetApprovalErrors[keyof GetApprovalErrors];
+
+export type GetApprovalResponses = {
+  /**
+   * Successful Response
+   */
+  200: Approval;
+};
+
+export type GetApprovalResponse = GetApprovalResponses[keyof GetApprovalResponses];
 
 export type DecideApprovalData = {
   body: ApprovalDecision;
