@@ -220,7 +220,8 @@ def test_always_lets_the_node_run_on_its_own_and_only_signed_in(app, client, db,
     assert client.post(f"/api/v1/approvals/{lens}", headers=hk, json={"decision": "decline"}).json()["status"] == "declined"
 
 
-def test_always_waits_for_saved_automations(client, db, cfg, people, posted):
+def test_always_waits_for_saved_automations(client, db, cfg, people, posted, monkeypatch):
+    monkeypatch.setattr(approvals, "_studio", lambda fn: None)  # before automations are stored
     h = login(client, "me@x.io", "my password 1")
     aid = approvals.ask(db, cfg, intent(people))
     assert client.get(f"/api/v1/approvals/{aid}", headers=h).json()["can"]["always"] is False

@@ -180,6 +180,26 @@ GET    /api/v1/activity/top
 leaving out the ones you can't see; `estimate` marks a figure as a floor. `/activity/top` lists the costliest
 resources (admins).
 
+## automations
+
+```
+GET    /api/v1/automations
+POST   /api/v1/automations
+GET    /api/v1/automations/actions
+GET    /api/v1/automations/{id}
+PATCH  /api/v1/automations/{id}
+DELETE /api/v1/automations/{id}
+POST   /api/v1/automations/{id}/restore
+POST   /api/v1/automations/{id}/enable
+POST   /api/v1/automations/{id}/policy
+```
+
+Automations act for the person who made them in namespaces they can edit ([Saving
+automations](automations.md#saving-automations)). Admins see and change all of them; anyone else the ones that work
+only in namespaces they can edit (`?removed=true` lists deleted ones, to restore). A save answers `{id, hooks}`.
+`/policy` lets an action node run without asking (`auto`) only from a signed-in session in the web app.
+`/actions` lists what action nodes can do.
+
 ## activities
 
 ```

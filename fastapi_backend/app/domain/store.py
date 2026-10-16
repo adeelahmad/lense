@@ -1277,6 +1277,9 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS timer_due ON timer FIELDS status, at",
     "DEFINE INDEX IF NOT EXISTS timer_automation ON timer FIELDS automation, status",
     "DEFINE INDEX IF NOT EXISTS timer_done ON timer FIELDS done_at",
+    # automations (domain/automations.py, docs/automations.md): automation:<n>
+    "DEFINE TABLE IF NOT EXISTS automation SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS automation_enabled ON automation FIELDS enabled",
     "DEFINE INDEX IF NOT EXISTS upload_recording ON upload FIELDS recording",
     # automations' saved variables (domain/variables.py, docs/automations.md, Saved variables): an automation's own or
     # its namespace's, automation_var:<hash of whose and name> (the id keeps the name unique)

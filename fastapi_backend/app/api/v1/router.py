@@ -9,6 +9,7 @@ from app.api.v1.routes import (
     auth,
     automation_hooks,
     automation_vars,
+    automations,
     backups,
     batches,
     browser,
@@ -87,6 +88,7 @@ for module in (
     activities,
     automation_hooks,
     automation_vars,  # before namespaces: /namespaces/{name}/automation-vars
+    automations,
     budgets,
     fedora,
     setup,

@@ -35,7 +35,7 @@ merged is called built.
 | Settings → Automations: how often followers look, how long the event log is kept, and how late a timer may fire | built |
 | A webhook address per automation trigger, and calls to it as `webhook.received` ([Webhook trigger](#webhook-trigger)) | built |
 | Timers that outlast a restart and fire once across the API and the worker (`app/domain/timers.py`, [Time](#time)) | built |
-| The timers behind schedule, `at` and `relative` triggers, the `clock.tick` kind and what's coming ([Time](#time)); automations set them once they are stored | built |
+| The timers behind schedule, `at` and `relative` triggers, the `clock.tick` kind and what's coming ([Time](#time)), set when an automation is saved | built |
 | Actions that wait (`delay`, `when`): kept as timers, carried out at their time, asking first when they should then ([Time](#time)) | built |
 | The Timeline page with filters, grouping, review keys and new items, and Home's Latest card ([Timeline](timeline.md)) | built |
 | Approvals: an automation's action that asks first waits for your pick (approve, decline, edit, allow from now on), told once in your chat app, capped and expiring (`app/domain/approvals.py`) | built |
@@ -43,7 +43,8 @@ merged is called built.
 | Approvals as activities (`approval.waiting`, `approval.decided`) and the `approval.waiting` notification | built |
 | Agents' approval tools: `approvals` and `decline_approval` over MCP and in the assistant, and no way for an agent to approve | built |
 | The Approvals page (`/approvals`), its badge in the top bar and nav, and Home's Needs attention row | built |
-| Storing and running automations, joins, the studio | planned |
+| Saving automations: checks, namespaces, switching on and off, delete and restore, the policy, the API (`app/domain/automations.py`) | built |
+| Running automations, joins, the studio | planned |
 
 ## Contract
 
@@ -339,8 +340,8 @@ tree, `path` (when given) is the part of the value the tree tests. Graphs saved 
 
 ### Automations: triggers and joins
 
-Built as shapes with checks (`app/domain/automation_spec.py`); storing and running automations is planned. Each check
-gives a cleaned copy, or a ValueError naming the first problem.
+Built as shapes with checks (`app/domain/automation_spec.py`), and saved ([Saving automations](#saving-automations));
+running them is planned. Each check gives a cleaned copy, or a ValueError naming the first problem.
 
 ```json
 {"name": "School emails", "enabled": true, "spaces": [3], "run_as": 1,
@@ -922,6 +923,53 @@ runs no node; a run's real values come from a test run. A template that fails an
 Anyone signed in may use both, with their own namespaces (none named: theirs) and only an automation they may change.
 Agents have the `automation_variables` and `preview_template` MCP tools.
 
+## Saving automations
+
+Built (`app/domain/automations.py`, `POST /api/v1/automations`); running them is planned. An automation acts for the
+person who made it (`run_as`), with their permissions, in namespaces they can edit:
+
+```json
+{"name": "Say new assets", "triggers": [{"as": "new", "on": "event", "kinds": ["asset.added"]}],
+ "if": {"all": [{"path": "event.object.media", "op": "equals", "value": "audio"}]},
+ "graph": {"nodes": [{"id": "i", "type": "input", "config": {}},
+                     {"id": "a", "type": "action", "config": {"action": "log_line",
+                                                              "params": {"text": "New: {{ event.object.name }}"}}}],
+           "edges": [{"source": "i", "target": "a"}]}}
+```
+
+- **Namespaces** (`spaces`): ones its person can edit. Left out, it is each namespace they can edit; an admin's
+  works in every namespace (`null`), now and to come.
+- **The Then** is a `graph` ([The event workflow scope](#the-event-workflow-scope)), saved as a workflow of scope
+  `event` named after the automation, or a saved event workflow (`workflow`, with `version`, or none to follow the
+  published one). Saving a new graph saves a new version of its workflow, which it then follows.
+- **Credentials** in an `http_request` node's headers ([Calling a web address](#calling-a-web-address)) are sealed
+  when its graph is saved, with the key of its first namespace (the first there is, for one that works everywhere),
+  bound to the automation and to the node's `url`. A value holding `{{ }}` is filled in when it runs and stays as
+  written, and a credential needs the `url` written out, not a template. Reading the automation back gives the sealed
+  value, and saving that again keeps it.
+- **Checks** when it is saved: the triggers, the join and the If as in [the contract](#automations-triggers-and-joins),
+  the graph, the namespaces, `limits` (`cooldown`, like `10m`, default `0s`; `max_per_hour`, 1 to 3600, default 60)
+  and the policy. Joins other than `any` are refused as coming soon until joins are built. Saving sets the timers of
+  its `schedule` and `at` triggers ([Schedule, at and relative triggers](#schedule-at-and-relative-triggers)), and
+  switching it off or deleting it calls them off; they start runs once running automations is built.
+- **Webhook triggers** get their address when the automation is saved ([Webhook trigger](#webhook-trigger)): the
+  answer's `hooks` gives each new one's `url` and signing `secret`, shown this once, and the trigger keeps the hook's
+  id. Saving it again keeps its address; a webhook trigger dropped (or changed to another kind) loses it at once.
+- **Switching** (`POST /automations/{id}/enable {"on": true}`) records when it was last switched on (`enabled_at`):
+  running it (planned) reacts only to what happens after that, so switching one on never replays old activity. New
+  automations are on unless `enabled: false`.
+- **Deleting** switches it off and hides it; `POST /automations/{id}/restore` brings it back, switched off.
+- **The policy** (`{action node id: ask or auto}`): a node whose action reaches outside Lens or other
+  people, or changes something in Lens other than the event's own object, asks first. Only the person,
+  signed in to the web app, lets a node run on its own (`POST /automations/{id}/policy {"node": "a", "value":
+  "auto"}`); API keys, apps and agents get a 403, and saving through any other route refuses `auto` (a node already
+  on `auto` may stay so). A node that leaves the graph takes its pick with it.
+- **Who sees it**: admins see and change every automation; anyone else the ones that work only in namespaces they
+  can edit.
+
+`GET /api/v1/automations/actions` lists what an action node can do: each action's params (a JSON Schema), its effect
+and what it gives back.
+
 ## Refine later
 
 - More operators: `in`, `matches` (bounded regular expressions), `between`, times against now, `changed`.
@@ -985,6 +1033,11 @@ Agents have the `automation_variables` and `preview_template` MCP tools.
 - Chat: recording every message in a room as an activity (opt-in per channel, off by default); a chat user who is
   also a Lens account as that person; a timeline page of others' private messages is read and left out, up to five
   source pages, so narrow it by account if that proves slow.
+- Deleted automations kept for a time, then removed with their runs (today they stay until restored).
+- Credentials in the headers of a saved event workflow an automation follows (`workflow`) sealed too (today only a
+  graph saved with the automation is; the workflow's are sent as written).
+- Webhook triggers: a trigger option for a hook that takes only signed calls (`token_for(..., signed=True)`), and a
+  new address for a trigger without saving it again.
 - Lens itself: a run held over budget, waiting for someone's pick, as an activity of its own; backups taken before
   upgrades or with `lens backup` (only those from Settings, the API and the schedule are activities today).
 - Approvals: a cost estimate on actions that ask (a run on another asset could say what it would cost); approve

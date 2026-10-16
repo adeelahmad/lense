@@ -5561,6 +5561,403 @@
         }
       }
     },
+    "/api/v1/automations": {
+      "get": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "List Automations",
+        "description": "Your automations: every one for an admin, else those that work only in namespaces you can edit. `removed`\nlists the deleted ones instead, to restore.",
+        "operationId": "list_automations",
+        "parameters": [
+          {
+            "name": "removed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Removed"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationCatalog"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Create Automation",
+        "description": "A new automation that acts for you. Its Then is a graph (saved as a workflow of scope event) or a saved\nworkflow; its namespaces default to each one you can edit. Nodes ask first unless you let one run on its own\n(POST /automations/{id}/policy).",
+        "operationId": "create_automation",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutomationCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/automations/actions": {
+      "get": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "List Actions",
+        "description": "What an action node can do: each action's params (a JSON Schema), what it reaches (its effect) and what it\ngives back.",
+        "operationId": "list_actions",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ActionInfo"
+                  },
+                  "type": "array",
+                  "title": "Response Automations-List Actions"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/automations/{aid}": {
+      "get": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Get Automation",
+        "operationId": "get_automation",
+        "parameters": [
+          {
+            "name": "aid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Aid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Automation"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Update Automation",
+        "description": "Change what is sent: a new graph is saved as a new version of its workflow; `if: null` drops its If,\n`version: null` follows the published version.",
+        "operationId": "update_automation",
+        "parameters": [
+          {
+            "name": "aid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Aid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutomationUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Delete Automation",
+        "description": "Delete it: switched off and hidden; POST /automations/{id}/restore undoes it.",
+        "operationId": "delete_automation",
+        "parameters": [
+          {
+            "name": "aid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Aid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/automations/{aid}/enable": {
+      "post": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Enable Automation",
+        "description": "Switch it on (it reacts to what happens from now on, never to what happened while it was off) or off.",
+        "operationId": "enable_automation",
+        "parameters": [
+          {
+            "name": "aid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Aid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutomationSwitch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/automations/{aid}/restore": {
+      "post": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Restore Automation",
+        "description": "Undo a delete: it comes back switched off.",
+        "operationId": "restore_automation",
+        "parameters": [
+          {
+            "name": "aid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Aid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/automations/{aid}/policy": {
+      "post": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Set Policy",
+        "description": "Whether an action node asks you first (ask) or runs on its own (auto). Only you, signed in to the web app,\nlet a node run on its own: never an API key, an app or an agent.",
+        "operationId": "set_policy",
+        "parameters": [
+          {
+            "name": "aid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Aid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutomationPolicy"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Automations-Set Policy"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/budgets": {
       "get": {
         "tags": [
@@ -29491,6 +29888,75 @@
         "title": "AccountToken",
         "description": "Anyone's key, for admins."
       },
+      "ActionInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "group": {
+            "type": "string",
+            "title": "Group"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params",
+            "description": "a JSON Schema (type object) of its params; a string holding {{ }} stands for any type"
+          },
+          "required": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Required"
+          },
+          "effect": {
+            "type": "string",
+            "enum": [
+              "read",
+              "self",
+              "lens",
+              "out",
+              "depends"
+            ],
+            "title": "Effect",
+            "description": "what it reaches: read and self run at once; lens asks unless it changes the event's own object; out asks first unless you let it run on its own; depends: worked out from its params"
+          },
+          "output": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output",
+            "description": "a JSON Schema of what it gives back, for later nodes (steps.<node id>)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "group",
+          "params",
+          "effect"
+        ],
+        "title": "ActionInfo"
+      },
       "ActivityActor": {
         "properties": {
           "type": {
@@ -31558,6 +32024,651 @@
           "setup_required"
         ],
         "title": "AuthStatus"
+      },
+      "Automation": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "enabled_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled At",
+            "description": "when it was last switched on: it reacts only to what happens after"
+          },
+          "spaces": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spaces",
+            "description": "the namespaces it works in; none for every one (admins)"
+          },
+          "namespace_names": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace Names"
+          },
+          "run_as": {
+            "type": "integer",
+            "title": "Run As",
+            "description": "the account it acts for, with that person's permissions: its maker"
+          },
+          "triggers": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Triggers",
+            "description": "each {as, on, ...}: {as, on: event, kinds, where?, from_automations?}, {as, on: manual}; on schedule, at, relative and webhook are coming soon (docs/automations.md, Triggers)"
+          },
+          "join": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Join",
+            "description": "how several triggers make one run: {mode: any} (each on its own)"
+          },
+          "if": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "If",
+            "description": "a match tree over the run context, tested before the Then runs, like {all: [{path, op, value}]}"
+          },
+          "workflow": {
+            "type": "integer",
+            "title": "Workflow",
+            "description": "its workflow (scope event)"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "the workflow version it runs; none follows the published one"
+          },
+          "runs_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runs Version",
+            "description": "the version it runs now"
+          },
+          "graph": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Graph",
+            "description": "the Then: a workflow graph of scope event (an input node, then action nodes and the flow primitives)"
+          },
+          "policy": {
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "ask",
+                "auto"
+              ]
+            },
+            "type": "object",
+            "title": "Policy",
+            "description": "{action node id: ask or auto}"
+          },
+          "limits": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Limits",
+            "description": "{cooldown (like 10m), max_per_hour}"
+          },
+          "counters": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Counters",
+            "description": "{runs, skipped (its If was false), limited (over a limit), missed}"
+          },
+          "last_run_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run At"
+          },
+          "last_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Status"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "removed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Removed At",
+            "description": "when it was deleted (restore brings it back)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "enabled",
+          "run_as",
+          "triggers",
+          "join",
+          "workflow",
+          "limits",
+          "counters"
+        ],
+        "title": "Automation"
+      },
+      "AutomationCatalog": {
+        "properties": {
+          "automations": {
+            "items": {
+              "$ref": "#/components/schemas/Automation"
+            },
+            "type": "array",
+            "title": "Automations"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "automations"
+        ],
+        "title": "AutomationCatalog"
+      },
+      "AutomationCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "switched on, it reacts to what happens from now on",
+            "default": true
+          },
+          "spaces": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spaces",
+            "description": "namespace ids you can edit; default: each one you can edit (every one, for admins)"
+          },
+          "triggers": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Triggers",
+            "description": "each {as, on, ...}: {as, on: event, kinds, where?, from_automations?}, {as, on: manual}; on schedule, at, relative and webhook are coming soon (docs/automations.md, Triggers)"
+          },
+          "join": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Join",
+            "description": "default {mode: any}: each trigger starts a run of its own"
+          },
+          "if": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "If",
+            "description": "a match tree over the run context, tested before the Then runs, like {all: [{path, op, value}]}"
+          },
+          "graph": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Graph",
+            "description": "the Then: a workflow graph of scope event (an input node, then action nodes and the flow primitives); or name a saved one in workflow"
+          },
+          "workflow": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow",
+            "description": "a saved workflow of scope event, instead of a graph"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "with workflow: the version to run; none follows the published one"
+          },
+          "policy": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string",
+                  "const": "ask"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy",
+            "description": "{action node id: ask}; only you, signed in, let a node run on its own (POST /automations/{id}/policy)"
+          },
+          "limits": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limits",
+            "description": "{cooldown: 0s, max_per_hour: 60}"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "triggers"
+        ],
+        "title": "AutomationCreate"
+      },
+      "AutomationPolicy": {
+        "properties": {
+          "node": {
+            "type": "string",
+            "title": "Node",
+            "description": "an action node's id"
+          },
+          "value": {
+            "type": "string",
+            "enum": [
+              "ask",
+              "auto"
+            ],
+            "title": "Value",
+            "description": "ask: it asks you first; auto: it runs on its own"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "node",
+          "value"
+        ],
+        "title": "AutomationPolicy"
+      },
+      "AutomationSaved": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "hooks": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Hooks",
+            "description": "new webhook triggers' addresses and signing secrets {as, url, secret}, shown this once"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "AutomationSaved"
+      },
+      "AutomationSwitch": {
+        "properties": {
+          "on": {
+            "type": "boolean",
+            "title": "On",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AutomationSwitch"
+      },
+      "AutomationUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "spaces": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spaces"
+          },
+          "triggers": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Triggers"
+          },
+          "join": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Join"
+          },
+          "if": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "If",
+            "description": "a match tree over the run context, tested before the Then runs, like {all: [{path, op, value}]}; null for none"
+          },
+          "graph": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Graph",
+            "description": "a new Then, saved as a new version of its workflow"
+          },
+          "workflow": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "the workflow version to run; null follows the published one"
+          },
+          "policy": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string",
+                  "enum": [
+                    "ask",
+                    "auto"
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy",
+            "description": "{action node id: ask}; a node already set to auto may stay auto, and only you set auto (its own route)"
+          },
+          "limits": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limits"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AutomationUpdate"
       },
       "AutomationVar": {
         "properties": {
