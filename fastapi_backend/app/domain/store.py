@@ -1281,6 +1281,11 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS automation SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS automation_enabled ON automation FIELDS enabled",
     "DEFINE INDEX IF NOT EXISTS upload_recording ON upload FIELDS recording",
+    # automations' saved variables (domain/variables.py, docs/automations.md, Saved variables): an automation's own or
+    # its namespace's, automation_var:<hash of whose and name> (the id keeps the name unique)
+    "DEFINE TABLE IF NOT EXISTS automation_var SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS automation_var_automation ON automation_var FIELDS automation",
+    "DEFINE INDEX IF NOT EXISTS automation_var_space ON automation_var FIELDS space",
     # review marks on the timeline (domain/event_marks.py, docs/timeline.md): each person's reviewed, important and
     # hidden flags on an activity, event_mark:<hash of account and activity> (the id keeps the pair unique)
     "DEFINE TABLE IF NOT EXISTS event_mark SCHEMALESS",

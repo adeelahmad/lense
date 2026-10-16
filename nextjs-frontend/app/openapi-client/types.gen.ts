@@ -1780,6 +1780,64 @@ export type AutomationUpdate = {
 };
 
 /**
+ * AutomationVar
+ */
+export type AutomationVar = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Value
+   *
+   * JSON up to 16 KB
+   */
+  value?: unknown;
+  /**
+   * Untrusted
+   *
+   * set from text from outside Lens: prompts mark it as data
+   */
+  untrusted?: boolean;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Updated By
+   *
+   * who set it last: an email, or automation:<id>
+   */
+  updated_by?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationVars
+ */
+export type AutomationVars = {
+  /**
+   * Vars
+   */
+  vars: Array<AutomationVar>;
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationVarsIn
+ */
+export type AutomationVarsIn = {
+  /**
+   * Vars
+   *
+   * {name: value}: each one set to its value (JSON up to 16 KB), null clears it; the others stay
+   */
+  vars: {
+    [key: string]: unknown;
+  };
+};
+
+/**
  * Backend
  */
 export type Backend = {
@@ -25597,6 +25655,126 @@ export type CallAutomationHookResponses = {
 };
 
 export type CallAutomationHookResponse = CallAutomationHookResponses[keyof CallAutomationHookResponses];
+
+export type GetAutomationVarsData = {
+  body?: never;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/{aid}/vars";
+};
+
+export type GetAutomationVarsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetAutomationVarsError = GetAutomationVarsErrors[keyof GetAutomationVarsErrors];
+
+export type GetAutomationVarsResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationVars;
+};
+
+export type GetAutomationVarsResponse = GetAutomationVarsResponses[keyof GetAutomationVarsResponses];
+
+export type PutAutomationVarsData = {
+  body: AutomationVarsIn;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/{aid}/vars";
+};
+
+export type PutAutomationVarsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PutAutomationVarsError = PutAutomationVarsErrors[keyof PutAutomationVarsErrors];
+
+export type PutAutomationVarsResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationVars;
+};
+
+export type PutAutomationVarsResponse = PutAutomationVarsResponses[keyof PutAutomationVarsResponses];
+
+export type GetNamespaceVarsData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/automation-vars";
+};
+
+export type GetNamespaceVarsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetNamespaceVarsError = GetNamespaceVarsErrors[keyof GetNamespaceVarsErrors];
+
+export type GetNamespaceVarsResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationVars;
+};
+
+export type GetNamespaceVarsResponse = GetNamespaceVarsResponses[keyof GetNamespaceVarsResponses];
+
+export type PutNamespaceVarsData = {
+  body: AutomationVarsIn;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/automation-vars";
+};
+
+export type PutNamespaceVarsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PutNamespaceVarsError = PutNamespaceVarsErrors[keyof PutNamespaceVarsErrors];
+
+export type PutNamespaceVarsResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationVars;
+};
+
+export type PutNamespaceVarsResponse = PutNamespaceVarsResponses[keyof PutNamespaceVarsResponses];
 
 export type ListAutomationsData = {
   body?: never;
