@@ -408,3 +408,71 @@ def test_an_approval_waiting_is_a_notification_when_asked_for(app, client, db, c
         assert "https://evil.example" not in text and text.endswith(f"\nhttps://lens.example/approvals?id={aid}")
     finally:
         inbox.srv.shutdown()
+
+
+def test_agents_over_mcp_list_and_decline_but_never_approve(client, db, cfg, people, posted, studio):
+    from tests.api.test_mcp import rpc, tool, tool_error
+    from tests.api.test_oauth import _bearer, _grant
+
+    aid = approvals.ask(db, cfg, intent(people), {**EVENT, "space": people["pods"]})
+    later = approvals.ask(db, cfg, intent(people, n=8))
+    h = login(client, "me@x.io", "my password 1")
+    hb = _bearer(_grant(client, h, scope="write")[1])
+    names = [t["name"] for t in rpc(client, hb, "tools/list")["result"]["tools"]]
+    assert {"approvals", "decline_approval"} <= set(names) and not [n for n in names if "approve" in n]
+    got = tool(client, hb, "approvals")
+    assert [a["id"] for a in got["approvals"]] == [later, aid] and got["waiting"] == {"waiting": 2, "automations": 2}
+    a = got["approvals"][1]
+    assert a["summary"] == "Post “Trip on Friday, bring a packed lunch” to the family room" and a["from"] == "automation"
+    assert a["can"] == {"approve": False, "decline": True, "edit": False, "always": False}
+    assert a["why"]["activity"] == "create-recording-7" and a["url"].endswith(f"/approvals?id={aid}")
+    assert a["params"] == {"text": "Trip on Friday, bring a packed lunch", "room": "family"} and a["automation"] == 4
+    assert tool(client, hb, "approvals", id=aid)["approval"]["id"] == aid
+    page = tool(client, hb, "approvals", limit=1)
+    assert [x["id"] for x in page["approvals"]] == [later] and page["next"] == later
+    assert [x["id"] for x in tool(client, hb, "approvals", limit=1, before=later)["approvals"]] == [aid]
+    # nobody else's, and a read-only token can't decline
+    ho = _bearer(_grant(client, login(client, "other@x.io", "other password 1"), scope="write")[1])
+    assert "no approval" in tool_error(client, ho, "approvals", id=aid) and tool(client, ho, "approvals")["approvals"] == []
+    assert "no approval" in tool_error(client, ho, "decline_approval", id=aid)
+    assert "read-only" in tool_error(client, _bearer(_grant(client, h, scope="read")[1]), "decline_approval", id=aid)
+    with pytest.raises(PermissionError):  # however an agent reaches it, approving is the person's
+        ai_tools.approve(db, cfg, aid, {"id": people["me"], "email": "me@x.io"}, {people["pods"]}, "approve", via="agent")
+    assert tool(client, hb, "decline_approval", id=aid) == {"approval": aid, "status": "declined"}
+    assert not posted and studio["intents"][-1] == (51, "51-n7", "declined", None)
+    assert "not waiting" in tool_error(client, hb, "decline_approval", id=aid)
+    assert [x["id"] for x in tool(client, hb, "approvals", status="any")["approvals"]] == [later, aid]
+
+
+def test_the_assistant_lists_and_declines_but_never_approves(db, cfg, people, posted, studio):
+    import json
+
+    from app.domain import actions_ai
+
+    pods, me = people["pods"], {"id": people["me"], "email": "me@x.io"}
+    aid = approvals.ask(db, cfg, intent(people), {**EVENT, "space": pods})
+    for chat, what in ((5, "Run notes here"), (6, "Run notes elsewhere")):  # its own proposals, in two conversations
+        db.q(
+            "CREATE approval CONTENT $d",
+            d={"chat": chat, "account": people["me"], "tool": "run_template", "summary": what, "status": "pending"},
+        )
+    box = ai_tools.Toolbox(db, cfg, me, {pods}, {pods}, {}, 5)
+    names = {s["function"]["name"] for s in box.specs()}
+    assert {"approvals", "decline_approval"} <= names and not {n for n in names if "approve" in n}
+    got = json.loads(box.call("approvals", {})[0])["approvals"]
+    assert [a.get("automation") for a in got] == [None, 4] and got[0]["summary"] == "Run notes here"  # not chat 6's
+    assert all(a["can"]["approve"] is False for a in got)
+    assert box.outside == ["tool approvals"]  # what automations read from outside Lens is in their summaries
+    assert [a["summary"] for a in json.loads(ai_tools.Toolbox(db, cfg, me, set(), set(), {}, 5).call("approvals", {})[0])["approvals"]] == [
+        "Run notes here"
+    ]  # a conversation that doesn't read pods doesn't see its approvals
+    # once it has read them, declining asks first: the person's yes on that declines it
+    out = json.loads(box.call("decline_approval", {"id": aid})[0])
+    assert out["status"] == "waiting for the person's approval" and approvals.get(db, aid)["status"] == "pending"
+    ai_tools.approve(db, cfg, out["approval"], me, {pods})
+    assert approvals.get(db, aid)["status"] == "declined" and not posted
+    second = approvals.ask(db, cfg, intent(people, n=8))
+    fresh = ai_tools.Toolbox(db, cfg, me, {pods}, {pods}, {}, 5)
+    assert json.loads(fresh.call("decline_approval", {"id": second})[0]) == {"approval": second, "status": "declined"}
+    assert "not waiting" in fresh.call("decline_approval", {"id": second})[0]
+    assert "decline_approval" in actions_ai.LEFT_OUT  # an automation's agent doesn't get to decline its person's picks

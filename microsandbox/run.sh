@@ -51,6 +51,10 @@ esac
 mkdir -p "$OPT/bin" "$DATA/surreal" /tmp/lens
 export PATH="$OPT/bin:$OPT/node/bin:$OPT/venv/bin:$PATH"
 
+# Removing folders in the volume, which a Mac shares into the sandbox in a way one rm -rf doesn't always get through
+# shellcheck source=SCRIPTDIR/wipe.sh
+. "$CODE/microsandbox/wipe.sh"
+
 # Name lookups: wait for them before downloading, with public resolvers when this machine's don't answer here
 # shellcheck source=SCRIPTDIR/dns.sh
 . "$CODE/microsandbox/dns.sh"
@@ -92,7 +96,8 @@ if [ ! -x "$OPT/node/bin/node" ]; then
   log "Getting Node $NODE_MAJOR..."
   base="https://nodejs.org/dist/latest-v$NODE_MAJOR.x"
   file="$(fetch "$base/SHASUMS256.txt" | awk "/linux-$node_arch.tar.xz\$/ {print \$2}")"
-  rm -rf "$OPT/node" && mkdir -p "$OPT/node"
+  wipe "$OPT/node"
+  mkdir -p "$OPT/node"
   fetch "$base/$file" | tar -xJ -C "$OPT/node" --strip-components 1
 fi
 if [ ! -x "$OPT/bin/uv" ]; then
@@ -103,13 +108,20 @@ fi
 
 # --- Build: the backend and the web app, again only when the code changed (the edition doesn't change them) -------
 build_id="$(cat "$CODE/.lens-build" 2>/dev/null || echo unknown)"
+# the web app is built on the sandbox's own disk, where its packages come and go quickly; only what it built is kept
+WEB_SRC=/var/tmp/lens/web-src
 if [ "$(cat "$OPT/build-id" 2>/dev/null)" != "$build_id" ]; then
   log "Building Lens (the first build takes a few minutes)..."
+  # what an earlier build left: one that stopped partway kept its copy of the web app in the volume (before it was
+  # built on the sandbox's disk), and anything wipe moved aside
+  wipe "$OPT/web-src" || true
+  empty_trash
   # copies, so the build writes nothing into the code on the host; the backend is installed where it runs (the
   # virtualenv points at it)
-  rm -rf "$OPT/backend" "$OPT/web-src" && mkdir -p "$OPT/backend" "$OPT/web-src"
+  wipe "$OPT/backend" "$WEB_SRC"
+  mkdir -p "$OPT/backend" "$WEB_SRC"
   (cd "$CODE/fastapi_backend" && tar -c --exclude .venv --exclude __pycache__ .) | tar -x -C "$OPT/backend"
-  (cd "$CODE/nextjs-frontend" && tar -c --exclude node_modules --exclude .next .) | tar -x -C "$OPT/web-src"
+  (cd "$CODE/nextjs-frontend" && tar -c --exclude node_modules --exclude .next .) | tar -x -C "$WEB_SRC"
 
   log "Installing the backend's Python packages..."
   # shellcheck disable=SC2046
@@ -119,16 +131,17 @@ if [ "$(cat "$OPT/build-id" 2>/dev/null)" != "$build_id" ]; then
     retry uv sync --frozen --no-dev --python "$(command -v python3)" \
       $(for e in ${EXTRAS:-}; do printf -- '--extra %s ' "$e"; done))
 
-  web() { (cd "$OPT/web-src" && exec env COREPACK_ENABLE_DOWNLOAD_PROMPT=0 COREPACK_HOME="$OPT/corepack" "$@"); }
+  web() { (cd "$WEB_SRC" && exec env COREPACK_ENABLE_DOWNLOAD_PROMPT=0 COREPACK_HOME="$OPT/corepack" "$@"); }
   log "Installing the web app's packages..."
   retry web corepack pnpm install --frozen-lockfile
   log "Building the web app..."
   web AUTH_SECRET=build-only NEXT_TELEMETRY_DISABLED=1 NEXT_OUTPUT=standalone corepack pnpm build
-  rm -rf "$OPT/web" && mkdir -p "$OPT/web/.next"
-  cp -a "$OPT/web-src/.next/standalone/." "$OPT/web/"
-  cp -a "$OPT/web-src/.next/static" "$OPT/web/.next/static"
-  cp -a "$OPT/web-src/public" "$OPT/web-src/lens-server.js" "$OPT/web/"
-  rm -rf "$OPT/web-src"
+  wipe "$OPT/web"
+  mkdir -p "$OPT/web/.next"
+  cp -a "$WEB_SRC/.next/standalone/." "$OPT/web/"
+  cp -a "$WEB_SRC/.next/static" "$OPT/web/.next/static"
+  cp -a "$WEB_SRC/public" "$WEB_SRC/lens-server.js" "$OPT/web/"
+  wipe "$WEB_SRC" || true # the disk is replaced with the sandbox anyway
   chown -R lens:lens "$OPT/web"
   echo "$build_id" >"$OPT/build-id"
 fi

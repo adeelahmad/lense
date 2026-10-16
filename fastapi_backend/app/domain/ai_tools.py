@@ -102,6 +102,32 @@ TOOLS = [
         False,
     ),
     (
+        "approvals",
+        "What waits for the person's pick, newest first: automations' actions that ask first and your own proposals in "
+        "this conversation, each with what it would do, why (the activity that caused it), when it expires and where "
+        "the person decides it. One by id, or by status (pending, the default, or any), origin (automation or chat) or "
+        "automation; give next as before for more. Only the person approves, in Lens or their chat app: you can list "
+        "and decline.",
+        {
+            "id": _I,
+            "status": {"type": "string", "enum": ["pending", "done", "failed", "declined", "expired", "any"]},
+            "origin": {"type": "string", "enum": ["automation", "chat"]},
+            "automation": _I,
+            "before": _I,
+            "limit": _I,
+        },
+        [],
+        False,
+    ),
+    (
+        "decline_approval",
+        "Decline something waiting for the person's pick, by its id from approvals: nothing is done, and an "
+        "automation's run records that it was declined.",
+        {"id": _I},
+        ["id"],
+        False,
+    ),
+    (
         "read_transcript",
         "Read part of one asset's text (its transcript, for audio and video), by seconds.",
         {"recording_id": _I, "start_seconds": {"type": "number"}, "end_seconds": {"type": "number"}, "max_lines": _I},
@@ -386,9 +412,16 @@ def builtin_names():
 # tools whose results the model may take as Lens's own word: the server's state and settings, the skills the person
 # chose, what the graph holds, and what the built-in tools that change things report (ids, what waits for approval).
 # What every other tool gives back is third-party text, marked as data (untrusted.py).
-OWN_RESULTS = {"server_status", "find_model_servers", "read_settings", "file_storage", "graph_schema", "use_skill", "mark_activities"} | {
-    t[0] for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS if t[4]
-}
+OWN_RESULTS = {
+    "server_status",
+    "find_model_servers",
+    "read_settings",
+    "file_storage",
+    "graph_schema",
+    "use_skill",
+    "mark_activities",
+    "decline_approval",
+} | {t[0] for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS if t[4]}
 
 
 def read_before(history, summary=None):
@@ -970,6 +1003,46 @@ class Toolbox(ops_tools.OpsTools):
         marks = event_marks.mark(self.db, self.account, known, flags)
         return {"marks": marks, "unknown": unknown}, f"Marked {what}"
 
+    # ---- approvals (approvals.py): the person's own, read and declined; approving is theirs ----
+    def _approval_seen(self, a):
+        """An approval of the person's this conversation may see: an automation's about a namespace it reads (or none),
+        or one the assistant asked for here."""
+        if not a or a.get("account") != self.account:
+            return False
+        if a.get("origin") or a.get("intent"):
+            return a.get("space") is None or a["space"] in self.readable
+        return a.get("chat") == self.chat
+
+    def t_approvals(self, id=None, status=None, origin=None, automation=None, before=None, limit=20):
+        from . import approvals
+
+        web = approvals.link(self.cfg, self.db, 0).removesuffix("/approvals?id=0")
+        if id is not None:
+            a = approvals.get(self.db, int(id))
+            if not self._approval_seen(a):
+                raise ValueError(f"no approval {id} of the person's here")
+            return {"approval": approvals.brief(a, web)}, f"Read the approval “{a.get('summary')}”"
+        n = max(1, min(int(limit or 20), 50))
+        st = None if status == "any" else status or "pending"
+        rows = approvals.listing(self.db, self.account, st, origin, automation, None, before, n)
+        out = [approvals.brief(a, web) for a in rows if self._approval_seen(a)]
+        nxt = rows[-1]["id"] if len(rows) >= n else None
+        return {"approvals": out, "next": nxt}, f"Read {len(out)} approval{'' if len(out) == 1 else 's'}"
+
+    def t_decline_approval(self, id):
+        from . import approvals
+
+        a = approvals.get(self.db, int(id))
+        if not self._approval_seen(a):
+            raise ValueError(f"no approval {id} of the person's here")
+        if a["status"] != "pending":
+            raise ValueError(f"approval {id} is {a['status']}, not waiting")
+        # what it read from outside Lens may have asked it to throw away what the person would pick: it asks first then
+        if self.wary():
+            return self._approval("decline_approval", {"approval": a["id"]}, f"Decline “{a.get('summary')}”" + self.why())
+        out = approve(self.db, self.cfg, a["id"], self.user, self.editable, "decline", via="agent")
+        return {"approval": a["id"], "status": out.get("status")}, f"Declined “{a.get('summary')}”"
+
     def t_read_transcript(self, recording_id, start_seconds=0, end_seconds=None, max_lines=60):
         cap = self.cfg["ai"].get("max_transcript_reads") or 20
         if self.reads >= cap:
@@ -1447,6 +1520,8 @@ def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=F
     a = approvals.get(db, aid)
     if not a or a["status"] != "pending":
         raise ValueError("nothing to approve")
+    if via == "agent" and decision != "decline":
+        raise PermissionError("approving is the person's own pick: an agent can only decline")
     if a.get("intent"):
         return approvals.decide(db, cfg, a, user, decision, params, via)
     if decision in ("edit", "always"):
@@ -1477,6 +1552,16 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
         result = author_extension(db, a["tool"], args, user, admin, readable if readable is not None else editable, editable)
     elif a["tool"] in ("change_settings", "create_namespace", "import_files", "import_urls", "invite_person", "change_person"):
         result = ops_tools.apply(db, cfg, base or cfg, a["tool"], args, user, editable, admin)
+    elif a["tool"] == "decline_approval":  # the person's yes to declining another of their approvals
+        from . import approvals
+
+        b = approvals.get(db, int(args["approval"]))
+        if not b or b.get("account") != a.get("account"):
+            raise ValueError("that approval is gone")
+        if b["status"] != "pending":
+            result = {"approval": b["id"], "status": b["status"]}  # decided meanwhile: nothing to decline
+        else:
+            result = {"approval": b["id"], **approve(db, cfg, b["id"], user, editable, "decline", via="agent")}
     elif a["tool"] == "mark_activities":  # the person's own marks, on activities they could see when it was asked
         flags = {k: v for k, v in args.items() if k in event_marks.FLAGS}
         result = {"marked": len(event_marks.mark(db, user["id"], args["ids"], flags))}

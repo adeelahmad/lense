@@ -54,6 +54,7 @@ CONTEXT = (  # the run context's top-level keys (section Run context), in the or
     ("namespace", "Namespace", "object", "{id, name}"),
     ("user", "Person", "object", "who the automation acts for: {id, name, email}"),
     ("now", "Now", "string", "when the run started, ISO 8601 in UTC"),
+    ("now_local", "Now, local", "string", "when the run started, ISO 8601 in the run's time zone"),
     ("timezone", "Time zone", "string", "the person's time zone"),
     ("vars", "Variables", "object", "the automation's and its namespace's saved variables"),
     ("steps", "Steps", "object", "what each node passed on so far, by node id, such as steps.n3"),
@@ -114,6 +115,7 @@ class RunContext(TypedDict):
     namespace: dict | None
     user: dict
     now: str
+    now_local: str
     timezone: str
     vars: dict
     steps: dict[str, object]

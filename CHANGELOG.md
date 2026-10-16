@@ -4,6 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Updating Lens in a microsandbox on a Mac gets past "Building Lens".** An update after a build that stopped
+  partway stopped there with `rm: cannot remove ... Directory not empty`, then `tar: /data/.lens/backend: Cannot open`:
+  the Mac's file sharing can list a folder as empty while a file is still in it, so removing the earlier build's
+  `node_modules` didn't always get through. The sandbox now tries again and moves what's left aside, and builds the
+  web app on its own disk instead of in the volume. Run the install line again to update
+  ([microsandbox](docs/microsandbox.md#day-to-day)).
+
 ## 0.12.0 <small>October 15, 2026</small> {id="0.12.0"}
 
 - **microsandbox runs on Debian 13 too.** Its sandbox now starts from `python:3.12-slim-trixie`, like the backend
