@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { AccessRequests, Resources, Sources, Speakers, Tokens } from "@/app/openapi-client";
+import { useApprovalCount } from "@/components/approvals/use-approvals";
 import { buildAttention, greeting, type AttentionItem } from "@/components/home/attention";
 import { QuickImport } from "@/components/home/quick-import";
 import { rememberView, useRecentViews, type ViewedKind } from "@/components/home/recently-viewed";
@@ -124,6 +125,7 @@ export function HomeScreen({ switcher }: { switcher?: React.ReactNode } = {}) {
     queryFn: () => data(Tokens.listTokens({ client })),
     staleTime: 60_000,
   });
+  const approvals = useApprovalCount();
   const owns = namespaces.some((n) => can("owner", n.name));
   const requests = useQuery({
     queryKey: ["access-requests"],
@@ -162,6 +164,7 @@ export function HomeScreen({ switcher }: { switcher?: React.ReactNode } = {}) {
       })),
       requests: (requests.data ?? []).filter((r) => inScope(r.namespace)),
       tokens: tokens.data,
+      approvals: approvals.data,
     });
     // Only what this person can act on: failures in namespaces where they can't edit stay out of their way.
     return all.filter((it) => it.namespace === undefined || can("editor", it.namespace));
@@ -174,6 +177,7 @@ export function HomeScreen({ switcher }: { switcher?: React.ReactNode } = {}) {
     watches.data,
     requests.data,
     tokens.data,
+    approvals.data,
     namespace,
     reviewKey,
     can,
