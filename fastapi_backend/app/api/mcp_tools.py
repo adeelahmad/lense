@@ -23,10 +23,12 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from fastapi import HTTPException, Request
+from pydantic import ValidationError
 
 from app.api.deps import Access, Principal
 from app.api.v1.routes import activities as activity_routes
 from app.api.v1.routes import automation_vars as var_routes
+from app.api.v1.routes import automations as automation_routes
 from app.api.v1.routes import entities as entity_routes
 from app.api.v1.routes import graph as graph_routes
 from app.api.v1.routes import namespaces as namespace_routes
@@ -64,6 +66,15 @@ from app.domain import speakers as spk
 from app.domain import topics as topicmod
 from app.domain.store import DB
 from app.schemas.automation_vars import TemplatePreviewIn
+from app.schemas.automations import (
+    AutomationCreate,
+    AutomationDraftTry,
+    AutomationRunNow,
+    AutomationSaved,
+    AutomationSwitch,
+    AutomationTry,
+    AutomationUpdate,
+)
 from app.schemas.entities import EntityHide, EntityList, EntityRename, EntityRetype, EntityUpdate
 from app.schemas.notebook import NotePage
 from app.schemas.search import SearchResults
@@ -102,7 +113,7 @@ class ToolError(Exception):
 @dataclass(frozen=True)
 class Arg:
     name: str
-    type: str  # string, integer, number, boolean, or string[]
+    type: str  # string, integer, number, boolean, string[], integer[], object or object[] (JSON, or JSON text)
     description: str
     required: bool = False
     default: Any = None
@@ -116,6 +127,8 @@ class Arg:
             s: dict[str, Any] = {"type": "array", "items": {"type": "string", **({"enum": list(self.enum)} if self.enum else {})}}
         elif self.type == "integer[]":
             s = {"type": "array", "items": {"type": "integer"}, "maxItems": self.maximum or 500}
+        elif self.type == "object[]":
+            s = {"type": "array", "items": {"type": "object"}}
         else:
             s = {"type": self.type}
             if self.enum:
@@ -123,7 +136,7 @@ class Arg:
         s["description"] = self.description
         if self.minimum is not None:
             s["minimum"] = self.minimum
-        if self.maximum is not None and self.type != "integer[]":
+        if self.maximum is not None and self.type not in ("integer[]", "object[]"):
             s["maximum"] = self.maximum
         if self.max_length is not None:
             s["maxLength"] = self.max_length
@@ -191,6 +204,18 @@ class Arg:
             if self.required and not value:
                 raise ToolError(f"{self.name} is required")
             return value or self.default
+        elif t in ("object", "object[]"):
+            if isinstance(value, str):  # some agents send JSON as text
+                try:
+                    value = json.loads(value)
+                except ValueError:
+                    raise ToolError(f"{self.name} isn't JSON") from None
+            want = dict if t == "object" else list
+            if not isinstance(value, want) or (t == "object[]" and not all(isinstance(x, dict) for x in value)):
+                raise ToolError(f"{self.name} is {'an object' if t == 'object' else 'a list of objects'}")
+            if self.maximum is not None and t == "object[]" and len(value) > self.maximum:
+                raise ToolError(f"{self.name} has at most {self.maximum} items")
+            return value
         if self.enum and t != "string[]" and value not in self.enum:
             raise ToolError(f"{self.name} is one of {', '.join(self.enum)}")
         if self.minimum is not None and value < self.minimum:
@@ -2279,3 +2304,185 @@ def preview_template(
             pass  # text that starts with {{ or {%
     body = TemplatePreviewIn(template=value, draft=_draft(draft), activity=activity, trigger=trigger, node=node, prompt=prompt)
     return var_routes.preview_for(ctx.db, ctx.cfg, ctx.user, ctx.acl, body).model_dump(exclude_none=True)
+
+
+# ---------- automations (docs/automations.md) ----------
+AUTOMATION_HOW = (
+    "triggers: [{as: name, on: event, kinds: [asset.added], where?: match tree}] or [{as, on: manual}] (event_kinds lists "
+    "the kinds); condition (the If): a match tree over the run context, like {all: [{path: event.object.name, op: "
+    "contains, value: trip}]}; graph: a workflow of scope event, {nodes: [{id: i, type: input}, {id: a, type: action, "
+    "config: {action: log_line, params: {text: 'New: {{ event.object.name }}'}}}], edges: [{source: i, target: a}]} "
+    "(automation_actions lists the actions)"
+)
+
+
+def _problem(e: Any) -> ToolError:
+    """A body that doesn't fit, in plain words: each field and what is wrong with it."""
+    said = "; ".join(f"{'.'.join(str(x) for x in err['loc']) or 'it'}: {err['msg']}" for err in e.errors()[:5])
+    return ToolError(f"that automation doesn't fit: {said}")
+
+
+def _automation_brief(a: dict[str, Any]) -> dict[str, Any]:
+    return store.clean(
+        {
+            "automation_id": a["id"],
+            "name": a["name"],
+            "enabled": a["enabled"],
+            "namespaces": a.get("namespace_names"),
+            "triggers": a["triggers"],
+            "last_run_at": a.get("last_run_at"),
+            "last_status": a.get("last_status"),
+            "runs": (a.get("counters") or {}).get("runs"),
+            "waiting": a.get("waiting") or None,
+            "cost_month": (a.get("cost_month") or {}).get("cost_usd") or None,
+            "removed_at": a.get("removed_at"),
+        }
+    )
+
+
+@tool(
+    "automations",
+    "Your automations",
+    "Your automations (when something happens in Lens, if a test passes, do something, as you): each one's triggers, "
+    "whether it's on, its last run and what waits for your pick. With automation_id, one in full (its If, its graph, "
+    "its policy and limits) with its latest runs; with run_id, one run with what each node did and what its actions "
+    "did, asked or wait to do. Admins see every automation, anyone else the ones in namespaces they edit.",
+    Arg("automation_id", "integer", "one automation, in full"),
+    Arg("run_id", "integer", "one run, with its trace, log and intents"),
+    Arg("removed", "boolean", "list the deleted ones instead, to restore"),
+)
+def automations(ctx: Context, automation_id: int | None, run_id: int | None, removed: bool | None) -> dict[str, Any]:
+    if run_id is not None:
+        return automation_routes.get_run(run_id, ctx.user, ctx.acl, ctx.db).model_dump(exclude_none=True)
+    if automation_id is not None:
+        a = automation_routes.get_automation(automation_id, ctx.user, ctx.acl, ctx.db).model_dump(by_alias=True, exclude_none=True)
+        runs = automation_routes.list_runs(automation_id, ctx.user, ctx.acl, ctx.db, None, 5)
+        return {**a, "runs": [r.model_dump(exclude_none=True) for r in runs.runs]}
+    got = automation_routes.list_automations(ctx.user, ctx.acl, ctx.db, bool(removed))
+    return {"automations": [_automation_brief(a.model_dump(by_alias=True)) for a in got.automations]}
+
+
+@tool(
+    "automation_actions",
+    "What automations can do",
+    "The actions an automation's action nodes can take: each one's params (a JSON Schema; a string holding {{ }} is "
+    "filled in from the run context), what it reaches (read and self run at once; lens and out ask the person first "
+    "unless it changes the event's own object) and what it gives back to later nodes.",
+)
+def automation_actions(ctx: Context) -> dict[str, Any]:
+    return {"actions": [a.model_dump(exclude_none=True) for a in automation_routes.list_actions(ctx.user)]}
+
+
+@tool(
+    "save_automation",
+    "Save an automation",
+    "Make an automation, or change one (automation_id), that acts as you in namespaces you edit. Give for a new one "
+    f"name, triggers and graph (or a saved workflow); to change one, only what changes. {AUTOMATION_HOW}. A new one is "
+    "saved switched off unless enabled is true; try it first with test_automation. Action nodes that reach outside "
+    "Lens or other people ask you first: only you, signed in to the web app, let one run on its own. Problems come "
+    "back in plain words. Needs a token with the write scope.",
+    Arg("automation_id", "integer", "the automation to change (else a new one)"),
+    Arg("name", "string", "its name", max_length=200),
+    Arg("description", "string", "what it is for", max_length=2000),
+    Arg("triggers", "object[]", "when it runs: 1 to 10 triggers, each named in as", maximum=10),
+    Arg("condition", "object", "its If: a match tree over the run context; {} drops it"),
+    Arg("graph", "object", "its Then: a workflow graph of scope event"),
+    Arg("workflow", "integer", "or a saved workflow of scope event, instead of a graph"),
+    Arg("namespaces", "string[]", "the namespaces it works in, by name (default: each one you edit)"),
+    Arg("limits", "object", "{cooldown: like 10m, max_per_hour: 1 to 3600}"),
+    Arg("enabled", "boolean", "switched on (it reacts to what happens from now on) or off"),
+    writes=True,
+)
+def save_automation(
+    ctx: Context,
+    automation_id: int | None,
+    name: str | None,
+    description: str | None,
+    triggers: list[dict[str, Any]] | None,
+    condition: dict[str, Any] | None,
+    graph: dict[str, Any] | None,
+    workflow: int | None,
+    namespaces: list[str] | None,
+    limits: dict[str, Any] | None,
+    enabled: bool | None,
+) -> dict[str, Any]:
+    _writer(ctx, "save automations")
+    given = {
+        "name": name,
+        "description": description,
+        "triggers": triggers,
+        "graph": graph,
+        "workflow": workflow,
+        "limits": limits,
+        "spaces": [ctx.acl.namespace(n) for n in namespaces] if namespaces else None,
+    }
+    body: dict[str, Any] = {k: v for k, v in given.items() if v is not None}
+    if condition is not None:
+        body["if"] = condition or None
+    got: AutomationSaved | None = None
+    try:
+        if automation_id is None:
+            got = automation_routes.create_automation(AutomationCreate(**{**body, "enabled": bool(enabled)}), ctx.user, ctx.db, ctx.cfg)
+            automation_id = got.id
+        else:
+            if not body and enabled is None:
+                raise ToolError("say what changes: name, description, triggers, condition, graph, workflow, namespaces, limits or enabled")
+            got = (
+                automation_routes.update_automation(automation_id, AutomationUpdate(**body), ctx.user, ctx.acl, ctx.db, ctx.cfg)
+                if body
+                else None
+            )
+            if enabled is not None:
+                automation_routes.enable_automation(automation_id, AutomationSwitch(on=enabled), ctx.user, ctx.acl, ctx.db, ctx.cfg)
+    except ValidationError as e:
+        raise _problem(e) from None
+    a = automation_routes.get_automation(automation_id, ctx.user, ctx.acl, ctx.db).model_dump(by_alias=True)
+    return {**_automation_brief(a), "hooks": (got.hooks if got else []) or None}
+
+
+@tool(
+    "test_automation",
+    "Try an automation",
+    "Try an automation without keeping, sending or counting anything: a saved one (automation_id) or one you haven't "
+    "saved (draft: what save_automation takes, with if for its condition), on an activity (its id, from timeline) or "
+    "on a kind's sample (default: its first trigger's kind). Says whether its If passes and what each action would do.",
+    Arg("automation_id", "integer", "a saved automation"),
+    Arg("draft", "object", "or an automation you haven't saved: {name, triggers, if?, graph}"),
+    Arg("activity", "string", "the activity to try it on, by id", max_length=400),
+    Arg("kind", "string", "else a kind of activity, to try it on that kind's sample", max_length=200),
+    Arg("trigger", "string", "which trigger it runs as (its as); default: the first that fits", max_length=40),
+)
+def test_automation(
+    ctx: Context, automation_id: int | None, draft: dict[str, Any] | None, activity: str | None, kind: str | None, trigger: str | None
+) -> dict[str, Any]:
+    if (automation_id is None) == (draft is None):
+        raise ToolError("give automation_id or draft")
+    try:
+        if draft is not None:
+            body = AutomationDraftTry(draft=AutomationCreate(**draft), activity=activity, kind=kind, **{"as": trigger})
+            out = automation_routes.test_draft(body, ctx.user, ctx.acl, ctx.db, ctx.cfg)
+        elif automation_id is not None:
+            out = automation_routes.test_automation(
+                automation_id, ctx.user, ctx.acl, ctx.db, ctx.cfg, AutomationTry(activity=activity, kind=kind, **{"as": trigger})
+            )
+    except ValidationError as e:
+        raise _problem(e) from None
+    return out.model_dump(exclude_none=True)
+
+
+@tool(
+    "run_automation",
+    "Run an automation now",
+    "Run one of your automations now, as it would run on its own: on an activity (its id, from timeline), else the "
+    "newest one its triggers listen for, else as started by hand. Limits and budgets apply, and actions that ask first "
+    "wait for your pick. Gives the run (read it with automations run_id), or why it didn't run. Needs a token with the "
+    "write scope.",
+    Arg("automation_id", "integer", "the automation", required=True),
+    Arg("activity", "string", "the activity to run it on, by id", max_length=400),
+    Arg("trigger", "string", "which trigger it runs as (its as)", max_length=40),
+    writes=True,
+)
+def run_automation(ctx: Context, automation_id: int, activity: str | None, trigger: str | None) -> dict[str, Any]:
+    _writer(ctx, "run automations")
+    body = AutomationRunNow(activity=activity, **{"as": trigger})
+    return automation_routes.run_automation(automation_id, ctx.user, ctx.acl, ctx.db, ctx.cfg, body).model_dump()

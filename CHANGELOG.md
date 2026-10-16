@@ -4,15 +4,19 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **News feeds.** Subscribe to a blog's or a news site's RSS or Atom feed: add it on the Sources page (its address,
+  or just the site's) and watch it, and each new post comes into a namespace as text, with its link, author and date,
+  so answers cite it. Feeds are asked for again only when they've changed, and a private feed's address is kept like a
+  password ([News feeds](docs/processing.md#news-feeds-rss-and-atom)).
 - **Automations run.** An automation saved over the API (`/api/v1/automations`) now reacts to new assets in its
   namespaces: when its If passes, it runs its workflow as the person who made it, within its limits and budgets, and
   each run shows what its actions did. Try one on an activity without keeping or sending anything, or run it now;
   Settings → Automations switches them all off and sets how far they may go
   ([Running automations](docs/automations.md#running-automations)).
-- **News feeds.** Subscribe to a blog's or a news site's RSS or Atom feed: add it on the Sources page (its address,
-  or just the site's) and watch it, and each new post comes into a namespace as text, with its link, author and date,
-  so answers cite it. Feeds are asked for again only when they've changed, and a private feed's address is kept like a
-  password ([News feeds](docs/processing.md#news-feeds-rss-and-atom)).
+- **Automations for agents.** Agents list, save, try and run automations through the MCP tools `automations`,
+  `automation_actions`, `save_automation`, `test_automation` and `run_automation`, with problems in plain words. The
+  assistant saves them switched off and asks before switching one on or running it
+  ([Agents](docs/automations.md#agents)).
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 
