@@ -1436,12 +1436,21 @@ class Toolbox(ops_tools.OpsTools):
         return [{**r, "used": r["n"] in used} for r in self.refs if r["n"] in used]
 
 
-def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=False, readable=None):
+def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=False, readable=None, params=None, via="web"):
     """Carry out an approved action: a batch run (or a sample of it), an entity change, a note an automation's agent
-    proposed, or a change to the server (ops_tools.py: settings, a namespace, importing attached files or web pages)."""
-    a = db.one("SELECT record::id(id) AS id, chat, account, tool, args, status FROM $r", r=R("approval", int(aid)))
+    proposed, or a change to the server (ops_tools.py: settings, a namespace, importing attached files or web pages).
+    An automation's action (an approval with an intent) is decided by approvals.decide: `params` are an edit's, `via`
+    where the pick was made (web, chat, token, oauth or agent; only the person, signed in or in their own chat,
+    approves it)."""
+    from . import approvals  # it carries actions out, and actions load the assistant's tools
+
+    a = approvals.get(db, aid)
     if not a or a["status"] != "pending":
         raise ValueError("nothing to approve")
+    if a.get("intent"):
+        return approvals.decide(db, cfg, a, user, decision, params, via)
+    if decision in ("edit", "always"):
+        raise ValueError("only an automation's action can be edited or allowed from now on")
     if decision == "decline":
         db.q(
             "UPDATE $r SET status = 'declined', decided_at = $t, decided_by = $u", r=R("approval", a["id"]), t=store.now(), u=user["email"]

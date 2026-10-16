@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:5f1925aee911e138d2d84f329939a63a0474306cd5844b6798746964b60e7610"
+prose_version: "threat-model.md@sha256:49d90eaf9f07671af79feadff5fbe0c9899366d7d24dfdad55300870cf83f04d"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -1476,6 +1476,14 @@ properties_claimed:
     violation_symptoms: [integrity-bypass]
     x-voided-by: "admins read everything; an admin setup conversation adds server tools and the act flag (domain/ai_tools.py:287-289); ai.extensions: false turns extensions off"
     provenance: {kind: documented, source: 'docs/assistant.md "Approvals"'}
+  - id: P-AUTOMATION-APPROVAL
+    kind: integrity
+    components: [assistant]
+    tier: security-critical
+    conditions: "an automation's action that asks first waits as an approval of the automation's person and nothing runs until they pick; approving, editing or always need them signed in (API keys, apps, MCP and the assistant only list and decline); a decision is claimed once; at most 100 wait per automation, each tells the person once, and undecided ones expire after automations.approval_days"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "the person setting a node to auto (always, or the builder's toggle); an admin raising automations.approval_days; the summary and the message told hold outside text, with links broken up (P-INJECTION-EGRESS)"
+    provenance: {kind: documented, source: 'docs/automations.md "Approvals"'}
   - id: P-INJECTION-EGRESS
     kind: confidentiality
     components: [assistant]

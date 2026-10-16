@@ -1046,6 +1046,14 @@
       "source": "docs/assistant.md \"Approvals\""
     },
     {
+      "property": "P-AUTOMATION-APPROVAL",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "an automation's action that asks first waits as an approval of the automation's person and nothing runs until they pick; approving, editing or always need them signed in (API keys, apps, MCP and the assistant only list and decline); a decision is claimed once; at most 100 wait per automation, each tells the person once, and undecided ones expire after automations.approval_days",
+      "provenance": "documented",
+      "source": "docs/automations.md \"Approvals\""
+    },
+    {
       "property": "P-INJECTION-EGRESS",
       "violation_symptom": "info-leak",
       "severity_tier": "correctness",

@@ -12,7 +12,8 @@ process that dies while a handler runs leaves that one firing done (at most once
 
 What sets them: `schedule_automation` (an automation's schedule and at triggers; they fire it with a `clock.tick`
 activity), `relative` (a relative trigger's time for one activity, moved when the activity's object moves), and
-`upcoming` lists what an automation has waiting, in words.
+`later` (an action that waits: carried out at its time, asking first when it should then). `upcoming` lists what an
+automation has waiting, in words.
 
 While Lens was off: a timer due within automations.catch_up (1 hour by default) fires late, with `late: true` in its
 payload; an older one is missed (counted on its automation). A repeating one fires once, for its latest time in the
@@ -23,6 +24,7 @@ thread doesn't query it (it checks again once a minute, or at once when this pro
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import hashlib
 import json
@@ -600,6 +602,114 @@ def relative(db, automation, alias, activity, field, offset="0s", now=None):
     return {"key": key, "at": _iso(when), "set": True, "note": None}
 
 
+# ---------- actions that wait ----------
+PERFORM = "intent.perform"  # carry out an intent whose time came (an action node with a delay or a when)
+_STRICT = {e: n for n, e in enumerate(automation_spec.EFFECTS)}  # read, self, lens, out: each reaches further
+
+
+def later(db, intent, depth=1):
+    """Keep an intent that waits for its time (an action node with a `delay` or a `when`; M6 hands it here): a timer
+    at its `when`, `intent-<key>`, that carries it out then, asking first when it should (`risk_now`). `depth` is
+    the run's (for the loop guard on what it causes). What to keep with the intent: {timer, at}."""
+    i = automation_spec.check_intent(intent)
+    if not i["when"]:
+        raise ValueError(f"intent {i['key']} doesn't say when it runs (when)")
+    key = f"intent-{i['key']}"
+    payload = {"intent": {**i, "status": "scheduled"}, "depth": max(1, int(depth or 1))}
+    row = set(db, key, i["when"], PERFORM, payload, i["automation"])
+    return {"timer": key, "at": row["at"]}
+
+
+def _automation_now(db, aid):
+    """The automation as it is stored now ({enabled, policy, spaces}); None when it isn't (removed, or automations
+    aren't stored yet)."""
+    if aid is None:
+        return None
+    try:
+        return db.one("SELECT enabled, policy, spaces FROM $r", r=R("automation", int(aid)))
+    except Exception:  # noqa: BLE001 - no automation table yet
+        return None
+
+
+def risk_now(db, intent, automation=None):
+    """routine or ask, worked out again for an intent whose time came: from its effect (the stricter of the one it was
+    made with and what its params give now), the automation's policy now (an out action runs on its own only while
+    its node is set to), its namespaces now (a lens action stays routine only on the event's own object, in
+    namespaces the automation still has), and the action's own check, which may only be stricter. `automation` is the
+    stored automation ({policy, spaces}), or None when there is none to read: then an out action asks."""
+    from . import actions
+
+    spec = actions.get(intent["action"])
+    effect = max(intent["effect"], actions.effect_of(spec, intent["params"]), key=lambda e: _STRICT.get(e, 3))
+    policy = (automation or {}).get("policy") or {}
+    spaces = (automation or {}).get("spaces")
+    if effect in ("read", "self"):
+        risk = "routine"
+    elif effect == "lens":
+        still = spaces is None or {int(s) for s in intent["spaces"]} <= {int(s) for s in spaces}
+        risk = "routine" if intent["risk"] == "routine" and still else "ask"
+    else:
+        risk = "routine" if policy.get(intent["node"]) == "auto" else "ask"
+    if risk == "routine" and spec.risk is not None:
+        ctx = {"automation": {"id": intent["automation"], "spaces": intent["spaces"] if spaces is None else spaces}}
+        try:
+            risk = "routine" if spec.risk(intent["params"], {**ctx, "node": intent["node"]}) == "routine" else "ask"
+        except Exception:  # noqa: BLE001 - when the action can't tell, it asks
+            risk = "ask"
+    return risk
+
+
+def _intent_status(db, i, status, result=None):
+    """Say on the run what became of an intent (M6's automations.update_intent owns the run's intents)."""
+    update = _provided("automations", "update_intent")
+    if update is None or i.get("run") is None:
+        log.info("automation %s run %s: intent %s %s", i.get("automation"), i.get("run"), i.get("key"), status)
+        return
+    update(db, i["run"], i["key"], status, result)
+
+
+def _intent_ended(db, payload, status, why):
+    i = payload.get("intent")
+    if isinstance(i, dict):
+        _intent_status(db, i, "expired", {"why": why})
+
+
+@handler(PERFORM, ended=_intent_ended)
+def _perform(db, cfg, p):
+    from . import actions, activity  # here: actions loads its action modules, which load routines, which load this
+
+    i = automation_spec.check_intent(p["intent"])
+    auto = _automation_now(db, i["automation"])
+    if i["automation"] is not None and _provided("automations", "fire") is not None and (not auto or auto.get("enabled") is False):
+        _intent_status(db, i, "expired", {"why": "the automation was switched off or removed before its time"})
+        return
+    try:
+        risk = risk_now(db, i, auto)
+    except KeyError:
+        _intent_status(db, i, "failed", {"error": f"there's no action {i['action']} any more"})
+        raise ValueError(f"there's no action {i['action']} any more") from None
+    if risk == "ask":
+        ask = _provided("approvals", "ask")
+        approval = ask(db, cfg, {**i, "risk": "ask", "status": "waiting"}) if ask is not None else None
+        _intent_status(db, i, "waiting", store.clean({"approval": approval, "why": "waiting for your pick"}))
+        return
+    refs = []
+    if i["automation"] is not None:
+        refs.append(f"automation:{i['automation']}")
+    if i["run"] is not None:
+        refs.append(f"automation_run:{i['run']}")
+    try:
+        with contextlib.ExitStack() as stack:
+            if i["automation"] is not None and i["run"] is not None:
+                stack.enter_context(events.caused_by({"automation": i["automation"], "run": i["run"], "depth": int(p.get("depth") or 1)}))
+            stack.enter_context(activity.scope(db, *refs, cfg=cfg))
+            out = actions.perform(db, cfg, {**i, "risk": "routine", "status": "done"}, None)
+    except Exception as e:
+        _intent_status(db, i, "failed", {"error": f"{type(e).__name__}: {e}"[:500]})
+        raise
+    _intent_status(db, i, "done", out)
+
+
 # ---------- what is coming ----------
 def _describe(r, now):
     p = r.get("payload") or {}
@@ -616,6 +726,15 @@ def _describe(r, now):
         name = (a.get("object") or {}).get("name") or a.get("summary") or a["id"]
         what = f"{_offset_words(p.get('offset') or '0s')} “{str(name)[:120]}” {(title or p['field']).lower()}"
         return f"{what[:1].upper()}{what[1:]}: on {local(r['at'], 'UTC', now)} (UTC)", True
+    if r["kind"] == PERFORM and isinstance(p.get("intent"), dict):
+        from . import actions
+
+        i = p["intent"]
+        try:
+            what = actions.describe(i["action"], i.get("params") or {})
+        except KeyError:
+            what = i["action"]
+        return f"{what}: on {local(r['at'], 'UTC', now)} (UTC)", bool(i.get("untrusted"))
     alias_text = f" of trigger {alias}" if alias else ""
     return f"{r['kind']}{alias_text}: on {local(r['at'], 'UTC', now)} (UTC)", False
 
