@@ -1033,8 +1033,8 @@ def page(db, cfg, who, before=None, flt=None, limit=50, keep=None):
     def ok(a):
         return fits(a) and (keep is None or a["id"] in kept)
 
-    def k(s, a):
-        return (a["published"], s.name, _ikey(s.key(a)[1]))
+    def k(s, a):  # the source's own position breaks ties, so rows a millisecond apart keep its order
+        return (a["published"], s.name, pos_key(s.key(a)))
 
     def fetch(s):
         rows = s.page(db, cfg, at[s.name], who, sflt, limit)[:limit]

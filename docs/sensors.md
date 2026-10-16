@@ -98,6 +98,10 @@ the language model when there's no Jev key) to label the busiest unlabelled patt
 pattern, never per line. A label it wasn't sure of (below `decisions.act_above`) is kept with `sure: false`, for you to
 settle.
 
+Automations see sensors too ([Automations](automations.md#sensors-as-activities)): the readings a sensor keeps as
+`sensor.reading`, a pattern labelled alert or notable as `sensor.alert` (once an hour while lines fit it), and a device
+that reports for the first time as `sensor.joined`.
+
 ## Daily digests
 
 With `digest` on (and a namespace), each full day (UTC) of a sensor becomes a document in its namespace: each stream's
