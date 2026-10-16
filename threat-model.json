@@ -132,6 +132,7 @@
       "name": "optional",
       "entry_points": [
         "POST /automations/hooks/{token} (an automation's webhook)",
+        "automations' params and prompts, POST /automations/preview and /automations/variables",
         "MQTT 1883, syslog 5514, POST /sensors/push/{token}/{stream}",
         "SMB share (port 1445 on the host, 4445 in the worker)"
       ],
@@ -496,6 +497,15 @@
       "caller_must_enforce": "the person keeps the address and secret to the services that call it; Lens keeps the token hashed, caps size and rate, checks signatures sent, and treats what was sent as outside text",
       "provenance": "documented",
       "source": "docs/automations.md \"No webhook exists until an automation with such a trigger is saved\""
+    },
+    {
+      "entry_point": "automations' params and prompts, POST /automations/preview and /automations/variables",
+      "parameter": "template text, a draft automation, an activity id",
+      "attacker_controllable": "yes",
+      "component": "optional",
+      "caller_must_enforce": "Lens renders them in the Jinja sandbox (2 MB of output, guarded * and **; Q23); previews read only activities, namespaces and automations the person may see, and prompts mark outside text as data",
+      "provenance": "documented",
+      "source": "docs/automations.md \"The variable picker and preview\""
     },
     {
       "entry_point": "MQTT 1883, syslog 5514, POST /sensors/push/{token}/{stream}",
