@@ -8,12 +8,47 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   or just the site's) and watch it, and each new post comes into a namespace as text, with its link, author and date,
   so answers cite it. Feeds are asked for again only when they've changed, and a private feed's address is kept like a
   password ([News feeds](docs/processing.md#news-feeds-rss-and-atom)).
+
+## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
+
 - **Updating Lens in a microsandbox on a Mac gets past "Building Lens".** An update after a build that stopped
   partway stopped there with `rm: cannot remove ... Directory not empty`, then `tar: /data/.lens/backend: Cannot open`:
   the Mac's file sharing can list a folder as empty while a file is still in it, so removing the earlier build's
   `node_modules` didn't always get through. The sandbox now tries again and moves what's left aside, and builds the
   web app on its own disk instead of in the volume. Run the install line again to update
   ([microsandbox](docs/microsandbox.md#day-to-day)).
+
+### Features
+
+- **automations:** match trees for conditions ([#425](https://github.com/adeelahmad/lense/pull/425))
+- **automations:** stream of activities with kinds, an event log and following ([#426](https://github.com/adeelahmad/lense/pull/426))
+- **automations:** checks for automation shapes and an action registry ([#427](https://github.com/adeelahmad/lense/pull/427))
+- **automations:** read the stream of activities over the API, MCP and the assistant ([#428](https://github.com/adeelahmad/lense/pull/428))
+- **settings:** an Automations section for the stream of activities ([#429](https://github.com/adeelahmad/lense/pull/429))
+- **timeline:** mark activities reviewed, important or hidden ([#432](https://github.com/adeelahmad/lense/pull/432))
+- **automations:** tell a person in their own chat app, the notify action ([#433](https://github.com/adeelahmad/lense/pull/433))
+- **automations:** ask the model, use an assistant tool, ask the agent ([#438](https://github.com/adeelahmad/lense/pull/438))
+- **automations:** new assets as emails, calendar events, files, uploads, web pages and imports ([#435](https://github.com/adeelahmad/lense/pull/435))
+- **timeline:** a Timeline page to review what came in, and Latest on Home ([#437](https://github.com/adeelahmad/lense/pull/437))
+- **automations:** call a web address, with credentials sealed in headers ([#439](https://github.com/adeelahmad/lense/pull/439))
+- **automations:** finished runs, deletions and calendar moves as activities ([#440](https://github.com/adeelahmad/lense/pull/440))
+- **automations:** run a workflow, a pipeline or a routine ([#441](https://github.com/adeelahmad/lense/pull/441))
+- **automations:** comments, notes and graph changes as activities ([#443](https://github.com/adeelahmad/lense/pull/443))
+- **automations:** set a field, move to a collection, write a note ([#444](https://github.com/adeelahmad/lense/pull/444))
+- **automations:** a webhook address per automation trigger ([#442](https://github.com/adeelahmad/lense/pull/442))
+- **automations:** sensor readings, alert patterns and new devices as activities ([#445](https://github.com/adeelahmad/lense/pull/445))
+- **automations:** timers that outlast a restart and fire once ([#446](https://github.com/adeelahmad/lense/pull/446))
+- **automations:** what people say to Lens as chat.message activities ([#448](https://github.com/adeelahmad/lense/pull/448))
+- **workflows:** an event scope for automations, with action and decide nodes ([#436](https://github.com/adeelahmad/lense/pull/436))
+- **automations:** routine runs, budget warnings, backups and releases as activities ([#449](https://github.com/adeelahmad/lense/pull/449))
+- **automations:** schedule, at and relative triggers as timers ([#450](https://github.com/adeelahmad/lense/pull/450))
+- **automations:** actions that wait, carried out at their time ([#452](https://github.com/adeelahmad/lense/pull/452))
+- **automations:** an automation's action that asks first waits as an approval ([#447](https://github.com/adeelahmad/lense/pull/447))
+- **automations:** decide an automation's approval with a yes in your chat app ([#455](https://github.com/adeelahmad/lense/pull/455))
+- **automations:** approvals as activities and an approval.waiting notification ([#457](https://github.com/adeelahmad/lense/pull/457))
+- **automations:** agents read and decline approvals, and never approve ([#458](https://github.com/adeelahmad/lense/pull/458))
+- **automations:** templates in params and prompts, with outside text kept marked ([#454](https://github.com/adeelahmad/lense/pull/454))
+- **automations:** saved variables, kept between runs and set by the set_variable action ([#460](https://github.com/adeelahmad/lense/pull/460))
 
 ## 0.12.0 <small>October 15, 2026</small> {id="0.12.0"}
 

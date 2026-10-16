@@ -485,6 +485,9 @@ import type {
   GetAudioData,
   GetAudioErrors,
   GetAudioResponses,
+  GetAutomationVarsData,
+  GetAutomationVarsErrors,
+  GetAutomationVarsResponses,
   GetBatchData,
   GetBatchErrors,
   GetBatchResponses,
@@ -582,6 +585,9 @@ import type {
   GetNamespaceStatsData,
   GetNamespaceStatsErrors,
   GetNamespaceStatsResponses,
+  GetNamespaceVarsData,
+  GetNamespaceVarsErrors,
+  GetNamespaceVarsResponses,
   GetNamespaceWordcloudData,
   GetNamespaceWordcloudErrors,
   GetNamespaceWordcloudResponses,
@@ -1144,9 +1150,15 @@ import type {
   PushTokenData,
   PushTokenErrors,
   PushTokenResponses,
+  PutAutomationVarsData,
+  PutAutomationVarsErrors,
+  PutAutomationVarsResponses,
   PutBlobData,
   PutBlobErrors,
   PutBlobResponses,
+  PutNamespaceVarsData,
+  PutNamespaceVarsErrors,
+  PutNamespaceVarsResponses,
   QueryNamespaceSparqlData,
   QueryNamespaceSparqlErrors,
   QueryNamespaceSparqlResponses,
@@ -3813,6 +3825,70 @@ export class Automations {
   ): RequestResult<CallAutomationHookResponses, CallAutomationHookErrors, ThrowOnError> {
     return (options.client ?? client).post<CallAutomationHookResponses, CallAutomationHookErrors, ThrowOnError>({
       url: "/api/v1/automations/hooks/{token}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Automation Vars
+   *
+   * The automation's own saved variables: what its runs keep between them (set_variable), by name.
+   */
+  public static getAutomationVars<ThrowOnError extends boolean = false>(
+    options: Options<GetAutomationVarsData, ThrowOnError>,
+  ): RequestResult<GetAutomationVarsResponses, GetAutomationVarsErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetAutomationVarsResponses, GetAutomationVarsErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/vars",
+      ...options,
+    });
+  }
+
+  /**
+   * Put Automation Vars
+   *
+   * Set or clear the automation's variables: each one named gets its value, null clears it, the others stay.
+   */
+  public static putAutomationVars<ThrowOnError extends boolean = false>(
+    options: Options<PutAutomationVarsData, ThrowOnError>,
+  ): RequestResult<PutAutomationVarsResponses, PutAutomationVarsErrors, ThrowOnError> {
+    return (options.client ?? client).put<PutAutomationVarsResponses, PutAutomationVarsErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/vars",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Namespace Vars
+   *
+   * The namespace's saved variables: what its automations share, read as vars.<name> (an automation's own win).
+   */
+  public static getNamespaceVars<ThrowOnError extends boolean = false>(
+    options: Options<GetNamespaceVarsData, ThrowOnError>,
+  ): RequestResult<GetNamespaceVarsResponses, GetNamespaceVarsErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetNamespaceVarsResponses, GetNamespaceVarsErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/automation-vars",
+      ...options,
+    });
+  }
+
+  /**
+   * Put Namespace Vars
+   *
+   * Set or clear the namespace's variables (editors): each one named gets its value, null clears it.
+   */
+  public static putNamespaceVars<ThrowOnError extends boolean = false>(
+    options: Options<PutNamespaceVarsData, ThrowOnError>,
+  ): RequestResult<PutNamespaceVarsResponses, PutNamespaceVarsErrors, ThrowOnError> {
+    return (options.client ?? client).put<PutNamespaceVarsResponses, PutNamespaceVarsErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/automation-vars",
       ...options,
       headers: {
         "Content-Type": "application/json",
