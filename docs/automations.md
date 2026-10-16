@@ -37,7 +37,8 @@ merged is called built.
 | The Timeline page with filters, grouping, review keys and new items, and Home's Latest card ([Timeline](timeline.md)) | built |
 | Approvals: an automation's action that asks first waits for your pick (approve, decline, edit, allow from now on), told once in your chat app, capped and expiring (`app/domain/approvals.py`) | built |
 | Deciding an automation's action with a yes in the chat it told you in | built |
-| The Approvals page and its badge, approval activities and notifications, agents' approval tools | planned |
+| Approvals as activities (`approval.waiting`, `approval.decided`) and the `approval.waiting` notification | built |
+| The Approvals page and its badge, agents' approval tools | planned |
 | Saving automations: checks, namespaces, switching on and off, delete and restore, the policy, the API (`app/domain/automations.py`) | built |
 | Running automations, joins, variables, the studio | planned |
 
@@ -123,6 +124,8 @@ and the paths holding outside text are in `GET /api/v1/activities/kinds` (`event
 | `backup.finished` | | `log` | `{type: Document, id: lens:backup/<name>, url: /settings/backups}`, `label` (manual, scheduled), `ok`, `error`, `kind` (export, folder), `bytes`, `files`, `copied` (to the storage connection) | A scheduled backup finished: scheduled-20261015-020000.surql.gz |
 | `lens.release` | | `log` | `{type: Note, id: lens:release/<tag>, url: its release notes}`, `tag`, `title`, `current` (what this server runs), `published_at` | Lens v0.7.0 is out (this server runs 0.6.0) |
 | `webhook.received` | | `log` | `{type: Note, hook: the webhook's id, payload: what was sent (JSON, a form's fields or text), content_type, query}`; the actor is the webhook (`Service`, `lens:automation_hook/<id>`, "Webhook for <automation>") | Webhook for Front door was called |
+| `approval.waiting` | | `approvals` | `{type: Question, id: lens:approval/<id>, name: what it would do, url: /approvals?id=<id>}`, `status`, `action`, `effect`, `automation`, `automation_name`, `run`, `node`, `about` (the activity that caused it), `expires_at`; its person alone sees it | School emails asks for your pick: Post in the Matterbridge gateway family: “Trip on Friday, bring a packed lunch” |
+| `approval.decided` | | `approval_decisions` | as `approval.waiting`, with `status` (done, failed, declined, expired) and `error`; `Accept` when approved, `Reject` when declined or expired | Sam approved: Post in the Matterbridge gateway family: “Trip on Friday, bring a packed lunch” |
 
 A new asset is one activity, of the most specific kind its row tells, decided by its content type and where it came
 from, never by reading its file: an email (content type email, or from an IMAP or Gmail mailbox), a calendar event
@@ -206,6 +209,17 @@ Each is logged once, however many processes see it happen.
 - `lens.release` is a newer Lens release, once per release, when Lens tells the admins and notification targets
   ([Updates](updates.md#being-told)).
 
+#### Approvals as activities
+
+Built (`app/domain/events_approvals.py`). An automation's action that asks first ([Approvals](#approvals)) is
+`approval.waiting` when it starts to wait, read from the approval by `created_at`, and `approval.decided` when it is
+approved (done or failed), declined or expires, read by `decided_at`. Both are the person's own (`lens.audience`
+owner): the timeline shows them to that person alone, not even to admins, and the person's automations can react to
+them ("when an approval has waited a day, remind me"). The actor of `approval.waiting` is the automation (the
+assistant for its own approvals); of `approval.decided`, the person who decided, or Lens when it expired. An
+automation's approval carries its run as `lens.cause`, so a follower reacting to one can't loop for ever. What it would
+do (`object.name`) and why it failed hold text the run read from outside Lens, and are listed in `lens.untrusted`.
+
 ### Sources and the event log
 
 Built. A source (`events.Source`, added with `events.register_source`) reads rows Lens already keeps as activities,
@@ -242,6 +256,9 @@ A kind belongs to the source named in its `source`, and a source may list more i
   breaking ties, as `routine.ran`.
 - `chat_messages` (`app/domain/events_streams.py`) reads `chat_message` rows with role user by `created_at` over the
   index on (role, created_at), the id breaking ties, as `chat.message`.
+- `approvals` (`app/domain/events_approvals.py`) reads `approval` by `created_at`, the id breaking ties, as
+  `approval.waiting`; `approval_decisions` reads the decided ones by `decided_at`, as `approval.decided`. Both page
+  only the viewer's own approvals.
 - `log` reads `event_log`: activities no row of their own records (a deletion, a webhook call), written by
   `events.emit(db, kind, *, actor, obj, space, summary, target=None, tag=None, key=None, published=None, spaces=None,
   audience=None, owner=None, untrusted=None)`, which gives the id (`log-<n>`). Emitting a `key` again changes
@@ -624,6 +641,11 @@ yes there would count; otherwise it gives the link.
 Undecided approvals expire after `automations.approval_days` (Settings → Automations, 1–365, default 7): a sweep
 called from the scheduler once an hour marks them `expired`, nothing runs, and the run says so. The assistant's own
 approvals don't expire.
+
+Each approval is an activity too: `approval.waiting` when it asks and `approval.decided` when it is decided or
+expires, seen by its person alone ([Approvals as activities](#approvals-as-activities)). A namespace's notification
+target can send `approval.waiting` to a team chat or webhook ([Notifications](notifications.md#events)); it is off
+until a target asks for it.
 
 The inbox reads `GET /api/v1/approvals` (newest first; `status`, `origin=automation|chat`, `automation`, `chat_id`,
 and `before` with `limit` to page), `GET /api/v1/approvals/{aid}` and `GET /api/v1/approvals/count` (`{waiting,

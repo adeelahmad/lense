@@ -1507,6 +1507,9 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS approval_waiting ON approval FIELDS account, status",
     "DEFINE INDEX IF NOT EXISTS approval_automation ON approval FIELDS origin.automation",
     "DEFINE INDEX IF NOT EXISTS approval_expires ON approval FIELDS expires_at",
+    # approvals as activities (events_approvals.py): asked by created_at, decided by decided_at
+    "DEFINE INDEX IF NOT EXISTS approval_created ON approval FIELDS created_at",
+    "DEFINE INDEX IF NOT EXISTS approval_decided ON approval FIELDS decided_at",
     # the scheduled backup (domain/backups.py): backup_schedule:next holds when it's next due and how the last went
     "DEFINE TABLE IF NOT EXISTS backup_schedule SCHEMALESS",
     # backup_remote:last: how copying the last backup to backups.connection went

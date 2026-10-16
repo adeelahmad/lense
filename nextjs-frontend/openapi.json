@@ -39303,7 +39303,8 @@
               "job.cancelled",
               "batch.finished",
               "recording.added",
-              "lens.release"
+              "lens.release",
+              "approval.waiting"
             ],
             "title": "Type"
           },
@@ -49957,7 +49958,8 @@
                 "job.cancelled",
                 "batch.finished",
                 "recording.added",
-                "lens.release"
+                "lens.release",
+                "approval.waiting"
               ]
             },
             "type": "array",
@@ -50106,7 +50108,8 @@
                     "job.cancelled",
                     "batch.finished",
                     "recording.added",
-                    "lens.release"
+                    "lens.release",
+                    "approval.waiting"
                   ]
                 },
                 "type": "array"
@@ -50236,7 +50239,8 @@
                     "job.cancelled",
                     "batch.finished",
                     "recording.added",
-                    "lens.release"
+                    "lens.release",
+                    "approval.waiting"
                   ]
                 },
                 "type": "array"

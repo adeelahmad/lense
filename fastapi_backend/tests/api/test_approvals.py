@@ -5,6 +5,7 @@ person approves it: an API key, an app or an agent can only decline."""
 from __future__ import annotations
 
 import datetime as dt
+import time
 
 import pytest
 from fastapi.testclient import TestClient
@@ -325,3 +326,85 @@ def test_how_long_approvals_wait_is_a_setting(app, client, db):
     assert approvals.days(app.state.settings.current()) == 14
     for bad in ({"approval_days": 0}, {"approval_days": 366}, {"approval_days": "7"}, {"approval_days": True}, {"days": 1}):
         assert client.put("/api/v1/settings/automations", json=bad, headers=h).status_code == 400, bad
+
+
+def test_waiting_and_decided_are_activities_their_person_alone_sees(client, db, cfg, people, posted, studio):
+    from app.domain import events
+
+    pods = people["pods"]
+    me, other = events.viewer(people["me"], {pods}), events.viewer(people["other"], {pods})
+    admin = events.viewer(999, None, admin=True)
+    assert events.follow(db, cfg, "approvals-test", ["approval.waiting", "approval.decided"])[0] == []  # marks the start
+    start = store.now()
+    while store.now() == start:  # what happens in the second it started in isn't read
+        time.sleep(0.05)
+    aid = approvals.ask(db, cfg, intent(people), {**EVENT, "space": pods})
+    a = events.get(db, cfg, f"ask-approval-{aid}", me)
+    assert a["kind"] == "approval.waiting" and a["type"] == "Create" and a["actor"]["id"] == "lens:automation/4"
+    assert a["object"]["url"] == f"/approvals?id={aid}" and a["object"]["about"] == "create-recording-7"
+    assert a["object"]["name"] == "Post “Trip on Friday, bring a packed lunch” to the family room"
+    assert a["lens"]["cause"] == {"automation": 4, "run": 51, "depth": 1} and a["lens"]["audience"] == "owner"
+    assert "object.name" in a["lens"]["untrusted"]  # the run's outside text, marked for automations reading it
+    assert events.get(db, cfg, f"ask-approval-{aid}", other) is None and events.get(db, cfg, f"ask-approval-{aid}", admin) is None
+    mine = [x["id"] for x in events.page(db, cfg, me, limit=50)["items"]]
+    assert f"ask-approval-{aid}" in mine
+    assert not [x for x in events.page(db, cfg, other, limit=50)["items"] if "approval" in x["id"]]
+    assert not [x for x in events.page(db, cfg, admin, limit=50)["items"] if "approval" in x["id"]]
+
+    h = login(client, "me@x.io", "my password 1")
+    assert client.post(f"/api/v1/approvals/{aid}", headers=h, json={"decision": "decline"}).json()["status"] == "declined"
+    d = events.get(db, cfg, f"decide-approval-{aid}", me)
+    assert d["kind"] == "approval.decided" and d["type"] == "Reject" and d["actor"]["type"] == "Person"
+    assert d["summary"].endswith("declined: Post “Trip on Friday, bring a packed lunch” to the family room")
+    assert d["object"]["status"] == "declined" and events.get(db, cfg, f"decide-approval-{aid}", other) is None
+    done = approvals.ask(db, cfg, intent(people, n=8))
+    client.post(f"/api/v1/approvals/{done}", headers=h, json={"decision": "approve"})
+    d = events.get(db, cfg, f"decide-approval-{done}", me)
+    assert d["type"] == "Accept" and d["object"]["status"] == "done" and " approved: Post" in d["summary"]
+    late = approvals.ask(db, cfg, intent(people, n=9))
+    assert events.get(db, cfg, f"decide-approval-{late}", me) is None  # nothing decided yet
+    approvals.sweep(db, cfg, dt.datetime.now(dt.UTC) + dt.timedelta(days=8))
+    d = events.get(db, cfg, f"decide-approval-{late}", me)
+    assert d["type"] == "Reject" and d["actor"]["id"] == "lens:app" and d["summary"].startswith("Expired with no pick")
+    got = events.get_many(db, cfg, [f"ask-approval-{late}", f"decide-approval-{late}", f"decide-approval-{aid}"], other)
+    assert got == {}
+    # an automation following them gets each once
+    seen, commit = events.follow(db, cfg, "approvals-test", ["approval.waiting", "approval.decided"])
+    commit()
+    ids = sorted(x["id"] for x in seen)
+    assert ids == sorted(f"{k}-approval-{n}" for k in ("ask", "decide") for n in (aid, done, late))
+    again, _ = events.follow(db, cfg, "approvals-test", ["approval.waiting", "approval.decided"])
+    assert again == []
+
+
+def test_an_approval_waiting_is_a_notification_when_asked_for(app, client, db, cfg, people, posted):
+    from app.domain import notify
+    from tests.api.test_notifications import Inbox, begin
+
+    inbox = Inbox()
+    try:
+        make_user(db, "root@x.io", "root password 1", admin=True)
+        make_user(db, "own@x.io", "owner password 1", roles={"pods": "owner"})
+        hr, ho = login(client, "root@x.io", "root password 1"), login(client, "own@x.io", "owner password 1")
+        client.put("/api/v1/settings/notifications", json={"networks": ["127.0.0.0/8"]}, headers=hr)
+        url = "/api/v1/namespaces/pods/notifications"
+        t = client.post(url, json={"name": "Chat", "kind": "slack", "url": inbox.url}, headers=ho).json()["target"]
+        assert "approval.waiting" not in t["events"]  # off unless someone asks for it
+        c = app.state.settings.current()
+        c = {**c, "notifications": {**c["notifications"], "app_url": "https://lens.example"}}
+        begin(db, c)
+        first = approvals.ask(db, c, intent(people, n=7))
+        assert notify.scan(db, c) == 0
+        ai_tools.approve(db, c, first, {"id": people["me"], "email": "me@x.io"}, set(), "decline")
+        client.patch(f"{url}/{t['id']}", json={"events": ["approval.waiting"]}, headers=ho)
+        begin(db, c)
+        aid = approvals.ask(db, c, intent(people, n=8, params={"text": "see https://evil.example/x"}))
+        decided = approvals.ask(db, c, intent(people, n=9))
+        ai_tools.approve(db, c, decided, {"id": people["me"], "email": "me@x.io"}, set(), "decline")
+        assert notify.scan(db, c) == 1 and notify.scan(db, c) == 0  # once, and not one decided before it was seen
+        assert notify.deliver_due(db, c) == 1
+        text = inbox.json()["text"]
+        assert text.startswith("Automation 4 waits for a pick in pods: Post “see hxxps://evil[.]example/x”")
+        assert "https://evil.example" not in text and text.endswith(f"\nhttps://lens.example/approvals?id={aid}")
+    finally:
+        inbox.srv.shutdown()
