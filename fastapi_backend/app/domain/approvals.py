@@ -261,11 +261,11 @@ def edited(intent, new):
 
 def can(row, via="web"):
     """What the person can do with a waiting approval from where they are (`via`: web for a signed-in session, chat for
-    their own chat app, token or oauth for an API key or an app, agent for MCP and the assistant)."""
+    their own chat app, token or oauth for an API key or an app, agent for MCP and the assistant, which only decline)."""
     pending = row.get("status") == "pending"
     intent = row.get("intent")
     if not intent:
-        return {"approve": pending, "decline": pending, "edit": False, "always": False}
+        return {"approve": pending and via != "agent", "decline": pending, "edit": False, "always": False}
     person = via in ("web", "chat")
     return {
         "approve": pending and person,
@@ -368,10 +368,13 @@ def decide(db, cfg, row, user, decision="approve", params=None, via="web"):
 
 
 # ---------- the inbox ----------
-def listing(db, account, status=None, origin=None, automation=None, chat=None, before=None, limit=50):
+def listing(db, account, status=None, origin=None, automation=None, chat=None, before=None, limit=50, space=None):
     """The person's approvals, newest first, `limit` at a time before the id `before`: those with `status`, from
-    automations or chats (`origin`), from one automation, or asked in one chat."""
+    automations or chats (`origin`), from one automation, asked in one chat, or about one namespace (`space`)."""
     where, v = ["account = $a"], {"a": account, "limit": max(1, min(int(limit or 50), 200))}
+    if space is not None:
+        where.append("space = $sp")
+        v["sp"] = int(space)
     if status:
         where.append("status = $s")
         v["s"] = status
@@ -389,6 +392,36 @@ def listing(db, account, status=None, origin=None, automation=None, chat=None, b
         where.append("id < $b")
         v["b"] = R("approval", int(before))
     return db.rows(f"SELECT {FIELDS} FROM approval WHERE {' AND '.join(where)} ORDER BY id DESC LIMIT $limit", **v)
+
+
+def brief(a, web=""):
+    """An approval as an agent reads it (MCP's and the assistant's `approvals`): what it would do and why, where the
+    person decides it (`url`, on the web app's address `web`), and what the agent may do (decline it). The assistant's
+    own proposals keep their args out; an intent's credential headers show as ••••."""
+    intent, why, o = shown(a.get("intent")) or {}, a.get("why") or {}, a.get("origin") or {}
+    out = {
+        "id": a["id"],
+        "status": a.get("status"),
+        "summary": a.get("summary"),
+        "from": "automation" if o else "chat",
+        "automation": o.get("automation"),
+        "automation_name": a.get("automation"),
+        "run": o.get("run"),
+        "node": o.get("node"),
+        "chat": a.get("chat"),
+        "action": intent.get("action"),
+        "effect": intent.get("effect"),
+        "params": intent.get("params"),
+        "why": {k: why[k] for k in ("activity", "kind", "summary") if why.get(k)} or None,
+        "created_at": a.get("created_at"),
+        "expires_at": a.get("expires_at"),
+        "decided_by": a.get("decided_by"),
+        "decided_at": a.get("decided_at"),
+        "error": a.get("error"),
+        "url": f"{web}/approvals?id={a['id']}",
+        "can": can(a, "agent"),
+    }
+    return {k: v for k, v in out.items() if v is not None}
 
 
 def count(db, account):
