@@ -174,21 +174,91 @@ class MessageCreate(RequestModel):
     )
 
 
+class ApprovalOrigin(ResponseModel):
+    automation: int | None = None
+    run: int | None = None
+    node: str | None = None
+
+
+class ApprovalIntent(ResponseModel):
+    """What an automation's action would do, as the inbox shows it (credential headers hidden)."""
+
+    action: str
+    params: dict[str, Any] = Field(default_factory=dict)
+    effect: str | None = None
+    risk: str | None = None
+    untrusted: bool | None = Field(default=None, description="its run read text from outside Lens")
+    node: str | None = None
+    status: str | None = None
+    spaces: list[int] | None = None
+
+
+class ApprovalWhy(ResponseModel):
+    """The activity that caused it, as it was when it asked."""
+
+    activity: str
+    kind: str | None = None
+    summary: str | None = None
+    published: str | None = None
+    url: str | None = None
+
+
+class ApprovalTold(ResponseModel):
+    channel: str
+    label: str | None = None
+    chat: str | None = None
+
+
+class ApprovalCan(ResponseModel):
+    """What you can do with it from where you asked: approving an automation's action is yours, signed in or in the
+    chat it told you in; an API key, an app or an agent can only decline it."""
+
+    approve: bool = False
+    decline: bool = False
+    edit: bool = False
+    always: bool = False
+
+
 class Approval(ResponseModel):
     id: int
     chat: int | None = None
     tool: str
     summary: str | None = None
     estimate: Any = None
-    status: str
+    status: str = Field(description="pending (waiting), running, done, failed, declined or expired")
     created_at: str | None = None
     result: Any = None
+    error: str | None = None
+    origin: ApprovalOrigin | None = Field(default=None, description="the automation run that asked, when one did")
+    intent: ApprovalIntent | None = Field(default=None, description="an automation's action: what it would do")
+    automation: str | None = Field(default=None, description="the automation's name")
+    space: int | None = None
+    why: ApprovalWhy | None = None
+    expires_at: str | None = Field(default=None, description="when it expires and nothing runs (automations only)")
+    decided_by: str | None = None
+    decided_at: str | None = None
+    told: list[ApprovalTold] = Field(default_factory=list, description="the chats you were told in")
+    can: ApprovalCan | None = None
+
+
+class ApprovalCount(ResponseModel):
+    waiting: int
+    automations: int = Field(description="of them, waiting for an automation")
 
 
 class ApprovalDecision(RequestModel):
-    decision: Literal["approve", "sample", "decline"] = "approve"
+    decision: Literal["approve", "sample", "decline", "edit", "always"] = Field(
+        "approve",
+        description="sample: a batch run on 3 assets first; edit: an automation's action with `params` changed, then "
+        "carried out; always: carried out, and that action node of the automation runs without asking from now on "
+        "(signed in only)",
+    )
+    params: dict[str, Any] | None = Field(default=None, description="edit: the params to change (null leaves one out)")
 
 
 class ApprovalOutcome(ResponseModel):
     status: str
     batch: int | None = Field(default=None, description="the batch run started, for run_template")
+    error: str | None = Field(default=None, description="why an automation's action failed")
+    result: Any = Field(default=None, description="what an automation's action gave back")
+    always: bool | None = Field(default=None, description="that node runs without asking from now on")

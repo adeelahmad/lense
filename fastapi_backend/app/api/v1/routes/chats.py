@@ -10,20 +10,21 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Iterator
-from typing import Any
+from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer
 from app.api.media import sign_urls
 from app.api.v1.routes.collections import own_collection
-from app.domain import ai_tools, auth, auto_scope, browser, chat, llm, store, uploads
+from app.domain import ai_tools, approvals, auth, auto_scope, browser, chat, llm, store, uploads
 from app.domain.store import DB
 from app.schemas.chats import (
     AnswerCheck,
     Approval,
+    ApprovalCount,
     ApprovalDecision,
     ApprovalOutcome,
     Chat,
@@ -397,29 +398,75 @@ def check_message(cid: int, mid: int, user: Writer, db: Db, cfg: Cfg) -> AnswerC
     return out
 
 
+def _via(user: Principal) -> str:
+    """Where a pick is made: web for a signed-in session, else token (an API key) or oauth (an app)."""
+    return "web" if user.via == "access" else user.via
+
+
+def approval_view(a: dict, via: str = "web") -> Any:
+    """An approval as the API shows it: an automation's intent with credentials hidden, and what `via` can do."""
+    return {**a, "intent": approvals.shown(a.get("intent")), "told": a.get("told") or [], "can": approvals.can(a, via)}
+
+
 @router.get("/approvals")
-def list_approvals(user: CurrentUser, db: Db, chat_id: int | None = None) -> list[Approval]:
-    """Work the assistant proposed for you to approve (and what became of it), newest first."""
-    return db.rows(
-        "SELECT record::id(id) AS id, chat, tool, summary, estimate, status, created_at, result FROM approval WHERE account = $a"
-        + (" AND chat = $c" if chat_id else "")
-        + " ORDER BY created_at DESC LIMIT 100",
-        a=user.id,
-        c=chat_id,
-    )
+def list_approvals(
+    user: CurrentUser,
+    db: Db,
+    chat_id: int | None = None,
+    status: Literal["pending", "running", "done", "failed", "declined", "expired"] | None = None,
+    origin: Literal["automation", "chat"] | None = None,
+    automation: int | None = None,
+    before: int | None = Query(default=None, description="ids below this one: the last id of the page before"),
+    limit: int = Query(default=100, ge=1, le=200),
+) -> list[Approval]:
+    """What waits for your pick (and what became of it), newest first: the assistant's proposals and automations'
+    actions. Filter by `status` (pending is waiting), `origin` (automation or chat), one `automation` or one chat
+    (`chat_id`); page with `before`."""
+    rows = approvals.listing(db, user.id, status, origin, automation, chat_id, before, limit)
+    return [approval_view(a, _via(user)) for a in rows]
+
+
+@router.get("/approvals/count")
+def count_approvals(user: CurrentUser, db: Db) -> ApprovalCount:
+    """How many approvals wait for you, for the badge in the top bar."""
+    return approvals.count(db, user.id)
+
+
+@router.get("/approvals/{aid}")
+def get_approval(aid: int, user: CurrentUser, db: Db) -> Approval:
+    """One of your approvals."""
+    a = approvals.get(db, aid)
+    if not a or a["account"] != user.id:
+        raise HTTPException(404, "not found")
+    return approval_view(a, _via(user))
 
 
 @router.post("/approvals/{aid}")
 def decide_approval(aid: int, body: ApprovalDecision, user: Writer, acl: Acl, db: Db, cfg: Cfg, request: Request) -> ApprovalOutcome:
-    """Approve (or run a sample of, or decline) something the assistant proposed. Each approval is decided once."""
+    """Approve (or run a sample of, or decline) something the assistant proposed or an automation's action. Each
+    approval is decided once. An automation's action can also be edited (`params`) and then carried out, or allowed
+    from now on for that automation (`always`); approving one needs you signed in, since it's your pick: an API key
+    or an app can only decline it."""
     a = db.one("SELECT account FROM $r", r=R("approval", aid))
     if not a or a["account"] != user.id:
         raise HTTPException(404, "not found")
     try:
         out = ai_tools.approve(
-            db, cfg, aid, user.as_audit(), set(acl.editable()), body.decision, request.app.state.archive.base, user.admin, set(acl.roles)
+            db,
+            cfg,
+            aid,
+            user.as_audit(),
+            set(acl.editable()),
+            body.decision,
+            request.app.state.archive.base,
+            user.admin,
+            set(acl.roles),
+            params=body.params,
+            via=_via(user),
         )
-    except (ValueError, PermissionError, KeyError) as e:
+    except PermissionError as e:
+        raise HTTPException(403, str(e)) from None
+    except (ValueError, KeyError) as e:
         raise HTTPException(400, str(e)) from None
     auth.audit(db, user.as_audit(), "assistant.approval", f"approval:{aid}", {"decision": body.decision, **out})
     request.app.state.graph_cache.clear()  # an approved entity or topic change shows in the graph at once

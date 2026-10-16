@@ -1035,10 +1035,14 @@ CATCH_UP_MAX = 7 * 86400
 
 
 def _automations_setting(key, value):
-    """Automations (docs/automations.md): catch_up is a duration like 1h, from 0s (a timer missed while Lens was off
-    is missed) to 7d."""
+    """Automations (docs/automations.md): approval_days, how long an automation's action waits for the person's pick,
+    1 to 365 days; catch_up, a duration like 1h, from 0s (a timer missed while Lens was off is missed) to 7d."""
     from . import automation_spec
 
+    if key == "approval_days":
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 365):
+            raise ValueError("automations.approval_days is a whole number of days from 1 to 365")
+        return value
     if key != "catch_up":
         raise ValueError(f"unknown setting automations.{key}")
     try:

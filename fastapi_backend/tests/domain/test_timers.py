@@ -213,6 +213,6 @@ def test_catch_up_is_a_setting(app, client, db):
     assert timers.catch_up(app.state.settings.current()) == 3600
     assert client.put("/api/v1/settings/automations", json={"catch_up": "15m"}, headers=h).status_code == 200
     assert timers.catch_up(app.state.settings.current()) == 900
-    assert client.get("/api/v1/settings", headers=h).json()["automations"]["values"] == {"catch_up": "15m"}
+    assert client.get("/api/v1/settings", headers=h).json()["automations"]["values"]["catch_up"] == "15m"
     for bad in ({"catch_up": "8d"}, {"catch_up": 60}, {"catch_up": "-1h"}, {"catch_up": "soon"}, {"grace": "1h"}):
         assert client.put("/api/v1/settings/automations", json=bad, headers=h).status_code == 400, bad

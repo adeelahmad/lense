@@ -142,6 +142,8 @@ import type {
   ControlWorkerData,
   ControlWorkerErrors,
   ControlWorkerResponses,
+  CountApprovalsData,
+  CountApprovalsResponses,
   CreateBatchData,
   CreateBatchErrors,
   CreateBatchResponses,
@@ -477,6 +479,9 @@ import type {
   GetActivityData,
   GetActivityErrors,
   GetActivityResponses,
+  GetApprovalData,
+  GetApprovalErrors,
+  GetApprovalResponses,
   GetAudioData,
   GetAudioErrors,
   GetAudioResponses,
@@ -9558,7 +9563,9 @@ export class Chats {
   /**
    * List Approvals
    *
-   * Work the assistant proposed for you to approve (and what became of it), newest first.
+   * What waits for your pick (and what became of it), newest first: the assistant's proposals and automations'
+   * actions. Filter by `status` (pending is waiting), `origin` (automation or chat), one `automation` or one chat
+   * (`chat_id`); page with `before`.
    */
   public static listApprovals<ThrowOnError extends boolean = false>(
     options?: Options<ListApprovalsData, ThrowOnError>,
@@ -9570,9 +9577,40 @@ export class Chats {
   }
 
   /**
+   * Count Approvals
+   *
+   * How many approvals wait for you, for the badge in the top bar.
+   */
+  public static countApprovals<ThrowOnError extends boolean = false>(
+    options?: Options<CountApprovalsData, ThrowOnError>,
+  ): RequestResult<CountApprovalsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<CountApprovalsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/approvals/count",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Approval
+   *
+   * One of your approvals.
+   */
+  public static getApproval<ThrowOnError extends boolean = false>(
+    options: Options<GetApprovalData, ThrowOnError>,
+  ): RequestResult<GetApprovalResponses, GetApprovalErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetApprovalResponses, GetApprovalErrors, ThrowOnError>({
+      url: "/api/v1/approvals/{aid}",
+      ...options,
+    });
+  }
+
+  /**
    * Decide Approval
    *
-   * Approve (or run a sample of, or decline) something the assistant proposed. Each approval is decided once.
+   * Approve (or run a sample of, or decline) something the assistant proposed or an automation's action. Each
+   * approval is decided once. An automation's action can also be edited (`params`) and then carried out, or allowed
+   * from now on for that automation (`always`); approving one needs you signed in, since it's your pick: an API key
+   * or an app can only decline it.
    */
   public static decideApproval<ThrowOnError extends boolean = false>(
     options: Options<DecideApprovalData, ThrowOnError>,
