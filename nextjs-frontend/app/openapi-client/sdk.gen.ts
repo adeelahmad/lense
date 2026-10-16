@@ -1141,6 +1141,9 @@ import type {
   PreviewScheduleData,
   PreviewScheduleErrors,
   PreviewScheduleResponses,
+  PreviewTemplate2Data,
+  PreviewTemplate2Errors,
+  PreviewTemplate2Responses,
   PreviewTemplateData,
   PreviewTemplateErrors,
   PreviewTemplateResponses,
@@ -1707,6 +1710,9 @@ import type {
   UsageMetricsData,
   UsageMetricsErrors,
   UsageMetricsResponses,
+  VariableCatalogData,
+  VariableCatalogErrors,
+  VariableCatalogResponses,
   VaultOptionsData,
   VaultOptionsErrors,
   VaultOptionsResponses,
@@ -3915,6 +3921,45 @@ export class Automations {
   ): RequestResult<PutNamespaceVarsResponses, PutNamespaceVarsErrors, ThrowOnError> {
     return (options.client ?? client).put<PutNamespaceVarsResponses, PutNamespaceVarsErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}/automation-vars",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Variable Catalog
+   *
+   * What a draft automation's templates can read, for the variable picker: the run context, each trigger's activity
+   * fields, the saved variables and, with node, what the nodes before it pass on; with types, labels and examples.
+   */
+  public static variableCatalog<ThrowOnError extends boolean = false>(
+    options: Options<VariableCatalogData, ThrowOnError>,
+  ): RequestResult<VariableCatalogResponses, VariableCatalogErrors, ThrowOnError> {
+    return (options.client ?? client).post<VariableCatalogResponses, VariableCatalogErrors, ThrowOnError>({
+      url: "/api/v1/automations/variables",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Preview Template
+   *
+   * What a template gives for a draft automation before it is saved, against an activity (by id; 404 for one you
+   * can't see) or the trigger kind's sample. A prompt shows outside text marked as the model sees it. A template that
+   * fails answers 200 with error and line; a draft that doesn't check answers 400.
+   */
+  public static previewTemplate<ThrowOnError extends boolean = false>(
+    options: Options<PreviewTemplateData, ThrowOnError>,
+  ): RequestResult<PreviewTemplateResponses, PreviewTemplateErrors, ThrowOnError> {
+    return (options.client ?? client).post<PreviewTemplateResponses, PreviewTemplateErrors, ThrowOnError>({
+      url: "/api/v1/automations/preview",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -8888,9 +8933,9 @@ export class Templates {
    * A template that fails to render answers ok=false with the error, so the editor can show it inline.
    */
   public static previewTemplate<ThrowOnError extends boolean = false>(
-    options: Options<PreviewTemplateData, ThrowOnError>,
-  ): RequestResult<PreviewTemplateResponses, PreviewTemplateErrors, ThrowOnError> {
-    return (options.client ?? client).post<PreviewTemplateResponses, PreviewTemplateErrors, ThrowOnError>({
+    options: Options<PreviewTemplate2Data, ThrowOnError>,
+  ): RequestResult<PreviewTemplate2Responses, PreviewTemplate2Errors, ThrowOnError> {
+    return (options.client ?? client).post<PreviewTemplate2Responses, PreviewTemplate2Errors, ThrowOnError>({
       url: "/api/v1/templates/preview",
       ...options,
       headers: {

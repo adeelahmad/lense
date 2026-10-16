@@ -265,6 +265,24 @@ curl -X PUT -H "Authorization: Bearer $LENS_TOKEN" -H "Content-Type: application
   -d '{"vars": {"alerts": 0, "last_alert": null}}' https://lens.example/api/v1/automations/7/vars
 ```
 
+```
+POST   /api/v1/automations/variables
+POST   /api/v1/automations/preview
+```
+
+The variable picker and a template's preview for an automation being written
+([The variable picker and preview](automations.md#the-variable-picker-and-preview)). Both take `draft`, the automation
+as written so far (`{triggers, join?, workflow?, spaces?, id?, name?}`, `workflow` an id or a graph). `variables`
+(`{draft, node?}`) answers `{"variables": [{path, type, label, example, group, untrusted}]}`. `preview` (`{template,
+draft, activity?, trigger?, node?, prompt?}`) answers `{text, value, prompt, rules, system, error, line, activity}`;
+a template that fails is a 200 with `error` and `line`. 400 for a draft that doesn't check, 404 for an activity, a
+namespace or an automation you can't see.
+
+```
+curl -H "Authorization: Bearer $LENS_TOKEN" -H "Content-Type: application/json" https://lens.example/api/v1/automations/preview \
+  -d '{"template": "{{ events.mail.object.subject }}", "draft": {"triggers": [{"as": "mail", "on": "event", "kinds": ["email.received"]}]}}'
+```
+
 ## vaults
 
 ```

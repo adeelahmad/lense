@@ -63,6 +63,7 @@ from app.domain import entities as ents
 from app.domain import speakers as spk
 from app.domain import topics as topicmod
 from app.domain.store import DB
+from app.schemas.automation_vars import TemplatePreviewIn
 from app.schemas.entities import EntityHide, EntityList, EntityRename, EntityRetype, EntityUpdate
 from app.schemas.notebook import NotePage
 from app.schemas.search import SearchResults
@@ -2226,3 +2227,55 @@ def set_automation_vars(ctx: Context, automation: int | None, namespace: str | N
     target = f"automation:{scope['automation']}" if "automation" in scope else f"space:{scope['space']}"
     auth.audit(ctx.db, ctx.user.as_audit(), "automation.vars", target, {"names": sorted(values), "via": "mcp"})
     return {"vars": rows}
+
+
+def _draft(text: str) -> dict[str, Any]:
+    try:
+        draft = json.loads(text)
+    except ValueError:
+        raise ToolError('draft is the automation as a JSON object, like {"triggers": [{"as": "mail", "on": "event", ...}]}') from None
+    if not isinstance(draft, dict):
+        raise ToolError("draft is the automation as a JSON object")
+    return draft
+
+
+@tool(
+    "automation_variables",
+    "Variables an automation can use",
+    "What a drafted automation's templates can read, to write its params and prompts: the run context (now, user, "
+    "namespace...), each trigger's activity fields (events.<as>.object.subject), the saved variables and, with node, "
+    "what the nodes before it pass on (steps.<id>); each with its type, label, an example and whether it is text from "
+    "outside Lens. draft is the automation as JSON: {triggers, join?, workflow? (an id or a graph), spaces?, id?}.",
+    Arg("draft", "string", "the automation as a JSON object", required=True, max_length=200_000),
+    Arg("node", "string", "a node of its workflow, to list what the nodes before it pass on", max_length=100),
+)
+def automation_variables(ctx: Context, draft: str, node: str | None) -> dict[str, Any]:
+    vetted = var_routes.vetted(ctx.db, ctx.user, ctx.acl, _draft(draft))
+    return {"variables": variables.catalog(ctx.db, ctx.cfg, vetted, node, var_routes.person(ctx.user))}
+
+
+@tool(
+    "preview_template",
+    "Preview a template",
+    "What a template in a drafted automation gives before it is saved: rendered against an activity (its id) or the "
+    "trigger kind's sample. With prompt true it renders as a prompt, with outside text marked as the model will see "
+    "it. A template that fails gives error, naming the missing variable and its nearest name, and line. template is "
+    'the param\'s text with {{ }}, a JSON list or object of them, or a saved prompt template {"template": 5}.',
+    Arg("template", "string", "the template", required=True, max_length=200_000),
+    Arg("draft", "string", "the automation as a JSON object, as for automation_variables", required=True, max_length=200_000),
+    Arg("activity", "string", "an activity's id to render against (default: the trigger kind's sample)", max_length=200),
+    Arg("trigger", "string", "which trigger fired, by its name (as); default the first", max_length=40),
+    Arg("node", "string", "the node the template is in: the steps before it are stand-ins", max_length=100),
+    Arg("prompt", "boolean", "render it as a prompt", default=False),
+)
+def preview_template(
+    ctx: Context, template: str, draft: str, activity: str | None, trigger: str | None, node: str | None, prompt: bool
+) -> dict[str, Any]:
+    value: Any = template
+    if template.lstrip()[:1] in ("{", "["):
+        try:
+            value = json.loads(template)  # a list or object of templates, or a saved prompt template
+        except ValueError:
+            pass  # text that starts with {{ or {%
+    body = TemplatePreviewIn(template=value, draft=_draft(draft), activity=activity, trigger=trigger, node=node, prompt=prompt)
+    return var_routes.preview_for(ctx.db, ctx.cfg, ctx.user, ctx.acl, body).model_dump(exclude_none=True)

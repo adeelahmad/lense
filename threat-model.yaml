@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:0ef89e8c93da85678fd9c335bdc73273f33843b21afec919f0a237cb67e202ae"
+prose_version: "threat-model.md@sha256:49093c03f4301d948103da23445851585e4b6b88d299a048558e1195df560aa8"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -427,6 +427,16 @@ entry_points:
         obligation_id: keep-hook-addresses-secret
         caller_must_enforce: "the person keeps the address and secret to the services that call it; Lens keeps the token hashed, caps size and rate, checks signatures sent, and treats what was sent as outside text"
         provenance: {kind: documented, source: 'docs/automations.md "No webhook exists until an automation with such a trigger is saved"'}
+  - id: "automations' params and prompts, POST /automations/preview and /automations/variables"
+    component: optional
+    parameters:
+      - name: "template text, a draft automation, an activity id"
+        attacker_controllable: true
+        x-condition: "anyone signed in (preview, the picker); the editors who manage an automation (its params)"
+        control_kinds: [callback-code, data, x-prompt-injection]
+        obligation_id: sandbox-automation-templates
+        caller_must_enforce: "Lens renders them in the Jinja sandbox (2 MB of output, guarded * and **; Q23); previews read only activities, namespaces and automations the person may see, and prompts mark outside text as data"
+        provenance: {kind: documented, source: 'docs/automations.md "The variable picker and preview"'}
   - id: "MQTT 1883, syslog 5514, POST /sensors/push/{token}/{stream}"
     component: optional
     parameters:

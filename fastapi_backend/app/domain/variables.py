@@ -36,7 +36,7 @@ import re
 from jinja2 import TemplateSyntaxError, Undefined, nodes
 from jinja2.exceptions import SecurityError, UndefinedError
 
-from . import actions, auth, schedule, store, templates, untrusted
+from . import actions, auth, automation_spec, schedule, store, templates, untrusted
 from . import events as ev
 
 WHOLE_RX = re.compile(r"^\{\{\s*([^{}]+?)\s*\}\}$")
@@ -651,3 +651,299 @@ actions.register(
         describe=describe_set,
     )
 )
+
+
+# ---------- the variable picker and preview ----------
+KIND_OF = {"schedule": "clock.tick", "at": "clock.tick", "webhook": "webhook.received"}  # what a trigger's run starts on
+SUBKEYS = {  # the run context's own fields, for the picker: (key, label, type)
+    "trigger": (("as", "Trigger's name", "string"), ("on", "Trigger's type", "string")),
+    "automation": (
+        ("id", "Automation's id", "integer"),
+        ("name", "Automation's name", "string"),
+        ("version", "Version", "integer"),
+        ("spaces", "Its namespaces", "array"),
+    ),  # fmt: skip
+    "run": (("id", "Run's id", "integer"), ("dry", "A try (nothing kept)", "boolean")),
+    "namespace": (("id", "Namespace's id", "integer"), ("name", "Namespace's name", "string")),
+    "user": (("id", "Person's id", "integer"), ("name", "Person's name", "string"), ("email", "Person's email", "string")),
+}
+MAX_DEPTH = 5  # how deep the picker goes into an activity's or an output's fields
+MAX_LISTED = 500  # entries in one catalog
+MAX_EXAMPLE = 120  # characters of an example
+
+
+def _graph(db, workflow):
+    """A draft's graph: {nodes, edges} as given (it may be unfinished), or the saved workflow it names; {} for none."""
+    if workflow is None:
+        return {}
+    if isinstance(workflow, dict):
+        return workflow
+    if isinstance(workflow, int) and not isinstance(workflow, bool):
+        from . import workflows  # imported here: workflows builds on this module, through automation_nodes
+
+        try:
+            return workflows.get(db, workflow).get("graph") or {}
+        except KeyError:
+            raise ValueError(f"there's no workflow {workflow}") from None
+    raise ValueError("the draft's workflow is a workflow's id or a graph {nodes, edges}")
+
+
+def draft_parts(db, draft):
+    """A draft automation's triggers and join, checked (automation_spec), and its graph. ValueError naming a problem."""
+    if not isinstance(draft, dict):
+        raise ValueError("the draft is an automation: {triggers, join?, workflow?, spaces?, id?}")
+    triggers = automation_spec.check_triggers(draft.get("triggers"))
+    join = automation_spec.check_join(draft.get("join"), [t["as"] for t in triggers])
+    return triggers, join, _graph(db, draft.get("workflow"))
+
+
+def _kinds(t):
+    """The kinds of activity a trigger's runs start on (none for a manual one)."""
+    return list(t.get("kinds") or []) if t["on"] in ("event", "relative") else [KIND_OF[t["on"]]] if t["on"] in KIND_OF else []
+
+
+def _sample(t):
+    """A trigger's stand-in activity: the sample of the first of its kinds that has one."""
+    for k in _kinds(t):
+        try:
+            got = ev.kind_info(k).get("sample")
+        except KeyError:
+            continue
+        if got:
+            return copy.deepcopy(got)
+    return {}
+
+
+def upstream(graph, node):
+    """The ids of the nodes before `node` in a graph (what it can read in steps), nearest first; ValueError when the
+    graph has no such node."""
+    nodes = {n.get("id"): n for n in (graph or {}).get("nodes") or [] if isinstance(n, dict)}
+    if node not in nodes:
+        raise ValueError(f"the workflow has no node {node}")
+    into: dict = {}
+    for e in (graph or {}).get("edges") or []:
+        if isinstance(e, dict):
+            into.setdefault(e.get("target"), []).append(e.get("source"))
+    out, todo = [], list(into.get(node, []))
+    while todo:
+        n = todo.pop(0)
+        if n in nodes and n not in out and n != node:
+            out.append(n)
+            todo += into.get(n, [])
+    return out
+
+
+def _stand_in(schema, path):
+    """A value shaped like an output schema, its text naming where it comes from: "[steps.n3.date]"."""
+    schema = schema if isinstance(schema, dict) else {}
+    if schema.get("properties"):
+        return {k: _stand_in(v, f"{path}.{k}") for k, v in schema["properties"].items()}
+    return {"array": [], "object": {}, "integer": 1, "number": 1, "boolean": True}.get(_type(schema), f"[{path}]")
+
+
+def _outputs(graph, ids):
+    """{node id: (label, output schema)} for the action and decide nodes among `ids`."""
+    nodes = {n.get("id"): n for n in (graph or {}).get("nodes") or [] if isinstance(n, dict)}
+    out = {}
+    for i in ids:
+        n, c = nodes[i], nodes[i].get("config") or {}
+        if n.get("type") == "action":
+            try:
+                spec = actions.get(c.get("action"))
+            except KeyError:
+                continue
+            asked = (c.get("params") or {}).get("json_schema")
+            if "json_schema" in (spec.params.get("properties") or {}) and isinstance(asked, dict) and asked.get("properties"):
+                out[i] = (n.get("label") or spec.label, asked)  # it gives the object its json_schema describes
+            else:
+                out[i] = (n.get("label") or spec.label, spec.output or {"type": "object"})
+        elif n.get("type") == "decide":
+            out[i] = (n.get("label") or "Decide", {"type": "object", "properties": {"choice": {"type": "string", "title": "Choice"}}})
+    return out
+
+
+def sample_context(db, cfg, draft, user, activity=None, trigger=None, node=None, now=None):
+    """The run context a draft automation's run would see, for previews and the picker's examples: each trigger's
+    activity is its kind's sample, the one that fired (`trigger`, default the first) `activity` when given, earlier
+    steps of `node` stand-ins named by their path, and saved variables as they are. `draft` is {triggers, join?,
+    workflow? (an id or a graph), spaces?, id?, name?}, already checked against who asks."""
+    triggers, join, graph = draft_parts(db, draft)
+    alias = trigger or triggers[0]["as"]
+    fired = next((t for t in triggers if t["as"] == alias), None)
+    if fired is None:
+        raise ValueError(f"the draft has no trigger {alias}")
+    acts = {t["as"]: (activity if t is fired and activity is not None else _sample(t)) for t in triggers}
+    batch = join.get("mode") == "batch"
+    automation = {"id": draft.get("id"), "name": draft.get("name") or "Draft", "version": None,
+                  "spaces": draft.get("spaces"), "triggers": triggers}  # fmt: skip
+    ctx = context(db, cfg, automation, {"id": None, "dry": True}, fired, acts[alias],
+                  {a: [x] if batch else x for a, x in acts.items()}, user, now)  # fmt: skip
+    if node is not None:
+        ups = upstream(graph, node)
+        ctx["steps"] = {i: _stand_in(schema, f"steps.{i}") for i, (_label, schema) in _outputs(graph, ups).items()}
+    return ctx
+
+
+def _type(schema):
+    t = (schema or {}).get("type")
+    if isinstance(t, list):
+        t = next((x for x in t if x != "null"), None)
+    return t or ("object" if (schema or {}).get("properties") else "any")
+
+
+def _kind_of_value(v):
+    if isinstance(v, bool):
+        return "boolean"
+    if isinstance(v, int):
+        return "integer"
+    return {float: "number", str: "string", list: "array", dict: "object"}.get(type(v), "any")
+
+
+def _value_at(value, path):
+    for part in path.split(".") if path else []:
+        if isinstance(value, dict):
+            value = value.get(part)
+        elif isinstance(value, list) and part.isdigit() and int(part) < len(value):
+            value = value[int(part)]
+        else:
+            return None
+    return value
+
+
+def _example(v):
+    """A short example for the picker: text cut to MAX_EXAMPLE characters, small lists and objects as they are."""
+    if isinstance(v, str):
+        return v if len(v) <= MAX_EXAMPLE else v[: MAX_EXAMPLE - 1] + "…"
+    if isinstance(v, (dict, list)):
+        return v if len(json.dumps(v, ensure_ascii=False, default=str)) <= MAX_EXAMPLE else None
+    return v
+
+
+def _fields(schema, depth=0, base=""):
+    """(path, schema) for every field of a JSON Schema, list items as .0, at most MAX_DEPTH deep."""
+    out = []
+    schema = schema if isinstance(schema, dict) else {}
+    if depth >= MAX_DEPTH:
+        return out
+    if schema.get("properties"):
+        for k, v in schema["properties"].items():
+            p = f"{base}.{k}" if base else k
+            out.append((p, v))
+            out += _fields(v, depth + 1, p)
+    elif _type(schema) == "array" and isinstance(schema.get("items"), dict) and schema["items"].get("properties"):
+        out += _fields(schema["items"], depth + 1, f"{base}.0")
+    return out
+
+
+def _entry(path, type_, label, example, group, untrusted_=False, description=None):
+    out = {"path": path, "type": type_, "label": label, "example": _example(example), "group": group, "untrusted": untrusted_}
+    if description:
+        out["description"] = description
+    return out
+
+
+def _activity_fields(kinds):
+    """[(path, schema, outside)] for the fields every one of `kinds` has (an activity's own `lens` left out)."""
+    common = None
+    for k in kinds:
+        try:
+            info = ev.kind_info(k)
+        except KeyError:
+            continue
+        outside = info.get("untrusted") or []
+        got = {
+            p: (s, any(p == u or p.startswith(u + ".") for u in outside))
+            for p, s in _fields(info.get("schema") or {})
+            if p != "lens" and not p.startswith("lens.")
+        }
+        common = got if common is None else {p: v for p, v in common.items() if p in got}
+    return [(p, s, o) for p, (s, o) in (common or {}).items()]
+
+
+def catalog(db, cfg, draft, node=None, user=None, now=None):
+    """What a draft automation's templates can read, for the variable picker: [{path, type, label, example, group,
+    untrusted, description?}]. The run context's keys; `event` with the fields all its triggers' kinds share and
+    `events.<alias>` with each trigger's (a batch's as a list, `.0` its first); the saved variables (the automation's
+    own when `draft` has its id, and its namespaces'); and, with `node`, what the action and decide nodes before it
+    pass on (`steps.<id>`, from each action's output schema). `untrusted` marks text from outside Lens, which prompts
+    mark as data. Examples come from the kinds' samples and the variables' values."""
+    triggers, join, graph = draft_parts(db, draft)
+    ctx = sample_context(db, cfg, draft, user, None, None, None, now)
+    batch = join.get("mode") == "batch"
+    out = []
+    for key, title, type_, desc in automation_spec.CONTEXT:
+        if key == "event":
+            out.append(_entry("event", type_, title, None, "Run", False, desc))
+            shared: list | None = None
+            for t in triggers:
+                got = _activity_fields(_kinds(t))
+                shared = got if shared is None else [x for x in shared if x[0] in {p for p, _s, _o in got}]
+            for p, s, o in shared or []:
+                out.append(
+                    _entry(f"event.{p}", _type(s), s.get("title") or p.rsplit(".", 1)[-1], _value_at(ctx["event"], p), "The event", o)
+                )
+        elif key == "events":
+            for t in triggers:
+                base = f"events.{t['as']}"
+                kinds = _kinds(t)
+                label = ev.kind_info(kinds[0])["label"] if len(kinds) == 1 else ", ".join(kinds) or "run by hand"
+                group = f"Trigger {t['as']}: {label}"
+                act = _value_at(ctx["events"], f"{t['as']}.0" if batch else t["as"])
+                out.append(_entry(base, "array" if batch else "object", f"{t['as']}'s activit{'ies' if batch else 'y'}", None, group))
+                item = f"{base}.0" if batch else base
+                for p, s, o in _activity_fields(kinds):
+                    out.append(_entry(f"{item}.{p}", _type(s), s.get("title") or p.rsplit(".", 1)[-1], _value_at(act, p), group, o))
+        elif key == "vars":
+            out.append(_entry("vars", type_, title, None, "Saved variables", False, desc))
+            rows = {}
+            for s in sorted(draft.get("spaces") or []):
+                rows |= {r["name"]: r for r in list_vars(db, space=s) if r["name"] not in rows}
+            if draft.get("id") is not None:
+                rows |= {r["name"]: r for r in list_vars(db, automation=draft["id"])}
+            for name, r in sorted(rows.items()):
+                out.append(_entry(f"vars.{name}", _kind_of_value(r["value"]), name, r["value"], "Saved variables", r["untrusted"]))
+        elif key == "steps":
+            if node is None:
+                continue
+            out.append(_entry("steps", type_, title, None, "Steps before this one", True, desc))
+            for i, (label, schema) in _outputs(graph, upstream(graph, node)).items():
+                group = f"Step {i}: {label}"
+                out.append(_entry(f"steps.{i}", "object", label, None, group, True))
+                for p, s in _fields(schema):
+                    out.append(_entry(f"steps.{i}.{p}", _type(s), s.get("title") or p.rsplit(".", 1)[-1], None, group, True))
+        else:
+            out.append(_entry(key, type_, title, ctx.get(key) if not isinstance(ctx.get(key), dict) else None, "Run", False, desc))
+            for sub, label, sub_type in SUBKEYS.get(key, ()):
+                out.append(_entry(f"{key}.{sub}", sub_type, label, _value_at(ctx.get(key) or {}, sub), "Run"))
+    return out[:MAX_LISTED]
+
+
+def preview(db, cfg, template, draft, user, activity=None, trigger=None, node=None, as_prompt=False, now=None):
+    """What a template gives for a draft automation (sample_context: a real activity or the kind's sample), before it
+    is saved: {text, value, prompt, rules, system, error, line, activity}. A param keeps its type in `value` (`text`
+    is it written out); a prompt (`as_prompt`, or a saved prompt template {"template": id}) shows outside text marked
+    as the model will see it, with `rules`, the system prompt's paragraph about it. A template that fails gives
+    `error`, naming the missing variable and its nearest name, and `line`. `activity` is {id, kind, sample}: what it
+    was rendered against. A draft that doesn't check raises ValueError."""
+    ctx = sample_context(db, cfg, draft, user, activity, trigger, node, now)
+    is_prompt = bool(as_prompt) or (isinstance(template, dict) and "template" in template)
+    used = ctx["event"] if isinstance(ctx["event"], dict) else {}
+    out = {
+        "text": None,
+        "value": None,
+        "prompt": is_prompt,
+        "rules": None,
+        "system": None,
+        "error": None,
+        "line": None,
+        "activity": {"id": used.get("id") if activity is not None else None, "kind": used.get("kind"), "sample": activity is None},
+    }
+    try:
+        if is_prompt:
+            got = prompt(template, ctx, None, cfg, db)
+            return {**out, "text": got["text"], "value": got["text"], "rules": got["rules"] or None, "system": got["system"]}
+        value = render(template, ctx)
+    except ValueError as e:
+        return {**out, "error": str(e), "line": getattr(e, "line", None)}
+    text_ = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False, default=str)
+    return {**out, "text": text_, "value": value}
