@@ -1361,6 +1361,8 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS fedora_status SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS routine_run SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS routine_run_r ON routine_run FIELDS routine",
+    # finished runs, by when, as routine.ran (events_streams.py)
+    "DEFINE INDEX IF NOT EXISTS routine_run_finished ON routine_run FIELDS finished_at",
     "DEFINE TABLE IF NOT EXISTS graph_change SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS graph_change_run ON graph_change FIELDS run",
     "DEFINE INDEX IF NOT EXISTS graph_change_status ON graph_change FIELDS status",

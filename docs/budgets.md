@@ -65,7 +65,8 @@ Asking a routine to run from the app or the API when it's over budget is refused
 ## Warnings
 
 Every five minutes the scheduler looks at every budget. One that crosses `warn_at` or its cap gets an alert, once per
-period: on the budget (`alert`) and as a `budget.near` or `budget.over` row in its activity history.
+period: on the budget (`alert`) and as a `budget.near` or `budget.over` row in its activity history. Automations
+see it too, as a `budget.warned` activity ([Automations](automations.md#lens-itself-as-activities)).
 
 ## The meter and the Costs page
 

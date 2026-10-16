@@ -17,7 +17,7 @@ merged is called built.
 | Comments, notes written and saved, and changes to the entity graph | built |
 | Sensors: readings a sensor keeps, alert and notable log patterns, devices that report for the first time ([Sensors](#sensors-as-activities)) | built |
 | What people say to Lens, in the web app and chat apps, as `chat.message` ([Chat](#chat-as-activities)) | built |
-| More kinds: system events | planned |
+| Lens itself: routine runs, budget warnings, backups and new releases ([Lens itself](#lens-itself-as-activities)) | built |
 | The timeline API (`GET /api/v1/activities`), the MCP tools `timeline` and `event_kinds`, the assistant's `timeline` | built |
 | Review marks on the timeline (reviewed, important, hidden), their filters and `mark_activities` ([Timeline](timeline.md)) | built |
 | The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
@@ -32,7 +32,8 @@ merged is called built.
 | Settings → Automations: how often followers look, how long the event log is kept, and how late a timer may fire | built |
 | A webhook address per automation trigger, and calls to it as `webhook.received` ([Webhook trigger](#webhook-trigger)) | built |
 | Timers that outlast a restart and fire once across the API and the worker (`app/domain/timers.py`, [Time](#time)) | built |
-| Schedule, `at` and `relative` triggers, and actions that wait ([Time](#time)) | planned |
+| The timers behind schedule, `at` and `relative` triggers, the `clock.tick` kind and what's coming ([Time](#time)); automations set them once they are stored | built |
+| Actions that wait (`delay`, `when`) ([Time](#time)) | planned |
 | The Timeline page with filters, grouping, review keys and new items, and Home's Latest card ([Timeline](timeline.md)) | built |
 | Approvals: an automation's action that asks first waits for your pick (approve, decline, edit, allow from now on), told once in your chat app, capped and expiring (`app/domain/approvals.py`) | built |
 | The Approvals page and its badge, a yes in your chat app, approval activities and notifications, agents' approval tools | planned |
@@ -109,11 +110,16 @@ and the paths holding outside text are in `GET /api/v1/activities/kinds` (`event
 | `comment.added` | | `comments` | a `Note`: `content`, `inReplyTo` (the comment it answers), `quote` (the passage), `t0`, `t1` (the moment, ms); `target` is the asset | Sam commented on “Call with the school” |
 | `note.created` | | `note_pages` | a `Page`: `summary`, `about` (what it's the page of), `place`, `author` (person or assistant) | Assistant wrote the note “St Mary's School” |
 | `note.saved` | | `note_versions` | as `note.created`, with `version` (the page as it was before) and `why` | Sam edited the note “School trip plans” |
+| `clock.tick` | | `clock` (never stored) | an `Event`: `at` (the moment, UTC), `cron`, `timezone`, `local` (the time there, in words), `description` (the schedule in words, or once), `late`; actor `Lens clock` | Lens clock: Fri 16 Oct at 07:00 (every weekday at 07:00, Europe/London) |
 | `entity.changed` | | `graph` | `op` (created, renamed, merged, split, linked, unlinked, deleted, rolled back, changed), `change` (the graph's own op), `entityType`, `before` (a renamed entity's name), `version`, `count`; tagged with its entities | Sam renamed “St Marys” to “St Mary's School” |
 | `sensor.reading` | | `sensor_readings` | `{type: Note, id: lens:sensor_reading/<id>, name: "<stream>: <what it said>", url: /sensors/<id>}`, `stream`, `value`, `text`, `fields` (a JSON reading's numbers), `level` (syslog), `pattern`, `label` (the line's pattern and its label); noisy | Kitchen sensor temperature: 31.2 |
 | `sensor.alert` | | `log` | `{type: Note, id: lens:sensor_pattern/<id>}`, `label` (alert or notable), `pattern`, `example` (a line it fits), `count` (lines in all), `lines` (in the batch that raised it), `hour` | 192.168.1.1 logged an alert: wlan<n>: authentication failed for <mac> |
 | `sensor.joined` | | `sensors` | `{type: Service, id: lens:sensor/<id>, url: /sensors/<id>}`, `sensor_type` (mqtt, syslog, ...), `device`, `status` | A new MQTT device reported: zigbee2mqtt/kitchen |
 | `chat.message` | | `chat_messages` | `{type: Note, id: lens:chat_message/<id>, name: the start of it, url: /chat/<id>}`, `text`, `channel` (web, telegram, slack, bridge, mailbox), `room`, `chat`, `direct` (a private chat or the web app), `attachments` (how many files) | sam wrote in Telegram: “groceries: milk, eggs” |
+| `routine.ran` | | `routine_runs` | `{type: Note, id: lens:routine_run/<id>, url: /routines/<id>}`, `status` (done, partly, error, skipped), `trigger` (schedule, manual), `startTime`, `endTime`, `actions`, `failed`, `error`, `changes` (graph changes applied and proposed), `cost_usd`, `tokens` | Nightly tidy ran |
+| `budget.warned` | | `log` | `{type: Note, id: lens:budget/<resource>, url: /costs}`, `resource` (all, space:<id>, routine:<id>, ...), `state` (near, over), `share`, `usd`, `tokens`, `estimate`, `cap_usd`, `cap_tokens`, `period`, `since` | The pods namespace has used 82% of its budget |
+| `backup.finished` | | `log` | `{type: Document, id: lens:backup/<name>, url: /settings/backups}`, `label` (manual, scheduled), `ok`, `error`, `kind` (export, folder), `bytes`, `files`, `copied` (to the storage connection) | A scheduled backup finished: scheduled-20261015-020000.surql.gz |
+| `lens.release` | | `log` | `{type: Note, id: lens:release/<tag>, url: its release notes}`, `tag`, `title`, `current` (what this server runs), `published_at` | Lens v0.7.0 is out (this server runs 0.6.0) |
 | `webhook.received` | | `log` | `{type: Note, hook: the webhook's id, payload: what was sent (JSON, a form's fields or text), content_type, query}`; the actor is the webhook (`Service`, `lens:automation_hook/<id>`, "Webhook for <automation>") | Webhook for Front door was called |
 
 A new asset is one activity, of the most specific kind its row tells, decided by its content type and where it came
@@ -182,6 +188,22 @@ said to Lens in a room is never kept, so it is never an activity. Its text and n
 - A question an automation's `ask_agent` asks (`origin` on the message) isn't a person's, so it is never a
   `chat.message`, and an automation can't set itself off that way.
 
+#### Lens itself as activities
+
+Built (`app/domain/events_streams.py`). What Lens does on its own is for admins, unless it is about one namespace.
+Each is logged once, however many processes see it happen.
+
+- `routine.ran` is a routine run that ended: done, partly (some actions failed), error, or skipped over budget once
+  someone picked to skip it. Its actor is the routine (`Application`, `lens:routine/<id>`). A run held over budget is
+  one when it ends; one someone let run anyway runs again as a new run, and that run is the activity. A routine of
+  one namespace makes activities in it.
+- `budget.warned` is a budget crossing its warning share (`warn_at`) or its cap, once per period and state, logged by
+  the same check that alerts on it ([Budgets](budgets.md#warnings)). A namespace's budget makes it in that namespace.
+- `backup.finished` is a backup taken in Settings or through the API, or on the schedule, which says whether it
+  worked (a scheduled one that failed says why) and whether it was copied to the storage connection.
+- `lens.release` is a newer Lens release, once per release, when Lens tells the admins and notification targets
+  ([Updates](updates.md#being-told)).
+
 ### Sources and the event log
 
 Built. A source (`events.Source`, added with `events.register_source`) reads rows Lens already keeps as activities,
@@ -214,6 +236,8 @@ A kind belongs to the source named in its `source`, and a source may list more i
 - `sensor_readings` (`app/domain/events_streams.py`) reads `sensor_reading` by `at` (microseconds), the id breaking
   ties, one sensor at a time, as `sensor.reading`; `sensors` reads the `storage_source` rows discovery made by
   `created_at`, as `sensor.joined`.
+- `routine_runs` (`app/domain/events_streams.py`) reads `routine_run` rows that ended by `finished_at`, the id
+  breaking ties, as `routine.ran`.
 - `chat_messages` (`app/domain/events_streams.py`) reads `chat_message` rows with role user by `created_at` over the
   index on (role, created_at), the id breaking ties, as `chat.message`.
 - `log` reads `event_log`: activities no row of their own records (a deletion, a webhook call), written by
@@ -628,6 +652,39 @@ def _(db, cfg, payload): ...                              # payload + late (true
   checks once a minute, and at once when this process sets one. A timer set by the other process (the API, when the
   worker fires them) can so fire up to a minute late.
 
+### Schedule, at and relative triggers
+
+Built as timers; automations set them once they are stored. Each trigger checks as
+[Automations: triggers and joins](#automations-triggers-and-joins) says.
+
+```python
+timers.schedule_automation(db, automation)   # {id, enabled, spaces, triggers}: on save, switch on, switch off
+timers.relative(db, automation, alias, activity, field, offset)   # a matching activity came: {key, at, set, note}
+timers.upcoming(db, automation, n=10)        # what it has waiting, soonest first, in words
+timers.clock_state(db, automation)           # each schedule and at trigger: waiting, done, missed, failed or off
+```
+
+- **Schedule** (`on: schedule`, `cron`, `timezone`): one timer, `sched-<automation>-<as>`, at the schedule's next
+  time (`schedule.py`: five-field cron, the shorthands, time zones; a time daylight saving skips runs when the clock
+  gets past the gap, a time it repeats runs once). When it fires, the automation fires with a `clock.tick` activity
+  for that moment, and the timer is re-armed for the next time in the same update.
+- **At** (`on: at`, `at`, `timezone`): one timer, `at-<automation>-<as>`, if the time is still to come; afterwards
+  the trigger reads done, and saving the automation again doesn't set it again.
+- **Relative** (`on: relative`, `kinds`, `where`, `field`, `offset`): when a matching activity comes, a timer at the
+  time in its `field` plus `offset` (`-30m`: half an hour before; a date alone is its midnight in UTC), keyed by the
+  automation, the trigger and the activity's object (`rel-<automation>-<as>-<object id>`). So when a calendar event
+  moves (`calendar_event.changed`, about the same object) its timer moves with it rather than adding a second. A time
+  more than 5 minutes in the past is skipped, with a note for the automation's log, and a timer it had is called
+  off. When it fires, the automation fires with the activity that set it.
+- **Saving again** leaves a timer a trigger still wants as it is, so one that came due while Lens was off can still
+  catch up. A changed schedule or time sets it anew, a trigger that's gone has its timer called off, and waiting
+  relative timers follow a changed `field` or `offset`. Switching an automation off calls off every timer it has.
+- **What's coming** (`upcoming`): `{key, at, kind, trigger, node, description, untrusted}`, such as "Every weekday at
+  07:00: next on Fri 16 Oct at 07:00 (Europe/London)" or "30 minutes before “Parents' evening” starts: on Tue 20 Oct
+  at 16:30 (UTC)"; `untrusted` says the description quotes outside text (the event's title). The builder previews a
+  schedule with `GET /api/v1/routines/schedule`, which now reads weekdays, single days and days of the month in
+  words too ("every weekday at 07:00", "at 09:00 on the 20th of every month").
+
 ## Refine later
 
 - More operators: `in`, `matches` (bounded regular expressions), `between`, times against now, `changed`.
@@ -666,7 +723,10 @@ def _(db, cfg, payload): ...                              # payload + late (true
 - Calling a web address: secrets in the address itself (a Slack or Discord webhook URL) sealed like headers; PATCH and
   DELETE (DELETE would count as deleting); OAuth sign-in for an API; form-encoded bodies; retries with backoff;
   networks allowed for automations apart from notifications.
-- Time: sub-second timers woken by `events.wake()` alone; telling the other process (the worker) at once when the
+- Time: calendar-aware schedules ("first workday of the month", holidays); sunrise and sunset triggers; an all-day
+  event's date in the person's time zone rather than UTC; upcoming relative timers in the person's time zone; an
+  event that's cancelled calling off its relative timers; the timeline's kind filter leaving out `clock.tick`, which
+  is never stored; sub-second timers woken by `events.wake()` alone; telling the other process (the worker) at once when the
   API sets a timer, rather than within a minute.
 - Running Lens work: a routine run's id passed on (today the scheduler starts it later); waiting for the job and passing
   on its outputs; roles on collections counting for `process`; running a pipeline on every asset a join collected.
@@ -681,6 +741,8 @@ def _(db, cfg, payload): ...                              # payload + late (true
 - Chat: recording every message in a room as an activity (opt-in per channel, off by default); a chat user who is
   also a Lens account as that person; a timeline page of others' private messages is read and left out, up to five
   source pages, so narrow it by account if that proves slow.
+- Lens itself: a run held over budget, waiting for someone's pick, as an activity of its own; backups taken before
+  upgrades or with `lens backup` (only those from Settings, the API and the schedule are activities today).
 - Approvals: a cost estimate on actions that ask (a run on another asset could say what it would cost); buttons in
   Telegram and Slack; approvals that need two people; one card for many alike ("approve all 12"); trying a failed one
   again; expiring an automation's approvals when it is removed.
