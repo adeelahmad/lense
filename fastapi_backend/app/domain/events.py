@@ -1123,3 +1123,4 @@ def tidy(db, cfg, now=None):
 
 from . import events_content  # noqa: E402, F401 - the recordings source, registered with the stream once it is loaded
 from . import events_streams  # noqa: E402, F401 - sensors, chat, webhooks and system kinds, the same way
+from . import events_approvals  # noqa: E402, F401 - approvals waiting and decided, after the content sources it reuses

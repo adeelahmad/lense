@@ -346,13 +346,14 @@ def decide(db, cfg, row, user, decision="approve", params=None, via="web"):
     except Exception as e:  # noqa: BLE001 - recorded on the approval and the run
         error = f"{type(e).__name__}: {e}"[:500] if not isinstance(e, ValueError) else str(e)[:500]
     status = "failed" if error else "done"
-    db.q(
-        "UPDATE $r SET status = $s, result = $res, error = $e, intent = $i",
+    db.q(  # decided_at again: the approval.decided activity is read by it, once the outcome is known
+        "UPDATE $r SET status = $s, result = $res, error = $e, intent = $i, decided_at = $t",
         r=R("approval", row["id"]),
         s=status,
         res=result,
         e=error,
         i={**intent, "status": status},
+        t=store.now(),
     )
     _record(db, intent, status, result if not error else {"error": error})
     out = {"status": status, **({"error": error} if error else {"result": result})}
@@ -420,8 +421,9 @@ def sweep(db, cfg, now=None):
         if a.get("intent"):
             _record(db, a["intent"], "expired")
     stuck = db.rows(
-        "UPDATE approval SET status = 'failed', error = 'the server stopped while it was carried out' "
+        "UPDATE approval SET status = 'failed', error = 'the server stopped while it was carried out', decided_at = $n "
         "WHERE status = 'running' AND decided_at < $c RETURN record::id(id) AS id, intent",
+        n=_iso(now),
         c=_iso(now - dt.timedelta(seconds=STUCK_SECONDS)),
     )
     for a in stuck:
