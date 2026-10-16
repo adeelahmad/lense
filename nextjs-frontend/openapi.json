@@ -5958,6 +5958,441 @@
         }
       }
     },
+    "/api/v1/automations/runs": {
+      "get": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Runs Caused",
+        "description": "What an activity caused: the runs of your automations it started (it was their event, or one of a join's).",
+        "operationId": "runs_caused",
+        "parameters": [
+          {
+            "name": "activity",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "an activity's id",
+              "title": "Activity"
+            },
+            "description": "an activity's id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AutomationRun"
+                  },
+                  "title": "Response Automations-Runs Caused"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/automations/runs/{run}": {
+      "get": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Get Run",
+        "description": "One run: what each node did (trace), its log, and what its actions did, asked or wait to do (intents).",
+        "operationId": "get_run",
+        "parameters": [
+          {
+            "name": "run",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Run"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationRunDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/automations/runs/{run}/decide": {
+      "post": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Decide Held Run",
+        "description": "Pick for a run held over a budget: run it now, once, whatever its budgets say, or skip it.",
+        "operationId": "decide_held_run",
+        "parameters": [
+          {
+            "name": "run",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Run"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeldRunDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationStarted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/automations/test": {
+      "post": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Test Draft",
+        "description": "Try an automation before you save it: a dry run on an activity, or on a kind's sample (default: its first\ntrigger's kind). Says whether its If passes and what each action would do; keeps, sends and counts nothing.",
+        "operationId": "test_draft",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutomationDraftTry"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationTried"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/automations/{aid}/test": {
+      "post": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Test Automation",
+        "description": "Try a saved automation: a dry run on an activity, or on a kind's sample (default: its first trigger's kind).\nKeeps, sends and counts nothing.",
+        "operationId": "test_automation",
+        "parameters": [
+          {
+            "name": "aid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Aid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/AutomationTry"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationTried"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/automations/{aid}/run": {
+      "post": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Run Automation",
+        "description": "Run it now: on an activity, else the newest one its triggers listen for, else as started by hand. It acts as it\nwould on its own: limits and budgets apply, and actions that ask first wait for your pick.",
+        "operationId": "run_automation",
+        "parameters": [
+          {
+            "name": "aid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Aid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/AutomationRunNow"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationStarted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/automations/{aid}/runs": {
+      "get": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "List Runs",
+        "description": "Its runs, newest first; `next` pages on.",
+        "operationId": "list_runs",
+        "parameters": [
+          {
+            "name": "aid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Aid"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a run id: the runs before it",
+              "title": "Before"
+            },
+            "description": "a run id: the runs before it"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationRuns"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/automations/{aid}/upcoming": {
+      "get": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Upcoming",
+        "description": "When it runs next, from its schedules and timers (coming soon: empty until schedules are built).",
+        "operationId": "upcoming",
+        "parameters": [
+          {
+            "name": "aid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Aid"
+            }
+          },
+          {
+            "name": "n",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 10,
+              "title": "N"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationUpcoming"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/budgets": {
       "get": {
         "tags": [
@@ -5996,10 +6431,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
+              "description": "all (everything Lens spends), routine:<id>, automation:<id>, pipeline:<id>, workflow:<id> or space:<id>",
               "title": "Resource"
             },
-            "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
+            "description": "all (everything Lens spends), routine:<id>, automation:<id>, pipeline:<id>, workflow:<id> or space:<id>"
           }
         ],
         "requestBody": {
@@ -6048,10 +6483,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
+              "description": "all (everything Lens spends), routine:<id>, automation:<id>, pipeline:<id>, workflow:<id> or space:<id>",
               "title": "Resource"
             },
-            "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
+            "description": "all (everything Lens spends), routine:<id>, automation:<id>, pipeline:<id>, workflow:<id> or space:<id>"
           }
         ],
         "responses": {
@@ -6180,10 +6615,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
+              "description": "all (everything Lens spends), routine:<id>, automation:<id>, pipeline:<id>, workflow:<id> or space:<id>",
               "title": "Resource"
             },
-            "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
+            "description": "all (everything Lens spends), routine:<id>, automation:<id>, pipeline:<id>, workflow:<id> or space:<id>"
           }
         ],
         "responses": {
@@ -32265,6 +32700,43 @@
             ],
             "title": "Removed At",
             "description": "when it was deleted (restore brings it back)"
+          },
+          "waiting": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiting",
+            "description": "in lists: its actions waiting for your pick or for their time"
+          },
+          "cost_month": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Month",
+            "description": "in lists: what it cost this month {cost_usd, estimate (true when some calls had no price)}"
+          },
+          "next_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next At",
+            "description": "in lists: when it runs next, from its schedules (coming soon)"
           }
         },
         "additionalProperties": true,
@@ -32447,6 +32919,56 @@
         ],
         "title": "AutomationCreate"
       },
+      "AutomationDraftTry": {
+        "properties": {
+          "activity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity",
+            "description": "an activity's id to run it on (GET /api/v1/activities)"
+          },
+          "as": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As",
+            "description": "which trigger it runs as (its `as`); default: the first that fits"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind",
+            "description": "else a kind of activity, to run it on that kind's sample"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/AutomationCreate",
+            "description": "the automation as you would save it"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "draft"
+        ],
+        "title": "AutomationDraftTry"
+      },
       "AutomationPolicy": {
         "properties": {
           "node": {
@@ -32471,6 +32993,562 @@
           "value"
         ],
         "title": "AutomationPolicy"
+      },
+      "AutomationRun": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "automation": {
+            "type": "integer",
+            "title": "Automation"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "the workflow version it ran"
+          },
+          "trigger": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger",
+            "description": "the trigger (its `as`) that started it"
+          },
+          "trigger_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger On"
+          },
+          "event": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event",
+            "description": "the activity that started it (an id)"
+          },
+          "event_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Event Ids",
+            "description": "every activity it ran on (a join's are several)"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "running, done, partly (some actions failed), failed, waiting (actions wait for your pick or their time), held (over a budget: decide), released or skipped (your pick on a held run)"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By",
+            "description": "who started it by hand"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Counts",
+            "description": "its actions: {done, waiting, scheduled, failed}"
+          },
+          "cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Usd"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens"
+          },
+          "cost_estimate": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Estimate",
+            "description": "true when some calls had no price, so the cost is a floor"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why",
+            "description": "why it was held"
+          },
+          "hold": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hold",
+            "description": "a held run: the budget it is over and how many runs it missed"
+          },
+          "cause_depth": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cause Depth",
+            "description": "how many automations' runs led to this one"
+          },
+          "space": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Space"
+          },
+          "dry": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dry"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "automation",
+          "status"
+        ],
+        "title": "AutomationRun"
+      },
+      "AutomationRunDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "automation": {
+            "type": "integer",
+            "title": "Automation"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "the workflow version it ran"
+          },
+          "trigger": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger",
+            "description": "the trigger (its `as`) that started it"
+          },
+          "trigger_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger On"
+          },
+          "event": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event",
+            "description": "the activity that started it (an id)"
+          },
+          "event_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Event Ids",
+            "description": "every activity it ran on (a join's are several)"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "running, done, partly (some actions failed), failed, waiting (actions wait for your pick or their time), held (over a budget: decide), released or skipped (your pick on a held run)"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By",
+            "description": "who started it by hand"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Counts",
+            "description": "its actions: {done, waiting, scheduled, failed}"
+          },
+          "cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Usd"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens"
+          },
+          "cost_estimate": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Estimate",
+            "description": "true when some calls had no price, so the cost is a floor"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why",
+            "description": "why it was held"
+          },
+          "hold": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hold",
+            "description": "a held run: the budget it is over and how many runs it missed"
+          },
+          "cause_depth": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cause Depth",
+            "description": "how many automations' runs led to this one"
+          },
+          "space": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Space"
+          },
+          "dry": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dry"
+          },
+          "trace": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Trace",
+            "description": "by node id: what each node took in and passed on"
+          },
+          "log": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Log"
+          },
+          "intents": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Intents",
+            "description": "what its actions did, asked or wait to do: action, params, effect, risk, status, result"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "automation",
+          "status"
+        ],
+        "title": "AutomationRunDetail"
+      },
+      "AutomationRunNow": {
+        "properties": {
+          "activity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity",
+            "description": "an activity's id to run it on (GET /api/v1/activities)"
+          },
+          "as": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As",
+            "description": "which trigger it runs as (its `as`); default: the first that fits"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AutomationRunNow"
+      },
+      "AutomationRuns": {
+        "properties": {
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/AutomationRun"
+            },
+            "type": "array",
+            "title": "Runs"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next",
+            "description": "for the page after: pass it as `before`"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "runs"
+        ],
+        "title": "AutomationRuns"
       },
       "AutomationSaved": {
         "properties": {
@@ -32497,6 +33575,48 @@
         ],
         "title": "AutomationSaved"
       },
+      "AutomationStarted": {
+        "properties": {
+          "run": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run",
+            "description": "the run's id (GET /automations/runs/{run}); none when nothing ran"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why",
+            "description": "why it didn't run, or was held"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "AutomationStarted"
+      },
       "AutomationSwitch": {
         "properties": {
           "on": {
@@ -32508,6 +33628,129 @@
         "additionalProperties": false,
         "type": "object",
         "title": "AutomationSwitch"
+      },
+      "AutomationTried": {
+        "properties": {
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status",
+            "description": "done, waiting, partly or failed as it would end; skipped when its If is false (limits and budgets aren't checked: a try costs no run)"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why"
+          },
+          "trace": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Trace"
+          },
+          "log": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Log"
+          },
+          "intents": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Intents",
+            "description": "what each action would do (nothing is done)"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "steps": {
+            "type": "integer",
+            "title": "Steps",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "AutomationTried"
+      },
+      "AutomationTry": {
+        "properties": {
+          "activity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity",
+            "description": "an activity's id to run it on (GET /api/v1/activities)"
+          },
+          "as": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As",
+            "description": "which trigger it runs as (its `as`); default: the first that fits"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind",
+            "description": "else a kind of activity, to run it on that kind's sample"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AutomationTry"
+      },
+      "AutomationUpcoming": {
+        "properties": {
+          "times": {
+            "items": {},
+            "type": "array",
+            "title": "Times",
+            "description": "when it runs next, from its schedules and timers (coming soon)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "AutomationUpcoming"
       },
       "AutomationUpdate": {
         "properties": {

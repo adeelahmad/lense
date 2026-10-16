@@ -164,7 +164,9 @@ def test_upcoming_says_what_is_coming(db, cfg, fired):
     assert len(timers.upcoming(db, 4, n=1, now=noon)) == 1 and timers.upcoming(db, 5) == []
 
 
-def test_before_automations_are_stored_a_schedule_still_re_arms(db, cfg):
+def test_before_automations_are_stored_a_schedule_still_re_arms(db, cfg, monkeypatch):
+    real = timers._provided
+    monkeypatch.setattr(timers, "_provided", lambda module, fn: None if module == "automations" else real(module, fn))
     timers._idle["until"] = 0.0
     timers.schedule_automation(db, auto(MORNING), now=t("2026-10-15T12:00:00"))
     assert timers.due(db, cfg, now=t("2026-10-16T06:00:00")) == 1

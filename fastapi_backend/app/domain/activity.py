@@ -41,6 +41,7 @@ TABLES = {  # the API's path segments, and the table a number after one names
     "recordings": "recording",
     "resources": "recording",
     "routines": "routine",
+    "automations": "automation",
     "runs": "routine_run",
     "pipelines": "pipeline",
     "workflows": "workflow",
@@ -123,9 +124,12 @@ def current():
 
 
 def _table(parts, i):
-    """The table a key after path segment i names: /api/v1/notes/{id} are note pages, a recording's notes/{id} its notes."""
+    """The table a key after path segment i names: /api/v1/notes/{id} are note pages, a recording's notes/{id} its
+    notes, /api/v1/automations/runs/{id} an automation's runs."""
     if parts[i] == "notes" and i and parts[i - 1] == "v1":
         return "note_page"
+    if parts[i] == "runs" and i and parts[i - 1] == "automations":
+        return "automation_run"
     return TABLES.get(parts[i])
 
 

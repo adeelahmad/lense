@@ -393,9 +393,9 @@ export const SECTIONS: SectionSpec[] = [
   {
     id: "automations",
     label: "Automations",
-    backend: ["events", "automations"],
+    backend: ["automations", "events"],
     description:
-      "The stream of activities automations follow (new assets and what else happens in Lens): how often followers look for new ones, how long activities with no row of their own are kept, how long an automation’s action waits for your pick, and how late a timer may still fire after Lens was off.",
+      "Whether automations run, how far one automation may set off another, how many runs a minute they may make together, how long runs are kept, how late a timer may still fire after Lens was off, how long an automation’s action waits for your pick; and the stream of activities they follow (new assets and what else happens in Lens).",
   },
   {
     id: "startup",
@@ -2678,7 +2678,67 @@ export const FIELDS: FieldSpec[] = [
     max: 20,
     hint: "A failed send waits 30 seconds, then four times longer each time, up to 6 hours",
   },
-  // Automations (the stream of activities)
+  // Automations
+  {
+    section: "automations",
+    key: "enabled",
+    label: "Run automations",
+    kind: "switch",
+    hint: "Off: no automation runs and nothing is lost; switched back on, they react to what happens from then on",
+  },
+  {
+    section: "automations",
+    key: "max_depth",
+    label: "Automations one run may set off",
+    kind: "int",
+    min: 1,
+    max: 10,
+    hint: "How long a chain of automations setting each other off may get, so two can't loop forever",
+  },
+  {
+    section: "automations",
+    key: "max_runs_per_minute",
+    label: "Runs a minute, all automations together",
+    kind: "int",
+    min: 1,
+    max: 6000,
+    hint: "Each automation also has its own most runs an hour and wait between runs",
+  },
+  {
+    section: "automations",
+    key: "keep_runs_days",
+    label: "Keep runs (days)",
+    kind: "int",
+    min: 1,
+    max: 3650,
+    hint: "Each automation keeps its last 20 runs however old they are",
+  },
+  {
+    section: "automations",
+    key: "catch_up",
+    label: "After Lens was off, still run timers up to",
+    kind: "select",
+    options: [
+      { value: "0s", label: "Don’t: count them as missed" },
+      { value: "5m", label: "5 minutes late" },
+      { value: "15m", label: "15 minutes late" },
+      { value: "1h", label: "1 hour late" },
+      { value: "6h", label: "6 hours late" },
+      { value: "1d", label: "1 day late" },
+      { value: "7d", label: "7 days late" },
+    ],
+    hint: "Schedules and actions that wait; one that missed several times runs once, and older ones count as missed",
+  },
+  {
+    section: "automations",
+    key: "approval_days",
+    label: "An automation’s action waits for your pick (days)",
+    kind: "int",
+    min: 1,
+    max: 365,
+    hint: "Then it expires and nothing runs; you decide in Approvals",
+  },
+  // The stream of activities automations follow
   {
     section: "events",
     key: "poll_seconds",
@@ -2696,31 +2756,6 @@ export const FIELDS: FieldSpec[] = [
     min: 1,
     max: 3650,
     hint: "Activities with no row of their own, such as an automation’s; new assets and other rows stay as long as they do",
-  },
-  {
-    section: "automations",
-    key: "approval_days",
-    label: "An automation’s action waits for your pick (days)",
-    kind: "int",
-    min: 1,
-    max: 365,
-    hint: "Then it expires and nothing runs; you decide in Approvals",
-  },
-  {
-    section: "automations",
-    key: "catch_up",
-    label: "After Lens was off, still run timers up to",
-    kind: "select",
-    options: [
-      { value: "0s", label: "Don’t: count them as missed" },
-      { value: "5m", label: "5 minutes late" },
-      { value: "15m", label: "15 minutes late" },
-      { value: "1h", label: "1 hour late" },
-      { value: "6h", label: "6 hours late" },
-      { value: "1d", label: "1 day late" },
-      { value: "7d", label: "7 days late" },
-    ],
-    hint: "Schedules and actions that wait; one that missed several times runs once, and older ones count as missed",
   },
   // Usage analytics (Google Analytics opt-in)
   {

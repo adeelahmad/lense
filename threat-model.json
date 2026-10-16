@@ -118,7 +118,8 @@
         "chat, /graph/ask, MCP tools",
         "extensions (prompt, graph and http tools, hooks), custom nodes including template nodes",
         "Python code tools, shipped and admin-created templates, workflows, pipelines, routines",
-        "Lens extension side panel"
+        "Lens extension side panel",
+        "automations"
       ],
       "touches": [
         "network",
@@ -578,6 +579,15 @@
       "caller_must_enforce": "none — the curate permission in each namespace touched and a write-capable principal (the web app's own route functions); the assistant's changes wait for the person's approval; merges and deletes are kept to undo, and audited",
       "provenance": "documented",
       "source": "docs/mcp.md \"curate entities and topics as an editor does\""
+    },
+    {
+      "entry_point": "automations",
+      "parameter": "/api/v1/automations (save, try, run now, decide): triggers, where and If match trees, the event workflow graph (action params are Jinja templates), policy, limits, an activity id; the text of the activities an automation runs on",
+      "attacker_controllable": "yes",
+      "component": "assistant",
+      "caller_must_enforce": "none — it runs as its maker with their permissions at run time (P-AUTOMATION-ACTOR); actions reaching outside Lens ask first; outside text marks intents untrusted and breaks up links (P-INJECTION-EGRESS); chains and bursts are bounded (P-AUTOMATION-LOOP)",
+      "provenance": "documented",
+      "source": "docs/automations.md \"Running automations\""
     },
     {
       "entry_point": "microsandbox program requests",
@@ -1220,6 +1230,22 @@
       "conditions": "flow and tool graphs never loop back and run within a step budget",
       "provenance": "documented",
       "source": "domain/flow.py docstring \"Graphs never loop back\""
+    },
+    {
+      "property": "P-AUTOMATION-ACTOR",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "an automation acts only for its maker (run_as), with their permissions when it runs, in namespaces they edit, on activities they may see published after it was switched on; a maker who lost access fails its next run and switches it off; actions reaching outside Lens or other people ask first unless the person, signed in to the web app, set the node to auto (API keys, apps, agents and drafts cannot)",
+      "provenance": "documented",
+      "source": "docs/automations.md \"Running automations\""
+    },
+    {
+      "property": "P-AUTOMATION-LOOP",
+      "violation_symptom": "x-cap-exceeded",
+      "severity_tier": "correctness",
+      "conditions": "activities an automation made start another only with from_automations; a chain stops at automations.max_depth runs (3); each automation has a cooldown and a most runs an hour (60) under a most runs a minute for all (60); a run over a limit does nothing, is counted and logged at most hourly",
+      "provenance": "documented",
+      "source": "docs/automations.md \"Running automations\""
     },
     {
       "property": "P-BROWSER",

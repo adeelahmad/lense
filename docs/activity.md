@@ -11,6 +11,7 @@ Each row names every resource it counts for, as `table:id`:
 | Resource | Example |
 | --- | --- |
 | A routine and one of its runs | `routine:3`, `routine_run:12` |
+| An automation and one of its runs | `automation:4`, `automation_run:51` |
 | A job, its asset, namespace and pipeline | `job:40`, `recording:7`, `space:1`, `pipeline:2` |
 | A workflow | `workflow:4` |
 | A chat | `chat:9` |

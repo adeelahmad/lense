@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Automations run.** An automation saved over the API (`/api/v1/automations`) now reacts to new assets in its
+  namespaces: when its If passes, it runs its workflow as the person who made it, within its limits and budgets, and
+  each run shows what its actions did. Try one on an activity without keeping or sending anything, or run it now;
+  Settings → Automations switches them all off and sets how far they may go
+  ([Running automations](docs/automations.md#running-automations)).
+
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 
 - **Updating Lens in a microsandbox on a Mac gets past "Building Lens".** An update after a build that stopped
