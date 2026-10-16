@@ -170,6 +170,9 @@ first ([Updates and backups](updates.md)). Each is one entry in `<data_dir>/back
   downloads as one `.tar.gz` holding `<name>` and `<name>.files/`. Backups from before files were kept show *database
   only* in Settings.
 
+A backup taken in Settings, through the API or on the schedule is also a `backup.finished` activity for automations,
+and a scheduled one that failed says why ([Automations](automations.md#lens-itself-as-activities)).
+
 **Restoring** replaces the whole database, and the files under `data_dir`, with the backup's (a *database only*
 backup leaves the files as they are). What was there is backed up first (`before-restore`) and
 put back if the restore fails; a backup from an older Lens is brought up to date (schema and upgrade steps) afterwards.

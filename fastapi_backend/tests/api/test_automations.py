@@ -211,6 +211,22 @@ def test_a_webhook_trigger_gets_its_address_when_saved_and_loses_it_when_dropped
     assert client.post(path, json={"door": "open"}).status_code == 401
 
 
+def test_a_schedule_sets_its_timer_and_switching_off_calls_it_off(client, db, env):
+    from app.domain import timers
+
+    hr = env["hr"]
+    r = client.post(URL, headers=hr, json=body(triggers=[{"as": "m", "on": "schedule", "cron": "0 7 * * *"}]))
+    assert r.status_code == 200, r.text
+    aid = r.json()["id"]
+    assert timers.get(db, f"sched-{aid}-m")["status"] == "waiting"
+    client.post(f"{URL}/{aid}/enable", headers=hr, json={"on": False})
+    assert timers.get(db, f"sched-{aid}-m")["status"] == "cancelled"
+    client.post(f"{URL}/{aid}/enable", headers=hr, json={"on": True})
+    assert timers.get(db, f"sched-{aid}-m")["status"] == "waiting"
+    assert client.delete(f"{URL}/{aid}", headers=hr).status_code == 200
+    assert timers.get(db, f"sched-{aid}-m")["status"] == "cancelled"
+
+
 def test_schedules_and_webhooks_are_armed_once_their_modules_are_there(client, db, env, monkeypatch):
     calls = []
     fake = {

@@ -33,6 +33,7 @@ SENSOR_RX = re.compile(r"^lens:sensor/(\d+)$")
 READING_RX = re.compile(r"^reading-([a-z0-9]{1,100})$")
 JOINED_RX = re.compile(r"^joined-sensor-(\d+)$")
 SAID_RX = re.compile(r"^said-(\d+)$")
+RAN_RX = re.compile(r"^ran-routine_run-(\d+)$")
 REF_UNSAFE = re.compile(r"[^A-Za-z0-9_.:@+-]")
 TEXT_MOST = 1000  # characters of a reading's text an activity carries
 
@@ -474,33 +475,36 @@ def _said(db, rows):
     return out
 
 
-def _said_rows(db, pos, op, limit, since=None, until=None):
-    """Messages past `pos` ([created_at, id]; op ">" oldest first, "<" newest first): those at its time with a later
-    id, then those after it, so the (role, created_at) index's range and order do the work."""
-    order = "created_at, id" if op == ">" else "created_at DESC, id DESC"
+def _rows_past(db, table, fields, where, col, pos, op, limit, since=None, until=None):
+    """Rows of `table` matching `where` past `pos` ([col, id]; op ">" oldest first, "<" newest first): those at its
+    time with a later id, then those after it, so an index on (..., col) does the range and the order. `since` and
+    `until` bound `col` (to the second)."""
+    order = f"{col}, id" if op == ">" else f"{col} DESC, id DESC"
     bounds, p = "", {}
     if since:
-        bounds += " AND created_at > $since"
+        bounds += f" AND {col} > $since"
         p["since"] = events_content._sec(since)
     if until:
-        bounds += " AND created_at <= $until"
+        bounds += f" AND {col} <= $until"
         p["until"] = events_content._sec(until)
     rows = []
     if pos is not None and pos[1] is not None:
         rows += db.rows(
-            f"SELECT {SAID_FIELDS} FROM chat_message WHERE {SAID_WHERE} AND created_at = $pt AND id {op} $pi{bounds} "
-            f"ORDER BY {order} LIMIT {int(limit)}",
+            f"SELECT {fields} FROM {table} WHERE {where} AND {col} = $pt AND id {op} $pi{bounds} ORDER BY {order} LIMIT {int(limit)}",
             pt=pos[0],
-            pi=R("chat_message", pos[1]),
+            pi=R(table, pos[1]),
             **p,
         )
-    where = "true" if pos is None else f"created_at {op} $pt"
     if pos is not None:
         p["pt"] = pos[0]
-    rows += db.rows(
-        f"SELECT {SAID_FIELDS} FROM chat_message WHERE {SAID_WHERE} AND {where}{bounds} ORDER BY {order} LIMIT {int(limit)}", **p
-    )
+    after = "true" if pos is None else f"{col} {op} $pt"
+    rows += db.rows(f"SELECT {fields} FROM {table} WHERE {where} AND {after}{bounds} ORDER BY {order} LIMIT {int(limit)}", **p)
     return rows[: int(limit)]
+
+
+def _said_rows(db, pos, op, limit, since=None, until=None):
+    """Messages past `pos`, over the (role, created_at) index."""
+    return _rows_past(db, "chat_message", SAID_FIELDS, SAID_WHERE, "created_at", pos, op, limit, since, until)
 
 
 class ChatSource(events.Source):
@@ -528,6 +532,217 @@ class ChatSource(events.Source):
 
 
 events.register_source(ChatSource())
+
+
+# ---------- system ----------
+RAN_FIELDS = "id, record::id(id) AS n, routine, trigger, status, started_at, finished_at, error, cost_usd, tokens, changes, results"
+RAN_WHERE = "finished_at != NONE AND status != 'released'"  # released: a held run someone let run, which runs anew
+RAN_SAYS = {"done": "ran", "partly": "ran with errors", "error": "failed", "skipped": "was skipped (over budget)"}
+
+
+def _system(spaces):
+    """`space` and `audience` for something about Lens itself: the one namespace it is about, else admins only."""
+    spaces = [s for s in spaces or [] if isinstance(s, int) and not isinstance(s, bool)]
+    return _where(spaces[0] if len(spaces) == 1 else None)
+
+
+def _ran(db, rows):
+    rows = [r for r in rows if r and isinstance(r.get("n"), int)]
+    if not rows:
+        return []
+    labels = [(f"routine:{r['routine']}", None) for r in rows if isinstance(r.get("routine"), int)]
+    who = events_content.actors(db, labels)
+    routines = events_content._lookup(db, "routine", {r.get("routine") for r in rows}, "name, namespaces")
+    out = []
+    for r in rows:
+        rid = r.get("routine")
+        try:
+            published = events.stamp(r["finished_at"])
+        except (TypeError, ValueError, KeyError):
+            continue
+        actor = who.get((f"routine:{rid}", None)) or {"type": "Application", "id": f"lens:routine/{rid}", "name": f"Routine {rid}"}
+        results = [x for x in r.get("results") or [] if isinstance(x, dict)]
+        changes = r.get("changes") if isinstance(r.get("changes"), dict) else None
+        obj = store.clean(
+            {
+                "type": "Note",
+                "id": f"lens:routine_run/{r['n']}",
+                "name": f"{actor['name']}, run {r['n']}",
+                "url": f"/routines/{rid}",
+                "status": r.get("status"),
+                "trigger": r.get("trigger"),
+                "startTime": events.stamp(r["started_at"]) if r.get("started_at") else None,
+                "endTime": published,
+                "actions": len(results),
+                "failed": sum(1 for x in results if x.get("status") == "error"),
+                "error": str(r["error"])[:300] if r.get("error") else None,
+                "changes": changes,
+                "cost_usd": r.get("cost_usd") if isinstance(r.get("cost_usd"), (int, float)) else None,
+                "tokens": r.get("tokens") if isinstance(r.get("tokens"), int) else None,
+            }
+        )
+        out.append(
+            events.build(
+                f"ran-routine_run-{r['n']}",
+                "routine.ran",
+                actor=actor,
+                obj=obj,
+                summary=f"{actor['name']} {RAN_SAYS.get(r.get('status'), 'finished')}",
+                source="routine_runs",
+                pos=[r["finished_at"], r["n"]],
+                published=published,
+                **_system((routines.get(rid) or {}).get("namespaces")),
+            )
+        )
+    return out
+
+
+class RoutineRunSource(events.Source):
+    """routine_run rows that finished (done, partly, error, skipped) as routine.ran, read by (finished_at, id)."""
+
+    name = "routine_runs"
+
+    def read(self, db, cfg, pos, spaces, limit, hint=None):
+        return _ran(db, _rows_past(db, "routine_run", RAN_FIELDS, RAN_WHERE, "finished_at", pos, ">", limit))
+
+    def page(self, db, cfg, before, who, flt, limit):
+        p: dict = {}
+        where = [RAN_WHERE]
+        if before is not None:
+            where.append(events.after_sql("finished_at", before, p, "<", table="routine_run"))
+        # bounds that can't be an index range: newest first over one hits SurrealDB's range-order bug (docs/automations.md)
+        if flt.get("since"):
+            p["since"] = events_content._sec(flt["since"])
+            where.append("(finished_at > $since OR finished_at = NONE)")
+        if flt.get("until"):
+            p["until"] = events_content._sec(flt["until"])
+            where.append("(finished_at <= $until OR finished_at = NONE)")
+        rows = db.rows(
+            f"SELECT {RAN_FIELDS} FROM routine_run WHERE {' AND '.join(where)} ORDER BY finished_at DESC, id DESC LIMIT {int(limit)}", **p
+        )
+        return _ran(db, rows)
+
+    def get(self, db, cfg, activity_id):
+        m = RAN_RX.match(activity_id)
+        if not m:
+            return None
+        got = _ran(db, db.rows(f"SELECT {RAN_FIELDS} FROM $r WHERE {RAN_WHERE}", r=R("routine_run", int(m.group(1)))))
+        return got[0] if got else None
+
+
+events.register_source(RoutineRunSource())
+
+
+def _budget_name(db, resource):
+    """A budget's resource in words: all of Lens, a namespace, a routine, a pipeline or a workflow."""
+    if resource == "all":
+        return "Lens", None
+    table, _, n = str(resource).partition(":")
+    n = int(n) if n.isdigit() else None
+    if table == "space" and n is not None:
+        return f"The {store.space_names(db).get(n) or f'namespace {n}'} namespace", n
+    row = events_content._lookup(db, table, [n], "name").get(n) if table in ("routine", "pipeline", "workflow") and n is not None else None
+    return (str((row or {}).get("name") or "").strip() or f"{table.capitalize()} {n}"), None
+
+
+def budget_warned(db, budget, alert, st):
+    """A budget.warned for a budget that crossed its warning share or its cap this period (budgets.sweep, once per
+    period and state). Its id."""
+    res = budget["resource"]
+    name, space = _budget_name(db, res)
+    over = alert["state"] == "over"
+    spent = st.get("spent") or {}
+    obj = store.clean(
+        {
+            "type": "Note",
+            "id": f"lens:budget/{REF_UNSAFE.sub('_', res)}",
+            "name": f"Budget for {name[:1].lower() + name[1:] if name.startswith('The ') else name}",
+            "url": "/costs",
+            "resource": res,
+            "state": alert["state"],
+            "share": alert.get("share"),
+            "usd": spent.get("usd"),
+            "tokens": spent.get("tokens"),
+            "estimate": bool(spent.get("estimate")) or None,
+            "cap_usd": budget.get("usd"),
+            "cap_tokens": budget.get("tokens"),
+            "period": budget.get("period") or "month",
+            "since": st.get("since"),
+        }
+    )
+    share = alert.get("share") or 0
+    where = _system([space] if space is not None else None)
+    return events.emit(
+        db,
+        "budget.warned",
+        actor=dict(events.LENS),
+        obj=obj,
+        space=where["space"],
+        audience=where["audience"],
+        summary=f"{name} is over its budget" if over else f"{name} has used {share:.0%} of its budget",
+        key=f"budget.warned:{res}:{alert['state']}:{st.get('since')}",
+    )
+
+
+def backup_finished(db, label, got=None, error=None, copied=None, at=None):
+    """A backup.finished for a backup taken by hand or on the schedule (backups.py): `got` its entry, else `error` for
+    one that failed. Its id."""
+    name = (got or {}).get("name")
+    ok = got is not None and not error
+    obj = store.clean(
+        {
+            "type": "Document",
+            "id": f"lens:backup/{name}" if name else "lens:backup",
+            "name": name or f"{label} backup",
+            "url": "/settings/backups",
+            "label": label,
+            "ok": ok,
+            "error": str(error)[:500] if error else None,
+            "kind": (got or {}).get("kind"),
+            "bytes": (got or {}).get("bytes"),
+            "files": (got or {}).get("files"),
+            "copied": copied,
+        }
+    )
+    what = "A scheduled backup" if label == "scheduled" else "A backup"
+    return events.emit(
+        db,
+        "backup.finished",
+        actor=dict(events.LENS),
+        obj=obj,
+        space=None,
+        audience="admins",
+        summary=f"{what} finished: {name}" if ok else f"{what} failed: {str(error)[:200]}",
+        key=f"backup.finished:{name or f'{label}:{at}'}",
+    )
+
+
+def lens_release(db, rel, current):
+    """A lens.release for a newer Lens release (updates.announce, once per release). Its id."""
+    tag = str(rel["tag"])
+    url = rel.get("url") if isinstance(rel.get("url"), str) and rel["url"].startswith("https://") else None
+    obj = store.clean(
+        {
+            "type": "Note",
+            "id": f"lens:release/{REF_UNSAFE.sub('_', tag)[:200]}",
+            "name": f"Lens {tag}",
+            "url": url,
+            "tag": tag,
+            "title": " ".join(str(rel.get("name") or "").split())[:200] or None,
+            "current": current,
+            "published_at": rel.get("published_at"),
+        }
+    )
+    return events.emit(
+        db,
+        "lens.release",
+        actor=dict(events.LENS),
+        obj=obj,
+        space=None,
+        audience="admins",
+        summary=f"Lens {tag} is out (this server runs {current})",
+        key=f"lens.release:{tag}",
+    )
 
 
 _SENSOR_OBJECT = {
@@ -719,5 +934,190 @@ events.kind(
         ["2026-10-15T16:21:58+00:00", 81],
         CHAT_UNTRUSTED,
         space=3,
+    ),
+)
+LENS = dict(events.LENS)
+RAN_UNTRUSTED = ("actor.name", "object.name")
+events.kind(
+    "routine.ran",
+    label="Routine ran",
+    source="routine_runs",
+    as_type="Update",
+    object_type="Note",
+    fields={
+        "object": {
+            "type": "object",
+            "properties": {
+                "status": _s("Status", enum=["done", "partly", "error", "skipped"]),
+                "trigger": _s("Started by", enum=["schedule", "manual"]),
+                "startTime": _s("Started", format="date-time"),
+                "endTime": _s("Finished", format="date-time"),
+                "actions": _s("Actions", "integer"),
+                "failed": _s("Actions that failed", "integer"),
+                "error": _s("Error"),
+                "changes": {"type": "object", "title": "Graph changes (applied, proposed)"},
+                "cost_usd": _s("Cost (USD)", "number"),
+                "tokens": _s("Tokens", "integer"),
+            },
+        }
+    },
+    untrusted=RAN_UNTRUSTED,
+    sample=_sample(
+        "ran-routine_run-51",
+        "routine.ran",
+        "Update",
+        {"type": "Application", "id": "lens:routine/4", "name": "Nightly tidy"},
+        {
+            "type": "Note",
+            "id": "lens:routine_run/51",
+            "name": "Nightly tidy, run 51",
+            "url": "/routines/4",
+            "status": "done",
+            "trigger": "schedule",
+            "startTime": "2026-10-15T02:00:00.000Z",
+            "endTime": "2026-10-15T02:03:12.000Z",
+            "actions": 2,
+            "failed": 0,
+            "changes": {"applied": 3, "proposed": 1},
+        },
+        "Nightly tidy ran",
+        "routine_runs",
+        ["2026-10-15T02:03:12+00:00", 51],
+        RAN_UNTRUSTED,
+    ),
+)
+SYSTEM_UNTRUSTED = ("object.name",)
+events.kind(
+    "budget.warned",
+    label="Budget warning",
+    source="log",
+    as_type="Announce",
+    object_type="Note",
+    fields={
+        "object": {
+            "type": "object",
+            "properties": {
+                "resource": _s("What the budget is for (all, space:<id>, routine:<id>, pipeline:<id>, workflow:<id>)"),
+                "state": _s("State", enum=["near", "over"]),
+                "share": _s("Share of the budget used", "number"),
+                "usd": _s("Spent (USD)", "number"),
+                "tokens": _s("Spent (tokens)", "integer"),
+                "estimate": _s("The USD is an estimate", "boolean"),
+                "cap_usd": _s("Budget (USD)", "number"),
+                "cap_tokens": _s("Budget (tokens)", "integer"),
+                "period": _s("Period", enum=["day", "week", "month"]),
+                "since": _s("Period started", format="date-time"),
+            },
+        }
+    },
+    untrusted=SYSTEM_UNTRUSTED,
+    sample=_sample(
+        "log-52",
+        "budget.warned",
+        "Announce",
+        LENS,
+        {
+            "type": "Note",
+            "id": "lens:budget/space_3",
+            "name": "Budget for the pods namespace",
+            "url": "/costs",
+            "resource": "space:3",
+            "state": "near",
+            "share": 0.82,
+            "usd": 4.1,
+            "tokens": 812000,
+            "cap_usd": 5.0,
+            "period": "month",
+            "since": "2026-10-01T00:00:00+00:00",
+        },
+        "The pods namespace has used 82% of its budget",
+        "log",
+        ["2026-10-15T16:21:58+00:00", 52],
+        SYSTEM_UNTRUSTED,
+        space=3,
+    ),
+)
+events.kind(
+    "backup.finished",
+    label="Backup finished",
+    source="log",
+    as_type="Create",
+    object_type="Document",
+    fields={
+        "object": {
+            "type": "object",
+            "properties": {
+                "label": _s("Taken", enum=["manual", "scheduled"]),
+                "ok": _s("It worked", "boolean"),
+                "error": _s("Why it failed"),
+                "kind": _s("Kind", enum=["export", "folder"]),
+                "bytes": _s("Size (bytes)", "integer"),
+                "files": _s("Has the data folder's files", "boolean"),
+                "copied": _s("Copied to the storage connection", "boolean"),
+            },
+        }
+    },
+    untrusted=(),
+    sample=_sample(
+        "log-53",
+        "backup.finished",
+        "Create",
+        LENS,
+        {
+            "type": "Document",
+            "id": "lens:backup/scheduled-20261015-020000.surql.gz",
+            "name": "scheduled-20261015-020000.surql.gz",
+            "url": "/settings/backups",
+            "label": "scheduled",
+            "ok": True,
+            "kind": "export",
+            "bytes": 48213004,
+            "files": True,
+            "copied": True,
+        },
+        "A scheduled backup finished: scheduled-20261015-020000.surql.gz",
+        "log",
+        ["2026-10-15T02:00:41+00:00", 53],
+        (),
+    ),
+)
+RELEASE_UNTRUSTED = ("object.title",)
+events.kind(
+    "lens.release",
+    label="New Lens release",
+    source="log",
+    as_type="Announce",
+    object_type="Note",
+    fields={
+        "object": {
+            "type": "object",
+            "properties": {
+                "tag": _s("Version"),
+                "title": _s("Release name"),
+                "current": _s("This server runs"),
+                "published_at": _s("Published", format="date-time"),
+            },
+        }
+    },
+    untrusted=RELEASE_UNTRUSTED,
+    sample=_sample(
+        "log-54",
+        "lens.release",
+        "Announce",
+        LENS,
+        {
+            "type": "Note",
+            "id": "lens:release/v0.7.0",
+            "name": "Lens v0.7.0",
+            "url": "https://github.com/adeelahmad/lense/releases/tag/v0.7.0",
+            "tag": "v0.7.0",
+            "title": "v0.7.0",
+            "current": "0.6.0",
+            "published_at": "2026-10-15T09:00:00Z",
+        },
+        "Lens v0.7.0 is out (this server runs 0.6.0)",
+        "log",
+        ["2026-10-15T16:21:58+00:00", 54],
+        RELEASE_UNTRUSTED,
     ),
 )
