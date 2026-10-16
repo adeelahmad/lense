@@ -100,6 +100,11 @@ When the configured model supports function calling, chat becomes an agent.
 - **The person's review marks:** `mark_activities` marks activities of the timeline reviewed, important or hidden for
   the person ([Timeline](timeline.md#review-marks)). After it has read text from outside Lens, hiding or marking
   reviewed waits for their yes; marking important or bringing things back acts at once.
+- **The person's approvals:** `approvals` lists what waits for their pick ([Approvals](automations.md#approvals)):
+  automations' actions about the namespaces the conversation reads, and its own proposals in this conversation.
+  `decline_approval` declines one; after it has read text from outside Lens (the approvals' own summaries count),
+  declining waits for the person's yes. It can't approve: that is the person's pick. An automation's agent doesn't
+  get `decline_approval`.
 - **Limits:** everything is limited to what the person can read and to the conversation's scope, and capped by
   `ai.max_steps` (Settings → AI assistant, Tool steps per answer; 6 by default) and `ai.max_transcript_reads`.
 - **Always an answer:** the model is told its step budget. When the steps run out, or it replies with nothing, it is

@@ -49,6 +49,7 @@ EVENTS = {
     "batch.finished": "A batch run finished",
     "recording.added": "Something was added",
     "lens.release": "A new Lens release is out",
+    "approval.waiting": "An automation's action waits for someone's approval",
 }
 DEFAULT_EVENTS = ["job.failed", "batch.finished"]
 KINDS = {
@@ -567,12 +568,15 @@ def _event(kind, key, space, ns, text, url, data):
 
 JOB_FIELDS = "recording, space, batch, steps, step_index, status, error, finished_at"
 REC_FIELDS = "space, title, source, created_at"
+APPROVAL_FIELDS = "space, summary, automation, origin, intent.action AS action, intent.effect AS effect, expires_at, created_at"
 SOURCES = {
     # source: (table, its time column, the fields read, more to match)
     "jobs": ("job", "finished_at", JOB_FIELDS, "AND status IN ['succeeded', 'failed', 'cancelled']"),
     "recordings": ("recording", "created_at", REC_FIELDS, ""),
+    "approvals": ("approval", "created_at", APPROVAL_FIELDS, "AND intent != NONE AND status = 'pending'"),  # automations' (approvals.py)
 }
 JOB_EVENTS = {"job.succeeded", "job.failed", "job.cancelled", "batch.finished"}
+SOURCE_EVENTS = {"jobs": JOB_EVENTS, "recordings": {"recording.added"}, "approvals": {"approval.waiting"}}
 
 
 def _rows(db, source, pos, floor, spaces, since):
@@ -682,6 +686,30 @@ def _added_events(cfg, rows, names):
     return out
 
 
+def _approval_events(cfg, rows, names):
+    """approval.waiting: an automation's action that waits for its person's pick. Its summary holds what the run read
+    from outside Lens, so web addresses in the message are broken up, but Lens's own."""
+    from . import untrusted
+
+    out = []
+    for r in rows:
+        ns, key = names.get(r["space"]), f"approval-{r['id']}-waiting"
+        who = r.get("automation") or "An automation"
+        text = untrusted.defang(f"{who} waits for a pick in {ns}: {r.get('summary') or 'an action'}.", own=[app_url(cfg)])
+        data = {
+            "approval": r["id"],
+            "automation": (r.get("origin") or {}).get("automation"),
+            "automation_name": r.get("automation"),
+            "summary": r.get("summary"),
+            "action": r.get("action"),
+            "effect": r.get("effect"),
+            "expires_at": r.get("expires_at"),
+            "created_at": r["created_at"],
+        }
+        out.append(([key], _event("approval.waiting", key, r["space"], ns, text, _link(cfg, f"/approvals?id={r['id']}"), data)))
+    return out
+
+
 _CLAIMED: dict[str, None] = {}  # keys this process knows are claimed, so it doesn't ask the database again
 _CL = threading.Lock()
 
@@ -765,7 +793,8 @@ def scan(db, cfg):
     wanted = {e for t in live for e in t.get("events") or []}
     n = 0
     for source in SOURCES:
-        if not wanted & (JOB_EVENTS if source == "jobs" else {"recording.added"}):
+        pos.setdefault(source, [t_now, 0])  # a source added since the last look starts from now, nothing replayed
+        if not wanted & SOURCE_EVENTS[source]:
             pos[source] = [t_now, 0]  # nobody wants these: when someone does, they start from then
             continue
         rows, full = _rows(db, source, pos[source], floor, spaces, since)
@@ -779,6 +808,8 @@ def scan(db, cfg):
             events, bids = _job_events(cfg, rows, names, titles)
             if "batch.finished" in wanted:
                 events += _batch_events(db, cfg, bids, spaces, names)
+        elif source == "approvals":
+            events = _approval_events(cfg, rows, names)
         else:
             fresh = _unclaimed(db, [f"recording-{r['id']}-added" for r in rows])
             events = _added_events(cfg, [r for r in rows if f"recording-{r['id']}-added" in fresh], names)
