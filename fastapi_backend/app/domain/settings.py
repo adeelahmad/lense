@@ -56,6 +56,7 @@ EDITABLE = {
     "updates": ("check", "check_hours", "auto_install", "email"),
     "activity": None,
     "events": None,
+    "automations": None,
     "backups": None,
     "encryption": None,
     "fedora": None,
@@ -479,6 +480,8 @@ def _check(section, key, value, default):
         return _activity_setting(key, value)
     if section == "events":
         return _events_setting(key, value)
+    if section == "automations":
+        return _automations_setting(key, value)
     if section == "backups":
         return _backup_setting(key, value)
     if section == "fedora":
@@ -1026,6 +1029,25 @@ def _events_setting(key, value):
     if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
         raise ValueError(f"events.{key} is {what} from {lo} to {hi}")
     return value
+
+
+CATCH_UP_MAX = 7 * 86400
+
+
+def _automations_setting(key, value):
+    """Automations (docs/automations.md): catch_up is a duration like 1h, from 0s (a timer missed while Lens was off
+    is missed) to 7d."""
+    from . import automation_spec
+
+    if key != "catch_up":
+        raise ValueError(f"unknown setting automations.{key}")
+    try:
+        n = automation_spec.check_duration(value, what="automations.catch_up")
+    except ValueError:
+        n = -1
+    if not 0 <= n <= CATCH_UP_MAX:
+        raise ValueError("automations.catch_up is a duration from 0s to 7d, like 1h")
+    return value.strip()
 
 
 def _backup_setting(key, value):

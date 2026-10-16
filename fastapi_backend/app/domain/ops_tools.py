@@ -33,6 +33,7 @@ SECTIONS = (
     "reports",
     "notifications",
     "events",
+    "automations",
     "workers",
     "decisions",
     "voice",

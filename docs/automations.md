@@ -26,10 +26,12 @@ merged is called built.
 | Calling a web address: the `http_request` action, with credentials in headers kept sealed | built |
 | Running Lens work: the `run_workflow`, `run_pipeline` and `run_routine` actions | built |
 | Changing assets and writing notes: the `set_field`, `add_to_collection` and `write_note` actions | built |
-| Settings → Automations: how often followers look and how long the event log is kept | built |
+| Settings → Automations: how often followers look, how long the event log is kept, and how late a timer may fire | built |
 | A webhook address per automation trigger, and calls to it as `webhook.received` ([Webhook trigger](#webhook-trigger)) | built |
+| Timers that outlast a restart and fire once across the API and the worker (`app/domain/timers.py`, [Time](#time)) | built |
+| Schedule, `at` and `relative` triggers, and actions that wait ([Time](#time)) | planned |
 | The Timeline page with filters, grouping, review keys and new items, and Home's Latest card ([Timeline](timeline.md)) | built |
-| Storing and running automations, schedules and timers, joins, approvals, variables, the studio | planned |
+| Storing and running automations, joins, approvals, variables, the studio | planned |
 
 ## Contract
 
@@ -477,6 +479,45 @@ everyone who reads the asset sees.
 Calendar events aren't written: Lens signs in to Google Calendar read-only, and writing needs a new consent. Meanwhile
 the agent can draft an event as a note.
 
+## Time
+
+Time is a trigger and a step: "every weekday at 7:00", "at 9:00 on the 20th", "30 minutes before a calendar event",
+"wait 2 hours, then...", and the clock behind a join's "if no reply within 2 days". All of it rests on timers.
+
+### Timers
+
+Built (`app/domain/timers.py`). A timer is one row per key in the `timer` table: when it is due, what runs then (its
+kind), what that gets (its payload), and the automation it is for. Status: `waiting`, then `fired`, or `failed`,
+`cancelled` or `missed`.
+
+```python
+timers.set(db, key, at, kind, payload, automation=None)  # makes it, or replaces the one with that key
+timers.cancel(db, key)                                    # True when one was waiting
+timers.cancel_for(db, automation)                         # every waiting one of an automation (deleted, switched off)
+timers.get(db, key)
+
+@timers.handler("join.absent")                            # what runs when one of this kind fires
+def _(db, cfg, payload): ...                              # payload + late (true or false) + timer {key, at, automation}
+```
+
+- **Once.** A thread started with the routines' threads (so in the API's background work and in `lens worker`) looks
+  every 5 seconds, and at once after `events.wake()`. Each due timer is claimed with a compare-and-set update that
+  only one process wins, then its handler runs. A process that stops while a handler runs leaves that firing done:
+  a timer fires at most once, never twice.
+- **Repeating.** A handler registered with `again(payload, after)` (a schedule's next time) is re-armed in the same
+  update that claims it, so a repeating timer is never lost; its row keeps waiting, with `last` saying how the last
+  firing went.
+- **Lens was off.** A timer due within `automations.catch_up` (1 hour; Settings → Automations) fires late, with
+  `late: true`; an older one is `missed` and counted on its automation (`missed`). A repeating one that missed
+  several times fires once, for its latest time if that is within the window, then waits for its next. A timer fired
+  within 2 minutes of its time is on time.
+- **Kept small.** An automation has at most 1000 timers waiting; setting more is refused, saying so. Timers that
+  ended are dropped after 7 days, by a tidy `routines.run_due` calls (once an hour). A kind nothing handles fails
+  with a note.
+- **Light.** No timer exists until an automation uses time. While none waits the thread doesn't query the table: it
+  checks once a minute, and at once when this process sets one. A timer set by the other process (the API, when the
+  worker fires them) can so fire up to a minute late.
+
 ## Refine later
 
 - More operators: `in`, `matches` (bounded regular expressions), `between`, times against now, `changed`.
@@ -513,6 +554,8 @@ the agent can draft an event as a note.
 - Calling a web address: secrets in the address itself (a Slack or Discord webhook URL) sealed like headers; PATCH and
   DELETE (DELETE would count as deleting); OAuth sign-in for an API; form-encoded bodies; retries with backoff;
   networks allowed for automations apart from notifications.
+- Time: sub-second timers woken by `events.wake()` alone; telling the other process (the worker) at once when the
+  API sets a timer, rather than within a minute.
 - Running Lens work: a routine run's id passed on (today the scheduler starts it later); waiting for the job and passing
   on its outputs; roles on collections counting for `process`; running a pipeline on every asset a join collected.
 - Changing assets: asking first instead of failing when a move would show an asset to new people (risk that reads the
