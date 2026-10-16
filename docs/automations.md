@@ -39,7 +39,7 @@ merged is called built.
 | Deciding an automation's action with a yes in the chat it told you in | built |
 | Approvals as activities (`approval.waiting`, `approval.decided`) and the `approval.waiting` notification | built |
 | Agents' approval tools: `approvals` and `decline_approval` over MCP and in the assistant, and no way for an agent to approve | built |
-| The Approvals page and its badge | planned |
+| The Approvals page (`/approvals`), its badge in the top bar and nav, and Home's Needs attention row | built |
 | Storing and running automations, joins, variables, the studio | planned |
 
 ## Contract
@@ -649,6 +649,15 @@ expires, seen by its person alone ([Approvals as activities](#approvals-as-activ
 target can send `approval.waiting` to a team chat or webhook ([Notifications](notifications.md#events)); it is off
 until a target asks for it.
 
+**The Approvals page** (`/approvals`, in the nav under Automate) lists what waits for your pick, each automation's
+together and the assistant's by conversation: what it would do, why (a link to the activity that caused it), whether
+it reaches outside Lens, when it expires, and its params. The first is in focus, so Enter approves it and focus moves
+to the next; Tab moves between them. **Edit** changes the params in place (Enter approves with the changes),
+**Always allow** shows where the node can be allowed, and **Decline** takes it out at once with Undo on the notice
+for a few seconds instead of a question. The link you were told (`/approvals?id=12`) brings that one first, or says
+what became of it. Below, what was decided lately. A badge in the top bar counts what waits (nothing shows while
+none do), the nav item carries the same count, and Home's Needs attention has a row for them.
+
 The inbox reads `GET /api/v1/approvals` (newest first; `status`, `origin=automation|chat`, `automation`, `chat_id`,
 and `before` with `limit` to page), `GET /api/v1/approvals/{aid}` and `GET /api/v1/approvals/count` (`{waiting,
 automations}`, for a badge).
@@ -810,4 +819,5 @@ the timer was cancelled, or Lens was off past the catch-up window.
 - Approvals: a cost estimate on actions that ask (a run on another asset could say what it would cost); approve
   buttons in Telegram and Slack (today a yes decides only actions inside Lens); approvals that need two people; one
   card for many alike ("approve all 12"); trying a failed one again; expiring an automation's approvals when it is
-  removed.
+  removed; on the page, keys for decline and edit, live updates instead of reading again each minute, and the
+  assistant's proposals shown with their estimates.

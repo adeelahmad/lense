@@ -6,6 +6,7 @@ import {
   HardDriveDownload,
   History,
   House,
+  Inbox,
   LibraryBig,
   MessagesSquare,
   NotebookPen,
@@ -30,8 +31,8 @@ export type NavItem = {
   adminOnly?: boolean;
   /** Only shown to people who aren't administrators (admins have it under another item). */
   membersOnly?: boolean;
-  /** A count shown next to the label (library size, speakers to review in Settings). */
-  countKey?: "recordings" | "reviews";
+  /** A count shown next to the label (library size, speakers to review in Settings, approvals waiting). */
+  countKey?: "recordings" | "reviews" | "approvals";
   /** The group it's in, named above its first item; the first group (what people use every day) has no name. */
   group: NavGroup;
 };
@@ -58,6 +59,7 @@ export const NAV: NavItem[] = [
   { label: "Graph", href: "/graph", icon: Waypoints, group: "Explore" },
   { label: "Podcasts", href: "/podcasts", icon: Podcast, group: "Explore" },
   { label: "Reports", href: "/reports", icon: ChartNoAxesColumn, group: "Explore" },
+  { label: "Approvals", href: "/approvals", icon: Inbox, countKey: "approvals", group: "Automate" },
   { label: "Pipelines", href: "/pipelines", icon: Workflow, group: "Automate" },
   { label: "Routines", href: "/routines", icon: CalendarClock, adminOnly: true, group: "Automate" },
   { label: "Extensions", href: "/extensions", icon: Blocks, group: "Automate" },
