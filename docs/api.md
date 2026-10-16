@@ -206,6 +206,25 @@ Each person marks activities `reviewed`, `important` or `hidden` for themselves 
 and `POST /activities/mark` with `ids` (up to 500) answers `{marks, unknown}`. `GET /activities` has your marks on
 the page in `marks` and filters by them with `reviewed`, `important` and `hidden` (true or false).
 
+## automations
+
+```
+POST   /api/v1/automations/hooks/{token}
+```
+
+An automation's webhook ([Webhook trigger](automations.md#webhook-trigger)): calling the address of a trigger
+`{"on": "webhook"}` sets that automation off. No session or API token: the token in the address (`lah_...`, shown
+once when the automation is saved) is the credential. Send JSON, a form (text fields) or text, up to 64 KB; the answer
+(202) is `{"id"}`, the `webhook.received` activity the call made, before the automation runs. Sign the call the
+Standard Webhooks way (`webhook-id`, `webhook-timestamp`, `webhook-signature`, with the secret shown with the
+address) and the signature is checked; a `webhook-id` or `Idempotency-Key` makes a retried call count once. 401 for a
+token that isn't a webhook's or a signature that doesn't match, 403 while the automation is switched off, 413 over 64
+KB, 415 for other bodies, 429 past 60 calls a minute.
+
+```
+curl -H "Content-Type: application/json" -d '{"event": "doorbell"}' https://lens.example/api/v1/automations/hooks/lah_...
+```
+
 ## vaults
 
 ```

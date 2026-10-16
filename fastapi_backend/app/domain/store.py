@@ -1267,6 +1267,10 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS event_cursor SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS event_claim SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS event_claim_at ON event_claim FIELDS at",
+    # an automation trigger's webhook (domain/automation_hooks.py): automation_hook:<n>, the token kept only as a hash
+    "DEFINE TABLE IF NOT EXISTS automation_hook SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS automation_hook_token ON automation_hook FIELDS token_hash UNIQUE",
+    "DEFINE INDEX IF NOT EXISTS automation_hook_automation ON automation_hook FIELDS automation",
     "DEFINE INDEX IF NOT EXISTS upload_recording ON upload FIELDS recording",
     # review marks on the timeline (domain/event_marks.py, docs/timeline.md): each person's reviewed, important and
     # hidden flags on an activity, event_mark:<hash of account and activity> (the id keeps the pair unique)
@@ -1292,6 +1296,8 @@ SCHEMA = [
     # hourly rollups (sensor_rollup:<stream>-<field>-<hour>), hub logins and the processes running the hub
     "DEFINE INDEX IF NOT EXISTS storage_source_key ON storage_source FIELDS key",
     "DEFINE INDEX IF NOT EXISTS storage_source_push ON storage_source FIELDS push_hash",
+    # sensors discovery made, newest first, as sensor.joined (events_streams.py)
+    "DEFINE INDEX IF NOT EXISTS storage_source_created ON storage_source FIELDS created_at",
     "DEFINE TABLE IF NOT EXISTS sensor_stream SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS sensor_stream_sensor ON sensor_stream FIELDS sensor",
     "DEFINE TABLE IF NOT EXISTS sensor_reading SCHEMALESS",
@@ -1306,6 +1312,7 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS sensor_pattern_sensor ON sensor_pattern FIELDS sensor, stream",
     "DEFINE INDEX IF NOT EXISTS sensor_pattern_stream ON sensor_pattern FIELDS stream",
     "DEFINE INDEX IF NOT EXISTS sensor_pattern_action ON sensor_pattern FIELDS action",
+    "DEFINE INDEX IF NOT EXISTS sensor_pattern_label ON sensor_pattern FIELDS label",
     "DEFINE INDEX IF NOT EXISTS sensor_reading_pattern ON sensor_reading FIELDS pattern",
     "DEFINE TABLE IF NOT EXISTS sensor_login SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS sensor_login_name ON sensor_login FIELDS username UNIQUE",

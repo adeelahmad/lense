@@ -15,7 +15,8 @@ merged is called built.
 | New assets by kind: emails received, calendar events, files from storage, uploads, pages saved from the web, imports | built |
 | Runs that finished or failed, deletions and calendar events that moved | built |
 | Comments, notes written and saved, and changes to the entity graph | built |
-| More kinds: sensors, chat, webhooks, system events | planned |
+| Sensors: readings a sensor keeps, alert and notable log patterns, devices that report for the first time ([Sensors](#sensors-as-activities)) | built |
+| More kinds: chat, system events | planned |
 | The timeline API (`GET /api/v1/activities`), the MCP tools `timeline` and `event_kinds`, the assistant's `timeline` | built |
 | Review marks on the timeline (reviewed, important, hidden), their filters and `mark_activities` ([Timeline](timeline.md)) | built |
 | The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
@@ -26,6 +27,7 @@ merged is called built.
 | Running Lens work: the `run_workflow`, `run_pipeline` and `run_routine` actions | built |
 | Changing assets and writing notes: the `set_field`, `add_to_collection` and `write_note` actions | built |
 | Settings → Automations: how often followers look and how long the event log is kept | built |
+| A webhook address per automation trigger, and calls to it as `webhook.received` ([Webhook trigger](#webhook-trigger)) | built |
 | The Timeline page with filters, grouping, review keys and new items, and Home's Latest card ([Timeline](timeline.md)) | built |
 | Approvals: an automation's action that asks first waits for your pick (approve, decline, edit, allow from now on), told once in your chat app, capped and expiring (`app/domain/approvals.py`) | built |
 | The Approvals page and its badge, a yes in your chat app, approval activities and notifications, agents' approval tools | planned |
@@ -103,6 +105,10 @@ and the paths holding outside text are in `GET /api/v1/activities/kinds` (`event
 | `note.created` | | `note_pages` | a `Page`: `summary`, `about` (what it's the page of), `place`, `author` (person or assistant) | Assistant wrote the note “St Mary's School” |
 | `note.saved` | | `note_versions` | as `note.created`, with `version` (the page as it was before) and `why` | Sam edited the note “School trip plans” |
 | `entity.changed` | | `graph` | `op` (created, renamed, merged, split, linked, unlinked, deleted, rolled back, changed), `change` (the graph's own op), `entityType`, `before` (a renamed entity's name), `version`, `count`; tagged with its entities | Sam renamed “St Marys” to “St Mary's School” |
+| `sensor.reading` | | `sensor_readings` | `{type: Note, id: lens:sensor_reading/<id>, name: "<stream>: <what it said>", url: /sensors/<id>}`, `stream`, `value`, `text`, `fields` (a JSON reading's numbers), `level` (syslog), `pattern`, `label` (the line's pattern and its label); noisy | Kitchen sensor temperature: 31.2 |
+| `sensor.alert` | | `log` | `{type: Note, id: lens:sensor_pattern/<id>}`, `label` (alert or notable), `pattern`, `example` (a line it fits), `count` (lines in all), `lines` (in the batch that raised it), `hour` | 192.168.1.1 logged an alert: wlan<n>: authentication failed for <mac> |
+| `sensor.joined` | | `sensors` | `{type: Service, id: lens:sensor/<id>, url: /sensors/<id>}`, `sensor_type` (mqtt, syslog, ...), `device`, `status` | A new MQTT device reported: zigbee2mqtt/kitchen |
+| `webhook.received` | | `log` | `{type: Note, hook: the webhook's id, payload: what was sent (JSON, a form's fields or text), content_type, query}`; the actor is the webhook (`Service`, `lens:automation_hook/<id>`, "Webhook for <automation>") | Webhook for Front door was called |
 
 A new asset is one activity, of the most specific kind its row tells, decided by its content type and where it came
 from, never by reading its file: an email (content type email, or from an IMAP or Gmail mailbox), a calendar event
@@ -135,6 +141,25 @@ its text once it has been read (`recording.email`). Emails and events imported b
 fields their rows had. Outside text (titles, subjects, addresses, snippets, places, file names, page addresses) is
 listed in `lens.untrusted`.
 
+#### Sensors as activities
+
+Built (`app/domain/events_streams.py`). A sensor's actor is the sensor (`Service`, `lens:sensor/<id>`, its name); a
+sensor with no namespace makes activities for admins, as its page is. Its names, streams, text and patterns are
+outside text.
+
+- `sensor.reading` is a reading the sensor keeps, as its handling stores them: `all`, `changes` (a change, and once
+  an hour while a value stays the same), none for `summary` or `none`, and none while it is paused or ignored. To
+  trigger on every change, set the sensor to store changes. It is noisy: the timeline leaves it out unless asked for.
+  Readings are read one sensor at a time over the index on `(sensor, at)`, and a follower whose hint names sensors
+  (`{"actors": ["lens:sensor/5"]}`, which an automation's trigger on one sensor gives) reads only theirs, so a busy
+  sensor nobody listens to is never read.
+- `sensor.alert` is a log pattern ([Sensors](sensors.md#log-patterns-and-triage)) labelled alert or notable that new
+  lines fit, raised by the intake as it writes them: once per pattern per hour (the event log's key is the pattern
+  and the hour, so two processes raise it once), whether the lines are kept or dropped. A label the decision model
+  wasn't sure of raises none until a person settles it, and a paused or ignored sensor raises none.
+- `sensor.joined` is a device or host that made itself a sensor by reporting for the first time (MQTT, syslog),
+  read from its `storage_source` row by `created_at`; a sensor added by hand isn't news.
+
 ### Sources and the event log
 
 Built. A source (`events.Source`, added with `events.register_source`) reads rows Lens already keeps as activities,
@@ -148,7 +173,7 @@ so nothing is stored twice:
 - `get(db, cfg, activity_id)`: one activity by its id, or null; `now(db)`, `back(db, seconds)`: positions of now and of
   `seconds` ago; `key(a)`: the position `page` orders by.
 
-A kind belongs to the source named in its `source`, and a source may list more in `kinds`. Two are built:
+A kind belongs to the source named in its `source`, and a source may list more in `kinds`. These are built:
 
 - `recordings` (`app/domain/events_content.py`) reads `recording` by `created_at`, the id breaking ties, as
   `asset.added` and its children (Kinds, above). The actor is whoever added it: an automation (its first job was
@@ -164,6 +189,9 @@ A kind belongs to the source named in its `source`, and a source may list more i
 - `comments` reads `comment` by `created_at`; `note_pages` reads `note_page` by `created_at`; `note_versions` reads
   `note_version` by `at` (to the millisecond) and keeps one version for each page and window; `graph` reads
   `graph_event` by `at`, the event number breaking ties (numbers are given out in order, so the two agree).
+- `sensor_readings` (`app/domain/events_streams.py`) reads `sensor_reading` by `at` (microseconds), the id breaking
+  ties, one sensor at a time, as `sensor.reading`; `sensors` reads the `storage_source` rows discovery made by
+  `created_at`, as `sensor.joined`.
 - `log` reads `event_log`: activities no row of their own records (a deletion, a webhook call), written by
   `events.emit(db, kind, *, actor, obj, space, summary, target=None, tag=None, key=None, published=None, spaces=None,
   audience=None, owner=None, untrusted=None)`, which gives the id (`log-<n>`). Emitting a `key` again changes
@@ -195,10 +223,11 @@ where the next look starts (`event_cursor:<consumer>`, a position per source).
 ### Timeline reads
 
 Built. `events.page(db, cfg, viewer, before=None, flt=None, limit=50)` reads the stream newest first for a viewer
-(`events.viewer(account, spaces, admin)`, spaces null for every one): `{"items": [...], "next": ...}`, where `next`
-(an opaque cursor, null at the end) goes in `before` for the page after. It merges every source's `page`, applies
-who may see what, and when filters thin a page out it reads on, up to five pages from each source.
-`events.get(db, cfg, id, viewer)` reads one activity, null when there is none or it isn't the viewer's to see.
+(`events.viewer(account, spaces, admin)`, spaces null for every one): `{"items": [...], "next": ...}`, where `next` (an
+opaque cursor, null at the end) goes in `before` for the page after. It merges every source's `page` by `published`
+(each source's own position breaking ties), applies who may see what, and when filters thin a page out it reads on, up
+to five pages from each source. `events.get(db, cfg, id, viewer)` reads one activity, null when there is none or it
+isn't the viewer's to see.
 
 - Who sees what: `lens.audience` `owner` is its owner alone; `admins` is admins; `space` is everyone who reads one of
   its namespaces (`space` or `lens.spaces`); admins read every namespace, and an activity of no namespace is for
@@ -266,6 +295,41 @@ gives a cleaned copy, or a ValueError naming the first problem.
 - `check_if(tree)`: the If is a match tree over the run context, so its paths start with one of the context's keys.
 - `check_policy(p, nodes, allow_auto=False)`: `{action node id: ask or auto}`. Only a person in a signed-in session
   lets a node run on its own; everywhere else (agents, drafts, the workflow API) `auto` is refused.
+
+### Webhook trigger
+
+Built (`app/domain/automation_hooks.py`, `POST /api/v1/automations/hooks/{token}`). A trigger `{"on": "webhook"}`
+is a secret address anything that can send HTTP calls to set the automation off: Home Assistant's `rest_command`, a
+phone shortcut, another service. No webhook exists until an automation with such a trigger is saved.
+
+- `automation_hooks.token_for(db, cfg, automation_id, alias, signed=False)` makes the hook for one trigger when the
+  automation is saved: `{"hook": id, "url": address, "path": address without the server, "secret": signing secret}`.
+  The address and secret are shown this once; the row (`automation_hook {automation, alias, token_hash, secret,
+  signed, created_at, last_called_at, calls}`) keeps only the token's hash and the secret sealed with the server's
+  key. Calling it again for the same trigger replaces the hook, and the old address stops working. The trigger keeps
+  the hook's id in `hook`. `automation_hooks.revoke(db, hook)` deletes it (when the trigger or the automation goes);
+  `for_automation(db, id)` lists an automation's hooks.
+- A call needs only the token in the address (`lah_...`). It takes JSON, a form (text fields; files are refused) or
+  text, up to 64 KB, at most 60 calls a minute per hook (in the API process; 429 with `Retry-After` past it), and
+  answers 202 `{"id": activity}` at once. 401 for a token that isn't a hook's, 403 while the automation is switched
+  off, 413 over 64 KB, 415 for anything but JSON, a form or text.
+- What was sent becomes a `webhook.received` activity in the event log, with the payload, its content type and the
+  query as outside text. Its namespace is the automation's (admins see it while the automation isn't stored).
+- Signed calls: a caller that signs the Standard Webhooks way (`webhook-id`, `webhook-timestamp` in seconds,
+  `webhook-signature: v1,<base64 HMAC-SHA256 of "<id>.<timestamp>.<body>">` keyed with the secret, as Lens signs its own
+  [notification webhooks](notifications.md#webhooks)) has the signature checked, and the time must be within five
+  minutes. A hook made with `signed=True` refuses calls that aren't signed. A call naming its message (`webhook-id`, or
+  an `Idempotency-Key` header) is logged once however often the sender retries it.
+- In Docker the API runs no background work, so the worker's automations see the call on their next look (5
+  seconds, `events.poll_seconds`).
+
+Lens has three kinds of webhook address; they don't share tokens or do each other's jobs:
+
+| Address | Made by | What a call does |
+| --- | --- | --- |
+| `POST /api/v1/automations/hooks/{token}` | saving an automation with a webhook trigger | sets that automation off with what was sent (`webhook.received`); nothing is kept but the activity |
+| `POST /api/v1/sensors/push/{token}` ([Sensors](sensors.md)) | an admin adding a webhook sensor | keeps readings (numbers, on/off, text) for charts, with the sensor's handling |
+| `POST /api/v1/hooks/import/{token}` ([Import webhooks](api.md#import-webhooks)) | a namespace's owner | imports files, web pages or text as assets |
 
 ### Run context
 
@@ -503,6 +567,11 @@ automations}`, for a badge).
 - Changing assets: asking first instead of failing when a move would show an asset to new people (risk that reads the
   database); fields on collections and files; tags; roles on collections counting for `edit`.
 - Writing calendar events (a new Google consent, so it changes existing installs).
+- Webhook trigger: signed answers to the caller (what the run did); a rate limit shared by every API process (today
+  each counts its own); showing a hook's last call in the studio.
+- Sensors: a threshold per reading in the intake (only readings over a value become activities, for sensors that
+  keep everything); a reading's unit, which sensors don't record yet; an alert as soon as a pattern is labelled, for
+  the lines already seen that hour.
 - Approvals: a cost estimate on actions that ask (a run on another asset could say what it would cost); buttons in
   Telegram and Slack; approvals that need two people; one card for many alike ("approve all 12"); trying a failed one
   again; expiring an automation's approvals when it is removed.

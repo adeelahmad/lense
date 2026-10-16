@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:6f2e5e104620679f5a4d2f0e232a9a4cfdfab594ce55758f4d186bcae9a9492f"
+prose_version: "threat-model.md@sha256:2f79a2f8395a4c5d553fddae543f9019fd93c52bd8458ab1166bc7096ff82a34"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -417,15 +417,25 @@ entry_points:
         obligation_id: admin-is-trusted
         caller_must_enforce: "admin is trusted"
         provenance: {kind: maintainer, date: "2026-10"}
+  - id: "POST /automations/hooks/{token} (an automation's webhook)"
+    component: optional
+    parameters:
+      - name: "body (JSON, a form's text fields or text), query, Standard Webhooks headers, token in the path"
+        attacker_controllable: true
+        x-condition: "anyone given the address, once an automation with a webhook trigger is saved"
+        control_kinds: [data, size, rate, x-credential, x-prompt-injection]
+        obligation_id: keep-hook-addresses-secret
+        caller_must_enforce: "the person keeps the address and secret to the services that call it; Lens keeps the token hashed, caps size and rate, checks signatures sent, and treats what was sent as outside text"
+        provenance: {kind: documented, source: 'docs/automations.md "No webhook exists until an automation with such a trigger is saved"'}
   - id: "MQTT 1883, syslog 5514, POST /sensors/push/{token}/{stream}"
     component: optional
     parameters:
       - name: "payloads, hub logins, token in the path"
         attacker_controllable: true
         x-condition: "once enabled"
-        control_kinds: [data, size, rate, x-credential]
+        control_kinds: [data, size, rate, x-credential, x-prompt-injection]
         obligation_id: enable-and-firewall-sensors
-        caller_must_enforce: "admin enables; operator firewalls"
+        caller_must_enforce: "admin enables; operator firewalls; readings, alert patterns and new devices reach automations as outside text (lens.untrusted)"
         provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
   - id: "NFS share (port 12049 on the host, 2049 in the worker)"
     component: optional
@@ -1456,6 +1466,14 @@ properties_claimed:
     violation_symptoms: [integrity-bypass]
     x-voided-by: "admins read everything; an admin setup conversation adds server tools and the act flag (domain/ai_tools.py:287-289); ai.extensions: false turns extensions off"
     provenance: {kind: documented, source: 'docs/assistant.md "Approvals"'}
+  - id: P-AUTOMATION-APPROVAL
+    kind: integrity
+    components: [assistant]
+    tier: security-critical
+    conditions: "an automation's action that asks first waits as an approval of the automation's person and nothing runs until they pick; approving, editing or always need them signed in (API keys, apps, MCP and the assistant only list and decline); a decision is claimed once; at most 100 wait per automation, each tells the person once, and undecided ones expire after automations.approval_days"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "the person setting a node to auto (always, or the builder's toggle); an admin raising automations.approval_days; the summary and the message told hold outside text, with links broken up (P-INJECTION-EGRESS)"
+    provenance: {kind: documented, source: 'docs/automations.md "Approvals"'}
   - id: P-INJECTION-EGRESS
     kind: confidentiality
     components: [assistant]

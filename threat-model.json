@@ -131,6 +131,7 @@
     {
       "name": "optional",
       "entry_points": [
+        "POST /automations/hooks/{token} (an automation's webhook)",
         "MQTT 1883, syslog 5514, POST /sensors/push/{token}/{stream}",
         "SMB share (port 1445 on the host, 4445 in the worker)"
       ],
@@ -488,11 +489,20 @@
       "source": "maintainer ruling, 2026-10"
     },
     {
+      "entry_point": "POST /automations/hooks/{token} (an automation's webhook)",
+      "parameter": "body (JSON, a form's text fields or text), query, Standard Webhooks headers, token in the path",
+      "attacker_controllable": "yes",
+      "component": "optional",
+      "caller_must_enforce": "the person keeps the address and secret to the services that call it; Lens keeps the token hashed, caps size and rate, checks signatures sent, and treats what was sent as outside text",
+      "provenance": "documented",
+      "source": "docs/automations.md \"No webhook exists until an automation with such a trigger is saved\""
+    },
+    {
       "entry_point": "MQTT 1883, syslog 5514, POST /sensors/push/{token}/{stream}",
       "parameter": "payloads, hub logins, token in the path",
       "attacker_controllable": "yes",
       "component": "optional",
-      "caller_must_enforce": "admin enables; operator firewalls",
+      "caller_must_enforce": "admin enables; operator firewalls; readings, alert patterns and new devices reach automations as outside text (lens.untrusted)",
       "provenance": "documented",
       "source": "docs/sensors.md \"Sensors are off until an admin turns them on\""
     },
@@ -1024,6 +1034,14 @@
       "conditions": "assistant tools that change data wait for the person's approval, except notes and an admin's setup conversation",
       "provenance": "documented",
       "source": "docs/assistant.md \"Approvals\""
+    },
+    {
+      "property": "P-AUTOMATION-APPROVAL",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "an automation's action that asks first waits as an approval of the automation's person and nothing runs until they pick; approving, editing or always need them signed in (API keys, apps, MCP and the assistant only list and decline); a decision is claimed once; at most 100 wait per automation, each tells the person once, and undecided ones expire after automations.approval_days",
+      "provenance": "documented",
+      "source": "docs/automations.md \"Approvals\""
     },
     {
       "property": "P-INJECTION-EGRESS",
