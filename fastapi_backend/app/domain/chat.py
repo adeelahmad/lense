@@ -351,10 +351,23 @@ def history(db, cid):
 
 
 def add(
-    db, cid, role, content, passages=None, stopped=False, steps=None, notice=None, error=None, model=None, attachments=None, context=None
+    db,
+    cid,
+    role,
+    content,
+    passages=None,
+    stopped=False,
+    steps=None,
+    notice=None,
+    error=None,
+    model=None,
+    attachments=None,
+    context=None,
+    origin=None,
 ):
     """Save a message; an answer keeps the tool steps it took, any notice (e.g. the model can't use tools) and error; a
-    question asked from a page keeps what it shared of it (shared_context)."""
+    question asked from a page keeps what it shared of it (shared_context). A question an automation asked keeps its
+    `origin` ({automation, run, node}), so it isn't taken for a person's message (`chat.message`)."""
     mid = db.next_id("chat_message")
     db.q(
         "CREATE $r CONTENT $d",
@@ -373,6 +386,7 @@ def add(
                 "error": error,
                 "model": model,
                 "context": context,
+                "origin": origin or None,
             }
         ),
     )
