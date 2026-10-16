@@ -143,19 +143,19 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [notes](docs/notes.md), [evidence PDFs](docs/api.md#evidence-pdfs); [checks](docs/requirements.md#learn-from-it))
 - **Automate it.** Pipelines and workflows on a canvas, routines on a schedule, batch runs over a collection, and
   notifications to webhooks, Slack, Discord and Matterbridge. Everything that happens in Lens (new assets, emails,
-  calendar events, files, what people say to Lens, sensor readings, notes, graph changes, runs, budget warnings) is kept
-  as a stream of activities in W3C Activity Streams form, which agents read through the API, MCP and the assistant, and
-  people review on the Timeline page (and Latest on Home), marking what they've seen. Automations act on that stream, on
-  a schedule, at a time or when their own webhook is called: they test conditions, then tell you in your own chat app,
-  ask the model or the agent, use a tool, call a web address (its credentials kept sealed), run a workflow, pipeline or
-  routine, or change assets and notes. A Classify node in a workflow sorts an asset into labels, content types or
-  topics, acting only on a sure answer. Anything that reaches outside Lens or changes more than what set it off asks
-  first, until you let it run on its own: on the Approvals page or, for a change inside Lens, with a yes in the chat it
-  told you in; agents can decline an approval but never give one. Each automation has limits and budgets, and agents
-  make, try and run them over MCP and in the assistant, or draft one from a sentence; the studio to draw them in the web
-  app is planned. ([Processing](docs/processing.md#workflows-and-the-canvas), [notifications](docs/notifications.md),
-  [automations](docs/automations.md), [approvals](docs/automations.md#approvals), [timeline](docs/timeline.md);
-  [checks](docs/requirements.md#automate-it))
+  calendar events, files, feed posts, what people say to Lens, sensor readings, notes, graph changes, runs, budget
+  warnings) is kept as a stream of activities in W3C Activity Streams form, which agents read through the API, MCP and
+  the assistant, and people review on the Timeline page (and Latest on Home), marking what they've seen. Automations act
+  on that stream, on a schedule, at a time or when their own webhook is called: they test conditions, then tell you in
+  your own chat app, ask the model or the agent, use a tool, call a web address (its credentials kept sealed), run a
+  workflow, pipeline or routine, or change assets and notes. A Classify node in a workflow sorts an asset into labels,
+  content types or topics, acting only on a sure answer. Anything that reaches outside Lens or changes more than what
+  set it off asks first, until you let it run on its own: on the Approvals page or, for a change inside Lens, with a yes
+  in the chat it told you in; agents can decline an approval but never give one. Each automation has limits and budgets,
+  and agents make, try and run them over MCP and in the assistant, or draft one from a sentence; the studio to draw them
+  in the web app is planned. ([Processing](docs/processing.md#workflows-and-the-canvas),
+  [notifications](docs/notifications.md), [automations](docs/automations.md),
+  [approvals](docs/automations.md#approvals), [timeline](docs/timeline.md); [checks](docs/requirements.md#automate-it))
 - **See what it costs.** An activity ledger of every model call, with reports, charts and budgets that cap spending.
   Setup asks for one overall budget after a cloud model, with a soft limit that warns and a hard limit that stops paid
   calls. A meter in the top bar shows spend against the budget, and the Costs page breaks it down by day, model and
