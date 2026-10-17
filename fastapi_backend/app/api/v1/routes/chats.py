@@ -155,7 +155,8 @@ def create_chat(user: Writer, acl: Acl, db: Db, cfg: Cfg, request: Request, body
     body = body or ChatCreate()
     if body.kind == "setup" and not user.admin:
         raise HTTPException(403, "only admins set up the server")
-    last = chat.remembered_tools(db, user.id)
+    # setting the server up keeps every tool: your latest choice is for conversations about the archive
+    last = chat.remembered_tools(db, user.id) if body.kind == "chat" else {"tools": None, "max_tool_calls": None}
     tools = _tools(_box(db, cfg, user, acl, None, request), body.tools) if "tools" in body.model_fields_set else last["tools"]
     limit = _limit(cfg, body.max_tool_calls) if "max_tool_calls" in body.model_fields_set else _most(cfg, last["max_tool_calls"])
     cid = chat.create(db, user.id, body.title, _scope(acl, db, body.scope), _model(cfg, body.model), body.kind, tools, limit)
@@ -245,7 +246,8 @@ def update_chat(cid: int, body: ChatUpdate, user: Writer, acl: Acl, db: Db, cfg:
         tools = _tools(_box(db, cfg, user, acl, c.get("scope"), request), body.tools) if "tools" in chose else c.get("tools")
         limit = _limit(cfg, body.max_tool_calls) if "max_tool_calls" in chose else c.get("max_tool_calls")
         db.q("UPDATE $r SET tools = $t, max_tool_calls = $n", r=R("chat", cid), t=tools, n=limit)
-        chat.remember_tools(db, user.id, tools, limit)
+        if c.get("kind") == "chat":
+            chat.remember_tools(db, user.id, tools, limit)
     return Ok()
 
 

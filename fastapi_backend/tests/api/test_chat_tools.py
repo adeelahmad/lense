@@ -220,6 +220,11 @@ def test_a_conversation_keeps_its_choice_and_new_ones_start_with_it(app, db, cfg
     assert c.get("/api/v1/chats/tools", headers=h).json()["remembered"] == {"tools": ["notes"], "max_tool_calls": 4}
     c.patch(f"/api/v1/chats/{cid}", headers=h, json={"tools": None, "max_tool_calls": None})
     assert c.get("/api/v1/chats/tools", headers=h).json()["remembered"] == {"tools": None, "max_tool_calls": None}
+    # setting the server up keeps every tool
+    ca, ha = s.cl["admin"]
+    ca.patch(f"/api/v1/chats/{ca.post('/api/v1/chats', headers=ha, json={}).json()['id']}", headers=ha, json={"tools": ["archive"]})
+    setup = ca.post("/api/v1/chats", headers=ha, json={"kind": "setup"}).json()["id"]
+    assert ca.get(f"/api/v1/chats/{setup}", headers=ha).json()["tools"] is None
     # someone else's
     cv, hv = s.cl["viewer"]
     assert cv.get("/api/v1/chats/tools", headers=hv).json()["remembered"] == {"tools": None, "max_tool_calls": None}

@@ -10957,7 +10957,7 @@ export type MessageCreate = {
   /**
    * Tools
    *
-   * what this answer may use: tool groups (archive, web, mcp:tracker) and tools, as GET /chats/tools lists them; [] for none (it answers from a search); null: the conversation's choice, else Auto (everything you may use). An admin's switch still wins
+   * what this answer may use: tool groups (archive, notes, mcp:tracker) and tools, as GET /chats/tools lists them; [] for none (it answers from a search); null: the conversation's choice, else Auto (everything you may use). An admin's switch still wins
    */
   tools?: Array<string> | null;
   /**

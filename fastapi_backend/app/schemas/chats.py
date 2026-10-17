@@ -299,7 +299,7 @@ class MessageCreate(RequestModel):
     tools: list[str] | None = Field(
         None,
         max_length=100,
-        description="what this answer may use: tool groups (archive, web, mcp:tracker) and tools, as GET /chats/tools lists "
+        description="what this answer may use: tool groups (archive, notes, mcp:tracker) and tools, as GET /chats/tools lists "
         "them; [] for none (it answers from a search); null: the conversation's choice, else Auto (everything you may use). An "
         "admin's switch still wins",
     )
