@@ -131,8 +131,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   asset, a topic or an entity, in a Similar tab on every asset or by selecting text anywhere, and, with anytopdf, photos
   by what they show. Pages and shots are described in words by the model provider's vision model or, off by default, by
   Florence-2 or Moondream on your own server. Transcripts can be cleaned up before analysis (stutters, "um"s, spacing
-  and, with a local model, punctuation put back), entities found by spaCy instead of the rules, and the dates people say
-  read as days on the calendar, each off by default.
+  and, with a local model, punctuation put back, and grammar by a LanguageTool server you run), entities found by spaCy
+  instead of the rules, and the dates people say read as days on the calendar, each off by default.
   ([Graph](docs/graph.md), [entity pages](docs/notes.md#entity-pages),
   [similar content](docs/processing.md#similar-content), [graph history](docs/graph-history.md),
   [topics](docs/topics.md), [video](docs/video.md), [NSFW classification](docs/nsfw.md),

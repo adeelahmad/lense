@@ -156,8 +156,9 @@ DEFAULTS = {
     # anytopdf: the places and dates anytopdf (run here) finds, as hints for the extractor (enrich.py); dates: the dates
     # each line gives kept as days on the calendar (dates.py); cleanup: the
     # clean step tidies transcripts before analysis (cleanup.py), cleanup_fillers taking out "um" and "uh" too, and
-    # cleanup_punctuation (off, missing, always) putting marks back with a local model; typing: which model types the
-    # names the rules leave terms (name_types.asking)
+    # cleanup_punctuation (off, missing, always) putting marks back with a local model, cleanup_grammar_url a
+    # LanguageTool server's grammar and punctuation fixes (the compose files' `languagetool` profile); typing: which
+    # model types the names the rules leave terms (name_types.asking)
     "analysis": {
         "entities": "rules",
         "typing": "auto",
@@ -168,6 +169,7 @@ DEFAULTS = {
         "cleanup": False,
         "cleanup_fillers": True,
         "cleanup_punctuation": "off",
+        "cleanup_grammar_url": None,
     },
     # chat_models: the models people may pick in Chat; empty: whatever the model server lists (docs/configuration.md)
     "llm": {
