@@ -12781,6 +12781,24 @@ export type NoteBacklink = {
 };
 
 /**
+ * NoteCopy
+ */
+export type NoteCopy = {
+  /**
+   * Title
+   *
+   * its title (default: the page's)
+   */
+  title?: string | null;
+  /**
+   * Parent
+   *
+   * put it inside this page (default: the top)
+   */
+  parent?: number | null;
+};
+
+/**
  * NoteCreate
  */
 export type NoteCreate = {
@@ -13442,6 +13460,58 @@ export type NoteSearch = {
    */
   pages: Array<NoteHit>;
   [key: string]: unknown;
+};
+
+/**
+ * NoteTemplate
+ */
+export type NoteTemplate = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Summary
+   */
+  summary?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * NoteTemplates
+ */
+export type NoteTemplates = {
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Root
+   *
+   * the "Templates" note: each note inside it is a template; null until made
+   */
+  root?: number | null;
+  /**
+   * Templates
+   */
+  templates: Array<NoteTemplate>;
+  [key: string]: unknown;
+};
+
+/**
+ * NoteTemplatesCreate
+ */
+export type NoteTemplatesCreate = {
+  /**
+   * Ns
+   *
+   * the namespace whose Templates note to make
+   */
+  ns: string;
 };
 
 /**
@@ -18859,6 +18929,85 @@ export type S3Status = {
    */
   keys: Array<S3Key>;
   [key: string]: unknown;
+};
+
+/**
+ * SandboxGateway
+ */
+export type SandboxGateway = {
+  /**
+   * On
+   *
+   * the sandbox profile (the code sandbox's OpenShell gateway) as last asked
+   */
+  on: boolean;
+  /**
+   * State
+   *
+   * how the machine's last change went
+   */
+  state?: "queued" | "running" | "done" | "failed" | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Asked At
+   */
+  asked_at?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Agent
+   *
+   * what changes it on this machine (systemd, launchd); none: run `manual` there
+   */
+  agent?: string | null;
+  /**
+   * Manual
+   *
+   * the line that starts it by hand, on the machine Lens runs on
+   */
+  manual: string;
+  /**
+   * Preflight
+   *
+   * what stands in the way of running it on this machine, a sentence each
+   */
+  preflight: Array<string>;
+  /**
+   * Address
+   *
+   * where Lens reaches the gateway (sandbox.gateway)
+   */
+  address: string;
+  /**
+   * Reachable
+   *
+   * whether the gateway answered and let Lens in; null: not checked
+   */
+  reachable?: boolean | null;
+  /**
+   * Problem
+   *
+   * why it didn't, when it didn't
+   */
+  problem?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SandboxGatewayRequest
+ */
+export type SandboxGatewayRequest = {
+  /**
+   * On
+   *
+   * start (true) or stop (false) the code sandbox's gateway; stopping deletes its sandboxes
+   */
+  on: boolean;
 };
 
 /**
@@ -27682,6 +27831,47 @@ export type SetMonitoringResponses = {
 
 export type SetMonitoringResponse = SetMonitoringResponses[keyof SetMonitoringResponses];
 
+export type GetSandboxGatewayData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/sandbox";
+};
+
+export type GetSandboxGatewayResponses = {
+  /**
+   * Successful Response
+   */
+  200: SandboxGateway;
+};
+
+export type GetSandboxGatewayResponse = GetSandboxGatewayResponses[keyof GetSandboxGatewayResponses];
+
+export type SetSandboxGatewayData = {
+  body: SandboxGatewayRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/sandbox";
+};
+
+export type SetSandboxGatewayErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetSandboxGatewayError = SetSandboxGatewayErrors[keyof SetSandboxGatewayErrors];
+
+export type SetSandboxGatewayResponses = {
+  /**
+   * Successful Response
+   */
+  202: SandboxGateway;
+};
+
+export type SetSandboxGatewayResponse = SetSandboxGatewayResponses[keyof SetSandboxGatewayResponses];
+
 export type ListBackupsData = {
   body?: never;
   path?: never;
@@ -32058,6 +32248,61 @@ export type TodayPageResponses = {
 
 export type TodayPageResponse = TodayPageResponses[keyof TodayPageResponses];
 
+export type ListTemplatesData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Ns
+     */
+    ns: string;
+  };
+  url: "/api/v1/notes/templates";
+};
+
+export type ListTemplatesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListTemplatesError = ListTemplatesErrors[keyof ListTemplatesErrors];
+
+export type ListTemplatesResponses = {
+  /**
+   * Successful Response
+   */
+  200: NoteTemplates;
+};
+
+export type ListTemplatesResponse = ListTemplatesResponses[keyof ListTemplatesResponses];
+
+export type TemplatesNoteData = {
+  body: NoteTemplatesCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/notes/templates";
+};
+
+export type TemplatesNoteErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TemplatesNoteError = TemplatesNoteErrors[keyof TemplatesNoteErrors];
+
+export type TemplatesNoteResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type TemplatesNoteResponse = TemplatesNoteResponses[keyof TemplatesNoteResponses];
+
 export type LinkTargetsData = {
   body?: never;
   path?: never;
@@ -32630,6 +32875,36 @@ export type MovePageResponses = {
 };
 
 export type MovePageResponse = MovePageResponses[keyof MovePageResponses];
+
+export type CopyPageData = {
+  body: NoteCopy;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/copy";
+};
+
+export type CopyPageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CopyPageError = CopyPageErrors[keyof CopyPageErrors];
+
+export type CopyPageResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type CopyPageResponse = CopyPageResponses[keyof CopyPageResponses];
 
 export type UnpinPageData = {
   body?: never;
@@ -38719,14 +38994,14 @@ export type ScanWatchResponses = {
 
 export type ScanWatchResponse = ScanWatchResponses[keyof ScanWatchResponses];
 
-export type ListTemplatesData = {
+export type ListTemplates2Data = {
   body?: never;
   path?: never;
   query?: never;
   url: "/api/v1/templates";
 };
 
-export type ListTemplatesResponses = {
+export type ListTemplates2Responses = {
   /**
    * Response Templates-List Templates
    *
@@ -38735,7 +39010,7 @@ export type ListTemplatesResponses = {
   200: Array<TemplateSummary>;
 };
 
-export type ListTemplatesResponse = ListTemplatesResponses[keyof ListTemplatesResponses];
+export type ListTemplates2Response = ListTemplates2Responses[keyof ListTemplates2Responses];
 
 export type CreateTemplateData = {
   body: TemplateCreate;

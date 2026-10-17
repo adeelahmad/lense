@@ -126,9 +126,10 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [long recordings](docs/speech-providers.md#long-recordings); [checks](docs/requirements.md#understand-it))
 - **Learn from it.** Make a two-host podcast episode about what you pick, every claim cited and checked against its
   source, read aloud in two voices. Keep notes beside every asset, entity and topic, written by you or the assistant, in
-  a tree where notes are renamed, moved and pinned (pins are your own), with today's note one click away, a search by
-  their words, and Undo and Recently deleted instead of a confirm. Export an asset or a collection as an evidence PDF
-  with everything Lens found about it, or the parts you pick. ([Podcasts](docs/podcasts.md), [notes](docs/notes.md),
+  a tree where notes are renamed, moved, copied and pinned (pins are your own), with today's note one click away,
+  templates to start from, a search by their words, a download as Markdown, and Undo and Recently deleted instead of a
+  confirm. Export an asset or a collection as an evidence PDF with everything Lens found about it, or the parts you
+  pick. ([Podcasts](docs/podcasts.md), [notes](docs/notes.md),
   [evidence PDFs](docs/api.md#evidence-pdfs); [checks](docs/requirements.md#learn-from-it))
 - **Automate it.** Pipelines and workflows on a canvas, routines on a schedule, batch runs over a collection, and
   notifications to webhooks, Slack, Discord and Matterbridge. Everything that happens in Lens (new assets, emails,
@@ -205,8 +206,6 @@ These are open pull requests, not yet part of Lens:
 - **The assistant** answering questions about Lens itself, from its docs and this server
   ([#400](https://github.com/adeelahmad/lense/pull/400)).
 - **Chat:** a conversation exported as Markdown, PDF or JSON ([#474](https://github.com/adeelahmad/lense/pull/474)).
-- **Notes:** download a note, or all of a namespace's notes, as Markdown
-  ([#419](https://github.com/adeelahmad/lense/pull/419)).
 - **Sources:** RSS and Atom news feeds ([#453](https://github.com/adeelahmad/lense/pull/453)).
 - **Pictures:** described on this machine with Florence-2 ([#477](https://github.com/adeelahmad/lense/pull/477)), and
   low-quality images enhanced before they're read ([#479](https://github.com/adeelahmad/lense/pull/479)).

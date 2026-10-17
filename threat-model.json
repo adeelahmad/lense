@@ -629,6 +629,15 @@
       "source": "docs/automations.md \"Running automations\""
     },
     {
+      "entry_point": "admin sandbox gateway",
+      "parameter": "PUT /api/v1/admin/sandbox {on}, MCP set_sandbox_gateway",
+      "attacker_controllable": "no",
+      "component": "authz",
+      "caller_must_enforce": "admin is trusted; audited (lens.sandbox); refused when preflight finds the machine can't run the gateway; reaches the machine only as an inbox request (action=services, profile=sandbox) the agent checks again; off deletes every sandbox first",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"The gateway\""
+    },
+    {
       "entry_point": "code sandbox",
       "parameter": "assistant run_python, run_bash, sandbox_files and import_sandbox_file: code the model writes, attachment ids, a path in the sandbox; sandbox.* settings (admins)",
       "attacker_controllable": "yes",
@@ -1332,7 +1341,7 @@
       "property": "P-SANDBOX",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",
-      "conditions": "code the assistant runs (sandbox.enabled, off by default) runs only for people sandbox.who allows, in its conversation's own OpenShell sandbox, never in Lens's processes; the sandbox gets none of Lens's data, keys or database address, only the code and files the person attached to that conversation; egress: none (off), PyPI and npm on 443 (packages) or public addresses on 80 and 443 (web); a file leaves only as the person's held upload placed by an import_files approval; stopped when idle, deleted when unused or with its conversation",
+      "conditions": "code the assistant runs (sandbox.enabled, off by default) runs only for people sandbox.who allows, in its conversation's own OpenShell sandbox, never in Lens's processes; the sandbox gets none of Lens's data, keys or database address, only the code and files the person attached to that conversation; egress: none (off), PyPI and npm on 443 (packages), or those and the names in sandbox.hosts on 80 and 443 (hosts), every endpoint held to public addresses; a file leaves only as the person's held upload placed by an import_files approval; stopped when idle, deleted when unused or with its conversation",
       "provenance": "documented",
       "source": "docs/assistant.md \"Code sandbox\""
     },
