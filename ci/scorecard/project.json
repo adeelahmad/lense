@@ -1,0 +1,15 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "scorecard",
+  "projectType": "application",
+  "tags": ["lang:python"],
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "python3 -m unittest discover ci/scorecard"
+      }
+    }
+  }
+}

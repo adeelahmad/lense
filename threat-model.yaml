@@ -2,10 +2,10 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:83b7933076194b0841ce75e8b47f2856c7f05b3a6ae33949bb1f222a66e170da"
+prose_version: "threat-model.md@sha256:6868a1f8038cee16beceaa8e7baa8c6e57bba4d7944206f9c80e951dc41eabd0"
 model_status: under-review
 triage_policy: strict
-confidence: {documented: 202, maintainer: 46, inferred: 91, assumption: 8}
+confidence: {documented: 203, maintainer: 46, inferred: 91, assumption: 8}
 
 generation:
   model: "Claude Opus 5.5 (claude-opus-5-5)"
