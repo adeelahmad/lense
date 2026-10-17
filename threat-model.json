@@ -1261,9 +1261,9 @@
     },
     {
       "property": "P-SMB",
-      "violation_symptom": "info-leak",
+      "violation_symptom": "info-leak, integrity-bypass",
       "severity_tier": "security",
-      "conditions": "the SMB share is off until an admin turns it on; read-only; per-person file access keys and views; no guests or SMB1; a random NTLM challenge per connection; allowed networks only",
+      "conditions": "the SMB share is off until an admin turns it on; files added are imported only where the key's owner may import, checked as uploads, never over what Lens made (smb.add_files off: read-only); per-person file access keys and views; no guests or SMB1; a random NTLM challenge per connection; allowed networks only",
       "provenance": "documented",
       "source": "docs/smb.md \"What keeps it safe\""
     },
