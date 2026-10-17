@@ -11,6 +11,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   with Dublin Core terms, or `?format=messages` for one `{"messages": [...]}` line, checked against a published schema.
   Agents use `list_chats`, `read_chat` and `export_chat` over MCP. The web app's copy and export buttons are in
   progress ([Copy and export](docs/assistant.md#copy-and-export)).
+- **Clean up transcripts before analysis.** With Settings → Analysis → Clean up transcripts before analysis on (off
+  by default), a new Clean up step runs before Analyze: a word said three times in a row is kept once ("I I I looked"
+  → "I looked"), doubled pronouns and articles once, "um" and "uh" go, and spacing, "i" and sentence capitals are
+  fixed, by rules, on English lines. Every changed line is in Change history with Revert, and lines someone corrected
+  are left alone. Reprocess, pipelines, `POST /api/v1/recordings/<id>/reprocess` and `lens clean` run it
+  ([Cleaning up transcripts](docs/processing.md#cleaning-up-transcripts)).
 - **Automations run.** An automation saved over the API (`/api/v1/automations`) now reacts to new assets in its
   namespaces: when its If passes, it runs its workflow as the person who made it, within its limits and budgets, and
   each run shows what its actions did. Try one on an activity without keeping or sending anything, or run it now;
@@ -29,8 +35,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   instead of deleting what followed, regenerating an answer (`regenerate`, with the same model or another) writes one
   beside it, and a question can go on from any message (`parent`). `GET /api/v1/chats/<id>` shows each message's
   versions and every version's messages, and `PUT /api/v1/chats/<id>/head` switches between them; the model reads
-  only the version showing. The web app's switcher and Regenerate button are in progress. Existing conversations are
-  upgraded on the next start (`chat-tree`) ([Versions](docs/assistant.md)).
+  only the version showing. In the web app, Regenerate (and Regenerate with… another model) replaces Try another
+  model, and `‹ 2 / 3 ›` under a question or an answer moves between its versions. Existing conversations are upgraded
+  on the next start (`chat-tree`) ([Versions](docs/assistant.md)).
+- **The assistant searches the web.** With web search on (off by default; Settings → AI assistant → Web search), the
+  assistant gets `web_search` and `web_read`: it searches with DuckDuckGo (no key), your own SearXNG, Brave Search or
+  Tavily, and reads pages and online PDFs, public addresses only, through the same guard as captured pages. Pages are
+  cited [n] like excerpts, with their site, and open in a new tab; each search and read is in the activity ledger, and
+  once an answer has read outside text, one it chose itself asks first
+  ([Web search and reading pages](docs/assistant.md#web-search-and-reading-pages)).
 - **Add an MCP server with a form, or paste its config.** Extensions → Add MCP server (admins) takes an address and
   its headers, or a command with its arguments and environment, or reads a config pasted from Claude (`.mcp.json`) or
   VS Code, one server or many; Test lists its tools before it's saved. Tokens and keys in headers and env are now
@@ -40,6 +53,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Describe an automation in words.** `POST /api/v1/automations/draft` asks the model once to turn a sentence into
   a draft automation to try and save, and says what didn't fit and what it couldn't express
   ([Describe it in words](docs/automations.md#describe-it-in-words)).
+- **The assistant runs Python and bash.** Turn on Settings → Code sandbox and point Lens at an NVIDIA OpenShell
+  gateway, and the assistant gets `run_python`, `run_bash`, `sandbox_files` and `import_sandbox_file`: code runs in a
+  sandbox of the conversation's own, with none of Lens's data or keys and no network unless you allow the package
+  registries or the public web. Files attached to the conversation go in; a file it makes reaches a namespace once the
+  person approves. Off by default; starting the gateway from Settings is in progress
+  ([Code sandbox](docs/assistant.md#code-sandbox)).
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 

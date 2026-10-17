@@ -206,6 +206,19 @@ def test_web_citations():
     assert "dc:creator" not in doc and doc["current_node"] == "2"
 
 
+def test_web_pages_stay_in_exports(client, db, conv):
+    """A cited web page isn't the archive's, so it stays whatever the reader can read now."""
+    page = {"n": 1, "source": "web", "url": "https://example.org/ships", "title": "Ships at sea", "site": "example.org", "text": "Slow."}
+    q3 = chat.add(db, conv["cid"], "user", "Are ships slow?")
+    a3 = chat.add(db, conv["cid"], "assistant", "Yes [1].", passages=[page], parent=q3)
+    auth.set_role(db, conv["uid"], store.ns_id(db, "calls"), None)
+    md = export(client, conv, "md", message=a3).text
+    assert f"Yes [^{a3}-1]." in md and f"[^{a3}-1]: [Ships at sea](https://example.org/ships), example.org: “Slow.”" in md
+    doc = export(client, conv, "json").json()
+    jsonschema.validate(doc, SCHEMA)
+    assert doc["mapping"][str(a3)]["lens"]["citations"][0]["url"] == "https://example.org/ships"
+
+
 def test_agents_read_and_export_over_mcp(client, conv):
     q1, a1, b1, q2, a2 = conv["m"]
     _, tokens = _grant(client, conv["h"], scope="read")
