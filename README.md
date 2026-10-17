@@ -132,13 +132,14 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   calendar events, files, what people say to Lens, sensor readings, notes, graph changes, runs, budget warnings) is kept
   as a stream of activities in W3C Activity Streams form, which agents read through the API, MCP and the assistant, and
   people review on the Timeline page (and Latest on Home), marking what they've seen. Automations act on that stream, on
-  a schedule, at a time or when their own webhook is called: they test conditions, then tell you in your own chat app,
-  ask the model or the agent, use a tool, call a web address (its credentials kept sealed), run a workflow, pipeline or
-  routine, or change assets and notes. Anything that reaches outside Lens or changes more than what set it off asks
-  first, until you let it run on its own: on the Approvals page or, for a change inside Lens, with a yes in the chat it
-  told you in; agents can decline an approval but never give one. Each automation has limits and budgets, and agents
-  make, try and run them over MCP and in the assistant, or draft one from a sentence; the studio to draw them in the web
-  app is planned. ([Processing](docs/processing.md#workflows-and-the-canvas), [notifications](docs/notifications.md),
+  a schedule, at a time or when their own webhook is called: they test conditions (text, patterns, numbers, lists,
+  times, days and whether a value changed), then tell you in your own chat app, ask the model or the agent, use a tool,
+  call a web address (its credentials kept sealed), run a workflow, pipeline or routine, or change assets and notes.
+  Anything that reaches outside Lens or changes more than what set it off asks first, until you let it run on its own:
+  on the Approvals page or, for a change inside Lens, with a yes in the chat it told you in; agents can decline an
+  approval but never give one. Each automation has limits and budgets, and agents make, try and run them over MCP and in
+  the assistant, or draft one from a sentence; the studio to draw them in the web app is planned.
+  ([Processing](docs/processing.md#workflows-and-the-canvas), [notifications](docs/notifications.md),
   [automations](docs/automations.md), [approvals](docs/automations.md#approvals), [timeline](docs/timeline.md);
   [checks](docs/requirements.md#automate-it))
 - **See what it costs.** An activity ledger of every model call, with reports, charts and budgets that cap spending.
@@ -209,7 +210,6 @@ These are open pull requests, not yet part of Lens:
 - **Entities:** names given their real types instead of Term ([#395](https://github.com/adeelahmad/lense/pull/395)).
 - **Web clipper:** signing in, or using your API token, not only an import webhook's
   ([#406](https://github.com/adeelahmad/lense/pull/406)).
-- **Automations:** more operators for conditions ([#434](https://github.com/adeelahmad/lense/pull/434)).
 - **Shares:** S3 and WebDAV reached through remote access ([#402](https://github.com/adeelahmad/lense/pull/402)),
   and files added over them imported ([#408](https://github.com/adeelahmad/lense/pull/408)).
 
