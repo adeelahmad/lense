@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:d4d94112897bb7aab90e0c3285c1ebc268bce7c3435b087bde5e669d31f974fb"
+prose_version: "threat-model.md@sha256:856cce8d7dfb9ba2af1b2f865ca7f9a25f40e4b80b94fc5b8b9dcf47373baeb4"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 203, maintainer: 46, inferred: 91, assumption: 8}
@@ -416,7 +416,7 @@ entry_points:
         obligation_id: enable-only-trusted-extensions
         caller_must_enforce: "person enables only extensions they trust"
         provenance: {kind: documented, source: 'docs/assistant.md "other people''s run only when an admin shared them"'}
-  - id: "MCP servers: POST /extensions/mcp/read and /mcp/test, GET /extensions/mcp/presets, saving an extension of kind mcp, PATCH /extensions/{id}/tools"
+  - id: "MCP servers: POST /extensions/mcp/read and /mcp/test, GET /extensions/mcp/presets, saving an extension of kind mcp, PATCH /extensions/{id}/tools, MCP mcp_servers and add_mcp_server"
     component: assistant
     parameters:
       - name: "config text (JSON or YAML), a server's address and headers, or a command, its arguments and env; a tool name and its switches"

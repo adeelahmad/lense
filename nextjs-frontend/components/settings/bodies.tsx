@@ -12,6 +12,7 @@ import { BackupsPanel } from "@/components/settings/backups-panel";
 import { ComponentsStatus } from "@/components/settings/components-status";
 import { EditionChoice, NetworkReach } from "@/components/settings/install-settings";
 import { LogViewer } from "@/components/settings/log-viewer";
+import { McpServers } from "@/components/settings/mcp-servers";
 import { AllTokens } from "@/components/account/all-tokens";
 import { ACCESS } from "@/components/iiif/metadata-model";
 import { RIGHTS } from "@/components/iiif/rights";
@@ -2638,6 +2639,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
         </ul>
       </More>
       <WebSearch ctx={ctx} />
+      <McpServers />
       <More ctx={ctx} ids={LIMITS} title="Approvals, steps, prices and long conversations">
         <div className="grid gap-3 sm:grid-cols-2">
           <F ctx={ctx} id="ai.confirm_over_recordings" />

@@ -56,6 +56,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   machine's upgrade agent starts and stops them), and agents do the same with `PUT /api/v1/admin/services/<profile>`
   or the MCP tools `services` and `set_service`. A server whose spec says `keep: true` keeps one session between
   calls ([The browser](docs/assistant.md#the-browser), [Optional containers](docs/assistant.md#optional-containers)).
+- **MCP servers in Settings, and for agents.** Settings › AI assistant now lists the MCP servers the assistant calls,
+  each with how many of its tools are on and a link to its page, next to Add MCP server and the switches for the MCP
+  runner and the browser. Agents list them with the MCP tool `mcp_servers` and add one, ready-made or their own, with
+  `add_mcp_server` (an admin's API key with the write scope)
+  ([Adding an MCP server](docs/assistant.md#adding-an-mcp-server)).
 - **Describe an automation in words.** `POST /api/v1/automations/draft` asks the model once to turn a sentence into
   a draft automation to try and save, and says what didn't fit and what it couldn't express
   ([Describe it in words](docs/automations.md#describe-it-in-words)).
