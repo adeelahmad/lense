@@ -37,6 +37,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   how long it took, how it ended and which tool results read like instructions to an AI, with the calls made for it.
   Agents read the same record over the API (`GET /api/v1/chats/<id>/messages/<mid>`), and each tool step shows how long
   it took. Answers from before have no record ([What each answer records](docs/assistant.md#what-each-answer-records)).
+- **Download notes as Markdown.** A note's ⋯ menu in the tree downloads it as a Markdown file, and the Notes page's ⋯
+  menu downloads all of a namespace's notes as a zip in folders that follow the tree, for Obsidian and other notes apps
+  ([Downloading as Markdown](docs/notes.md#downloading-as-markdown)).
 - **Automations for agents.** Agents list, save, try and run automations through the MCP tools `automations`,
   `automation_actions`, `save_automation`, `test_automation` and `run_automation`, with problems in plain words. The
   assistant saves them switched off and asks before switching one on or running it

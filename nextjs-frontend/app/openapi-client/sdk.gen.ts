@@ -454,6 +454,9 @@ import type {
   ExportChatData,
   ExportChatErrors,
   ExportChatResponses,
+  ExportNotesData,
+  ExportNotesErrors,
+  ExportNotesResponses,
   ExportRecordingData,
   ExportRecordingErrors,
   ExportRecordingResponses,
@@ -1127,6 +1130,9 @@ import type {
   PageHistoryData,
   PageHistoryErrors,
   PageHistoryResponses,
+  PageMarkdownData,
+  PageMarkdownErrors,
+  PageMarkdownResponses,
   PageVersionData,
   PageVersionErrors,
   PageVersionResponses,
@@ -5907,6 +5913,21 @@ export class Notes {
   }
 
   /**
+   * Export Notes
+   *
+   * Every page of the namespace as Markdown files in a zip, for other notes apps (Obsidian and the like): free notes
+   * in folders that follow the tree, the pages of things under "Pages of things".
+   */
+  public static exportNotes<ThrowOnError extends boolean = false>(
+    options: Options<ExportNotesData, ThrowOnError>,
+  ): RequestResult<ExportNotesResponses, ExportNotesErrors, ThrowOnError> {
+    return (options.client ?? client).get<ExportNotesResponses, ExportNotesErrors, ThrowOnError>({
+      url: "/api/v1/notes/export",
+      ...options,
+    });
+  }
+
+  /**
    * Deleted Pages
    *
    * Pages deleted in the last 30 days, the latest first: each can be put back until then.
@@ -6036,6 +6057,21 @@ export class Notes {
   ): RequestResult<HomeSuggestionsResponses, HomeSuggestionsErrors, ThrowOnError> {
     return (options.client ?? client).get<HomeSuggestionsResponses, HomeSuggestionsErrors, ThrowOnError>({
       url: "/api/v1/notes/{pid}/homes",
+      ...options,
+    });
+  }
+
+  /**
+   * Page Markdown
+   *
+   * The page as a Markdown file of its own: front matter with its title, date, filing and summary, then its text,
+   * with links to other pages as [[Title]] wiki links.
+   */
+  public static pageMarkdown<ThrowOnError extends boolean = false>(
+    options: Options<PageMarkdownData, ThrowOnError>,
+  ): RequestResult<PageMarkdownResponses, PageMarkdownErrors, ThrowOnError> {
+    return (options.client ?? client).get<PageMarkdownResponses, PageMarkdownErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/markdown",
       ...options,
     });
   }
