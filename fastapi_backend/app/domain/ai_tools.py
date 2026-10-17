@@ -13,12 +13,15 @@ import logging
 from . import (
     auth,
     batches,
+    classify as classifymod,
     cypher,
+    decide,
     entities,
     event_marks,
     extensions,
     entity_map,
     events,
+    find as findmod,
     graph_ask,
     graph_model,
     entity_setup,
@@ -47,6 +50,7 @@ R = store.R
 log = logging.getLogger("lens")
 _I = {"type": "integer"}
 _S = {"type": "string"}
+_LIST = {"type": "array", "items": {"type": ["string", "integer"]}}
 TOOLS = [
     (
         "search_transcripts",
@@ -72,6 +76,35 @@ TOOLS = [
         False,
     ),
     (
+        "find_resources",
+        "Find assets (recordings, videos, documents and images) in scope by any attribute: who is seen in them (faces) or heard "
+        "(speakers), entities they mention, topics they're about, their type (audio, video, transcript, document, image), "
+        "content type (podcast, interview, scan, photo, email …), dates (a day, month or year), tags, language, objects "
+        "seen, emotions heard, length, and words said in them (text). Faces, speakers, entities and topics take ids or "
+        "names. Each result says why it matched, with numbered moments to cite.",
+        {
+            "text": _S,
+            "faces": _LIST,
+            "speakers": _LIST,
+            "entities": _LIST,
+            "topics": _LIST,
+            "types": _LIST,
+            "content_types": _LIST,
+            "date_from": _S,
+            "date_to": _S,
+            "min_duration": {"type": "number"},
+            "max_duration": {"type": "number"},
+            "tags": _LIST,
+            "languages": _LIST,
+            "objects": _LIST,
+            "emotions": _LIST,
+            "namespace": _S,
+            "limit": _I,
+        },
+        [],
+        False,
+    ),
+    (
         "timeline",
         "What happened in Lens, newest first (new assets, and every other kind of activity there is): who did it, what "
         "it is about, when, and a one-line summary. Optionally by kinds (such as asset.added), namespace, entity tag, "
@@ -87,6 +120,23 @@ TOOLS = [
             "unreviewed": {"type": "boolean"},
             "before": _S,
             "limit": _I,
+        },
+        [],
+        False,
+    ),
+    (
+        "classify",
+        "Classify an asset (or a text): which of some labels fits best, how sure, and every label ranked. Give "
+        'labels (names, or "name: what it means"), or a vocabulary: content_type (Lens\'s content types, such '
+        "as podcast, interview, scan, email) or topic (the namespace's topics). It changes nothing; sure says whether "
+        "the answer is sure enough to act on.",
+        {
+            "recording_id": _I,
+            "text": _S,
+            "labels": {"type": "array", "items": _S},
+            "vocabulary": {"type": "string", "enum": list(classifymod.VOCABULARIES)},
+            "namespace": _S,
+            "question": _S,
         },
         [],
         False,
@@ -1341,6 +1391,56 @@ class Toolbox(ops_tools.OpsTools):
             raise ValueError(f"there's no activity {activity} you can see")
         on = f" on {activity}" if activity else ""
         return self._approval("run_automation", {"automation_id": row["id"], "activity": activity}, f"Run automation {row['name']} now{on}")
+
+    def t_find_resources(self, namespace=None, limit=10, **spec):
+        spaces = sorted(self.readable)
+        if namespace:
+            spaces = [s for s in spaces if store.space_names(self.db).get(s) == namespace]
+            if not spaces:
+                raise ValueError(f"namespace {namespace} isn't available in this conversation")
+        res = findmod.find(self.db, self.cfg, spaces, None, spec, limit=min(int(limit or 10), 25), ids=self.allowed)
+        out = []
+        for x in res["items"]:
+            why = []
+            for w in x["why"]:
+                moments = []
+                for m in w.get("moments") or []:
+                    text = m.get("text") or f"{w['name']} ({w['by']})"
+                    n = self.ref(
+                        x["id"], m.get("t0") or 0, text, m.get("speaker"), x.get("title"), m.get("source") or "said", m.get("page")
+                    )
+                    where = {"page": m["page"] + 1} if m.get("page") is not None else {"time": store.tc(m.get("t0"))}
+                    moments.append(store.clean({"ref": n, **where, "text": m.get("text")}))
+                why.append(store.clean({"by": w["by"], "name": w.get("name"), "count": w.get("count"), "moments": moments or None}))
+            out.append(
+                store.clean(
+                    {
+                        "recording_id": x["id"],
+                        "title": x.get("title"),
+                        "date": (x.get("recorded_at") or "")[:10] or None,
+                        "type": x.get("media_kind"),
+                        "namespace": x.get("namespace"),
+                        "speakers": x.get("speakers") or None,
+                        "why": why,
+                    }
+                )
+            )
+        return {"total": res["total"], "resolved": res["resolved"] or None, "results": out}, f"Found {res['total']} asset(s)"
+
+    def t_classify(self, recording_id=None, text=None, labels=None, vocabulary=None, namespace=None, question=None):
+        space = None
+        if recording_id is not None:
+            self._ok(recording_id)
+        elif namespace:
+            space = self._space(namespace)
+        try:
+            res = classifymod.classify(
+                self.db, self.cfg, rid=recording_id, text=text, labels=labels, vocab=vocabulary, question=question, space=space
+            )
+        except decide.Undecided as e:
+            raise ValueError(f"nothing could answer: {e}") from None
+        out = {k: res[k] for k in ("choice", "confidence", "sure", "ranked", "by", "key", "id") if res.get(k) is not None}
+        return out, f"Classified as {res['choice']} ({round(res['confidence'] * 100)}% sure)"
 
     def t_read_transcript(self, recording_id, start_seconds=0, end_seconds=None, max_lines=60):
         cap = self.cfg["ai"].get("max_transcript_reads") or 20

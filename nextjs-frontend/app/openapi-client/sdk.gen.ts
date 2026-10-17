@@ -112,9 +112,12 @@ import type {
   CheckMessageResponses,
   CheckUpdatesData,
   CheckUpdatesResponses,
+  ClassifyData,
+  ClassifyErrors,
   ClassifyNamespaceNsfwData,
   ClassifyNamespaceNsfwErrors,
   ClassifyNamespaceNsfwResponses,
+  ClassifyResponses,
   ClearEntitySetupData,
   ClearEntitySetupErrors,
   ClearEntitySetupResponses,
@@ -465,6 +468,9 @@ import type {
   FindGraphPathData,
   FindGraphPathErrors,
   FindGraphPathResponses,
+  FindResourcesData,
+  FindResourcesErrors,
+  FindResourcesResponses,
   FindSimilarData,
   FindSimilarErrors,
   FindSimilarResponses,
@@ -6958,6 +6964,51 @@ export class Search {
     return (options.client ?? client).get<ListMentionsResponses, ListMentionsErrors, ThrowOnError>({
       url: "/api/v1/mentions",
       ...options,
+    });
+  }
+
+  /**
+   * Find Resources
+   *
+   * Assets you can read that match every filter given: the people seen in them (faces) and heard (speakers), the
+   * entities they mention, the topics they're about, their kind and content type, when they were made, their tags,
+   * language, objects seen, emotions heard, length, status, collection and origin, and words said or written in them.
+   * Faces, people heard, entities and topics can be named instead of numbered; `resolved` says what each name matched, and
+   * a name that matches nothing is a 400 naming the closest ones. Each asset says `why` it matched, with up to three
+   * moments per reason to cite (a time, or a page). With `text`, the best matching come first.
+   */
+  public static findResources<ThrowOnError extends boolean = false>(
+    options: Options<FindResourcesData, ThrowOnError>,
+  ): RequestResult<FindResourcesResponses, FindResourcesErrors, ThrowOnError> {
+    return (options.client ?? client).post<FindResourcesResponses, FindResourcesErrors, ThrowOnError>({
+      url: "/api/v1/find",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Classify
+   *
+   * Which label fits an asset (or a text) best, how sure that is, and every label ranked: the labels given, Lens's
+   * content types (of the asset's kind) or the namespace's topics. The decision model answers when it's set up
+   * (Settings → AI assistant), else the language model; the call is in the activity ledger. With `apply` (editors), a
+   * sure answer is acted on: the content type is set, the topic is suggested for someone to accept, or the label is
+   * added as a tag; one that isn't sure changes nothing. 409 when no model is set up to answer.
+   */
+  public static classify<ThrowOnError extends boolean = false>(
+    options: Options<ClassifyData, ThrowOnError>,
+  ): RequestResult<ClassifyResponses, ClassifyErrors, ThrowOnError> {
+    return (options.client ?? client).post<ClassifyResponses, ClassifyErrors, ThrowOnError>({
+      url: "/api/v1/classify",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }

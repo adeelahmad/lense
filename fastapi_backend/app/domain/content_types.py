@@ -286,6 +286,26 @@ def of_recording(db, rid):
     return recognise(db, rec, types), False
 
 
+TYPE_FIELDS = "record::id(id) AS id, source, media, path, title, duration_ms, form, content_type"
+
+
+def keys_of(db, rows):
+    """{recording id: its subtype's key} for recording rows (with TYPE_FIELDS), as of_recording tells one, with the
+    vocabulary read once."""
+    types = all_types(db)
+    by_key = {t["key"]: t for t in types}
+    out = {}
+    for rec in rows:
+        chosen = by_key.get(rec.get("content_type") or "")
+        if chosen and chosen["base"] == base_of(rec):
+            out[rec["id"]] = chosen["key"]
+            continue
+        t = recognise(db, rec, types)
+        if t:
+            out[rec["id"]] = t["key"]
+    return out
+
+
 def choose(db, rid, key):
     """Set a resource's subtype (None: recognise it from the file again). It has to be of the resource's base type."""
     rec = db.one("SELECT source, media, path FROM $r", r=R("recording", int(rid)))

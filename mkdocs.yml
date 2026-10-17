@@ -119,6 +119,7 @@ nav:
       - Technology: technology-selection.md
       - API work the design needs: backend-gaps.md
       - Contributing: contributing.md
+      - Requirements and checks: requirements.md
   - Changelog: CHANGELOG.md
 
 plugins:
