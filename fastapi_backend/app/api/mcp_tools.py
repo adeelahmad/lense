@@ -29,6 +29,7 @@ from app.api.deps import Access, Principal
 from app.api.v1.routes import activities as activity_routes
 from app.api.v1.routes import automation_vars as var_routes
 from app.api.v1.routes import automations as automation_routes
+from app.api.v1.routes import dates as date_routes
 from app.api.v1.routes import entities as entity_routes
 from app.api.v1.routes import graph as graph_routes
 from app.api.v1.routes import namespaces as namespace_routes
@@ -1197,6 +1198,77 @@ def _node(n: str | None, entity_id: int | None, speaker_id: int | None, name: st
 
 def _scope(namespace: str | None) -> str:
     return f"ns:{namespace}" if namespace else "all"
+
+
+@tool(
+    "list_dates",
+    "Find what was said about a day",
+    'Dates said in assets, read as days on the calendar: "next Tuesday" in a recording made on a Wednesday is the '
+    'Tuesday after, "last week" the seven days before that Monday, "March 2024" all of March. Give start and end '
+    "(YYYY-MM-DD, or YYYY-MM or YYYY) for what falls between them, the earliest first, each with the words said, the "
+    "line and a url to that moment. relative: worked out from the asset's own date. Only assets analysed while Settings "
+    "→ Analysis → Read dates was on have them (reading says whether it is).",
+    Arg("start", "string", "from this day on: YYYY-MM-DD, YYYY-MM or YYYY", max_length=10),
+    Arg("end", "string", "up to this day: YYYY-MM-DD, YYYY-MM or YYYY", max_length=10),
+    Arg("namespace", "string", "only this namespace"),
+    Arg("recording_id", "integer", "only this asset"),
+    Arg("query", "string", "only dates whose words or line have this text", max_length=200),
+    Arg("limit", "integer", "how many", default=25, minimum=1, maximum=100),
+    Arg("offset", "integer", "skip this many (for the next page)", default=0, minimum=0, maximum=10000),
+)
+def list_dates(
+    ctx: Context,
+    start: str | None,
+    end: str | None,
+    namespace: str | None,
+    recording_id: int | None,
+    query: str | None,
+    limit: int,
+    offset: int,
+) -> dict[str, Any]:
+    res = date_routes.list_dates(
+        ctx.acl,
+        ctx.user,
+        ctx.db,
+        ctx.cfg,
+        start=start or "",
+        end=end or "",
+        ns=namespace,
+        recording=recording_id,
+        q=query or "",
+        limit=limit,
+        offset=offset,
+    )
+    out: dict[str, Any] = {
+        "reading": res.reading,
+        "total": res.total,
+        "dates": [
+            {
+                k: v
+                for k, v in {
+                    "day": d.day,
+                    "until": d.until if d.until != d.day else None,
+                    "period": d.period,
+                    "said": d.said,
+                    "relative": d.relative or None,
+                    "recording_id": d.recording_id,
+                    "title": d.title,
+                    "namespace": d.namespace,
+                    "recorded_at": d.recorded_at,
+                    "line": d.idx,
+                    "at": d.time,
+                    "speaker": d.speaker,
+                    "text": _cut(d.text),
+                    "url": ctx.link(d.recording_id, d.t0),
+                }.items()
+                if v is not None
+            }
+            for d in res.items
+        ],
+    }
+    if offset + len(res.items) < res.total:
+        out["next_offset"] = offset + len(res.items)
+    return out
 
 
 @tool(

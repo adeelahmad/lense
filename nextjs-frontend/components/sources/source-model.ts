@@ -20,6 +20,7 @@ export const TYPE_ORDER: SourceType[] = [
   "gmail",
   "ical",
   "gcal",
+  "rss",
 ];
 
 /** Short names for the type picker and rows (the backend's labels are longer). */
@@ -36,6 +37,7 @@ export const TYPE_NAME: Record<SourceType, string> = {
   gmail: "Gmail",
   ical: "Calendar feed",
   gcal: "Google Calendar",
+  rss: "News feed",
 };
 
 /** How to name the storage itself in sentences ("Files in the bucket aren’t touched"). */
@@ -52,6 +54,7 @@ export const STORAGE_NOUN: Record<SourceType, string> = {
   gmail: "the mailbox",
   ical: "the calendar",
   gcal: "Google Calendar",
+  rss: "the feed",
 };
 
 /** Field labels for the backend's parameter and secret names. */
@@ -170,6 +173,8 @@ export function sourceSubtitle(s: Pick<Source, "type" | "params">): string {
       return `Gmail · ${str(p.user) || "no address"} · ${str(p.via) === "imap" ? "IMAP" : "API"}`;
     case "ical":
       return "Calendar feed · address kept secret";
+    case "rss":
+      return "News feed · address kept secret";
     case "gcal": {
       const chosen = str(p.calendars)
         .split(/[,\s]+/)
@@ -271,7 +276,7 @@ const AUDIO = [
   ".m4v",
   ".avi",
 ];
-const TRANSCRIPT = [".srt", ".vtt", ".json", ".jsonl", ".ics"];
+const TRANSCRIPT = [".srt", ".vtt", ".json", ".jsonl", ".ics", ".atom"];
 const DOCUMENT = [
   ".pdf",
   ".doc",
@@ -323,7 +328,8 @@ export type SourceFileKind = "audio" | "transcript" | "document" | "image" | "ot
 /**
  * What a watched folder would make of a file, by extension (the backend's default lists): PDFs, Office files, text,
  * Markdown, web pages and emails are documents, as they are for new watched folders (those set to audio and
- * transcripts read PDFs, Word and text files as transcripts); subtitles, JSON and calendar events are transcripts.
+ * transcripts read PDFs, Word and text files as transcripts); subtitles, JSON, calendar events and feed posts are
+ * transcripts.
  */
 export function fileKind(name: string): SourceFileKind {
   const n = name.toLowerCase();
@@ -526,10 +532,20 @@ export function emptyForm(spec: BackendSpec, source?: Pick<Source, "name" | "par
   };
 }
 
-/** A name for a new connection, from what was typed ("SFTP · calls-gw", "S3 · eu-central-1", "Dropbox"). */
-export function suggestName(type: SourceType, params: Record<string, string>): string {
+/** A name for a new connection, from what was typed ("SFTP · calls-gw", "S3 · eu-central-1", "Dropbox", "News feed ·
+ * harbour.example.org"). A feed's or calendar's address is a secret, but its server names it well. */
+export function suggestName(
+  type: SourceType,
+  params: Record<string, string>,
+  secrets: Record<string, string | undefined> = {},
+): string {
   if (type === "gmail") return params.user?.trim() ? `Gmail · ${params.user.trim()}` : "Gmail";
-  const host = (params.host || params.url || "").replace(/^(https?|webcals?):\/\//i, "").split(/[/:]/)[0];
+  const address = params.host || params.url || (type === "rss" || type === "ical" ? (secrets.url ?? "") : "");
+  const host = address
+    .trim()
+    .replace(/^feed:(?=https?:)/i, "")
+    .replace(/^(https?|webcals?|feed):\/\//i, "")
+    .split(/[/:?#]/)[0];
   const extra =
     type === "s3" ? [params.provider !== "AWS" ? params.provider : "", params.region].filter(Boolean).join(" ") : host;
   return extra
@@ -604,6 +620,11 @@ export function validateForm(
     const url = form.secrets.url;
     if (url === undefined ? !(editing && isSet("url")) : !/^(https?|webcals?):\/\/\S+$/i.test(url.trim()))
       e.url = "Enter the calendar’s address, starting with https:// or webcal://";
+  }
+  if (type === "rss") {
+    const url = form.secrets.url;
+    if (url === undefined ? !(editing && isSet("url")) : !/^(feed:)?(https?|feed):\/\/\S+$/i.test(url.trim()))
+      e.url = "Enter the feed’s address, or the site’s, starting with https://";
   }
   return e;
 }

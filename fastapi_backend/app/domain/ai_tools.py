@@ -15,6 +15,7 @@ from . import (
     batches,
     classify as classifymod,
     cypher,
+    dates,
     decide,
     entities,
     event_marks,
@@ -239,6 +240,14 @@ TOOLS = [
         False,
     ),
     ("entity_timeline", "How often an entity was mentioned per month.", {"entity_id": _I}, ["entity_id"], False),
+    (
+        "find_dates",
+        'What was said about a day or a range: dates said in assets, read as days on the calendar ("next Tuesday" '
+        "in a recording is worked out from its date), each with its line. start and end are YYYY-MM-DD, YYYY-MM or YYYY.",
+        {"start": _S, "end": _S, "namespace": _S, "recording_id": _I, "query": _S, "limit": _I},
+        [],
+        False,
+    ),
     (
         "find_topics",
         "Find topics: each namespace's controlled vocabulary of what assets are about, with other labels, a "
@@ -587,6 +596,7 @@ GROUPS = {
             "find_entities",
             "entity_mentions",
             "entity_timeline",
+            "find_dates",
             "find_topics",
             "topic_recordings",
             "graph_neighbours",
@@ -1706,6 +1716,34 @@ class Toolbox(ops_tools.OpsTools):
 
     def t_entity_timeline(self, entity_id):
         return entities.timeline(self.db, [int(entity_id)], self.readable), "Counted mentions by month"
+
+    def t_find_dates(self, start=None, end=None, namespace=None, recording_id=None, query=None, limit=10):
+        spaces = {s for s in self.readable if namespace is None or store.space_names(self.db).get(s) == namespace}
+        res = dates.said(
+            self.db,
+            spaces,
+            day_from=dates.day_bound(start),
+            day_to=dates.day_bound(end, last=True),
+            recording=recording_id,
+            q=(query or "").strip() or None,
+            limit=200,
+        )
+        out = [
+            {
+                "ref": self.ref(d["recording_id"], d.get("t0") or 0, d.get("text") or d["said"], d.get("speaker"), d.get("title")),
+                "day": d["day"] if d["until"] == d["day"] else f"{d['day']} to {d['until']}",
+                "said": d["said"],
+                **({"worked_out_from_the_asset_date": d.get("recorded_at")} if d.get("relative") else {}),
+                "title": d.get("title"),
+                "time": d.get("time"),
+                "text": d.get("text"),
+            }
+            for d in res["items"]
+            if self.allowed is None or d["recording_id"] in self.allowed
+        ][: min(int(limit), 30)]
+        if not out and not (self.cfg.get("analysis") or {}).get("dates"):
+            return {"dates": [], "note": "reading dates is off (Settings → Analysis → Read dates)"}, "Dates aren't read here"
+        return {"dates": out}, f"Found {len(out)} date(s)"
 
     def t_find_topics(self, query=None, namespace=None, limit=20):
         spaces = self.readable
