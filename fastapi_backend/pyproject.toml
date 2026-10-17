@@ -52,6 +52,9 @@ validate = ["jsonschema"]
 # the SMB share of the file tree (smb_share.py): impacket's SMB server (a modified Apache 1.1 license); fetched when
 # Settings › SMB share is turned on
 smb = ["impacket>=0.13"]
+# the assistant's code sandbox (sandbox.py): NVIDIA OpenShell's client (Apache-2.0), to reach its gateway; fetched when
+# Settings › Code sandbox is turned on
+sandbox = ["openshell>=0.1.4,<0.2"]
 # the assistant's web search through DuckDuckGo (web.py): ddgs (MIT), with its Rust HTTP client (primp) and lxml;
 # fetched when DuckDuckGo is picked in Settings › AI assistant › Web search
 web = ["ddgs>=9.16,<10"]
@@ -84,6 +87,7 @@ dev = [
     "tokenizers>=0.20",  # the injection classifier tests run a tiny model and tokenizer
     "mcp>=2.3.0",  # the official MCP client, to test the MCP server with
     "impacket>=0.13",  # the SMB share's server, and the SMB client its tests sign in with
+    "openshell>=0.1.4,<0.2",  # the code sandbox's client, tested against a fake OpenShell gateway
     "botocore>=1.43.111",
 ]
 
