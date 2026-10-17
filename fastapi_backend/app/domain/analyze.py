@@ -200,6 +200,7 @@ def extract_entities(text, gaz=()):
 _NLP = {}
 SPACY_MAP = {
     "PERSON": "PERSON",
+    "PER": "PERSON",
     "ORG": "ORG",
     "PRODUCT": "PRODUCT",
     "GPE": "PLACE",
@@ -214,15 +215,57 @@ SPACY_MAP = {
     "QUANTITY": "NUMBER",
     "NORP": "TERM",
     "LANGUAGE": "TERM",
+    "MISC": "TERM",
 }
+SPACY_SKIP = ["parser", "lemmatizer", "tagger", "morphologizer", "attribute_ruler", "senter"]  # names need only the ner
 
 
-def spacy_entities(text, model):
+def spacy_nlp(model):
+    """spaCy's pipeline for `model`, only what finds names (and sentence ends, so a name doesn't run across two); None
+    while spaCy or the model isn't installed here (components.py fetches them the first time they're needed)."""
     if model not in _NLP:
-        import spacy
+        try:
+            import spacy
 
-        _NLP[model] = spacy.load(model)
-    return [(e.text, SPACY_MAP[e.label_]) for e in _NLP[model](text).ents if e.label_ in SPACY_MAP]
+            nlp = spacy.load(model, exclude=SPACY_SKIP)
+        except (ImportError, OSError):
+            return None
+        if "sentencizer" not in nlp.pipe_names:
+            nlp.add_pipe("sentencizer", first=True)
+        _NLP[model] = nlp
+    return _NLP[model]
+
+
+def spacy_entities(text, nlp, gaz=()):
+    """What spaCy's model finds, after the defined entities (gaz), which keep their names and types where they
+    overlap; a lone word spaCy takes for a name ("Okay", "Yeah") is dropped."""
+    out, taken = [], []
+    for _, typ, rx in gaz:
+        for m in rx.finditer(text):
+            if not any(m.start() < b and m.end() > a for a, b in taken):
+                taken.append((m.start(), m.end()))
+                out.append((m.start(), m.group(0), typ))
+    for e in nlp(text).ents:
+        typ, name = SPACY_MAP.get(e.label_), e.text.strip()
+        if not typ or not name or (len(e) == 1 and _base(name) in STOPCAP):
+            continue
+        if not any(e.start_char < b and e.end_char > a for a, b in taken):
+            taken.append((e.start_char, e.end_char))
+            out.append((e.start_char, name, typ))
+    out.sort()
+    return [(t, typ) for _, t, typ in out]
+
+
+def entity_finder(cfg, gaz=()):
+    """The extractor Settings → Analysis picks, as a function of a line's text: the rules, or spaCy. While spaCy or its
+    model isn't installed here the rules find them, and `finder.fell_back` says so."""
+    nlp = spacy_nlp(cfg["analysis"].get("spacy_model") or "en_core_web_sm") if cfg["analysis"]["entities"] == "spacy" else None
+
+    def finder(text):
+        return spacy_entities(text, nlp, gaz) if nlp else extract_entities(text, gaz)
+
+    finder.fell_back = cfg["analysis"]["entities"] == "spacy" and nlp is None
+    return finder
 
 
 # ---------- sections (TextTiling) ----------
@@ -383,7 +426,7 @@ def _place(db, cfg, nid, rec, setup, listed, first, segs, ch):
     return known
 
 
-def analyze_recording(db, cfg, rid, seg_ents=None):
+def analyze_recording(db, cfg, rid, seg_ents=None, say=None):
     """Entities, keywords, sections and talk statistics. `seg_ents` (per line, [(name, type)]) replaces the extractor:
     a workflow's save entities node passes what its nodes found."""
     rec = db.one("SELECT space, collection FROM $r", r=R("recording", rid))
@@ -396,13 +439,17 @@ def analyze_recording(db, cfg, rid, seg_ents=None):
     )
     extra = entity_map.terms(db, nid, entity_map.chain_of(db, rec.get("collection"))) if listed else []
     gaz = parse_gazetteer(list(cfg["analysis"].get("gazetteer") or []) + extra)  # the defined entities, however written
-    use_spacy = cfg["analysis"]["entities"] == "spacy"
+    find = entity_finder(cfg, gaz) if seg_ents is None else None
+    if find and find.fell_back and say:
+        say(
+            f"spaCy or its model {cfg['analysis'].get('spacy_model')} isn't installed here (Settings → Components): the rules found the entities"
+        )
     given, seg_ents, toks, wc, tn, ts = seg_ents, [], [], [], Counter(), defaultdict(Counter)
     for k, s in enumerate(segs):
         if given is not None:
             seg_ents.append(list(given[k]) if k < len(given) else [])
         else:
-            seg_ents.append(spacy_entities(s["text"], cfg["analysis"]["spacy_model"]) if use_spacy else extract_entities(s["text"], gaz))
+            seg_ents.append(find(s["text"]))
         ws = words(s["text"])
         toks.append([w for w, _ in ws])
         wc.append(len(s["text"].split()))

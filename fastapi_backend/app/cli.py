@@ -342,6 +342,10 @@ def platform_main(argv, config):
         except decide.Undecided as e:
             raise SystemExit(str(e)) from None
         return
+    if a.cmd == "worker" or (a.cmd == "watch" and not a.once):
+        # every line as a record: the console, the log file and syslog (docs/logging.md), from before the database
+        # opens, so the upgrade it may run as it starts is in its log too (docs/database.md, Upgrades)
+        logs.setup("worker" if a.cmd == "worker" else "watcher")
     db = store.connect(cfg)
     activity.bind(db)  # calls made here reach the activity ledger (docs/activity.md)
     C = settings.Settings(db, cfg).current
@@ -385,7 +389,6 @@ def platform_main(argv, config):
                     print(f"password changed for {a.email}")
         elif a.cmd == "worker":
             telemetry.set_role("worker")
-            logs.setup("worker")  # every line as a record: the console, the log file and syslog (docs/logging.md)
             say = logs.printer("lens.worker")
             wk = jobs.Worker(db, C, a.name, a.steps.split(",") if a.steps else None, log=say)
             if a.once:
@@ -417,7 +420,6 @@ def platform_main(argv, config):
             print(f"ran {routines.run_due(db, C(), print)} routine(s)")
         else:
             telemetry.set_role("watcher")
-            logs.setup("watcher")
             say = logs.printer("lens.watch")
             print("watching storage sources and running routines; Ctrl-C to stop")
             _stop_on_term()
