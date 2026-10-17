@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:cf6a2661665c829b3158698fce1afe85151e9a7fd38fcf29594e2dc4aa55122e"
+prose_version: "threat-model.md@sha256:58355f4e64be6cbfa50edf06d34ffd1c94fff5703951ce8a6c9f2ab5b35f2e53"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 204, maintainer: 46, inferred: 91, assumption: 8}
@@ -378,7 +378,7 @@ entry_points:
         control_kinds: [resource-name, x-network-destination, x-prompt-injection, size]
         caller_must_enforce: "none — queries go only to the admin's provider; pages are fetched through netguard like web import, 10 MB at most (P-SSRF-GUARD); once the answer has read outside text, a query or address neither the person nor a tool gave it asks first (P-INJECTION-EGRESS); results and pages reach the model marked as data; the ledger keeps the provider or host, never the query or page"
         provenance: {kind: documented, source: 'docs/assistant.md "a search or a page read sends words out of Lens"'}
-  - id: "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer, web search)"
+  - id: "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer, web search, LanguageTool server)"
     component: outbound
     parameters:
       - name: "URL, credentials, api_key_env"
@@ -1806,7 +1806,7 @@ properties_claimed:
 # ---------------------------------------------------------------- §1.12
 properties_disclaimed:
   - {id: N-ADMIN, components: [outbound, ingest, assistant, optional], tier: security-critical, false_friend: false, conditions: "protection from the instance admin or host operator (admin-set URLs reaching internal hosts, admin code, templates, regexes, component installs, api_key_env). Covers only operands an admin or operator alone can set. Excludes the guards Lens documents on them (P-ADMIN-GUARD): an escape of one is VALID. Excludes saved telemetry headers when the endpoint moves host (unresolved, Q35 -> MODEL-GAP). A non-admin reaching any admin operand is in model.", provenance: {kind: maintainer, date: "2026-10"}}
-  - {id: N-EGRESS, components: [outbound], tier: security-critical, false_friend: true, conditions: "an egress firewall; netguard guards web import, iCal feeds, extension http tools, notifications, the assistant's web search and page reads, and Chromium, nothing else; admin-set URLs other than iCal feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded", x-false-friend-note: "'public addresses only' reads as server-wide", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: N-EGRESS, components: [outbound], tier: security-critical, false_friend: true, conditions: "an egress firewall; netguard guards web import, iCal feeds, extension http tools, notifications, the assistant's web search and page reads, and Chromium, nothing else; admin-set URLs other than iCal feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search, a LanguageTool server) are unguarded", x-false-friend-note: "'public addresses only' reads as server-wide", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: N-CODE-GUARD, components: [assistant], tier: security-critical, false_friend: true, conditions: "a sandbox for Python code tools; audit hooks, rlimits and an optional network namespace only raise the bar; admin-written code; runs as the Lens user", x-false-friend-note: "guard is not isolation", provenance: {kind: documented, source: 'domain/code_tools.py docstring "they aren''t a wall"'}}
   - {id: N-DOWNLOADS, components: [optional], tier: security-critical, false_friend: false, conditions: "integrity beyond HTTPS and the publisher for llama.cpp, cloudflared, pip installs and hf: models; catalog GGUF files are still checked (P-MODEL-CHECKSUM)", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: N-DB-PLAIN, components: [outbound], tier: security-critical, false_friend: true, conditions: "encryption of the SurrealDB content (assets' text, indexes), derived files, renditions, reports, exports and the storage-source cache; stated limit", x-false-friend-note: "vaults cover files only", provenance: {kind: documented, source: 'docs/encryption.md "the SurrealDB database itself"'}}

@@ -785,6 +785,16 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "analysis",
+    key: "cleanup_grammar_url",
+    label: "LanguageTool server",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "http://languagetool:8010",
+    hint: "Grammar and punctuation fixes from LanguageTool, such as the compose files’ languagetool profile: off while empty. Spelling and style are left alone, and so are names. Transcripts are sent to it",
+  },
+  {
+    section: "analysis",
     key: "gazetteer",
     label: "Custom vocabulary",
     kind: "lines",
