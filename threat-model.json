@@ -6,7 +6,7 @@
   "scope_subpath": null,
   "description": "Lens is a self-hosted archive for documents, recordings, photos and messages: it reads, transcribes, indexes and publishes them, and people search and chat over them. One operator (the instance admin) runs an instance for their own people: a FastAPI API, a Next.js web app that proxies the API and holds the sign-in session, and background workers, around one SurrealDB database, with content split into namespaces and per-namespace roles. Exposing an instance to the internet behind HTTPS (reverse proxy or Cloudflare tunnel) is supported. Only the instance admin (equivalent to host code execution) and the host operator are trusted; everyone else is trusted only as far as their role.",
   "confidence": {
-    "documented": 246,
+    "documented": 247,
     "inferred": 99
   },
   "components": [
@@ -70,7 +70,7 @@
         "Google Calendar sources",
         "Connect with Google",
         "POST /imports/web, extension http tools, notification targets",
-        "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer)",
+        "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer, web search)",
         "replies from remote servers",
         ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY"
       ],
@@ -120,7 +120,8 @@
         "MCP servers: POST /extensions/mcp/read and /mcp/test, saving an extension of kind mcp, PATCH /extensions/{id}/tools",
         "Python code tools, shipped and admin-created templates, workflows, pipelines, routines",
         "Lens extension side panel",
-        "automations"
+        "automations",
+        "the assistant's web_search and web_read"
       ],
       "touches": [
         "network",
@@ -438,7 +439,16 @@
       "source": "maintainer ruling, 2026-10"
     },
     {
-      "entry_point": "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer)",
+      "entry_point": "the assistant's web_search and web_read",
+      "parameter": "a search query and a page address, both chosen by the model; the results and pages that come back",
+      "attacker_controllable": "yes",
+      "component": "assistant",
+      "caller_must_enforce": "none — queries go only to the admin's provider; pages are fetched through netguard like web import, 10 MB at most (P-SSRF-GUARD); once the answer has read outside text, a query or address neither the person nor a tool gave it asks first (P-INJECTION-EGRESS); results and pages reach the model marked as data; the ledger keeps the provider or host, never the query or page",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"a search or a page read sends words out of Lens\""
+    },
+    {
+      "entry_point": "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer, web search)",
       "parameter": "URL, credentials, api_key_env",
       "attacker_controllable": "no",
       "component": "outbound",
@@ -1021,7 +1031,7 @@
       "property": "P-SSRF-GUARD",
       "violation_symptom": "info-leak",
       "severity_tier": "security",
-      "conditions": "URLs a non-admin sets (web import and extension http tools by editors; notification targets by owners; an automation's http_request by its person, within the notification networks) reach public addresses only, or networks the operator listed; web paths use ports 80 and 443, follow redirects only to http and https, re-check every redirect and sub-request, and connect to the checked address; an automation's http_request follows no redirect, takes 10 seconds and reads 64 KB at most, asks first unless the person set its node to run on its own, and passes the answer on as outside text",
+      "conditions": "URLs a non-admin sets (web import and extension http tools by editors; notification targets by owners; an automation's http_request by its person, within the notification networks; the page addresses the assistant's web_read reads, which the model picks for whoever uses the assistant) reach public addresses only, or networks the operator listed; web paths use ports 80 and 443, follow redirects only to http and https, re-check every redirect and sub-request, and connect to the checked address; an automation's http_request follows no redirect, takes 10 seconds and reads 64 KB at most, asks first unless the person set its node to run on its own, and passes the answer on as outside text",
       "provenance": "documented",
       "source": "maintainer ruling, 2026-10"
     },
@@ -1077,7 +1087,7 @@
       "property": "P-INJECTION-EGRESS",
       "violation_symptom": "info-leak",
       "severity_tier": "correctness",
-      "conditions": "Once an assistant answer has read text from outside Lens (a tool result other than Lens's own, the page it was asked from, a namespace assistant's memories, a message in a chat room with no bridge.users, or an earlier answer in the conversation that read any of these), tools that could carry it out of Lens (the person's own read web tools, other servers' MCP tools, Python tools with the network) and an admin setup conversation's own changes wait for the person's approval. A chat room's answer keeps a web address linkable only when the person, the archive, a tool or Lens wrote it. A bypass is VALID-HARDENING (Q26). An automation's model and agent actions (ask_model, call_tool, ask_agent) run with nobody reading along: the activity and earlier steps reach the model marked as data, every change they would make (notes included) is an approval of the automation's person, and anything that could carry data out of Lens asks first whatever the run read (docs/automations.md \"The model and the agent\"). A saved variable a run set from outside text stays marked as data in later runs' prompts, and an action whose params read it counts as reading outside text (docs/automations.md \"Saved variables\").",
+      "conditions": "Once an assistant answer has read text from outside Lens (a tool result other than Lens's own, the page it was asked from, a namespace assistant's memories, a message in a chat room with no bridge.users, or an earlier answer in the conversation that read any of these), tools that could carry it out of Lens (the person's own read web tools, a web search or page read neither the person nor a tool gave it, other servers' MCP tools, Python tools with the network) and an admin setup conversation's own changes wait for the person's approval. A chat room's answer keeps a web address linkable only when the person, the archive, a tool or Lens wrote it. A bypass is VALID-HARDENING (Q26). An automation's model and agent actions (ask_model, call_tool, ask_agent) run with nobody reading along: the activity and earlier steps reach the model marked as data, every change they would make (notes included) is an approval of the automation's person, and anything that could carry data out of Lens asks first whatever the run read (docs/automations.md \"The model and the agent\"). A saved variable a run set from outside text stays marked as data in later runs' prompts, and an action whose params read it counts as reading outside text (docs/automations.md \"Saved variables\").",
       "provenance": "documented",
       "source": "docs/assistant.md \"it read out of Lens waits for your approval\""
     },
@@ -1300,7 +1310,7 @@
     },
     {
       "property": "N-EGRESS",
-      "reason": "an egress firewall; netguard guards web import, iCal feeds, extension http tools, notifications and Chromium, nothing else; admin-set URLs other than iCal feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel) are unguarded",
+      "reason": "an egress firewall; netguard guards web import, iCal feeds, extension http tools, notifications, the assistant's web search and page reads, and Chromium, nothing else; admin-set URLs other than iCal feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded",
       "false_friend": true,
       "provenance": "documented",
       "source": "maintainer ruling, 2026-10"

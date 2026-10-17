@@ -2589,6 +2589,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
           ))}
         </ul>
       </More>
+      <WebSearch ctx={ctx} />
       <More ctx={ctx} ids={LIMITS} title="Approvals, steps, prices and long conversations">
         <div className="grid gap-3 sm:grid-cols-2">
           <F ctx={ctx} id="ai.confirm_over_recordings" />
@@ -2668,6 +2669,69 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
         </div>
       </div>
     </>
+  );
+}
+
+/** Settings › AI assistant › Web search: off until an admin turns it on (DuckDuckGo in one click), then the provider,
+ * its key or address, and how much it reads. */
+function WebSearch({ ctx }: { ctx: BodyCtx }) {
+  const search = ctx.state("web.search");
+  const provider = String(ctx.form["web.search"] ?? "off");
+  const on = provider !== "off";
+  const keyed = provider === "brave" || provider === "tavily";
+  const web = ctx.view.web;
+  const toggle: FieldState = {
+    ...search,
+    value: on,
+    onChange: (v) => search.onChange(v ? "duckduckgo" : "off"),
+  };
+  return (
+    <div className="flex flex-col gap-3">
+      <span className="text-[13px] font-bold leading-tight text-fg-strong">Web search</span>
+      <SettingField
+        spec={{
+          section: "web",
+          key: "search",
+          label: "Let the assistant search the web and read pages",
+          kind: "switch",
+          hint: "For what Lens doesn’t hold; pages are cited like excerpts. Off: nothing leaves this server for it.",
+        }}
+        state={toggle}
+      />
+      {on && (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="web.search" options={ctx.spec("web.search").options?.filter((o) => o.value !== "off")} />
+            <F ctx={ctx} id="web.results" />
+            {provider === "searxng" && <F ctx={ctx} id="web.searxng_url" />}
+          </div>
+          {keyed && (
+            <SecretSetting
+              key={web?.updated_at ?? "none"}
+              label={`${provider === "brave" ? "Brave Search" : "Tavily"} API key`}
+              isSet={Boolean(((web?.values?.api_key ?? {}) as { set?: boolean }).set)}
+              updatedBy={web?.updated_by}
+              updatedAt={web?.updated_at}
+              value={ctx.state("web.api_key").value as string | undefined}
+              onChange={(x) => ctx.state("web.api_key").onChange(x)}
+              hint="Searches past the provider’s free allowance are charged by them; the activity log counts each one."
+            />
+          )}
+          <p className="text-[12.5px] leading-normal text-fg-secondary">
+            {provider === "duckduckgo"
+              ? "DuckDuckGo has no API: Lens reads its results page with ddgs, an unofficial client (about 30 MB, fetched now; Settings › Components shows it) that can stop working when the page changes. SearXNG or a keyed provider is steadier. "
+              : ""}
+            What it searches for goes to the provider, and the pages it reads come straight from their sites, public
+            addresses only. Each search and page is in the activity log. Once an answer has read text from outside Lens,
+            a search or a page you or a tool didn’t give it asks you first.
+          </p>
+          <More ctx={ctx} ids={["web.read_chars", "web.render"]} title="Reading pages">
+            <F ctx={ctx} id="web.read_chars" />
+            <F ctx={ctx} id="web.render" />
+          </More>
+        </>
+      )}
+    </div>
   );
 }
 
