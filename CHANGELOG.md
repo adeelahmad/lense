@@ -13,6 +13,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   budgets, survives a restart, and stops when asked; the cited report comes back in the conversation, its claims
   checked against their sources, and saves as a note or makes a podcast episode. The web app's plan and progress
   cards are in progress ([Deep research](docs/assistant.md#deep-research)).
+- **Export a conversation.** `GET /api/v1/chats/<id>/export.md`, `.pdf` or `.json` gives the version showing, one
+  message (`?message=`) or, as JSON, every version (`?all=true`). The Markdown has each question and answer, its
+  citations as footnotes linking back to the moment in Lens and the tools it used; the PDF is that Markdown printed by
+  Chromium, else anytopdf, else LibreOffice (409 when none can run); the JSON is OpenAI's chat message format in a tree
+  with Dublin Core terms, or `?format=messages` for one `{"messages": [...]}` line, checked against a published schema.
+  Agents use `list_chats`, `read_chat` and `export_chat` over MCP. The web app's copy and export buttons are in
+  progress ([Copy and export](docs/assistant.md#copy-and-export)).
 
 ## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
 
