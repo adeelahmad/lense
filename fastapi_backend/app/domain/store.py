@@ -1332,6 +1332,12 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS event_cursor SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS event_claim SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS event_claim_at ON event_claim FIELDS at",
+    # what automations keep between activities (domain/match.py): the last value a `changed` test saw, joins waiting
+    # for their other triggers and decide answers (automation_state:<hash>), and how many went to make room
+    "DEFINE TABLE IF NOT EXISTS automation_state SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS automation_state_automation ON automation_state FIELDS automation, at",
+    "DEFINE INDEX IF NOT EXISTS automation_state_expires ON automation_state FIELDS expires_at",
+    "DEFINE TABLE IF NOT EXISTS automation_state_dropped SCHEMALESS",
     # an automation trigger's webhook (domain/automation_hooks.py): automation_hook:<n>, the token kept only as a hash
     "DEFINE TABLE IF NOT EXISTS automation_hook SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS automation_hook_token ON automation_hook FIELDS token_hash UNIQUE",

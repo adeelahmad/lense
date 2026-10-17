@@ -2555,7 +2555,9 @@ def set_install_settings(ctx: Context, public: bool | None = None, target: str |
     Arg(
         "where",
         "string",
-        'a match tree on the activity as JSON, like {"all": [{"path": "object.name", "op": "contains", "value": "trip"}]}',
+        'a match tree on the activity as JSON, like {"all": [{"path": "object.name", "op": "matches", "value": "trip|outing"}]}; '
+        "op is exists, empty, equals, not_equals, contains, gt, lt, in, not_in, starts_with, ends_with, matches, between, "
+        "before, after, within, weekday or time_between (docs/automations.md, Operators)",
         max_length=20000,
     ),
     Arg("unreviewed", "boolean", "only those you haven't marked reviewed"),

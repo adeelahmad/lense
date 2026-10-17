@@ -28,6 +28,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Automations on feed posts.** Each new post of a news feed is a `feed_post.received` activity with its address,
   site, feed, author, date and categories, so an automation can start on posts from one feed, author or category
   ([Kinds](docs/automations.md#kinds)).
+- **More tests for automations' conditions.** An If, a trigger's where and a condition node can now test that text
+  starts or ends with something or matches a pattern, that a value is in a list, that a number or a time is between
+  two, before or after a time or within a duration, falls on certain days or times of day, and whether a value changed
+  since the last activity. Each value is checked when it's saved, and patterns that could tie up the worker are refused
+  ([Operators](docs/automations.md#operators)).
 
 ## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
 
