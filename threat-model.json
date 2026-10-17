@@ -6,7 +6,7 @@
   "scope_subpath": null,
   "description": "Lens is a self-hosted archive for documents, recordings, photos and messages: it reads, transcribes, indexes and publishes them, and people search and chat over them. One operator (the instance admin) runs an instance for their own people: a FastAPI API, a Next.js web app that proxies the API and holds the sign-in session, and background workers, around one SurrealDB database, with content split into namespaces and per-namespace roles. Exposing an instance to the internet behind HTTPS (reverse proxy or Cloudflare tunnel) is supported. Only the instance admin (equivalent to host code execution) and the host operator are trusted; everyone else is trusted only as far as their role.",
   "confidence": {
-    "documented": 250,
+    "documented": 251,
     "inferred": 99
   },
   "components": [
@@ -67,11 +67,12 @@
     {
       "name": "outbound",
       "entry_points": [
-        "watched folders, storage sources, IMAP, Gmail, iCal",
+        "watched folders, storage sources, IMAP, Gmail, iCal, news feeds",
         "Google Calendar sources",
+        "News feed sources",
         "Connect with Google",
         "POST /imports/web, extension http tools, notification targets",
-        "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer, web search)",
+        "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search)",
         "replies from remote servers",
         ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY"
       ],
@@ -189,7 +190,7 @@
     },
     {
       "component": "outbound",
-      "boundary": "B4, Lens to the outside: fetches whose URL a non-admin sets, and iCal feeds, go through netguard; other admin-set URLs do not; the telemetry endpoint is only shape-checked (P-ADMIN-GUARD).",
+      "boundary": "B4, Lens to the outside: fetches whose URL a non-admin sets, and iCal and news feeds, go through netguard; other admin-set URLs do not; the telemetry endpoint is only shape-checked (P-ADMIN-GUARD).",
       "provenance": "inferred",
       "reachability_precondition": "a URL a non-admin sets, or a guarded admin operand, reaches a non-public address; or a stored secret reaches anyone but the host the admin set",
       "source": "threat-model.md §1.4 (untagged boundary list)"
@@ -414,8 +415,8 @@
       "source": "docs/api.md \"the address form takes hook tokens only\""
     },
     {
-      "entry_point": "watched folders, storage sources, IMAP, Gmail, iCal",
-      "parameter": "remote file names, bytes, mail, events",
+      "entry_point": "watched folders, storage sources, IMAP, Gmail, iCal, news feeds",
+      "parameter": "remote file names, bytes, mail, events, feed posts",
       "attacker_controllable": "yes",
       "component": "outbound",
       "caller_must_enforce": "admin creates sources",
@@ -430,6 +431,15 @@
       "caller_must_enforce": "admin creates sources; read-only calendar.readonly scope; Google's own token endpoint and API address (a key file's token_uri is ignored); event text escaped into its .ics without control characters",
       "provenance": "documented",
       "source": "docs/processing.md \"The token endpoint is always Google's own\""
+    },
+    {
+      "entry_point": "News feed sources",
+      "parameter": "the feed's address (or a site's page that names its feed), user and password; the feed's XML and its posts' HTML",
+      "attacker_controllable": "yes",
+      "component": "outbound",
+      "caller_must_enforce": "admin creates sources; fetched as iCal feeds are; feedparser reads the XML with external entities off and drops scripts, styles and event handlers from a post's HTML; each post kept as an Atom entry Lens writes, without the feed's address; post text is marked untrusted in prompts",
+      "provenance": "documented",
+      "source": "docs/processing.md \"News feeds (RSS and Atom)\""
     },
     {
       "entry_point": "Connect with Google",
@@ -459,7 +469,7 @@
       "source": "docs/assistant.md \"a search or a page read sends words out of Lens\""
     },
     {
-      "entry_point": "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer, web search)",
+      "entry_point": "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search)",
       "parameter": "URL, credentials, api_key_env",
       "attacker_controllable": "no",
       "component": "outbound",
@@ -1087,7 +1097,7 @@
       "property": "P-SECRETS",
       "violation_symptom": "info-leak",
       "severity_tier": "security",
-      "conditions": "stored secrets (source credentials, notification secrets, model API keys, iCal addresses, an automation's credential headers, sealed to that automation and the address they were saved for, an MCP server's credential headers and env values, sealed to its extension and the address or command they were saved for) are encrypted and write-only; the API reports whether one is set, never its value; a key from the environment is never shown; they do not leak through the API, logs, exports, or a redirect to another server",
+      "conditions": "stored secrets (source credentials, notification secrets, model API keys, iCal and news feed addresses, an automation's credential headers, sealed to that automation and the address they were saved for, an MCP server's credential headers and env values, sealed to its extension and the address or command they were saved for) are encrypted and write-only; the API reports whether one is set, never its value; a key from the environment is never shown; they do not leak through the API, logs, exports, or a redirect to another server",
       "provenance": "documented",
       "source": "SECURITY.md \"stored credentials for sources and model servers leaking\""
     },
@@ -1103,7 +1113,7 @@
       "property": "P-ADMIN-GUARD",
       "violation_symptom": "info-leak",
       "severity_tier": "security",
-      "conditions": "guards Lens documents on admin-set operands hold: iCal feeds are fetched like web captures (public addresses only and documents.web_networks, ports 80 and 443, the password never goes on to a server the calendar redirects to); the telemetry endpoint cannot carry a user name or password or be a link-local address",
+      "conditions": "guards Lens documents on admin-set operands hold: iCal and news feeds are fetched like web captures (public addresses only and documents.web_networks, ports 80 and 443, the password never goes on to a server the calendar or feed redirects to, or to a feed a site's page names on another server); the telemetry endpoint cannot carry a user name or password or be a link-local address",
       "provenance": "documented",
       "source": "docs/processing.md \"fetched the way web pages are captured\""
     },
@@ -1382,7 +1392,7 @@
     },
     {
       "property": "N-EGRESS",
-      "reason": "an egress firewall; netguard guards web import, iCal feeds, extension http tools, notifications, the assistant's web search and page reads, and Chromium, nothing else; admin-set URLs other than iCal feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded",
+      "reason": "an egress firewall; netguard guards web import, iCal and news feeds, extension http tools, notifications, the assistant's web search and page reads, and Chromium, nothing else; admin-set URLs other than iCal and news feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded",
       "false_friend": true,
       "provenance": "documented",
       "source": "maintainer ruling, 2026-10"
@@ -1752,7 +1762,7 @@
     },
     {
       "pattern": "Wide LENS_WEB_NETWORKS",
-      "why_unsafe": "Editors, and iCal feed redirects, can then reach those networks",
+      "why_unsafe": "Editors, and iCal and news feed redirects, can then reach those networks",
       "instead": "List single hosts"
     },
     {

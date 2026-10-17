@@ -8,7 +8,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   the model writes the spec, then lists every named decision, every "no" and "not that, this", every constraint and
   every gap the speaker left to decide later, each with its quote and a link to the moment it was said; a quote the
   transcript doesn't hold word for word is marked. The prompt is the "Spec from transcript" template, editable on
-  the Templates page. Agents write one with `POST /api/v1/recordings/{id}/spec`, the MCP tools `write_spec` and
+  the Templates page. In the web app it's Write a spec, then Open spec, in an asset's More actions menu, and a Spec
+  step in the pipeline editor. Agents write one with `POST /api/v1/recordings/{id}/spec`, the MCP tools `write_spec` and
   `get_spec`, and the assistant's `write_spec` (which asks first); pipelines and batches run it as a `spec` step
   ([Specs from transcripts](docs/notes.md#specs-from-transcripts)).
 - **Export a conversation.** `GET /api/v1/chats/<id>/export.md`, `.pdf` or `.json` gives the version showing, one
