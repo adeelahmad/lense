@@ -128,7 +128,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
       >
         Skip to content
       </a>
-      <div className="sticky top-0 hidden h-screen shrink-0 md:block">
+      <div className="sticky top-0 hidden h-screen shrink-0 md:block print:hidden!">
         <Nav
           admin={admin || user.admin}
           collapsed={autoCollapse ? !peek : collapsed}
@@ -155,7 +155,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
         </div>
       )}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-border bg-background px-3 md:px-4">
+        <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-border bg-background px-3 md:px-4 print:hidden">
           <IconButton label="Open navigation" className="md:hidden" onClick={() => setMobileOpen(true)}>
             <MenuIcon />
           </IconButton>

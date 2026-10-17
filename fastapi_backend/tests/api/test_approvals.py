@@ -169,7 +169,7 @@ def test_approve_carries_the_action_out_and_the_run_records_it(app, client, db, 
     # one that fails is failed, said on the run, and not tried again
     bad = approvals.ask(db, cfg, intent(people, n=8, params={"text": "boom"}))
     out = client.post(f"/api/v1/approvals/{bad}", headers=h, json={"decision": "approve"}).json()
-    assert out == {"status": "failed", "error": "the room is gone", "batch": None, "result": None, "always": None}
+    assert out == {"status": "failed", "error": "the room is gone", "batch": None, "job": None, "result": None, "always": None}
     assert studio["intents"][-1] == (51, "51-n8", "failed", {"error": "the room is gone"})
 
 

@@ -63,6 +63,7 @@ from app.api.v1.routes import (
     shares,
     sources,
     speakers,
+    specs,
     templates,
     topics,
     updates,
@@ -149,5 +150,6 @@ for module in (
     voice,
     vaults,
     podcasts,
+    specs,
 ):
     api_router.include_router(module.router)
