@@ -20,6 +20,14 @@ def run_steps(db, cfg, which, ns=None, limit=0, force=False, recording=None, aud
         log("transcribe:", ingest.transcribe_pending(db, cfg, ns, limit, force, log), "recording(s)")
     if "diarize" in which:
         log("diarize:", spk.diarize_pending(db, cfg, ns, limit, force, log), "recording(s)")
+    if "clean" in which:
+        from .domain import cleanup, settings
+
+        ccfg = settings.effective(db, cfg)
+        if (ccfg.get("analysis") or {}).get("cleanup") or force:
+            log("clean:", cleanup.clean_pending(db, ccfg, ns, limit, force, log), "asset(s)")
+        else:
+            log("clean: skipped; cleaning up transcripts is off (analysis.cleanup, Settings → Analysis)")
     if "analyze" in which:
         log("analyze:", analyze.analyze_pending(db, cfg, ns, limit, force, log), "asset(s)")
     if "embed" in which:
@@ -51,10 +59,11 @@ def _main_base(argv=None):
         ("scan", "register new files in each namespace's folders"),
         ("transcribe", "transcribe new recordings"),
         ("diarize", "split speakers and match voice IDs within each namespace"),
+        ("clean", "tidy transcripts before analysis: fillers, repeated words, spacing and capitals"),
         ("analyze", "named things, keywords, sections and speaking-time statistics"),
         ("embed", "index passages for search by meaning (with the configured embedding model)"),
         ("summarize", "optional LLM summaries"),
-        ("run", "scan, transcribe, diarize, analyze, embed, summarize and report, resuming where it stopped"),
+        ("run", "scan, transcribe, diarize, clean, analyze, embed, summarize and report, resuming where it stopped"),
     ):
         p = sub.add_parser(name, help=helptext)
         p.add_argument("--ns")
@@ -136,8 +145,8 @@ def _main_base(argv=None):
         return
     conn = store.connect(cfg, upgrade=a.cmd != "migrations")  # so a failed upgrade can still be looked at
     try:
-        if a.cmd in ("scan", "transcribe", "diarize", "analyze", "embed", "summarize", "run", "report"):
-            which = ["scan", "transcribe", "diarize", "analyze", "embed", "summarize", "report"] if a.cmd == "run" else [a.cmd]
+        if a.cmd in ("scan", "transcribe", "diarize", "clean", "analyze", "embed", "summarize", "run", "report"):
+            which = ["scan", "transcribe", "diarize", "clean", "analyze", "embed", "summarize", "report"] if a.cmd == "run" else [a.cmd]
             with store.lock(cfg, "pipeline"):
                 run_steps(
                     conn,
@@ -264,6 +273,7 @@ def platform_main(argv, config):
 
     from .domain import (
         auth,
+        automations,
         channels,
         https,
         jobs,
@@ -386,6 +396,7 @@ def platform_main(argv, config):
                 notify.start(db, C, stop, name=wk.name, log=say)  # sends notifications too (docs/notifications.md)
                 if not (a.steps or a.no_schedule):  # and scans watched folders and runs routines, as `lens watch` does
                     routines.start(db, C, stop, log=say)
+                    automations.start(db, C, stop, log=say)  # and automations, following the stream
                     sensors.start(db, C, stop, log=say, name=wk.name)  # and the sensor hub, while sensors are on
                     smb_share.start(db, C, stop, name=wk.name, log=say)  # and the SMB share of the file tree, while it's on
                     shares.start(db, C, stop, log=say, name=wk.name)  # and the file shares (S3, WebDAV), while they're on

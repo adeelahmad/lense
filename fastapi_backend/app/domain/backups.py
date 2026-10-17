@@ -97,7 +97,20 @@ def take(db):
     dst = migrations.backup(db, "manual")
     if dst is None:
         return None
-    return next((b for b in listing(db) if b["name"] == dst.name), None)
+    got = next((b for b in listing(db) if b["name"] == dst.name), None)
+    if got:
+        _finished(db, "manual", got)
+    return got
+
+
+def _finished(db, label, got=None, error=None, copied=None, at=None):
+    """backup.finished for automations (events_streams.py); a backup is never undone for want of it."""
+    try:
+        from . import events_streams
+
+        events_streams.backup_finished(db, label, got, error, copied, at)
+    except Exception as e:  # noqa: BLE001 - the backup stands without it
+        log.info("backups: couldn't log %s: %s", (got or {}).get("name") or label, e)
 
 
 def delete(db, name):
@@ -341,9 +354,14 @@ def run_due(db, cfg, log=None, now=None):
         )
         if log:
             log(f"scheduled backup: {type(e).__name__}: {e}")
+        _finished(db, "scheduled", error=f"{type(e).__name__}: {e}", at=st["at"])
         return True
+    copied = None
     if got and remote(cfg):
         send_quietly(db, cfg, got["name"], log)
+        copied = not remote_state(db).get("error")
+    if got:
+        _finished(db, "scheduled", got, copied=copied)
     return True
 
 

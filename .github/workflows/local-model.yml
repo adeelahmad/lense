@@ -1,0 +1,88 @@
+name: Local model
+
+# A local model (docs/local-models.md) on x64 and arm64 (a Raspberry Pi, Docker on a Mac): in the backend image, Lens
+# fetches llama.cpp's server for this platform, and it starts, asks for its API key and answers with a small model.
+# llama.cpp publishes new builds every day and has changed where and how (from v0.6.0 the builds are off its latest
+# release, its arm64 build needs glibc 2.38, and the key's variable was renamed), so this runs every week too, not
+# only when the image or the fetch changes.
+on:
+  pull_request:
+    paths:
+      - fastapi_backend/Dockerfile
+      - fastapi_backend/app/domain/local_llm.py
+      - .github/workflows/local-model.yml
+  push:
+    branches: [main]
+    paths:
+      - fastapi_backend/Dockerfile
+      - fastapi_backend/app/domain/local_llm.py
+      - .github/workflows/local-model.yml
+  schedule:
+    - cron: "41 5 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  llama-server:
+    name: llama.cpp in the backend image (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x64, runner: ubuntu-latest }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the backend image
+        run: docker build --target lean -t lens-backend:ci fastapi_backend
+
+      - name: Lens fetches llama.cpp's server, and it answers with a small model
+        run: |
+          docker run --rm -i lens-backend:ci python - <<'PY'
+          import json, os, pathlib, subprocess, time, urllib.request
+
+          from app.domain import local_llm
+
+          cfg = {"data_dir": "/tmp/lens"}
+          exe = local_llm.fetch_server(cfg, say=print)
+          print("llama-server:", exe)
+          model = pathlib.Path(cfg["data_dir"]) / "stories15M-q4_0.gguf"
+          urllib.request.urlretrieve("https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories15M-q4_0.gguf", model)
+          # as local_llm.Runner starts it
+          env = {**os.environ, "LD_LIBRARY_PATH": str(pathlib.Path(exe).parent), "LLAMA_API_KEY": "ci", "LLAMA_ARG_API_KEY": "ci"}
+          proc = subprocess.Popen([exe, "-m", str(model), "--host", "127.0.0.1", "--port", "8091", "-c", "256"], env=env)
+          try:
+              deadline = time.monotonic() + 180
+              while True:
+                  assert proc.poll() is None, f"llama-server stopped (exit {proc.returncode})"
+                  try:
+                      with urllib.request.urlopen("http://127.0.0.1:8091/health", timeout=5) as r:
+                          if r.status == 200:
+                              break
+                  except OSError:
+                      pass
+                  assert time.monotonic() < deadline, "llama-server didn't answer in 3 minutes"
+                  time.sleep(1)
+              assert not local_llm._answers_anyone(8091), "llama-server answers without its API key"
+              req = urllib.request.Request(
+                  "http://127.0.0.1:8091/v1/completions",
+                  json.dumps({"prompt": "Once upon a time", "max_tokens": 8}).encode(),
+                  {"Content-Type": "application/json", "Authorization": "Bearer ci"},
+              )
+              with urllib.request.urlopen(req, timeout=60) as r:
+                  text = json.load(r)["choices"][0]["text"]
+              print("it says:", repr(text))
+              assert text.strip(), "no answer"
+          finally:
+              proc.terminate()
+              proc.wait(30)
+          PY

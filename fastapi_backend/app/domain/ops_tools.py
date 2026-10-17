@@ -32,6 +32,8 @@ SECTIONS = (
     "ai",
     "reports",
     "notifications",
+    "events",
+    "automations",
     "workers",
     "decisions",
     "voice",
@@ -44,10 +46,11 @@ SECTIONS = (
     "analytics",
     "sensors",
     "shares",
+    "web",
 )
-# telemetry and analytics send data elsewhere; sensors and shares open ports on the network; files moves where new
-# files go
-ALWAYS_ASK = {"telemetry", "analytics", "sensors", "shares", "files"}
+# telemetry, analytics and web search send data elsewhere; sensors and shares open ports on the network; files moves
+# where new files go
+ALWAYS_ASK = {"telemetry", "analytics", "sensors", "shares", "files", "web"}
 ASK_TOOLS = {"invite_person", "change_person"}  # who gets in always waits for the admin's approval
 
 ADMIN_TOOLS = [

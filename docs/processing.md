@@ -14,12 +14,39 @@ How assets move through Lens: where they come from, what each step does, and how
   ([Documents and images](configuration.md#documents-and-images)).
 - `diarize` splits genuinely two-channel files by channel, otherwise clusters voice embeddings (or uses pyannote), then
   matches voiceprints against the namespace's people.
+- `clean` (off until Settings → Analysis → Clean up transcripts before analysis is on) tidies a transcript before
+  analysis reads it: [Cleaning up transcripts](#cleaning-up-transcripts).
 - `analyze` finds entities, chapters, keywords and talk statistics; `summarize` (optional) calls any OpenAI-compatible
   server for a summary, key points, action items (with who will do them), topics, people, tone and importance, each
   key point and action item with the time of the line it comes from; `report` writes static HTML per asset and
   per namespace, with word clouds.
 
 Every step takes `--ns`, `--limit` and `--force`; `run` does them all, and a lock stops two runs overlapping.
+
+### Cleaning up transcripts
+
+Speech comes out of transcription as it was said, and the extractor, chapters, keywords and search all read it. With
+`analysis.cleanup` on (Settings → Analysis → Clean up transcripts before analysis; off by default), the `clean` step,
+which the standard pipeline runs just before `analyze`, tidies each line of a transcript with rules. It needs no model,
+fetches nothing and sends nothing out:
+
+- a word said three times or more in a row is kept once ("I I I looked" → "I looked"), and a doubled pronoun, article
+  or conjunction ("the the", "I, I") once; "had had", "that that" and "very very" stay;
+- "um", "uh", "erm" and "hmm" go, with the comma after them (`analysis.cleanup_fillers`, Take out "um" and "uh"; on);
+- one space between words, none before a comma or a full stop, one after a comma;
+- "i" becomes "I", and each sentence starts with a capital. A line that carries on the one before (same speaker, no
+  full stop) keeps its lower case.
+
+These are English rules ("um" is a word in German and Portuguese), so they apply to English lines: the line's or the
+asset's language when transcription gave one, else when the text reads as English. In other languages only a word
+said three times in a row is kept once, and sentences start with a capital. Documents and images keep their text as
+it was read.
+
+Every line it changes is in the asset's Change history (by "text cleanup"), with Revert. A line someone corrected,
+or reverted, is never cleaned again, and running the step again on cleaned text changes nothing. Turn it on for a
+custom pipeline by adding the Clean up step before Analyze (with Force it runs even while the setting is off); run it
+on an asset with Reprocess → Clean up, `POST /api/v1/recordings/{id}/reprocess` with `{"steps": ["clean", "analyze"]}`,
+or `lens clean`. Workers whose `workers.steps` list has `analyze` run it too.
 
 ## Importing text and transcripts {#importing-transcripts}
 
@@ -321,6 +348,16 @@ files, then Import (`POST /api/v1/import/source`). The listing marks files that 
   they end on to `POST /api/v1/sources/rclone-signin/{id}` (`{"address": …}`), which answers `{connected: <id>}`
   (400: not this sign-in's address, still waiting; 410: cancelled, refused or ran out). `DELETE` stops it. Audited as
   `source.signin`.
+- **Google Drive can connect with Google** as Google Calendar does: when Lens has a Google OAuth client (the Google
+  sign-in provider's, or an earlier Google connection's), a new Google account connection uses it, so **Connect with
+  Google** saves the connection, opens Google's consent screen in this browser and comes back with the account
+  connected (its address shows on the connection). Read only asks Google for `drive.readonly`, Full access for all of
+  Drive. With no client Lens signs in through rclone; Connect through your own Google app instead takes a web
+  application client of a Google Cloud project with the Drive API turned on (the form shows the redirect URI to
+  register). The connection keeps that client with its token (`client_id`, and the secret encrypted) so rclone renews
+  the token with it; a token from rclone (signing in through rclone, or pasted) drops it. A connection whose sign-in
+  stopped working shows **Connect Google account** on its row. As for Google Calendar, connecting happens in the web
+  app (`POST /api/v1/sources/{id}/google`).
 - Google Drive can also sign in as a service account: choose Service account and upload its JSON key file
   (`service_account_credentials`). Share the folders Lens should read with the account's address, or give a shared
   drive ID (`team_drive`); in Google Workspace, `impersonate` reads a user's own Drive through domain-wide delegation.
@@ -374,8 +411,20 @@ importing chosen ones and watching work as above.
   of its own, as Google keeps it; working-location entries ("Home", "Office") are left out. It signs in one of two ways,
   each kept encrypted like a password and never shown again:
 
-    - **Google account** (`token`): the "authorized user" JSON (`client_id`, `client_secret`, `refresh_token`) of an
-      OAuth client of your own Google Cloud project, with the Calendar API turned on there. `gcloud auth
+    - **Google account** (`token`): **Connect with Google** in the connection form saves the connection and opens
+      Google's consent screen in this browser. Once you allow read-only calendar access, Google sends you back to
+      Sources with the account connected (its address shows on the connection) and its calendars open, to pick one to
+      watch. It goes through an OAuth client of a Google Cloud project with the Calendar API turned on: the Google
+      sign-in provider's (Settings › Sign-in) when there is one, else an earlier Google connection's, else one you
+      enter in the form: a web application client whose authorized redirect URIs include
+      `<your Lens address>/api/v1/auth/external/google/callback` (the address Google sign-in uses too; the form shows
+      it). While the client's OAuth consent screen is in Testing, Google ends its refresh tokens after 7 days and warns
+      that the app isn't verified; publish it to keep the connection. A connection whose sign-in stopped working shows
+      **Connect Google account** on its row. Connecting happens in the web app (`POST /api/v1/sources/{id}/google`
+      returns the consent address, and refuses API tokens), because the consent itself is a person's and comes back to
+      the browser that asked. What is kept is the "authorized user" JSON (`client_id`, `client_secret`,
+      `refresh_token`), which an agent or a person can also save directly as the `token` (Or paste an authorized user
+      JSON): `gcloud auth
       application-default login --client-id-file=client.json --scopes=https://www.googleapis.com/auth/calendar.readonly,https://www.googleapis.com/auth/cloud-platform`
       writes one (to `application_default_credentials.json` in gcloud's folder).
     - **Service account** (`service_account_credentials`, its .json key file). On its own it reads the calendars shared
@@ -398,13 +447,16 @@ A Gmail or Google Workspace mailbox (type `gmail`) is read through Google's Gmai
 or over IMAP (`via: imap`). For a personal Gmail account, an email (IMAP) connection with an app password works too,
 with nothing to set up at Google. A Gmail source signs in one of two ways:
 
-- **Google account** (`token`): the "authorized user" JSON (`client_id`, `client_secret`, `refresh_token`) of an
-  OAuth client of your own Google Cloud project, with the Gmail API turned on there, kept encrypted like a password.
-  `gcloud auth application-default login --client-id-file=client.json --scopes=https://www.googleapis.com/auth/gmail.readonly,https://www.googleapis.com/auth/cloud-platform`
-  writes one (with `https://mail.google.com/` instead to read over IMAP); an agent can give one it already has. Enter
-  the account's address as `user` to read over IMAP. Google reviews apps that read Gmail before people outside your
-  Workspace domain can use them without a warning: an app in testing works for its test users, whose sign-ins Google
-  ends after seven days. Connecting the account from the connection dialog, with no JSON to make, is in progress.
+- **Google account** (`token`): **Connect with Google** in the connection form, as for
+  [Google Calendar](#email-imap-calendar-feeds-ical-and-google-calendar): Google's consent screen asks to read your mail
+  (read only; all of Gmail to read over IMAP, since Google has no read-only scope for it), then sends you back to
+  Sources with the account connected, its address as the source's `user`, and its labels open. Turn on the Gmail API in
+  the OAuth client's Google Cloud project and add the Gmail scope to its consent screen. Google reviews apps that read
+  Gmail before people outside your Workspace domain can use them without a warning: while the consent screen is in
+  Testing, it works for its test users and Google ends their sign-ins after seven days. Unticking the mail permission on
+  Google's page leaves the source unconnected, and says so. An agent saves the `token` directly instead (in the form:
+  Or paste an authorized user JSON): `gcloud auth application-default login --client-id-file=client.json --scopes=https://www.googleapis.com/auth/gmail.readonly,https://www.googleapis.com/auth/cloud-platform`
+  writes one; enter the account's address as `user` to read over IMAP.
 - **A service account** (Google Workspace). Upload the service account's JSON key and enter the address of the person
   whose mail Lens reads; nobody signs in. A Workspace admin lets the account's client id use
   `https://www.googleapis.com/auth/gmail.readonly` (or `https://mail.google.com/` to read over IMAP) under Admin
@@ -432,7 +484,8 @@ A pipeline is a named, versioned list of steps; each namespace can choose its de
 analyze, summarize, report). Imports, watched folders and reprocessing use the namespace's pipeline; steps that need
 audio skip themselves for imported text. Steps:
 
-- `transcribe`, `diarize`, `analyze`, `summarize`, and `report` (the built-in report).
+- `transcribe`, `diarize`, `clean` ([Cleaning up transcripts](#cleaning-up-transcripts)), `analyze`, `summarize`, and
+  `report` (the built-in report).
 - `llm`: renders a prompt template, sends it to the configured model, checks the reply against the template's JSON
   Schema and saves it as a named output (e.g. `meeting_notes`).
 - `report` with a template: renders an HTML page into the namespace's reports. These pages may not run scripts.
@@ -464,7 +517,8 @@ node passes what it makes along its connections.
   corrects or adds to any passed in; Merge joins lists; Save entities makes them the asset's entities (people's
   corrections kept) and redoes keywords and chapters.
 - **AI and logic:** LLM prompt (a prompt template, with what came in as `{{ input }}`), Pick (a path like
-  `action_items.0.text`), Condition (yes and no branches) and Merge.
+  `action_items.0.text`), Condition (yes and no branches; one test, or a [match tree](automations.md#match-trees) of
+  several) and Merge.
 - **Keeping results:** Save output (`outputs.<name>`), Set field (a custom field, kept in the metadata history) and
   Save entities.
 
@@ -512,7 +566,8 @@ log.
 
 ### Organising the graph
 
-A workflow's scope is either assets (above) or the graph. Graph workflows have their own nodes:
+A workflow's scope is assets (above), the graph, or an event: an automation's workflow, run by its automation
+([The event workflow scope](automations.md#the-event-workflow-scope)). Graph workflows have their own nodes:
 
 - **Candidates** finds pairs of entities that may be one thing, by the same rules as the merge suggestions (same
   letters, acronym, spelling, sounds alike, one name inside the other): inside each namespace (merge) or across

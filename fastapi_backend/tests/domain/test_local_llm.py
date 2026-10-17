@@ -23,12 +23,12 @@ FAKE_SERVER = """#!{python}
 import http.server, json, os, sys
 args = sys.argv[1:]
 port = int(args[args.index("--port") + 1])
-key = os.environ.get("LLAMA_ARG_API_KEY")
+key = os.environ.get({key_var!r})
 class H(http.server.BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
     def do_GET(self):
-        ok = self.path == "/health" or self.headers.get("Authorization") == f"Bearer {{key}}"
+        ok = self.path == "/health" or not key or self.headers.get("Authorization") == f"Bearer {{key}}"  # open without one
         body = json.dumps({{"status": "ok", "args": args, "keyed": bool(key)}}).encode()
         self.send_response(200 if ok else 401)
         self.send_header("Content-Length", str(len(body)))
@@ -40,25 +40,39 @@ http.server.HTTPServer(("127.0.0.1", port), H).serve_forever()
 
 
 class Hub(http.server.BaseHTTPRequestHandler):
-    """Hugging Face's resolve URLs and GitHub's release API, as far as Lens uses them."""
+    """Hugging Face's resolve URLs and GitHub's release API, as far as Lens uses them. `scheme`: where llama.cpp's
+    builds are, "latest" (on the latest release, as up to b9999), "pointer" (since v0.6.0: on the release that the
+    latest one's nightly-tag.txt names) or "listed" (only on a newer release)."""
 
     ranges = []
+    scheme = "latest"
+    server_script = "#!/bin/sh\necho hi\n"
 
     def log_message(self, *a):
         pass
 
     def do_GET(self):
+        host = f"http://127.0.0.1:{self.server.server_address[1]}"
+        builds = {"tag_name": "b9999", "assets": [{"name": "llama-b9999-bin-win-cpu-x64.zip", "browser_download_url": "x"},
+                                                  {"name": "llama-b9999-bin-ubuntu-x64.zip", "browser_download_url": f"{host}/llama.zip", "state": "uploaded"}]}  # fmt: skip
+        source = {"tag_name": "v0.6.0", "assets": [{"name": "nightly-tag.txt", "browser_download_url": f"{host}/nightly-tag.txt"}]}
         if self.path == "/releases/latest":
-            host = f"http://127.0.0.1:{self.server.server_address[1]}"
-            body = json.dumps({"tag_name": "b9999", "assets": [{"name": "llama-b9999-bin-win-cpu-x64.zip", "browser_download_url": "x"},
-                                                              {"name": "llama-b9999-bin-ubuntu-x64.zip", "browser_download_url": f"{host}/llama.zip"}]}).encode()  # fmt: skip
-            return self._send(body)
+            if Hub.scheme == "listed":
+                source = {"tag_name": "v0.6.0", "assets": []}
+            return self._send(json.dumps(builds if Hub.scheme == "latest" else source).encode())
+        if self.path == "/nightly-tag.txt":
+            return self._send(b"b9999\n")
+        if self.path == "/releases/tags/b9999":
+            return self._send(json.dumps(builds).encode())
+        if self.path == "/releases?per_page=20":
+            uploading = {"tag_name": "b10000", "assets": [{**builds["assets"][1], "state": "starter"}]}
+            return self._send(json.dumps([uploading, builds, source]).encode())
         if self.path == "/llama.zip":
             buf = io.BytesIO()
             with zipfile.ZipFile(buf, "w") as z:
                 info = zipfile.ZipInfo("build/bin/llama-server")
                 info.external_attr = 0o755 << 16
-                z.writestr(info, "#!/bin/sh\necho hi\n")
+                z.writestr(info, Hub.server_script)
                 z.writestr("build/bin/libllama.so", b"lib")
                 z.writestr("../evil", b"no")
             return self._send(buf.getvalue())
@@ -86,8 +100,9 @@ def hub(monkeypatch):
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     base = f"http://127.0.0.1:{srv.server_address[1]}"
     monkeypatch.setattr(local_llm, "HF", base)
-    monkeypatch.setattr(local_llm, "RELEASES_API", base + "/releases/latest")
+    monkeypatch.setattr(local_llm, "RELEASES_API", base + "/releases")
     Hub.ranges.clear()
+    Hub.scheme, Hub.server_script = "latest", "#!/bin/sh\necho hi\n"
     yield base
     srv.shutdown()
 
@@ -160,9 +175,30 @@ def test_llama_cpp_is_fetched_for_this_platform(cfg, hub, monkeypatch):
         local_llm.fetch_server(cfg)
 
 
+@pytest.mark.parametrize("scheme", ["pointer", "listed"])
+def test_llama_cpp_builds_are_found_off_the_latest_release(cfg, hub, monkeypatch, scheme):
+    # since v0.6.0 llama.cpp's latest release has only the source, and nightly-tag.txt naming the build's tag
+    Hub.scheme = scheme
+    monkeypatch.setattr(local_llm, "_platform", lambda: ("linux", "x86_64"))
+    said = []
+    exe = local_llm.fetch_server(cfg, say=said.append)
+    assert exe.endswith("build/bin/llama-server") and os.access(exe, os.X_OK)
+    assert said == ["downloading llama.cpp b9999 (llama-b9999-bin-ubuntu-x64.zip)"]  # not b10000, still uploading
+    monkeypatch.setattr(local_llm, "_platform", lambda: ("linux", "arm64"))
+    with pytest.raises(local_llm.LocalModelError, match=r"llama.cpp v0.6.0 has no build for linux arm64"):
+        local_llm.fetch_server(cfg)
+
+
+def test_a_llama_cpp_build_that_cant_run_here_says_why(cfg, hub, monkeypatch):
+    Hub.server_script = "#!/bin/sh\necho \"llama-server: version 'GLIBC_2.38' not found\" >&2\nexit 1\n"
+    monkeypatch.setattr(local_llm, "_platform", lambda: ("linux", "x86_64"))
+    with pytest.raises(local_llm.LocalModelError, match=r"b9999's build for linux x86_64 doesn't run here .*GLIBC_2.38"):
+        local_llm.fetch_server(cfg)
+
+
 def test_the_server_runs_becomes_the_provider_and_puts_the_old_one_back(db, cfg, folder, hub, monkeypatch):
     exe = folder / "llama-server"
-    exe.write_text(FAKE_SERVER.format(python=sys.executable))
+    exe.write_text(FAKE_SERVER.format(python=sys.executable, key_var="LLAMA_API_KEY"))
     exe.chmod(0o755)
     monkeypatch.setitem(local_llm.BY_ID, "tiny", tiny())
     monkeypatch.setattr(local_llm.machine, "probe", lambda data_dir=None: {"container": False})
@@ -191,6 +227,27 @@ def test_the_server_runs_becomes_the_provider_and_puts_the_old_one_back(db, cfg,
         assert (llm["base_url"], llm["model"], llm["api_key"]) == ("https://api.example/v1", "big", "sk-old")
         assert run.proc is None and local_llm.status(db, s.current())["phase"] == "off"
         assert local_llm.remove(s.current(), "tiny") is True
+    finally:
+        run.halt = True
+        run.stop_process()
+
+
+def test_a_server_that_answers_without_its_key_is_stopped(db, cfg, folder, hub, monkeypatch):
+    exe = folder / "llama-server"
+    exe.write_text(FAKE_SERVER.format(python=sys.executable, key_var="SOME_OTHER_NAME"))  # as if llama.cpp renamed it
+    exe.chmod(0o755)
+    monkeypatch.setitem(local_llm.BY_ID, "tiny", tiny())
+    monkeypatch.setattr(local_llm.machine, "probe", lambda data_dir=None: {"container": False})
+    cfg["local_llm"]["server"] = str(exe)
+    settings.save(db, cfg, "llm", {"base_url": "https://api.example/v1", "model": "big", "api_key": "sk-old"}, "t")
+    settings.save(db, cfg, "local_llm", {"enabled": True, "model": "tiny", "port": free_port()}, "t")
+    s = settings.Settings(db, cfg)
+    run = local_llm.Runner(db, s.current, "test")
+    try:
+        run.tick()
+        run.worker.join(30)
+        assert run.phase == "error" and "without its API key" in run.error and run.proc is None
+        assert s.current()["llm"]["base_url"] == "https://api.example/v1"  # not pointed at it
     finally:
         run.halt = True
         run.stop_process()

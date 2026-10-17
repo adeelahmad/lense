@@ -10,19 +10,22 @@ merge runs when anything reaches it). What reaches a port is what an output port
 value on only along yes or along no, a switch only along the case that matched, so the nodes after the other ports
 are skipped, and so are the ones after those.
 
-The primitives, in every workflow (a scope adds its own nodes: workflows.py, organize.py):
+The primitives, in every workflow (a scope adds its own nodes: workflows.py, organize.py, tool_nodes.py,
+automation_nodes.py). A scope's Kit may also give its nodes their own ports (`ports`), count nodes that pass things on
+as what the workflow does (`keeps`), and add a check of the whole graph (`check_graph`).
 
 - `input`: where a workflow starts (the recording, or the namespaces a routine runs over).
 - `pick`: one part of the value, by a dotted path (`action_items.0.text`).
-- `condition`: tests the value (or a path in it) and passes it on along `yes` or `no`.
+- `condition`: tests the value (or a path in it) and passes it on along `yes` or `no`. The test is one
+  `{path, op, value}`, or a match tree in `match` (match.py: all, any and not over such tests).
 - `switch`: tests the cases in turn and passes the value on along the first that matches (each case is a port), or
-  along `default`.
+  along `default`. A case is a test or a match tree, like a condition's.
 - `merge`: joins what reaches it: lists into one list (entities found twice once), objects into one object.
 - `set`: makes an object from fields, each a path into what came in, a value, or a template. It can take several
   inputs (`inputs`, its ports): a field's path then starts with the input's name.
 - `template`: renders a template with what came in as `input` (and the recording or namespaces); `json` reads the
   result as JSON.
-- `filter`: keeps the items of a list that pass a test.
+- `filter`: keeps the items of a list that pass a test (or a match tree).
 - `for_each`: runs its `body` (a graph) once per item of a list and passes on the list of what the body returned;
   an item the body returned nothing for is left out (so it maps and filters). The body starts from `arg` nodes:
   `item`, `index` and `input` (all of what came in).
@@ -59,12 +62,12 @@ PRIMITIVES = (
 CONFIG = {
     "input": set(),
     "pick": {"path"},
-    "condition": {"path", "op", "value"},
+    "condition": {"path", "op", "value", "match"},
     "switch": {"path", "cases"},
     "merge": set(),
     "set": {"inputs", "fields", "keep"},
     "template": {"template", "json"},
-    "filter": {"path", "op", "value"},
+    "filter": {"path", "op", "value", "match"},
     "for_each": {"path", "body", "max_items"},
     "repeat": {"body", "max_rounds", "until"},
     "group": {"body"},
@@ -79,11 +82,18 @@ STARTS = ("input", "arg")
 
 class Kit:
     """What a scope adds to the primitives: its node types and their settings, a check for those settings, how they
-    run, which keep something (a top-level graph needs one), and what a top-level graph's input is called."""
+    run, which keep something (a top-level graph needs one), and what a top-level graph's input is called.
 
-    def __init__(self, scope, types, config, check, run, terminal, needs):
+    Three optional hooks change the defaults for the kit's own nodes: `ports(node)` gives a node's (input ports, output
+    ports, input ports that take several edges), or None for the default (`in` and `out`; none out for a terminal
+    node); `keeps(node)` says whether a node counts as doing something even though it passes things on (a terminal
+    node always does); `check_graph(nodes, edges)` checks rules about the whole graph, and every body in it, once its
+    nodes and edges are checked (ValueError naming the first problem)."""
+
+    def __init__(self, scope, types, config, check, run, terminal, needs, ports=None, keeps=None, check_graph=None):
         self.scope, self.types, self.config, self.check, self.run = scope, tuple(types), config, check, run
         self.terminal, self.needs = set(terminal), needs
+        self.ports, self.keeps, self.check_graph = ports, keeps, check_graph
 
     @property
     def all_types(self):
@@ -195,6 +205,10 @@ def ports(node, kit, defs=None):
     if t == "custom":
         d = (defs or {}).get((c.get("node"), c.get("version")))
         return (list(d["inputs"]), list(d["outputs"]), set()) if d else ([], [], set())
+    if kit.ports is not None and t in kit.types and t not in PRIMITIVES:
+        got = kit.ports(node)
+        if got is not None:
+            return got
     if t in kit.terminal:
         return ["in"], [], set()
     return ["in"], ["out"], set()
@@ -320,14 +334,23 @@ def check_graph(db, graph, kit, body=None, depth=0, where=""):
             raise ValueError(f"connect input {missing[0]} of {n['type']} node {n['id']}{where}")
     if len(order(out_nodes, out_edges)) != len(out_nodes):
         raise ValueError(f"the workflow has a loop{where}; use a for each or repeat node to go over things again")
+    if kit.check_graph is not None:
+        kit.check_graph(out_nodes, out_edges)
     if body in LOOP_ARGS:
         if "out" not in body_ports({"nodes": out_nodes})[1]:
             raise ValueError(f"the body{where} needs a return node called out: what it gives back")
-    elif body and not body_ports({"nodes": out_nodes})[1] and not any(n["type"] in kit.terminal for n in out_nodes):
+    elif body and not body_ports({"nodes": out_nodes})[1] and not any(_does(kit, n) for n in out_nodes):
         raise ValueError(f"the body{where} needs a return node, or it gives nothing back")
     if not body and not keeps(db, out_nodes, kit):
         raise ValueError(kit.needs)
     return {"nodes": out_nodes, "edges": out_edges}
+
+
+def _does(kit, n):
+    """Whether a node keeps something, or does something the kit counts as such (its `keeps` hook)."""
+    if n["type"] in kit.terminal:
+        return True
+    return kit.keeps is not None and n["type"] in kit.types and n["type"] not in PRIMITIVES and bool(kit.keeps(n))
 
 
 def keeps(db, nodes, kit):
@@ -336,7 +359,7 @@ def keeps(db, nodes, kit):
 
     for n in nodes:
         c = n["config"]
-        if n["type"] in kit.terminal:
+        if _does(kit, n):
             return True
         if n["type"] in BODIES and keeps(db, c["body"]["nodes"], kit):
             return True
@@ -345,13 +368,43 @@ def keeps(db, nodes, kit):
     return False
 
 
-def check_test(nid, kind, cfg):
+def test_problem(cfg):
+    """What is wrong with a test ({path, op, value}), or None."""
     if cfg.get("op") not in OPS:
-        raise ValueError(f"{kind} {nid}: the test is one of {', '.join(OPS)}")
+        return f"the test is one of {', '.join(OPS)}"
+    if cfg.get("path") and not PATH_RX.match(str(cfg["path"])):
+        return "give a path like summary.importance, or none"
+    if cfg["op"] in ("gt", "lt") and not _num(cfg.get("value")):
+        return "compare with a number"
+    return None
+
+
+def check_test(nid, kind, cfg):
+    problem = test_problem(cfg)
+    if problem:
+        raise ValueError(f"{kind} {nid}: {problem}")
+
+
+def _check_match(nid, kind, cfg):
+    """A condition, filter or switch case that tests with a match tree (match.py) in `match` instead of one test: the
+    tree, cleaned. `path`, when given, is the part of the value the tree tests."""
+    from . import match
+
+    if "op" in cfg or "value" in cfg:
+        raise ValueError(f"{kind} {nid}: give one test (op, value) or a match tree, not both")
     if cfg.get("path") and not PATH_RX.match(str(cfg["path"])):
         raise ValueError(f"{kind} {nid}: give a path like summary.importance, or none")
-    if cfg["op"] in ("gt", "lt") and not _num(cfg.get("value")):
-        raise ValueError(f"{kind} {nid}: compare with a number")
+    return match.check(cfg["match"], f"{kind} {nid}")
+
+
+def passes(cfg, value, env=None):
+    """Whether a value passes a node's test: one test ({path, op, value}), or a match tree (`match`) on the part of
+    the value at `path`."""
+    if "match" in cfg:
+        from . import match
+
+        return match.test(cfg["match"], dig(value, cfg["path"]) if cfg.get("path") else value, env)
+    return test(cfg, value)
 
 
 def _whole(v, lo, hi):
@@ -363,7 +416,10 @@ def _check_primitive(db, kit, nid, t, cfg, body, depth, here):
         if not PATH_RX.match(str(cfg.get("path") or "")):
             raise ValueError(f"pick node {nid}: give a path like action_items.0.text")
     elif t in ("condition", "filter"):
-        check_test(nid, t, cfg)
+        if "match" in cfg:
+            cfg["match"] = _check_match(nid, t, cfg)
+        else:
+            check_test(nid, t, cfg)
     elif t == "switch":
         cases = cfg.get("cases")
         if not isinstance(cases, list) or not 1 <= len(cases) <= MAX_CASES:
@@ -373,12 +429,15 @@ def _check_primitive(db, kit, nid, t, cfg, body, depth, here):
         names, clean = set(), []
         for k in cases:
             k = dict(k or {})
-            if set(k) - {"port", "path", "op", "value"}:
-                raise ValueError(f"switch {nid}: a case is {{port, op, value}}, and a path if it tests its own")
+            if set(k) - {"port", "path", "op", "value", "match"}:
+                raise ValueError(f"switch {nid}: a case is {{port, op, value}} or {{port, match}}, and a path if it tests its own")
             if not NAME_RX.match(str(k.get("port") or "")) or k["port"] == "default" or k["port"] in names:
                 raise ValueError(f"switch {nid}: name each case differently, in lowercase (not default)")
             names.add(k["port"])
-            check_test(nid, "switch", k)
+            if "match" in k:
+                k["match"] = _check_match(nid, "switch", k)
+            else:
+                check_test(nid, "switch", k)
             clean.append(k)
         cfg["cases"] = clean
     elif t == "set":
@@ -590,12 +649,12 @@ def _step(run, f, node, vals, args, returned, trace):
     if t == "pick":
         return {"out": dig(v, c["path"])}
     if t == "condition":
-        yes = test(c, v)
+        yes = passes(c, v, run.extra.get("env"))
         run.say(f"{name}: {'yes' if yes else 'no'}")
         return {"yes" if yes else "no": v}
     if t == "switch":
         for k in c["cases"]:
-            if test({**k, "path": k.get("path") or c.get("path")}, v):
+            if passes({**k, "path": k.get("path") or c.get("path")}, v, run.extra.get("env")):
                 run.say(f"{name}: {k['port']}")
                 return {k["port"]: v}
         run.say(f"{name}: default")
@@ -613,7 +672,7 @@ def _step(run, f, node, vals, args, returned, trace):
                 raise ValueError(f"{name}: what it rendered isn't JSON") from None
         return {"out": text}
     if t == "filter":
-        kept = [x for x in v if test(c, x)] if isinstance(v, list) else []
+        kept = [x for x in v if passes(c, x, run.extra.get("env"))] if isinstance(v, list) else []
         run.say(f"{name}: kept {len(kept)}")
         return {"out": kept}
     if t == "for_each":

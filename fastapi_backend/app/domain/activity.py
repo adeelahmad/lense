@@ -41,11 +41,13 @@ TABLES = {  # the API's path segments, and the table a number after one names
     "recordings": "recording",
     "resources": "recording",
     "routines": "routine",
+    "automations": "automation",
     "runs": "routine_run",
     "pipelines": "pipeline",
     "workflows": "workflow",
     "custom-nodes": "custom_node",
     "chats": "chat",
+    "messages": "chat_message",  # a conversation's messages/{mid}
     "jobs": "job",
     "namespaces": "space",
     "spaces": "space",
@@ -112,6 +114,26 @@ def scope(db, *refs, cfg=None):
         _scope.reset(token)
 
 
+def scoped(items, db, *refs, cfg=None):
+    """`items` (a generator) with each of its steps run inside scope(db, *refs). A `with scope(...)` inside a generator
+    doesn't hold across its yields when a streamed response iterates it from the threadpool: each step runs in a fresh
+    copy of the request's context."""
+    it = iter(items)
+    try:
+        while True:
+            with scope(db, *refs, cfg=cfg):
+                try:
+                    item = next(it)
+                except StopIteration:
+                    return
+            yield item
+    finally:
+        close = getattr(it, "close", None)
+        if close:
+            with scope(db, *refs, cfg=cfg):
+                close()
+
+
 def current():
     """The resources calls made here count for, in order, without repeats."""
     s = _scope.get() or {}
@@ -123,9 +145,12 @@ def current():
 
 
 def _table(parts, i):
-    """The table a key after path segment i names: /api/v1/notes/{id} are note pages, a recording's notes/{id} its notes."""
+    """The table a key after path segment i names: /api/v1/notes/{id} are note pages, a recording's notes/{id} its
+    notes, /api/v1/automations/runs/{id} an automation's runs."""
     if parts[i] == "notes" and i and parts[i - 1] == "v1":
         return "note_page"
+    if parts[i] == "runs" and i and parts[i - 1] == "automations":
+        return "automation_run"
     return TABLES.get(parts[i])
 
 

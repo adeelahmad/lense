@@ -67,11 +67,13 @@ export type SectionId =
   | "llm"
   | "local-model"
   | "ai"
+  | "sandbox"
   | "search"
   | "reports"
   | "video"
   | "nsfw"
   | "workers"
+  | "automations"
   | "components"
   | "access"
   | "remote-access"
@@ -167,9 +169,16 @@ export const SECTIONS: SectionSpec[] = [
   {
     id: "ai",
     label: "AI assistant",
-    backend: ["ai", "decisions", "voice"],
+    backend: ["ai", "web", "decisions", "voice"],
     description:
-      "What the chat assistant may do with tools, which routine choices it makes for you, and when a batch run needs a typed confirmation.",
+      "What the chat assistant may do with tools, whether it searches the web, which routine choices it makes for you, and when a batch run needs a typed confirmation.",
+  },
+  {
+    id: "sandbox",
+    label: "Code sandbox",
+    backend: ["sandbox"],
+    description:
+      "Off unless you turn it on. The assistant runs Python and bash for people in a sandbox of each conversation’s own, on an NVIDIA OpenShell gateway: no Lens data or keys inside, and no network unless you allow it.",
   },
   {
     id: "search",
@@ -390,6 +399,13 @@ export const SECTIONS: SectionSpec[] = [
     description: "How assets are published as IIIF Manifests and Collections.",
   },
   {
+    id: "automations",
+    label: "Automations",
+    backend: ["automations", "events"],
+    description:
+      "Whether automations run, how far one automation may set off another, how many runs a minute they may make together, how long runs are kept, how late a timer may still fire after Lens was off, how long an automation’s action waits for your pick; and the stream of activities they follow (new assets and what else happens in Lens).",
+  },
+  {
     id: "startup",
     label: "Set at startup",
     backend: [],
@@ -495,6 +511,8 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
   },
   { name: "import_files", label: "Import files sent in a conversation", acts: true },
   { name: "import_urls", label: "Capture web pages from addresses or a list of links", acts: true },
+  { name: "web_search", label: "Search the web (when web search is on)", acts: false },
+  { name: "web_read", label: "Read web pages (when web search is on)", acts: false },
   { name: "server_status", label: "Check what the server has set up (admins)", acts: false },
   { name: "find_model_servers", label: "Find model servers nearby (admins)", acts: false },
   { name: "read_settings", label: "Read settings (admins)", acts: false },
@@ -733,6 +751,19 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "analysis",
+    key: "cleanup",
+    label: "Clean up transcripts before analysis",
+    kind: "switch",
+    hint: "Repeated words, spacing and capitals tidied by rules before entities are found; every change is in Change history, with Revert",
+  },
+  {
+    section: "analysis",
+    key: "cleanup_fillers",
+    label: "Take out “um” and “uh”",
+    kind: "switch",
+  },
+  {
+    section: "analysis",
     key: "gazetteer",
     label: "Custom vocabulary",
     kind: "lines",
@@ -953,6 +984,61 @@ export const FIELDS: FieldSpec[] = [
     kind: "number",
     min: 0,
     nullable: true,
+  },
+  // Web search (the assistant's web_search and web_read)
+  {
+    section: "web",
+    key: "search",
+    label: "Search provider",
+    kind: "select",
+    options: [
+      { value: "off", label: "Off" },
+      {
+        value: "duckduckgo",
+        label: "DuckDuckGo (no key)",
+        hint: "An unofficial client of DuckDuckGo’s results page (ddgs), fetched when you pick it. It can stop working when the page changes.",
+      },
+      { value: "searxng", label: "SearXNG (your own instance)" },
+      { value: "brave", label: "Brave Search (API key)" },
+      { value: "tavily", label: "Tavily (API key)" },
+    ],
+    hint: "What the assistant searches with. Off: it reads only what’s in Lens.",
+  },
+  {
+    section: "web",
+    key: "searxng_url",
+    label: "SearXNG address",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "http://searxng:8080",
+    hint: "Its JSON output must be on (search.formats: json in its settings.yml).",
+  },
+  { section: "web", key: "api_key", label: "Search API key", kind: "secret" },
+  {
+    section: "web",
+    key: "results",
+    label: "Results per search",
+    kind: "int",
+    min: 1,
+    max: 20,
+  },
+  {
+    section: "web",
+    key: "read_chars",
+    label: "Characters read per page",
+    kind: "int",
+    min: 1000,
+    max: 200000,
+    unit: "characters",
+    hint: "The most of a page’s text the model reads at once; longer pages are cut, and find picks the parts that matter.",
+  },
+  {
+    section: "web",
+    key: "render",
+    label: "Use Chromium for pages that need scripts",
+    kind: "switch",
+    hint: "A page that comes back nearly empty is loaded in Chromium, scripts run, and read again. Only where Chromium is installed (the full edition).",
   },
   // Email
   {
@@ -2173,6 +2259,89 @@ export const FIELDS: FieldSpec[] = [
     max: 0.95,
     hint: "Objects the detector is less sure of are left out",
   },
+  // Code sandbox (opt-in)
+  {
+    section: "sandbox",
+    key: "enabled",
+    label: "Let the assistant run Python and bash",
+    kind: "switch",
+    hint: "In a sandbox of each conversation’s own on the OpenShell gateway below; its client (about 10 MB) is fetched the first time",
+  },
+  {
+    section: "sandbox",
+    key: "who",
+    label: "Who may use it",
+    kind: "select",
+    options: [
+      { value: "editors", label: "People who can edit a namespace, and admins" },
+      { value: "admins", label: "Admins only" },
+    ],
+  },
+  {
+    section: "sandbox",
+    key: "network",
+    label: "Its network",
+    kind: "select",
+    options: [
+      { value: "off", label: "None: nothing goes in or out" },
+      { value: "packages", label: "Python and npm package registries only" },
+      { value: "web", label: "Public web addresses (asks first after reading outside text)" },
+    ],
+  },
+  {
+    section: "sandbox",
+    key: "gateway",
+    label: "OpenShell gateway",
+    kind: "text",
+    mono: true,
+    placeholder: "openshell-gateway:8080",
+    hint: "host:port of its gRPC service, on a network only Lens reaches",
+  },
+  {
+    section: "sandbox",
+    key: "image",
+    label: "Image",
+    kind: "text",
+    mono: true,
+    placeholder: "python:3.12-slim",
+    hint: "A container image with python3 and bash; new sandboxes use it",
+  },
+  {
+    section: "sandbox",
+    key: "cpu",
+    label: "CPU per sandbox",
+    kind: "text",
+    mono: true,
+    hint: "Cores, like 1, 0.5 or 500m",
+  },
+  {
+    section: "sandbox",
+    key: "memory",
+    label: "Memory per sandbox",
+    kind: "text",
+    mono: true,
+    hint: "Like 512Mi or 2Gi",
+  },
+  { section: "sandbox", key: "seconds", label: "Longest run", kind: "int", min: 1, max: 600, unit: "seconds" },
+  {
+    section: "sandbox",
+    key: "idle_minutes",
+    label: "Stop an idle sandbox after",
+    kind: "int",
+    min: 1,
+    max: 1440,
+    unit: "minutes",
+  },
+  {
+    section: "sandbox",
+    key: "keep_hours",
+    label: "Delete an unused sandbox after",
+    kind: "int",
+    min: 1,
+    max: 720,
+    unit: "hours",
+    hint: "With its files. Deleting the conversation deletes it at once",
+  },
   // NSFW
   {
     section: "nsfw",
@@ -2669,6 +2838,85 @@ export const FIELDS: FieldSpec[] = [
     min: 1,
     max: 20,
     hint: "A failed send waits 30 seconds, then four times longer each time, up to 6 hours",
+  },
+  // Automations
+  {
+    section: "automations",
+    key: "enabled",
+    label: "Run automations",
+    kind: "switch",
+    hint: "Off: no automation runs and nothing is lost; switched back on, they react to what happens from then on",
+  },
+  {
+    section: "automations",
+    key: "max_depth",
+    label: "Automations one run may set off",
+    kind: "int",
+    min: 1,
+    max: 10,
+    hint: "How long a chain of automations setting each other off may get, so two can't loop forever",
+  },
+  {
+    section: "automations",
+    key: "max_runs_per_minute",
+    label: "Runs a minute, all automations together",
+    kind: "int",
+    min: 1,
+    max: 6000,
+    hint: "Each automation also has its own most runs an hour and wait between runs",
+  },
+  {
+    section: "automations",
+    key: "keep_runs_days",
+    label: "Keep runs (days)",
+    kind: "int",
+    min: 1,
+    max: 3650,
+    hint: "Each automation keeps its last 20 runs however old they are",
+  },
+  {
+    section: "automations",
+    key: "catch_up",
+    label: "After Lens was off, still run timers up to",
+    kind: "select",
+    options: [
+      { value: "0s", label: "Don’t: count them as missed" },
+      { value: "5m", label: "5 minutes late" },
+      { value: "15m", label: "15 minutes late" },
+      { value: "1h", label: "1 hour late" },
+      { value: "6h", label: "6 hours late" },
+      { value: "1d", label: "1 day late" },
+      { value: "7d", label: "7 days late" },
+    ],
+    hint: "Schedules and actions that wait; one that missed several times runs once, and older ones count as missed",
+  },
+  {
+    section: "automations",
+    key: "approval_days",
+    label: "An automation’s action waits for your pick (days)",
+    kind: "int",
+    min: 1,
+    max: 365,
+    hint: "Then it expires and nothing runs; you decide in Approvals",
+  },
+  // The stream of activities automations follow
+  {
+    section: "events",
+    key: "poll_seconds",
+    label: "Look for new activities every (seconds)",
+    kind: "int",
+    min: 1,
+    max: 3600,
+    hint: "New assets wake followers on this server at once; this is how often they look anyway",
+  },
+  {
+    section: "events",
+    key: "keep_days",
+    label: "Keep logged activities (days)",
+    kind: "int",
+    min: 1,
+    max: 3650,
+    hint: "Activities with no row of their own, such as an automation’s; new assets and other rows stay as long as they do",
   },
   // Usage analytics (Google Analytics opt-in)
   {
@@ -3472,6 +3720,10 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   if (g) e["analysis.gazetteer"] = g;
   const llm = values["llm.base_url"] as string | null | undefined;
   if (llm && !URL_RX.test(llm)) e["llm.base_url"] = "Use an http(s) address, such as https://api.example.org/v1";
+  const searx = values["web.searxng_url"] as string | null | undefined;
+  if (searx && !URL_RX.test(searx)) e["web.searxng_url"] = "Use an http(s) address, such as http://searxng:8080";
+  else if (values["web.search"] === "searxng" && !searx)
+    e["web.searxng_url"] = "Give your SearXNG instance’s address, or pick another provider";
   const embed = values["embeddings.base_url"] as string | null | undefined;
   if (embed && !URL_RX.test(embed))
     e["embeddings.base_url"] = "Use an http(s) address, such as http://localhost:11434/v1";
@@ -3488,6 +3740,15 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   const badNNet = nNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badNNet) e["nfs.allowed_networks"] = `“${badNNet}” isn’t a network like 192.168.1.0/24`;
   else if (nNets && nNets.length === 0) e["nfs.allowed_networks"] = "List at least one network";
+  const cpu = values["sandbox.cpu"] as string | undefined;
+  if (cpu !== undefined && !/^(\d+(\.\d+)?|\d+m)$/.test(String(cpu).trim()))
+    e["sandbox.cpu"] = "Cores, like 1, 0.5 or 500m";
+  const mem = values["sandbox.memory"] as string | undefined;
+  if (mem !== undefined && !/^\d+(Ki|Mi|Gi|K|M|G)?$/.test(String(mem).trim()))
+    e["sandbox.memory"] = "Like 512Mi or 2Gi";
+  const gw = values["sandbox.gateway"] as string | undefined;
+  if (gw !== undefined && !/^(\[[0-9a-f:]+\]|[a-z0-9][a-z0-9.-]*):\d{1,5}$/i.test(String(gw).trim()))
+    e["sandbox.gateway"] = "host:port, like openshell-gateway:8080";
   const mNets = values["smb.allowed_networks"] as string[] | undefined;
   const badMNet = mNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badMNet) e["smb.allowed_networks"] = `“${badMNet}” isn’t a network like 192.168.1.0/24`;

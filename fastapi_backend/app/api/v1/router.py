@@ -3,9 +3,13 @@
 from fastapi import APIRouter
 
 from app.api.v1.routes import (
+    activities,
     activity,
     admin,
     auth,
+    automation_hooks,
+    automation_vars,
+    automations,
     backups,
     batches,
     browser,
@@ -81,6 +85,10 @@ for module in (
     backups,  # before updates: its /admin/backups/remote would otherwise be read as a backup's name
     updates,
     activity,
+    activities,
+    automation_hooks,
+    automation_vars,  # before namespaces: /namespaces/{name}/automation-vars
+    automations,
     budgets,
     fedora,
     setup,

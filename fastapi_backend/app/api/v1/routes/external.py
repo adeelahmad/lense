@@ -15,7 +15,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 
 from app.api.deps import AdminWriter, Cfg, CurrentUser, Db, Writer, domain_errors, web_origin
-from app.domain import auth, external_login, passkeys
+from app.domain import auth, external_login, google_auth, passkeys, sources
 from app.schemas.auth import (
     ExternalIdentity,
     ExternalProvider,
@@ -96,6 +96,8 @@ def external_callback(
         flow = external_login.claim(db, state, request.cookies.get(COOKIE))
     except ValueError as e:
         return _back(web_origin(request), error=str(e), next="/login")
+    if flow.get("mode") == "source":
+        return _source_connected(db, cfg, flow, code, state, error, error_description)
     origin, connect = flow["origin"], flow.get("mode") == "connect"
     away = "/account" if connect else "/login"
     if error or not code:
@@ -112,6 +114,32 @@ def external_callback(
         auth.audit(db, u, "external.connect", f"account:{u['id']}", [key])
         return _back(origin, connected=label, next="/account")
     return _back(origin, ticket=passkeys.issue_ticket(db, u["id"], f"external:{key}"), next=flow.get("next") or "/")
+
+
+def _source_connected(db: Db, cfg: Cfg, flow: dict, code: str, state: str, error: str, error_description: str) -> RedirectResponse:
+    """A Google account connected to a source (google_auth.connect_start): ends on the Sources page, which shows how it
+    went and offers the source's calendars to watch."""
+    sid = flow.get("source")
+    if error or not code:
+        why = "you cancelled" if error == "access_denied" else (error_description or error or "no code came back")
+        q = {"google_error": f"connecting the Google account didn't finish: {why}", "source": sid}
+    elif not (u := auth.active_account(db, flow.get("account"))) or not u.get("admin"):
+        q = {"google_error": "only admins can connect a Google account", "source": sid}
+    else:
+        try:
+            sid, email = google_auth.connect_finish(db, cfg, flow, code, state)
+            sources.test(db, cfg, sid)
+            auth.audit(db, u, "source.google_connect", f"storage_source:{sid}", [email] if email else None)
+            q = {"google": "connected", "source": sid, "account": email}
+        except KeyError:
+            q = {"google_error": "that connection was removed meanwhile"}
+        except (ValueError, RuntimeError) as e:
+            q = {"google_error": str(e), "source": sid}
+    r = RedirectResponse(
+        f"{flow['origin']}/sources?{urllib.parse.urlencode({k: v for k, v in q.items() if v not in (None, '')})}", status_code=303
+    )
+    r.delete_cookie(COOKIE, path="/api/v1/auth/external")
+    return r
 
 
 # ---------- your outside accounts ----------

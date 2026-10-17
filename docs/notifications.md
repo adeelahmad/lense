@@ -92,12 +92,15 @@ check that the timestamp is recent too, to refuse replays.
 | `batch.finished` | a batch run finished, or its sample did; each namespace it ran in gets its own counts | `batch`, `label`, `status`, `counts`, `sample` |
 | `recording.added` | an asset (a recording, document, image or web page) was added, however it came | `recording`, `title`, `source`, `created_at` |
 | `lens.release` | a new Lens release is out, once per release ([Updates](updates.md)) | `tag`, `name`, `current`, `published_at`, `notes_url` |
+| `approval.waiting` | an automation's action waits for its person's pick ([Approvals](automations.md#approvals)); one decided before the notifier saw it isn't sent | `approval`, `automation`, `automation_name`, `summary`, `action`, `effect`, `expires_at`, `created_at` |
 
 New targets get `job.failed` and `batch.finished`. A batch run's own runs aren't sent one by one: the batch run is,
 when it finishes. More than five things added to a namespace at once (a watched folder's new files, an import) are one
 message (`data.recordings`, `data.count`).
 
-`text` is the message chat targets get, and `url` links to the run, batch run or asset in the web app.
+`text` is the message chat targets get, and `url` links to the run, batch run, asset or approval in the web app. What
+an approval would do holds text its run read from outside Lens, so web addresses in its `text` are broken up
+(`hxxps://evil[.]example`), except the web app's own.
 
 ## How it's sent
 
@@ -118,7 +121,7 @@ Under Settings → Notifications (the `notifications` section, see [Configuratio
 | Setting | Default | |
 | --- | --- | --- |
 | `enabled` | `true` | Off: nothing is sent, and what happens meanwhile isn't sent later |
-| `networks` | `[]` | Private networks targets may be in, like `192.168.1.0/24` or `172.16.0.0/12` (Docker) |
+| `networks` | `[]` | Private networks targets may be in, like `192.168.1.0/24` or `172.16.0.0/12` (Docker); automations calling a web address ([`http_request`](automations.md#calling-a-web-address)) may reach them too |
 | `app_url` | `null` | Where links in messages point; `null` uses the server's `FRONTEND_URL` |
 | `poll_seconds` | `5` | How often the notifier looks |
 | `max_attempts` | `6` | How many times a message is tried |

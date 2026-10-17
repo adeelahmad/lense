@@ -1,4 +1,4 @@
-"""Budgets (docs/budgets.md): a cap on what a routine, pipeline, workflow or namespace may cost, checked before it runs.
+"""Budgets (docs/budgets.md): a cap on what a routine, automation, pipeline, workflow or namespace may cost, checked before it runs.
 
 A budget is off unless someone sets one. It caps cost in USD, tokens, or both, per run, day, week (from Monday) or
 month (UTC), with what was spent read from the activity ledger (activity.py). Before a routine run or a job, Lens
@@ -32,8 +32,8 @@ log = logging.getLogger("lens")
 R = store.R
 PERIODS = ("run", "day", "week", "month")
 ON_OVER = ("ask", "skip", "assistant")
-TABLES = ("routine", "pipeline", "workflow", "space")
-REF = re.compile(r"^(?:(routine|pipeline|workflow|space):(\d+)|all)$")
+TABLES = ("routine", "automation", "pipeline", "workflow", "space")
+REF = re.compile(r"^(?:(routine|automation|pipeline|workflow|space):(\d+)|all)$")
 ALL = "all"  # everything Lens spends (set in setup); the meter measures all of Lens against it
 HARD_SECONDS = 30  # how long hard_stop trusts what it last found
 FIELDS = "resource, usd, tokens, period, on_over, warn_at, note, by, updated_at, alert"
@@ -48,7 +48,7 @@ def _key(resource):
 
 def check_ref(resource):
     if not isinstance(resource, str) or not REF.match(resource):
-        raise ValueError("a budget is for all, routine:<id>, pipeline:<id>, workflow:<id> or space:<id>")
+        raise ValueError("a budget is for all, routine:<id>, automation:<id>, pipeline:<id>, workflow:<id> or space:<id>")
     return resource
 
 
@@ -123,16 +123,20 @@ def _spent(db, resource, since):
 
 
 def _runs(db, resource, since):
-    """How many runs this resource had since a time: a routine's runs, or the jobs of a pipeline, workflow or namespace."""
+    """How many runs this resource had since a time: a routine's or an automation's runs, or the jobs of a pipeline,
+    workflow or namespace."""
     m = REF.match(resource)
     if resource == ALL:
         routine_runs = len(db.values("SELECT VALUE id FROM routine_run WHERE started_at >= $s", s=since))
+        automation_runs = len(db.values("SELECT VALUE id FROM automation_run WHERE started_at >= $s", s=since))
         job_runs = db.values(
             "SELECT VALUE id FROM activity WHERE kind = 'run' AND at >= $s AND string::starts_with(action, 'job.')", s=since
         )
-        return routine_runs + len(job_runs)
+        return routine_runs + automation_runs + len(job_runs)
     if m and m.group(1) == "routine":
         return len(db.values("SELECT VALUE id FROM routine_run WHERE routine = $r AND started_at >= $s", r=int(m.group(2)), s=since))
+    if m and m.group(1) == "automation":
+        return len(db.values("SELECT VALUE id FROM automation_run WHERE automation = $r AND started_at >= $s", r=int(m.group(2)), s=since))
     return len(
         db.values(
             "SELECT VALUE id FROM activity WHERE kind = 'run' AND resources CONTAINS $res AND at >= $s AND string::starts_with(action, 'job.')",
@@ -219,6 +223,21 @@ def check(db, cfg, resources, now=None):
                 return {"go": True, "action": "run", "why": why + " The assistant let it run.", "resource": res, "status": st}
         return {"go": False, "action": how, "why": why, "resource": res, "status": st}
     return {"go": True, "action": "run", "why": None, "resource": None, "status": None}
+
+
+def used_up(db, resources, now=None):
+    """Why a call for these resources must not go ahead, or None: the first of their budgets (and `all`) whose cap is
+    already reached. For a single call inside a run, such as an automation asking the model, where check()'s estimate
+    of a whole run doesn't apply."""
+    for res in dict.fromkeys([ALL, *(r for r in resources if r and REF.match(r))]):
+        b = get(db, res)
+        if b:
+            st = status(db, res, b, now)
+            if st["state"] == "over":
+                return (
+                    _why(res, st, True).replace(f"{ALL} has spent", "Lens has spent") + " Raise the limit in Settings › Budgets to go on."
+                )
+    return None
 
 
 def _money(v):
@@ -330,6 +349,12 @@ def sweep(db, cfg, now=None, every=None):
         activity.record(
             "run", f"budget.{st['state']}", [res], cfg, db, detail={"share": st["share"], "estimate": st["spent"]["estimate"] or None}
         )
+        try:  # for automations: budget.warned (events_streams.py)
+            from . import events_streams
+
+            events_streams.budget_warned(db, b, alert, st)
+        except Exception as e:  # noqa: BLE001 - the alert stands without it
+            log.info("budgets: couldn't log the warning for %s: %s", res, e)
         made.append({"resource": res, **alert})
     return made
 

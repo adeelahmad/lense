@@ -19,15 +19,29 @@ what flows between these, the nodes of a recording workflow:
 
 Positions are only for the canvas.
 
-A workflow's scope says what it runs on: `recording` (the nodes above, run by pipelines) or `graph` (run over
-namespaces, usually by a routine, to organise their entities: see organize.py for its nodes).
+A workflow's scope says what it runs on: `recording` (the nodes above, run by pipelines), `graph` (run over
+namespaces, usually by a routine, to organise their entities: see organize.py for its nodes) or `event` (what an
+automation does when it runs, from the run context: see automation_nodes.py for its action and decide nodes).
 """
 
 from __future__ import annotations
 
 import re
 
-from . import analyze, fields as fieldmod, flow, llm, metadata, organize, pipelines, store, telemetry, templates, tool_nodes
+from . import (
+    analyze,
+    automation_nodes,
+    fields as fieldmod,
+    flow,
+    llm,
+    metadata,
+    organize,
+    pipelines,
+    store,
+    telemetry,
+    templates,
+    tool_nodes,
+)
 
 R = store.R
 OWN_NODES = ("llm", "extract_rules", "extract_llm", "output", "field", "save_entities")
@@ -197,17 +211,20 @@ def history(db, wid):
     return db.rows("SELECT version, notes, created_at, created_by FROM workflow_version WHERE workflow = $w ORDER BY version DESC", w=wid)
 
 
-def list_workflows(db):
+def list_workflows(db, scope=None):
+    """Saved workflows, with the pipelines that run each: those of `scope`, or (None) every one but automations'
+    (scope event), which are made and changed with their automation."""
     used = {}
     for p in db.rows("SELECT record::id(id) AS id, name, current FROM pipeline"):
         v = db.one("SELECT steps FROM $r", r=R("pipeline_version", f"{p['id']}-{p['current']}")) or {}
         for s in v.get("steps") or []:
             if isinstance(s, dict) and s.get("type") == "workflow" and p["name"] not in used.get(s.get("workflow"), []):
                 used.setdefault(s.get("workflow"), []).append(p["name"])
-    return [
+    out = [
         {**w, "scope": w.get("scope") or "recording", "pipelines": used.get(w["id"], [])}
         for w in db.rows("SELECT record::id(id) AS id, name, description, scope, current, updated_at FROM workflow ORDER BY id")
     ]
+    return [w for w in out if (w["scope"] == scope if scope else w["scope"] != "event")]
 
 
 def _segments(db, rid):
@@ -301,7 +318,7 @@ def run(db, cfg, rid, wid, version=None, say=print, user=None):
 def _run(db, cfg, rid, wid, version, say, user):
     w = get(db, wid, version)
     if w["scope"] != "recording":
-        raise ValueError(f"workflow {w['name']} organises the graph; a routine runs it, not a pipeline")
+        raise ValueError(f"workflow {w['name']} {RUN_BY.get(w['scope'], 'runs elsewhere')}, not a pipeline")
     r = flow.Run(
         db, cfg, KITS["recording"], templates.context(db, cfg, rid), say, user=user,
         origin={"workflow": w["id"], "workflow_version": w["version"]}, rid=rid, by=user or f"workflow:{w['id']}",
@@ -361,11 +378,18 @@ def _run_node(r, f, node, value, vals):
     return {}
 
 
-def try_graph(db, cfg, graph, scope="recording", rid=None, spaces=None, user=None):
-    """Run a graph without keeping anything (a dry run, from the canvas): {trace, log, error}. Nodes that would save
-    something say what they'd save; models are still asked."""
+RUN_BY = {"graph": "organises the graph; a routine runs it", "event": "is what an automation does; its automation runs it"}
+
+
+def try_graph(db, cfg, graph, scope="recording", rid=None, spaces=None, user=None, activity=None):
+    """Run a graph without keeping anything (a dry run, from the canvas): {trace, log, error, steps, intents}. Nodes
+    that would save something say what they'd save; models are still asked. An automation's workflow (scope event)
+    runs on `activity` (an activity, such as a kind's sample) as the person `user` (an account), over `spaces`; its
+    actions say what they would do, and `intents` lists them."""
     graph = validate_graph(db, graph, scope)
     log = []
+    if scope == "event":
+        return _try_event(db, cfg, graph, spaces, user, activity, log)
     if scope == "recording":
         if rid is None:
             raise ValueError("choose an asset to try it on")
@@ -380,6 +404,25 @@ def try_graph(db, cfg, graph, scope="recording", rid=None, spaces=None, user=Non
     except Exception as e:  # shown on the canvas, on the node that failed
         error = str(e)[:500] or type(e).__name__
     return {"trace": r.trace, "log": log[-200:], "error": error, "steps": r.steps}
+
+
+def _try_event(db, cfg, graph, spaces, user, activity, log):
+    if not isinstance(activity, dict):
+        raise ValueError("choose an activity, or a kind of activity, to try it on")
+    who = user if isinstance(user, dict) else {}
+    auto = {"id": None, "name": "Try", "version": None, "spaces": None if spaces is None else sorted(spaces)}
+    ctx = automation_nodes.context(
+        db, cfg, auto, {"id": None, "dry": True}, {"as": "event", "on": "event"}, activity, {"event": activity}, who
+    )
+    box = automation_nodes.Intents(db, cfg, user=who, spaces=auto["spaces"], dry=True)
+    r = flow.Run(db, cfg, KITS["event"], ctx, log.append, dry=True, user=who.get("email"), intents=box)
+    error = None
+    try:
+        flow.run_graph(r, graph)
+    except Exception as e:  # shown on the canvas, on the node that failed
+        error = str(e)[:500] or type(e).__name__
+    trace = automation_nodes.finish(r.trace, box)
+    return {"trace": trace, "log": log[-200:], "error": error, "steps": r.steps, "intents": box.items}
 
 
 def _fit(f, v):
@@ -411,8 +454,14 @@ KITS = {
         "tool", tool_nodes.OWN_NODES, tool_nodes.CONFIG, lambda db, nid, t, cfg: tool_nodes.check_config(db, nid, t, cfg),
         tool_nodes.run_node, set(), "a tool's graph is the body of a tool",
     ),
+    # what an automation does (automation_nodes.py): from the run context, its actions and decide nodes
+    "event": flow.Kit(
+        "event", automation_nodes.OWN_NODES, automation_nodes.CONFIG, automation_nodes.check_config, automation_nodes.run_node,
+        set(), automation_nodes.NEEDS, ports=automation_nodes.ports, keeps=automation_nodes.keeps,
+        check_graph=automation_nodes.check_graph,
+    ),
 }  # fmt: skip
 SCOPES = {s: k.all_types for s, k in KITS.items()}
 RECORDING_NODES = SCOPES["recording"]
-NODE_TYPES = RECORDING_NODES + tuple(t for s in ("graph", "tool") for t in SCOPES[s] if t not in RECORDING_NODES)
-CONFIG = {**flow.CONFIG, **OWN_CONFIG, **organize.CONFIG, **tool_nodes.CONFIG}
+NODE_TYPES = RECORDING_NODES + tuple(dict.fromkeys(t for s in ("graph", "tool", "event") for t in SCOPES[s] if t not in RECORDING_NODES))
+CONFIG = {**flow.CONFIG, **OWN_CONFIG, **organize.CONFIG, **tool_nodes.CONFIG, **automation_nodes.CONFIG}
