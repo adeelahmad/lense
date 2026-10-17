@@ -30,6 +30,7 @@ OWN = (
     "term",
     "topic_about",
     "section",
+    "date_said",
     "appearance",
     "segment",
     "output",

@@ -138,7 +138,8 @@ engine), `POST /voice/transcribe` (a clip as the raw body; nothing is kept), `PO
 When the configured model supports function calling, chat becomes an agent.
 
 - **What it can look things up with:** assets' text (transcripts and documents, and on-screen text), assets, passages,
-  outputs, entities and their mentions and timelines, the knowledge graph, people, and content similar to a text,
+  outputs, entities and their mentions and timelines, dates said as days on the calendar (`find_dates`), the
+  knowledge graph, people, and content similar to a text,
   an asset, a topic or an entity (`find_similar`), and what happened in Lens, newest first (`timeline`, the
   [stream of activities](automations.md#timeline-reads); `unreviewed` for what the person hasn't marked reviewed),
   and assets by any attribute: faces seen, people heard, entities, topics, kind, content type, dates and the rest,
@@ -288,7 +289,10 @@ tools it may use, how many tool calls it may make, and which namespaces it reads
 - **Web and MCP tools reach beyond your namespaces.** The namespaces picked narrow the archive's tools only. A web
   search, an MCP server or the browser reads and sends wherever it reaches.
 
-In the web app, a Tools chip beside the composer's scope picks these (in progress).
+In the web app, the **Tools** chip beside the composer's scope picks these for the conversation (Enter or a tap opens
+it): Auto, a switch for each group (marked "needs approval" or "sends data out"; one you don't have says why, with a
+link to its setting for admins) and a limit on tool calls per answer. A conversation not started yet opens on your
+latest choice. "All my namespaces" at the top of the scope's namespaces goes back to everything in one tap.
 
 Refine later: tool choice in chat rooms and voice mode, a default choice per namespace, and the model suggesting the
 tools a question needs.
