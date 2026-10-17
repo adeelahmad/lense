@@ -36,6 +36,12 @@ from a LanguageTool server, spaCy fetched for named entities, and dates found an
 
 Refine later: revert a whole cleanup at once; cleanup rules for other languages' fillers; per-namespace switch.
 
+Grammar: the clean step takes a LanguageTool server's GRAMMAR, PUNCTUATION and TYPOGRAPHY fixes, and EN_A_VS_AN (filed
+under MISC) (analysis.cleanup_grammar_url, the compose files' `languagetool` profile), never spelling, style or a word
+with a capital. language_tool_python from the script is GPL-3.0 and starts Java itself, so Lens talks to a server
+instead. Refine later: start the profile from Settings through the machine agent; per-namespace grammar; LanguageTool's
+other categories as opt-in switches.
+
 ## 2026-10-17 · Describing pictures with Florence-2 on this machine
 
 Adeel: use Moondream 3 and/or Microsoft Florence for visual descriptions. Florence-2 (MIT) is now a describe engine
