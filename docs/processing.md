@@ -588,6 +588,9 @@ it and its link.
   (never its address). It comes in as text: the title, its link, who wrote it, when, the feed, its categories and
   enclosures, then its text. Its content type is Feed post, so a namespace can give feed posts a pipeline of their own
   (Settings › Content types).
+- **Automations**: each new post is a `feed_post.received` activity (a kind of `asset.added`) with the post's
+  address, site, feed, author, date and categories, so an automation can start on posts from one feed, author or
+  category ([Automations](automations.md#kinds)). What the feed wrote is marked as outside text.
 - **New posts only, unless you backfill**: as for any watch, a new watch on a feed takes the posts published after it
   starts; turn on backfill to bring in those the feed lists already. The newest 500 posts of a feed are listed.
 - **Light on the network**: a feed read is reused for a minute, then asked for again with its `ETag` and

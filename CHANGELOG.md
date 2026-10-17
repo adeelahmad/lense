@@ -21,6 +21,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   Markdown or plain text and exports it, questions and code blocks have their own copy buttons, and the conversation's
   header has Export; without a PDF printer on the server, the browser prints it instead
   ([Copy and export](docs/assistant.md#copy-and-export)).
+- **News feeds.** Subscribe to a blog's or a news site's RSS or Atom feed: add it on the Sources page (its address,
+  or just the site's) and watch it, and each new post comes into a namespace as text, with its link, author and date,
+  so answers cite it. Feeds are asked for again only when they've changed, and a private feed's address is kept like a
+  password ([News feeds](docs/processing.md#news-feeds-rss-and-atom)).
+- **Automations on feed posts.** Each new post of a news feed is a `feed_post.received` activity with its address,
+  site, feed, author, date and categories, so an automation can start on posts from one feed, author or category
+  ([Kinds](docs/automations.md#kinds)).
 - **Mail, calendars and files in chat.** An admin's assistant can search and read the mailboxes, calendars and
   storage they connected under Settings → Sources, through the new tools `connections`, `search_mail`, `read_mail`,
   `calendar_events`, `list_files`, `find_files`, `read_file` and `import_from_connection`; the tool picker shows them as
@@ -81,10 +88,6 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   each run shows what its actions did. Try one on an activity without keeping or sending anything, or run it now;
   Settings → Automations switches them all off and sets how far they may go
   ([Running automations](docs/automations.md#running-automations)).
-- **News feeds.** Subscribe to a blog's or a news site's RSS or Atom feed: add it on the Sources page (its address,
-  or just the site's) and watch it, and each new post comes into a namespace as text, with its link, author and date,
-  so answers cite it. Feeds are asked for again only when they've changed, and a private feed's address is kept like a
-  password ([News feeds](docs/processing.md#news-feeds-rss-and-atom)).
 - **Each answer says what produced it.** The *i* in an answer's header shows the model and the host it ran on, the
   tools it was offered and used, the scope, its limits and what it used, tokens, cost (an estimate from your prices),
   how long it took, how it ended and which tool results read like instructions to an AI, with the calls made for it.
