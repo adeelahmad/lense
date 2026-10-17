@@ -232,7 +232,10 @@ def _readable_citations(db: DB, acl: Access, msgs: list[dict[str, Any]]) -> None
         else set()
     )
     for m in msgs:
-        m["passages"] = [p for p in m.get("passages") or [] if p.get("source") == "web" or p.get("recording_id") in visible]
+        # a web page, or a connection's message or event (a link, no asset), or a moment of an asset they can read
+        m["passages"] = [
+            p for p in m.get("passages") or [] if (p.get("url") and p.get("recording_id") is None) or p.get("recording_id") in visible
+        ]
 
 
 @router.get("/chats/{cid}/messages/{mid}")

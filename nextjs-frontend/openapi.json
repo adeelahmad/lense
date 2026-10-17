@@ -56469,7 +56469,7 @@
               }
             ],
             "title": "Recording Id",
-            "description": "the asset it's from; none for a web page"
+            "description": "the asset it's from; none for a web page, message or event"
           },
           "source": {
             "anyOf": [
@@ -56481,7 +56481,7 @@
               }
             ],
             "title": "Source",
-            "description": "what it is: said (speech), page (a document's), screen (text shown in a video), memory, or web"
+            "description": "what it is: said (speech), page (a document's), screen (text shown in a video), memory, web, mail or event"
           },
           "url": {
             "anyOf": [
@@ -56493,7 +56493,7 @@
               }
             ],
             "title": "Url",
-            "description": "a web page's address (source web): the citation opens it"
+            "description": "a web page's, message's or event's address (no asset): the citation opens it"
           },
           "site": {
             "anyOf": [
@@ -56505,7 +56505,7 @@
               }
             ],
             "title": "Site",
-            "description": "a web page's site, like example.com"
+            "description": "a web page's site, like example.com; a message's or event's connection"
           },
           "fetched_at": {
             "anyOf": [
@@ -56625,7 +56625,7 @@
           "text"
         ],
         "title": "Passage",
-        "description": "A numbered excerpt an answer can cite: a moment of an asset, or a web page (`source` \"web\", with its `url`)."
+        "description": "A numbered excerpt an answer can cite: a moment of an asset, a web page (`source` \"web\", with its `url`), or a\nmessage or event of a connected account (`source` \"mail\" or \"event\", with its `url` in Gmail or Google Calendar)."
       },
       "Passkey": {
         "properties": {
