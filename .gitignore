@@ -170,6 +170,8 @@ local-shared-data/*
 
 # ci/local-ci.sh logs
 /.local-ci/
+# ci/upgrade/upgrade.sh logs and dumps
+/.upgrade-check/
 .lens-build
 .lens-sandbox
 .lens-control/

@@ -27,8 +27,10 @@ from __future__ import annotations
 import base64
 import datetime as dt
 import hashlib
+import json
 import os
 import re
+import zipfile
 
 from . import activity, store
 
@@ -808,6 +810,66 @@ def labels(db, targets):
         ):
             out[f"{kind}:{r['id']}"] = {"name": r.get("name"), "space": r.get("space")}
     return out
+
+
+EXPORT_NAME_MAX = 100  # characters of a file's name, from the page's title
+_UNSAFE = re.compile(r'[\\/:*?"<>|\x00-\x1f]+')
+
+
+def file_name(title):
+    """A page's title as a file name that works everywhere: no slashes or other marks file systems refuse."""
+    name = _UNSAFE.sub(" ", str(title or "")).strip(" .")
+    name = " ".join(name.split())[:EXPORT_NAME_MAX].rstrip(" .")
+    return name or "Untitled"
+
+
+def markdown(p, titles=None):
+    """A page as a Markdown file of its own, for other notes apps: YAML front matter (its title, date, where it's
+    filed, its summary, what it's the page of), then its text. Links to other pages become [[Title]] wiki links (their
+    title now, from `titles` by id, else as written); links to anything else become its name."""
+    titles = titles or {}
+
+    def link(m):
+        sign, label, kind, key = m.groups()
+        if kind == "page":
+            return f"[[{titles.get(int(key), label)}]]"
+        return label if sign == "@" else f"#{label}"
+
+    head = {"title": p.get("title"), "date": p.get("date"), "place": p.get("place"), "summary": p.get("summary")}
+    head["page_of"] = p.get("about")
+    lines = ["---", *(f"{k}: {json.dumps(v, ensure_ascii=False)}" for k, v in head.items() if v), "---", ""]
+    return "\n".join(lines) + MENTION.sub(link, p.get("body") or "").strip() + "\n"
+
+
+THINGS = {"recording": "Recordings", "entity": "Entities", "topic": "Topics", "collection": "Collections", "speaker": "Speakers"}
+
+
+def export(db, sid, out):
+    """Every page of the namespace as Markdown files in a zip written to `out`: free notes in folders that follow the
+    tree (a note's notes in a folder named like it), the pages of things under "Pages of things"."""
+    rows = db.rows(f"SELECT {FIELDS}, body FROM note_page WHERE space = $s", s=sid)
+    by_id = {p["id"]: p for p in rows}
+    titles = {i: p["title"] for i, p in by_id.items()}
+
+    def folder(p, seen=()):
+        if p.get("about"):
+            return ["Pages of things", THINGS.get(p["about"].split(":")[0], "Other")]
+        up = by_id.get(p.get("parent")) if p.get("parent") is not None else None
+        if not up or up["id"] in seen or len(seen) > DEPTH_MAX:
+            return []
+        return [*folder(up, (*seen, p["id"])), file_name(up["title"])]
+
+    used = set()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+        for p in sorted(rows, key=lambda r: (r.get("position") or 0, r["id"])):
+            base = "/".join([*folder(p), file_name(p["title"])])
+            path, n = f"{base}.md", 1
+            while path.casefold() in used:  # two pages with one title in one place
+                n += 1
+                path = f"{base} ({n}).md"
+            used.add(path.casefold())
+            z.writestr(path, markdown(p, titles))
+    return len(rows)
 
 
 SNIPPET = 160

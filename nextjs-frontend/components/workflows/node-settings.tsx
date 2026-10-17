@@ -6,6 +6,7 @@ import type { FieldDef, TemplateSummary } from "@/app/openapi-client/types.gen";
 import { FlowSettings } from "@/components/workflows/flow-settings";
 import {
   OPS,
+  VOCABULARIES,
   infoFor,
   paramRef,
   type BodyKind,
@@ -420,6 +421,74 @@ export function NodeSettings({
                 />
               )}
             </Field>
+          </>
+        )}
+
+        {node.type === "classify" && (
+          <>
+            <Field label="Choose from" hint="The decision model picks one, else the model in Settings → LLM">
+              {({ id, describedBy }) => (
+                <Select
+                  id={id}
+                  aria-describedby={describedBy}
+                  value={String(c.vocabulary ?? "")}
+                  onChange={(e) =>
+                    set(
+                      e.target.value
+                        ? { vocabulary: e.target.value, labels: undefined }
+                        : { vocabulary: undefined, labels: (c.labels as string[] | undefined) ?? [] },
+                    )
+                  }
+                  options={[
+                    { value: "", label: "Labels you give" },
+                    ...Object.entries(VOCABULARIES).map(([value, label]) => ({ value, label })),
+                  ]}
+                />
+              )}
+            </Field>
+            {c.vocabulary == null && (
+              <Lines
+                key={`${node.id}-labels`}
+                label="Labels"
+                hint="One per line; what a label means after a colon helps it choose"
+                placeholder={"security: exploits and attacks\nhealth: medicine and research"}
+                value={(c.labels as string[] | undefined) ?? []}
+                show={(v) => String(v)}
+                parse={(lines) => set({ labels: lines })}
+              />
+            )}
+            <Field label="Question" optional hint="Ask it your way, e.g. Which desk should this go to?">
+              {({ id, describedBy }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  value={String(c.question ?? "")}
+                  onChange={(e) => set({ question: e.target.value || undefined })}
+                />
+              )}
+            </Field>
+            <Field label="Classify" hint="What came in is read as text">
+              {({ id, describedBy }) => (
+                <Select
+                  id={id}
+                  aria-describedby={describedBy}
+                  value={c.of === "input" ? "input" : "resource"}
+                  onChange={(e) =>
+                    set(e.target.value === "input" ? { of: "input", apply: undefined } : { of: undefined })
+                  }
+                  options={[
+                    { value: "resource", label: "The asset" },
+                    { value: "input", label: "What comes in" },
+                  ]}
+                />
+              )}
+            </Field>
+            <Checkbox
+              checked={Boolean(c.apply)}
+              onCheckedChange={(v) => set({ apply: v || undefined })}
+              label="Act on a sure answer: set the content type, suggest the topic or add the label as a tag"
+              disabled={readOnly || c.of === "input"}
+            />
           </>
         )}
 

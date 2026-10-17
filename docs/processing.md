@@ -155,6 +155,34 @@ places). spaCy's other languages' models carry GPL, LGPL or Creative Commons lic
 installed by hand works. Until spaCy is there the rules find the entities and the job log says so. The workflows'
 Extract entities (rules) node uses the same extractor.
 
+**How a name gets its type.** The built-in extractor (`analysis.entities: rules`, the default) needs no model. It
+reads each name and the words around it (`app/domain/name_types.py`):
+
+- **Person:** a title (Dr Lee, President Obama) or a role before it (our CEO Maria Garcia, my colleague Tom); a
+  given name first (Sarah Johnson, Maria); a full name followed by a verb of saying (Sarah Connor said); or one of the
+  namespace's named speakers.
+- **Organisation, event, work, place:** the word it ends or starts with (Acme Corp, University of Oxford; Web Summit,
+  World Cup; Clean Air Act; Hudson River, Mount Fuji), or what it's called (a company called Lumen, an app called
+  Notion, a town called Hope).
+- **Built-in lists:** countries, regions, states and large cities (Place); well-known companies and institutions
+  (Organisation: Google, Anthropic, NASA) and products and tools (Product: ChatGPT, Kubernetes, Excel); holidays
+  (Event); days and months on their own (Date). A name with a number in it is a Product (iPhone 16).
+- **Term:** anything none of these tells, such as a single unknown word (a brand or a project). A Term can be made a
+  topic, or retyped on the Entities page (one at a time or ticked together). Names listed in Settings › Analysis ›
+  Custom vocabulary (`Name | TYPE`) always get the type given there.
+
+A name gets one type per recording, the one most of its lines give it, so "Lee" after "Dr Lee" is a person too. "And"
+no longer joins two names into one ("Kenya and Nigeria" are two places). The given names are mostly the US Census
+Bureau's frequent first names of 1990 (public domain); the other lists are written for Lens. With
+`analysis.entities: spacy`, spaCy's types are used instead, and with
+[Find places and dates](configuration.md#anytopdf) anytopdf's places join them.
+
+Older installs get the same types once, as an upgrade step (`entity-types`, [Upgrades](database.md#upgrades)) when
+they first start on this version: entities analysis left as Terms get the type these rules give them from their names
+and the lines that mention them. Types people or agents set, entities on a fixed list, hidden ones, Unknown and
+Unlabeled stay as they are. The changes are recorded in the graph's history as **Gave a type to** events, so they can
+be rolled back there.
+
 The **Entities** page in the web app lists a namespace's entities (search, type and collection filters, a Hidden tab).
 An entity's name opens its own page, `/wiki/<namespace>/<Name>`, with its notes, every line that says it and what it
 comes up with ([Entity pages](notes.md#entity-pages)); the rest of its row opens a side panel where editors rename,
@@ -362,7 +390,9 @@ does), the topic is suggested for it, waiting for someone to accept it (one it a
 from stays as it is), or the label given is added as a tag (at most 40 characters). `applied` says which, and it is
 in the audit log. The MCP and assistant tools never apply; the assistant can then suggest the topic (`suggest_topic`).
 
-Planned, not built yet: a classify step in workflows, classifying many assets at once, and labels with examples.
+Workflows classify too, with a Classify node ([Workflows and the canvas](#workflows-and-the-canvas)), so a pipeline
+can classify every asset it runs on. Planned, not built yet: classifying many assets at once from the API, and labels
+with examples.
 
 ## Background work
 
@@ -593,11 +623,14 @@ node passes what it makes along its connections.
   regular expressions (`TYPE: pattern`); Extract entities (LLM) asks the model for structured entities and keeps,
   corrects or adds to any passed in; Merge joins lists; Save entities makes them the asset's entities (people's
   corrections kept) and redoes keywords and chapters.
-- **AI and logic:** LLM prompt (a prompt template, with what came in as `{{ input }}`), Pick (a path like
-  `action_items.0.text`), Condition (yes and no branches; one test, or a [match tree](automations.md#match-trees) of
-  several) and Merge.
-- **Keeping results:** Save output (`outputs.<name>`), Set field (a custom field, kept in the metadata history) and
-  Save entities.
+- **AI and logic:** LLM prompt (a prompt template, with what came in as `{{ input }}`), Classify (which of your
+  labels, the content types or the namespace's topics fits the asset, or what came in as text; it passes on `choice`,
+  `confidence`, `sure` and `ranked`, so a Condition or Switch can branch on them; [classifying](#classifying)), Pick
+  (a path like `action_items.0.text`), Condition (yes and no branches; one test, or a
+  [match tree](automations.md#match-trees) of several) and Merge.
+- **Keeping results:** Save output (`outputs.<name>`), Set field (a custom field, kept in the metadata history), Save
+  entities, and a Classify node set to act on a sure answer (it sets the content type, suggests the topic or adds the
+  tag; a try on the canvas only says what it would do).
 
 A pipeline runs a workflow as a Workflow step, pinned to the workflow's published version when the run is queued
 (`POST /api/v1/workflows/{id}/run` runs one on an asset). Pipelines can be drawn on the canvas too: a connection

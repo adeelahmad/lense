@@ -23,14 +23,26 @@ tables, strikethrough and task lists become GitHub-style Markdown.
 
 ## Setting it up
 
-1. In Lens, open a namespace's admin page and make an **import webhook** (see [the API](api.md), Import webhooks).
-   Copy its token: it's shown once.
-2. In the clipper's options, enter your Lens address and the token and press **Add and check**. The browser asks to
-   let the clipper talk to that address; the clipper then checks the token without importing anything.
+In the clipper's options, enter your Lens address and press **Sign in** (or <kbd>Enter</kbd>). The browser asks to let
+the clipper talk to that address, then Lens shows its own page asking you (signed in with your passkey there) to allow
+the clipper. That's all: nothing to copy or paste. Clips go into the namespace you pick in the options, and the popup
+lets you pick another one you can add to. Signing in here signs the assistant's side panel in too, and the other way
+round. The sign-in renews itself; removing the clipper's access in Lens, or signing out in the side panel, ends it.
 
-Add one per namespace you clip into, and pick between them in the popup. The tokens stay on this device; every other
-setting syncs through your browser account. Plain `http://` addresses are only accepted on this computer or the local
-network.
+Instead of signing in, **Use a token instead** takes either of these, and the clipper tells them apart:
+
+- **Your API token** (`la_...`), made in Lens under Settings, API keys, with write access. Clips go into the namespace
+  you pick, as if you'd added them yourself. A read-only key can't send clips, and the clipper says so.
+- **An import webhook's token** (`lih_...`), from a namespace's admin page (see [the API](api.md), Import webhooks).
+  Clips go into that hook's namespace and are counted and audited as the hook's, not yours.
+
+Safari can't show Lens's page from an extension, so there you paste your API token.
+
+The clipper checks the sign-in or token without importing anything and says what's wrong if Lens refuses it: a token
+Lens doesn't know (revoked, replaced, run out, or from another Lens), a read-only key, or a Lens too old to take API
+tokens (update it, or use an import webhook's token). Add as many Lenses as you like; tokens and the sign-in stay on
+this device, and every other setting syncs through your browser account. Plain `http://` addresses are only accepted
+on this computer or the local network.
 
 ## Ways to clip
 
