@@ -5,6 +5,7 @@ import "@testing-library/jest-dom";
 import { Notes } from "@/app/openapi-client";
 import { CommandPalette } from "@/components/app-shell/command-palette";
 import { NotesHome } from "@/components/notes/notes-home";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 jest.mock("@/app/openapi-client", () => ({
   Notes: {
@@ -19,6 +20,10 @@ jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: 
 const push = jest.fn();
 jest.mock("next/navigation", () => ({ usePathname: () => "/notes", useRouter: () => ({ push }) }));
 jest.mock("@/components/ui/toast", () => ({ useToast: () => jest.fn() }));
+const download = jest.fn<Promise<void>, [string, string | undefined, string]>(() => Promise.resolve());
+jest.mock("@/components/library/actions", () => ({
+  downloadWithToken: (url: string, token: string | undefined, name: string) => download(url, token, name),
+}));
 jest.mock("@/lib/hooks/session", () => ({
   useArchive: () => ({
     admin: false,
@@ -33,7 +38,7 @@ const m = (f: unknown) => f as jest.Mock;
 const show = (ui: React.ReactNode) =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      {ui}
+      <TooltipProvider>{ui}</TooltipProvider>
     </QueryClientProvider>,
   );
 
@@ -110,6 +115,13 @@ describe("the Notes page", () => {
     expect(rows[0]).toContain("Pinned plan");
     expect(rows.slice(1)).toEqual([expect.stringContaining("Newest"), expect.stringContaining("Fresh")]);
     expect(screen.getByLabelText("Pinned")).toBeInTheDocument();
+  });
+
+  it("downloads every note as Markdown from its menu", async () => {
+    show(<NotesHome />);
+    fireEvent.keyDown(await screen.findByRole("button", { name: "More on Notes" }), { key: "Enter" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Download all as Markdown" }));
+    await waitFor(() => expect(download).toHaveBeenCalledWith("/api/v1/notes/export?ns=home", "t", "home notes.zip"));
   });
 
   it("says when no note has the words", async () => {

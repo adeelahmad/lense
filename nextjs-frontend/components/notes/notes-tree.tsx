@@ -4,6 +4,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/rea
 import {
   ArrowUpToLine,
   ChevronRight,
+  Download,
   Ellipsis,
   FileText,
   FolderInput,
@@ -21,6 +22,7 @@ import { useEffect, useMemo, useState, type DragEvent } from "react";
 import { Notes } from "@/app/openapi-client";
 import type { NotePageItem as PageItem } from "@/app/openapi-client/types.gen";
 import { useDeleteNote } from "@/components/notes/delete";
+import { useNoteDownloads } from "@/components/notes/download";
 import { usePin } from "@/components/notes/pin";
 import { Dialog } from "@/components/ui/dialog";
 import { FindBox } from "@/components/ui/find-box";
@@ -188,6 +190,7 @@ function NamespaceNotes({
   });
   const deleteNote = useDeleteNote();
   const pin = usePin();
+  const downloads = useNoteDownloads();
   const pathname = usePathname();
   const [renaming, setRenaming] = useState<number | null>(null);
   const [moving, setMoving] = useState<PageItem | null>(null);
@@ -205,6 +208,7 @@ function NamespaceNotes({
     },
     startMove: setMoving,
     pin: (p, on) => void pin(ns, p.id, on),
+    download: (p) => void downloads.note(p.id, p.title),
     remove: async (p) => {
       // deleting the note that's open leaves it for the Notes page
       if ((await deleteNote(p.id, p.title)) && pathname === `/notes/${p.id}`) router.push("/notes");
@@ -296,6 +300,7 @@ type RowActions = {
   moveTo: (id: number, parent: number | null) => void;
   startMove: (page: PageItem) => void;
   pin: (page: PageItem, on: boolean) => void;
+  download: (page: PageItem) => void;
   remove: (page: PageItem) => void;
 };
 
@@ -486,6 +491,9 @@ function Node({
                 {/* pins are each person's own, so viewers pin too */}
                 <MenuItem icon={page.pinned ? <PinOff /> : <Pin />} onSelect={() => actions.pin(page, !page.pinned)}>
                   {page.pinned ? "Unpin" : "Pin"}
+                </MenuItem>
+                <MenuItem icon={<Download />} onSelect={() => actions.download(page)}>
+                  Download as Markdown
                 </MenuItem>
                 {canEdit && (
                   <>

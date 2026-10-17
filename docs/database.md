@@ -132,6 +132,32 @@ To add a step:
 4. Test it on data in the old shape, against a SurrealDB server too (`LENS_TEST_SURREAL_URL`);
    `test_every_step_is_safe_to_repeat` checks that a second run changes nothing.
 
+### Checked before every release
+
+Every release is checked by upgrading the one before it, holding data, to it: the Release workflow runs the
+**Upgrade** workflow (`.github/workflows/upgrade.yml`) first and cuts nothing when it fails. It also runs on pull
+requests that change the backend, and by hand from any version (Actions > Upgrade > Run workflow). It runs
+`ci/upgrade/upgrade.sh`, which you can run yourself with Docker and uv (`ci/upgrade/upgrade.sh v0.12.0` starts from an
+older version; `ci/local-ci.sh` runs it too):
+
+1. The last release (the newest `vX.Y.Z` tag) starts as the production stack runs it, the API and a worker on the
+   SurrealDB server its `docker-compose.prod.yml` names, with an empty database.
+2. It's seeded through its API (`ci/upgrade/lens_upgrade.py seed`): two transcripts and their analysis, an entity, a
+   note and a comment on an asset, a notes page, a conversation, an MCP server with a token, an API key and settings.
+   What the API shows of them is kept.
+3. This code starts on the same database and data folder (and on its own SurrealDB version when that changed), the API
+   and a worker at once, as after an upgrade.
+4. It fails when the API shows any of the seeded data differently or the admin's password or the API key no longer
+   signs in; when any record in the database is gone; when a step that was pending didn't start exactly once (in the
+   API's and the worker's logs together), failed, or ran without a backup taken first; or when running every step
+   again changes anything (the steps the upgrade ran must change nothing, and no step may change anything the second
+   time it runs).
+
+The seed is written against the API of the version it seeds, so it runs from the release being upgraded when that
+release has it. When you change an endpoint it uses, change `seed` and `facts` in `lens_upgrade.py` with it; when you
+add data worth keeping across upgrades, add it to both. The logs, the seeded facts and the database before and after
+are in `.upgrade-check/` (on GitHub, the run's `upgrade-check` artifact).
+
 ## Concurrency
 
 The handle (`store.DB`) is thread-safe. Against a server it keeps a small pool of connections; the embedded engine has

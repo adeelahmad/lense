@@ -587,8 +587,17 @@ DEFAULTS = {
         "account": None,
     },
     # the graph as files over S3 and WebDAV (shares.py, docs/file-tree.md): off until an admin turns it on. Then the process
-    # that runs routines (`lens worker`) serves it, read-only, on these ports. bind is a startup setting only.
-    "shares": {"enabled": False, "bind": "0.0.0.0", "s3": True, "s3_port": 9555, "webdav": True, "webdav_port": 9556},
+    # that runs routines (`lens worker`) serves it, read-only, on these ports. bind is a startup setting only. remote: also at
+    # the web app's address (/s3, /dav), so through Settings › Remote access and HTTPS too; off until an admin turns it on.
+    "shares": {
+        "enabled": False,
+        "bind": "0.0.0.0",
+        "s3": True,
+        "s3_port": 9555,
+        "webdav": True,
+        "webdav_port": 9556,
+        "remote": False,
+    },
     # notifications to webhooks and Matterbridge (docs/notifications.md): targets reach public addresses only, and the
     # private networks listed here (a Matterbridge on the LAN or the Docker network); app_url is where links in messages
     # point (null: FRONTEND_URL)

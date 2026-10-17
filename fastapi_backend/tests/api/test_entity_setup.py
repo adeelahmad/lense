@@ -55,7 +55,7 @@ def test_setups_and_what_analysis_keeps(db, cfg, folder, client):
 
     calls = hierarchy.create(db, sid, "Calls")
     inner = hierarchy.create(db, sid, "Inner", parent=calls)
-    col = client.put(url, headers=ed, json={"collection": calls, "types": ["ORG", "TERM"]}).json()
+    col = client.put(url, headers=ed, json={"collection": calls, "types": ["ORG", "PLACE"]}).json()
     assert (col["collection"], col["collection_path"]) == (calls, ["Calls"])
     assert entity_setup.effective(db, sid, inner)["from"] == {"collection": calls}  # inherited
     assert entity_setup.effective(db, sid)["from"] == {"namespace": True}
@@ -66,7 +66,7 @@ def test_setups_and_what_analysis_keeps(db, cfg, folder, client):
     hierarchy.place(db, [rid], inner)
     analyze.analyze_recording(db, cfg, rid)
     kept = {(m["text"]) for m in db.rows("SELECT text FROM mentions WHERE recording = $r", r=rid)}
-    assert kept == {"Northwind Labs", "Paris", "Dyno Therapeutics"}  # no dates or numbers (Paris is a TERM here)
+    assert kept == {"Northwind Labs", "Paris", "Dyno Therapeutics"}  # no dates or numbers (Paris is a place)
 
     assert client.delete(f"{url}/collections/{calls}", headers=vi).status_code == 403
     assert client.delete(f"{url}/collections/{calls}", headers=ed).status_code == 200

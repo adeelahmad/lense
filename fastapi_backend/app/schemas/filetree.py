@@ -60,4 +60,8 @@ class S3Status(ShareServer):
     """The S3 server (these fields), the WebDAV server, and your access keys (they sign in to both)."""
 
     webdav: ShareServer
+    remote: bool = Field(
+        False,
+        description="whether an admin opened both at the web app's address too, /s3 and /dav (shares.remote), so remote access reaches them",
+    )
     keys: list[S3Key] = Field(description="your access keys")
