@@ -88,7 +88,7 @@ def _clean(db, cfg, rid, say, spec=None):
         raise Skip("cleaning up transcripts is off (Settings → Analysis)")
     if _source(db, rid) not in cleanup.SPEECH:
         raise Skip("a document's or an image's text is kept as it was read")
-    n = cleanup.clean_recording(db, cfg, rid)
+    n = cleanup.clean_recording(db, cfg, rid, say)
     say(f"cleaned up {n} line(s); Change history lists them" if n else "nothing to clean up")
 
 

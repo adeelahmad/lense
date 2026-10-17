@@ -21,6 +21,7 @@ on:
       - nextjs-frontend/package.json
       - nextjs-frontend/pnpm-lock.yaml
       - packaging/host/**
+      - ci/scorecard/measure_install.py
       - .github/workflows/install.yml
   push:
     branches: [main]
@@ -31,6 +32,7 @@ on:
       - docker-compose.prod.yml
       - microsandbox/**
       - packaging/host/**
+      - ci/scorecard/measure_install.py
       - .github/workflows/install.yml
   schedule:
     - cron: "17 4 * * 1"
@@ -59,7 +61,7 @@ jobs:
           - { os: windows-latest, python: "3.12" }
           - { os: macos-latest, python: "3.12" }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
@@ -83,7 +85,7 @@ jobs:
       LENS_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
       LENS_DIR: /tmp/lens-web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The runner comes with Docker; a new computer doesn't, so the installer has to install it (install.sh: from
       # get.docker.com) and use it as administrator for this run, as the person isn't in the docker group yet
@@ -170,7 +172,7 @@ jobs:
       LENS_DIR: /tmp/lens-install
       LENS_NO_OPEN: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install (as a user would, piped into sh)
         run: |
@@ -230,6 +232,60 @@ jobs:
             docker compose -f docker-compose.prod.yml down -v || true
           fi
 
+  # The scorecard's install numbers (ci/scorecard): how long the one-line install takes to answer, and the RAM and disk
+  # Lens then takes idle, on arm64 as a Raspberry Pi is. GitHub's arm64 runner (4 cores, 16 GB, Docker already there)
+  # is faster than a Pi, so the time is a floor; RAM and disk are what Lens takes there.
+  arm64:
+    name: One-line install on arm64, timed
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    env:
+      LENS_REPO: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+      LENS_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+      LENS_DIR: /tmp/lens-arm64
+      LENS_NO_OPEN: "1"
+      LENS_MACHINE: GitHub ubuntu-24.04-arm runner
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install, timed until the setup page answers
+        run: |
+          date +%s > started
+          sh < install.sh | tee install.log
+          test "${PIPESTATUS[0]}" = 0 || { echo "install.sh failed"; exit 1; }
+          url="$(grep -Eo 'http://[^ ]+/setup\?code=[A-Za-z0-9]{12}' install.log | head -1)"
+          test -n "$url" || { echo "install.sh didn't hand over a setup address"; exit 1; }
+          curl -fsS -o /dev/null "$url"
+          date +%s > answered
+          echo "Answered after $(( $(cat answered) - $(cat started) ))s"
+
+      - name: RAM and disk, idle
+        run: |
+          # the stack settles first: workers start and the first jobs run
+          sleep 120
+          python3 ci/scorecard/measure_install.py --started "$(cat started)" --answered "$(cat answered)" \
+            --dir "$LENS_DIR" --out install-scorecard.json
+          { echo "### Install on arm64"; echo '```json'; cat install-scorecard.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: install-scorecard
+          path: install-scorecard.json
+
+      - name: What the containers said
+        if: failure()
+        run: cd "$LENS_DIR" && docker compose -f docker-compose.prod.yml ps -a && docker compose -f docker-compose.prod.yml logs --tail 200
+
+      - name: Stop
+        if: always()
+        run: |
+          sudo systemctl disable --now lens-upgrade.path 2>/dev/null || true
+          if [ -d "$LENS_DIR" ]; then
+            cd "$LENS_DIR"
+            docker compose -f docker-compose.prod.yml down -v || true
+          fi
+
   microsandbox:
     name: One-line install in a microsandbox
     if: github.event.action != 'closed'
@@ -244,7 +300,7 @@ jobs:
       LENS_BACKEND: microsandbox
       LENS_TARGET: lean
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # As on a new computer, KVM is there but this user may not use it yet (it's root's and the kvm group's): install.sh
       # gives them access itself

@@ -8,7 +8,7 @@ import pathlib
 import re
 from collections import Counter, defaultdict
 
-from . import access as acc, metadata, nsfw, render, store
+from . import access as acc, content_types as ctypes, metadata, nsfw, render, store
 
 R = store.R
 STATUSES = ("new", "transcribed", "diarized", "analyzed", "error")
@@ -40,6 +40,13 @@ MAX_WORDS = 10
 TAG_MAX, TAGS_MAX = 40, 20  # characters in a tag, tags on a recording
 MONTHS_MAX = 240  # months in a namespace's stats: the latest twenty years
 DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
+MEDIA_WHERE = {
+    "video": "media.kind = 'video'",
+    "audio": "(media.kind = 'audio' OR (media.kind = NONE AND source = 'audio'))",
+    "transcript": "(media.kind = 'transcript' OR (media.kind = NONE AND source NOT IN ['audio', 'document', 'image']))",
+    "document": "source = 'document'",
+    "image": "source = 'image'",
+}
 
 
 def recs(ids):
@@ -196,12 +203,19 @@ def where(
     field=None,
     objects=None,
     sensitive=None,
+    faces=None,
+    entities=None,
+    topics=None,
+    content_types=None,
+    emotions=None,
+    only=None,
 ):
     """The WHERE clause and its parameters for these filters. Filters combine with AND, the values of one filter with OR.
 
     q: every word in the title, the namespace's name or a speaker's name. status: recording statuses and job states
     (STATES). attention: errored, latest job failed, or a voice match to review. processing: a job queued or running.
     speakers: speaker ids. date_from/date_to: the recording date, inclusive. min/max_duration: seconds, max exclusive.
+    media: a kind (MEDIA), or a list of them.
     access: levels (public, restricted, private), a namespace's default counting for recordings without their own.
     featured: true or false. tags: any of these tags (ignoring case). origins: where they came from (Origins; needs cfg).
     languages: language codes (ignoring case), "none" for recordings whose language isn't known. edited: recording ids
@@ -210,6 +224,9 @@ def where(
     from fields.filter_condition. objects: any of these kinds of object seen in it (ignoring case; objects.py).
     sensitive (nsfw.py, where NSFW classification is on): only those flagged NSFW, exclude them, or include them;
     without it (and with cfg), flagged ones are left out where their namespace hides them.
+    faces: face identity ids, seen in it (faces.py). entities: entity ids, mentioned in it. topics: topic ids, that it
+    was accepted as about (topics.py). content_types: subtype keys, its content type (content_types.py). emotions:
+    emotions heard in it (ignoring case). only: recording ids (such as those another search found).
     """
     base, p = in_scope(spaces, within)
     w = [base]
@@ -261,18 +278,12 @@ def where(
     if max_duration is not None:
         p["dmax"] = int(max_duration * 1000)
         w.append("duration_ms != NONE AND duration_ms < $dmax")
-    if media:
-        if media not in MEDIA:
-            raise ValueError(f"media is one of {', '.join(MEDIA)}")
-        w.append(
-            {
-                "video": "media.kind = 'video'",
-                "audio": "(media.kind = 'audio' OR (media.kind = NONE AND source = 'audio'))",
-                "transcript": "(media.kind = 'transcript' OR (media.kind = NONE AND source NOT IN ['audio', 'document', 'image']))",
-                "document": "source = 'document'",
-                "image": "source = 'image'",
-            }[media]
-        )
+    kinds_wanted = [media] if isinstance(media, str) else list(dict.fromkeys(media or []))
+    if any(m not in MEDIA for m in kinds_wanted):
+        raise ValueError(f"media is one of {', '.join(MEDIA)}")
+    if kinds_wanted:
+        conds = [MEDIA_WHERE[m] for m in kinds_wanted]
+        w.append(conds[0] if len(conds) == 1 else "(" + " OR ".join(conds) + ")")
     levels = list(dict.fromkeys(access or []))
     if levels:
         if any(x not in acc.LEVELS for x in levels):
@@ -318,6 +329,32 @@ def where(
     if edited is not None:
         p["edited"] = recs(sorted(edited))
         w.append("id IN $edited")
+    if only is not None:
+        p["only"] = recs(sorted({int(i) for i in only}))
+        w.append("id IN $only")
+    if faces:
+        p["by_face"] = recs(db.values("SELECT VALUE recording FROM face_track WHERE face IN $f", f=sorted({int(x) for x in faces})))
+        w.append("id IN $by_face")
+    if entities:
+        ents = sorted({int(x) for x in entities})
+        p["by_entity"] = recs(db.values("SELECT VALUE recording FROM mentions WHERE entity IN $e", e=ents))
+        w.append("id IN $by_entity")
+    if topics:
+        tids = sorted({int(x) for x in topics})
+        p["by_topic"] = recs(db.values("SELECT VALUE recording FROM topic_about WHERE topic IN $t AND status = 'accepted'", t=tids))
+        w.append("id IN $by_topic")
+    if content_types:
+        keys = set(content_types)
+        rows = db.rows(f"SELECT {ctypes.TYPE_FIELDS} FROM recording WHERE space IN $s", s=spaces)
+        p["by_type"] = recs(sorted(i for i, k in ctypes.keys_of(db, rows).items() if k in keys))
+        w.append("id IN $by_type")
+    moods = {" ".join(e.split()).casefold() for e in emotions or [] if e and e.strip()}
+    if moods:
+        heard = db.rows(
+            "SELECT record::id(id) AS id, stats.emotions AS e FROM recording WHERE space IN $s AND stats.emotions != NONE", s=spaces
+        )
+        p["by_emotion"] = recs(sorted(r["id"] for r in heard if moods & {k.casefold() for k, n in (r.get("e") or {}).items() if n}))
+        w.append("id IN $by_emotion")
     if collections is not None:
         p["cols"] = sorted(collections)
         w.append("collection IN $cols")
