@@ -207,7 +207,6 @@ These are open pull requests, not yet part of Lens:
 - **The assistant** answering questions about Lens itself, from its docs and this server
   ([#400](https://github.com/adeelahmad/lense/pull/400)).
 - **Chat:** a conversation exported as Markdown, PDF or JSON ([#474](https://github.com/adeelahmad/lense/pull/474)).
-- **Sources:** RSS and Atom news feeds ([#453](https://github.com/adeelahmad/lense/pull/453)).
 - **Pictures:** described on this machine with Florence-2 ([#477](https://github.com/adeelahmad/lense/pull/477)), and
   low-quality images enhanced before they're read ([#479](https://github.com/adeelahmad/lense/pull/479)).
 - **Web clipper:** signing in, or using your API token, not only an import webhook's
