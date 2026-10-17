@@ -13250,6 +13250,8 @@ export type PageContext = {
 
 /**
  * Passage
+ *
+ * A numbered excerpt an answer can cite: a moment of an asset, or a web page (`source` "web", with its `url`).
  */
 export type Passage = {
   /**
@@ -13258,8 +13260,34 @@ export type Passage = {
   n: number;
   /**
    * Recording Id
+   *
+   * the asset it's from; none for a web page
    */
-  recording_id: number;
+  recording_id?: number | null;
+  /**
+   * Source
+   *
+   * what it is: said (speech), page (a document's), screen (text shown in a video), memory, or web
+   */
+  source?: string | null;
+  /**
+   * Url
+   *
+   * a web page's address (source web): the citation opens it
+   */
+  url?: string | null;
+  /**
+   * Site
+   *
+   * a web page's site, like example.com
+   */
+  site?: string | null;
+  /**
+   * Fetched At
+   *
+   * when the web page or search result was read
+   */
+  fetched_at?: string | null;
   /**
    * Title
    */

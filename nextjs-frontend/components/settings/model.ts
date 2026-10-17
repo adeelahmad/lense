@@ -168,9 +168,9 @@ export const SECTIONS: SectionSpec[] = [
   {
     id: "ai",
     label: "AI assistant",
-    backend: ["ai", "decisions", "voice"],
+    backend: ["ai", "web", "decisions", "voice"],
     description:
-      "What the chat assistant may do with tools, which routine choices it makes for you, and when a batch run needs a typed confirmation.",
+      "What the chat assistant may do with tools, whether it searches the web, which routine choices it makes for you, and when a batch run needs a typed confirmation.",
   },
   {
     id: "search",
@@ -503,6 +503,8 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
   },
   { name: "import_files", label: "Import files sent in a conversation", acts: true },
   { name: "import_urls", label: "Capture web pages from addresses or a list of links", acts: true },
+  { name: "web_search", label: "Search the web (when web search is on)", acts: false },
+  { name: "web_read", label: "Read web pages (when web search is on)", acts: false },
   { name: "server_status", label: "Check what the server has set up (admins)", acts: false },
   { name: "find_model_servers", label: "Find model servers nearby (admins)", acts: false },
   { name: "read_settings", label: "Read settings (admins)", acts: false },
@@ -961,6 +963,61 @@ export const FIELDS: FieldSpec[] = [
     kind: "number",
     min: 0,
     nullable: true,
+  },
+  // Web search (the assistant's web_search and web_read)
+  {
+    section: "web",
+    key: "search",
+    label: "Search provider",
+    kind: "select",
+    options: [
+      { value: "off", label: "Off" },
+      {
+        value: "duckduckgo",
+        label: "DuckDuckGo (no key)",
+        hint: "An unofficial client of DuckDuckGo’s results page (ddgs), fetched when you pick it. It can stop working when the page changes.",
+      },
+      { value: "searxng", label: "SearXNG (your own instance)" },
+      { value: "brave", label: "Brave Search (API key)" },
+      { value: "tavily", label: "Tavily (API key)" },
+    ],
+    hint: "What the assistant searches with. Off: it reads only what’s in Lens.",
+  },
+  {
+    section: "web",
+    key: "searxng_url",
+    label: "SearXNG address",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "http://searxng:8080",
+    hint: "Its JSON output must be on (search.formats: json in its settings.yml).",
+  },
+  { section: "web", key: "api_key", label: "Search API key", kind: "secret" },
+  {
+    section: "web",
+    key: "results",
+    label: "Results per search",
+    kind: "int",
+    min: 1,
+    max: 20,
+  },
+  {
+    section: "web",
+    key: "read_chars",
+    label: "Characters read per page",
+    kind: "int",
+    min: 1000,
+    max: 200000,
+    unit: "characters",
+    hint: "The most of a page’s text the model reads at once; longer pages are cut, and find picks the parts that matter.",
+  },
+  {
+    section: "web",
+    key: "render",
+    label: "Use Chromium for pages that need scripts",
+    kind: "switch",
+    hint: "A page that comes back nearly empty is loaded in Chromium, scripts run, and read again. Only where Chromium is installed (the full edition).",
   },
   // Email
   {
@@ -3559,6 +3616,10 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   if (g) e["analysis.gazetteer"] = g;
   const llm = values["llm.base_url"] as string | null | undefined;
   if (llm && !URL_RX.test(llm)) e["llm.base_url"] = "Use an http(s) address, such as https://api.example.org/v1";
+  const searx = values["web.searxng_url"] as string | null | undefined;
+  if (searx && !URL_RX.test(searx)) e["web.searxng_url"] = "Use an http(s) address, such as http://searxng:8080";
+  else if (values["web.search"] === "searxng" && !searx)
+    e["web.searxng_url"] = "Give your SearXNG instance’s address, or pick another provider";
   const embed = values["embeddings.base_url"] as string | null | undefined;
   if (embed && !URL_RX.test(embed))
     e["embeddings.base_url"] = "Use an http(s) address, such as http://localhost:11434/v1";

@@ -9942,7 +9942,8 @@ export class Chats {
   /**
    * Get Chat
    *
-   * A conversation with its messages. Citations follow your current access: ones you can no longer read are left out.
+   * A conversation with its messages. Citations follow your current access: ones you can no longer read are left out
+   * (web pages it cited stay: they aren't the archive's).
    */
   public static getChat<ThrowOnError extends boolean = false>(
     options: Options<GetChatData, ThrowOnError>,

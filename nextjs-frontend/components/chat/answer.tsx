@@ -29,12 +29,18 @@ import { plural } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
-/** Where an answer comes from: "3 recordings in podcasts". */
+/** Where an answer comes from: "3 assets in podcasts", "2 web pages", "3 assets in podcasts and 2 web pages". */
 function fromWhere(passages: Passage[] | null): string | null {
   if (!passages?.length) return null;
-  const recs = new Set(passages.map((p) => p.recording_id)).size;
-  const nss = [...new Set(passages.map((p) => p.namespace).filter(Boolean))] as string[];
-  return `${plural(recs, "asset")}${nss.length ? ` in ${nss.join(", ")}` : ""}`;
+  const archive = passages.filter((p) => p.recording_id != null);
+  const pages = new Set(passages.filter((p) => p.source === "web").map((p) => p.url)).size;
+  const recs = new Set(archive.map((p) => p.recording_id)).size;
+  const nss = [...new Set(archive.map((p) => p.namespace).filter(Boolean))] as string[];
+  const parts = [
+    recs ? `${plural(recs, "asset")}${nss.length ? ` in ${nss.join(", ")}` : ""}` : null,
+    pages ? plural(pages, "web page") : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(" and ") : null;
 }
 
 function StateCard({

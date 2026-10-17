@@ -24824,7 +24824,7 @@
           "chats"
         ],
         "summary": "Get Chat",
-        "description": "A conversation with its messages. Citations follow your current access: ones you can no longer read are left out.",
+        "description": "A conversation with its messages. Citations follow your current access: ones you can no longer read are left out\n(web pages it cited stay: they aren't the archive's).",
         "operationId": "get_chat",
         "parameters": [
           {
@@ -52796,8 +52796,64 @@
             "title": "N"
           },
           "recording_id": {
-            "type": "integer",
-            "title": "Recording Id"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording Id",
+            "description": "the asset it's from; none for a web page"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "what it is: said (speech), page (a document's), screen (text shown in a video), memory, or web"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "a web page's address (source web): the citation opens it"
+          },
+          "site": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Site",
+            "description": "a web page's site, like example.com"
+          },
+          "fetched_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fetched At",
+            "description": "when the web page or search result was read"
           },
           "title": {
             "anyOf": [
@@ -52902,10 +52958,10 @@
         "type": "object",
         "required": [
           "n",
-          "recording_id",
           "text"
         ],
-        "title": "Passage"
+        "title": "Passage",
+        "description": "A numbered excerpt an answer can cite: a moment of an asset, or a web page (`source` \"web\", with its `url`)."
       },
       "Passkey": {
         "properties": {
