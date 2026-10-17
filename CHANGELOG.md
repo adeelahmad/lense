@@ -9,7 +9,7 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   assistant → Most tool calls a question may ask for, 50 by default) and narrow one answer to its own namespaces
   (`scope`). `GET /api/v1/chats/tools` lists the groups a person has, what each tool does (reads, asks first, sends data
   out) and why a group is missing. An admin's switches still win, and new conversations start with the person's last
-  choice. The web app's Tools chip is in progress
+  choice. In the web app, a Tools chip beside the scope picks them, and "All my namespaces" tops the scope's list
   ([Choosing tools, namespaces and a limit](docs/assistant.md#choosing-tools-namespaces-and-a-limit)).
 - **Entities found by spaCy, fetched when picked.** Settings → Analysis → Entity extraction → spaCy now fetches spaCy
   (MIT) and its small model the first time an asset needs it (about 60 MB): English, German, or one for many
