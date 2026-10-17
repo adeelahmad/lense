@@ -47,7 +47,7 @@ DEPTH_MAX = 12
 MENTION = re.compile(r"([@#])\[([^\]\n]{1,200})\]\(([a-z]+):(\d{1,18})\)")
 FIELDS = (
     "record::id(id) AS id, space, title, summary, summary_by, date, place, place_by, place_suggestion, parent, position, "
-    "about, author, view, doc_stale, created_by, updated_by, created_at, updated_at"
+    "about, author, view, doc_stale, created_by, updated_by, created_at, updated_at, pinned_by"
 )
 
 
@@ -411,6 +411,41 @@ def move(db, pid, parent=None, before=None):
         low = (sib[at - 1].get("position") or 0) if at else (sib[at].get("position") or 0) - 1
         position = (low + (sib[at].get("position") or 0)) / 2
     db.q("UPDATE $r SET parent = $p, position = $pos, updated_at = $t", r=R("note_page", int(pid)), p=parent, pos=position, t=store.now())
+
+
+DAILY_ROOT = "Daily notes"
+
+
+def today(db, sid, account, date=None):
+    """The namespace's note for the day `date` (YYYY-MM-DD, the person's today; default the server's), made the first
+    time it's asked for: titled with the date, inside the "Daily notes" note, which is made too when there's none.
+    Its id."""
+    day = _date(date) or store.now()[:10]
+    pid = db.one("SELECT VALUE record::id(id) FROM note_page WHERE space = $s AND daily = $d LIMIT 1", s=sid, d=day)
+    if pid:
+        return int(pid)
+    root = db.one("SELECT VALUE record::id(id) FROM note_page WHERE space = $s AND daily_root = true LIMIT 1", s=sid)
+    if not root:
+        root = create(db, sid, account, DAILY_ROOT, summary="A note for each day")
+        db.q("UPDATE $r SET daily_root = true", r=R("note_page", root))
+    pid = create(db, sid, account, day, date=day, parent=root)
+    db.q("UPDATE $r SET daily = $d", r=R("note_page", pid), d=day)
+    return pid
+
+
+PINS_MAX = 50  # a person's pinned notes, per namespace
+
+
+def pin(db, pid, account, on=True):
+    """Pin the page for this person (on top of their Notes page and tree), or unpin it. Pins are each person's own:
+    pinning a page doesn't change it for anyone else, and needs only to see it. ValueError past PINS_MAX."""
+    p = get(db, pid)
+    if on and account not in (p.get("pinned_by") or []):
+        mine = db.values("SELECT VALUE id FROM note_page WHERE space = $s AND pinned_by CONTAINS $a", s=p["space"], a=account)
+        if len(mine) >= PINS_MAX:
+            raise ValueError(f"Up to {PINS_MAX} notes can be pinned in a namespace: unpin one first.")
+    op = "array::union(pinned_by ?? [], [$a])" if on else "array::complement(pinned_by ?? [], [$a])"
+    db.q(f"UPDATE $r SET pinned_by = {op}", r=R("note_page", int(pid)), a=account)
 
 
 TRASH_DAYS = 30  # a deleted page can be put back for this long, then it's gone with its files and history

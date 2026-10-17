@@ -24,6 +24,7 @@ import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
 import { plural } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
+import { navigate } from "@/lib/navigate";
 import { cn } from "@/lib/utils";
 
 const GLYPH = {
@@ -125,6 +126,41 @@ export function SourcesPage() {
     router.replace(pathname);
   }, [adding, admin, backends.data, router, pathname]);
 
+  // Back from Google's consent screen (Connect with Google): the account's calendars (or Drive's folders) open next to
+  // pick one to watch, or the connection opens again with what went wrong
+  const fromGoogle = params.get("google") === "connected" ? "connected" : params.has("google_error") ? "error" : null;
+  const askedGoogle = useRef(false);
+  useEffect(() => {
+    if (!fromGoogle) askedGoogle.current = false;
+    if (!fromGoogle || !admin || !sources.isSuccess || !backends.data || askedGoogle.current) return;
+    askedGoogle.current = true;
+    const src = ((sources.data ?? []) as Source[]).find((s) => s.id === Number(params.get("source")));
+    if (fromGoogle === "connected") {
+      toast({ tone: "green", title: "Google account connected", body: params.get("account") ?? src?.name ?? "" });
+      if (src) {
+        setSelected(src.id);
+        setBrowsing(src);
+      }
+    } else {
+      toast({ tone: "red", title: "Couldn’t connect the Google account", body: params.get("google_error") ?? "" });
+      if (src) {
+        setSelected(src.id);
+        setEditing({ source: src });
+      }
+    }
+    router.replace(pathname);
+  }, [fromGoogle, admin, sources.isSuccess, backends.data, router, pathname]);
+
+  // A Google account whose sign-in stopped working is connected again from its row: straight to Google's consent screen
+  const reconnect = useMutation({
+    mutationFn: (s: Source) => data(Sources.connectGoogle({ client, path: { sid: s.id }, body: {} })),
+    onSuccess: ({ url }) => navigate.assign(url),
+    onError: (e: Error, s) => {
+      toast({ tone: "red", title: "Couldn’t connect the Google account", body: e.message });
+      setEditing({ source: s });
+    },
+  });
+
   // /sources?watch=local ("Watch a local folder" on Sensors) opens this machine's allowed folders straight away, on its
   // connection, made first when there's none: it has nothing to fill in or name
   const watchLocal = params.get("watch") === "local";
@@ -166,7 +202,20 @@ export function SourcesPage() {
     const oauth = Boolean(s.oauth);
     return (
       <div className="flex shrink-0 items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-        {bad && oauth && /token|auth|expired|unauthori[sz]ed|401|invalid_grant/i.test(s.health?.error ?? "") ? (
+        {bad &&
+        (((s.type === "gcal" || s.type === "gmail") && /Google account/.test(s.health?.error ?? "")) ||
+          (s.type === "drive" &&
+            Boolean((s.params as Record<string, unknown> | null)?.client_id) &&
+            /token|auth|expired|unauthori[sz]ed|401|invalid_grant/i.test(s.health?.error ?? ""))) ? (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => reconnect.mutate(s)}
+            disabled={reconnect.isPending || reconnect.isSuccess}
+          >
+            {reconnect.isPending || reconnect.isSuccess ? "Opening Google…" : "Connect Google account"}
+          </Button>
+        ) : bad && oauth && /token|auth|expired|unauthori[sz]ed|401|invalid_grant/i.test(s.health?.error ?? "") ? (
           <Button size="sm" variant="secondary" onClick={() => setEditing({ source: s })}>
             Sign in again
           </Button>

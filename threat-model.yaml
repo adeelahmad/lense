@@ -2,10 +2,10 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:489dd2cdee57c59aa87b9ae8e1af61585150ed6995e8426d604179101d1c22f3"
+prose_version: "threat-model.md@sha256:c743ca6b5876b0d5ef0ecf37c9df6059cb4f68be919cf509a5ade901440d09cb"
 model_status: under-review
 triage_policy: strict
-confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
+confidence: {documented: 202, maintainer: 46, inferred: 91, assumption: 8}
 
 generation:
   model: "Claude Opus 5.5 (claude-opus-5-5)"
@@ -341,6 +341,16 @@ entry_points:
         obligation_id: admin-creates-sources
         caller_must_enforce: "admin creates sources; read-only calendar.readonly scope; Google's own token endpoint and API address (a key file's token_uri is ignored); event text escaped into its .ics without control characters"
         provenance: {kind: documented, source: 'docs/processing.md "The token endpoint is always Google''s own"'}
+  - id: "Connect with Google"
+    component: outbound
+    parameters:
+      - name: "OAuth client id and secret; on the way back state, code and the email in Google's id token"
+        attacker_controllable: true
+        x-condition: "client: admins only; state and code: anyone who can send the admin a link"
+        control_kinds: [data, x-credential, x-collaborator-data]
+        obligation_id: admin-creates-sources
+        caller_must_enforce: "admin only, from the web app (API tokens refused), still an admin on return; single-use hashed state bound to the starting browser (cookie), 10 minutes, PKCE S256; client secret sealed on the flow, refresh token on the source; kept only when the source's scope was granted (read only, but all of Gmail over IMAP, all of Drive for Drive set to full access); Drive keeps its client's secret sealed too; returns only to the starting web origin"
+        provenance: {kind: documented, source: 'docs/processing.md "the consent itself is a person''s"'}
   - id: "POST /imports/web, extension http tools, notification targets"
     component: outbound
     parameters:
@@ -350,7 +360,16 @@ entry_points:
         control_kinds: [resource-name, x-network-destination]
         caller_must_enforce: "none — P-SSRF-GUARD"
         provenance: {kind: maintainer, date: "2026-10"}
-  - id: "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer)"
+  - id: "the assistant's web_search and web_read"
+    component: assistant
+    parameters:
+      - name: "a search query and a page address, both chosen by the model; the results and pages that come back"
+        attacker_controllable: true
+        x-condition: "off until an admin picks a provider (web.search); anyone who may use the assistant, and indirectly whatever it read, through the model; results and pages: whoever runs the site"
+        control_kinds: [resource-name, x-network-destination, x-prompt-injection, size]
+        caller_must_enforce: "none — queries go only to the admin's provider; pages are fetched through netguard like web import, 10 MB at most (P-SSRF-GUARD); once the answer has read outside text, a query or address neither the person nor a tool gave it asks first (P-INJECTION-EGRESS); results and pages reach the model marked as data; the ledger keeps the provider or host, never the query or page"
+        provenance: {kind: documented, source: 'docs/assistant.md "a search or a page read sends words out of Lens"'}
+  - id: "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer, web search)"
     component: outbound
     parameters:
       - name: "URL, credentials, api_key_env"
@@ -376,7 +395,7 @@ entry_points:
         attacker_controllable: true
         x-condition: "also indirectly through content"
         control_kinds: [data, x-prompt-injection]
-        caller_must_enforce: "none — P-RETRIEVAL"
+        caller_must_enforce: "none — P-RETRIEVAL; what people say to Lens reaches automations as outside text (chat.message, lens.untrusted)"
         provenance: {kind: documented, source: 'docs/assistant.md "limited to what the person can read"'}
   - id: "Lens extension side panel"
     component: assistant
@@ -397,6 +416,16 @@ entry_points:
         obligation_id: enable-only-trusted-extensions
         caller_must_enforce: "person enables only extensions they trust"
         provenance: {kind: documented, source: 'docs/assistant.md "other people''s run only when an admin shared them"'}
+  - id: "MCP servers: POST /extensions/mcp/read and /mcp/test, saving an extension of kind mcp, PATCH /extensions/{id}/tools"
+    component: assistant
+    parameters:
+      - name: "config text (JSON or YAML), a server's address and headers, or a command, its arguments and env; a tool name and its switches"
+        attacker_controllable: false
+        x-condition: "admins only, except reading a config, which any signed-in person may and which reaches nothing"
+        control_kinds: [data, x-network-destination, x-credential, callback-code]
+        obligation_id: admin-is-trusted
+        caller_must_enforce: "admin is trusted with the address and the command; reading a config parses text only; a command runs only in the MCP runner; credential values are sealed to the extension and where they go and shown as ••••; a tool switched off isn't offered, and every MCP tool asks first after outside text"
+        provenance: {kind: documented, source: 'docs/assistant.md "Adding an MCP server"'}
   - id: "Python code tools, shipped and admin-created templates, workflows, pipelines, routines"
     component: assistant
     parameters:
@@ -407,15 +436,35 @@ entry_points:
         obligation_id: admin-is-trusted
         caller_must_enforce: "admin is trusted"
         provenance: {kind: maintainer, date: "2026-10"}
+  - id: "POST /automations/hooks/{token} (an automation's webhook)"
+    component: optional
+    parameters:
+      - name: "body (JSON, a form's text fields or text), query, Standard Webhooks headers, token in the path"
+        attacker_controllable: true
+        x-condition: "anyone given the address, once an automation with a webhook trigger is saved"
+        control_kinds: [data, size, rate, x-credential, x-prompt-injection]
+        obligation_id: keep-hook-addresses-secret
+        caller_must_enforce: "the person keeps the address and secret to the services that call it; Lens keeps the token hashed, caps size and rate, checks signatures sent, and treats what was sent as outside text"
+        provenance: {kind: documented, source: 'docs/automations.md "No webhook exists until an automation with such a trigger is saved"'}
+  - id: "automations' params and prompts, POST /automations/preview and /automations/variables"
+    component: optional
+    parameters:
+      - name: "template text, a draft automation, an activity id"
+        attacker_controllable: true
+        x-condition: "anyone signed in (preview, the picker); the editors who manage an automation (its params)"
+        control_kinds: [callback-code, data, x-prompt-injection]
+        obligation_id: sandbox-automation-templates
+        caller_must_enforce: "Lens renders them in the Jinja sandbox (2 MB of output, guarded * and **; Q23); previews read only activities, namespaces and automations the person may see, and prompts mark outside text as data"
+        provenance: {kind: documented, source: 'docs/automations.md "The variable picker and preview"'}
   - id: "MQTT 1883, syslog 5514, POST /sensors/push/{token}/{stream}"
     component: optional
     parameters:
       - name: "payloads, hub logins, token in the path"
         attacker_controllable: true
         x-condition: "once enabled"
-        control_kinds: [data, size, rate, x-credential]
+        control_kinds: [data, size, rate, x-credential, x-prompt-injection]
         obligation_id: enable-and-firewall-sensors
-        caller_must_enforce: "admin enables; operator firewalls"
+        caller_must_enforce: "admin enables; operator firewalls; readings, alert patterns and new devices reach automations as outside text (lens.untrusted)"
         provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
   - id: "NFS share (port 12049 on the host, 2049 in the worker)"
     component: optional
@@ -502,6 +551,24 @@ entry_points:
         control_kinds: [data, x-prompt-injection]
         caller_must_enforce: "none — the curate permission in each namespace touched and a write-capable principal (the web app's own route functions); the assistant's changes wait for the person's approval; merges and deletes are kept to undo, and audited"
         provenance: {kind: documented, source: 'docs/mcp.md "curate entities and topics as an editor does"'}
+  - id: "automations"
+    component: assistant
+    parameters:
+      - name: "/api/v1/automations (save, try, run now, decide, draft from a sentence), the MCP and assistant automation tools: triggers, where and If match trees, the event workflow graph (action params are Jinja templates), policy, limits, an activity id; the text of the activities an automation runs on"
+        attacker_controllable: true
+        x-condition: "any editor, for automations in namespaces they edit; indirectly through activity text (mail, titles, chat) that reaches action params"
+        control_kinds: [callback/code, data, x-prompt-injection]
+        caller_must_enforce: "none — it runs as its maker with their permissions at run time (P-AUTOMATION-ACTOR); actions reaching outside Lens ask first; outside text marks intents untrusted and breaks up links (P-INJECTION-EGRESS); chains and bursts are bounded (P-AUTOMATION-LOOP)"
+        provenance: {kind: documented, source: 'docs/automations.md "Running automations"'}
+  - id: "code sandbox"
+    component: assistant
+    parameters:
+      - name: "assistant run_python, run_bash, sandbox_files and import_sandbox_file: code the model writes, attachment ids, a path in the sandbox; sandbox.* settings (admins)"
+        attacker_controllable: true
+        x-condition: "the people sandbox.who names (editors and admins by default); indirectly through content the model reads"
+        control_kinds: [callback/code, data, x-prompt-injection]
+        caller_must_enforce: "none — off by default; the code runs in the conversation's own OpenShell sandbox with none of Lens's data or keys and no network unless sandbox.network allows it (P-SANDBOX); with the network on, a run after outside text asks first (P-INJECTION-EGRESS); files in only from the person's attachments, out only through an approved import"
+        provenance: {kind: documented, source: 'docs/assistant.md "Code sandbox"'}
   - id: "microsandbox program requests"
     component: authz
     parameters:
@@ -571,7 +638,7 @@ contract_dimensions:
   - {component: outbound, dimension: numeric-domain, status: claimed, property_id: P-SSRF-GUARD, conditions: "web paths and iCal: ports 80 and 443", x-routes-to: "P-SSRF-GUARD, P-ADMIN-GUARD", provenance: {kind: documented, source: 'docs/api.md "Only public addresses are reached, on ports 80 and 443"'}}
   - {component: outbound, dimension: x-numeric-domain-notification-ports, status: unresolved, conditions: "notification targets may use any port; the guard checks addresses only", question_id: Q15, provenance: {kind: inferred, question_id: Q15}}
   - {component: outbound, dimension: failure-atomicity, status: claimed, property_id: P-NOTIFY, conditions: "each notification event claimed once across processes, then retried", provenance: {kind: documented, source: 'docs/notifications.md "claimed once"'}}
-  - {component: outbound, dimension: recursive-cyclic-topology, status: claimed, property_id: P-SSRF-GUARD, conditions: "redirects: http and https only, each hop re-checked; credentials never follow a redirect to another server; notifications follow none", x-routes-to: "P-SSRF-GUARD, P-SECRETS", provenance: {kind: documented, source: 'docs/processing.md "never sent on to another server"'}}
+  - {component: outbound, dimension: recursive-cyclic-topology, status: claimed, property_id: P-SSRF-GUARD, conditions: "redirects: http and https only, each hop re-checked; credentials never follow a redirect to another server; notifications and an automation's http_request follow none", x-routes-to: "P-SSRF-GUARD, P-SECRETS", provenance: {kind: documented, source: 'docs/processing.md "never sent on to another server"'}}
   - {component: outbound, dimension: callback-execution, status: disclaimed, property_id: N-CHROMIUM, conditions: "Chromium may lack its sandbox; the proxy is the barrier", provenance: {kind: documented, source: 'docs/deployment.md "what stops a page is Lens''s proxy"'}}
   - {component: outbound, dimension: serialization-reconstruction, status: claimed, property_id: P-SECRETS, conditions: "sealed secrets are write-only through the API", provenance: {kind: documented, source: 'docs/configuration.md "the API reports whether one is set, never its value"'}}
   - {component: outbound, dimension: x-admin-operand-guards, status: claimed, property_id: P-ADMIN-GUARD, conditions: "iCal public-address guard; telemetry endpoint without user:password or link-local address", provenance: {kind: documented, source: 'docs/processing.md "fetched the way web pages are captured"'}}
@@ -1252,7 +1319,7 @@ properties_claimed:
     kind: integrity
     components: [authz]
     tier: security-critical
-    conditions: "a principal does no more than its role allows; writes need a write-capable principal and a role with the permission the route names (or editor or owner where a route still asks for a rank); publishing and access changes need the publish permission, through every API path; a custom role counts as the largest built-in role it covers and never does more than its permissions"
+    conditions: "a principal does no more than its role allows; writes need a write-capable principal and a role with the permission the route names (or editor or owner where a route still asks for a rank); publishing and access changes need the publish permission, through every API path; a custom role counts as the largest built-in role it covers and never does more than its permissions; an API key made for one namespace authenticates only on that namespace's own MCP server and chat completions, with its maker's role there"
     violation_symptoms: [integrity-bypass]
     x-voided-by: "session tokens can write; API and app tokens need write scope (api/deps.py:59-60); admins own everything (domain/auth.py:357); collection admin is owner of its assets (api/deps.py:183); admin's app token keeps namespace roles (api/deps.py:96) but not admin routes (api/deps.py:124-125)"
     provenance: {kind: documented, source: 'SECURITY.md "doing more than your role allows"'}
@@ -1408,15 +1475,15 @@ properties_claimed:
     kind: confidentiality
     components: [outbound]
     tier: security-critical
-    conditions: "stored secrets (source credentials, notification secrets, model API keys, iCal addresses) are encrypted and write-only; the API reports whether one is set, never its value; a key from the environment is never shown; they do not leak through the API, logs, exports, or a redirect to another server"
+    conditions: "stored secrets (source credentials, notification secrets, model API keys, iCal addresses, an automation's credential headers, sealed to that automation and the address they were saved for, an MCP server's credential headers and env values, sealed to its extension and the address or command they were saved for) are encrypted and write-only; the API reports whether one is set, never its value; a key from the environment is never shown; they do not leak through the API, logs, exports, or a redirect to another server"
     violation_symptoms: [info-leak]
-    x-voided-by: "secret.key or ARCHIVE_SECRET_KEY holders (domain/settings.py:196-199, Q14); an admin moving a model URL sends the key there (domain/llm.py:30-32, trusted); LLM errors name the URL as typed (domain/llm.py:41, Q18)"
+    x-voided-by: "secret.key or ARCHIVE_SECRET_KEY holders (domain/settings.py:196-199, Q14); an admin moving a model URL sends the key there (domain/llm.py:30-32, trusted); LLM errors name the URL as typed (domain/llm.py:41, Q18); an MCP server's values whose names don't say they carry a credential, and a secret written into its address or arguments, are kept as given (domain/mcp_servers.py)"
     provenance: {kind: documented, source: 'SECURITY.md "stored credentials for sources and model servers leaking"'}
   - id: P-SSRF-GUARD
     kind: confidentiality
     components: [outbound, assistant]
     tier: security-critical
-    conditions: "URLs a non-admin sets (web import and extension http tools by editors; notification targets by owners) reach public addresses only, or networks the operator listed; web paths use ports 80 and 443, follow redirects only to http and https, re-check every redirect and sub-request, and connect to the checked address"
+    conditions: "URLs a non-admin sets (web import and extension http tools by editors; notification targets by owners; an automation's http_request by its person, within the notification networks; the page addresses the assistant's web_read reads, which the model picks for whoever uses the assistant) reach public addresses only, or networks the operator listed; web paths use ports 80 and 443, follow redirects only to http and https, re-check every redirect and sub-request, and connect to the checked address; an automation's http_request follows no redirect, takes 10 seconds and reads 64 KB at most, asks first unless the person set its node to run on its own, and passes the answer on as outside text"
     violation_symptoms: [info-leak]
     x-voided-by: "operator networks (domain/store.py:475-476, domain/netguard.py:40-41); admin notification networks (domain/notify.py:286-288); Chromium without sandbox (domain/convert.py:273)"
     provenance: {kind: maintainer, date: "2026-10"}
@@ -1451,7 +1518,7 @@ properties_claimed:
     components: [assistant, authz]
     tier: security-critical
     x-tier-detail: "security-critical (scope); correctness-only (caps)"
-    conditions: "chat, assistant tools and MCP return only what the person can read, within the conversation's scope, and the tool loop stops at ai.max_steps and ai.max_transcript_reads"
+    conditions: "chat, assistant tools and MCP return only what the person can read, within the conversation's scope, and the tool loop stops at ai.max_steps and ai.max_transcript_reads; a namespace's chat completions answer from that namespace alone, with only the read tools its owners offered"
     violation_symptoms: [info-leak, hang]
     x-voided-by: "admins read everything; an admin setup conversation adds server tools and the act flag (domain/ai_tools.py:287-289); ai.extensions: false turns extensions off"
     provenance: {kind: documented, source: 'docs/assistant.md "limited to what the person can read"'}
@@ -1463,11 +1530,19 @@ properties_claimed:
     violation_symptoms: [integrity-bypass]
     x-voided-by: "admins read everything; an admin setup conversation adds server tools and the act flag (domain/ai_tools.py:287-289); ai.extensions: false turns extensions off"
     provenance: {kind: documented, source: 'docs/assistant.md "Approvals"'}
+  - id: P-AUTOMATION-APPROVAL
+    kind: integrity
+    components: [assistant]
+    tier: security-critical
+    conditions: "an automation's action that asks first waits as an approval of the automation's person and nothing runs until they pick; approving, editing or always need them signed in, or (approving an action inside Lens) a yes in the private chat they were told in, from someone the channel lets approve, while it is the only one waiting there or named by number (API keys, apps, MCP and the assistant only list and decline); a decision is claimed once; at most 100 wait per automation, each tells the person once, and undecided ones expire after automations.approval_days"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "the person setting a node to auto (always, or the builder's toggle); an admin raising automations.approval_days; the summary and the message told hold outside text, with links broken up (P-INJECTION-EGRESS)"
+    provenance: {kind: documented, source: 'docs/automations.md "Approvals"'}
   - id: P-INJECTION-EGRESS
     kind: confidentiality
     components: [assistant]
     tier: correctness-only
-    conditions: "Once an assistant answer has read text from outside Lens (a tool result other than Lens's own, the page it was asked from, a namespace assistant's memories, a message in a chat room with no bridge.users, or an earlier answer in the conversation that read any of these), tools that could carry it out of Lens (the person's own read web tools, other servers' MCP tools, Python tools with the network) and an admin setup conversation's own changes wait for the person's approval. A chat room's answer keeps a web address linkable only when the person, the archive, a tool or Lens wrote it. A bypass is VALID-HARDENING (Q26)."
+    conditions: "Once an assistant answer has read text from outside Lens (a tool result other than Lens's own, the page it was asked from, a namespace assistant's memories, a message in a chat room with no bridge.users, or an earlier answer in the conversation that read any of these), tools that could carry it out of Lens (the person's own read web tools, a web search or page read neither the person nor a tool gave it, other servers' MCP tools, Python tools with the network) and an admin setup conversation's own changes wait for the person's approval. A chat room's answer keeps a web address linkable only when the person, the archive, a tool or Lens wrote it. A bypass is VALID-HARDENING (Q26). An automation's model and agent actions (ask_model, call_tool, ask_agent) run with nobody reading along: the activity and earlier steps reach the model marked as data, every change they would make (notes included) is an approval of the automation's person, and anything that could carry data out of Lens asks first whatever the run read (docs/automations.md \"The model and the agent\"). A saved variable a run set from outside text stays marked as data in later runs' prompts, and an action whose params read it counts as reading outside text (docs/automations.md \"Saved variables\")."
     violation_symptoms: [info-leak]
     x-voided-by: "ai.untrusted_asks: false (domain/ai_tools.py:519); bridge.safe_links: false (domain/bridge.py:298); notes and memories are written at once; hooks run as their owners set them (P-EXT-SCOPE); an address the read text wrote itself stays linkable in a room; the person's browser asks first as P-BROWSER-GUARD says"
     provenance: {kind: documented, source: 'docs/assistant.md "it read out of Lens waits for your approval"'}
@@ -1634,6 +1709,22 @@ properties_claimed:
     violation_symptoms: [hang]
     x-voided-by: "none identified (not required for this symptom; no exhaustive search)"
     provenance: {kind: documented, source: 'domain/flow.py docstring "Graphs never loop back"'}
+  - id: P-AUTOMATION-ACTOR
+    kind: integrity
+    components: [assistant, authz]
+    tier: security-critical
+    conditions: "an automation acts only for its maker (run_as), with their permissions when it runs, in namespaces they edit, on activities they may see published after it was switched on; a maker who lost access fails its next run and switches it off; actions reaching outside Lens or other people ask first unless the person, signed in to the web app, set the node to auto (API keys, apps, agents and drafts cannot); the assistant saves automations switched off, and switching one on or running one waits for the person's approval"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "an admin manages every automation and can run one now on any activity in its namespaces its person may see (api/v1/routes/automations.py); a node set to auto acts on outside text without asking (P-INJECTION-EGRESS still applies)"
+    provenance: {kind: documented, source: 'docs/automations.md "Running automations"'}
+  - id: P-AUTOMATION-LOOP
+    kind: correctness
+    components: [assistant]
+    tier: correctness-only
+    conditions: "activities an automation made start another only with from_automations; a chain stops at automations.max_depth runs (3); each automation has a cooldown and a most runs an hour (60) under a most runs a minute for all (60); a run over a limit does nothing, is counted and logged at most hourly"
+    violation_symptoms: [x-cap-exceeded]
+    x-voided-by: "fixed hour and minute windows let up to twice a limit run across the turn of one; an admin can raise max_depth to 10 and max_runs_per_minute to 6000"
+    provenance: {kind: documented, source: 'docs/automations.md "Running automations"'}
   - id: P-BROWSER
     kind: integrity
     components: [assistant]
@@ -1650,6 +1741,14 @@ properties_claimed:
     violation_symptoms: [integrity-bypass]
     x-voided-by: "the consequential check is the model's flag plus a word list (extensions/browser/src/core/act.js): an unlabelled control a misled model doesn't mark runs without asking; removing a site keeps the browser's access for the clipper; Lens sends the ask (confirm) and an extension older than this doesn't honour it"
     provenance: {kind: documented, source: 'docs/browser-assistant.md "Letting it use your browser"'}
+  - id: P-SANDBOX
+    kind: integrity
+    components: [assistant]
+    tier: security-critical
+    conditions: "code the assistant runs (sandbox.enabled, off by default) runs only for people sandbox.who allows, in its conversation's own OpenShell sandbox, never in Lens's processes; the sandbox gets none of Lens's data, keys or database address, only the code and files the person attached to that conversation (25 MB each, 100 MB a run); egress: none (off), PyPI and npm on 443 (packages) or public addresses on 80 and 443 (web); a file leaves only as the person's held upload placed by an import_files approval; stopped after idle_minutes, deleted after keep_hours or with its conversation"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "isolation inside the sandbox is OpenShell's; landlock best_effort runs without Landlock where the kernel lacks it (domain/sandbox.py); whoever reaches the gateway can run sandboxes of their own; what the code prints is third-party text (N-PROMPT)"
+    provenance: {kind: documented, source: 'docs/assistant.md "Code sandbox"'}
   - id: MX-AUTHZ-LIST-CAPS
     kind: resource-bound
     components: [authz]
@@ -1670,7 +1769,7 @@ properties_claimed:
 # ---------------------------------------------------------------- §1.12
 properties_disclaimed:
   - {id: N-ADMIN, components: [outbound, ingest, assistant, optional], tier: security-critical, false_friend: false, conditions: "protection from the instance admin or host operator (admin-set URLs reaching internal hosts, admin code, templates, regexes, component installs, api_key_env). Covers only operands an admin or operator alone can set. Excludes the guards Lens documents on them (P-ADMIN-GUARD): an escape of one is VALID. Excludes saved telemetry headers when the endpoint moves host (unresolved, Q35 -> MODEL-GAP). A non-admin reaching any admin operand is in model.", provenance: {kind: maintainer, date: "2026-10"}}
-  - {id: N-EGRESS, components: [outbound], tier: security-critical, false_friend: true, conditions: "an egress firewall; netguard guards web import, iCal feeds, extension http tools, notifications and Chromium, nothing else; admin-set URLs other than iCal feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel) are unguarded", x-false-friend-note: "'public addresses only' reads as server-wide", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: N-EGRESS, components: [outbound], tier: security-critical, false_friend: true, conditions: "an egress firewall; netguard guards web import, iCal feeds, extension http tools, notifications, the assistant's web search and page reads, and Chromium, nothing else; admin-set URLs other than iCal feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded", x-false-friend-note: "'public addresses only' reads as server-wide", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: N-CODE-GUARD, components: [assistant], tier: security-critical, false_friend: true, conditions: "a sandbox for Python code tools; audit hooks, rlimits and an optional network namespace only raise the bar; admin-written code; runs as the Lens user", x-false-friend-note: "guard is not isolation", provenance: {kind: documented, source: 'domain/code_tools.py docstring "they aren''t a wall"'}}
   - {id: N-DOWNLOADS, components: [optional], tier: security-critical, false_friend: false, conditions: "integrity beyond HTTPS and the publisher for llama.cpp, cloudflared, pip installs and hf: models; catalog GGUF files are still checked (P-MODEL-CHECKSUM)", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: N-DB-PLAIN, components: [outbound], tier: security-critical, false_friend: true, conditions: "encryption of the SurrealDB content (assets' text, indexes), derived files, renditions, reports, exports and the storage-source cache; stated limit", x-false-friend-note: "vaults cover files only", provenance: {kind: documented, source: 'docs/encryption.md "the SurrealDB database itself"'}}
@@ -1705,7 +1804,7 @@ properties_disclaimed:
   - {id: N-ENUM, components: [identity], tier: correctness-only, false_friend: false, conditions: "hiding account or object existence outside password sign-in and signed-in 404s: passkey 404, external messages, anonymous 401 vs 404", provenance: {kind: inferred, question_id: Q6}}
   - {id: N-AUDIT, components: [identity, authz], tier: correctness-only, false_friend: false, conditions: "tamper evidence or completeness of the audit and activity logs; sign-in requests are not logged there; operations record only; admins read it", provenance: {kind: documented, source: 'docs/activity.md "aren''t logged here"'}}
   - {id: N-MQTT-SUBSCRIBE, components: [optional], tier: security-critical, false_friend: true, conditions: "topic isolation on the MQTT hub: anything can subscribe to it, with + and #; signed-in or anonymous-when-enabled clients", x-false-friend-note: "a hub login is not per-stream access", provenance: {kind: documented, source: 'docs/sensors.md "anything can subscribe to it"'}}
-  - {id: N-BRIDGE, components: [outbound], tier: security-critical, false_friend: false, conditions: "per-person access in chat rooms; the bridge (Matterbridge, the Telegram bot or the assistant's mailbox) answers as one account, the turning-on admin by default; everyone in the room reads what that account reads (exposure posture: Q28); the mailbox answers only mailbox.users whose provider vouched for From", provenance: {kind: documented, source: 'docs/chat-rooms.md "answers as the admin who turned it on"'}}
+  - {id: N-BRIDGE, components: [outbound], tier: security-critical, false_friend: false, conditions: "per-person access in chat rooms; the bridge (Matterbridge, the Telegram bot or the assistant's mailbox) answers as one account, the turning-on admin by default; everyone in the room reads what that account reads (exposure posture: Q28); the mailbox answers only mailbox.users whose provider vouched for From; an automation's message to its own person goes to the private chat a channel last had with someone on its users list, never to a room", provenance: {kind: documented, source: 'docs/chat-rooms.md "answers as the admin who turned it on"'}}
   - {id: N-PUBLIC, components: [authz], tier: correctness-only, false_friend: false, conditions: "privacy of a public asset's open parts: anyone may use them; open parts only; closed parts and restricted or private assets are P-ACCESS-PARTS", provenance: {kind: documented, source: 'docs/access.md "the parts of a public asset anyone may use"'}}
   - {id: N-DESCRIPTION, components: [authz], tier: correctness-only, false_friend: false, conditions: "hiding an asset's description when its parts are closed; anyone who may see the page", provenance: {kind: documented, source: 'docs/access.md "never a closed part"'}}
   - {id: N-NSFW, components: [web, authz], tier: correctness-only, false_friend: true, conditions: "access control from NSFW classification; blurring and hiding flagged resources are display preferences of the web app, and the score can be wrong; anyone who may read a resource still opens it, sees its pictures (sensitive=include, signed frame links, public pages, IIIF, embeds) and reads its classification", x-false-friend-note: "'hidden' reads as restricted", provenance: {kind: documented, source: 'docs/nsfw.md "display preferences, not access control"'}}

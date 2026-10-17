@@ -68,9 +68,14 @@ class Listing(list):
         self.marks = list(marks)
 
 
-def scopes(src):
-    """What a source reads with: Gmail read only, or all of Gmail over IMAP (Google has no read-only scope for it)."""
-    return [MAIL] if str((src.get("params") or {}).get("via") or "").strip() == "imap" else [GMAIL_READ]
+def scopes(params):
+    """What a source reads with, by its params: Gmail read only, or all of Gmail over IMAP (Google has no read-only scope
+    for it)."""
+    return (MAIL,) if str((params or {}).get("via") or "").strip() == "imap" else (GMAIL_READ,)
+
+
+SCOPES = scopes  # what Connect with Google asks for (google_auth.scopes_for)
+ACCOUNT = "user"  # the parameter Connect with Google fills in with the account's address
 
 
 def credentials(cfg, src):
@@ -86,7 +91,7 @@ def credentials(cfg, src):
 
 def token(cfg, src):
     """An access token for the source's mailbox (IMAP takes it too)."""
-    return google_auth.access_token(cfg, credentials(cfg, src), scopes(src))
+    return google_auth.access_token(cfg, credentials(cfg, src), scopes(src.get("params")))
 
 
 class _Expired(Exception):
@@ -222,7 +227,7 @@ def _entry(m, label, names, mark):
         sent or arrived,
         key=f"message-id:{msgid}" if msgid else None,
         cursor=mark,
-        mail=feeds._addressing(h, subject, shown),
+        mail={**feeds._addressing(h, subject, shown), "snippet": " ".join(str(m.get("snippet") or "").split())[:300]},
         settled=True,  # a message is whole once Gmail lists it: no waiting for it to settle
     )
 

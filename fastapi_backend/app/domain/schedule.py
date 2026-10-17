@@ -133,12 +133,41 @@ def next_after(expr, tz="UTC", after=None):
     return None
 
 
+DAYS = ("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
+WEEKDAYS = ("1-5", "mon-fri")
+WEEKENDS = ("0,6", "6,0", "6,7", "6-7", "sat,sun", "sun,sat", "sat-sun")
+
+
+def _ordinal(n):
+    return f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
+
+
+def _one_day(text):
+    """The name of a single day of the week, or None."""
+    try:
+        d = _value(text, 4)
+    except ValueError:
+        return None
+    return DAYS[d % 7] if 0 <= d <= 7 else None
+
+
 def describe(expr):
     """A short reading of common schedules; the expression itself otherwise."""
     e = SHORTHANDS.get((expr or "").strip().lower(), (expr or "").strip())
     p = e.split()
-    if len(p) == 5 and p[0].isdigit() and p[1].isdigit() and p[2:] == ["*", "*", "*"]:
-        return f"every day at {int(p[1]):02d}:{int(p[0]):02d}"
+    if len(p) == 5 and p[0].isdigit() and p[1].isdigit() and p[3] == "*" and int(p[0]) < 60 and int(p[1]) < 24:
+        at = f"{int(p[1]):02d}:{int(p[0]):02d}"
+        dom, dow = p[2], p[4].lower()
+        if dom == "*" and dow == "*":
+            return f"every day at {at}"
+        if dom == "*" and dow in WEEKDAYS:
+            return f"every weekday at {at}"
+        if dom == "*" and dow in WEEKENDS:
+            return f"every Saturday and Sunday at {at}"
+        if dom == "*" and _one_day(dow):
+            return f"every {_one_day(dow)} at {at}"
+        if dow == "*" and dom.isdigit() and 1 <= int(dom) <= 31:
+            return f"at {at} on the {_ordinal(int(dom))} of every month"
     if len(p) == 5 and p[0].isdigit() and p[1:] == ["*", "*", "*", "*"]:
         return f"every hour at :{int(p[0]):02d}"
     if len(p) == 5 and p[0].startswith("*/") and p[1:] == ["*", "*", "*", "*"]:

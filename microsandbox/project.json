@@ -9,8 +9,8 @@
       "options": {
         "cwd": "{projectRoot}",
         "commands": [
-          "sh -n run.sh && sh -n dns.sh && sh -n test-dns.sh && sh -n programs.sh && sh -n test-programs.sh",
-          "uvx --from shellcheck-py shellcheck -s sh -x run.sh dns.sh test-dns.sh programs.sh test-programs.sh"
+          "sh -n run.sh && sh -n dns.sh && sh -n test-dns.sh && sh -n programs.sh && sh -n test-programs.sh && sh -n wipe.sh && sh -n test-wipe.sh",
+          "uvx --from shellcheck-py shellcheck -s sh -x run.sh dns.sh test-dns.sh programs.sh test-programs.sh wipe.sh test-wipe.sh"
         ],
         "parallel": false
       }
@@ -20,8 +20,9 @@
       "options": {
         "cwd": "{workspaceRoot}",
         "commands": [
-          "docker run --rm -v \"$PWD:/lens:ro\" mirror.gcr.io/library/python:3.12-slim-bookworm sh /lens/microsandbox/test-dns.sh",
-          "docker run --rm -v \"$PWD:/lens:ro\" mirror.gcr.io/library/python:3.12-slim-bookworm sh /lens/microsandbox/test-programs.sh"
+          "docker run --rm -v \"$PWD:/lens:ro\" mirror.gcr.io/library/python:3.12-slim-trixie sh /lens/microsandbox/test-dns.sh",
+          "docker run --rm -v \"$PWD:/lens:ro\" mirror.gcr.io/library/python:3.12-slim-trixie sh /lens/microsandbox/test-programs.sh",
+          "docker run --rm -v \"$PWD:/lens:ro\" mirror.gcr.io/library/python:3.12-slim-trixie sh /lens/microsandbox/test-wipe.sh"
         ],
         "parallel": false
       }

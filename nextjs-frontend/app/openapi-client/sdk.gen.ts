@@ -82,6 +82,9 @@ import type {
   BulkUpdateMetadataData,
   BulkUpdateMetadataErrors,
   BulkUpdateMetadataResponses,
+  CallAutomationHookData,
+  CallAutomationHookErrors,
+  CallAutomationHookResponses,
   CancelJobData,
   CancelJobErrors,
   CancelJobResponses,
@@ -126,6 +129,9 @@ import type {
   CombineBatchResponses,
   ConnectData,
   ConnectErrors,
+  ConnectGoogleData,
+  ConnectGoogleErrors,
+  ConnectGoogleResponses,
   ConnectResponses,
   ConsentData,
   ConsentErrors,
@@ -136,9 +142,17 @@ import type {
   ControlWorkerData,
   ControlWorkerErrors,
   ControlWorkerResponses,
+  CountApprovalsData,
+  CountApprovalsResponses,
+  CreateAutomationData,
+  CreateAutomationErrors,
+  CreateAutomationResponses,
   CreateBatchData,
   CreateBatchErrors,
   CreateBatchResponses,
+  CreateChatCompletionData,
+  CreateChatCompletionErrors,
+  CreateChatCompletionResponses,
   CreateChatData,
   CreateChatErrors,
   CreateChatResponses,
@@ -259,6 +273,9 @@ import type {
   DecideApprovalData,
   DecideApprovalErrors,
   DecideApprovalResponses,
+  DecideHeldRun2Data,
+  DecideHeldRun2Errors,
+  DecideHeldRun2Responses,
   DecideHeldRunData,
   DecideHeldRunErrors,
   DecideHeldRunResponses,
@@ -270,6 +287,9 @@ import type {
   DefineEntityData,
   DefineEntityErrors,
   DefineEntityResponses,
+  DeleteAutomationData,
+  DeleteAutomationErrors,
+  DeleteAutomationResponses,
   DeleteBackupData,
   DeleteBackupErrors,
   DeleteBackupResponses,
@@ -401,12 +421,18 @@ import type {
   DownloadFileData,
   DownloadFileErrors,
   DownloadFileResponses,
+  DraftAutomationData,
+  DraftAutomationErrors,
+  DraftAutomationResponses,
   DropPasskeysData,
   DropPasskeysErrors,
   DropPasskeysResponses,
   EditSegmentData,
   EditSegmentErrors,
   EditSegmentResponses,
+  EnableAutomationData,
+  EnableAutomationErrors,
+  EnableAutomationResponses,
   EntityToTopicData,
   EntityToTopicErrors,
   EntityToTopicResponses,
@@ -465,9 +491,21 @@ import type {
   ForgotPasswordData,
   ForgotPasswordErrors,
   ForgotPasswordResponses,
+  GetActivityData,
+  GetActivityErrors,
+  GetActivityResponses,
+  GetApprovalData,
+  GetApprovalErrors,
+  GetApprovalResponses,
   GetAudioData,
   GetAudioErrors,
   GetAudioResponses,
+  GetAutomationData,
+  GetAutomationErrors,
+  GetAutomationResponses,
+  GetAutomationVarsData,
+  GetAutomationVarsErrors,
+  GetAutomationVarsResponses,
   GetBatchData,
   GetBatchErrors,
   GetBatchResponses,
@@ -539,6 +577,9 @@ import type {
   GetMediaData,
   GetMediaErrors,
   GetMediaResponses,
+  GetMessageData,
+  GetMessageErrors,
+  GetMessageResponses,
   GetMonitoringData,
   GetMonitoringResponses,
   GetNamespaceAssistantData,
@@ -565,6 +606,9 @@ import type {
   GetNamespaceStatsData,
   GetNamespaceStatsErrors,
   GetNamespaceStatsResponses,
+  GetNamespaceVarsData,
+  GetNamespaceVarsErrors,
+  GetNamespaceVarsResponses,
   GetNamespaceWordcloudData,
   GetNamespaceWordcloudErrors,
   GetNamespaceWordcloudResponses,
@@ -618,6 +662,9 @@ import type {
   GetRoutineData,
   GetRoutineErrors,
   GetRoutineResponses,
+  GetRun2Data,
+  GetRun2Errors,
+  GetRun2Responses,
   GetRunData,
   GetRunErrors,
   GetRunResponses,
@@ -648,6 +695,8 @@ import type {
   GetWorkflowData,
   GetWorkflowErrors,
   GetWorkflowResponses,
+  GoogleClientData,
+  GoogleClientResponses,
   GraphAsOfData,
   GraphAsOfErrors,
   GraphAsOfResponses,
@@ -755,6 +804,13 @@ import type {
   ListAccessRequestsData,
   ListAccessRequestsErrors,
   ListAccessRequestsResponses,
+  ListActionsData,
+  ListActionsResponses,
+  ListActivitiesData,
+  ListActivitiesErrors,
+  ListActivitiesResponses,
+  ListActivityKindsData,
+  ListActivityKindsResponses,
   ListAllTokensData,
   ListAllTokensResponses,
   ListApprovalsData,
@@ -766,6 +822,9 @@ import type {
   ListAuditData,
   ListAuditErrors,
   ListAuditResponses,
+  ListAutomationsData,
+  ListAutomationsErrors,
+  ListAutomationsResponses,
   ListBackendsData,
   ListBackendsResponses,
   ListBackupsData,
@@ -784,6 +843,9 @@ import type {
   ListCommentsData,
   ListCommentsErrors,
   ListCommentsResponses,
+  ListCompletionModelsData,
+  ListCompletionModelsErrors,
+  ListCompletionModelsResponses,
   ListComponentsData,
   ListComponentsResponses,
   ListContentTypesData,
@@ -914,6 +976,9 @@ import type {
   ListRolesResponses,
   ListRoutinesData,
   ListRoutinesResponses,
+  ListRuns2Data,
+  ListRuns2Errors,
+  ListRuns2Responses,
   ListRunsData,
   ListRunsErrors,
   ListRunsResponses,
@@ -964,6 +1029,7 @@ import type {
   ListWorkersData,
   ListWorkersResponses,
   ListWorkflowsData,
+  ListWorkflowsErrors,
   ListWorkflowsResponses,
   LlmProvidersData,
   LlmProvidersResponses,
@@ -988,6 +1054,12 @@ import type {
   MakeSigninLinkData,
   MakeSigninLinkErrors,
   MakeSigninLinkResponses,
+  MarkActivitiesData,
+  MarkActivitiesErrors,
+  MarkActivitiesResponses,
+  MarkActivityData,
+  MarkActivityErrors,
+  MarkActivityResponses,
   MarkEntitiesNotSameData,
   MarkEntitiesNotSameErrors,
   MarkEntitiesNotSameResponses,
@@ -1060,6 +1132,9 @@ import type {
   PasskeySetupOptionsErrors,
   PasskeySetupOptionsResponses,
   PasskeySetupResponses,
+  PinPageData,
+  PinPageErrors,
+  PinPageResponses,
   PlaceRecordingsData,
   PlaceRecordingsErrors,
   PlaceRecordingsResponses,
@@ -1081,6 +1156,9 @@ import type {
   PreviewScheduleData,
   PreviewScheduleErrors,
   PreviewScheduleResponses,
+  PreviewTemplate2Data,
+  PreviewTemplate2Errors,
+  PreviewTemplate2Responses,
   PreviewTemplateData,
   PreviewTemplateErrors,
   PreviewTemplateResponses,
@@ -1107,9 +1185,15 @@ import type {
   PushTokenData,
   PushTokenErrors,
   PushTokenResponses,
+  PutAutomationVarsData,
+  PutAutomationVarsErrors,
+  PutAutomationVarsResponses,
   PutBlobData,
   PutBlobErrors,
   PutBlobResponses,
+  PutNamespaceVarsData,
+  PutNamespaceVarsErrors,
+  PutNamespaceVarsResponses,
   QueryNamespaceSparqlData,
   QueryNamespaceSparqlErrors,
   QueryNamespaceSparqlResponses,
@@ -1122,6 +1206,9 @@ import type {
   ReadLogsData,
   ReadLogsErrors,
   ReadLogsResponses,
+  ReadMcpConfigData,
+  ReadMcpConfigErrors,
+  ReadMcpConfigResponses,
   RecordingTopicsData,
   RecordingTopicsErrors,
   RecordingTopicsResponses,
@@ -1201,6 +1288,9 @@ import type {
   ResourceTotalsData,
   ResourceTotalsErrors,
   ResourceTotalsResponses,
+  RestoreAutomationData,
+  RestoreAutomationErrors,
+  RestoreAutomationResponses,
   RestoreBackupData,
   RestoreBackupErrors,
   RestoreBackupResponses,
@@ -1248,6 +1338,9 @@ import type {
   RotateNotifySecretData,
   RotateNotifySecretErrors,
   RotateNotifySecretResponses,
+  RunAutomationData,
+  RunAutomationErrors,
+  RunAutomationResponses,
   RunData,
   RunErrors,
   RunPipelineData,
@@ -1257,6 +1350,9 @@ import type {
   RunRoutineData,
   RunRoutineErrors,
   RunRoutineResponses,
+  RunsCausedData,
+  RunsCausedErrors,
+  RunsCausedResponses,
   RunWorkflowData,
   RunWorkflowErrors,
   RunWorkflowResponses,
@@ -1339,6 +1435,9 @@ import type {
   SetNamespaceFacesModeData,
   SetNamespaceFacesModeErrors,
   SetNamespaceFacesModeResponses,
+  SetPolicyData,
+  SetPolicyErrors,
+  SetPolicyResponses,
   SetRecordingContentTypeData,
   SetRecordingContentTypeErrors,
   SetRecordingContentTypeResponses,
@@ -1395,6 +1494,12 @@ import type {
   SuggestTermsData,
   SuggestTermsErrors,
   SuggestTermsResponses,
+  SwitchMcpToolData,
+  SwitchMcpToolErrors,
+  SwitchMcpToolResponses,
+  SwitchVersionData,
+  SwitchVersionErrors,
+  SwitchVersionResponses,
   SyncFedoraData,
   SyncFedoraResponses,
   TagRecordingsData,
@@ -1408,12 +1513,18 @@ import type {
   TelemetryStatusResponses,
   TestAnalyticsData,
   TestAnalyticsResponses,
+  TestAutomationData,
+  TestAutomationErrors,
+  TestAutomationResponses,
   TestBridgeData,
   TestBridgeResponses,
   TestConversionNodeData,
   TestConversionNodeResponses,
   TestDecisionsData,
   TestDecisionsResponses,
+  TestDraftData,
+  TestDraftErrors,
+  TestDraftResponses,
   TestEmbeddingsData,
   TestEmbeddingsResponses,
   TestExtensionData,
@@ -1430,6 +1541,9 @@ import type {
   TestMailboxResponses,
   TestMailData,
   TestMailResponses,
+  TestMcpServerData,
+  TestMcpServerErrors,
+  TestMcpServerResponses,
   TestNotifyTargetData,
   TestNotifyTargetErrors,
   TestNotifyTargetResponses,
@@ -1447,6 +1561,9 @@ import type {
   TestTelemetryResponses,
   TestTikaData,
   TestTikaResponses,
+  TodayPageData,
+  TodayPageErrors,
+  TodayPageResponses,
   TokenData,
   TokenErrors,
   TokenLimitsData,
@@ -1492,12 +1609,21 @@ import type {
   UnlockVaultData,
   UnlockVaultErrors,
   UnlockVaultResponses,
+  UnpinPageData,
+  UnpinPageErrors,
+  UnpinPageResponses,
   UnsealVaultData,
   UnsealVaultErrors,
   UnsealVaultResponses,
+  UpcomingData,
+  UpcomingErrors,
+  UpcomingResponses,
   UpdateAssistantMemoryData,
   UpdateAssistantMemoryErrors,
   UpdateAssistantMemoryResponses,
+  UpdateAutomationData,
+  UpdateAutomationErrors,
+  UpdateAutomationResponses,
   UpdateChatData,
   UpdateChatErrors,
   UpdateChatResponses,
@@ -1626,6 +1752,9 @@ import type {
   UsageMetricsData,
   UsageMetricsErrors,
   UsageMetricsResponses,
+  VariableCatalogData,
+  VariableCatalogErrors,
+  VariableCatalogResponses,
   VaultOptionsData,
   VaultOptionsErrors,
   VaultOptionsResponses,
@@ -2259,7 +2388,9 @@ export class Tokens {
    * Create Token
    *
    * A key that acts as you, with your roles (read only, or read and write). It lasts `days` (default
-   * tokens.default_days, at most tokens.max_days; 0 never expires when tokens.never_expire allows), else 400.
+   * tokens.default_days, at most tokens.max_days; 0 never expires when tokens.never_expire allows), else 400. With a
+   * `namespace` you can read, it opens that namespace's own MCP server and chat completions alone (docs/api.md, "Chat
+   * completions for any app"), with your role there; anywhere else it is refused (401).
    */
   public static createToken<ThrowOnError extends boolean = false>(
     options: Options<CreateTokenData, ThrowOnError>,
@@ -3665,6 +3796,518 @@ export class Activity {
   }
 }
 
+export class Activities {
+  /**
+   * List Activities
+   *
+   * What happened in Lens, newest first: new assets and everything else the stream holds, each an Activity Streams
+   * 2.0 activity with a Lens kind. Give `next` as `before` for the page after. Noisy kinds (like sensor readings) are
+   * left out unless named in `kinds`. Text from outside Lens is listed in each activity's `lens.untrusted`. `marks`
+   * has your own marks on the page's activities; `reviewed`, `important` and `hidden` filter by them.
+   */
+  public static listActivities<ThrowOnError extends boolean = false>(
+    options?: Options<ListActivitiesData, ThrowOnError>,
+  ): RequestResult<ListActivitiesResponses, ListActivitiesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListActivitiesResponses, ListActivitiesErrors, ThrowOnError>({
+      url: "/api/v1/activities",
+      ...options,
+    });
+  }
+
+  /**
+   * List Activity Kinds
+   *
+   * Every kind of activity: its label, the source that makes it, its parent and children (a trigger on a kind
+   * matches the kinds under it), a JSON Schema of its activities with each field's title, the fields holding text
+   * from outside Lens, and a sample.
+   */
+  public static listActivityKinds<ThrowOnError extends boolean = false>(
+    options?: Options<ListActivityKindsData, ThrowOnError>,
+  ): RequestResult<ListActivityKindsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListActivityKindsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/activities/kinds",
+      ...options,
+    });
+  }
+
+  /**
+   * Mark Activities
+   *
+   * Mark activities reviewed, important or hidden, or clear those marks, for yourself alone: each mark given true or
+   * false, one left out stays as it is. Up to 500 at once; `unknown` lists the ids there are no activities of, or
+   * that you can't see.
+   */
+  public static markActivities<ThrowOnError extends boolean = false>(
+    options: Options<MarkActivitiesData, ThrowOnError>,
+  ): RequestResult<MarkActivitiesResponses, MarkActivitiesErrors, ThrowOnError> {
+    return (options.client ?? client).post<MarkActivitiesResponses, MarkActivitiesErrors, ThrowOnError>({
+      url: "/api/v1/activities/mark",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Activity
+   *
+   * One activity by its id, like create-recording-7.
+   */
+  public static getActivity<ThrowOnError extends boolean = false>(
+    options: Options<GetActivityData, ThrowOnError>,
+  ): RequestResult<GetActivityResponses, GetActivityErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetActivityResponses, GetActivityErrors, ThrowOnError>({
+      url: "/api/v1/activities/{activity_id}",
+      ...options,
+    });
+  }
+
+  /**
+   * Mark Activity
+   *
+   * Mark one activity reviewed, important or hidden, or clear a mark, for yourself alone: each mark given true or
+   * false, one left out stays as it is. The answer is your marks on it now.
+   */
+  public static markActivity<ThrowOnError extends boolean = false>(
+    options: Options<MarkActivityData, ThrowOnError>,
+  ): RequestResult<MarkActivityResponses, MarkActivityErrors, ThrowOnError> {
+    return (options.client ?? client).post<MarkActivityResponses, MarkActivityErrors, ThrowOnError>({
+      url: "/api/v1/activities/{activity_id}/mark",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Automations {
+  /**
+   * Call Automation Hook
+   *
+   * Set an automation off: what is sent (JSON, a form or text, up to 64 KB) becomes a `webhook.received` activity
+   * for the automation whose trigger this address is. No session: the token in the address is the credential. Signed
+   * the Standard Webhooks way (webhook-id, webhook-timestamp, webhook-signature), the signature must match the webhook's
+   * secret; `webhook-id` or `Idempotency-Key` makes a retried call count once. Answers at once, before the automation
+   * runs.
+   */
+  public static callAutomationHook<ThrowOnError extends boolean = false>(
+    options: Options<CallAutomationHookData, ThrowOnError>,
+  ): RequestResult<CallAutomationHookResponses, CallAutomationHookErrors, ThrowOnError> {
+    return (options.client ?? client).post<CallAutomationHookResponses, CallAutomationHookErrors, ThrowOnError>({
+      url: "/api/v1/automations/hooks/{token}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Automation Vars
+   *
+   * The automation's own saved variables: what its runs keep between them (set_variable), by name.
+   */
+  public static getAutomationVars<ThrowOnError extends boolean = false>(
+    options: Options<GetAutomationVarsData, ThrowOnError>,
+  ): RequestResult<GetAutomationVarsResponses, GetAutomationVarsErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetAutomationVarsResponses, GetAutomationVarsErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/vars",
+      ...options,
+    });
+  }
+
+  /**
+   * Put Automation Vars
+   *
+   * Set or clear the automation's variables: each one named gets its value, null clears it, the others stay.
+   */
+  public static putAutomationVars<ThrowOnError extends boolean = false>(
+    options: Options<PutAutomationVarsData, ThrowOnError>,
+  ): RequestResult<PutAutomationVarsResponses, PutAutomationVarsErrors, ThrowOnError> {
+    return (options.client ?? client).put<PutAutomationVarsResponses, PutAutomationVarsErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/vars",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Namespace Vars
+   *
+   * The namespace's saved variables: what its automations share, read as vars.<name> (an automation's own win).
+   */
+  public static getNamespaceVars<ThrowOnError extends boolean = false>(
+    options: Options<GetNamespaceVarsData, ThrowOnError>,
+  ): RequestResult<GetNamespaceVarsResponses, GetNamespaceVarsErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetNamespaceVarsResponses, GetNamespaceVarsErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/automation-vars",
+      ...options,
+    });
+  }
+
+  /**
+   * Put Namespace Vars
+   *
+   * Set or clear the namespace's variables (editors): each one named gets its value, null clears it.
+   */
+  public static putNamespaceVars<ThrowOnError extends boolean = false>(
+    options: Options<PutNamespaceVarsData, ThrowOnError>,
+  ): RequestResult<PutNamespaceVarsResponses, PutNamespaceVarsErrors, ThrowOnError> {
+    return (options.client ?? client).put<PutNamespaceVarsResponses, PutNamespaceVarsErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/automation-vars",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Variable Catalog
+   *
+   * What a draft automation's templates can read, for the variable picker: the run context, each trigger's activity
+   * fields, the saved variables and, with node, what the nodes before it pass on; with types, labels and examples.
+   */
+  public static variableCatalog<ThrowOnError extends boolean = false>(
+    options: Options<VariableCatalogData, ThrowOnError>,
+  ): RequestResult<VariableCatalogResponses, VariableCatalogErrors, ThrowOnError> {
+    return (options.client ?? client).post<VariableCatalogResponses, VariableCatalogErrors, ThrowOnError>({
+      url: "/api/v1/automations/variables",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Preview Template
+   *
+   * What a template gives for a draft automation before it is saved, against an activity (by id; 404 for one you
+   * can't see) or the trigger kind's sample. A prompt shows outside text marked as the model sees it. A template that
+   * fails answers 200 with error and line; a draft that doesn't check answers 400.
+   */
+  public static previewTemplate<ThrowOnError extends boolean = false>(
+    options: Options<PreviewTemplateData, ThrowOnError>,
+  ): RequestResult<PreviewTemplateResponses, PreviewTemplateErrors, ThrowOnError> {
+    return (options.client ?? client).post<PreviewTemplateResponses, PreviewTemplateErrors, ThrowOnError>({
+      url: "/api/v1/automations/preview",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Automations
+   *
+   * Your automations: every one for an admin, else those that work only in namespaces you can edit. `removed`
+   * lists the deleted ones instead, to restore.
+   */
+  public static listAutomations<ThrowOnError extends boolean = false>(
+    options?: Options<ListAutomationsData, ThrowOnError>,
+  ): RequestResult<ListAutomationsResponses, ListAutomationsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListAutomationsResponses, ListAutomationsErrors, ThrowOnError>({
+      url: "/api/v1/automations",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Automation
+   *
+   * A new automation that acts for you. Its Then is a graph (saved as a workflow of scope event) or a saved
+   * workflow; its namespaces default to each one you can edit. Nodes ask first unless you let one run on its own
+   * (POST /automations/{id}/policy).
+   */
+  public static createAutomation<ThrowOnError extends boolean = false>(
+    options: Options<CreateAutomationData, ThrowOnError>,
+  ): RequestResult<CreateAutomationResponses, CreateAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateAutomationResponses, CreateAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Actions
+   *
+   * What an action node can do: each action's params (a JSON Schema), what it reaches (its effect) and what it
+   * gives back.
+   */
+  public static listActions<ThrowOnError extends boolean = false>(
+    options?: Options<ListActionsData, ThrowOnError>,
+  ): RequestResult<ListActionsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListActionsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/automations/actions",
+      ...options,
+    });
+  }
+
+  /**
+   * Delete Automation
+   *
+   * Delete it: switched off and hidden; POST /automations/{id}/restore undoes it.
+   */
+  public static deleteAutomation<ThrowOnError extends boolean = false>(
+    options: Options<DeleteAutomationData, ThrowOnError>,
+  ): RequestResult<DeleteAutomationResponses, DeleteAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteAutomationResponses, DeleteAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Automation
+   */
+  public static getAutomation<ThrowOnError extends boolean = false>(
+    options: Options<GetAutomationData, ThrowOnError>,
+  ): RequestResult<GetAutomationResponses, GetAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetAutomationResponses, GetAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Automation
+   *
+   * Change what is sent: a new graph is saved as a new version of its workflow; `if: null` drops its If,
+   * `version: null` follows the published version.
+   */
+  public static updateAutomation<ThrowOnError extends boolean = false>(
+    options: Options<UpdateAutomationData, ThrowOnError>,
+  ): RequestResult<UpdateAutomationResponses, UpdateAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateAutomationResponses, UpdateAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Enable Automation
+   *
+   * Switch it on (it reacts to what happens from now on, never to what happened while it was off) or off.
+   */
+  public static enableAutomation<ThrowOnError extends boolean = false>(
+    options: Options<EnableAutomationData, ThrowOnError>,
+  ): RequestResult<EnableAutomationResponses, EnableAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<EnableAutomationResponses, EnableAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/enable",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Restore Automation
+   *
+   * Undo a delete: it comes back switched off.
+   */
+  public static restoreAutomation<ThrowOnError extends boolean = false>(
+    options: Options<RestoreAutomationData, ThrowOnError>,
+  ): RequestResult<RestoreAutomationResponses, RestoreAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<RestoreAutomationResponses, RestoreAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/restore",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Policy
+   *
+   * Whether an action node asks you first (ask) or runs on its own (auto). Only you, signed in to the web app,
+   * let a node run on its own: never an API key, an app or an agent.
+   */
+  public static setPolicy<ThrowOnError extends boolean = false>(
+    options: Options<SetPolicyData, ThrowOnError>,
+  ): RequestResult<SetPolicyResponses, SetPolicyErrors, ThrowOnError> {
+    return (options.client ?? client).post<SetPolicyResponses, SetPolicyErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/policy",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Runs Caused
+   *
+   * What an activity caused: the runs of your automations it started (it was their event, or one of a join's).
+   */
+  public static runsCaused<ThrowOnError extends boolean = false>(
+    options: Options<RunsCausedData, ThrowOnError>,
+  ): RequestResult<RunsCausedResponses, RunsCausedErrors, ThrowOnError> {
+    return (options.client ?? client).get<RunsCausedResponses, RunsCausedErrors, ThrowOnError>({
+      url: "/api/v1/automations/runs",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Run
+   *
+   * One run: what each node did (trace), its log, and what its actions did, asked or wait to do (intents).
+   */
+  public static getRun<ThrowOnError extends boolean = false>(
+    options: Options<GetRunData, ThrowOnError>,
+  ): RequestResult<GetRunResponses, GetRunErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetRunResponses, GetRunErrors, ThrowOnError>({
+      url: "/api/v1/automations/runs/{run}",
+      ...options,
+    });
+  }
+
+  /**
+   * Decide Held Run
+   *
+   * Pick for a run held over a budget: run it now, once, whatever its budgets say, or skip it.
+   */
+  public static decideHeldRun<ThrowOnError extends boolean = false>(
+    options: Options<DecideHeldRunData, ThrowOnError>,
+  ): RequestResult<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError> {
+    return (options.client ?? client).post<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError>({
+      url: "/api/v1/automations/runs/{run}/decide",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Draft Automation
+   *
+   * Describe an automation in words: the model (one call, in the activity ledger, refused over budget) turns the
+   * sentence into a draft with the kinds of activity, the match operators and the actions as its vocabulary. What
+   * doesn't fit is dropped and said; nothing is saved. Try it with POST /automations/test, then save it.
+   */
+  public static draftAutomation<ThrowOnError extends boolean = false>(
+    options: Options<DraftAutomationData, ThrowOnError>,
+  ): RequestResult<DraftAutomationResponses, DraftAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<DraftAutomationResponses, DraftAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/draft",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Test Draft
+   *
+   * Try an automation before you save it: a dry run on an activity, or on a kind's sample (default: its first
+   * trigger's kind). Says whether its If passes and what each action would do; keeps, sends and counts nothing.
+   */
+  public static testDraft<ThrowOnError extends boolean = false>(
+    options: Options<TestDraftData, ThrowOnError>,
+  ): RequestResult<TestDraftResponses, TestDraftErrors, ThrowOnError> {
+    return (options.client ?? client).post<TestDraftResponses, TestDraftErrors, ThrowOnError>({
+      url: "/api/v1/automations/test",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Test Automation
+   *
+   * Try a saved automation: a dry run on an activity, or on a kind's sample (default: its first trigger's kind).
+   * Keeps, sends and counts nothing.
+   */
+  public static testAutomation<ThrowOnError extends boolean = false>(
+    options: Options<TestAutomationData, ThrowOnError>,
+  ): RequestResult<TestAutomationResponses, TestAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<TestAutomationResponses, TestAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/test",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Run Automation
+   *
+   * Run it now: on an activity, else the newest one its triggers listen for, else as started by hand. It acts as it
+   * would on its own: limits and budgets apply, and actions that ask first wait for your pick.
+   */
+  public static runAutomation<ThrowOnError extends boolean = false>(
+    options: Options<RunAutomationData, ThrowOnError>,
+  ): RequestResult<RunAutomationResponses, RunAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<RunAutomationResponses, RunAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/run",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Runs
+   *
+   * Its runs, newest first; `next` pages on.
+   */
+  public static listRuns<ThrowOnError extends boolean = false>(
+    options: Options<ListRunsData, ThrowOnError>,
+  ): RequestResult<ListRunsResponses, ListRunsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListRunsResponses, ListRunsErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/runs",
+      ...options,
+    });
+  }
+
+  /**
+   * Upcoming
+   *
+   * When it runs next, from its schedules and timers (coming soon: empty until schedules are built).
+   */
+  public static upcoming<ThrowOnError extends boolean = false>(
+    options: Options<UpcomingData, ThrowOnError>,
+  ): RequestResult<UpcomingResponses, UpcomingErrors, ThrowOnError> {
+    return (options.client ?? client).get<UpcomingResponses, UpcomingErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/upcoming",
+      ...options,
+    });
+  }
+}
+
 export class Budgets {
   /**
    * Remove Budget
@@ -4257,7 +4900,7 @@ export class Namespaces {
   /**
    * Get Namespace Integrations
    *
-   * Whether the namespace's own MCP server is on, and its address.
+   * Whether the namespace's own MCP server and chat completions are on, their addresses, and the tools offered.
    */
   public static getNamespaceIntegrations<ThrowOnError extends boolean = false>(
     options: Options<GetNamespaceIntegrationsData, ThrowOnError>,
@@ -4272,8 +4915,8 @@ export class Namespaces {
   /**
    * Update Namespace Integrations
    *
-   * Owners: turn the namespace's own MCP server on or off. Off, it answers 403; apps keep their access to the rest of
-   * Lens as before.
+   * Owners: turn the namespace's own MCP server or chat completions on or off, or pick the read tools the model may
+   * use in its chat completions. Off, each answers 403; apps keep their access to the rest of Lens as before.
    */
   public static updateNamespaceIntegrations<ThrowOnError extends boolean = false>(
     options: Options<UpdateNamespaceIntegrationsData, ThrowOnError>,
@@ -4414,6 +5057,45 @@ export class Namespaces {
   ): RequestResult<SetCollectionMemberResponses, SetCollectionMemberErrors, ThrowOnError> {
     return (options.client ?? client).put<SetCollectionMemberResponses, SetCollectionMemberErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}/collections/{cid}/members",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class ChatCompletions {
+  /**
+   * List Completion Models
+   *
+   * OpenAI's model list for the namespace's chat completions: lens (the configured model) and the models people may
+   * pick in Lens's chat.
+   */
+  public static listCompletionModels<ThrowOnError extends boolean = false>(
+    options: Options<ListCompletionModelsData, ThrowOnError>,
+  ): RequestResult<ListCompletionModelsResponses, ListCompletionModelsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListCompletionModelsResponses, ListCompletionModelsErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/models",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Chat Completion
+   *
+   * OpenAI's chat completions, answered from this namespace alone: the last user message is the question, the
+   * messages before it the conversation and system messages the app's instructions. The answer cites what it read as
+   * [n], with a Sources list after it, `citations` (the n-th link for [n]) and `lens.sources`. With `stream`, it comes
+   * as OpenAI's chunks (server-sent events) ending in `data: [DONE]`. Off until an owner of the namespace turns it on;
+   * read-only tokens are enough. 429 when the namespace's budget or Lens's overall one is used up.
+   */
+  public static createChatCompletion<ThrowOnError extends boolean = false>(
+    options: Options<CreateChatCompletionData, ThrowOnError>,
+  ): RequestResult<CreateChatCompletionResponses, CreateChatCompletionErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateChatCompletionResponses, CreateChatCompletionErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/chat/completions",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -5167,6 +5849,25 @@ export class Notes {
   }
 
   /**
+   * Today Page
+   *
+   * The namespace's note for the day (`date`, your today), made the first time it's asked for: titled with the
+   * date, inside the "Daily notes" note. Needs editor access.
+   */
+  public static todayPage<ThrowOnError extends boolean = false>(
+    options: Options<TodayPageData, ThrowOnError>,
+  ): RequestResult<TodayPageResponses, TodayPageErrors, ThrowOnError> {
+    return (options.client ?? client).post<TodayPageResponses, TodayPageErrors, ThrowOnError>({
+      url: "/api/v1/notes/today",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Link Targets
    *
    * What a mention can link to, best matches first: `#` for topics; `@` for pages, assets, named people and other
@@ -5387,6 +6088,35 @@ export class Notes {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Unpin Page
+   *
+   * Unpin the page for you.
+   */
+  public static unpinPage<ThrowOnError extends boolean = false>(
+    options: Options<UnpinPageData, ThrowOnError>,
+  ): RequestResult<UnpinPageResponses, UnpinPageErrors, ThrowOnError> {
+    return (options.client ?? client).delete<UnpinPageResponses, UnpinPageErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/pin",
+      ...options,
+    });
+  }
+
+  /**
+   * Pin Page
+   *
+   * Pin the page for you: it shows first on your Notes page and in your tree. Pins are each person's own; anyone
+   * who can read the page can pin it.
+   */
+  public static pinPage<ThrowOnError extends boolean = false>(
+    options: Options<PinPageData, ThrowOnError>,
+  ): RequestResult<PinPageResponses, PinPageErrors, ThrowOnError> {
+    return (options.client ?? client).put<PinPageResponses, PinPageErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/pin",
+      ...options,
     });
   }
 
@@ -8198,6 +8928,42 @@ export class Sources {
   }
 
   /**
+   * Google Client
+   *
+   * The OAuth client a Google account would be connected through (never its secret), and the redirect URI it needs.
+   */
+  public static googleClient<ThrowOnError extends boolean = false>(
+    options?: Options<GoogleClientData, ThrowOnError>,
+  ): RequestResult<GoogleClientResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GoogleClientResponses, unknown, ThrowOnError>({
+      url: "/api/v1/sources/google-client",
+      ...options,
+    });
+  }
+
+  /**
+   * Connect Google
+   *
+   * Connect a Google account to a Google source (Gmail, Google Calendar): open the returned address in this browser,
+   * consent there, and Google sends you back to the Sources page with the account connected. Its refresh token is kept
+   * sealed on the source. Without a client here, the Google sign-in provider's (Settings › Sign-in) or an earlier connection's is
+   * used. Only from the web app: the consent comes back to the browser that asked (an agent saves an authorized user
+   * JSON it already has as the source's `token` instead). Audited as `source.google_connect`.
+   */
+  public static connectGoogle<ThrowOnError extends boolean = false>(
+    options: Options<ConnectGoogleData, ThrowOnError>,
+  ): RequestResult<ConnectGoogleResponses, ConnectGoogleErrors, ThrowOnError> {
+    return (options.client ?? client).post<ConnectGoogleResponses, ConnectGoogleErrors, ThrowOnError>({
+      url: "/api/v1/sources/{sid}/google",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Browse Source
    *
    * The folders and files at one path of a source (for local sources, no path lists the allowed roots), with the
@@ -8360,9 +9126,9 @@ export class Templates {
    * A template that fails to render answers ok=false with the error, so the editor can show it inline.
    */
   public static previewTemplate<ThrowOnError extends boolean = false>(
-    options: Options<PreviewTemplateData, ThrowOnError>,
-  ): RequestResult<PreviewTemplateResponses, PreviewTemplateErrors, ThrowOnError> {
-    return (options.client ?? client).post<PreviewTemplateResponses, PreviewTemplateErrors, ThrowOnError>({
+    options: Options<PreviewTemplate2Data, ThrowOnError>,
+  ): RequestResult<PreviewTemplate2Responses, PreviewTemplate2Errors, ThrowOnError> {
+    return (options.client ?? client).post<PreviewTemplate2Responses, PreviewTemplate2Errors, ThrowOnError>({
       url: "/api/v1/templates/preview",
       ...options,
       headers: {
@@ -8635,12 +9401,12 @@ export class Workflows {
    * List Workflows
    *
    * Saved workflows, plus the nodes a workflow can be built from: the primitives, each scope's own nodes, and the
-   * custom nodes you can use.
+   * custom nodes you can use. Automations' workflows (scope event) are listed only when asked for with scope.
    */
   public static listWorkflows<ThrowOnError extends boolean = false>(
     options?: Options<ListWorkflowsData, ThrowOnError>,
-  ): RequestResult<ListWorkflowsResponses, unknown, ThrowOnError> {
-    return (options?.client ?? client).get<ListWorkflowsResponses, unknown, ThrowOnError>({
+  ): RequestResult<ListWorkflowsResponses, ListWorkflowsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListWorkflowsResponses, ListWorkflowsErrors, ThrowOnError>({
       url: "/api/v1/workflows",
       ...options,
     });
@@ -8666,7 +9432,8 @@ export class Workflows {
    * Try Workflow
    *
    * Run a graph (saved or not) once without keeping anything: what each node passed on, for the canvas. Nodes
-   * that would save something say what they would save; models are still asked.
+   * that would save something say what they would save; models are still asked. An automation's workflow (scope
+   * event) runs on an activity (by id) or a kind's sample, and its actions say what they would do (intents).
    */
   public static tryWorkflow<ThrowOnError extends boolean = false>(
     options: Options<TryWorkflowData, ThrowOnError>,
@@ -8931,6 +9698,44 @@ export class Extensions {
   }
 
   /**
+   * Read Mcp Config
+   *
+   * The MCP servers in a config pasted from another app (Claude's .mcp.json, VS Code's mcp.json), ready to add: each
+   * as an MCP extension keeps it, and what was left out and why. Nothing is reached or saved.
+   */
+  public static readMcpConfig<ThrowOnError extends boolean = false>(
+    options: Options<ReadMcpConfigData, ThrowOnError>,
+  ): RequestResult<ReadMcpConfigResponses, ReadMcpConfigErrors, ThrowOnError> {
+    return (options.client ?? client).post<ReadMcpConfigResponses, ReadMcpConfigErrors, ThrowOnError>({
+      url: "/api/v1/extensions/mcp/read",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Test Mcp Server
+   *
+   * Ask an MCP server for its tools without saving it (admins). With `extension`, values sent as •••• are that
+   * server's saved ones.
+   */
+  public static testMcpServer<ThrowOnError extends boolean = false>(
+    options: Options<TestMcpServerData, ThrowOnError>,
+  ): RequestResult<TestMcpServerResponses, TestMcpServerErrors, ThrowOnError> {
+    return (options.client ?? client).post<TestMcpServerResponses, TestMcpServerErrors, ThrowOnError>({
+      url: "/api/v1/extensions/mcp/test",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Delete Extension
    *
    * Takes it out of the assistant at once.
@@ -8992,6 +9797,24 @@ export class Extensions {
         },
       },
     );
+  }
+
+  /**
+   * Switch Mcp Tool
+   *
+   * Switch one of an MCP server's tools on or off, or say whether it asks first (admins): a new version.
+   */
+  public static switchMcpTool<ThrowOnError extends boolean = false>(
+    options: Options<SwitchMcpToolData, ThrowOnError>,
+  ): RequestResult<SwitchMcpToolResponses, SwitchMcpToolErrors, ThrowOnError> {
+    return (options.client ?? client).patch<SwitchMcpToolResponses, SwitchMcpToolErrors, ThrowOnError>({
+      url: "/api/v1/extensions/{eid}/tools",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
   }
 
   /**
@@ -9177,6 +10000,8 @@ export class Chats {
 
   /**
    * Delete Chat
+   *
+   * Delete a conversation, with its code sandbox and the files in it.
    */
   public static deleteChat<ThrowOnError extends boolean = false>(
     options: Options<DeleteChatData, ThrowOnError>,
@@ -9190,7 +10015,9 @@ export class Chats {
   /**
    * Get Chat
    *
-   * A conversation with its messages. Citations follow your current access: ones you can no longer read are left out.
+   * A conversation with the version showing (`messages`, each with its `versions`) and every version's messages
+   * (`tree`). Citations follow your current access: ones you can no longer read are left out (web pages it cited stay:
+   * they aren't the archive's).
    */
   public static getChat<ThrowOnError extends boolean = false>(
     options: Options<GetChatData, ThrowOnError>,
@@ -9220,15 +10047,56 @@ export class Chats {
   }
 
   /**
+   * Switch Version
+   *
+   * Show another version: the one `message` is in, from the first message to the newest one below `message`. The
+   * next question goes on from there. Returns the conversation as GET /chats/{cid} does.
+   */
+  public static switchVersion<ThrowOnError extends boolean = false>(
+    options: Options<SwitchVersionData, ThrowOnError>,
+  ): RequestResult<SwitchVersionResponses, SwitchVersionErrors, ThrowOnError> {
+    return (options.client ?? client).put<SwitchVersionResponses, SwitchVersionErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/head",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Message
+   *
+   * One message of any version, with its record (`meta`: for an answer, the model and the host it ran on, the tools
+   * offered and used, the scope, limits and use, tokens, cost, time and how it ended) and its rows in the activity ledger
+   * (`ledger`: the calls made for it, newest first). Citations follow your current access, as in GET /chats/{cid}.
+   */
+  public static getMessage<ThrowOnError extends boolean = false>(
+    options: Options<GetMessageData, ThrowOnError>,
+  ): RequestResult<GetMessageResponses, GetMessageErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetMessageResponses, GetMessageErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/messages/{mid}",
+      ...options,
+    });
+  }
+
+  /**
    * Send Message
    *
    * Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model
    * reads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
-   * /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).
+   * /chats/{cid}/stop: what came before is saved, marked stopped), meta (the answer's record, kept with it: what produced
+   * it), done (the saved message id).
    *
-   * With `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and
-   * its new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked
-   * from (where, and the highlighted text; not the page's text, which isn't kept).
+   * A conversation is a tree of versions (GET /chats/{cid}: `tree`, and each message's `versions`); the question goes
+   * on from `parent` when given (any message of the conversation), else from the version showing (`head`). With
+   * `regenerate` (an answer's id) its question is answered again, as a new version beside that answer (`content` isn't
+   * needed; `model` may pick another). With `edit`, one of your earlier questions is edited: this question becomes a new
+   * version beside it and is answered, and the old one stays with what followed it (404 if it isn't a question in this
+   * conversation). Either keeps the page the question was asked from (where, and the highlighted text; not the page's
+   * text, which isn't kept) unless `context` is given, and streams `branch` first ({message, parent, versions}: the
+   * new version, the message it follows and its versions); so does a question beside others under `parent`.
    *
    * `/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the
    * conversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.
@@ -9282,7 +10150,9 @@ export class Chats {
   /**
    * List Approvals
    *
-   * Work the assistant proposed for you to approve (and what became of it), newest first.
+   * What waits for your pick (and what became of it), newest first: the assistant's proposals and automations'
+   * actions. Filter by `status` (pending is waiting), `origin` (automation or chat), one `automation` or one chat
+   * (`chat_id`); page with `before`.
    */
   public static listApprovals<ThrowOnError extends boolean = false>(
     options?: Options<ListApprovalsData, ThrowOnError>,
@@ -9294,9 +10164,40 @@ export class Chats {
   }
 
   /**
+   * Count Approvals
+   *
+   * How many approvals wait for you, for the badge in the top bar.
+   */
+  public static countApprovals<ThrowOnError extends boolean = false>(
+    options?: Options<CountApprovalsData, ThrowOnError>,
+  ): RequestResult<CountApprovalsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<CountApprovalsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/approvals/count",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Approval
+   *
+   * One of your approvals.
+   */
+  public static getApproval<ThrowOnError extends boolean = false>(
+    options: Options<GetApprovalData, ThrowOnError>,
+  ): RequestResult<GetApprovalResponses, GetApprovalErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetApprovalResponses, GetApprovalErrors, ThrowOnError>({
+      url: "/api/v1/approvals/{aid}",
+      ...options,
+    });
+  }
+
+  /**
    * Decide Approval
    *
-   * Approve (or run a sample of, or decline) something the assistant proposed. Each approval is decided once.
+   * Approve (or run a sample of, or decline) something the assistant proposed or an automation's action. Each
+   * approval is decided once. An automation's action can also be edited (`params`) and then carried out, or allowed
+   * from now on for that automation (`always`); approving one needs you signed in, since it's your pick: an API key
+   * or an app can only decline it.
    */
   public static decideApproval<ThrowOnError extends boolean = false>(
     options: Options<DecideApprovalData, ThrowOnError>,
@@ -10015,9 +10916,9 @@ export class Routines {
    * Pick for a run held over a budget: run it now, once, whatever its budgets say, or skip it.
    */
   public static decideHeldRun<ThrowOnError extends boolean = false>(
-    options: Options<DecideHeldRunData, ThrowOnError>,
-  ): RequestResult<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError> {
-    return (options.client ?? client).post<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError>({
+    options: Options<DecideHeldRun2Data, ThrowOnError>,
+  ): RequestResult<DecideHeldRun2Responses, DecideHeldRun2Errors, ThrowOnError> {
+    return (options.client ?? client).post<DecideHeldRun2Responses, DecideHeldRun2Errors, ThrowOnError>({
       url: "/api/v1/routines/runs/{run_id}/decide",
       ...options,
       headers: {
@@ -10031,9 +10932,9 @@ export class Routines {
    * List Runs
    */
   public static listRuns<ThrowOnError extends boolean = false>(
-    options: Options<ListRunsData, ThrowOnError>,
-  ): RequestResult<ListRunsResponses, ListRunsErrors, ThrowOnError> {
-    return (options.client ?? client).get<ListRunsResponses, ListRunsErrors, ThrowOnError>({
+    options: Options<ListRuns2Data, ThrowOnError>,
+  ): RequestResult<ListRuns2Responses, ListRuns2Errors, ThrowOnError> {
+    return (options.client ?? client).get<ListRuns2Responses, ListRuns2Errors, ThrowOnError>({
       url: "/api/v1/routines/{rid}/runs",
       ...options,
     });
@@ -10043,9 +10944,9 @@ export class Routines {
    * Get Run
    */
   public static getRun<ThrowOnError extends boolean = false>(
-    options: Options<GetRunData, ThrowOnError>,
-  ): RequestResult<GetRunResponses, GetRunErrors, ThrowOnError> {
-    return (options.client ?? client).get<GetRunResponses, GetRunErrors, ThrowOnError>({
+    options: Options<GetRun2Data, ThrowOnError>,
+  ): RequestResult<GetRun2Responses, GetRun2Errors, ThrowOnError> {
+    return (options.client ?? client).get<GetRun2Responses, GetRun2Errors, ThrowOnError>({
       url: "/api/v1/routine-runs/{run_id}",
       ...options,
     });

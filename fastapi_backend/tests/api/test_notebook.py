@@ -536,3 +536,58 @@ def test_deleted_pages_go_after_a_while(client, env, db, cfg):
     assert notebook.purge_due(db, cfg) == 1
     assert [d["title"] for d in client.get("/api/v1/notes/deleted?ns=pods", headers=he).json()] == ["New"]
     assert not db.rows("SELECT id FROM note_version WHERE page = $p", p=old["id"])
+
+
+def test_pins(client, env, db):
+    he, hv, hx = env["he"], env["hv"], env["hx"]
+    a = _new(client, he, title="Plans")
+    b = _new(client, he, title="Hiring", parent=a["id"])
+    # a viewer pins a note for themselves; nobody else sees it pinned, and the page itself doesn't change
+    r = client.put(f"/api/v1/notes/{b['id']}/pin", headers=hv)
+    assert r.status_code == 200 and r.json()["pinned"] is True
+    assert "pinned_by" not in r.json()
+    assert r.json()["updated_at"] == b["updated_at"]
+    assert client.put(f"/api/v1/notes/{b['id']}/pin", headers=hv).status_code == 200  # twice is once
+    mine = {p["id"]: p["pinned"] for p in client.get("/api/v1/notes?ns=pods", headers=hv).json()["pages"]}
+    theirs = {p["id"]: p["pinned"] for p in client.get("/api/v1/notes?ns=pods", headers=he).json()["pages"]}
+    assert mine == {a["id"]: False, b["id"]: True} and theirs == {a["id"]: False, b["id"]: False}
+    assert client.get(f"/api/v1/notes/{b['id']}", headers=hv).json()["pinned"] is True
+    assert len(db.values("SELECT VALUE pinned_by FROM $r", r=R("note_page", b["id"]))[0]) == 1
+    # outside the namespace it isn't there to pin
+    assert client.put(f"/api/v1/notes/{b['id']}/pin", headers=hx).status_code == 404
+    r = client.delete(f"/api/v1/notes/{b['id']}/pin", headers=hv)
+    assert r.status_code == 200 and r.json()["pinned"] is False
+    # there's a limit, per person and namespace
+    old = notebook.PINS_MAX
+    notebook.PINS_MAX = 1
+    try:
+        assert client.put(f"/api/v1/notes/{a['id']}/pin", headers=hv).status_code == 200
+        r = client.put(f"/api/v1/notes/{b['id']}/pin", headers=hv)
+        assert r.status_code == 400 and "unpin one first" in r.json()["detail"]
+        assert client.put(f"/api/v1/notes/{b['id']}/pin", headers=he).status_code == 200
+    finally:
+        notebook.PINS_MAX = old
+
+
+def test_daily_notes(client, env, db):
+    he, hv = env["he"], env["hv"]
+    r = client.post("/api/v1/notes/today", headers=he, json={"ns": "pods", "date": "2026-10-15"})
+    assert r.status_code == 200, r.text
+    day = r.json()
+    assert (day["title"], day["date"]) == ("2026-10-15", "2026-10-15")
+    root = client.get(f"/api/v1/notes/{day['parent']}", headers=he).json()
+    assert root["title"] == "Daily notes" and root["parent"] is None
+    # the same day again is the same note, even renamed; the next day goes beside it
+    client.patch(f"/api/v1/notes/{day['id']}", headers=he, json={"title": "Launch day"})
+    assert client.post("/api/v1/notes/today", headers=he, json={"ns": "pods", "date": "2026-10-15"}).json()["id"] == day["id"]
+    nxt = client.post("/api/v1/notes/today", headers=he, json={"ns": "pods", "date": "2026-10-16"}).json()
+    assert nxt["id"] != day["id"] and nxt["parent"] == root["id"]
+    # without a date it's the server's today
+    assert client.post("/api/v1/notes/today", headers=he, json={"ns": "pods"}).json()["date"] == store.now()[:10]
+    # editors only, and a date that is one
+    assert client.post("/api/v1/notes/today", headers=hv, json={"ns": "pods"}).status_code == 403
+    assert client.post("/api/v1/notes/today", headers=he, json={"ns": "pods", "date": "soon"}).status_code == 400
+    # the daily notes' note, when deleted, is made again the next time (for a day no earlier call made: not today)
+    assert client.delete(f"/api/v1/notes/{root['id']}", headers=he).status_code == 200
+    again = client.post("/api/v1/notes/today", headers=he, json={"ns": "pods", "date": "2020-02-29"}).json()
+    assert again["parent"] not in (None, root["id"])

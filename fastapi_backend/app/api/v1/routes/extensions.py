@@ -9,7 +9,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from app.api.deps import Acl, Cfg, CurrentUser, Db, Principal, Writer, domain_errors
-from app.domain import ai_tools, auth, extensions, marketplace
+from app.domain import ai_tools, auth, extensions, marketplace, mcp_servers
 from app.schemas.common import Created, Ok
 from app.schemas.extensions import (
     Extension,
@@ -26,6 +26,11 @@ from app.schemas.extensions import (
     Kind,
     ManifestCheck,
     ManifestChecked,
+    McpConfig,
+    McpConfigText,
+    McpServerTools,
+    McpServerTry,
+    McpToolSwitch,
 )
 from app.schemas.templates import VersionSaved
 
@@ -93,6 +98,22 @@ def import_archive(body: ExtensionImportArchive, user: Writer, db: Db) -> Extens
     return ExtensionImportPreview(**out) if body.preview else ExtensionImported(**out)
 
 
+@router.post("/mcp/read")
+def read_mcp_config(body: McpConfigText, user: CurrentUser) -> McpConfig:
+    """The MCP servers in a config pasted from another app (Claude's .mcp.json, VS Code's mcp.json), ready to add: each
+    as an MCP extension keeps it, and what was left out and why. Nothing is reached or saved."""
+    with _errors():
+        return McpConfig(**mcp_servers.read(body.text))
+
+
+@router.post("/mcp/test")
+def test_mcp_server(body: McpServerTry, user: Writer, db: Db) -> McpServerTools:
+    """Ask an MCP server for its tools without saving it (admins). With `extension`, values sent as •••• are that
+    server's saved ones."""
+    with _errors():
+        return McpServerTools(tools=extensions.try_mcp(db, me(user), body.spec, body.extension))
+
+
 @router.get("/{eid}")
 def get_extension(eid: int, user: CurrentUser, db: Db, version: int | None = None) -> ExtensionDetail:
     """One version (default: the current one), as a manifest too, and the list of versions."""
@@ -105,6 +126,15 @@ def create_extension_version(eid: int, body: ExtensionVersionCreate, user: Write
     with _errors():
         n = extensions.save_version(db, me(user), eid, _manifest(body), body.notes, body.origin)
     auth.audit(db, user.as_audit(), "extension.save", f"extension:{eid}", {"version": n, "origin": body.origin})
+    return VersionSaved(version=n)
+
+
+@router.patch("/{eid}/tools")
+def switch_mcp_tool(eid: int, body: McpToolSwitch, user: Writer, db: Db) -> VersionSaved:
+    """Switch one of an MCP server's tools on or off, or say whether it asks first (admins): a new version."""
+    with _errors():
+        n = extensions.switch_tool(db, me(user), eid, body.tool, on=body.on, ask=body.ask)
+    auth.audit(db, user.as_audit(), "extension.save", f"extension:{eid}", {"version": n, **body.model_dump(exclude_none=True)})
     return VersionSaved(version=n)
 
 
@@ -131,7 +161,8 @@ def test_extension(eid: int, body: ExtensionTest, user: Writer, acl: Acl, db: Db
     """Try one of its tools with these arguments, switched on or not. A tool that changes something really runs, so it
     needs `confirm`."""
     with _errors():
-        g = extensions.visible_one(db, me(user), eid)
+        extensions.visible_one(db, me(user), eid)
+        g = extensions.get(db, eid)  # as saved: what's shown hides an MCP server's secrets
         name = body.tool or (g["name"] if g["kind"] == "tool" else None)
         t = next((it for it in extensions.tool_items(g) if it["name"] == name), None)
         if not t:

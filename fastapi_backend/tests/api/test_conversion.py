@@ -162,7 +162,8 @@ def test_an_email_becomes_a_document_and_its_attachments_resources(client, env, 
     why = (CHROME, (db.one("SELECT error FROM $r", r=R("recording", rid)) or {}).get("error"))
     assert (rec["title"], rec["recorded_at"], rec["status"]) == ("Harbour report", "2026-09-29T09:30:00+01:00", "analyzed"), why
     sent = {"subject": "Harbour report", "from": "Mara Keane <mara@example.org>", "to": "tom@example.org", "cc": None}
-    assert rec["email"] == {**sent, "date": rec["recorded_at"]}
+    snippet = "The ships arrived at dawn. The lighthouse keeper wrote twice."
+    assert rec["email"] == {**sent, "date": rec["recorded_at"], "attachments": 4, "snippet": snippet}
     assert "The lighthouse keeper wrote twice." in _text(db, rid)
 
     # its attachments are its files; those Lens reads are resources of their own, which say where they came from

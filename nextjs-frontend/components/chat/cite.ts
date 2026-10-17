@@ -39,14 +39,36 @@ export function shortTitle(title: string | null | undefined, max = 24): string {
   return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
 }
 
-/** When a passage starts, as "14:29" (tools send `time`; retrieval sends both). */
-export function passageTime(p: Pick<Passage, "t0" | "time">): string {
+/** A web page the assistant searched for or read (source "web"), rather than a moment of an asset. */
+export function isWeb(p: Pick<Passage, "source" | "url">): boolean {
+  return p.source === "web" && !!p.url;
+}
+
+/** A web page's site, as people say it: "example.com". */
+export function siteOf(p: Pick<Passage, "site" | "url">): string {
+  if (p.site) return p.site;
+  try {
+    return new URL(p.url ?? "").hostname.replace(/^www\./, "");
+  } catch {
+    return "web page";
+  }
+}
+
+/** When a passage starts, as "14:29" (tools send `time`; retrieval sends both); a web page's site. */
+export function passageTime(
+  p: Pick<Passage, "t0" | "time"> & Partial<Pick<Passage, "source" | "url" | "site">>,
+): string {
+  if (p.source === "web") return siteOf(p);
   if (p.time) return p.time;
   return tc(typeof p.t0 === "number" ? p.t0 : 0);
 }
 
-/** "Ep. 12 · 14:29 · Host B": recording · time · speaker. */
-export function citeLabel(p: Pick<Passage, "title" | "t0" | "time" | "speaker">, withSpeaker = true): string {
+/** "Ep. 12 · 14:29 · Host B": recording · time · speaker; "example.com · Harbour news" for a web page. */
+export function citeLabel(
+  p: Pick<Passage, "title" | "t0" | "time" | "speaker"> & Partial<Pick<Passage, "source" | "url" | "site">>,
+  withSpeaker = true,
+): string {
+  if (p.source === "web") return [siteOf(p), withSpeaker ? shortTitle(p.title, 32) : null].filter(Boolean).join(" · ");
   return [shortTitle(p.title), passageTime(p), withSpeaker ? p.speaker : null].filter(Boolean).join(" · ");
 }
 
@@ -73,9 +95,12 @@ export function quoteOf(p: Pick<Passage, "text" | "speaker">): QuoteLine {
   );
 }
 
-/** Link to the cited moment. */
-export function passageHref(p: Pick<Passage, "recording_id" | "t0">): string {
-  return recordingHref(p.recording_id, typeof p.t0 === "number" ? p.t0 : 0);
+/** Link to the cited moment, or the web page's own address. */
+export function passageHref(
+  p: Pick<Passage, "recording_id" | "t0"> & Partial<Pick<Passage, "source" | "url">>,
+): string {
+  if (p.source === "web" && p.url) return p.url;
+  return recordingHref(p.recording_id ?? 0, typeof p.t0 === "number" ? p.t0 : 0);
 }
 
 /** The backend's canned answers when no language model is configured. */

@@ -26,6 +26,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
+import { navigate } from "@/lib/navigate";
 import { cn } from "@/lib/utils";
 
 type Step = "type" | "details" | "test";
@@ -233,6 +234,41 @@ export function ConnectionDialog({
     },
   });
 
+  // Connect with Google: the connection is saved as it is (made first when new), then this browser goes to Google's
+  // consent screen and comes back to Sources with the account connected
+  const connectGoogle = useMutation({
+    mutationFn: async (oauthClient: { client_id?: string; client_secret?: string }) => {
+      let id = createdId;
+      const body = buildPayload(backends[type], form, type);
+      if (id == null) {
+        const name = form.name.trim() || suggestName(type, form.params);
+        id = (await data(Sources.createSource({ client, body: { type, name, ...body } }))).id;
+        setCreatedId(id);
+        setCreatedName(name);
+      } else
+        await data(
+          Sources.updateSource({
+            client,
+            path: { sid: id },
+            body: { ...body, ...(editing && form.name.trim() ? { name: form.name.trim() } : {}) },
+          }),
+        );
+      return (await data(Sources.connectGoogle({ client, path: { sid: id }, body: oauthClient }))).url;
+    },
+    onSuccess: (url) => navigate.assign(url),
+    onError: (e: Error) => {
+      refresh();
+      setErrors({ _: e.message });
+    },
+  });
+
+  const goConnect = (oauthClient: { client_id?: string; client_secret?: string }) => {
+    const e = validateForm(type, spec, form, saved, isSet);
+    delete e.token; // what Google's consent screen is for
+    setErrors(e);
+    if (!Object.keys(e).length) connectGoogle.mutate(oauthClient);
+  };
+
   // Dropbox, OneDrive and Google Drive (as a Google account) sign in at the service through rclone on the server,
   // unless a token is pasted or a saved connection only changes its options
   const via = spec?.oauth && !(type === "drive" && form.driveAuth === "service_account") ? form.signInWith : null;
@@ -398,6 +434,8 @@ export function ConnectionDialog({
             isSet={isSet}
             onSignIn={() => void startSignIn()}
             signingIn={rcloneStarting}
+            onConnectGoogle={goConnect}
+            connectingGoogle={connectGoogle.isPending || connectGoogle.isSuccess}
           />
         ) : null}
         {alert}

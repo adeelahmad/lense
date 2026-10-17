@@ -268,3 +268,12 @@ def web_relay(port, prefix, forwarded_for=None):
     finally:
         srv.shutdown()
         srv.server_close()
+
+
+def without(monkeypatch, *names):
+    """Hide modules of the workflow studio that land in their own steps (automation_nodes.module), so a check for
+    "coming soon" holds whether or not they are merged yet."""
+    from app.domain import automation_nodes
+
+    real = automation_nodes.module
+    monkeypatch.setattr(automation_nodes, "module", lambda name: None if name in names else real(name))

@@ -30,7 +30,7 @@ OWN_NODES = ("candidates", "llm_judge", "apply_changes")
 CONFIG = {
     "candidates": {"kind", "min_confidence", "limit", "types"},
     "llm_judge": {"model", "instructions", "batch"},
-    "filter": {"path", "op", "value"},
+    "filter": {"path", "op", "value", "match"},
     "apply_changes": {"apply_above", "max_apply"},
 }
 KINDS = ("merge", "link")

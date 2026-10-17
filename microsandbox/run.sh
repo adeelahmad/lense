@@ -2,7 +2,7 @@
 # Lens in one microsandbox microVM (docs/microsandbox.md): SurrealDB, the API, a job worker and the web app, with no
 # Docker on the machine. install.sh starts it with LENS_BACKEND=microsandbox:
 #
-#   msb run -d --name lens ... -v ~/lens:/lens:ro --mount-named lens-data:/data python:3.12-slim-bookworm \
+#   msb run -d --name lens ... -v ~/lens:/lens:ro --mount-named lens-data:/data python:3.12-slim-trixie \
 #     -- sh /lens/microsandbox/run.sh
 #
 # microsandbox runs images but can't build them, and sandboxes can't reach each other by name, so the stack the Docker
@@ -51,6 +51,10 @@ esac
 mkdir -p "$OPT/bin" "$DATA/surreal" /tmp/lens
 export PATH="$OPT/bin:$OPT/node/bin:$OPT/venv/bin:$PATH"
 
+# Removing folders in the volume, which a Mac shares into the sandbox in a way one rm -rf doesn't always get through
+# shellcheck source=SCRIPTDIR/wipe.sh
+. "$CODE/microsandbox/wipe.sh"
+
 # Name lookups: wait for them before downloading, with public resolvers when this machine's don't answer here
 # shellcheck source=SCRIPTDIR/dns.sh
 . "$CODE/microsandbox/dns.sh"
@@ -66,12 +70,13 @@ apt_install() {
   mkdir -p "$OPT/apt/partial"
   retry apt-get update -q --error-on=any &&
     retry apt-get install -y -q --no-install-recommends -o Dir::Cache::archives="$OPT/apt" "$@" &&
+    { apt-get autoclean -q -o Dir::Cache::archives="$OPT/apt" || true; } && # those of an earlier Debian, or version
     rm -rf /var/lib/apt/lists/*
 }
 stamp=/var/lib/lens-packages
 if [ ! -f "$stamp" ]; then
   log "Installing system packages..."
-  apt_install ffmpeg tesseract-ocr antiword poppler-utils ca-certificates curl xz-utils unzip
+  apt_install ffmpeg tesseract-ocr antiword poppler-utils ca-certificates libgomp1 curl xz-utils unzip
   id lens >/dev/null 2>&1 || useradd --create-home --uid 1000 lens
   touch "$stamp"
 fi
@@ -98,7 +103,8 @@ if [ ! -x "$OPT/node/bin/node" ]; then
   file="$(printf '%s\n' "$sums" | awk "/linux-$node_arch.tar.xz\$/ {print \$2}")"
   fetch -o "/tmp/lens/$file" "$base/$file"
   (cd /tmp/lens && printf '%s\n' "$sums" | grep " $file\$" | sha256sum -c --quiet -)
-  rm -rf "$OPT/node" && mkdir -p "$OPT/node"
+  wipe "$OPT/node"
+  mkdir -p "$OPT/node"
   tar -xJf "/tmp/lens/$file" -C "$OPT/node" --strip-components 1
   rm "/tmp/lens/$file"
 fi
@@ -110,13 +116,20 @@ fi
 
 # --- Build: the backend and the web app, again only when the code changed (the edition doesn't change them) -------
 build_id="$(cat "$CODE/.lens-build" 2>/dev/null || echo unknown)"
+# the web app is built on the sandbox's own disk, where its packages come and go quickly; only what it built is kept
+WEB_SRC=/var/tmp/lens/web-src
 if [ "$(cat "$OPT/build-id" 2>/dev/null)" != "$build_id" ]; then
   log "Building Lens (the first build takes a few minutes)..."
+  # what an earlier build left: one that stopped partway kept its copy of the web app in the volume (before it was
+  # built on the sandbox's disk), and anything wipe moved aside
+  wipe "$OPT/web-src" || true
+  empty_trash
   # copies, so the build writes nothing into the code on the host; the backend is installed where it runs (the
   # virtualenv points at it)
-  rm -rf "$OPT/backend" "$OPT/web-src" && mkdir -p "$OPT/backend" "$OPT/web-src"
+  wipe "$OPT/backend" "$WEB_SRC"
+  mkdir -p "$OPT/backend" "$WEB_SRC"
   (cd "$CODE/fastapi_backend" && tar -c --exclude .venv --exclude __pycache__ .) | tar -x -C "$OPT/backend"
-  (cd "$CODE/nextjs-frontend" && tar -c --exclude node_modules --exclude .next .) | tar -x -C "$OPT/web-src"
+  (cd "$CODE/nextjs-frontend" && tar -c --exclude node_modules --exclude .next .) | tar -x -C "$WEB_SRC"
 
   log "Installing the backend's Python packages..."
   # shellcheck disable=SC2046
@@ -126,16 +139,17 @@ if [ "$(cat "$OPT/build-id" 2>/dev/null)" != "$build_id" ]; then
     retry uv sync --frozen --no-dev --python "$(command -v python3)" \
       $(for e in ${EXTRAS:-}; do printf -- '--extra %s ' "$e"; done))
 
-  web() { (cd "$OPT/web-src" && exec env COREPACK_ENABLE_DOWNLOAD_PROMPT=0 COREPACK_HOME="$OPT/corepack" "$@"); }
+  web() { (cd "$WEB_SRC" && exec env COREPACK_ENABLE_DOWNLOAD_PROMPT=0 COREPACK_HOME="$OPT/corepack" "$@"); }
   log "Installing the web app's packages..."
   retry web corepack pnpm install --frozen-lockfile
   log "Building the web app..."
   web AUTH_SECRET=build-only NEXT_TELEMETRY_DISABLED=1 NEXT_OUTPUT=standalone corepack pnpm build
-  rm -rf "$OPT/web" && mkdir -p "$OPT/web/.next"
-  cp -a "$OPT/web-src/.next/standalone/." "$OPT/web/"
-  cp -a "$OPT/web-src/.next/static" "$OPT/web/.next/static"
-  cp -a "$OPT/web-src/public" "$OPT/web-src/lens-server.js" "$OPT/web-src/lens-relay.js" "$OPT/web/"
-  rm -rf "$OPT/web-src"
+  wipe "$OPT/web"
+  mkdir -p "$OPT/web/.next"
+  cp -a "$WEB_SRC/.next/standalone/." "$OPT/web/"
+  cp -a "$WEB_SRC/.next/static" "$OPT/web/.next/static"
+  cp -a "$WEB_SRC/public" "$WEB_SRC/lens-server.js" "$WEB_SRC/lens-relay.js" "$OPT/web/"
+  wipe "$WEB_SRC" || true # the disk is replaced with the sandbox anyway
   chown -R lens:lens "$OPT/web"
   echo "$build_id" >"$OPT/build-id"
 fi
