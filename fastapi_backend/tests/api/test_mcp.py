@@ -88,6 +88,7 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "set_namespace_integrations",
         "set_file_storage",
         "set_monitoring",
+        "set_sandbox_gateway",
         "set_install_settings",
         "mark_activities",
         "decline_approval",
@@ -474,7 +475,7 @@ def test_note_tools(client, db, env):
     plan = notebook.create(
         db, pods, None, "Capsid plan", f"Ship on Friday, see @[ep1](recording:{a}).", "Shipping capsids", place="project"
     )
-    notebook.create(db, pods, None, "Hiring", "Two roles open.")
+    hiring = notebook.create(db, pods, None, "Hiring", "Two roles open.", parent=plan)
     notebook.create(db, calls, None, "Capsid call notes", "Not for pods viewers.")
     found = tool(client, h, "find_notes", query="capsid")
     assert [(n["note_id"], n["summary"], n["place"]) for n in found["notes"]] == [(plan, "Shipping capsids", "project")]
@@ -482,6 +483,8 @@ def test_note_tools(client, db, env):
     assert tool(client, h, "find_notes", query="friday")["notes"][0]["snippet"] == "Ship on Friday, see ep1."
     assert tool(client, h, "find_notes", place="area")["total"] == 0
     got = tool(client, h, "read_note", note_id=plan)
+    assert got["notes_inside"] == [{"note_id": hiring, "title": "Hiring"}] and "path" not in got
+    assert tool(client, h, "read_note", note_id=hiring)["path"] == [{"note_id": plan, "title": "Capsid plan"}]
     assert got["body"].startswith("Ship on Friday") and got["links"] == [{"target": f"recording:{a}", "name": got["links"][0]["name"]}]
     assert tool(client, h, "read_note", about=f"recording:{a}") == {
         "page_of": f"recording:{a}",

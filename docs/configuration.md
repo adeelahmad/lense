@@ -504,8 +504,9 @@ image, CPU, memory, run time and how long sandboxes are kept are under its fold:
 |---|---|---|
 | `sandbox.enabled` | false | on: the assistant gets `run_python`, `run_bash`, `sandbox_files` and `import_sandbox_file` |
 | `sandbox.who` | `editors` | who may use it: `editors` (people who can edit a namespace, and admins) or `admins` |
-| `sandbox.network` | `off` | `off` (no traffic), `packages` (the Python and npm registries) or `web` (public addresses on ports 80 and 443) |
-| `sandbox.gateway` | `openshell-gateway:8080` | the OpenShell gateway's gRPC address, `host:port` |
+| `sandbox.network` | `off` | `off` (no traffic), `packages` (the Python and npm registries) or `hosts` (those and `sandbox.hosts`) |
+| `sandbox.hosts` | `[]` | with `hosts`: the names it may reach on ports 80 and 443, like `api.example.com` or `*.wikipedia.org` (up to 50); only at public addresses |
+| `sandbox.gateway` | `openshell-gateway:17670` | the OpenShell gateway's gRPC address, `host:port`; Run the gateway on this machine sets it |
 | `sandbox.image` | `python:3.12-slim` | the container image sandboxes are made from; it needs `python3` and `bash` |
 | `sandbox.cpu` | `1` | cores a sandbox may use, like `1`, `0.5` or `500m` (0.1–64) |
 | `sandbox.memory` | `512Mi` | memory a sandbox may use, like `512Mi` or `2Gi` (64Mi–64Gi) |
