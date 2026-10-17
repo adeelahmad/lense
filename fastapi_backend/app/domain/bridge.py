@@ -327,8 +327,8 @@ def _answer(db, cfg, base, account, cid, q, files, act_on, outside):
         chat.compact(db, cfg, cid, full_only=True)
     except Exception:  # noqa: BLE001 - answered with what fits; tried again after the answer
         log.warning("bridge: couldn't update the summary of chat %s", cid, exc_info=True)
-    past = chat.history(db, cid)
-    summary = chat.memory(db, cfg, cid)
+    past = chat.path(db, cid)  # a room goes on from the head (the version showing, should it be switched in the app)
+    summary = chat.memory(db, cfg, cid, past)
     scope = (db.one("SELECT scope FROM $r", r=R("chat", cid)) or {}).get("scope") or None
     chat.add(db, cid, "user", q, attachments=list(files) or None, meta=chat.question_record("room"))
     # the answer's id up front: every call made for it names it in the ledger, and its record sums them

@@ -166,6 +166,23 @@ def test_stopped_and_failed_answers_are_recorded(plain, app, db, cfg, folder, ne
     assert (meta["outcome"], meta["model"], meta["provider"], meta["tokens"]) == ("fallback", None, None, {"in": 0, "out": 0})
 
 
+def test_a_regenerated_answer_has_its_own_record(app, db, cfg, folder, new_client, llm):
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["editor"]
+    llm.tool_script = [{"content": "First."}, {"content": "Second."}]
+    cid, ev, _ = ask(c, h, "zzqx")
+    first = ev["done"][0]["message"]
+    again = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"regenerate": first, "model": "fake-large"}).text)
+    mid = again["done"][0]["message"]
+    assert mid != first and again["branch"][0]["message"] == mid and again["meta"][0]["model"] == "fake-large"
+    # its calls name it, not the answer it was written beside
+    one = c.get(f"/api/v1/chats/{cid}/messages/{mid}", headers=h).json()
+    assert kept(one["meta"]) == kept(again["meta"][0]) and one["parent"] == first - 1
+    assert [r for r in one["ledger"] if r["kind"] == "out"] and again["meta"][0]["tokens"]["in"] >= USAGE["prompt_tokens"]
+    before = c.get(f"/api/v1/chats/{cid}/messages/{first}", headers=h).json()
+    assert {r["id"] for r in before["ledger"]}.isdisjoint(r["id"] for r in one["ledger"])
+
+
 def test_old_messages_have_no_record(app, db, cfg, folder, new_client, llm):
     s = Assist(app, db, cfg, folder, new_client)
     c, h = s.cl["editor"]

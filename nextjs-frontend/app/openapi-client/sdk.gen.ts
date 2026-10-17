@@ -1491,6 +1491,9 @@ import type {
   SuggestTermsData,
   SuggestTermsErrors,
   SuggestTermsResponses,
+  SwitchVersionData,
+  SwitchVersionErrors,
+  SwitchVersionResponses,
   SyncFedoraData,
   SyncFedoraResponses,
   TagRecordingsData,
@@ -9945,7 +9948,8 @@ export class Chats {
   /**
    * Get Chat
    *
-   * A conversation with its messages. Citations follow your current access: ones you can no longer read are left out.
+   * A conversation with the version showing (`messages`, each with its `versions`) and every version's messages
+   * (`tree`). Citations follow your current access: ones you can no longer read are left out.
    */
   public static getChat<ThrowOnError extends boolean = false>(
     options: Options<GetChatData, ThrowOnError>,
@@ -9975,11 +9979,30 @@ export class Chats {
   }
 
   /**
+   * Switch Version
+   *
+   * Show another version: the one `message` is in, from the first message to the newest one below `message`. The
+   * next question goes on from there. Returns the conversation as GET /chats/{cid} does.
+   */
+  public static switchVersion<ThrowOnError extends boolean = false>(
+    options: Options<SwitchVersionData, ThrowOnError>,
+  ): RequestResult<SwitchVersionResponses, SwitchVersionErrors, ThrowOnError> {
+    return (options.client ?? client).put<SwitchVersionResponses, SwitchVersionErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/head",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Get Message
    *
-   * One message with its record (`meta`: for an answer, the model and the host it ran on, the tools offered and
-   * used, the scope, limits and use, tokens, cost, time and how it ended) and its rows in the activity ledger (`ledger`:
-   * the calls made for it, newest first). Citations follow your current access, as in GET /chats/{cid}.
+   * One message of any version, with its record (`meta`: for an answer, the model and the host it ran on, the tools
+   * offered and used, the scope, limits and use, tokens, cost, time and how it ended) and its rows in the activity ledger
+   * (`ledger`: the calls made for it, newest first). Citations follow your current access, as in GET /chats/{cid}.
    */
   public static getMessage<ThrowOnError extends boolean = false>(
     options: Options<GetMessageData, ThrowOnError>,
@@ -9998,9 +10021,14 @@ export class Chats {
    * /chats/{cid}/stop: what came before is saved, marked stopped), meta (the answer's record, kept with it: what produced
    * it), done (the saved message id).
    *
-   * With `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and
-   * its new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked
-   * from (where, and the highlighted text; not the page's text, which isn't kept).
+   * A conversation is a tree of versions (GET /chats/{cid}: `tree`, and each message's `versions`); the question goes
+   * on from `parent` when given (any message of the conversation), else from the version showing (`head`). With
+   * `regenerate` (an answer's id) its question is answered again, as a new version beside that answer (`content` isn't
+   * needed; `model` may pick another). With `edit`, one of your earlier questions is edited: this question becomes a new
+   * version beside it and is answered, and the old one stays with what followed it (404 if it isn't a question in this
+   * conversation). Either keeps the page the question was asked from (where, and the highlighted text; not the page's
+   * text, which isn't kept) unless `context` is given, and streams `branch` first ({message, parent, versions}: the
+   * new version, the message it follows and its versions); so does a question beside others under `parent`.
    *
    * `/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the
    * conversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.

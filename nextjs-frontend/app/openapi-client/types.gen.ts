@@ -3396,9 +3396,23 @@ export type Chat = {
    */
   account: number;
   /**
+   * Head
+   *
+   * the last message of the version showing, which the next question follows
+   */
+  head?: number | null;
+  /**
    * Messages
+   *
+   * the version showing, from the first message to `head`
    */
   messages?: Array<ChatMessage>;
+  /**
+   * Tree
+   *
+   * every message of every version, oldest first
+   */
+  tree?: Array<ChatNode>;
   [key: string]: unknown;
 };
 
@@ -3619,9 +3633,44 @@ export type ChatMessage = {
    */
   model?: string | null;
   /**
+   * Parent
+   *
+   * the message it follows; null for a first question
+   */
+  parent?: number | null;
+  /**
+   * it and the others said in its place, from regenerating or editing
+   */
+  versions?: Versions | null;
+  /**
    * what produced it; none on messages from before it was recorded
    */
   meta?: MessageRecord | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ChatNode
+ *
+ * A message of any version, as `tree` lists them.
+ */
+export type ChatNode = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Parent
+   */
+  parent?: number | null;
+  /**
+   * Role
+   */
+  role: "user" | "assistant";
+  /**
+   * Created At
+   */
+  created_at?: string | null;
   [key: string]: unknown;
 };
 
@@ -7812,6 +7861,18 @@ export type HandlingChange = {
 };
 
 /**
+ * HeadUpdate
+ */
+export type HeadUpdate = {
+  /**
+   * Message
+   *
+   * a message of the version to show: the head moves to the newest message below it
+   */
+  message: number;
+};
+
+/**
  * Health
  */
 export type Health = {
@@ -10649,9 +10710,21 @@ export type MessageCreate = {
    */
   model?: string | null;
   /**
+   * Parent
+   *
+   * the message to go on from (one of this conversation's, of any version); null: the conversation's `head`
+   */
+  parent?: number | null;
+  /**
+   * Regenerate
+   *
+   * an answer's message id: write a new answer to its question, as another version beside it (`content` is not needed; `model` picks another model)
+   */
+  regenerate?: number | null;
+  /**
    * Edit
    *
-   * edit one of your earlier questions (its message id): it and everything after it are replaced by this question and a new answer
+   * edit one of your earlier questions (its message id): this question becomes a new version beside it, and is answered; the old one and what followed it stay as the other version
    */
   edit?: number | null;
   /**
@@ -10736,6 +10809,16 @@ export type MessageDetail = {
    * the model that wrote the answer
    */
   model?: string | null;
+  /**
+   * Parent
+   *
+   * the message it follows; null for a first question
+   */
+  parent?: number | null;
+  /**
+   * it and the others said in its place, from regenerating or editing
+   */
+  versions?: Versions | null;
   /**
    * what produced it; none on messages from before it was recorded
    */
@@ -22278,6 +22361,29 @@ export type VersionSaved = {
    * Version
    */
   version: number;
+  [key: string]: unknown;
+};
+
+/**
+ * Versions
+ *
+ * A message's versions: it and the others with the same parent and role, oldest first.
+ */
+export type Versions = {
+  /**
+   * Index
+   *
+   * which of them this one is, from 1
+   */
+  index: number;
+  /**
+   * Count
+   */
+  count: number;
+  /**
+   * Ids
+   */
+  ids: Array<number>;
   [key: string]: unknown;
 };
 
@@ -38596,6 +38702,36 @@ export type UpdateChatResponses = {
 };
 
 export type UpdateChatResponse = UpdateChatResponses[keyof UpdateChatResponses];
+
+export type SwitchVersionData = {
+  body: HeadUpdate;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/chats/{cid}/head";
+};
+
+export type SwitchVersionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SwitchVersionError = SwitchVersionErrors[keyof SwitchVersionErrors];
+
+export type SwitchVersionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Chat;
+};
+
+export type SwitchVersionResponse = SwitchVersionResponses[keyof SwitchVersionResponses];
 
 export type GetMessageData = {
   body?: never;

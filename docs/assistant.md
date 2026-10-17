@@ -19,13 +19,22 @@ then.
   is writing it); what came before is saved, marked stopped. A model call already under way finishes first.
 - **Reopening:** a conversation's answers keep the tools the assistant used (and with what), any notice (the model
   couldn't use tools), the error when there was no answer, their latest source check and what produced them.
-- **Editing a question:** Edit on a question you asked asks it again as edited; the answer and everything after it
-  are replaced (`POST /api/v1/chats/<id>/messages` with `edit`).
+- **Versions:** a conversation is a tree, and nothing in it is deleted. Regenerating an answer writes a new answer to
+  the same question beside it, with the same model or another (`POST /api/v1/chats/<id>/messages` with `regenerate`:
+  the answer's id, and `model`); editing a question makes a new version of it beside the old one, which keeps what
+  followed it (`edit`: the question's id, with the new `content`). The version showing is what the model reads and
+  what the next question goes on from; `parent` goes on from any other message instead. `GET /api/v1/chats/<id>`
+  gives the version showing as `messages`, each with its `versions` (`index` from 1, `count`, `ids`: it and the
+  others in its place, oldest first), every version's messages as `tree`, and `head`, the last message showing. `PUT
+  /api/v1/chats/<id>/head` with `{"message": <id>}` shows the version that message is in, to its newest message. A
+  new version streams `branch` first (`message`, `parent`, `versions`). Chat rooms ([Chat rooms](chat-rooms.md)) and
+  automations go on from the version showing. In the web app, Edit makes a version; switching between versions and
+  Regenerate are in progress.
 - **Long conversations:** the model reads the latest six messages word for word. Once eight more have built up
   behind them, they're folded into a running summary kept on the conversation (one model call, after an answer), and
   every answer gets that summary plus the messages it doesn't cover yet. Room conversations (chat-rooms.md) go on for
-  good, so they rely on it most. Editing a question the summary covers drops the summary; it's made again from what's
-  left. A conversation that fills half of the model's context window (**Chat model's context**, `ai.context_tokens`,
+  good, so they rely on it most. A summary covers the version it was written on: on a version that leaves what it
+  covers, the model reads that version's messages, and the next summary is made from them. A conversation that fills half of the model's context window (**Chat model's context**, `ai.context_tokens`,
   16000 when empty; about four characters a token) is folded in early, before the next answer, whatever the count.
   **Model for summaries** (`ai.compact_model`) writes them with a smaller, cheaper model on the same provider; empty,
   the chat's model does. Settings › AI assistant › Summarise long conversations (`ai.compact`, on) turns it off; off,
@@ -74,13 +83,13 @@ Each tool step also keeps how long it took (`ms`) and whether it failed (`failed
 (`via`: `web`, `api`, `voice`, `room` or `automation`) and the options it was asked with (`options`, such as another
 `model`).
 
-An answer is written inside the activity ledger's scope `chat_message:<id>` (with `chat:<id>`), so every model and
-tool call made for it names it ([Activity](activity.md)), and its record's tokens and cost are theirs: one ledger
-total per answer, and no model call. `GET /api/v1/chats/<id>` returns the record on each message, and
-`GET /api/v1/chats/<id>/messages/<mid>` returns one message with its record and those ledger rows (`ledger`).
-Answers in chat rooms ([Chat rooms](chat-rooms.md)) and the automations' agent record theirs the same way. An app's
-chat completions keep no messages, so their record comes back in the reply's `lens.record`, without tokens and cost
-([Chat completions](api.md#chat-completions-for-any-app)). Answers from before Lens kept records have none; Details
+An answer is written inside the activity ledger's scope `chat_message:<id>` (with `chat:<id>`), so every model and tool
+call made for it names it ([Activity](activity.md)), and its record's tokens and cost are theirs: one ledger total per
+answer, and no model call. `GET /api/v1/chats/<id>` returns the record on each message, and `GET
+/api/v1/chats/<id>/messages/<mid>` returns one message, of any version, with its record and those ledger rows
+(`ledger`). Answers in chat rooms ([Chat rooms](chat-rooms.md)) and the automations' agent record theirs the same way.
+An app's chat completions keep no messages, so their record comes back in the reply's `lens.record`, without tokens and
+cost ([Chat completions](api.md#chat-completions-for-any-app)). Answers from before Lens kept records have none; Details
 shows what they have and says the rest wasn't recorded.
 
 ### Picking the namespace for a conversation over everything
