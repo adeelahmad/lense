@@ -927,7 +927,10 @@ The sections each answer "lands in" are not yet rewritten; until they are, this 
 ## 1.19 Machine-readable companions
 
 `threat-model.yaml` (sidecar, schema `threat-model-sidecar/v2`) and `threat-model.json` (flat export) sit beside
-this file. Authority order: prose > YAML > JSON. Regenerate both whenever this prose changes.
+this file. Authority order: prose > YAML > JSON. Regenerate both whenever this prose changes: CI
+(`ci/validate_threat_model.py`) fails a change to this file that changes neither of them, and checks that the three
+define the same ids. The YAML's `prose_version` names this file in the same commit rather than a hash of it, so
+changes to different parts of the prose don't conflict.
 
 ## Appendix: prior security-policy back-map
 

@@ -1,8 +1,11 @@
 # threat-model.yaml — derived index; the prose threat model (threat-model.md) is canonical.
-# Authority order: prose > yaml > json. Regenerate whenever the prose changes.
+# Authority order: prose > yaml > json. Regenerate whenever the prose changes: CI fails a change to the prose that
+# changes neither this file nor threat-model.json (ci/validate_threat_model.py --base).
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:b9cbf430b286b440c60be09cf843a4e049e592033d855adb905f588592c7c172"
+# The prose in the same commit, not a hash of it: a hash is one line every change to the prose edits, so any two pull
+# requests touching the prose conflicted on it (#507). `git hash-object threat-model.md` names the exact prose.
+prose_version: "threat-model.md@same-commit"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 205, maintainer: 46, inferred: 91, assumption: 8}
