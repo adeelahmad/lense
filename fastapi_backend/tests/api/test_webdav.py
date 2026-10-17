@@ -47,7 +47,7 @@ def _listing(body):
 
 def test_mount_and_read(env):
     status, h, _ = _call(env, "OPTIONS", "/", auth_header=False)
-    assert status == 200 and h["DAV"] == "1" and "PROPFIND" in h["Allow"]
+    assert status == 200 and h["DAV"] == "1, 2" and "PROPFIND" in h["Allow"] and "PUT" in h["Allow"]
     status, _, body = _call(env, "PROPFIND", "/", {"Depth": "1"})
     assert status == 207 and [(x[0], x[1]) for x in _listing(body)] == [("/", True), ("/pods/", True)]
     status, _, body = _call(env, "PROPFIND", "/pods/Collections/General/", {"Depth": "1"})
@@ -63,6 +63,24 @@ def test_mount_and_read(env):
     assert status == 206 and body == own[2:6] and h["Content-Range"] == f"bytes 2-5/{len(own)}"
     status, h, body = _call(env, "HEAD", "/pods/Collections/General/ep1%20%5B1%5D.txt")
     assert status == 200 and h["Content-Length"] == str(size) and body == b""
+
+
+def test_read_only_when_files_are_not_taken(db, cfg, folder):
+    seed(db, cfg, folder)
+    uid = make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    from app.domain import s3
+
+    kid, secret = s3.create_key(db, cfg, uid)
+    off = {**cfg, "shares": {**cfg["shares"], "add_files": False}}
+    server = shares.Server("127.0.0.1", 0, db, lambda: off, handler=webdav.Handler).start()
+    env = {"port": server.port, "auth": "Basic " + base64.b64encode(f"{kid}:{secret}".encode()).decode()}
+    try:
+        status, h, _ = _call(env, "OPTIONS", "/")
+        assert h["DAV"] == "1" and "PUT" not in h["Allow"]
+        assert _call(env, "PUT", "/pods/Collections/General/x.pdf", body=b"%PDF-1.4")[0] == 403
+        assert _call(env, "LOCK", "/pods/Collections/General/x.pdf")[0] == 403
+    finally:
+        server.stop()
 
 
 def test_what_webdav_refuses(env):

@@ -196,7 +196,8 @@ engine), `POST /voice/transcribe` (a clip as the raw body; nothing is kept), `PO
 When the configured model supports function calling, chat becomes an agent.
 
 - **What it can look things up with:** assets' text (transcripts and documents, and on-screen text), assets, passages,
-  outputs, entities and their mentions and timelines, the knowledge graph, people, and content similar to a text,
+  outputs, entities and their mentions and timelines, dates said as days on the calendar (`find_dates`), the
+  knowledge graph, people, and content similar to a text,
   an asset, a topic or an entity (`find_similar`), and what happened in Lens, newest first (`timeline`, the
   [stream of activities](automations.md#timeline-reads); `unreviewed` for what the person hasn't marked reviewed),
   and assets by any attribute: faces seen, people heard, entities, topics, kind, content type, dates and the rest,
