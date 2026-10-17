@@ -4,14 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
-- **Files added over S3 and WebDAV are imported.** Copy a file into a collection's folder (`rclone copy`, Finder,
-  Windows Explorer, any S3 client) and it's imported there as an upload is, with the same checks and the namespace's
-  pipeline; a new folder under `Collections` is a new collection, and a file anywhere else goes to the namespace's
-  default collection. It takes the import permission (or an editor's role on the collection), files the system writes
-  for itself (`.DS_Store`, `Thumbs.db`, half-written files) are never imported, and a re-sync copies nothing twice.
-  The S3 server now takes streamed and multipart uploads; WebDAV takes PUT, MKCOL and Finder's and Explorer's ways of
-  copying. This is on whenever the shares are; **Import files people add** in Settings, File shares
-  (`shares.add_files`) turns it off and makes them read-only again ([Adding files](docs/file-tree.md#adding-files)).
+- **Punctuation put back in transcripts.** With transcripts cleaned up, Settings → Analysis → Put punctuation back
+  adds full stops, commas and question marks with a local model (kredor/punctuate-all, MIT, 12 languages), to
+  transcripts that have hardly any (imported captions) or to every one, keeping the marks they have. The model and
+  PyTorch (about 2 GB) are fetched the first time it's needed; off by default
+  ([Cleaning up transcripts](docs/processing.md#cleaning-up-transcripts)).
 - **Clean up transcripts before analysis.** With Settings → Analysis → Clean up transcripts before analysis on (off
   by default), a new Clean up step runs before Analyze: a word said three times in a row is kept once ("I I I looked"
   → "I looked"), doubled pronouns and articles once, "um" and "uh" go, and spacing, "i" and sentence capitals are
@@ -60,6 +57,21 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   registries or the public web. Files attached to the conversation go in; a file it makes reaches a namespace once the
   person approves. Off by default; starting the gateway from Settings is in progress
   ([Code sandbox](docs/assistant.md#code-sandbox)).
+- **Find anything by who, what and when.** Agents and the API can find assets by the faces seen in them, the people
+  heard, the entities they mention, the topics they're about, their kind and content type, when they were made (a
+  day, a month or a year), tags, language, objects seen, emotions heard, length and words in them, together or alone,
+  naming people and things instead of looking up ids. Each result says why it matched, with moments to cite
+  (`POST /find`, the MCP tool `find`, the assistant's `find_resources`; [Finding by any
+  attribute](docs/processing.md#finding-by-any-attribute)). The Library list takes faces, entities, topics, content
+  types and emotions as filters too.
+- **Files added over S3 and WebDAV are imported.** Copy a file into a collection's folder (`rclone copy`, Finder,
+  Windows Explorer, any S3 client) and it's imported there as an upload is, with the same checks and the namespace's
+  pipeline; a new folder under `Collections` is a new collection, and a file anywhere else goes to the namespace's
+  default collection. It takes the import permission (or an editor's role on the collection), files the system writes
+  for itself (`.DS_Store`, `Thumbs.db`, half-written files) are never imported, and a re-sync copies nothing twice.
+  The S3 server now takes streamed and multipart uploads; WebDAV takes PUT, MKCOL and Finder's and Explorer's ways of
+  copying. This is on whenever the shares are; **Import files people add** in Settings, File shares
+  (`shares.add_files`) turns it off and makes them read-only again ([Adding files](docs/file-tree.md#adding-files)).
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 
