@@ -13,7 +13,9 @@ import logging
 from . import (
     auth,
     batches,
+    classify as classifymod,
     cypher,
+    decide,
     entities,
     event_marks,
     extensions,
@@ -118,6 +120,23 @@ TOOLS = [
             "unreviewed": {"type": "boolean"},
             "before": _S,
             "limit": _I,
+        },
+        [],
+        False,
+    ),
+    (
+        "classify",
+        "Classify an asset (or a text): which of some labels fits best, how sure, and every label ranked. Give "
+        'labels (names, or "name: what it means"), or a vocabulary: content_type (Lens\'s content types, such '
+        "as podcast, interview, scan, email) or topic (the namespace's topics). It changes nothing; sure says whether "
+        "the answer is sure enough to act on.",
+        {
+            "recording_id": _I,
+            "text": _S,
+            "labels": {"type": "array", "items": _S},
+            "vocabulary": {"type": "string", "enum": list(classifymod.VOCABULARIES)},
+            "namespace": _S,
+            "question": _S,
         },
         [],
         False,
@@ -537,7 +556,15 @@ BROWSER_OUT = {"browser_open", "browser_click", "browser_type", "browser_press"}
 GROUPS = {
     "archive": {
         "label": "Archive",
-        "tools": ["search_transcripts", "find_resources", "find_similar", "list_recordings", "read_transcript", "recording_outputs"],
+        "tools": [
+            "search_transcripts",
+            "find_resources",
+            "find_similar",
+            "list_recordings",
+            "read_transcript",
+            "recording_outputs",
+            "classify",
+        ],
     },
     "graph": {
         "label": "Graph",
@@ -1557,6 +1584,21 @@ class Toolbox(ops_tools.OpsTools):
                 )
             )
         return {"total": res["total"], "resolved": res["resolved"] or None, "results": out}, f"Found {res['total']} asset(s)"
+
+    def t_classify(self, recording_id=None, text=None, labels=None, vocabulary=None, namespace=None, question=None):
+        space = None
+        if recording_id is not None:
+            self._ok(recording_id)
+        elif namespace:
+            space = self._space(namespace)
+        try:
+            res = classifymod.classify(
+                self.db, self.cfg, rid=recording_id, text=text, labels=labels, vocab=vocabulary, question=question, space=space
+            )
+        except decide.Undecided as e:
+            raise ValueError(f"nothing could answer: {e}") from None
+        out = {k: res[k] for k in ("choice", "confidence", "sure", "ranked", "by", "key", "id") if res.get(k) is not None}
+        return out, f"Classified as {res['choice']} ({round(res['confidence'] * 100)}% sure)"
 
     def t_read_transcript(self, recording_id, start_seconds=0, end_seconds=None, max_lines=60):
         cap = self.cfg["ai"].get("max_transcript_reads") or 20

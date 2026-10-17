@@ -15457,6 +15457,48 @@
         }
       }
     },
+    "/api/v1/classify": {
+      "post": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Classify",
+        "description": "Which label fits an asset (or a text) best, how sure that is, and every label ranked: the labels given, Lens's\ncontent types (of the asset's kind) or the namespace's topics. The decision model answers when it's set up\n(Settings \u2192 AI assistant), else the language model; the call is in the activity ledger. With `apply` (editors), a\nsure answer is acted on: the content type is set, the topic is suggested for someone to accept, or the label is\nadded as a tag; one that isn't sure changes nothing. 409 when no model is set up to answer.",
+        "operationId": "classify",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassifyResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/searches": {
       "get": {
         "tags": [
@@ -37287,6 +37329,206 @@
         "type": "object",
         "title": "ChatUpdate"
       },
+      "ClassifyRequest": {
+        "properties": {
+          "recording": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording",
+            "description": "the asset to classify"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "text to classify instead"
+          },
+          "labels": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Labels",
+            "description": "the labels to choose from (2 to 60): names, or {name: what it means}"
+          },
+          "vocabulary": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "content_type",
+                  "topic"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vocabulary",
+            "description": "choose from Lens's content types (of the asset's kind), or the namespace's topics"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "whose topics, when classifying a text by topic"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question",
+            "description": "what to ask (default: which label fits best)"
+          },
+          "apply": {
+            "type": "boolean",
+            "title": "Apply",
+            "description": "act on a sure answer: set the content type, suggest the topic, or add the label as a tag (editors)",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ClassifyRequest",
+        "description": "Give a `recording` or a `text`, and `labels` or a `vocabulary`."
+      },
+      "ClassifyResult": {
+        "properties": {
+          "choice": {
+            "type": "string",
+            "title": "Choice",
+            "description": "the label that fits best"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence",
+            "description": "how sure, from 0 to 1"
+          },
+          "sure": {
+            "type": "boolean",
+            "title": "Sure",
+            "description": "sure enough to act on without asking (decisions.act_above)"
+          },
+          "ranked": {
+            "items": {
+              "$ref": "#/components/schemas/RankedLabel"
+            },
+            "type": "array",
+            "title": "Ranked",
+            "description": "every label, the likeliest first"
+          },
+          "by": {
+            "type": "string",
+            "title": "By",
+            "description": "what answered: jev, laya, llm, or only option"
+          },
+          "vocabulary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vocabulary"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "applied": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "content_type",
+                  "topic_suggested",
+                  "tag"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied",
+            "description": "what was done with a sure answer, when apply was asked"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key",
+            "description": "content_type: the chosen content type's key"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "description": "topic: the chosen topic's id"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "choice",
+          "confidence",
+          "sure",
+          "ranked",
+          "by",
+          "question"
+        ],
+        "title": "ClassifyResult"
+      },
       "ClientRegistered": {
         "properties": {
           "client_id": {
@@ -58543,6 +58785,50 @@
           "kept"
         ],
         "title": "Pushed"
+      },
+      "RankedLabel": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "p": {
+            "type": "number",
+            "title": "P",
+            "description": "how likely, from 0 to 1"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key",
+            "description": "content_type: the content type's key"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "description": "topic: the topic's id"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "label",
+          "p"
+        ],
+        "title": "RankedLabel"
       },
       "RcloneSignIn": {
         "properties": {

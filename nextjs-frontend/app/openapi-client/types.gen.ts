@@ -3854,6 +3854,124 @@ export type ChatUpdate = {
 };
 
 /**
+ * ClassifyRequest
+ *
+ * Give a `recording` or a `text`, and `labels` or a `vocabulary`.
+ */
+export type ClassifyRequest = {
+  /**
+   * Recording
+   *
+   * the asset to classify
+   */
+  recording?: number | null;
+  /**
+   * Text
+   *
+   * text to classify instead
+   */
+  text?: string | null;
+  /**
+   * Labels
+   *
+   * the labels to choose from (2 to 60): names, or {name: what it means}
+   */
+  labels?:
+    | {
+        [key: string]: string;
+      }
+    | Array<string>
+    | null;
+  /**
+   * Vocabulary
+   *
+   * choose from Lens's content types (of the asset's kind), or the namespace's topics
+   */
+  vocabulary?: "content_type" | "topic" | null;
+  /**
+   * Namespace
+   *
+   * whose topics, when classifying a text by topic
+   */
+  namespace?: string | null;
+  /**
+   * Question
+   *
+   * what to ask (default: which label fits best)
+   */
+  question?: string | null;
+  /**
+   * Apply
+   *
+   * act on a sure answer: set the content type, suggest the topic, or add the label as a tag (editors)
+   */
+  apply?: boolean;
+};
+
+/**
+ * ClassifyResult
+ */
+export type ClassifyResult = {
+  /**
+   * Choice
+   *
+   * the label that fits best
+   */
+  choice: string;
+  /**
+   * Confidence
+   *
+   * how sure, from 0 to 1
+   */
+  confidence: number;
+  /**
+   * Sure
+   *
+   * sure enough to act on without asking (decisions.act_above)
+   */
+  sure: boolean;
+  /**
+   * Ranked
+   *
+   * every label, the likeliest first
+   */
+  ranked: Array<RankedLabel>;
+  /**
+   * By
+   *
+   * what answered: jev, laya, llm, or only option
+   */
+  by: string;
+  /**
+   * Vocabulary
+   */
+  vocabulary?: string | null;
+  /**
+   * Question
+   */
+  question: string;
+  /**
+   * Applied
+   *
+   * what was done with a sure answer, when apply was asked
+   */
+  applied?: "content_type" | "topic_suggested" | "tag" | null;
+  /**
+   * Key
+   *
+   * content_type: the chosen content type's key
+   */
+  key?: string | null;
+  /**
+   * Id
+   *
+   * topic: the chosen topic's id
+   */
+  id?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * ClientRegistered
  */
 export type ClientRegistered = {
@@ -16154,6 +16272,35 @@ export type Pushed = {
    * Kept
    */
   kept: number;
+  [key: string]: unknown;
+};
+
+/**
+ * RankedLabel
+ */
+export type RankedLabel = {
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * P
+   *
+   * how likely, from 0 to 1
+   */
+  p: number;
+  /**
+   * Key
+   *
+   * content_type: the content type's key
+   */
+  key?: string | null;
+  /**
+   * Id
+   *
+   * topic: the topic's id
+   */
+  id?: number | null;
   [key: string]: unknown;
 };
 
@@ -33664,6 +33811,31 @@ export type FindResourcesResponses = {
 };
 
 export type FindResourcesResponse = FindResourcesResponses[keyof FindResourcesResponses];
+
+export type ClassifyData = {
+  body: ClassifyRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/classify";
+};
+
+export type ClassifyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ClassifyError = ClassifyErrors[keyof ClassifyErrors];
+
+export type ClassifyResponses = {
+  /**
+   * Successful Response
+   */
+  200: ClassifyResult;
+};
+
+export type ClassifyResponse = ClassifyResponses[keyof ClassifyResponses];
 
 export type ListSearchesData = {
   body?: never;

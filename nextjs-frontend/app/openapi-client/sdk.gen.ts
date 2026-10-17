@@ -115,9 +115,12 @@ import type {
   CheckMessageResponses,
   CheckUpdatesData,
   CheckUpdatesResponses,
+  ClassifyData,
+  ClassifyErrors,
   ClassifyNamespaceNsfwData,
   ClassifyNamespaceNsfwErrors,
   ClassifyNamespaceNsfwResponses,
+  ClassifyResponses,
   ClearEntitySetupData,
   ClearEntitySetupErrors,
   ClearEntitySetupResponses,
@@ -6982,6 +6985,28 @@ export class Search {
   ): RequestResult<FindResourcesResponses, FindResourcesErrors, ThrowOnError> {
     return (options.client ?? client).post<FindResourcesResponses, FindResourcesErrors, ThrowOnError>({
       url: "/api/v1/find",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Classify
+   *
+   * Which label fits an asset (or a text) best, how sure that is, and every label ranked: the labels given, Lens's
+   * content types (of the asset's kind) or the namespace's topics. The decision model answers when it's set up
+   * (Settings → AI assistant), else the language model; the call is in the activity ledger. With `apply` (editors), a
+   * sure answer is acted on: the content type is set, the topic is suggested for someone to accept, or the label is
+   * added as a tag; one that isn't sure changes nothing. 409 when no model is set up to answer.
+   */
+  public static classify<ThrowOnError extends boolean = false>(
+    options: Options<ClassifyData, ThrowOnError>,
+  ): RequestResult<ClassifyResponses, ClassifyErrors, ThrowOnError> {
+    return (options.client ?? client).post<ClassifyResponses, ClassifyErrors, ThrowOnError>({
+      url: "/api/v1/classify",
       ...options,
       headers: {
         "Content-Type": "application/json",

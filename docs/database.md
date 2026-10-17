@@ -100,8 +100,10 @@ tables, or changing or removing an index that already exists, is a named step in
   it up into `<data_dir>/backups/before-upgrade-<time>` (see [Backups](#backups)); the newest three are kept. If the
   backup fails, for example because the disk is full, the upgrade doesn't start and Lens says why; set
   `LENS_UPGRADE_BACKUP=off` to upgrade without one.
-* Each step run is recorded in `migration:⟨name⟩` with when and how long it took. A step that fails records its error
-  and stops the start; once the cause is fixed, the next start runs it again.
+* Each step run is recorded in `migration:⟨name⟩` with when and how long it took, and the process that ran it says so
+  in its log (`upgrading the database: <name>`), whether that is the API or a worker (`docker compose logs backend
+  worker`). A step that fails records its error and stops the start; once the cause is fixed, the next start runs it
+  again.
 * `lens migrations` lists every step (done, pending, failed, or unknown when a newer Lens ran it) without running
   anything, so it works while an upgrade is failing; `lens migrations --run` runs the pending ones.
 
