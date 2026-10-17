@@ -421,6 +421,9 @@ import type {
   DownloadFileData,
   DownloadFileErrors,
   DownloadFileResponses,
+  DraftAutomationData,
+  DraftAutomationErrors,
+  DraftAutomationResponses,
   DropPasskeysData,
   DropPasskeysErrors,
   DropPasskeysResponses,
@@ -574,6 +577,9 @@ import type {
   GetMediaData,
   GetMediaErrors,
   GetMediaResponses,
+  GetMessageData,
+  GetMessageErrors,
+  GetMessageResponses,
   GetMonitoringData,
   GetMonitoringResponses,
   GetNamespaceAssistantData,
@@ -1200,6 +1206,9 @@ import type {
   ReadLogsData,
   ReadLogsErrors,
   ReadLogsResponses,
+  ReadMcpConfigData,
+  ReadMcpConfigErrors,
+  ReadMcpConfigResponses,
   RecordingTopicsData,
   RecordingTopicsErrors,
   RecordingTopicsResponses,
@@ -1485,6 +1494,12 @@ import type {
   SuggestTermsData,
   SuggestTermsErrors,
   SuggestTermsResponses,
+  SwitchMcpToolData,
+  SwitchMcpToolErrors,
+  SwitchMcpToolResponses,
+  SwitchVersionData,
+  SwitchVersionErrors,
+  SwitchVersionResponses,
   SyncFedoraData,
   SyncFedoraResponses,
   TagRecordingsData,
@@ -1526,6 +1541,9 @@ import type {
   TestMailboxResponses,
   TestMailData,
   TestMailResponses,
+  TestMcpServerData,
+  TestMcpServerErrors,
+  TestMcpServerResponses,
   TestNotifyTargetData,
   TestNotifyTargetErrors,
   TestNotifyTargetResponses,
@@ -4176,6 +4194,26 @@ export class Automations {
   ): RequestResult<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError> {
     return (options.client ?? client).post<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError>({
       url: "/api/v1/automations/runs/{run}/decide",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Draft Automation
+   *
+   * Describe an automation in words: the model (one call, in the activity ledger, refused over budget) turns the
+   * sentence into a draft with the kinds of activity, the match operators and the actions as its vocabulary. What
+   * doesn't fit is dropped and said; nothing is saved. Try it with POST /automations/test, then save it.
+   */
+  public static draftAutomation<ThrowOnError extends boolean = false>(
+    options: Options<DraftAutomationData, ThrowOnError>,
+  ): RequestResult<DraftAutomationResponses, DraftAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<DraftAutomationResponses, DraftAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/draft",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -9660,6 +9698,44 @@ export class Extensions {
   }
 
   /**
+   * Read Mcp Config
+   *
+   * The MCP servers in a config pasted from another app (Claude's .mcp.json, VS Code's mcp.json), ready to add: each
+   * as an MCP extension keeps it, and what was left out and why. Nothing is reached or saved.
+   */
+  public static readMcpConfig<ThrowOnError extends boolean = false>(
+    options: Options<ReadMcpConfigData, ThrowOnError>,
+  ): RequestResult<ReadMcpConfigResponses, ReadMcpConfigErrors, ThrowOnError> {
+    return (options.client ?? client).post<ReadMcpConfigResponses, ReadMcpConfigErrors, ThrowOnError>({
+      url: "/api/v1/extensions/mcp/read",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Test Mcp Server
+   *
+   * Ask an MCP server for its tools without saving it (admins). With `extension`, values sent as •••• are that
+   * server's saved ones.
+   */
+  public static testMcpServer<ThrowOnError extends boolean = false>(
+    options: Options<TestMcpServerData, ThrowOnError>,
+  ): RequestResult<TestMcpServerResponses, TestMcpServerErrors, ThrowOnError> {
+    return (options.client ?? client).post<TestMcpServerResponses, TestMcpServerErrors, ThrowOnError>({
+      url: "/api/v1/extensions/mcp/test",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Delete Extension
    *
    * Takes it out of the assistant at once.
@@ -9721,6 +9797,24 @@ export class Extensions {
         },
       },
     );
+  }
+
+  /**
+   * Switch Mcp Tool
+   *
+   * Switch one of an MCP server's tools on or off, or say whether it asks first (admins): a new version.
+   */
+  public static switchMcpTool<ThrowOnError extends boolean = false>(
+    options: Options<SwitchMcpToolData, ThrowOnError>,
+  ): RequestResult<SwitchMcpToolResponses, SwitchMcpToolErrors, ThrowOnError> {
+    return (options.client ?? client).patch<SwitchMcpToolResponses, SwitchMcpToolErrors, ThrowOnError>({
+      url: "/api/v1/extensions/{eid}/tools",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
   }
 
   /**
@@ -9906,6 +10000,8 @@ export class Chats {
 
   /**
    * Delete Chat
+   *
+   * Delete a conversation, with its code sandbox and the files in it.
    */
   public static deleteChat<ThrowOnError extends boolean = false>(
     options: Options<DeleteChatData, ThrowOnError>,
@@ -9919,7 +10015,9 @@ export class Chats {
   /**
    * Get Chat
    *
-   * A conversation with its messages. Citations follow your current access: ones you can no longer read are left out.
+   * A conversation with the version showing (`messages`, each with its `versions`) and every version's messages
+   * (`tree`). Citations follow your current access: ones you can no longer read are left out (web pages it cited stay:
+   * they aren't the archive's).
    */
   public static getChat<ThrowOnError extends boolean = false>(
     options: Options<GetChatData, ThrowOnError>,
@@ -9949,15 +10047,56 @@ export class Chats {
   }
 
   /**
+   * Switch Version
+   *
+   * Show another version: the one `message` is in, from the first message to the newest one below `message`. The
+   * next question goes on from there. Returns the conversation as GET /chats/{cid} does.
+   */
+  public static switchVersion<ThrowOnError extends boolean = false>(
+    options: Options<SwitchVersionData, ThrowOnError>,
+  ): RequestResult<SwitchVersionResponses, SwitchVersionErrors, ThrowOnError> {
+    return (options.client ?? client).put<SwitchVersionResponses, SwitchVersionErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/head",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Message
+   *
+   * One message of any version, with its record (`meta`: for an answer, the model and the host it ran on, the tools
+   * offered and used, the scope, limits and use, tokens, cost, time and how it ended) and its rows in the activity ledger
+   * (`ledger`: the calls made for it, newest first). Citations follow your current access, as in GET /chats/{cid}.
+   */
+  public static getMessage<ThrowOnError extends boolean = false>(
+    options: Options<GetMessageData, ThrowOnError>,
+  ): RequestResult<GetMessageResponses, GetMessageErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetMessageResponses, GetMessageErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/messages/{mid}",
+      ...options,
+    });
+  }
+
+  /**
    * Send Message
    *
    * Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model
    * reads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
-   * /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).
+   * /chats/{cid}/stop: what came before is saved, marked stopped), meta (the answer's record, kept with it: what produced
+   * it), done (the saved message id).
    *
-   * With `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and
-   * its new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked
-   * from (where, and the highlighted text; not the page's text, which isn't kept).
+   * A conversation is a tree of versions (GET /chats/{cid}: `tree`, and each message's `versions`); the question goes
+   * on from `parent` when given (any message of the conversation), else from the version showing (`head`). With
+   * `regenerate` (an answer's id) its question is answered again, as a new version beside that answer (`content` isn't
+   * needed; `model` may pick another). With `edit`, one of your earlier questions is edited: this question becomes a new
+   * version beside it and is answered, and the old one stays with what followed it (404 if it isn't a question in this
+   * conversation). Either keeps the page the question was asked from (where, and the highlighted text; not the page's
+   * text, which isn't kept) unless `context` is given, and streams `branch` first ({message, parent, versions}: the
+   * new version, the message it follows and its versions); so does a question beside others under `parent`.
    *
    * `/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the
    * conversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.

@@ -38,7 +38,7 @@ import re
 import urllib.error
 import urllib.request
 
-from . import ai_tools, auth, auto_scope, channels, chat, graph_history, llm, matterbridge, ns_assistant, store, untrusted
+from . import activity, ai_tools, auth, auto_scope, channels, chat, graph_history, llm, matterbridge, ns_assistant, store, untrusted
 from .store import R
 
 log = logging.getLogger(__name__)
@@ -327,56 +327,67 @@ def _answer(db, cfg, base, account, cid, q, files, act_on, outside):
         chat.compact(db, cfg, cid, full_only=True)
     except Exception:  # noqa: BLE001 - answered with what fits; tried again after the answer
         log.warning("bridge: couldn't update the summary of chat %s", cid, exc_info=True)
-    past = chat.history(db, cid)
-    summary = chat.memory(db, cfg, cid)
+    past = chat.path(db, cid)  # a room goes on from the head (the version showing, should it be switched in the app)
+    summary = chat.memory(db, cfg, cid, past)
     scope = (db.one("SELECT scope FROM $r", r=R("chat", cid)) or {}).get("scope") or None
-    chat.add(db, cid, "user", q, attachments=list(files) or None)
-    asked = q + chat.attached_note(list(files))
-    passages = chat.retrieve(db, q, readable, scope, cfg=cfg)
-    # the web addresses written by someone other than the model: the person, now and before, and the archive
-    keep = untrusted.links("\n".join([q] + [m["content"] or "" for m in past if m["role"] == "user"] + [p["text"] for p in passages]))
-    steps, approvals, notice = [], [], None
-    wrote = cfg["llm"].get("model") if llm.configured(cfg) else None
-    if llm.configured(cfg) and cfg["ai"].get("tools"):
-        box = ai_tools.Toolbox(
-            db,
-            cfg,
-            {"id": account["id"], "email": account["email"]},
-            readable,
-            editable,
-            scope,
-            cid,
-            base,
-            account["admin"],
-            said=q,
-            outside=list(outside) + ai_tools.read_before(past, summary),
-            act_on=act_on,
-        )
+    chat.add(db, cid, "user", q, attachments=list(files) or None, meta=chat.question_record("room"))
+    # the answer's id up front: every call made for it names it in the ledger, and its record sums them
+    mid = db.next_id("chat_message")
+    record, spent = chat.Record(cfg, scope=scope), f"chat_message:{mid}"
+    with activity.scope(db, f"chat:{cid}", spent, cfg=cfg):
+        asked = q + chat.attached_note(list(files))
+        passages = chat.retrieve(db, q, readable, scope, cfg=cfg)
+        # the web addresses written by someone other than the model: the person, now and before, and the archive
+        keep = untrusted.links("\n".join([q] + [m["content"] or "" for m in past if m["role"] == "user"] + [p["text"] for p in passages]))
+        steps, approvals, notice = [], [], None
+        wrote = cfg["llm"].get("model") if llm.configured(cfg) else None
+
+        def said(words, cited, outcome, **kw):
+            """The answer, saved with its record."""
+            meta = record.meta(db, outcome, spent)
+            chat.add(db, cid, "assistant", words or "(no answer)", cited, steps=steps, model=wrote, mid=mid, meta=meta, **kw)
+
+        if llm.configured(cfg) and cfg["ai"].get("tools"):
+            box = ai_tools.Toolbox(
+                db,
+                cfg,
+                {"id": account["id"], "email": account["email"]},
+                readable,
+                editable,
+                scope,
+                cid,
+                base,
+                account["admin"],
+                said=q,
+                outside=list(outside) + ai_tools.read_before(past, summary),
+                act_on=act_on,
+            )
+            try:
+                text, how = None, "answered"
+                for kind, data in chat.tool_answer(cfg, box, asked, past, cfg["ai"].get("max_steps") or 6, summary=summary, record=record):
+                    if kind == "step":
+                        steps.append(data)
+                    elif kind == "direct" and passages and not box.cited(data):  # unless it cites what it remembers
+                        break
+                    else:
+                        text, how = data, "direct" if kind == "direct" else "answered"
+                if text is not None:
+                    box.after_answer(text)
+                    said(text, box.cited(text), how)
+                    return text, box.approvals, keep | box.links
+            except llm.ToolsUnsupported:
+                notice = "This model can't use tools, so the answer comes from a search instead."
+            except llm.LLMError as e:
+                said("", [], "error", error=str(e))
+                return "I couldn't answer that: " + str(e), box.approvals, keep | box.links
+        error = None
         try:
-            text = None
-            for kind, data in chat.tool_answer(cfg, box, asked, past, cfg["ai"].get("max_steps") or 6, summary=summary):
-                if kind == "step":
-                    steps.append(data)
-                elif kind == "direct" and passages and not box.cited(data):  # unless it cites what it remembers
-                    break
-                else:
-                    text = data
-            if text is not None:
-                box.after_answer(text)
-                chat.add(db, cid, "assistant", text or "(no answer)", box.cited(text), steps=steps, model=wrote)
-                return text, box.approvals, keep | box.links
-        except llm.ToolsUnsupported:
-            notice = "This model can't use tools, so the answer comes from a search instead."
+            text = llm.chat(cfg, chat.messages_for(asked, passages, past, summary, cfg)) if llm.configured(cfg) else chat.fallback(passages)
         except llm.LLMError as e:
-            chat.add(db, cid, "assistant", "(no answer)", [], steps=steps, error=str(e), model=wrote)
-            return "I couldn't answer that: " + str(e), box.approvals, keep | box.links
-    error = None
-    try:
-        text = llm.chat(cfg, chat.messages_for(asked, passages, past, summary, cfg)) if llm.configured(cfg) else chat.fallback(passages)
-    except llm.LLMError as e:
-        text, error = "I couldn't answer that: " + str(e), str(e)
-    chat.add(db, cid, "assistant", text or "(no answer)", chat.cited(text, passages), steps=steps, notice=notice, error=error, model=wrote)
-    return text, approvals, keep
+            text, error = "I couldn't answer that: " + str(e), str(e)
+        how = "error" if error else "fallback" if notice or not llm.configured(cfg) else "answered"
+        said(text, chat.cited(text, passages), how, notice=notice, error=error)
+        return text, approvals, keep
 
 
 # ---------- approving in the room ----------
@@ -502,11 +513,14 @@ def sources(db, cfg, cid):
     from app.email import app_url
 
     row = db.one("SELECT id, passages FROM chat_message WHERE chat = $c AND role = 'assistant' ORDER BY id DESC LIMIT 1", c=cid) or {}
-    used = [p for p in row.get("passages") or [] if isinstance(p, dict) and p.get("used") and p.get("recording_id")]
+    used = [p for p in row.get("passages") or [] if isinstance(p, dict) and p.get("used") and (p.get("recording_id") or p.get("url"))]
     if not used:
         return ""
     base, lines = app_url(cfg, db), []
     for p in used:
+        if p.get("recording_id") is None:  # a web page a tool found: its own address, as the tool gave it
+            lines.append(f"[{p['n']}] {p.get('title') or p.get('site') or 'A web page'}: {p['url']}")
+            continue
         at = f"?page={p['page'] + 1}" if p.get("page") is not None else f"?t={int((p.get('t0') or 0) // 1000)}"
         where = ", ".join(str(x) for x in (p.get("title") or "Untitled", p.get("time")) if x)
         lines.append(f"[{p['n']}] {where}: {base}/resources/{p['recording_id']}{at}")

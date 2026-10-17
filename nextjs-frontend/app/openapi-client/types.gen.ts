@@ -1679,6 +1679,24 @@ export type AutomationCreate = {
 };
 
 /**
+ * AutomationDraftRequest
+ */
+export type AutomationDraftRequest = {
+  /**
+   * Text
+   *
+   * what it should do, in a sentence, like: when a recording is added to pods, log its title
+   */
+  text: string;
+  /**
+   * Spaces
+   *
+   * namespace ids it would work in; default: each one you can edit
+   */
+  spaces?: Array<number> | null;
+};
+
+/**
  * AutomationDraftTry
  */
 export type AutomationDraftTry = {
@@ -1704,6 +1722,33 @@ export type AutomationDraftTry = {
    * the automation as you would save it
    */
   draft: AutomationCreate;
+};
+
+/**
+ * AutomationDrafted
+ */
+export type AutomationDrafted = {
+  /**
+   * Draft
+   *
+   * what POST /automations takes, switched off: name, triggers, if, graph
+   */
+  draft: {
+    [key: string]: unknown;
+  };
+  /**
+   * Dropped
+   *
+   * parts of the model's draft that didn't fit, and why
+   */
+  dropped?: Array<string>;
+  /**
+   * Unmapped
+   *
+   * parts of the sentence it couldn't express (schedules, say)
+   */
+  unmapped?: Array<string>;
+  [key: string]: unknown;
 };
 
 /**
@@ -3351,9 +3396,23 @@ export type Chat = {
    */
   account: number;
   /**
+   * Head
+   *
+   * the last message of the version showing, which the next question follows
+   */
+  head?: number | null;
+  /**
    * Messages
+   *
+   * the version showing, from the first message to `head`
    */
   messages?: Array<ChatMessage>;
+  /**
+   * Tree
+   *
+   * every message of every version, oldest first
+   */
+  tree?: Array<ChatNode>;
   [key: string]: unknown;
 };
 
@@ -3573,6 +3632,45 @@ export type ChatMessage = {
    * the model that wrote the answer
    */
   model?: string | null;
+  /**
+   * Parent
+   *
+   * the message it follows; null for a first question
+   */
+  parent?: number | null;
+  /**
+   * it and the others said in its place, from regenerating or editing
+   */
+  versions?: Versions | null;
+  /**
+   * what produced it; none on messages from before it was recorded
+   */
+  meta?: MessageRecord | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ChatNode
+ *
+ * A message of any version, as `tree` lists them.
+ */
+export type ChatNode = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Parent
+   */
+  parent?: number | null;
+  /**
+   * Role
+   */
+  role: "user" | "assistant";
+  /**
+   * Created At
+   */
+  created_at?: string | null;
   [key: string]: unknown;
 };
 
@@ -7763,6 +7861,18 @@ export type HandlingChange = {
 };
 
 /**
+ * HeadUpdate
+ */
+export type HeadUpdate = {
+  /**
+   * Message
+   *
+   * a message of the version to show: the head moves to the newest message below it
+   */
+  message: number;
+};
+
+/**
  * Health
  */
 export type Health = {
@@ -10380,6 +10490,138 @@ export type MatterbridgeStatus = {
 };
 
 /**
+ * McpConfig
+ */
+export type McpConfig = {
+  /**
+   * Servers
+   */
+  servers?: Array<McpServerFound>;
+  /**
+   * Skipped
+   */
+  skipped?: Array<McpServerSkipped>;
+  [key: string]: unknown;
+};
+
+/**
+ * McpConfigText
+ */
+export type McpConfigText = {
+  /**
+   * Text
+   *
+   * an MCP config from another app: Claude's .mcp.json or mcpServers, VS Code's servers, or one server
+   */
+  text: string;
+};
+
+/**
+ * McpServerFound
+ */
+export type McpServerFound = {
+  /**
+   * Name
+   *
+   * a name for it, from the config or guessed from its package or address
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Spec
+   *
+   * {url, headers}, or {command, args, env} for one that runs as a program
+   */
+  spec: {
+    [key: string]: unknown;
+  };
+  /**
+   * Fill
+   *
+   * values written as ${NAME}, which its app filled in and Lens can't
+   */
+  fill?: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
+ * McpServerSkipped
+ */
+export type McpServerSkipped = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Why
+   */
+  why: string;
+  [key: string]: unknown;
+};
+
+/**
+ * McpServerTools
+ */
+export type McpServerTools = {
+  /**
+   * Tools
+   *
+   * its tools, as it lists them now: {name, description, schema, read_only}
+   */
+  tools: Array<{
+    [key: string]: unknown;
+  }>;
+  [key: string]: unknown;
+};
+
+/**
+ * McpServerTry
+ */
+export type McpServerTry = {
+  /**
+   * Spec
+   *
+   * {url, headers}, or {command, args, env} for one that runs as a program
+   */
+  spec: {
+    [key: string]: unknown;
+  };
+  /**
+   * Extension
+   *
+   * the MCP server whose saved secrets fill in values sent as ••••
+   */
+  extension?: number | null;
+};
+
+/**
+ * McpToolSwitch
+ */
+export type McpToolSwitch = {
+  /**
+   * Tool
+   *
+   * the tool's name, as the server lists it
+   */
+  tool: string;
+  /**
+   * On
+   *
+   * switch it on or off
+   */
+  on?: boolean | null;
+  /**
+   * Ask
+   *
+   * whether it asks first (default: unless the server says it only reads)
+   */
+  ask?: boolean | null;
+};
+
+/**
  * Me
  */
 export type Me = {
@@ -10600,9 +10842,21 @@ export type MessageCreate = {
    */
   model?: string | null;
   /**
+   * Parent
+   *
+   * the message to go on from (one of this conversation's, of any version); null: the conversation's `head`
+   */
+  parent?: number | null;
+  /**
+   * Regenerate
+   *
+   * an answer's message id: write a new answer to its question, as another version beside it (`content` is not needed; `model` picks another model)
+   */
+  regenerate?: number | null;
+  /**
    * Edit
    *
-   * edit one of your earlier questions (its message id): it and everything after it are replaced by this question and a new answer
+   * edit one of your earlier questions (its message id): this question becomes a new version beside it, and is answered; the old one and what followed it stay as the other version
    */
   edit?: number | null;
   /**
@@ -10611,6 +10865,192 @@ export type MessageCreate = {
    * asked from a browser's Lens side panel: its session (POST /browser/sessions). While it's connected, the assistant can use that browser (docs/browser-assistant.md)
    */
   browser?: string | null;
+  /**
+   * Via
+   *
+   * voice: said in a voice conversation (the question's record keeps it)
+   */
+  via?: "voice" | null;
+};
+
+/**
+ * MessageDetail
+ */
+export type MessageDetail = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Role
+   */
+  role: "user" | "assistant";
+  /**
+   * Content
+   */
+  content: string;
+  /**
+   * a question asked from a page: the page, and any highlighted text
+   */
+  context?: SharedContext | null;
+  /**
+   * Attachments
+   *
+   * files sent with it (POST /uploads with hold)
+   */
+  attachments?: Array<Attachment>;
+  /**
+   * Passages
+   */
+  passages?: Array<Passage> | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Stopped
+   *
+   * the answer was stopped (POST /chats/{cid}/stop): `content` is what came before
+   */
+  stopped?: boolean;
+  /**
+   * Steps
+   *
+   * the tools the assistant used for this answer, in order
+   */
+  steps?: Array<ToolStep>;
+  /**
+   * Notice
+   *
+   * e.g. the model can't use tools, so the answer came from a search
+   */
+  notice?: string | null;
+  /**
+   * Error
+   *
+   * why there's no answer
+   */
+  error?: string | null;
+  /**
+   * its latest source check (POST .../messages/{mid}/check)
+   */
+  check?: AnswerCheck | null;
+  /**
+   * Model
+   *
+   * the model that wrote the answer
+   */
+  model?: string | null;
+  /**
+   * Parent
+   *
+   * the message it follows; null for a first question
+   */
+  parent?: number | null;
+  /**
+   * it and the others said in its place, from regenerating or editing
+   */
+  versions?: Versions | null;
+  /**
+   * what produced it; none on messages from before it was recorded
+   */
+  meta?: MessageRecord | null;
+  /**
+   * Ledger
+   *
+   * its rows in the activity ledger: the model and tool calls made for it, newest first
+   */
+  ledger?: Array<ActivityEntry>;
+  [key: string]: unknown;
+};
+
+/**
+ * MessageRecord
+ *
+ * What produced a message, recorded as it was written (docs/assistant.md, "What each answer records"). A question's
+ * has `via` and `options`; an answer's the rest. Messages from before it was recorded have none.
+ */
+export type MessageRecord = {
+  /**
+   * Via
+   *
+   * a question: how it was sent
+   */
+  via?: "web" | "api" | "room" | "voice" | "automation" | "completions" | null;
+  /**
+   * a question: the options it was asked with
+   */
+  options?: RecordOptions | null;
+  /**
+   * Model
+   *
+   * the model that wrote the answer
+   */
+  model?: string | null;
+  /**
+   * Provider
+   *
+   * the host name of the model server it ran on (never its address or key)
+   */
+  provider?: string | null;
+  tools?: RecordTools | null;
+  /**
+   * Scope
+   *
+   * the scope it answered in, after a conversation over everything was narrowed
+   */
+  scope?: {
+    [key: string]: unknown;
+  } | null;
+  limits?: RecordLimits | null;
+  used?: RecordUse | null;
+  /**
+   * Outcome
+   *
+   * answered (after looking things up), direct (without looking anything up), limit (its rounds ran out, so it answered from what it found), fallback (from a search: the model can't use tools, or none is set up), stopped, or error
+   */
+  outcome?: "answered" | "direct" | "limit" | "fallback" | "stopped" | "error" | null;
+  /**
+   * the tokens of the model calls made for it (the activity ledger)
+   */
+  tokens?: RecordTokens | null;
+  /**
+   * Cost Usd
+   *
+   * what those calls cost, from the prices in Settings
+   */
+  cost_usd?: number | null;
+  /**
+   * Cost Estimated
+   *
+   * some calls had a price but no token counts: the cost is at least this
+   */
+  cost_estimated?: boolean | null;
+  /**
+   * Ms
+   *
+   * how long it took to write, from the question
+   */
+  ms?: number | null;
+  /**
+   * Flagged
+   *
+   * tools whose results read like instructions to an AI
+   */
+  flagged?: Array<string> | null;
+  /**
+   * Research
+   *
+   * the research it belongs to
+   */
+  research?: number | null;
+  /**
+   * Version
+   *
+   * the version of Lens that wrote it
+   */
+  version?: string | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -13205,6 +13645,8 @@ export type PageContext = {
 
 /**
  * Passage
+ *
+ * A numbered excerpt an answer can cite: a moment of an asset, or a web page (`source` "web", with its `url`).
  */
 export type Passage = {
   /**
@@ -13213,8 +13655,34 @@ export type Passage = {
   n: number;
   /**
    * Recording Id
+   *
+   * the asset it's from; none for a web page
    */
-  recording_id: number;
+  recording_id?: number | null;
+  /**
+   * Source
+   *
+   * what it is: said (speech), page (a document's), screen (text shown in a video), memory, or web
+   */
+  source?: string | null;
+  /**
+   * Url
+   *
+   * a web page's address (source web): the citation opens it
+   */
+  url?: string | null;
+  /**
+   * Site
+   *
+   * a web page's site, like example.com
+   */
+  site?: string | null;
+  /**
+   * Fetched At
+   *
+   * when the web page or search result was read
+   */
+  fetched_at?: string | null;
   /**
    * Title
    */
@@ -15377,6 +15845,105 @@ export type Reading = {
    * syslog severity: 0 emergency to 7 debug
    */
   level?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * RecordLimits
+ */
+export type RecordLimits = {
+  /**
+   * Rounds
+   *
+   * rounds of tool calls it had (calls in one round run together)
+   */
+  rounds?: number | null;
+  /**
+   * Tool Calls
+   *
+   * tool calls it had; null: only the rounds limit them
+   */
+  tool_calls?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * RecordOptions
+ *
+ * What a question was asked with (only what it set).
+ */
+export type RecordOptions = {
+  /**
+   * Model
+   */
+  model?: string | null;
+  /**
+   * Tools
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   */
+  max_tool_calls?: number | null;
+  /**
+   * Scope
+   */
+  scope?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Research
+   */
+  research?: boolean | null;
+  [key: string]: unknown;
+};
+
+/**
+ * RecordTokens
+ */
+export type RecordTokens = {
+  /**
+   * In
+   */
+  in?: number;
+  /**
+   * Out
+   */
+  out?: number;
+  [key: string]: unknown;
+};
+
+/**
+ * RecordTools
+ */
+export type RecordTools = {
+  /**
+   * Picked
+   *
+   * the tools or groups the question asked for; null: Auto
+   */
+  picked?: Array<string> | null;
+  /**
+   * Offered
+   *
+   * every tool the model was offered
+   */
+  offered?: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
+ * RecordUse
+ */
+export type RecordUse = {
+  /**
+   * Rounds
+   */
+  rounds?: number;
+  /**
+   * Tool Calls
+   */
+  tool_calls?: number;
   [key: string]: unknown;
 };
 
@@ -20706,6 +21273,18 @@ export type ToolStep = {
    * Summary
    */
   summary?: string;
+  /**
+   * Ms
+   *
+   * how long the tool took
+   */
+  ms?: number | null;
+  /**
+   * Failed
+   *
+   * the tool failed (or was unknown or blocked); its summary says why
+   */
+  failed?: boolean | null;
   [key: string]: unknown;
 };
 
@@ -21967,6 +22546,29 @@ export type VersionSaved = {
    * Version
    */
   version: number;
+  [key: string]: unknown;
+};
+
+/**
+ * Versions
+ *
+ * A message's versions: it and the others with the same parent and role, oldest first.
+ */
+export type Versions = {
+  /**
+   * Index
+   *
+   * which of them this one is, from 1
+   */
+  index: number;
+  /**
+   * Count
+   */
+  count: number;
+  /**
+   * Ids
+   */
+  ids: Array<number>;
   [key: string]: unknown;
 };
 
@@ -26832,6 +27434,31 @@ export type DecideHeldRunResponses = {
 };
 
 export type DecideHeldRunResponse = DecideHeldRunResponses[keyof DecideHeldRunResponses];
+
+export type DraftAutomationData = {
+  body: AutomationDraftRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/automations/draft";
+};
+
+export type DraftAutomationErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DraftAutomationError = DraftAutomationErrors[keyof DraftAutomationErrors];
+
+export type DraftAutomationResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationDrafted;
+};
+
+export type DraftAutomationResponse = DraftAutomationResponses[keyof DraftAutomationResponses];
 
 export type TestDraftData = {
   body: AutomationDraftTry;
@@ -37731,6 +38358,56 @@ export type ImportArchiveResponses = {
 
 export type ImportArchiveResponse = ImportArchiveResponses[keyof ImportArchiveResponses];
 
+export type ReadMcpConfigData = {
+  body: McpConfigText;
+  path?: never;
+  query?: never;
+  url: "/api/v1/extensions/mcp/read";
+};
+
+export type ReadMcpConfigErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ReadMcpConfigError = ReadMcpConfigErrors[keyof ReadMcpConfigErrors];
+
+export type ReadMcpConfigResponses = {
+  /**
+   * Successful Response
+   */
+  200: McpConfig;
+};
+
+export type ReadMcpConfigResponse = ReadMcpConfigResponses[keyof ReadMcpConfigResponses];
+
+export type TestMcpServerData = {
+  body: McpServerTry;
+  path?: never;
+  query?: never;
+  url: "/api/v1/extensions/mcp/test";
+};
+
+export type TestMcpServerErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TestMcpServerError = TestMcpServerErrors[keyof TestMcpServerErrors];
+
+export type TestMcpServerResponses = {
+  /**
+   * Successful Response
+   */
+  200: McpServerTools;
+};
+
+export type TestMcpServerResponse = TestMcpServerResponses[keyof TestMcpServerResponses];
+
 export type DeleteExtensionData = {
   body?: never;
   path: {
@@ -37855,6 +38532,36 @@ export type CreateExtensionVersionResponses = {
 };
 
 export type CreateExtensionVersionResponse = CreateExtensionVersionResponses[keyof CreateExtensionVersionResponses];
+
+export type SwitchMcpToolData = {
+  body: McpToolSwitch;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/extensions/{eid}/tools";
+};
+
+export type SwitchMcpToolErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SwitchMcpToolError = SwitchMcpToolErrors[keyof SwitchMcpToolErrors];
+
+export type SwitchMcpToolResponses = {
+  /**
+   * Successful Response
+   */
+  200: VersionSaved;
+};
+
+export type SwitchMcpToolResponse = SwitchMcpToolResponses[keyof SwitchMcpToolResponses];
 
 export type TestExtensionData = {
   body: ExtensionTest;
@@ -38260,6 +38967,70 @@ export type UpdateChatResponses = {
 };
 
 export type UpdateChatResponse = UpdateChatResponses[keyof UpdateChatResponses];
+
+export type SwitchVersionData = {
+  body: HeadUpdate;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/chats/{cid}/head";
+};
+
+export type SwitchVersionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SwitchVersionError = SwitchVersionErrors[keyof SwitchVersionErrors];
+
+export type SwitchVersionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Chat;
+};
+
+export type SwitchVersionResponse = SwitchVersionResponses[keyof SwitchVersionResponses];
+
+export type GetMessageData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+    /**
+     * Mid
+     */
+    mid: number;
+  };
+  query?: never;
+  url: "/api/v1/chats/{cid}/messages/{mid}";
+};
+
+export type GetMessageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetMessageError = GetMessageErrors[keyof GetMessageErrors];
+
+export type GetMessageResponses = {
+  /**
+   * Successful Response
+   */
+  200: MessageDetail;
+};
+
+export type GetMessageResponse = GetMessageResponses[keyof GetMessageResponses];
 
 export type SendMessageData = {
   body: MessageCreate;

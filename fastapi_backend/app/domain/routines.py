@@ -634,6 +634,13 @@ def run_due(db, cfg, log=print, now=None):
     except Exception as e:  # noqa: BLE001 - the schedule carries on
         if log:
             log(f"budgets: {type(e).__name__}: {e}")
+    try:
+        from . import sandbox
+
+        sandbox.sweep(db, cfg)  # code sandboxes idle for sandbox.idle_minutes stopped, unused for keep_hours deleted
+    except Exception as e:  # noqa: BLE001 - the schedule carries on
+        if log:
+            log(f"sandbox: {type(e).__name__}: {e}")
     due = db.rows(
         "SELECT record::id(id) AS id, schedule, timezone, next_run_at, run_now, namespaces, actions FROM routine "
         "WHERE run_now != NONE OR (enabled = true AND next_run_at != NONE AND next_run_at <= $n)",

@@ -49,7 +49,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if body.get("tool_choice") == "none" and not Handler.ignore_tool_choice:
                 msg = {"content": msg.get("content")}
             return self._json(
-                {"choices": [{"message": {"role": "assistant", "content": msg.get("content"), "tool_calls": msg.get("tool_calls")}}]}
+                {
+                    "choices": [{"message": {"role": "assistant", "content": msg.get("content"), "tool_calls": msg.get("tool_calls")}}],
+                    **({"usage": Handler.usage} if Handler.usage else {}),
+                }
             )
         if body.get("stream"):
             self.send_response(200)

@@ -87,7 +87,10 @@ optional, and older resources simply don't have them.
 ## Upgrades
 
 Installs keep their data across updates (running `install.sh` again, a new image, `git pull`). New tables, fields and
-indexes arrive through `SCHEMA` on the next start. Anything else, such as rewriting stored values, moving data between
+indexes arrive through `SCHEMA` on the next start. A field that is only added needs no step when its readers treat it
+as missing on older rows: a chat message's record (`meta`,
+[What each answer records](assistant.md#what-each-answer-records)) is one, and messages from before it simply have
+none. Anything else, such as rewriting stored values, moving data between
 tables, or changing or removing an index that already exists, is a named step in `app/domain/migrations.py`:
 
 * Every process that opens the database (the API, workers, `lens watch`, `lens` commands) runs the steps the database
@@ -101,6 +104,19 @@ tables, or changing or removing an index that already exists, is a named step in
   and stops the start; once the cause is fixed, the next start runs it again.
 * `lens migrations` lists every step (done, pending, failed, or unknown when a newer Lens ran it) without running
   anything, so it works while an upgrade is failing; `lens migrations --run` runs the pending ones.
+
+The steps so far, in the order they run:
+
+* `access-levels`: IIIF-only access levels (public, transcript, signed-in, private) become the access setting.
+* `collection-homes`: every namespace gets its default collection, and every asset a home in one.
+* `tour-seen`: people who signed in before the welcome tour existed don't get it.
+* `document-read-step`: documents and images queued to be transcribed are read instead, and failed ones run again.
+* `chat-tree`: conversations become trees of versions ([Versions](assistant.md)): each message of a conversation
+  (`chat_message`) gets the one before it as its `parent`, and the conversation (`chat`) its last message as its
+  `head`. Only conversations without a `head` are touched, so it's safe to run twice; until it has run, a conversation
+  without a `head` is read as one line, and saved as one before anything is added to it.
+* `mcp-sealed-secrets`: the tokens and keys MCP servers kept in plain text in their headers and env are sealed,
+  in every version ([Adding an MCP server](assistant.md#adding-an-mcp-server)); sealed ones are left as they are.
 
 To add a step:
 
