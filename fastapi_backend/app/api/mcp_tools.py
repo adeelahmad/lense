@@ -1684,7 +1684,8 @@ def find_notes(ctx: Context, query: str | None, namespace: str | None, place: st
 @tool(
     "read_note",
     "Read a note",
-    "A note's Markdown, with what it links to and the notes linking to it: by note_id, or the page of a thing "
+    "A note's Markdown, with what it links to, the notes linking to it, the notes it is inside (path, from the top) and "
+    "the notes inside it: by note_id, or the page of a thing "
     '(about, like "recording:12", "entity:5" or "topic:9"). Links in the Markdown are written @[label](kind:id) and, for '
     "topics, #[label](topic:id).",
     Arg("note_id", "integer", "the note (from find_notes)"),
@@ -1717,6 +1718,8 @@ def read_note(ctx: Context, note_id: int | None, about: str | None) -> dict[str,
             "body": _cut(p.body, FETCH_CHARS),
             "links": [{"target": x.target, "name": x.name} for x in p.links] or None,
             "linked_from": [{"note_id": b.page, "title": b.title} for b in p.backlinks] or None,
+            "path": [{"note_id": c.id, "title": c.title} for c in p.path] or None,
+            "notes_inside": [{"note_id": c.id, "title": c.title} for c in p.children] or None,
             "url": _note_url(ctx, p.id),
         }
     )
