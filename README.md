@@ -120,7 +120,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   (`/wiki/<namespace>/<Name>`), and entities, topics and people are edited and merged from their lists, the graph or an
   asset, with Undo instead of a confirm. Names get their real types (people, places, organisations, events, works) by
   rules, without a model. Find what is most like a passage, an asset, a topic or an entity, in a Similar
-  tab on every asset or by selecting text anywhere, and, with anytopdf, photos by what they show.
+  tab on every asset or by selecting text anywhere, and, with anytopdf, photos by what they show. Pages and shots are
+  described in words by the model provider's vision model or, off by default, by Florence-2 on your own server.
   ([Graph](docs/graph.md), [entity pages](docs/notes.md#entity-pages),
   [similar content](docs/processing.md#similar-content), [graph history](docs/graph-history.md),
   [topics](docs/topics.md), [video](docs/video.md), [NSFW classification](docs/nsfw.md),
@@ -208,8 +209,7 @@ These are open pull requests, not yet part of Lens:
   ([#400](https://github.com/adeelahmad/lense/pull/400)).
 - **Chat:** a conversation exported as Markdown, PDF or JSON ([#474](https://github.com/adeelahmad/lense/pull/474)).
 - **Sources:** RSS and Atom news feeds ([#453](https://github.com/adeelahmad/lense/pull/453)).
-- **Pictures:** described on this machine with Florence-2 ([#477](https://github.com/adeelahmad/lense/pull/477)), and
-  low-quality images enhanced before they're read ([#479](https://github.com/adeelahmad/lense/pull/479)).
+- **Pictures:** low-quality images enhanced before they're read ([#479](https://github.com/adeelahmad/lense/pull/479)).
 - **Web clipper:** signing in, or using your API token, not only an import webhook's
   ([#406](https://github.com/adeelahmad/lense/pull/406)).
 - **Automations:** more operators for conditions ([#434](https://github.com/adeelahmad/lense/pull/434)).
