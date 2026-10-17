@@ -328,13 +328,13 @@ class SemanticStatus(ResponseModel):
     current: bool = Field(description="the stored vectors are the configured model's, so searches can use them")
     dimension: int | None = None
     passages: int = Field(description="passages embedded")
-    recordings: int = Field(description="recordings in the archive")
-    indexed: int = Field(description="recordings indexed with the configured model")
+    recordings: int = Field(description="assets in the archive")
+    indexed: int = Field(description="assets indexed with the configured model")
     min_similarity: float = Field(description="how alike a passage must be to a query to be a hit")
 
 
 class IndexQueued(ResponseModel):
-    recordings: int = Field(description="recordings queued to be indexed")
+    recordings: int = Field(description="assets queued to be indexed")
     remaining: bool = Field(description="more are waiting than were queued; run it again, or let the hourly routine")
 
 
@@ -359,6 +359,103 @@ class TelemetryTestResult(ResponseModel):
     ok: bool
     error: str | None = None
     ms: int | None = None
+
+
+class AnalyticsEvent(ResponseModel):
+    name: str
+    description: str
+    # analytics.events names it
+    on: bool
+
+
+class AnalyticsStatus(ResponseModel):
+    """Whether usage statistics go to Google Analytics, and how the last send went (docs/analytics.md)."""
+
+    enabled: bool
+    # on, with a measurement id and an API secret
+    configured: bool
+    measurement_id: str | None = None
+    # this install's random id in Google Analytics
+    client_id: str | None = None
+    last_sent_at: str | None = None
+    last_sent: list[str] = []
+    last_error: str | None = None
+    events: list[AnalyticsEvent]
+
+
+class AnalyticsTestResult(ResponseModel):
+    ok: bool
+    error: str | None = None
+    # what Google Analytics' validation server said about the test event
+    messages: list[str] = []
+
+
+class AnalyticsDay(ResponseModel):
+    day: str
+    active_users: int
+    actions: int
+
+
+class AnalyticsChurn(ResponseModel):
+    # people active in the period before this one
+    previous_active: int
+    # of those, active again in this one
+    retained: int
+    # of those, not active in this one
+    churned: int
+    # churned / previous_active; null with no one before
+    rate: float | None = None
+    # active now, not in the period before
+    returning: int
+
+
+class AnalyticsCohort(ResponseModel):
+    # the Monday of the week these accounts were made
+    week: str
+    users: int
+    # the share of them active in that week and each week after
+    retention: list[float | None]
+
+
+class AnalyticsFeature(ResponseModel):
+    feature: str
+    actions: int
+    users: int
+
+
+class AnalyticsMetrics(ResponseModel):
+    """Active people, churn, retention and feature use, worked out on this machine from the activity ledger and
+    sign-ins (docs/analytics.md#the-numbers)."""
+
+    days: int
+    since: str
+    until: str
+    daily: list[AnalyticsDay]
+    dau: int
+    wau: int
+    mau: int
+    # average daily active / monthly active
+    stickiness: float | None = None
+    accounts: int
+    active_users: int
+    new_users: int
+    churn: AnalyticsChurn
+    retention: list[AnalyticsCohort]
+    features: list[AnalyticsFeature]
+    last_active_day: str | None = None
+    days_since_active: int | None = None
+
+
+class UsageEvent(ResponseModel):
+    """An event Lens counted for a day (docs/analytics.md#events)."""
+
+    at: str
+    # the day it counts
+    day: str
+    name: str
+    params: dict[str, Any] = {}
+    # true: sent to Google Analytics; false: waiting to be sent; null: kept here only (GA off, or the event left out)
+    sent: bool | None = None
 
 
 class LogStatus(ResponseModel):

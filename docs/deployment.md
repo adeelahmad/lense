@@ -39,8 +39,9 @@ docker compose -f docker-compose.prod.yml logs backend | grep "setup code"
   stored source credentials, LLM keys and everything [encrypted at rest](encryption.md) unreadable), `AUTH_SECRET`.
 * **SurrealDB storage engine**: `surrealkv` (as in the compose file), RocksDB or TiKV. Not `memory`; see
   [Database](database.md).
-* **Backups.** `docker compose -f docker-compose.prod.yml exec backend lens backup` writes one of the database into
-  `data_dir/backups` ([Database](database.md#backups)); back up the `archive-data` volume as well.
+* **Backups.** `docker compose -f docker-compose.prod.yml exec backend lens backup` writes one of the database and
+  Lens's files into `data_dir/backups` ([Database](database.md#backups)); copy them off the machine with a storage
+  connection (Settings › Backups) or by backing up the `archive-data` volume.
 * **Mail** for sign-in links and access requests: **Settings → Email** in the app (or `MAIL_*` in `.env`).
 * **Workers.** Scale with `docker compose up -d --scale worker=3`. The images carry no speech-to-text engine: a worker
   fetches the configured one (SenseVoice by default) the first time a recording needs it ([Components](components.md)),

@@ -138,7 +138,7 @@ export function SpeakersTab() {
                 It&apos;s {s!.name}
               </Button>
               <Button asChild size="sm" variant="secondary">
-                <Link href={`/speakers/${p.id}`}>Review in Speakers</Link>
+                <Link href={`/speakers/${p.id}`}>Review in People</Link>
               </Button>
             </div>
           </section>

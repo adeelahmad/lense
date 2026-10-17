@@ -88,6 +88,8 @@ nav:
       - Video: video.md
       - NSFW classification: nsfw.md
       - Notifications: notifications.md
+      - Automations: automations.md
+      - Timeline: timeline.md
   - Knowledge:
       - Graph and Cypher: graph.md
       - Graph history: graph-history.md
@@ -110,6 +112,7 @@ nav:
       - Telemetry: telemetry.md
       - Logging: logging.md
       - Prometheus: prometheus.md
+      - Usage analytics: analytics.md
   - Build:
       - Architecture: architecture.md
       - Web app: frontend.md

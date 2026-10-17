@@ -8,13 +8,15 @@ import {
   ChevronRight,
   Hash,
   MapPin,
+  Pencil,
   Tag,
   User,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
+import { EntityDrawer } from "@/components/entities/entity-drawer";
 import { usePlayerApi } from "@/components/player/media";
 import { useRec } from "@/components/recording/context";
 import { useRecordingEntities } from "@/components/recording/hooks";
@@ -64,12 +66,14 @@ export function groupEntities(
 
 /**
  * Entities tab: the topics it is about, the keyword cloud, then entities by type with mentions in this recording. Choosing one marks its
- * mentions ● on the waveform and jumps to the first; the chevron opens it in the graph.
+ * mentions ● on the waveform and jumps to the first; the chevron opens it in the graph, and for editors the pencil
+ * opens it to rename, retype, hide or merge without leaving the recording.
  */
 export function EntitiesTab() {
   const { model, id, entity, where, ns, canEditNamespace } = useRec();
   const api = usePlayerApi();
   const list = useRecordingEntities(id, model.entities.length > 0);
+  const [editing, setEditing] = useState<number | null>(null);
   const groups = useMemo(() => groupEntities(model.entities), [model.entities]);
   // The player's entities carry no ids; match them to the entity index by name, key or alias to link to the graph.
   const ids = useMemo(() => {
@@ -165,6 +169,17 @@ export function EntitiesTab() {
                       {e.segs.length} {e.segs.length === 1 ? "mention" : "mentions"}
                     </span>
                   </button>
+                  {eid && canEditNamespace && (
+                    <button
+                      type="button"
+                      aria-label={`Edit ${e.name}`}
+                      title="Rename, retype, hide or merge it"
+                      onClick={() => setEditing(eid)}
+                      className="grid size-7 shrink-0 place-items-center rounded-full text-fg-muted hover:bg-background hover:text-fg"
+                    >
+                      <Pencil className="size-3.5" />
+                    </button>
+                  )}
                   {eid ? (
                     <Link
                       href={`/graph?focus=e${eid}`}
@@ -184,6 +199,7 @@ export function EntitiesTab() {
           </ul>
         </section>
       ))}
+      {editing && ns && <EntityDrawer id={editing} ns={ns} onClose={() => setEditing(null)} onOpen={setEditing} />}
     </>
   );
 }

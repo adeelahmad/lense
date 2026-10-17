@@ -1,5 +1,6 @@
-"""Sources that aren't file storage: IMAP mailboxes and iCalendar feeds, shown as folders of files so browsing,
-choosing files, watching and importing work for them as they do for rclone's storage (sources.py).
+"""Sources that aren't file storage: IMAP mailboxes, Gmail and Google Workspace mailboxes, iCalendar feeds and Google
+Calendar (gcal.py), shown as folders of files so browsing, choosing files, watching and importing work for them as they
+do for rclone's storage (sources.py).
 
 - An IMAP account's folders are its mailboxes, and each message is a file, `<mailbox>/<uidvalidity>-<uid>.eml`: a
   UID stands for one message only while the mailbox's UIDVALIDITY stays the same, so a mailbox the server rebuilt
@@ -7,6 +8,9 @@ choosing files, watching and importing work for them as they do for rclone's sto
   attachments are kept and made resources of their own, or its text where the server can't make PDFs. Nothing is
   changed on the server: mailboxes are opened read-only and messages fetched with BODY.PEEK, so they stay unread. A
   watch keeps, per mailbox, the last UID it has seen (its cursor), and asks only for messages after it.
+- A Gmail or Google Workspace mailbox (`gmail`) signs in to Google as a person or as a Workspace service account
+  (google_auth.py), then reads through the Gmail API (`via` api, read only: gmail.py) or over IMAP (`via` imap, at
+  imap.gmail.com with the access token: everything above holds for it).
 - An iCalendar feed (an https:// or webcal:// address, as calendars publish them) is one folder of events, each a
   file `<id>.ics` of its own (the id stands for its UID and, for a changed occurrence, its RECURRENCE-ID). An event is
   read as text: its title, when and where, who, and its description. The address is kept sealed, like a password
@@ -34,21 +38,34 @@ import urllib.parse
 import urllib.request
 from email import policy
 
-from . import calendars, netguard
+from . import calendars, gcal, netguard
 
+# sources a module of their own handles: browse, list_files, fetch, immutable and test, as below
+OWN = {"gcal": gcal}
 TYPES = {
     "imap": {
         "label": "Email (IMAP)",
         "fields": {"host": "", "port": "993", "security": "ssl", "user": ""},
         "secrets": ["pass"],
     },
+    "gmail": {
+        "label": "Gmail or Google Workspace",
+        # user: the mailbox's address (the person a service account acts as)
+        "fields": {"user": "", "via": "api"},
+        "secrets": ["token", "service_account_credentials"],  # a Google account (OAuth), or a service account
+        "google": True,  # signs in through google_auth.py
+    },
     "ical": {
         "label": "Calendar feed (iCal)",
         "fields": {"user": ""},
         "secrets": ["url", "pass"],
     },
+    **{k: m.TYPE for k, m in OWN.items()},
 }
 SECURITY = ("ssl", "starttls", "none")
+VIA = ("api", "imap")  # how a Gmail source reads: the Gmail API, or IMAP
+GMAIL_IMAP = ("imap.gmail.com", "993", "ssl")
+EMAIL = ("imap", "gmail")  # the types whose files are messages (routing rules are for these)
 # not taken when a whole account is watched: what can't be opened, the bin, junk and drafts, and the mailboxes that
 # only show messages kept elsewhere (Gmail's All Mail, Starred and Important)
 SKIP_MAILBOXES = {"\\noselect", "\\nonexistent", "\\trash", "\\junk", "\\drafts", "\\all", "\\flagged", "\\important"}
@@ -61,6 +78,24 @@ _FEEDS: dict = {}
 
 def handles(src):
     return src["type"] in TYPES
+
+
+def is_email(src):
+    return src["type"] in EMAIL
+
+
+def _reader(src):
+    """How a source is read: "imap" (an IMAP account, or Gmail over IMAP), "gmail" (the Gmail API) or "ical"."""
+    if src["type"] == "gmail":
+        return "imap" if _params(src).get("via") == "imap" else "gmail"
+    return src["type"]
+
+
+def check_params(typ, params):
+    """A source type's own rules for its settings (sources.py checks the names)."""
+    via = str((params or {}).get("via") or "api")
+    if typ == "gmail" and via not in VIA:
+        raise ValueError(f"via is one of: {', '.join(VIA)}")
 
 
 def _secret(cfg, src, k):
@@ -112,13 +147,20 @@ def _ok(typ, data, what):
 @contextlib.contextmanager
 def _imap(cfg, src):
     p = _params(src)
+    if src["type"] == "gmail":
+        if not p.get("user"):
+            raise RuntimeError("enter the mailbox's address (its user)")
+        with connect(*GMAIL_IMAP, p["user"], None, token=_api().token(cfg, src)) as conn:
+            yield conn
+        return
     with connect(p.get("host"), p.get("port"), p.get("security") or "ssl", p.get("user") or "", _secret(cfg, src, "pass")) as conn:
         yield conn
 
 
 @contextlib.contextmanager
-def connect(host, port, security, user, password):
-    """A signed-in IMAP connection (an IMAP source's, or the assistant's own mailbox: mailbox.py)."""
+def connect(host, port, security, user, password, token=None):
+    """A signed-in IMAP connection (an IMAP source's, or the assistant's own mailbox: mailbox.py). With an OAuth access
+    `token`, it signs in with that (XOAUTH2, as Gmail takes it) rather than a password."""
     if not host:
         raise RuntimeError("the mail server's host name isn't set")
     if security not in SECURITY:
@@ -138,7 +180,10 @@ def connect(host, port, security, user, password):
         raise RuntimeError(f"couldn't reach {host}:{port}: {e}") from None
     try:
         try:
-            conn.login(user, password)
+            if token:
+                conn.authenticate("XOAUTH2", lambda _: f"user={user}\x01auth=Bearer {token}\x01\x01".encode())
+            else:
+                conn.login(user, password)
         except imaplib.IMAP4.error as e:
             raise RuntimeError(f"the mail server refused to sign in: {e}") from None
         yield conn
@@ -260,7 +305,8 @@ def _addresses(h, *names):
 
 def _addressing(h, subject, mailbox):
     """What routing rules (mail_routes.py) look at: who sent it, who it was for (To, Cc, and the address a shared
-    inbox received it at), its subject, mailing list and mailbox."""
+    inbox received it at), its subject, mailing list and mailbox; and who was copied in (Cc) on its own, for the
+    timeline."""
     try:
         listed = str(h.get("list-id") or "").strip()
     except (ValueError, TypeError):
@@ -268,6 +314,7 @@ def _addressing(h, subject, mailbox):
     return {
         "from": _addresses(h, "from"),
         "to": _addresses(h, "to", "cc", "delivered-to", "x-original-to"),
+        "cc": _addresses(h, "cc"),
         "subject": subject,
         "list": listed,
         "mailbox": mailbox,
@@ -341,10 +388,15 @@ def read(conn, uid):
     return next((d[1] for d in data if isinstance(d, tuple) and d[1]), None)
 
 
-def advance(cursor, files, held=()):
+def advance(cursor, files, held=(), marks=()):
     """A watch's cursor after a scan of these files: each mailbox's last UID listed, but before the first one still
-    `held` (paths waiting to settle, to be listed again). Mailboxes the scan didn't list keep theirs."""
+    `held` (paths waiting to settle, to be listed again). Mailboxes the scan didn't list keep theirs. `marks` are
+    cursors a listing gave besides its files' (Gmail's history id when it began), taken like a file's."""
     out = {c["mailbox"]: dict(c) for c in cursor or []}
+    for c in marks:
+        old = out.get(c["mailbox"])
+        if not old or old["validity"] != c["validity"] or c["uid"] > old["uid"]:
+            out[c["mailbox"]] = dict(c)
     first_held = {}
     for f in files:
         for c in [f["cursor"], *f.get("also", [])] if f.get("cursor") else []:
@@ -486,28 +538,73 @@ def check_path(path):
     return (path or "").strip().strip("/")
 
 
+def _api():
+    from . import gmail  # it reads entries as this module makes them
+
+    return gmail
+
+
 def browse(cfg, src, path=""):
-    return (_imap_browse if src["type"] == "imap" else _ical_browse)(cfg, src, check_path(path))
+    if src["type"] in OWN:
+        return OWN[src["type"]].browse(cfg, src, check_path(path))
+    how = _reader(src)
+    if how == "gmail":
+        return _api().browse(cfg, src, check_path(path))
+    return (_imap_browse if how == "imap" else _ical_browse)(cfg, src, check_path(path))
 
 
-def list_files(cfg, src, path="", cursor=None):
-    """Every file under `path`; for IMAP with a watch's `cursor` (a list of {mailbox, validity, uid}), only messages
-    after it."""
+def list_files(cfg, src, path="", cursor=None, fresh=False, headers=True):
+    """Every file under `path`; for email with a watch's `cursor` (a list of {mailbox, validity, uid}), only messages
+    after it. `fresh` (a watch's first scan, which leaves what's there) and `headers` (False: only the files' names,
+    to count them) let Gmail's API skip reading what isn't needed."""
     path = check_path(path)
-    if src["type"] == "imap":
-        return _imap_files(cfg, src, path, {c["mailbox"]: c for c in cursor or []})
+    if src["type"] in OWN:
+        return OWN[src["type"]].list_files(cfg, src, path, cursor)
+    how, after = _reader(src), {c["mailbox"]: c for c in cursor or []}
+    if how == "gmail":
+        return _api().list_files(cfg, src, path, after, fresh, headers)
+    if how == "imap":
+        return _imap_files(cfg, src, path, after)
     return _ical_browse(cfg, src, path)
+
+
+def latest(cfg, src, path, limit):
+    """The newest `limit` messages under `path` (a mailbox or label; none: the whole account)."""
+    path = check_path(path)
+    if _reader(src) == "gmail":
+        return _api().latest(cfg, src, path, limit)
+    return sorted(list_files(cfg, src, path), key=lambda f: f.get("modified") or "", reverse=True)[:limit]
+
+
+def find(cfg, src, folder, paths):
+    """{path: file} for these files of a folder (choosing files by hand): Gmail's labels list only their newest when
+    browsed, so it looks the messages up."""
+    if _reader(src) == "gmail":
+        return _api().find(cfg, src, [check_path(p) for p in paths])
+    return {e["path"]: e for e in browse(cfg, src, folder)}
 
 
 def fetch(cfg, src, path):
     """The file's bytes: a message as the server keeps it, an event as an .ics of its own."""
-    return (_imap_fetch if src["type"] == "imap" else _ical_fetch)(cfg, src, check_path(path))
+    if src["type"] in OWN:
+        return OWN[src["type"]].fetch(cfg, src, check_path(path))
+    how = _reader(src)
+    if how == "gmail":
+        return _api().fetch(cfg, src, check_path(path))
+    return (_imap_fetch if how == "imap" else _ical_fetch)(cfg, src, check_path(path))
 
 
 def immutable(src):
-    """Whether a file, once fetched, never changes (an IMAP message), so a cached copy can be kept."""
-    return src["type"] == "imap"
+    """Whether a file, once fetched, never changes (a message), so a cached copy can be kept."""
+    if src["type"] in OWN:
+        return OWN[src["type"]].immutable(src)
+    return is_email(src)
 
 
 def test(cfg, src):
-    (_imap_test if src["type"] == "imap" else _ical_test)(cfg, src)
+    if src["type"] in OWN:
+        return OWN[src["type"]].test(cfg, src)
+    how = _reader(src)
+    if how == "gmail":
+        return _api().test(cfg, src)
+    (_imap_test if how == "imap" else _ical_test)(cfg, src)

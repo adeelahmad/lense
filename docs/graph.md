@@ -22,6 +22,14 @@ to itself and has one. On a computer the Find in graph box has the focus, so typ
 - **Node menu**: right-click a node (long-press on touch, or select it and press M) for its parents, children, all
   ancestors, all descendants and neighbours, paths to another node (pick it next), a BFS, DFS or radial layout from
   it, adding it to a route, its details and its page, or hiding it. What is found joins the canvas and lights up.
+- **Edit and merge** (editors of the node's namespace): an entity's or topic's panel has **Edit**, which opens the
+  same editor as its own page (name, type, description, other names; a topic's labels, definition, broader and related
+  topics), and an entity's has **Merge**, a find box where Enter merges the entity picked into it, and **Maybe the
+  same**, its likely doubles. From the node menu, **Edit…** does the same and **Merge into another…** merges the node
+  into the one you pick next: entities of one namespace are merged, entities of two namespaces are linked as the same
+  thing, and speakers and topics of one namespace are merged. Each happens at once with **Undo** on its notice. A node that joins
+  entities of several namespaces (all shared) offers **Edit in** each namespace. Looking at an earlier version, the
+  graph is read-only.
 - **Route**: add stops from the node menu; the route follows the shortest path between each pair of stops, laid out
   left to right.
 - **Ask**: the bar at the bottom takes a question in plain words or Cypher (anything starting with `MATCH`). The
@@ -36,7 +44,7 @@ to itself and has one. On a computer the Find in graph box has the focus, so typ
 | Namespace | `n<id>` | name, shared |
 | Collection | `c<id>` | name, namespace |
 | Recording | `r<id>` | name (the title), date, media, namespace |
-| Speaker | `s<id>` | name, seconds (talk time), namespace |
+| Speaker | `s<id>` | a person: name, seconds (talk time), namespace |
 | Entity | `e<id>`, or `e:<key>` in the global scope | name, type, key, mentions, namespaces, ids |
 | Topic | `t<id>`, or `t:<key>` in the global scope | name (the label), alt, definition, recordings, namespaces, ids |
 
@@ -50,17 +58,17 @@ and quiet types (dates and numbers) are left out, as in the overview graph.
 | HAS_SPEAKER | Recording → Speaker | seconds |
 | MENTIONS | Recording → Entity | count |
 | SAID | Speaker → Entity | count |
-| MENTIONED_WITH | Entity → Entity (said in the same line) | count |
-| SPOKE_WITH | Speaker → Speaker (in the same recording) | recordings |
-| SAME_AS | Speaker → Speaker (said to be one person) | |
+| MENTIONED_WITH | Entity → Entity (in the same line) | count |
+| SPOKE_WITH | Speaker → Speaker (in the same asset) | recordings |
+| SAME_AS | Speaker → Speaker (marked as one person) | |
 | SAME_THING | Entity → Entity (linked across namespaces) | |
 | ABOUT | Recording → Topic | source, weight |
 | NARROWER | Topic → Topic (from the broader one) | |
 | RELATED | Topic → Topic | |
 
-CONTAINS, HAS_SPEAKER, MENTIONS, SAID, ABOUT and NARROWER are the hierarchy: an entity's parents are the recordings that
-mention it and the speakers who said it; its ancestors go on up to collections and the namespace. A topic's parents
-are its broader topics and the recordings about it. Topics are each namespace's vocabulary ([Topics](topics.md)).
+CONTAINS, HAS_SPEAKER, MENTIONS, SAID, ABOUT and NARROWER are the hierarchy: an entity's parents are the assets that
+mention it and the people who said or wrote it; its ancestors go on up to collections and the namespace. A topic's parents
+are its broader topics and the assets about it. Topics are each namespace's vocabulary ([Topics](topics.md)).
 
 ## Scope and rights
 
@@ -138,11 +146,11 @@ cheap. Errors say what to fix and where, so an agent can correct its query.
 // who is mentioned most
 MATCH (e:Person) RETURN e.name, e.mentions ORDER BY e.mentions DESC LIMIT 10
 
-// which recordings mention Acme, and how often
+// which assets mention Acme, and how often
 MATCH (r:Recording)-[m:MENTIONS]->(e:Entity) WHERE toLower(e.name) = 'acme'
 RETURN r.name, r.date, m.count ORDER BY r.date
 
-// who talks about Acme
+// who mentions Acme
 MATCH (s:Speaker)-[x:SAID]->(:Entity {name: 'Acme'}) RETURN s.name, x.count ORDER BY x.count DESC
 
 // how Alice is connected to Acme

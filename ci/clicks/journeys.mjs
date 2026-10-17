@@ -215,7 +215,7 @@ export const JOURNEYS = [
     async run(ctx) {
       const { page, meter } = ctx;
       await go(ctx, "Search");
-      await meter.type(page.getByRole("searchbox", { name: "Search transcripts" }), "raspberry", "the word");
+      await meter.type(page.getByRole("searchbox", { name: "Search your assets" }), "raspberry", "the word");
       await meter.press("Enter", "Enter to search");
       await page.getByRole("main").getByText(/Raspberry Pi can run Lens/).first().waitFor();
     },
@@ -228,7 +228,7 @@ export const JOURNEYS = [
     async run(ctx) {
       const { page, meter } = ctx;
       await jumpTo(ctx);
-      await meter.type(page.getByRole("combobox", { name: /Search recordings and pages/ }), "welcome", "part of its title");
+      await meter.type(page.getByRole("combobox", { name: /^Search assets/ }), "welcome", "part of its title");
       await page.getByRole("option", { name: /Welcome back/ }).first().waitFor();
       await meter.press("Enter", "Enter to open");
       await page.waitForURL(/\/(recordings|resources)\//);
@@ -492,17 +492,18 @@ export const JOURNEYS = [
     ns: "",
     module: "Entities",
     feature: "Find an entity and see where it was mentioned",
+    note: "Its name opens its own page, /wiki/<namespace>/Raspberry_Pi, with its notes and every line that says it.",
     from: "/",
     async run(ctx) {
       const { page, meter } = ctx;
-      const entity = page.getByRole("main").getByRole("button", { name: "Raspberry Pi", exact: true });
+      const entity = page.getByRole("main").getByRole("link", { name: "Raspberry Pi", exact: true });
       await madeInBackground(ctx, "/entities", entity, "/", "the entity the imports' analysis makes");
       await go(ctx, "Entities");
       await meter.type(page.getByRole("searchbox", { name: "Find entities" }), "rasp", "part of its name");
       // the list filters as you type: the other entity leaves it
       await page.getByRole("main").getByRole("table").getByText("Lens", { exact: true }).waitFor({ state: "hidden" });
       await meter.click(entity, "Raspberry Pi");
-      await page.waitForURL(/entity=\d+/);
+      await page.waitForURL(/\/wiki\/[^/]+\/Raspberry_Pi$/);
       await page.getByText(/Raspberry Pi can run Lens/).first().waitFor();
     },
   },
@@ -637,6 +638,63 @@ export const JOURNEYS = [
       await meter.replace(page.getByRole("textbox").first(), "Alice", "the name");
       await meter.press("Enter", "Enter to save");
       await page.getByRole("heading", { name: "Alice", level: 1 }).waitFor();
+    },
+  },
+  {
+    id: "entity-merge",
+    // the namespace the imports above went to: with all namespaces picked, Entities opens the first by name, which
+    // namespace-create has made the empty customer-calls
+    ns: "interviews",
+    module: "Entities",
+    feature: "Merge two entities into one, then undo it",
+    note: "The merge happens at once and the notice has Undo, so nothing asks to confirm; Undo puts both back.",
+    from: "/",
+    async run(ctx) {
+      const { page, meter } = ctx;
+      await go(ctx, "Entities");
+      const main = page.getByRole("main");
+      await meter.click(main.getByRole("checkbox", { name: "Pick Lens", exact: true }), "tick Lens");
+      await meter.click(main.getByRole("checkbox", { name: "Pick Raspberry Pi", exact: true }), "tick Raspberry Pi");
+      const bar = page.getByRole("toolbar", { name: "2 entities selected" });
+      await meter.click(bar.getByRole("button", { name: /^Merge into / }), "Merge into the one it keeps");
+      await page.getByText(/^Merged (Lens|Raspberry Pi) into /).first().waitFor();
+      await meter.click(page.getByRole("button", { name: "Undo" }), "Undo on the notice");
+      await page.getByText("Merge undone").first().waitFor();
+    },
+  },
+  {
+    id: "graph-merge",
+    ns: "interviews",
+    module: "Graph",
+    feature: "Merge an entity into another from the graph, then undo it",
+    note: "Find the node, Merge in its panel, type the other's name and Enter; the notice has Undo, so nothing asks to confirm.",
+    from: "/",
+    async run(ctx) {
+      const { page, meter } = ctx;
+      // An entity is in the graph once something links it twice (graph.min_edge_weight), which takes import-file's
+      // pi-episode as well; a slow machine can still be reading it here, so wait for the jobs to finish (not counted)
+      const idle = page.getByRole("button", { name: /^Activity: (Nothing running|\d+ failed)$/ });
+      await madeInBackground(ctx, "/", idle, "/", "the imports' jobs finished");
+      await go(ctx, "Graph");
+      const find = page.getByRole("combobox", { name: "Find in graph" });
+      await page.getByRole("region", { name: "Graph" }).waitFor();
+      await page.waitForTimeout(1000);
+      // On a phone the filters, the find box among them, sit behind a button
+      if (!(await find.isVisible())) await meter.click(page.getByRole("button", { name: "Filters" }), "Filters");
+      await meter.type(find, "rasp", "part of the name");
+      await page.getByRole("option", { name: /Raspberry Pi/ }).first().waitFor();
+      await meter.press("Enter", "Enter to pick it");
+      const filters = page.getByRole("dialog", { name: "Graph filters" });
+      if (await filters.isVisible().catch(() => false))
+        await meter.click(filters.getByRole("button", { name: "Close" }), "close the filters (they stay open over the node)");
+      await page.getByRole("heading", { name: "Raspberry Pi" }).first().waitFor();
+      await meter.click(page.getByRole("button", { name: "Merge", exact: true }).first(), "Merge in its panel");
+      await meter.type(page.getByRole("combobox", { name: "Entity to merge into Raspberry Pi" }), "lens", "the other's name");
+      await page.getByRole("option", { name: /^Lens/ }).first().waitFor();
+      await meter.press("Enter", "Enter to merge it");
+      await page.getByText("Merged Lens into Raspberry Pi").first().waitFor();
+      await meter.click(page.getByRole("button", { name: "Undo" }), "Undo on the notice");
+      await page.getByText("Merge undone").first().waitFor();
     },
   },
   {

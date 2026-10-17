@@ -11,10 +11,10 @@
 #   LENS_DIR       where Lens goes (default: ~/lens)
 #   LENS_REF       the branch or tag to run (default: main)
 #   LENS_PORT      the web app's port (default: 3000, or the next free one)
-#   LENS_PUBLIC    1: reachable from other machines on the network, 0: this machine only (default: 1 on a server
-#                  without a desktop, else 0)
+#   LENS_PUBLIC    1: reachable from other machines on the network, 0: this machine only (default: as the last run
+#                  left it, else 1 on a server without a desktop, else 0). Also in Settings › Access & embedding
 #   LENS_TARGET    full (reads Office files, web pages and emails too) or lean (smaller) (default: as the last run
-#                  left it, else full)
+#                  left it, else full). Also in Settings › Components
 #   LENS_BACKEND   docker or microsandbox (one microVM, no Docker: docs/microsandbox.md). Asked on a first install
 #                  when microsandbox can run here (Linux with KVM, or a Mac with Apple silicon); default: docker
 #   LENS_DNS_FALLBACK  in a microsandbox: the public resolvers it looks names up with when this machine's don't
@@ -452,14 +452,14 @@ if [ "$BACKEND" = microsandbox ]; then
   # this machine has Docker Hub credentials that microsandbox can't use, and limits anonymous pulls.
   say "Getting the base image..."
   image=""
-  for ref in mirror.gcr.io/library/python:3.12-slim-bookworm public.ecr.aws/docker/library/python:3.12-slim-bookworm \
-    docker.io/library/python:3.12-slim-bookworm; do
+  for ref in mirror.gcr.io/library/python:3.12-slim-trixie public.ecr.aws/docker/library/python:3.12-slim-trixie \
+    docker.io/library/python:3.12-slim-trixie; do
     if out="$(msb pull -q "$ref" 2>&1)"; then
       image="$ref"
       break
     fi
   done
-  [ -n "$image" ] || fail "Couldn't download the base image (python:3.12-slim-bookworm): $out"
+  [ -n "$image" ] || fail "Couldn't download the base image (python:3.12-slim-trixie): $out"
   # The volume its data is kept in (the database, the archive, the builds). A database opens only with the keys of
   # the install that made it, which are in that install's .env. So a first install that finds the volume of an earlier
   # one whose folder is gone (deleted, or installed elsewhere) starts on a volume of its own, and leaves that one as it

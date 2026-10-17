@@ -14,6 +14,7 @@ from app import email
 from app.api.deps import AdminReader, AdminWriter, Cfg, Db, domain_errors
 from app.core.middleware import host_name
 from app.domain import (
+    analytics,
     anytopdf,
     auth,
     blobs,
@@ -45,6 +46,9 @@ from app.domain import (
     updates,
 )
 from app.schemas.admin import (
+    AnalyticsMetrics,
+    AnalyticsStatus,
+    AnalyticsTestResult,
     AuditEntry,
     BridgeStatus,
     BridgeTestResult,
@@ -79,6 +83,7 @@ from app.schemas.admin import (
     TelemetryTestResult,
     TikaTestResult,
     TunnelStatus,
+    UsageEvent,
 )
 from app.schemas.auth import AccountToken
 from app.schemas.common import Ok
@@ -377,14 +382,14 @@ def test_speech(
 
 @router.get("/admin/semantic")
 def semantic_status(user: AdminReader, cfg: Cfg, db: Db) -> SemanticStatus:
-    """Search by meaning: whether it's set up, its model, and how many recordings are indexed with it."""
+    """Search by meaning: whether it's set up, its model, and how many assets are indexed with it."""
     return SemanticStatus(**semantic.status(db, cfg))
 
 
 @router.post("/admin/semantic/index")
 def index_semantic(user: AdminWriter, cfg: Cfg, db: Db, limit: int = Query(500, ge=1, le=5000)) -> IndexQueued:
-    """Queue the embed step for up to `limit` recordings not yet indexed with the configured model, oldest first (a
-    recording with a job waiting or running is left for the next time)."""
+    """Queue the embed step for up to `limit` assets not yet indexed with the configured model, oldest first (an
+    asset with a job waiting or running is left for the next time)."""
     if not semantic.configured(cfg):
         raise HTTPException(400, "turn search by meaning on, with an embeddings server and a model, first")
     semantic.recovered(db)
@@ -406,6 +411,33 @@ def test_telemetry(user: AdminWriter, cfg: Cfg) -> TelemetryTestResult:
     """Send one test span to the saved endpoint now (on or off), to check the address and headers."""
     ok, error, ms = telemetry.test_export(cfg)
     return TelemetryTestResult(ok=ok, error=error, ms=ms)
+
+
+@router.get("/settings/analytics/status")
+def analytics_status(user: AdminReader, cfg: Cfg, db: Db) -> AnalyticsStatus:
+    """Whether usage statistics go to Google Analytics, which events, and how the last send went. Off by default."""
+    return AnalyticsStatus.model_validate(analytics.status(db, cfg))
+
+
+@router.post("/settings/analytics/test")
+def test_analytics(user: AdminWriter, cfg: Cfg, db: Db) -> AnalyticsTestResult:
+    """Send one lens_test event to Google Analytics' validation server (checked there, not recorded), on or off."""
+    ok, error, messages = analytics.test(db, cfg)
+    return AnalyticsTestResult(ok=ok, error=error, messages=messages)
+
+
+@router.get("/admin/analytics")
+def usage_metrics(user: AdminReader, db: Db, days: int = Query(30, ge=1, le=180)) -> AnalyticsMetrics:
+    """Daily, weekly and monthly active people, churn, retention by sign-up week and feature use over the last `days`
+    days, worked out here from the activity ledger and sign-ins; nothing is sent anywhere."""
+    return AnalyticsMetrics.model_validate(analytics.metrics(db, days))
+
+
+@router.get("/admin/analytics/events")
+def usage_events(user: AdminReader, db: Db, limit: int = Query(200, ge=1, le=1000)) -> list[UsageEvent]:
+    """The events Lens counted each day (install, daily active, feature used, upgrade, inactive...), newest first, and
+    whether each went to Google Analytics. Kept here whether or not Google Analytics is on."""
+    return [UsageEvent.model_validate(r) for r in analytics.recent_events(db, limit)]
 
 
 @router.get("/settings/logs/status")

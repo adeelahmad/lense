@@ -13,8 +13,13 @@ put there by a person, by turning an entity of type TERM into a topic, or (sugge
 (accepted), waits for someone to accept it (suggested) or was turned down (dismissed: analysis won't suggest it again).
 Analysis suggests the vocabulary's topics for recordings whose summary or transcript says one of their labels
 (`suggest`), and lists what summaries talk about that the vocabulary lacks (`candidates`), for people to add or skip. Labels are unique within a namespace, alternative labels too.
-A topic made from an entity hides that entity; deleting the topic shows it again. Callers check roles and write the
-audit log.
+A topic made from an entity hides that entity; deleting the topic shows it again. Merging and deleting topics keep
+what they changed in `topic_change`, so either can be undone (`undo`). Callers check roles and write the audit log.
+
+    topic_change {kind: merge | delete, space, keep, topics: [the rows that went], lists: [{id, before, after}] (the
+                  alt, broader and related lists of the topics left that changed), about: [topic_about rows before],
+                  kept: [the kept topic's topic_about rows after a merge], pages: [their note pages], entity, by, at,
+                  undone, undone_by, undone_at}
 """
 
 from __future__ import annotations
@@ -215,11 +220,12 @@ def update(db, tid, label=None, alt=None, definition=None, broader=None, related
     return tid
 
 
-def delete(db, tid):
+def delete(db, tid, user=None):
     """Delete a topic: its narrower topics move up to its broader ones, recordings stop being about it, and an entity it
-    was made from shows again. Returns that entity's id, if any."""
+    was made from shows again. Returns (that entity's id or None, the change's id to undo it with)."""
     t = _topic(db, tid)
     tid = t["id"]
+    before, about, pages = _lists(db, t["space"]), _abouts(db, [tid]), _pages(db, [tid])
     for n in db.rows("SELECT record::id(id) AS id, broader FROM topic WHERE space = $s AND $t IN broader", s=t["space"], t=tid):
         up = [b for b in n.get("broader") or [] if b != tid]
         up += [b for b in t.get("broader") or [] if b not in up and b != n["id"]]
@@ -229,11 +235,13 @@ def delete(db, tid):
     db.q("DELETE $r", r=R("topic", tid))
     notebook.release(db, f"topic:{tid}")  # its page stays, as a free note
     eid = (t.get("origin") or {}).get("entity")
+    shown = None
     if eid and db.one("SELECT id FROM $r", r=R("entity", int(eid))):
         with graph_history.change(db, "entity.show", entities=[int(eid)], why=f"topic {tid} was deleted"):
             db.q("UPDATE $r SET hidden = false, hidden_reason = NONE", r=R("entity", int(eid)))
-        return int(eid)
-    return None
+        shown = int(eid)
+    cid = _remember(db, "delete", t["space"], [t], before, about, pages, user, entity=shown)
+    return shown, cid
 
 
 def merge(db, keep, others, user=None):
@@ -247,6 +255,7 @@ def merge(db, keep, others, user=None):
     gone = [_topic(db, o) for o in others]
     if any(o["space"] != k["space"] for o in gone):
         raise ValueError("Topics are merged within one namespace.")
+    before, about, pages = _lists(db, k["space"]), _abouts(db, [keep, *others]), _pages(db, others)
     alt = list(k.get("alt") or [])
     broader = list(k.get("broader") or [])
     related = list(k.get("related") or [])
@@ -282,8 +291,163 @@ def merge(db, keep, others, user=None):
         r=R("topic", keep),
         d={"alt": _clean_alt(alt, k["label"])[:ALT_MAX], "broader": broader, "related": related, "updated": store.now(), "by": user},
     )
+    cid = _remember(db, "merge", k["space"], gone, before, about, pages, user, keep=keep, kept=_abouts(db, [keep]))
     suggest(db, k["space"])
-    return keep
+    return cid
+
+
+# ---------- undoing a merge or a delete ----------
+LISTS = ("alt", "broader", "related")
+ABOUT_FIELDS = "recording, topic, space, source, weight, status, at, by"
+
+
+def _lists(db, sid):
+    """The alt, broader and related lists (and key) of every topic in a namespace, by id."""
+    return {
+        t["id"]: {"key": t["key"], **{f: list(t.get(f) or []) for f in LISTS}}
+        for t in db.rows("SELECT record::id(id) AS id, key, alt, broader, related FROM topic WHERE space = $s", s=int(sid))
+    }
+
+
+def _abouts(db, tids):
+    return db.rows(f"SELECT {ABOUT_FIELDS} FROM topic_about WHERE topic IN $t", t=[int(t) for t in tids]) if tids else []
+
+
+def _pages(db, tids):
+    q = "SELECT record::id(id) AS id, about, about_key, parent, position FROM note_page WHERE about IN $a"
+    return db.rows(q, a=[f"topic:{int(t)}" for t in tids]) if tids else []
+
+
+def _remember(db, kind, sid, gone, before, about, pages, user, **extra):
+    """Keep what a merge or delete changed, for `undo`. Returns the change's id."""
+    after = _lists(db, sid)
+    lists = [
+        {"id": i, "before": {f: before[i][f] for f in LISTS}, "after": {f: a[f] for f in LISTS}}
+        for i, a in after.items()
+        if i in before and any(before[i][f] != a[f] for f in LISTS)
+    ]
+    cid = db.next_id("topic_change")
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("topic_change", cid),
+        d=store.clean(
+            {
+                "kind": kind,
+                "space": int(sid),
+                "topics": gone,
+                "lists": lists,
+                "about": about,
+                "pages": pages,
+                "by": user,
+                "at": store.now(),
+                "undone": False,
+                **extra,
+            }
+        ),
+    )
+    return cid
+
+
+def _undiff(now, before, after):
+    """`now` with the change from `before` to `after` taken back; what changed since stays."""
+    added = [x for x in after if x not in before]
+    dropped = [x for x in before if x not in after]
+    out = [x for x in now if x not in added]
+    return out + [x for x in dropped if x not in out]
+
+
+def changes(db, sid, limit=50):
+    """A namespace's latest topic merges and deletes, newest first, to undo."""
+    rows = db.rows(
+        "SELECT record::id(id) AS id, kind, keep, topics, by, at, undone FROM topic_change WHERE space = $s ORDER BY at DESC LIMIT $n",
+        s=int(sid),
+        n=int(limit),
+    )
+    return [
+        store.clean(
+            {
+                "id": r["id"],
+                "kind": r["kind"],
+                "keep": r.get("keep"),
+                "labels": [t["label"] for t in r.get("topics") or []],
+                "by": r.get("by"),
+                "at": r.get("at"),
+                "undone": bool(r.get("undone")),
+            }
+        )
+        for r in rows
+    ]
+
+
+def undo(db, cid, user=None):
+    """Take back a merge or a delete: the topics come back with their ids, labels and recordings, the lists they were
+    taken out of (or a merge put them in) are put back, and their note pages are theirs again. What changed since stays.
+    Refused when another topic has taken one of their labels meanwhile."""
+    c = db.one("SELECT * FROM $r", r=R("topic_change", int(cid)))
+    if not c or c.get("undone"):
+        raise ValueError("Nothing to undo.")
+    sid, keep = c["space"], c.get("keep")
+    gone = c.get("topics") or []
+    gone_ids = {t["id"] for t in gone}
+    now = _lists(db, sid)
+    lists = {
+        x["id"]: {f: _undiff(now[x["id"]][f], x["before"][f], x["after"][f]) for f in LISTS} for x in c.get("lists") or [] if x["id"] in now
+    }
+    for t in gone:  # its labels must still be free, once the merge has given back the ones it took
+        if t["id"] in now:
+            raise ValueError(f"{t['label']} is back already.")
+        mine = {t["key"]} | {key_of(a) for a in t.get("alt") or []}
+        for i, o in now.items():
+            if i in gone_ids:
+                continue
+            theirs = {o["key"]} | {key_of(a) for a in lists.get(i, o)["alt"]}
+            if mine & theirs:
+                raise ValueError(f"Another topic is called {t['label']} now; rename it to bring this one back.")
+    alive = set(now) | gone_ids
+    for t in gone:
+        row = {k: v for k, v in t.items() if k != "id"}
+        row["tkey"] = f"{sid}:{t['key']}"
+        row["broader"] = [b for b in row.get("broader") or [] if b in alive]
+        row["related"] = [r for r in row.get("related") or [] if r in alive]
+        db.q("CREATE $r CONTENT $d", r=R("topic", t["id"]), d=store.clean(row))
+    for i, ls in lists.items():
+        db.q(
+            "UPDATE $r SET alt = $a, broader = $b, related = $rel",
+            r=R("topic", i),
+            a=ls["alt"],
+            b=[b for b in ls["broader"] if b in alive],
+            rel=[r for r in ls["related"] if r in alive],
+        )
+    before = c.get("about") or []
+    rids = {a["recording"] for a in before} | {a["recording"] for a in c.get("kept") or []}
+    there = (
+        set(db.values("SELECT VALUE record::id(id) FROM recording WHERE id IN $r", r=[R("recording", x) for x in rids])) if rids else set()
+    )
+    if keep is not None:  # the kept topic's recordings as they were: the merge's additions go, what it changed returns
+        had = {a["recording"] for a in before if a["topic"] == keep}
+        for a in c.get("kept") or []:
+            if a["recording"] not in had:
+                db.q("DELETE $r", r=_about_id(a["recording"], keep))
+    for a in before:
+        if a["recording"] in there:
+            db.q("UPSERT $r CONTENT $d", r=_about_id(a["recording"], a["topic"]), d=store.clean(dict(a)))
+    for p in c.get("pages") or []:  # their pages, unless someone has filed them elsewhere since
+        db.q(
+            "UPDATE $r SET about = $a, about_key = $k, parent = $p, position = $pos WHERE about = NONE",
+            r=R("note_page", p["id"]),
+            a=p["about"],
+            k=p.get("about_key"),
+            p=p.get("parent"),
+            pos=p.get("position"),
+        )
+    eid = c.get("entity")
+    if eid and db.one("SELECT id FROM $r", r=R("entity", int(eid))):  # the entity it was made from hides again
+        tid = gone[0]["id"]
+        with graph_history.change(db, "entity.hide", entities=[int(eid)], why=f"topic {tid} is back"):
+            db.q("UPDATE $r SET hidden = true, hidden_reason = $why", r=R("entity", int(eid)), why=f"became topic {tid}")
+    db.q("UPDATE $r SET undone = true, undone_by = $u, undone_at = $t", r=R("topic_change", int(cid)), u=user, t=store.now())
+    suggest(db, sid)
+    return {"kind": c["kind"], "topics": sorted(gone_ids), "keep": keep}
 
 
 def _about(db, sid, rid, tid, source, weight, status, user):

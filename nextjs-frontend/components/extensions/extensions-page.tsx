@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Blocks, MessagesSquare, Mic, Plus, Store, Workflow } from "lucide-react";
+import { Blocks, MessagesSquare, Mic, Plus, Server, Store, Workflow } from "lucide-react";
 import Link from "next/link";
 
 import { Extensions } from "@/app/openapi-client";
@@ -15,6 +15,7 @@ import { useToast } from "@/components/ui/toast";
 import { VISIBILITY } from "@/components/workflows/save-custom-dialog";
 import { data, useApiClient } from "@/lib/api/browser";
 import { relative } from "@/lib/format";
+import { useArchive } from "@/lib/hooks/session";
 
 export const KIND_LABEL: Record<string, string> = {
   tool: "Tool",
@@ -53,6 +54,7 @@ export function ExtensionsPage() {
   const qc = useQueryClient();
   const toast = useToast();
   const list = useExtensions();
+  const { admin } = useArchive();
   const toggle = useMutation({
     mutationFn: (v: { id: number; enabled: boolean }) =>
       data(Extensions.updateExtension({ client, path: { eid: v.id }, body: { enabled: v.enabled } })),
@@ -85,6 +87,14 @@ export function ExtensionsPage() {
                 Marketplace
               </Link>
             </Button>
+            {admin && (
+              <Button asChild variant="secondary">
+                <Link href="/extensions/new/mcp">
+                  <Server aria-hidden />
+                  Add MCP server
+                </Link>
+              </Button>
+            )}
             <Button asChild variant="secondary">
               <Link href="/extensions/new/canvas">
                 <Workflow aria-hidden />

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.domain import bridge, settings
+from app.domain import activity, bridge, settings
 from tests import fake_llm, fake_matterbridge
 from tests.api._assist import start_llm
 from tests.api.test_setup_assistant import call
@@ -98,6 +98,10 @@ def test_it_answers_what_is_said_to_it_and_nothing_else(db, cfg, room, llm):
     rows = db.rows("SELECT title, kind, account FROM chat WHERE kind = 'bridge' ORDER BY title")
     assert [r["title"] for r in rows] == ["Matterbridge · general · alice"] * 2 + ["Matterbridge · general · bob"]
     assert {r["kind"] for r in rows} == {"bridge"} and {r["account"] for r in rows} == {rows[0]["account"]}
+    # each question says it was asked in a room; each answer what produced it, its model calls naming it in the ledger
+    q, a = db.rows("SELECT record::id(id) AS id, role, meta FROM chat_message ORDER BY id")[:2]
+    assert q["meta"] == {"via": "room", "options": {}} and (a["meta"]["outcome"], a["meta"]["model"]) == ("answered", "fake")
+    assert activity.totals(db, f"chat_message:{a['id']}")["calls"] >= 1
     room.waiting = [said("Lens, and on Monday?")]
     run(db, cfg)
     assert len(db.rows("SELECT id FROM chat WHERE kind = 'bridge'")) == 3  # alice keeps hers

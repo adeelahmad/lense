@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, History, NotebookPen, Tags, Waypoints } from "lucide-react";
+import { Eye, EyeOff, GitMerge, History, NotebookPen, Tags, Waypoints } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -13,6 +13,13 @@ import { SimilarSection } from "@/components/similar/similar-list";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/dialog";
+import {
+  MaybeSame,
+  MergeInto,
+  useEntityRefresh,
+  useMergeEntities,
+  type EntityPick,
+} from "@/components/entities/curate";
 import { splitAliases } from "@/components/entities/model";
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/states";
@@ -30,27 +37,41 @@ type Mention = {
   text?: string | null;
 };
 
-/** One entity: what it is (name, type, description), where it's said, and hiding it. Editors change it here. */
+/** One entity: what it is (name, type, description), where it's said, merging others into it, and hiding it. Editors
+ * change it here, from the Entities page, the graph or a recording. */
 export function EntityDrawer({
   id,
   ns,
-  types,
+  types: given,
   onClose,
+  onOpen,
 }: {
   id: number;
   ns: string;
-  types: EntityType[];
+  /** The namespace's entity types; looked up when not given. */
+  types?: EntityType[];
   onClose: () => void;
+  /** Show another entity here: the one this was merged into. Closes when not given. */
+  onOpen?: (id: number) => void;
 }) {
   const client = useApiClient();
   const qc = useQueryClient();
   const toast = useToast();
   const { can } = useArchive();
   const canEdit = can("editor", ns);
+  const [merging, setMerging] = useState(false);
   const e = useQuery({
     queryKey: ["entity", id],
     queryFn: () => data(Entities.getEntity({ client, path: { eid: id } })),
   });
+  const typeList = useQuery({
+    queryKey: ["entity-types", ns],
+    queryFn: () => data(Entities.listEntityTypes({ client, query: { ns } })),
+    enabled: !given,
+    staleTime: 60_000,
+  });
+  const types = given ?? typeList.data ?? [];
+  useEffect(() => setMerging(false), [id]);
   const mentions = useQuery({
     queryKey: ["entity-mentions", id],
     queryFn: () => data(Entities.listEntityMentions({ client, path: { eid: id }, query: { limit: 5 } })),
@@ -67,12 +88,38 @@ export function EntityDrawer({
     }
   }, [e.data]);
 
-  const refresh = () => {
-    qc.invalidateQueries({ queryKey: ["entity", id] });
-    qc.invalidateQueries({ queryKey: ["entities"] });
-  };
+  const refresh = useEntityRefresh();
+  const { merge } = useMergeEntities();
   const fail = (title: string) => (err: unknown) =>
     toast({ title, body: err instanceof ApiError ? err.message : "Please try again.", tone: "red" });
+  // Renaming it to a name another entity has means they're the same: offer the merge instead.
+  const clash = async (err: unknown) => {
+    const wanted = name.trim().toLowerCase();
+    let same: EntityPick | undefined;
+    if (err instanceof ApiError && /merge them instead/.test(err.message)) {
+      const found = await data(
+        Entities.listEntities({ client, query: { namespaces: ns, q: name.trim(), limit: 10 } }),
+      ).catch(() => null);
+      same = (found?.items as unknown as EntityPick[] | undefined)?.find(
+        (x) => x.id !== id && x.name.toLowerCase() === wanted,
+      );
+    }
+    if (!same || !e.data) return fail("Couldn’t save the entity")(err);
+    const self = { id, name: e.data.name };
+    toast({
+      title: `${same.name} is already an entity here`,
+      body: `Merge ${self.name} into it to make them one.`,
+      tone: "intent",
+      duration: 10000,
+      action: {
+        label: "Merge",
+        onClick: () =>
+          void merge(same, [self]).then((ok) => {
+            if (ok) (onOpen ?? (() => onClose()))(same.id);
+          }),
+      },
+    });
+  };
 
   const save = useMutation({
     mutationFn: async () => {
@@ -88,7 +135,7 @@ export function EntityDrawer({
       refresh();
       toast({ title: "Saved", tone: "green" });
     },
-    onError: fail("Couldn’t save the entity"),
+    onError: (err) => void clash(err),
   });
   const retype = useMutation({
     mutationFn: (type: string) => data(Entities.retypeEntities({ client, body: { ids: [id], type } })),
@@ -103,7 +150,7 @@ export function EntityDrawer({
   const remove = useMutation({
     mutationFn: () => data(Entities.deleteEntity({ client, path: { eid: id } })),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["entities"] });
+      refresh();
       toast({ title: "Taken off the list", tone: "green" });
       onClose();
     },
@@ -128,7 +175,11 @@ export function EntityDrawer({
     mutationFn: (hidden: boolean) => data(Entities.hideEntity({ client, path: { eid: id }, body: { hidden } })),
     onSuccess: (_, hidden) => {
       refresh();
-      toast({ title: hidden ? "Hidden from lists and the graph" : "Shown again", tone: "green" });
+      toast({
+        title: hidden ? "Hidden from lists and the graph" : "Shown again",
+        tone: "green",
+        action: { label: "Undo", onClick: () => hide.mutate(!hidden) },
+      });
     },
     onError: fail("Couldn’t change it"),
   });
@@ -148,7 +199,7 @@ export function EntityDrawer({
         d && (
           <>
             <Button asChild size="xs" variant="ghost" icon={<NotebookPen />}>
-              <Link href={`/notes/about/entity/${id}`}>Page</Link>
+              <Link href={d.page ?? `/entities/${id}`}>Page</Link>
             </Button>
             <Button asChild size="xs" variant="ghost" icon={<History />}>
               <Link href={`/routines/history?entity=${id}`}>History</Link>
@@ -156,6 +207,17 @@ export function EntityDrawer({
             <Button asChild size="xs" variant="ghost" icon={<Waypoints />}>
               <Link href={`/graph?focus=e${id}`}>Graph</Link>
             </Button>
+            {canEdit && !builtin && (
+              <Button
+                size="xs"
+                variant="ghost"
+                icon={<GitMerge />}
+                aria-pressed={merging}
+                onClick={() => setMerging((m) => !m)}
+              >
+                Merge
+              </Button>
+            )}
           </>
         )
       }
@@ -165,11 +227,17 @@ export function EntityDrawer({
         {e.isError && <Banner tone="error">{e.error.message}</Banner>}
         {d && (
           <>
+            <MergeInto
+              keep={{ id, name: d.name }}
+              ns={ns}
+              open={merging && canEdit && !builtin}
+              onOpenChange={setMerging}
+            />
             <dl className="m-0 grid grid-cols-3 gap-2 text-center">
               {[
                 ["Mentions", count(d.mentions)],
-                ["Recordings", count(d.recordings)],
-                ["Last said", d.last ? shortDate(d.last) : "—"],
+                ["Assets", count(d.recordings)],
+                ["Last mentioned", d.last ? shortDate(d.last) : "—"],
               ].map(([k, v]) => (
                 <div key={k} className="rounded-md border border-border px-2 py-2">
                   <dt className="text-[11.5px] font-semibold text-fg-muted">{k}</dt>
@@ -228,7 +296,7 @@ export function EntityDrawer({
                 )}
               </Field>
               {!builtin && (
-                <Field label="Also said as" optional hint="Other names and spellings, separated by commas.">
+                <Field label="Also known as" optional hint="Other names and spellings, separated by commas.">
                   {(ids) => (
                     <Input
                       id={ids.id}
@@ -295,8 +363,9 @@ export function EntityDrawer({
                 )}
               </div>
             </form>
+            {!builtin && <MaybeSame entity={{ id, name: d.name }} canEdit={canEdit} />}
             <section className="flex flex-col gap-2">
-              <h3 className="m-0 text-[13px] font-bold text-fg-strong">Where it’s said</h3>
+              <h3 className="m-0 text-[13px] font-bold text-fg-strong">Where it’s mentioned</h3>
               {mentions.isLoading && <Skeleton className="h-24 w-full" />}
               {mentions.data && !mentions.data.items.length && (
                 <p className="m-0 text-[13px] text-fg-secondary">No mentions you can read.</p>
@@ -308,7 +377,7 @@ export function EntityDrawer({
                       href={recordingHref(m.recording_id, m.t0 ?? undefined)}
                       className="text-[12px] font-semibold text-fg-secondary hover:text-fg-accent hover:underline"
                     >
-                      {m.title ?? `Recording ${m.recording_id}`}
+                      {m.title ?? `Asset ${m.recording_id}`}
                       {m.time ? ` · ${m.time}` : ""}
                       {m.speaker ? ` · ${m.speaker}` : ""}
                     </Link>

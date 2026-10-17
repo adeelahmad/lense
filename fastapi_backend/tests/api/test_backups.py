@@ -14,7 +14,7 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
-from app.domain import backups, migrations, settings, store
+from app.domain import backups, datafiles, migrations, settings, store
 from tests.helpers import login, make_user
 
 R = store.R
@@ -92,6 +92,117 @@ def test_take_download_and_restore(web):
     settings.save(db, cfg, "backups", {"keep": 3}, "t")
     h = login(client, "admin@example.com", "pw-admin-123")
     assert client.get("/api/v1/admin/backups", headers=h).json()["schedule"]["keep"] == 3
+
+
+def _files(cfg):
+    import pathlib
+
+    data = pathlib.Path(cfg["data_dir"])
+    for rel, body in {
+        "uploads/pods/1/talk.mp3": b"talk",
+        "objects/ab/abcdef": b"blob",
+        "frames/7/page-0001.jpg": b"page",
+        "models/clip/weights.bin": b"fetched again",
+        "tmp/work/x": b"passing",
+        "uploads/.partial/half": b"half",
+    }.items():
+        (data / rel).parent.mkdir(parents=True, exist_ok=True)
+        (data / rel).write_bytes(body)
+    return data
+
+
+def test_backups_keep_and_restore_the_files_too(web):
+    client, db, cfg, h = web
+    data = _files(cfg)
+    _recording(db, "kept")
+    b = client.post("/api/v1/admin/backups", headers=h).json()
+    assert b["files"] is True and b["bytes"] >= 12
+    kept = datafiles.path(cfg["data_dir"], b["name"])
+    got = sorted(str(p.relative_to(kept)) for p in kept.rglob("*") if p.is_file())
+    assert got == ["frames/7/page-0001.jpg", "objects/ab/abcdef", "uploads/pods/1/talk.mp3"]  # not models, tmp, .partial
+    assert not (kept / "secret.key").exists() and not (kept / "surrealdb").exists()
+
+    # a second backup takes no room for what didn't change
+    (data / "frames/7/page-0002.jpg").write_bytes(b"new page")
+    again = backups._take(db, "manual")
+    second = datafiles.path(cfg["data_dir"], again["name"])
+    assert (second / "objects/ab/abcdef").stat().st_ino == (kept / "objects/ab/abcdef").stat().st_ino
+    assert (second / "frames/7/page-0002.jpg").read_bytes() == b"new page"
+
+    link = client.post(f"/api/v1/admin/backups/{b['name']}/link", headers=h).json()["url"]
+    names = tarfile.open(fileobj=io.BytesIO(client.get(link).content), mode="r:gz").getnames()
+    assert f"{b['name']}.files/uploads/pods/1/talk.mp3" in names and b["name"] in names
+
+    # what changed since is put back as it was; what Lens fetches by itself is left alone
+    (data / "uploads/pods/1/talk.mp3").write_bytes(b"changed")
+    (data / "objects/ab/abcdef").unlink()
+    (data / "media").mkdir()
+    (data / "media/after.mp4").write_bytes(b"after")
+    r = client.post(f"/api/v1/admin/backups/{b['name']}/restore", json={"confirm": b["name"]}, headers=h)
+    assert r.status_code == 202, r.text
+    w = _settle()
+    assert w["error"] is None, w["error"]
+    assert (data / "uploads/pods/1/talk.mp3").read_bytes() == b"talk" and (data / "objects/ab/abcdef").read_bytes() == b"blob"
+    assert not (data / "media").exists() and not (data / "frames/7/page-0002.jpg").exists()
+    assert (data / "models/clip/weights.bin").read_bytes() == b"fetched again"
+    assert (kept / "uploads/pods/1/talk.mp3").read_bytes() == b"talk"  # the backup's own copy is untouched
+    before = datafiles.path(cfg["data_dir"], w["before"])  # and what was there is kept
+    assert (before / "media/after.mp4").read_bytes() == b"after"
+
+    h = login(client, "admin@example.com", "pw-admin-123")
+    assert client.delete(f"/api/v1/admin/backups/{b['name']}", headers=h).status_code == 200
+    assert datafiles.path(cfg["data_dir"], b["name"]) is None
+    assert (second / "objects/ab/abcdef").read_bytes() == b"blob"  # a link, so the later backup still has it
+
+
+def test_a_microsandbox_backs_up_only_lenss_own_files(folder, monkeypatch, caplog):
+    """In a microsandbox, data_dir (/data) also holds the Lens it runs (.lens: apt, the venv, the web build, some of it
+    root's), caches and SurrealDB's own folder: none of it is backed up, and a file Lens can't read doesn't stop it."""
+    data = folder / "sandbox-data"
+    for rel, body in {
+        "uploads/pods/1/talk.mp3": b"talk",
+        "surreal/lens.db/000001.vlog": b"database",
+        ".lens/apt/lock": b"",
+        ".lens/venv/bin/python": b"elf",
+        ".pnpm-store/v3/x": b"pkg",
+        ".cache/uv/y": b"cache",
+        ".DS_Store": b"finder",
+        "reports/1/locked.pdf": b"not ours",
+    }.items():
+        (data / rel).parent.mkdir(parents=True, exist_ok=True)
+        (data / rel).write_bytes(body)
+    real = shutil.copy2
+
+    def copy2(src, dst, **kw):
+        if str(src).endswith("locked.pdf"):
+            raise PermissionError(13, "Permission denied", str(src))
+        return real(src, dst, **kw)
+
+    monkeypatch.setattr(datafiles.shutil, "copy2", copy2)
+    kept = datafiles.snapshot(data, "manual-1")
+    got = sorted(str(p.relative_to(kept)) for p in kept.rglob("*") if p.is_file())
+    assert got == ["uploads/pods/1/talk.mp3"]
+    assert "left out 1 file(s) Lens can't read, such as reports/1/locked.pdf" in caplog.text
+
+    # restoring leaves them where they are too
+    (data / "uploads/pods/1/talk.mp3").write_bytes(b"changed")
+    assert datafiles.restore(data, "manual-1")
+    assert (data / "uploads/pods/1/talk.mp3").read_bytes() == b"talk"
+    assert (data / ".lens/venv/bin/python").read_bytes() == b"elf"
+    assert (data / "surreal/lens.db/000001.vlog").read_bytes() == b"database"
+    assert (data / ".DS_Store").exists() and (data / ".pnpm-store/v3/x").exists()
+
+
+def test_a_backup_from_before_files_were_kept_leaves_them(web):
+    client, db, cfg, h = web
+    data = _files(cfg)
+    b = backups._take(db, "manual")
+    datafiles.drop(cfg["data_dir"], b["name"])
+    assert next(x for x in backups.listing(db) if x["name"] == b["name"])["files"] is False
+    (data / "media").mkdir()
+    (data / "media/new.mp4").write_bytes(b"new")
+    backups.restore(db, cfg, b["name"])
+    assert (data / "media/new.mp4").exists() and (data / "uploads/pods/1/talk.mp3").exists()
 
 
 def test_restore_needs_the_name_a_person_and_a_real_backup(web):
@@ -217,6 +328,7 @@ def test_backups_copied_to_a_connection_and_brought_back(web, folder):
     client, db, cfg, h = web
     backups.copying.update(running=None, name=None, error=None, finished_at=None)
     _recording(db, "kept")
+    data = _files(cfg)
     assert client.put("/api/v1/settings/backups", json={"connection": 999}, headers=h).status_code == 400
     (folder / "inbox" / "offsite").mkdir(parents=True)
     disk = client.post("/api/v1/sources", headers=h, json={"name": "disk", "type": "local"}).json()["id"]
@@ -237,10 +349,13 @@ def test_backups_copied_to_a_connection_and_brought_back(web, folder):
     assert client.post(f"/api/v1/admin/backups/{b['name']}/fetch", headers=h).status_code == 202
     assert _copying()["error"] is None, backups.copying["error"]
     assert b["name"] in [x["name"] for x in backups.listing(db)]
+    assert (datafiles.path(cfg["data_dir"], b["name"]) / "uploads/pods/1/talk.mp3").read_bytes() == b"talk"  # its files too
+    (data / "uploads/pods/1/talk.mp3").unlink()
     r = client.post(f"/api/v1/admin/backups/{b['name']}/restore", json={"confirm": b["name"]}, headers=h)
     assert r.status_code == 202, r.text
     assert _settle()["error"] is None, backups.work["error"]
     assert db.values("SELECT VALUE title FROM recording") == ["kept"]
+    assert (data / "uploads/pods/1/talk.mp3").read_bytes() == b"talk"
 
     h = login(client, "admin@example.com", "pw-admin-123")
     assert client.delete(f"/api/v1/admin/backups/{b['name']}/remote", headers=h).status_code == 200

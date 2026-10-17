@@ -234,7 +234,7 @@ export function VaultSection({ ns, isOwner }: { ns: string; isOwner: boolean }) 
           <li>There is no recovery code or password. If every passkey that opens it is lost, its files are gone.</li>
           <li>It stays unlocked for a while after each unlock, and its queued work runs only then.</li>
           <li>
-            Its files are encrypted now, if they aren’t already. Transcripts, search and other details stay in the
+            Its files are encrypted now, if they aren’t already. Their text, search and other details stay in the
             database, which the vault doesn’t cover, and files in folders Lens scans stay as they are.
           </li>
           <li>Your passkey needs the PRF extension: recent phones, computers and security keys have it.</li>

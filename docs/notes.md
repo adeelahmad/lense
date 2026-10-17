@@ -3,12 +3,14 @@
 Every resource, entity and topic in Lens has a page of its own, and next to them sit free notes that people and the
 assistant write. The assistant is the main writer and organiser; people can do everything it can.
 
-Status: **built**: pages (free notes in a tree, a page per recording, entity, topic, collection or speaker), @ and #
+Status: **built**: pages (free notes in a tree, a page per asset, entity, topic, collection or person), @ and #
 links with backlinks (# links topics), the tree in the left navigation, the page view with the BlockSuite editor, the
 model keeping titles and summaries up to date, assistant tools to find, read, write and update notes, and MCP tools to
 find, read and write them ([MCP](mcp.md)), page history with restore, suggested links to what a note names, the
-project or area a note fits under, and images and attachments kept where Settings → Storage says.
-**Planned**: nesting notes under their project or area without a click, pages in the graph.
+project or area a note fits under, images and attachments kept where Settings → Storage says, and every entity's
+own page at a wiki address, `/wiki/<namespace>/<Name>` ([Entity pages](#entity-pages)).
+**Planned**: nesting notes under their project or area without a click, pages in the graph, wiki addresses for topics,
+recordings and the other things that have pages.
 
 ## A page
 
@@ -25,9 +27,31 @@ project or area a note fits under, and images and attachments kept where Setting
 | author | `person` or `assistant` |
 
 A thing's page is made the first time someone writes on it; until then `GET /api/v1/notes/about/{kind}/{id}` returns a
-draft with its name and the pages that already link to it. A page follows its recording to another namespace. When a
+draft with its name and the pages that already link to it. A page follows its asset to another namespace. When a
 thing is deleted, or an entity is merged into another, its page stays as a free note at the top of the tree, so
 nothing written on it is lost.
+
+## Entity pages
+
+Every entity (a person, organisation, product, place, event, work or term) has a page of its own, named by its name
+the way a wiki names pages: spaces become underscores and the rest stays as written, so Ada Lovelace in namespace
+`work` is at `/wiki/work/Ada_Lovelace`. Nothing is stored for the address: it is the name. The page shows what the
+entity is (its type, the other ways it's said and its description), the notes people and the assistant keep on it in
+the BlockSuite editor below, every line that says it with a link to that moment, the assets and the people it comes
+up with most, the entities it's mentioned together with (each a link to its own page), the same entity in other
+namespaces, and similar content. **Edit** opens the panel that changes it, as on the Entities page; renaming it moves
+the page to the new name.
+
+The address is read the way analysis matches names: in any case and spacing (`/wiki/work/ada_lovelace`), and by a name
+the entity had before a rename or the name of one merged into it. Those open the page and switch the address to its
+own. A name with `/` or `?` in it is escaped in the address (`AC/DC` is `/wiki/work/AC%2FDC`). The entity's name on the
+Entities page, in a note's `@` link, in the graph and in the RDF URI `/id/entity/<id>` all lead to its page, and
+`/entities/<id>` (and an entity's page's old address, `/notes/about/entity/<id>`) does too.
+
+`GET /api/v1/entities/{eid}` and the MCP tool `get_entity` give the page's address (`page`, `url`); the assistant's
+`find_entities` gives it too. `GET /api/v1/wiki/{ns}/{address}` says which entity an address names (`id`, `path`, and
+`canonical: false` when the address is another way of writing it). An address only answers for the namespace's members;
+to anyone else it is not there.
 
 ## Links
 
@@ -66,7 +90,8 @@ Images, attachments and other files dropped or pasted into a page are kept where
 WebDAV), encrypted with the namespace's key before they leave the machine. The editor names each by the SHA-256 of its
 bytes, so the same file is kept once per page, and the server checks the name matches the bytes. Anyone who reads the
 page reads its files; editors add them (`PUT /api/v1/notes/{id}/blobs?key=…`, up to `server.max_upload_mb`). Images
-and PDFs show in place; anything a browser could run (HTML, SVG) only downloads. Deleting the page deletes its files.
+and PDFs show in place; anything a browser could run (HTML, SVG) only downloads. A deleted page keeps its files while it
+can be put back; deleting it for good deletes them.
 The assistant sees a page's files (names, types, sizes) when it reads it.
 
 ## Filing (PARA)
@@ -97,10 +122,65 @@ refining it, or someone else always starts a new one. **History** on a page list
 it; pick one to read it, and editors can restore it. Restoring keeps the page as it was too, so it can be undone.
 `GET /api/v1/notes/{id}/history`, `GET .../history/{version}` and `POST .../history/{version}/restore`.
 
+## The tree
+
+Free notes sit in a tree in the left navigation, under the main links. The links and the tree scroll together, so a
+long tree has the whole height. A row opens its note, its arrow shows the notes inside it (the tree remembers which are
+open) and **+** adds a note inside. Each row's **⋯** menu, which always shows on a touch screen, adds a note inside,
+renames the note in place (Enter saves, Escape leaves it as it was), moves it (**Move to…** finds the note to put it in
+by name, Enter picks the first; **Move to the top**), pins it ([below](#pinned-notes)) and deletes it with Undo.
+Dragging a note onto another puts it inside, and onto the Notes heading moves it to the top. The pages of recordings
+and entities aren't in the tree: they open from those things.
+
+`POST /api/v1/notes/{pid}/move` with `{parent}` moves a note (`null` for the top); `PATCH /api/v1/notes/{pid}` with
+`{title}` renames it.
+
+## Today's note
+
+**Today** on the Notes page (or **Today's note** in Jump to, or the address `/notes/today`) opens the note for the
+day in the namespace in view, made the first time it's asked for: titled with the date (like 2026-10-15) and inside a
+**Daily notes** note, made too when there's none. It's the day where you are, and one note a day per namespace that
+everyone there shares; rename or move it like any note. `POST /api/v1/notes/today` with `{ns, date}` (editors) gives
+the same note to agents.
+
+## Pinned notes
+
+**Pin** in a note's ⋯ menu in the tree pins it for you: it shows at the top of the tree, under **Pinned**, and first
+on the Notes page with a pin. Pins are each person's own, so pinning changes nothing for anyone else and needs only
+read access; up to 50 per namespace. **Unpin** (in the menu, or the button on its row under Pinned) takes it off.
+`PUT /api/v1/notes/{pid}/pin` pins and `DELETE` unpins; each page in `GET /api/v1/notes` says whether you pinned it
+(`pinned`).
+
+## Deleting and putting back
+
+**Delete** on a page deletes it at once, with no question first: the notice has **Undo**, which puts it back and opens
+it. The notes inside it move up a level, and links to it show without a name while it's gone. A deleted page waits in
+**Recently deleted**, at the bottom of the Notes page, for 30 days with its files and history: **Put back** returns it
+where it was, with the notes that were inside it (those nobody moved since), and **Delete now** (clicked twice) deletes
+it for good. After 30 days it goes for good on its own, with its files and history. A thing's page comes back as its
+page, or as a free note at the top when the thing is gone or has a new page by now.
+
+`DELETE /api/v1/notes/{pid}` deletes; `GET /api/v1/notes/deleted?ns=` lists recently deleted pages,
+`POST /api/v1/notes/deleted/{pid}/restore` puts one back and `DELETE /api/v1/notes/deleted/{pid}` deletes one for good
+(editors). The assistant never deletes notes.
+
+## Finding notes
+
+The **Notes** page lists the free notes in view, the latest changed first, each with the notes it sits inside
+("In Home lab › Parts"), where it's filed and when it changed. The box at the top finds notes by the words in their
+title, one-line summary or text, the pages of recordings, entities and topics too: those with the words in the title
+come first, each with the words around the match, and Enter opens the first. **Projects**, **Areas**, **Resources** and
+**Archive** show only the notes filed there, with how many each has. **Jump to** (⌘K or Ctrl+K) finds notes the same
+way, beside recordings, pages and settings.
+
+`GET /api/v1/notes/search?q=&ns=&place=&free=` is the same search, in every namespace you can read unless `ns` names one;
+`free=true` leaves out the pages of things. The assistant's and MCP's `find_notes` give the same words around the match
+(`snippet`) and the note each is inside (`inside`).
+
 ## Access
 
 Pages belong to a namespace: anyone with a role there reads them, editors write, move and delete them. The pages of
-recordings also need access to the recording.
+assets also need access to the asset.
 
 ## Editor
 
@@ -112,6 +192,9 @@ text with the Markdown and keeps the drawings. OctoBase is AGPL-3.0, so it would
 co-editing rather than inside Lens.
 
 ## Refine later
+
+Wiki addresses for topics, assets, collections and speakers, and a namespace's wiki index page; two entities whose
+names differ only by `_` and a space share an address (the one with spaces wins).
 
 Pages for people who see only some collections of a namespace; differences between versions; live co-editing through
 OctoBase; pages and their links as nodes and relationships in the graph.

@@ -13,7 +13,7 @@ import math
 import re
 from collections import Counter, defaultdict, deque
 
-from . import analyze, entity_setup, graph_history, notebook, render, store
+from . import analyze, entity_setup, graph_history, notebook, render, store, wiki
 
 R = store.R
 TYPES = {
@@ -239,6 +239,7 @@ def detail(db, eid, spaces):
         "defined": bool(e.get("defined")),
         "builtin": e.get("builtin"),
         "collection": e.get("collection"),
+        "page": wiki.path(names.get(e["space"]) or "", e["name"]),
     }
 
 
@@ -437,7 +438,7 @@ def _label_nodes(db, ids, ents):
             e = ents[int(i[1:])]
             out[i] = {"id": i, "kind": "entity", "label": e["name"], "type": e["type"], "namespace": names.get(e["space"])}
         else:
-            out[i] = {"id": i, "kind": "speaker", "label": spk.get(int(i[1:]), "Speaker")}
+            out[i] = {"id": i, "kind": "speaker", "label": spk.get(int(i[1:]), "Person")}
     return out
 
 
@@ -606,6 +607,9 @@ def _pairs(ents):
 
 
 def suggestions(db, spaces, eid=None, limit=50):
+    if eid:  # one entity's: only its namespace can hold its doubles
+        own = db.one("SELECT space FROM $r", r=R("entity", int(eid)))
+        spaces = {own["space"]} & set(spaces) if own else set()
     ents = (
         [
             e

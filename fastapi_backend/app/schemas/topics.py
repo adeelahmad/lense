@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from app.schemas.common import RequestModel, ResponseModel
+from app.schemas.common import Ok, RequestModel, ResponseModel
 
 
 class TopicRef(ResponseModel):
@@ -30,7 +30,7 @@ class TopicItem(ResponseModel):
     definition: str | None = None
     broader: list[int] = []
     related: list[int] = []
-    recordings: int = Field(0, description="recordings about it (accepted)")
+    recordings: int = Field(0, description="assets about it (accepted)")
     narrower: int = Field(0, description="topics that have it as broader")
     from_entity: int | None = Field(None, description="the entity it was made from, hidden while the topic exists")
     updated: str | None = None
@@ -77,6 +77,24 @@ class TopicMerge(RequestModel):
     others: list[int] = Field(min_length=1)
 
 
+class TopicMerged(TopicDetail):
+    undo: int = Field(description="the change to take back with POST /topics/changes/{undo}/undo")
+
+
+class TopicDeleted(Ok):
+    undo: int = Field(description="the change to take back with POST /topics/changes/{undo}/undo")
+
+
+class TopicChange(ResponseModel):
+    id: int
+    kind: str = Field(description="merge or delete")
+    keep: int | None = Field(None, description="the topic a merge kept")
+    labels: list[str] = Field([], description="the topics that went")
+    by: str | None = None
+    at: str | None = None
+    undone: bool = False
+
+
 class TopicRecordings(RequestModel):
     recordings: list[int] = Field(min_length=1, max_length=500)
     remove: bool = Field(False, description="say they aren't about it")
@@ -91,8 +109,8 @@ class RecordingTopic(ResponseModel):
 
 
 class TopicCandidate(ResponseModel):
-    label: str = Field(description="what summaries say recordings are about, which no topic covers yet")
-    recordings: int = Field(description="how many recordings' summaries say it")
+    label: str = Field(description="what summaries say assets are about, which no topic covers yet")
+    recordings: int = Field(description="how many assets' summaries say it")
 
 
 class TopicSkip(RequestModel):

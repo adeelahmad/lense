@@ -112,7 +112,7 @@ describe("custom field values", () => {
       sameState(viewState({ ...back, filters: { ...back.filters, field: { id: 7, value: "Panel" } } }), saved),
     ).toBe(false);
     expect(describeView(saved, undefined, undefined, (id) => (id === 7 ? "Format" : null))).toBe(
-      "All recordings · Format: Lecture",
+      "All assets · Format: Lecture",
     );
     expect(viewState({ ...state, filters: { ...NO_FILTERS } })).toMatchObject({ field: null, value: null });
   });

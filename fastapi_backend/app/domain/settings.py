@@ -35,6 +35,8 @@ EDITABLE = {
     "workers": None,
     "iiif": None,
     "ai": None,
+    "sandbox": None,
+    "web": None,
     "decisions": None,
     "components": None,
     "voice": None,
@@ -50,10 +52,13 @@ EDITABLE = {
     "matterbridge": None,
     "notifications": None,
     "telemetry": None,
+    "analytics": None,
     "logs": None,
     # repo is a startup setting only (what gets installed isn't chosen in the web app)
     "updates": ("check", "check_hours", "auto_install", "email"),
     "activity": None,
+    "events": None,
+    "automations": None,
     "backups": None,
     "encryption": None,
     "fedora": None,
@@ -138,11 +143,13 @@ SECRETS = {
     "mailbox": ("password",),
     "matterbridge": ("slack_token", "discord_token", "telegram_token", "matrix_password"),
     "telemetry": ("headers", "prometheus_token"),
+    "analytics": ("api_secret",),
     "fedora": ("password",),
     "tunnel": ("token", "api_token"),
     "https": ("dns_credentials", "eab_hmac_key"),
     "documents": ("anytopdf_token",),
     "components": ("hf_token",),
+    "web": ("api_key",),
 }
 ENUMS = {
     ("transcribe", "engine"): {"sensevoice", "whisper", "mlx-whisper", "openai", "elevenlabs", "assemblyai", "deepgram"},
@@ -172,6 +179,7 @@ ENUMS = {
     ("mailbox", "check"): {"authenticated", "off"},
     ("mailbox", "imports"): {"auto", "ask"},
     ("ai", "injection_check"): {"patterns", "classifier", "model", "off"},
+    ("web", "search"): {"off", "duckduckgo", "searxng", "brave", "tavily"},
     ("slack", "answer"): {"mention", "all"},
     ("slack", "approve"): {"off", "low_risk"},
     ("tunnel", "mode"): {"off", "quick", "token", "managed"},
@@ -181,6 +189,7 @@ ENUMS = {
     ("https", "min_tls"): {"1.2", "1.3"},
     ("files", "store"): {"local", "connection"},
     ("documents", "converter"): {"auto", "anytopdf", "lens"},
+    ("analytics", "region"): {"global", "eu"},
     ("logs", "level"): set(logs.LEVELS),
     ("logs", "syslog_level"): set(logs.LEVELS),
     ("logs", "format"): {"text", "json"},
@@ -215,6 +224,9 @@ ENV_OVERRIDES = {
     ("logs", "format"): "LENS_LOG_FORMAT",
     ("telemetry", "prometheus"): "LENS_PROMETHEUS",
     ("telemetry", "prometheus_token"): "LENS_PROMETHEUS_TOKEN",
+    ("analytics", "enabled"): "LENS_ANALYTICS",
+    ("analytics", "measurement_id"): "LENS_GA_MEASUREMENT_ID",
+    ("analytics", "api_secret"): "LENS_GA_API_SECRET",
     ("telemetry", "grafana_url"): "LENS_GRAFANA_URL",
     ("fedora", "enabled"): "LENS_FEDORA",
     ("fedora", "url"): "LENS_FEDORA_URL",
@@ -462,12 +474,18 @@ def _check(section, key, value, default):
         return _notify_setting(key, value)
     if section == "telemetry":
         return _telemetry_setting(key, value)
+    if section == "analytics" and key != "region":
+        return _analytics_setting(key, value)
     if section == "logs":
         return _logs_setting(key, value)
     if section == "updates":
         return _updates_setting(key, value)
     if section == "activity":
         return _activity_setting(key, value)
+    if section == "events":
+        return _events_setting(key, value)
+    if section == "automations":
+        return _automations_setting(key, value)
     if section == "backups":
         return _backup_setting(key, value)
     if section == "fedora":
@@ -480,6 +498,10 @@ def _check(section, key, value, default):
         return _nfs_setting(key, value)
     if section == "smb":
         return _smb_setting(key, value)
+    if section == "sandbox":
+        return _sandbox_setting(key, value)
+    if section == "web" and key != "search":
+        return _web_setting(key, value)
     if section == "components":
         return _component_setting(key, value)
     if section == "nsfw":
@@ -1006,6 +1028,55 @@ def _activity_setting(key, value):
     raise ValueError(f"unknown setting activity.{key}")
 
 
+CATCH_UP_MAX = 7 * 86400
+
+
+def _automations_setting(key, value):
+    """How automations run (docs/automations.md, Limits); catch_up is a duration like 1h, from 0s (a timer missed
+    while Lens was off is missed) to 7d (docs/automations.md, Time); approval_days, how long an automation's action
+    waits for the person's pick, 1 to 365 days (docs/automations.md, Approvals)."""
+    if key == "approval_days":
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 365):
+            raise ValueError("automations.approval_days is a whole number of days from 1 to 365")
+        return value
+    if key == "catch_up":
+        from . import automation_spec
+
+        try:
+            n = automation_spec.check_duration(value, what="automations.catch_up")
+        except ValueError:
+            n = -1
+        if not 0 <= n <= CATCH_UP_MAX:
+            raise ValueError("automations.catch_up is a duration from 0s to 7d, like 1h")
+        return value.strip()
+    if key == "enabled":
+        if not isinstance(value, bool):
+            raise ValueError("automations.enabled is true or false")
+        return value
+    limits = {
+        "max_depth": (1, 10, "a whole number of automations"),
+        "max_runs_per_minute": (1, 6000, "a whole number of runs"),
+        "keep_runs_days": (1, 3650, "a whole number of days"),
+    }
+    if key not in limits:
+        raise ValueError(f"unknown setting automations.{key}")
+    lo, hi, what = limits[key]
+    if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+        raise ValueError(f"automations.{key} is {what} from {lo} to {hi}")
+    return value
+
+
+def _events_setting(key, value):
+    """The stream of activities automations follow (docs/automations.md)."""
+    limits = {"keep_days": (1, 3650, "a whole number of days"), "poll_seconds": (1, 3600, "a whole number of seconds")}
+    if key not in limits:
+        raise ValueError(f"unknown setting events.{key}")
+    lo, hi, what = limits[key]
+    if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+        raise ValueError(f"events.{key} is {what} from {lo} to {hi}")
+    return value
+
+
 def _backup_setting(key, value):
     from . import schedule
 
@@ -1243,6 +1314,80 @@ def _smb_setting(key, value):
     return list(dict.fromkeys(out))
 
 
+SANDBOX_CPU = re.compile(r"^(\d+(\.\d+)?|\d+m)$")
+SANDBOX_MEMORY = re.compile(r"^(\d+)(Ki|Mi|Gi|K|M|G)?$")
+SANDBOX_GATEWAY = re.compile(r"^(\[[0-9A-Fa-f:]+\]|[A-Za-z0-9][A-Za-z0-9.-]{0,252}):\d{1,5}$")
+SANDBOX_IMAGE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/:@+-]{0,254}$")
+SANDBOX_RANGES = {"seconds": (1, 600), "idle_minutes": (1, 1440), "keep_hours": (1, 720)}
+_BYTES = {"": 1, "K": 1000, "M": 1000**2, "G": 1000**3, "Ki": 1024, "Mi": 1024**2, "Gi": 1024**3}
+
+
+def _sandbox_setting(key, value):
+    """The code sandbox (sandbox.py): cpu like 1, 0.5 or 500m (up to 64 cores); memory like 512Mi or 2Gi (64Mi to
+    64Gi); the gateway as host:port; the image as an OCI image reference."""
+    from . import sandbox
+
+    if key == "enabled":
+        if not isinstance(value, bool):
+            raise ValueError("sandbox.enabled is true or false")
+        return value
+    if key == "network":
+        if value not in sandbox.NETWORKS:
+            raise ValueError("sandbox.network is off, packages (PyPI and npm only) or web (public addresses)")
+        return value
+    if key == "who":
+        if value not in sandbox.WHO:
+            raise ValueError("sandbox.who is editors (people who can edit a namespace, and admins) or admins")
+        return value
+    if key in SANDBOX_RANGES:
+        lo, hi = SANDBOX_RANGES[key]
+        if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+            raise ValueError(f"sandbox.{key} is a whole number from {lo} to {hi}")
+        return value
+    text = str(value).strip() if isinstance(value, (str, int, float)) and not isinstance(value, bool) else ""
+    if key == "cpu":
+        cores = (int(text[:-1]) / 1000 if text.endswith("m") else float(text)) if SANDBOX_CPU.match(text) else 0
+        if not 0.1 <= cores <= 64:
+            raise ValueError("sandbox.cpu is how many cores a sandbox may use, like 1, 0.5 or 500m (0.1 to 64)")
+        return text
+    if key == "memory":
+        m = SANDBOX_MEMORY.match(text)
+        size = int(m.group(1)) * _BYTES[m.group(2) or ""] if m else 0
+        if not 64 * 2**20 <= size <= 64 * 2**30:
+            raise ValueError("sandbox.memory is how much memory a sandbox may use, like 512Mi or 2Gi (64Mi to 64Gi)")
+        return text
+    if key == "gateway":
+        if not SANDBOX_GATEWAY.match(text) or not 0 < int(text.rsplit(":", 1)[1]) < 65536:
+            raise ValueError("sandbox.gateway is the OpenShell gateway's host:port, like openshell-gateway:8080")
+        return text
+    if key == "image":
+        if not SANDBOX_IMAGE.match(text):
+            raise ValueError("sandbox.image is a container image with python3 and bash, like python:3.12-slim")
+        return text
+    raise ValueError(f"unknown setting sandbox.{key}")
+
+
+WEB_RANGES = {"results": (1, 20), "read_chars": (1000, 200_000)}
+
+
+def _web_setting(key, value):
+    if key == "render":
+        if not isinstance(value, bool):
+            raise ValueError("web.render is true or false")
+        return value
+    if key == "searxng_url":
+        if value in (None, ""):
+            return None
+        u = urllib.parse.urlsplit(value.strip()) if isinstance(value, str) else None
+        if not (u and VIEWER_URL.match(value.strip()) and u.hostname and u.username is None and u.password is None):
+            raise ValueError("web.searxng_url is a SearXNG instance's http(s) address with no password in it, such as http://searxng:8080")
+        return value.strip().rstrip("/")
+    lo, hi = WEB_RANGES[key]
+    if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+        raise ValueError(f"web.{key} is a whole number from {lo} to {hi}")
+    return value
+
+
 def _share_setting(key, value):
     if key in ("enabled", "s3", "webdav"):
         if not isinstance(value, bool):
@@ -1315,6 +1460,31 @@ def _telemetry_setting(key, value):
     if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
         raise ValueError(f"telemetry.{key} is a whole number from {lo} to {hi}")
     return value
+
+
+def _analytics_setting(key, value):
+    from . import analytics
+
+    if key == "enabled":
+        if not isinstance(value, bool):
+            raise ValueError("analytics.enabled is true or false")
+        return value
+    if key == "measurement_id":
+        if value in (None, ""):
+            return None
+        v = value.strip().upper() if isinstance(value, str) else ""
+        if not analytics.MEASUREMENT_RX.match(v):
+            raise ValueError("analytics.measurement_id is a GA4 measurement id, like G-ABC123XYZ")
+        return v
+    if key == "events":
+        if not (isinstance(value, list) and all(isinstance(x, str) for x in value)) or set(value) - set(analytics.EVENTS):
+            raise ValueError(f"analytics.events is a list of: {', '.join(analytics.EVENTS)}")
+        return [e for e in analytics.EVENTS if e in value]
+    if key == "inactive_days":
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 365):
+            raise ValueError("analytics.inactive_days is a whole number of days from 1 to 365")
+        return value
+    raise ValueError(f"unknown setting analytics.{key}")
 
 
 def _origin(url):

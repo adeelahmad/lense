@@ -35,14 +35,21 @@ const ICON: Record<string, LucideIcon> = {
   speaker_stats: AudioLines,
   run_template: Play,
   propose_entity_change: PencilLine,
+  propose_topic_change: PencilLine,
 };
 
 type Kind = "done" | "failed" | "waiting";
 
 function kindOf(step: ToolStep): Kind {
   if (/^asked for approval/i.test(step.summary)) return "waiting";
-  if (step.summary.startsWith(`${step.tool}:`) || /^unknown tool/i.test(step.summary)) return "failed";
+  // answers record whether a step failed; older ones are read from the summary
+  if (step.failed || step.summary.startsWith(`${step.tool}:`) || /^unknown tool/i.test(step.summary)) return "failed";
   return "done";
+}
+
+/** How long a step took: "120 ms", "1.4 s". */
+export function took(ms: number): string {
+  return ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)} s`;
 }
 
 const GLYPH: Record<Kind, { g: string; bg: string; label: string }> = {
@@ -82,6 +89,7 @@ function StepRow({ step, index }: { step: ToolStep; index: number }) {
         <span className="sr-only">{g.label}: </span>
         <Icon aria-hidden className="size-3.5 shrink-0 text-fg-secondary" />
         <span className="min-w-0 flex-1">{title}</span>
+        {step.ms != null && <span className="shrink-0 text-[11.5px] tabular-nums text-fg-muted">{took(step.ms)}</span>}
         {open ? (
           <ChevronDown aria-hidden className="size-3.5 text-fg-muted" />
         ) : (
@@ -113,7 +121,7 @@ export function ToolSteps({ steps, working, className }: { steps: ToolStep[]; wo
         s.tool === "search_transcripts"
           ? "searched"
           : s.tool === "read_transcript"
-            ? "read transcripts"
+            ? "read assets"
             : s.tool.replace(/_/g, " "),
       ),
     ),

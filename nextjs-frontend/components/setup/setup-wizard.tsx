@@ -53,6 +53,12 @@ const LLM_ENV: Record<string, string> = {
   api_key: "LENS_LLM_API_KEY",
 };
 const TELEMETRY_ENV: Record<string, string> = { enabled: "LENS_TELEMETRY", endpoint: "LENS_TELEMETRY_ENDPOINT" };
+const ANALYTICS_ENV: Record<string, string> = {
+  enabled: "LENS_ANALYTICS",
+  measurement_id: "LENS_GA_MEASUREMENT_ID",
+  api_secret: "LENS_GA_API_SECRET",
+};
+const GA_ID_RX = /^G-[A-Z0-9]{4,20}$/i;
 const NS = /^[a-z0-9][a-z0-9_-]{0,40}$/;
 const URL_RX = /^https?:\/\/[^\s]+$/;
 /** The budget scale: the hard limit in USD (0: no limit). The soft limit is 80% of it unless set under More. */
@@ -353,7 +359,7 @@ function NamespaceStep({ view, onNext }: { view: SetupView; onNext: (saved: bool
     return (
       <>
         <StepHead title="Namespaces">
-          Namespaces keep recordings, speakers and people&apos;s access apart.{" "}
+          Namespaces keep assets, people and members&apos; access apart.{" "}
           {ns.locked ? (
             <>
               This server&apos;s are set in archive.yaml or <code className="font-mono">LENS_NAMESPACE</code>, so there
@@ -1115,7 +1121,18 @@ function TelemetryStep({
   const [endpoint, setEndpoint] = useState(t.endpoint ?? "");
   const [tested, setTested] = useState<TelemetryTestResult | null>(null);
   useEffect(() => setTested(null), [endpoint]);
-  const body = () => ({ enabled: on === "on", endpoint: endpoint.trim() || null });
+  const ga = t.analytics;
+  const gaLocked = new Set(ga.locked);
+  const [share, setShare] = useState(ga.enabled ? "on" : "off");
+  const [gaId, setGaId] = useState(ga.measurement_id ?? "");
+  const [gaSecret, setGaSecret] = useState("");
+  const body = () => ({
+    enabled: on === "on",
+    endpoint: endpoint.trim() || null,
+    analytics: share === "on",
+    measurement_id: gaId.trim() || null,
+    api_secret: gaSecret.trim() || null,
+  });
   const save = useMutation({ mutationFn: () => data(Setup.saveTelemetry({ client, body: body() })) });
   const test = useMutation({
     mutationFn: async () => {
@@ -1128,6 +1145,12 @@ function TelemetryStep({
   const wantsEndpoint = on === "on" && !locked.has("endpoint");
   const badEndpoint = Boolean(endpoint.trim()) && !URL_RX.test(endpoint.trim());
   const missing = wantsEndpoint && !endpoint.trim();
+  const badGaId = Boolean(gaId.trim()) && !GA_ID_RX.test(gaId.trim());
+  const gaMissing =
+    share === "on" &&
+    !gaLocked.has("enabled") &&
+    ((!gaId.trim() && !gaLocked.has("measurement_id")) ||
+      (!gaSecret.trim() && !ga.secret_set && !gaLocked.has("api_secret")));
 
   return (
     <>
@@ -1188,8 +1211,87 @@ function TelemetryStep({
             )}
           </Field>
           <p className="-mt-2 text-[12px] text-fg-muted">
-            Sent: route templates, job steps, record ids, model names, token counts, durations and costs. Never
-            transcripts, prompts, file names, titles or people.
+            Sent: route templates, job steps, record ids, model names, token counts, durations and costs. Never asset
+            text, prompts, file names, titles or people.
+          </p>
+        </>
+      )}
+      <Field
+        label="Share usage statistics with Google Analytics"
+        hint={
+          gaLocked.has("enabled") ? (
+            <LockedHint env={ANALYTICS_ENV.enabled} />
+          ) : (
+            "Counted events for this install in your own GA4 property: active people, features used, upgrades. Off by default; Settings → Usage analytics."
+          )
+        }
+      >
+        {() => (
+          <SegmentedChoice
+            label="Share usage statistics with Google Analytics"
+            value={share}
+            onChange={gaLocked.has("enabled") ? () => undefined : setShare}
+            options={[
+              { value: "off", label: "Off" },
+              { value: "on", label: "On" },
+            ]}
+            className="w-full max-w-[220px]"
+          />
+        )}
+      </Field>
+      {share === "on" && (
+        <>
+          <Field
+            label="Measurement id"
+            hint={
+              gaLocked.has("measurement_id") ? <LockedHint env={ANALYTICS_ENV.measurement_id} /> : "Like G-ABC123XYZ"
+            }
+            error={badGaId ? "A GA4 measurement id starts with G-" : undefined}
+          >
+            {({ id, describedBy, invalid }) => (
+              <Input
+                id={id}
+                aria-describedby={describedBy}
+                invalid={invalid}
+                mono
+                placeholder="G-ABC123XYZ"
+                value={gaId}
+                onChange={(e) => setGaId(e.target.value)}
+                disabled={gaLocked.has("measurement_id")}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            )}
+          </Field>
+          <Field
+            label="Measurement Protocol API secret"
+            hint={
+              gaLocked.has("api_secret") ? (
+                <LockedHint env={ANALYTICS_ENV.api_secret} />
+              ) : ga.secret_set ? (
+                "Saved; leave empty to keep it"
+              ) : (
+                "In GA: Admin → Data streams → your stream → Measurement Protocol API secrets"
+              )
+            }
+          >
+            {({ id, describedBy, invalid }) => (
+              <Input
+                id={id}
+                aria-describedby={describedBy}
+                invalid={invalid}
+                type="password"
+                value={gaSecret}
+                onChange={(e) => setGaSecret(e.target.value)}
+                disabled={gaLocked.has("api_secret")}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            )}
+          </Field>
+          <p className="-mt-2 text-[12px] text-fg-muted">
+            Sent once a day: a random id for this install, the version and counts. Never names, emails, titles, files or
+            text.
           </p>
         </>
       )}
@@ -1218,10 +1320,8 @@ function TelemetryStep({
           </Button>
           <Button
             variant="primary"
-            onClick={() =>
-              locked.has("enabled") ? onNext(true) : save.mutate(undefined, { onSuccess: () => onNext(true) })
-            }
-            disabled={save.isPending || pending || badEndpoint || missing}
+            onClick={() => save.mutate(undefined, { onSuccess: () => onNext(true) })}
+            disabled={save.isPending || pending || badEndpoint || missing || badGaId || gaMissing}
           >
             {save.isPending || pending ? "Saving…" : "Save and continue"}
           </Button>

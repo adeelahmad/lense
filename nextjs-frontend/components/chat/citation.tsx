@@ -4,7 +4,7 @@ import * as T from "@radix-ui/react-tooltip";
 import Link from "next/link";
 
 import type { Passage } from "@/app/openapi-client/types.gen";
-import { citeLabel, passageHref, passageTime, quoteOf, shortTitle } from "@/components/chat/cite";
+import { citeLabel, isWeb, passageHref, passageTime, quoteOf, shortTitle, siteOf } from "@/components/chat/cite";
 import { speakerColor } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -20,9 +20,74 @@ export function isNarrow(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
 }
 
+/** A web page's chip, "example.com · Harbour news": hover shows what was read; click opens the page in a new tab. */
+function WebChip({
+  passage,
+  n,
+  active,
+  onHover,
+  onPreview,
+  compact,
+  chip,
+}: {
+  passage: Passage;
+  n: number;
+  active?: boolean;
+  onHover?: (n: number | null) => void;
+  onPreview?: (p: Passage) => void;
+  compact?: boolean;
+  chip: string;
+}) {
+  return (
+    <T.Root delayDuration={120}>
+      <T.Trigger asChild>
+        <a
+          href={passageHref(passage)}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => {
+            if (onPreview && isNarrow() && !e.metaKey && !e.ctrlKey) {
+              e.preventDefault();
+              onPreview(passage);
+            }
+          }}
+          onMouseEnter={() => onHover?.(n)}
+          onMouseLeave={() => onHover?.(null)}
+          onFocus={() => onHover?.(n)}
+          onBlur={() => onHover?.(null)}
+          aria-label={`Source ${n}: ${citeLabel(passage)}, a web page. Opens it in a new tab.`}
+          className={cn(
+            chip,
+            "bg-surface-neutral text-fg-strong hover:border-blue",
+            active ? "border-blue" : "border-border",
+          )}
+        >
+          <span className="truncate">{compact ? siteOf(passage) : citeLabel(passage)}</span>
+        </a>
+      </T.Trigger>
+      <T.Portal>
+        <T.Content
+          side="bottom"
+          align="start"
+          sideOffset={6}
+          collisionPadding={16}
+          className="z-200 flex w-[380px] max-w-[calc(100vw-32px)] flex-col gap-1.5 rounded-md border border-border bg-background px-3.5 py-3 shadow-3 animate-fade-in"
+        >
+          <span className="text-[12px] font-semibold text-fg-secondary">
+            {[siteOf(passage), shortTitle(passage.title, 48)].filter(Boolean).join(" · ")}
+          </span>
+          <span className="font-serif text-[15px] leading-normal text-fg">“{passage.text}”</span>
+          <span className="text-[12px] font-medium text-fg-muted">From the web · opens the page in a new tab</span>
+        </T.Content>
+      </T.Portal>
+    </T.Root>
+  );
+}
+
 /**
  * A citation chip, "Ep. 12 · 14:29 · Host B". Hover or focus shows the quoted segment; click opens the recording at
- * that moment (⌘-click for a new tab). On a phone, a tap previews it in a sheet instead.
+ * that moment (⌘-click for a new tab). On a phone, a tap previews it in a sheet instead. A web page's chip shows its
+ * site and opens the page in a new tab.
  */
 export function CitationChip({
   passage,
@@ -50,6 +115,18 @@ export function CitationChip({
         [{n}]
       </span>
     );
+  if (isWeb(passage))
+    return (
+      <WebChip
+        passage={passage}
+        n={n}
+        active={active}
+        onHover={onHover}
+        onPreview={onPreview}
+        compact={compact}
+        chip={chip}
+      />
+    );
   const quote = quoteOf(passage);
   const color = nameTone(quote.speaker ?? passage.speaker);
   return (
@@ -67,7 +144,7 @@ export function CitationChip({
           onMouseLeave={() => onHover?.(null)}
           onFocus={() => onHover?.(n)}
           onBlur={() => onHover?.(null)}
-          aria-label={`Source ${n}: ${citeLabel(passage)}. Opens the recording there.`}
+          aria-label={`Source ${n}: ${citeLabel(passage)}. Opens the asset there.`}
           className={cn(
             chip,
             "bg-blue-surface text-fg-accent hover:border-blue",

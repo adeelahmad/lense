@@ -116,7 +116,7 @@ def test_a_running_job_holds_it_back(client, env, db):
     db.q("UPDATE $j SET status = 'queued', next_step = 'report', step_index = 0", j=R("job", jid))
     job = jobs.claim(db, "w", {"report"})
     assert job and jobs.run_job(db, lambda: None, job, "w", {"report"}) == "cancelled"
-    assert "the recording was deleted" in " ".join(jobs.get(db, jid)["log"])
+    assert "the asset was deleted" in " ".join(jobs.get(db, jid)["log"])
 
 
 def test_speakers_only_it_had_go_unless_named(client, env, db):

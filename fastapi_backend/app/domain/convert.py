@@ -841,6 +841,19 @@ def _fetch_for(cfg, ext, say):
         fetch_program(cfg, "chromium", say)
 
 
+def email_info(e):
+    """What a resource keeps of an email it was read from (read_eml's shape): its subject, who sent it to whom, when,
+    how many files were attached, and the start of its text (for the timeline and automations)."""
+    from .ingest import _html_text
+
+    info = {k: e[k] for k in ("subject", "from", "to", "cc", "date") if e.get(k)}
+    info["attachments"] = sum(1 for a in e.get("parts") or [] if a.get("attached"))
+    body = e.get("text") if e.get("text") is not None else _html_text(e.get("html"))
+    if body and body.strip():
+        info["snippet"] = " ".join(body.split())[:300]
+    return info
+
+
 def to_pdf(cfg, src, out, say=None):
     """Make `out`, the PDF of the document at `src`. Returns what was learnt on the way: {by, title?, email?,
     attachments?}. Unavailable when the server can't; ValueError when the file can't be read. A program installed
@@ -856,8 +869,7 @@ def to_pdf(cfg, src, out, say=None):
     if ext in (".eml", ".msg"):
         e = read_msg(path) if ext == ".msg" else read_eml(path)
         page, attachments = email_page(e)
-        info = {k: e[k] for k in ("subject", "from", "to", "cc", "date") if e.get(k)}
-        return {"by": page_pdf(cfg, page, out, via), "title": e["subject"] or None, "email": info, "attachments": attachments}
+        return {"by": page_pdf(cfg, page, out, via), "title": e["subject"] or None, "email": email_info(e), "attachments": attachments}
     if ext in store.ARCHIVE_EXT:
         from . import archives
 

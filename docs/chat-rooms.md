@@ -114,12 +114,15 @@ That's all. Without an account given, it answers as the admin who turned it on.
   proposes (running work, changing settings) wait for approval in the web app, as in Chat; its answer says so and
   links to the conversation, through the Cloudflare tunnel while one is up (Settings › Remote access), so the link
   opens away from home too.
-- **Approving in the room.** Reversible changes (merging, renaming or retyping entities, new namespaces) can be
+- **Approving in the room.** Reversible changes (merging, renaming or retyping entities, changing topics, new namespaces) can be
   approved right there: the answer says "Reply “yes” to do it", and "yes" (or "no") does it (or declines it). With
-  several waiting, "yes all" or "yes 12". Only the chat usernames listed may talk to Lens and approve, so it needs
+  several waiting, "yes all" or "yes 12". Only the chat usernames listed may message Lens and approve, so it needs
   that list; **Approving in the room: only in the web app** turns it off. Settings, imports, batch runs, extensions
   and forgetting are always approved in the web app. Each approval is in the audit log with "via chat room" and who
-  said yes. Without a list, anyone in the room may be someone the account doesn't vouch for, so their messages count
+  said yes. An [automation's action](automations.md#approvals) that changes something inside Lens is approved the same
+  way, in the private chat it told you about it in, when it's the only thing waiting there (or by its number); one
+  that reaches outside Lens or other people is approved on its card in Lens, and "no" declines either.
+  Without a list, anyone in the room may be someone the account doesn't vouch for, so their messages count
   as text from outside Lens: web tools and other servers' tools wait for approval in the web app too
   ([third-party content](assistant.md#third-party-content-and-prompt-injection)).
 - **Links it can't be made to send.** Slack, Telegram, WhatsApp and most chat apps open the links in a message to
@@ -134,6 +137,10 @@ That's all. Without an account given, it answers as the admin who turned it on.
   "Matterbridge · room · person", listed in Chat with the account's other conversations. Follow-ups keep their context,
   and older messages are folded into a running summary ([Long conversations](assistant.md)). `Lens /clear` starts
   the conversation afresh and `Lens /compact` summarises it now.
+- **Automations hear what's said to Lens.** Each message said to Lens (and only those: the room's other talk is never
+  kept) is a `chat.message` activity an automation can trigger on, "when someone messages Lens 'groceries' in
+  Telegram" ([Automations](automations.md#chat-as-activities)). A room given to a namespace belongs to it; any other
+  conversation is the answering account's alone.
 - **A namespace's own assistant.** **Rooms for a namespace's assistant** gives a room to a namespace
   (`team = pods`, or one channel: `team/general = pods`). Conversations there are scoped to that namespace, so when its
   assistant is on ([A namespace's own assistant](assistant.md#a-namespaces-own-assistant)) it answers with its
@@ -145,6 +152,12 @@ That's all. Without an account given, it answers as the admin who turned it on.
   answer looks there and says so once ("Looked in calls"); when it isn't, it looks everywhere and names the likeliest
   namespaces. **use pods** keeps the conversation in pods until **use everything**. The conversation's scope in Chat
   shows where the last question looked.
+- **Telling you things.** An automation that tells you something ([Automations](automations.md#telling-a-person))
+  sends it, as the account the bot or app answers as, to the private chat in Telegram or Slack it last had with
+  someone on its list of people who may talk to Lens. Nothing goes to a room or a group, which reaches other people
+  too, and nothing goes through Matterbridge, where Lens can't tell a private chat from a room. Message the bot or app
+  privately once and messages for you go there; until then an automation's run says "no chat app linked". Web
+  addresses in them are broken up as answers' are.
 - **One reader.** Matterbridge hands out each message once, so only one server process reads it: the API and the
   workers all run the bridge thread, and whichever holds the lease (renewed every look, given up when it stops or the
   bridge is turned off) does the reading. Settings → Chat rooms says whether it is listening and how many messages it answered.

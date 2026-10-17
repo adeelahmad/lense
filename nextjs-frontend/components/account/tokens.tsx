@@ -5,16 +5,23 @@ import { Check, Copy, KeyRound, Plus } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { Tokens } from "@/app/openapi-client";
+import { Namespaces, Tokens } from "@/app/openapi-client";
 import type { ApiToken } from "@/app/openapi-client/types.gen";
 import { S3Keys } from "@/components/account/s3-keys";
-import { daysError, expiresOn, SCOPE_LABEL, suggestedTokenName, tokenExpiry } from "@/components/account/token-model";
+import {
+  daysError,
+  expiresOn,
+  opensLabel,
+  SCOPE_LABEL,
+  suggestedTokenName,
+  tokenExpiry,
+} from "@/components/account/token-model";
 import { isUnreachable } from "@/components/errors/error-states";
 import { ChoiceCards } from "@/components/settings/controls";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { Field, Input } from "@/components/ui/field";
+import { Field, Input, Select } from "@/components/ui/field";
 import { RenameTitle } from "@/components/ui/rename-title";
 import { EmptyState, SkeletonRows } from "@/components/ui/states";
 import { Table, Td, Th, THead, Tr } from "@/components/ui/table";
@@ -28,7 +35,7 @@ const SCOPES = [
   { value: "write", label: "Read & write", hint: "+ import, edit, reprocess" },
 ];
 
-type Created = { token: string; name: string; scope: string; days: number };
+type Created = { token: string; name: string; scope: string; days: number; namespace: string | null };
 
 /** API tokens: list · create · shown once · revoke · expired (Access AC5). Each person manages their own. */
 export function TokensPage() {
@@ -40,8 +47,10 @@ export function TokensPage() {
     queryFn: () => data(Tokens.listTokens({ client })),
   });
   // ?new=1 (the account menu, when there are no tokens yet): the new token's form is open on arrival; it also opens
-  // once the list comes back empty, for a menu clicked before it knew
-  const [creating, setCreating] = useState(useSearchParams().get("new") === "1");
+  // once the list comes back empty, for a menu clicked before it knew. &namespace=pods (Connect apps): a key for pods
+  const params = useSearchParams();
+  const [creating, setCreating] = useState(params.get("new") === "1");
+  const forNamespace = params.get("namespace");
   const offered = useRef(false);
   useEffect(() => {
     if (offered.current || !tokens.data) return;
@@ -126,8 +135,18 @@ export function TokensPage() {
                         />
                       </Td>
                       <Td>
-                        <span className="inline-flex h-[22px] items-center whitespace-nowrap rounded-pill border border-border px-2 text-[11.5px] font-semibold">
-                          {SCOPE_LABEL[t.scope] ?? t.scope}
+                        <span className="inline-flex flex-wrap gap-1">
+                          <span className="inline-flex h-[22px] items-center whitespace-nowrap rounded-pill border border-border px-2 text-[11.5px] font-semibold">
+                            {SCOPE_LABEL[t.scope] ?? t.scope}
+                          </span>
+                          {opensLabel(t.namespace) && (
+                            <span
+                              className="inline-flex h-[22px] items-center whitespace-nowrap rounded-pill border border-border px-2 text-[11.5px] font-semibold text-fg-secondary"
+                              title="Opens this namespace’s MCP server and chat completions, and nothing else"
+                            >
+                              {opensLabel(t.namespace)}
+                            </span>
+                          )}
                         </span>
                       </Td>
                       <Td>
@@ -166,6 +185,7 @@ export function TokensPage() {
       <S3Keys />
       <NewTokenDialog
         open={creating}
+        initialNamespace={forNamespace}
         taken={list.map((t) => t.name)}
         onClose={() => setCreating(false)}
         onCreated={(c) => {
@@ -194,11 +214,14 @@ export function TokensPage() {
 
 function NewTokenDialog({
   open,
+  initialNamespace,
   taken,
   onClose,
   onCreated,
 }: {
   open: boolean;
+  /** The one namespace the key opens at first (Connect apps sends people here with it). */
+  initialNamespace?: string | null;
   /** The names of the tokens there are, so the guessed name is a new one. */
   taken: string[];
   onClose: () => void;
@@ -208,6 +231,18 @@ function NewTokenDialog({
   const [name, setName] = useState("");
   const [scope, setScope] = useState("read");
   const [days, setDays] = useState("");
+  const [namespace, setNamespace] = useState(initialNamespace ?? "");
+  const spaces = useQuery({
+    queryKey: ["namespaces"],
+    queryFn: () => data(Namespaces.listNamespaces({ client })),
+    staleTime: 30_000,
+  });
+  const opens = [
+    { value: "", label: "Everything you can read" },
+    ...(spaces.data ?? [])
+      .filter((n) => !n.partial)
+      .map((n) => ({ value: n.name, label: `${n.name} alone: its MCP server and chat completions` })),
+  ];
   const limitsQ = useQuery({
     queryKey: ["tokens", "limits"],
     queryFn: () => data(Tokens.tokenLimits({ client })),
@@ -215,7 +250,7 @@ function NewTokenDialog({
   });
   const limits = limitsQ.data ?? null;
   const shown = days || (limits ? String(limits.default_days) : "");
-  const guess = suggestedTokenName(scope, taken);
+  const guess = suggestedTokenName(scope, taken, namespace || null);
   const named = name.trim() || guess;
   const create = useMutation({
     mutationFn: () =>
@@ -226,6 +261,7 @@ function NewTokenDialog({
             name: named,
             scope: scope as "read" | "write",
             days: Number(shown),
+            namespace: namespace || null,
           },
         }),
       ),
@@ -235,10 +271,12 @@ function NewTokenDialog({
         name: named,
         scope,
         days: Number(shown),
+        namespace: namespace || null,
       });
       setName("");
       setScope("read");
       setDays("");
+      setNamespace("");
     },
   });
   const nameError = name.trim() ? (name.trim().length > 80 ? "Use at most 80 characters" : null) : null;
@@ -297,6 +335,26 @@ function NewTokenDialog({
           <span className="text-[13px] font-bold leading-tight text-fg-strong">Scope</span>
           <ChoiceCards label="Scope" options={SCOPES} value={scope} onChange={setScope} />
         </div>
+        <Field
+          label="Opens"
+          hint={
+            namespace
+              ? `For an app that should see ${namespace} and nothing else: it works on ${namespace}’s own MCP server and chat completions, with your role there.`
+              : "The whole API and Lens’s MCP server, with your roles."
+          }
+        >
+          {(f) => (
+            <Select
+              id={f.id}
+              aria-describedby={f.describedBy}
+              options={
+                opens.some((o) => o.value === namespace) ? opens : [...opens, { value: namespace, label: namespace }]
+              }
+              value={namespace}
+              onChange={(e) => setNamespace(e.target.value)}
+            />
+          )}
+        </Field>
         <Field
           label="Expires after (days)"
           hint={
@@ -384,6 +442,7 @@ function ShownOnceDialog({ created, onClose }: { created: Created | null; onClos
           </div>
           <p className="text-[12.5px] leading-[1.4] text-fg-muted">
             {created.name} · {SCOPE_LABEL[created.scope]} ·{" "}
+            {created.namespace ? `${opensLabel(created.namespace)} · ` : ""}
             {expiresOn(created.days).replace(/^./, (c) => c.toLowerCase())}
           </p>
         </>

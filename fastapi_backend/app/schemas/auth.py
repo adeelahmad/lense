@@ -86,6 +86,11 @@ class MeUpdate(RequestModel):
 class ApiTokenCreate(RequestModel):
     name: str = "token"
     scope: Literal["read", "write"] = "read"
+    namespace: str | None = Field(
+        None,
+        description="a namespace you can read: the key opens that namespace's own MCP server and chat completions alone, "
+        "and nothing else in Lens; none: whatever you can reach",
+    )
     days: int | None = Field(
         None,
         ge=0,
@@ -114,6 +119,7 @@ class ApiToken(ResponseModel):
     created_at: str
     expires_at: str | None = None
     last_used_at: str | None = None
+    namespace: str | None = Field(None, description="the one namespace it opens (its own servers alone), when it was made for one")
 
 
 class AccountToken(ApiToken):

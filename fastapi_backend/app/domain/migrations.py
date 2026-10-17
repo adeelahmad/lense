@@ -33,6 +33,7 @@ import threading
 import time
 import uuid
 
+from . import datafiles
 from .store import R, now
 
 log = logging.getLogger("lens")
@@ -48,7 +49,7 @@ LEGACY = ("access-levels", "collection-homes")
 
 def steps():
     """[(name, fn(db))] in the order they run. Append only."""
-    from . import access, auth, hierarchy, jobs
+    from . import access, auth, chat, hierarchy, jobs, mcp_servers
 
     return [
         # IIIF-only access levels (public, transcript, signed-in, private) become the access setting
@@ -59,6 +60,10 @@ def steps():
         ("tour-seen", auth.migrate_tours),
         # documents and images queued to be transcribed are read instead, and those that failed there run again
         ("document-read-step", jobs.migrate_document_steps),
+        # conversations become trees of versions: each message follows the one before it, and the last is the head
+        ("chat-tree", chat.migrate_tree),
+        # MCP servers' tokens and keys in headers and env are sealed, as they now are when saved
+        ("mcp-sealed-secrets", mcp_servers.migrate_seal),
     ]
 
 
@@ -166,6 +171,11 @@ def backup(db, label="manual"):
         shutil.rmtree(part, ignore_errors=True) if part.is_dir() else part.unlink(missing_ok=True)
         raise
     part.rename(dst)
+    try:  # and the files under data_dir (datafiles.py)
+        datafiles.snapshot(db.data_dir, dst.name, rest if db.embedded else None)
+    except BaseException:
+        shutil.rmtree(dst, ignore_errors=True) if dst.is_dir() else dst.unlink(missing_ok=True)
+        raise
     return dst
 
 
@@ -173,6 +183,7 @@ def _prune(folder, label):
     for old in sorted(folder.glob(f"{label}-*"), reverse=True)[KEEP:]:
         with contextlib.suppress(OSError):
             shutil.rmtree(old) if old.is_dir() else old.unlink()
+        datafiles.drop(folder.parent, old.name)
 
 
 def _backup_before(db, steps_):

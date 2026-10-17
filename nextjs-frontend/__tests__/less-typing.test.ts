@@ -36,7 +36,7 @@ describe("less typing", () => {
     expect(suggestedPipelineName([{ type: "analyze" }, { type: "summarize" }], [])).toBe("Analyze and summarize");
     expect(suggestedPipelineName([{ type: "llm", name: "Meeting notes" }], ["Meeting notes"])).toBe("Meeting notes 2");
     expect(suggestedPipelineName([], [])).toBe("New pipeline");
-    expect(suggestedWorkflowName("recording", ["Recording workflow"])).toBe("Recording workflow 2");
+    expect(suggestedWorkflowName("recording", ["Asset workflow"])).toBe("Asset workflow 2");
     expect(suggestedWorkflowName("graph", [])).toBe("Graph workflow");
     expect(suggestedTemplateName("prompt", ["Meeting notes"])).toBe("Prompt template");
     expect(suggestedTemplateName("export", ["Export file"])).toBe("Export file 2");

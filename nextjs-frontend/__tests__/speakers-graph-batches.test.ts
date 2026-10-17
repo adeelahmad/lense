@@ -99,15 +99,15 @@ describe("batch formatting", () => {
 
   it("describes where recordings come from", () => {
     expect(describeSelection({ entity: 4 }, { entity: "Northwind Labs" })).toBe(
-      "every recording that mentions Northwind Labs",
+      "every asset that mentions Northwind Labs",
     );
-    expect(describeSelection({ namespace: "podcasts" })).toBe("every recording in podcasts");
+    expect(describeSelection({ namespace: "podcasts" })).toBe("every asset in podcasts");
     expect(
       describeSelection({
         filter: { q: "refund", namespaces: ["customer-calls"] },
       }),
-    ).toBe("recordings matching “refund” in customer-calls");
-    expect(describeSelection({ recordings: [1, 2, 3] })).toBe("3 chosen recordings");
+    ).toBe("assets matching “refund” in customer-calls");
+    expect(describeSelection({ recordings: [1, 2, 3] })).toBe("3 chosen assets");
     expect(describeSelection({ collection: 5 }, { collection: "Cohort B" })).toBe("the saved collection “Cohort B”");
   });
 
@@ -189,7 +189,7 @@ describe("graph model", () => {
 
   it("summarises the picture in words", () => {
     expect(summarize(nodes, edges, "podcasts")).toBe(
-      "4 nodes (2 speakers) and 3 links in podcasts. Most connected: Host A (2 links), Host B (2 links), Meridian (1 link).",
+      "4 nodes (2 people) and 3 links in podcasts. Most connected: Host A (2 links), Host B (2 links), Meridian (1 link).",
     );
     expect(summarize([], [], "podcasts")).toBe("The graph for podcasts is empty.");
   });

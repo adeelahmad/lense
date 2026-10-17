@@ -17,7 +17,7 @@ import contextlib
 import ipaddress
 import re
 from collections.abc import Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Annotated, Any, Literal
 
 from fastapi import Depends, HTTPException, Request
@@ -56,6 +56,7 @@ class Principal:
     perms: dict[int, frozenset[str]] = field(default_factory=dict)  # what each namespace role allows (roles.py)
     collections: dict[int, dict[int, str]] = field(default_factory=dict)  # roles on collections: {space: {collection: role}}
     resource: str | None = None  # an app's token: the server it was given for (RFC 8707), when the app named one
+    space: int | None = None  # an API key made for one namespace: it opens that namespace's own servers alone (serves)
 
     @property
     def can_write(self) -> bool:
@@ -63,6 +64,41 @@ class Principal:
 
     def as_audit(self) -> dict[str, Any]:
         return {"id": self.id, "email": self.email}
+
+
+def within(p: Principal, sid: int) -> Principal:
+    """The same person seeing namespace `sid` alone (a namespace's own MCP server): their role there (an admin's is
+    owner's), their roles on its collections, and no administration."""
+    return replace(
+        p,
+        admin=False,
+        roles={s: r for s, r in p.roles.items() if s == sid},
+        perms={s: x for s, x in p.perms.items() if s == sid},
+        collections={s: c for s, c in p.collections.items() if s == sid},
+    )
+
+
+MCP_RESOURCE = re.compile(r"^/mcp/([a-z0-9_-]+)/?$")
+
+
+def bound_to(resource: str | None) -> str | None:
+    """The namespace an app's token was given for (RFC 8707), when that's a namespace's own MCP server
+    (…/mcp/<namespace>): such a token opens that server and nothing else."""
+    from urllib.parse import urlsplit
+
+    m = MCP_RESOURCE.match(urlsplit(resource).path) if resource else None
+    return m.group(1) if m else None
+
+
+# a namespace's own servers: its MCP server and its chat completions (completions.py)
+SERVED = re.compile(r"^/(?:mcp/([a-z0-9_-]+)|api/v1/namespaces/([a-z0-9_-]+)/(?:chat/completions|models))/?$")
+
+
+def serves(path: str) -> str | None:
+    """The namespace whose own server a path is (/mcp/<namespace>, /api/v1/namespaces/<namespace>/chat/completions or
+    …/models), the only places an API key made for one namespace opens."""
+    m = SERVED.match(path)
+    return (m.group(1) or m.group(2)) if m else None
 
 
 def _principal(request: Request, db: DB) -> Principal | None:
@@ -84,9 +120,16 @@ def _resolve(request: Request, db: DB) -> Principal | None:
             p = Principal(
                 u["id"], u["email"], u.get("name"), bool(u.get("admin")), "token", "write" if u.get("scope") == "write" else "read"
             )
+            p.space = u.get("space")
     elif raw.startswith("lo_"):
         # with OAuth turned off, apps' tokens stop working at once (their grants stay, so turning it back on restores them)
         u = oauth.token_account(db, raw) if oauth.enabled(request.app.state.settings.current()) else None
+        ns = bound_to(u.get("resource")) if u else None
+        if ns is not None:  # given for one namespace's MCP server: it opens that, and not the rest of Lens
+            here = MCP_RESOURCE.match(request.url.path)
+            if not here or here.group(1) != ns:
+                request.state.refused = f"this app was given {ns}'s MCP server alone"
+                u = None
         if u:
             p = Principal(u["id"], u["email"], u.get("name"), bool(u.get("admin")), "oauth", u["scope"], resource=u.get("resource"))
     elif raw:
@@ -98,6 +141,14 @@ def _resolve(request: Request, db: DB) -> Principal | None:
         p.perms = auth.permissions(db, {"id": p.id, "admin": p.admin})
         p.roles = {sid: rl.rank(perms) for sid, perms in p.perms.items()}
         p.collections = {} if p.admin else hierarchy.roles_of(db, p.id)
+    space = p.space if p else None
+    if p and space is not None:  # a key made for one namespace: its own servers, and nothing else in Lens
+        ns = store.space_names(db).get(space)
+        if ns is None or serves(request.url.path) != ns:
+            request.state.refused = f"this API key opens {ns}'s MCP server and chat completions alone" if ns else None
+            p = None
+        else:
+            p = within(p, space)
     request.state.principal = p
     return p
 
@@ -106,10 +157,17 @@ def optional_user(request: Request, db: Db) -> Principal | None:
     return _principal(request, db)
 
 
+def signed_out(request: Request) -> HTTPException:
+    """The 401 for a request without a principal: sign in, or why the key or app given one namespace's servers alone
+    doesn't open this."""
+    why = getattr(request.state, "refused", None)
+    return HTTPException(401, why or "sign in first", headers={"WWW-Authenticate": "Bearer"})
+
+
 def current_user(request: Request, db: Db) -> Principal:
     p = _principal(request, db)
     if not p:
-        raise HTTPException(401, "sign in first", headers={"WWW-Authenticate": "Bearer"})
+        raise signed_out(request)
     return p
 
 
@@ -172,7 +230,7 @@ class Access:
     def need(self, sid: int, role: str = "viewer") -> None:
         """A role (viewer, editor, owner: at least that rank) or a permission (roles.PERMISSIONS) in namespace `sid`."""
         if not self.user:
-            raise HTTPException(401, "sign in first", headers={"WWW-Authenticate": "Bearer"})
+            raise signed_out(self.request)
         if not auth.allows(self.roles, sid, "viewer"):
             raise HTTPException(404, "not found")
         if role in rl.PERMISSIONS:
@@ -200,7 +258,7 @@ class Access:
     def need_in(self, sid: int, cid: int | None, role: str = "viewer") -> None:
         """Like need, for a recording of collection `cid`: a namespace role or a role on the collection will do."""
         if not self.user:
-            raise HTTPException(401, "sign in first", headers={"WWW-Authenticate": "Bearer"})
+            raise signed_out(self.request)
         have = self.rank_in(sid, cid)
         if not have:
             raise HTTPException(404, "not found")
@@ -208,9 +266,9 @@ class Access:
             # the namespace role's permission, or a collection role ranking as the built-in role that first has it
             coll = hierarchy.ROLES.get(self.collection_role(sid, cid) or "", 0)
             if not self.can(sid, role) and coll < auth.ROLES[rl.minimum(role)]:
-                raise HTTPException(403, f"needs the {role} permission for this recording")
+                raise HTTPException(403, f"needs the {role} permission for this asset")
         elif have < auth.ROLES[role]:
-            raise HTTPException(403, f"needs {role} access to this recording")
+            raise HTTPException(403, f"needs {role} access to this asset")
 
     def partial(self) -> dict[int, list[int]]:
         """The namespaces this person sees only some collections of (no role there, a role on collections in it):
@@ -226,7 +284,7 @@ class Access:
             return self.spaces(), self.partial()
         sid = self.nsid(ns)
         if not self.user:
-            raise HTTPException(401, "sign in first", headers={"WWW-Authenticate": "Bearer"})
+            raise signed_out(self.request)
         if auth.allows(self.roles, sid):
             return [sid], {}
         part = self.partial().get(sid)

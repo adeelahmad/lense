@@ -8,13 +8,13 @@ Pick resources (and passages in them) and Lens makes a two-host learning episode
 other asks the questions a smart learner would ask, with analogies and a recap. Every claim in the script cites the
 passage it comes from, and a second pass checks each claim against what it cites before anything is published.
 
-## An episode is a recording
+## An episode is an asset
 
-An episode is an ordinary recording in the **podcasts** namespace (`podcasts.namespace`), in its **Podcasts**
+An episode is an ordinary asset in the **podcasts** namespace (`podcasts.namespace`), in its **Podcasts**
 collection. Each script line is a segment spoken by the host who says it, so the episode is searchable, gets entity
 extraction and a summary, and shows on the graph like anything else. What only an episode has (what was asked for,
 the excerpts the model read, the outline, the lines' citations, and what the fact-check changed) is kept beside it in
-`podcast:<recording id>`. Deleting the recording deletes the episode.
+`podcast:<recording id>`. Deleting the asset deletes the episode.
 
 An episode goes in the podcasts namespace only when everyone who can read that namespace can also read every source's
 namespace, and no source is in a [vault](encryption.md). Otherwise it goes in the sources' own namespace (when they
@@ -22,7 +22,7 @@ are all in one the person may add to), so an episode never shows content to some
 
 ## In the web app
 
-- **Library:** select recordings or documents and choose **Podcast** in the bar at the bottom.
+- **Library:** select assets and choose **Podcast** in the bar at the bottom.
 - **A resource's page:** **Create podcast…** in its **⋯** menu.
 
 Either opens a dialog for the angle (what to focus on, or who it's for), the length (about 5, 10 or 20 minutes), the
@@ -33,7 +33,7 @@ lines the fact-check rewrote or dropped. Editors of its namespace can remake or 
 
 ## How it's made
 
-One job on the episode's recording, one step per stage, visible in Activity and on the event feed:
+One job on the episode's asset, one step per stage, visible in Activity and on the event feed:
 
 | Stage | What happens |
 |---|---|
@@ -42,7 +42,7 @@ One job on the episode's recording, one step per stage, visible in Activity and 
 | writing | The model writes the script as lines of `{speaker, kind, text, citations}`. Citations to excerpts it wasn't given are dropped. |
 | fact-checking | Every claim and recap line is checked against the excerpts it cites. A partly supported line takes the checker's correction; an unsupported one is rewritten once and checked again, or dropped, as is a claim with no citation. Every change is recorded. |
 | recording the voices | Each line is read aloud in its host's voice by the [text-to-speech provider](speech-providers.md) (Settings › Voice: an OpenAI-compatible server such as a local Kokoro, ElevenLabs or Deepgram), the clips are joined with short pauses, and the loudness is evened out (-16 LUFS) into one MP3. Clips are kept, so making an episode again only reads changed lines. Without text to speech this stage is skipped and the episode stays a script. |
-| publishing | The lines become the recording's transcript, timed where each line is in the audio (or at `podcasts.words_per_minute` without audio), and the audio becomes the recording's media. |
+| publishing | The lines become the episode's transcript, timed where each line is in the audio (or at `podcasts.words_per_minute` without audio), and the audio becomes the episode's media. |
 
 Then the usual analyze, embed and summarize steps run. Workers run podcast steps when their `workers.steps` list has
 `podcast` (or `llm`).
@@ -57,7 +57,7 @@ Then the usual analyze, embed and summarize steps run. Workers run podcast steps
 | `POST /api/v1/podcasts/{id}/regenerate` | make it again from the same request (editors) |
 | `DELETE /api/v1/podcasts/{id}` | delete it and its audio (editors) |
 
-The audio is the recording's (`GET /api/v1/recordings/{id}/audio`), and so are sharing and the transcript. Agents
+The audio is the asset's (`GET /api/v1/recordings/{id}/audio`), and so are sharing and the transcript. Agents
 use the MCP tools `create_podcast` (resources as `recording_ids`, lines as `"<recording_id>:<line>"`) and
 `get_podcast` ([MCP](mcp.md)).
 

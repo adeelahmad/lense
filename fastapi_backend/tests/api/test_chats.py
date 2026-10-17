@@ -125,7 +125,7 @@ def test_tools_approvals_and_checking(app, db, cfg, folder, new_client, llm):
     assert {p["namespace"] if "namespace" in p else "pods" for p in ev["passages"][0]} == {"pods"}
     assert [p["n"] for p in ev["passages"][0]] == [1, 2]
     approval = ev["approval"][0]
-    assert approval["summary"] == "Run Meeting notes (prompt) on 1 recording(s)"
+    assert approval["summary"] == "Run Meeting notes (prompt) on 1 asset(s)"
     pending = c.get("/api/v1/approvals", headers=h, params={"chat_id": cid}).json()
     assert [(x["id"], x["status"]) for x in pending] == [(approval["id"], "pending")]
     cv, hv = s.cl["viewer"]
@@ -357,6 +357,73 @@ def test_answers_survive_unusual_model_servers(app, db, cfg, folder, new_client,
     assert ev["error"] and ev["done"] and last(cid)["error"] == ev["error"][0]["message"]
 
 
+def test_every_answer_ends_in_words_not_tool_calls(app, db, cfg, folder, new_client, llm):
+    """A model that keeps calling tools is asked to answer from what it found once its steps run out (tools off), and a
+    reply with nothing in it is asked again: the person always gets an answer, never "ran out of steps"."""
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["editor"]
+
+    def tool(i, name, args):
+        return {
+            "content": "",
+            "tool_calls": [{"id": f"s{i}", "type": "function", "function": {"name": name, "arguments": json.dumps(args)}}],
+        }
+
+    def search(i, query=None):  # a different search each round, unless the query is given
+        return tool(i, "search_transcripts", {"query": query or ("capsid" if i == 0 else f"capsid {i}")})
+
+    def ask(q):
+        cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+        return cid, sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": q}).text)
+
+    def last(cid):
+        return c.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"][-1]
+
+    # six rounds of tools (ai.max_steps), and the model wants a seventh: it's asked to answer instead, with the tools off
+    llm.tool_script = [search(i) for i in range(6)] + [{**search(6), "content": "The capsid model won [1]."}]
+    cid, ev = ask("Would you hire them?")
+    assert len(ev["step"]) == 6 and ev["token"][0]["text"] == "The capsid model won [1]."
+    final = llm.seen[-1]
+    assert final["tool_choice"] == "none" and final["messages"][-1] == {"role": "user", "content": chat.FINISH}
+    assert "up to 6 rounds of tool calls" in final["messages"][0]["content"]  # the model knows its budget up front
+    assert last(cid)["content"] == "The capsid model won [1]." and [p["n"] for p in ev["passages"][0]] == [1]
+
+    # a server that calls tools even when asked not to: the conversation is sent again as plain text, without tools
+    llm.ignore_tool_choice = True
+    llm.tool_script = [search(i) for i in range(7)]
+    cid, ev = ask("Would you hire them?")
+    plain = llm.seen[-1]
+    assert "tools" not in plain and {m["role"] for m in plain["messages"]} == {"system", "user", "assistant"}
+    roles = [m["role"] for m in plain["messages"]]
+    assert all(a != b for a, b in zip(roles, roles[1:], strict=False))  # sides alternate, as strict chat templates need
+    assert "Called search_transcripts" in plain["messages"][2]["content"] and "What the tool returned" in plain["messages"][3]["content"]
+    assert plain["messages"][-1]["content"].endswith(chat.FINISH)
+    assert len(ev["step"]) == 6 and ev["token"][0]["text"] == "OK" and last(cid)["content"] == "OK"
+    llm.ignore_tool_choice = False
+
+    # a reply with nothing in it after looking something up is asked again
+    llm.tool_script = [search(0), {"content": "  "}, {"content": "Found it [1]."}]
+    cid, ev = ask("capsid?")
+    assert len(ev["step"]) == 1 and ev["token"][0]["text"] == "Found it [1]."
+    assert llm.seen[-1]["tool_choice"] == "none"
+
+    # the same read twice in one answer isn't run again: the model is pointed at the result it already has
+    llm.tool_script = [search(0), search(1, "capsid"), {"content": "Capsid [1]."}]
+    cid, ev = ask("capsid?")
+    assert len(ev["step"]) == 1 and ev["token"][0]["text"] == "Capsid [1]."
+    assert llm.seen[-1]["messages"][-1] == {"role": "tool", "tool_call_id": "s1", "content": json.dumps({"note": chat.AGAIN})}
+    # unless something that may change what it reads ran in between
+    llm.tool_script = [search(0), tool(1, "find_notes", {"query": "capsid"}), search(2, "capsid"), {"content": "Capsid [1]."}]
+    cid, ev = ask("capsid?")
+    assert [x["tool"] for x in ev["step"]] == ["search_transcripts", "find_notes", "search_transcripts"]
+
+    # and a model that says nothing even when asked again with the tools off gets the plain-text ask
+    llm.ignore_tool_choice = True
+    llm.tool_script = [search(0), {"content": ""}, {"content": ""}]
+    cid, ev = ask("capsid?")
+    assert ev["token"][0]["text"] == "OK"
+
+
 def test_streamed_answers_without_thinking_or_cut_off(monkeypatch):
     def server(*lines):
         class R(io.BytesIO):
@@ -411,18 +478,19 @@ def test_editing_a_question(plain, client, new_client, db, cfg, folder, llm):
     assert other.post(f"/api/v1/chats/{cid}/messages", headers=hv, json={"content": "x", "edit": second}).status_code == 404
     elsewhere = client.post("/api/v1/chats", headers=h, json={}).json()["id"]
     assert client.post(f"/api/v1/chats/{elsewhere}/messages", headers=h, json={"content": "x", "edit": second}).status_code == 404
-    assert len(client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"]) == 6  # nothing was removed
+    assert len(client.get(f"/api/v1/chats/{cid}", headers=h).json()["tree"]) == 6  # nothing changed
 
-    # editing the second question replaces it and everything after it; the model sees only what came before
+    # editing the second question makes a version beside it, and the old one keeps what followed it; the model sees
+    # only what came before
     llm.seen.clear()
     ev = sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "Who ships it, exactly?", "edit": second}).text)
-    assert ev["done"]
+    assert ev["done"] and ev["branch"][0]["versions"] == {"index": 2, "count": 2, "ids": [second, ev["branch"][0]["message"]]}
     sent = [m["content"] for m in llm.seen[-1]["messages"] if m["role"] == "user"]
     assert "When does the shipment leave?" in sent[0] and not any("Who is shipping it?" in s or "And where to?" in s for s in sent)
     c = client.get(f"/api/v1/chats/{cid}", headers=h).json()
     assert [m["content"] for m in c["messages"] if m["role"] == "user"] == ["When does the shipment leave?", "Who ships it, exactly?"]
     assert [m["role"] for m in c["messages"]] == ["user", "assistant", "user", "assistant"]
-    assert c["title"] == "When does the shipment leave?"
+    assert c["title"] == "When does the shipment leave?" and len(c["tree"]) == 8
 
     # editing the first question retitles a conversation titled after it, but keeps a title you set
     first = c["messages"][0]["id"]
@@ -437,12 +505,12 @@ def test_editing_a_question(plain, client, new_client, db, cfg, folder, llm):
     sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "When does it ship?", "edit": first}).text)
     assert client.get(f"/api/v1/chats/{cid}", headers=h).json()["title"] == "Shipping"
 
-    # a refused edit (a model that isn't offered) removes nothing
-    n = len(client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"])
+    # a refused edit (a model that isn't offered) changes nothing
+    n = len(client.get(f"/api/v1/chats/{cid}", headers=h).json()["tree"])
     assert (
         client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "x", "edit": first, "model": "gpt-9"}).status_code == 400
     )
-    assert len(client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"]) == n
+    assert len(client.get(f"/api/v1/chats/{cid}", headers=h).json()["tree"]) == n
 
     # a question asked from a page keeps the page and the highlighted text when edited
     page = {"url": "/library", "title": "Library", "text": "Shipment report", "selection": "Dyno shipment"}

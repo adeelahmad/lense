@@ -25,7 +25,7 @@ import { EmptyState, Skeleton } from "@/components/ui/states";
 import { absolute, relative, tc } from "@/lib/format";
 import { needRole } from "@/lib/hooks/session";
 
-const SHARE_HINT = "Everyone who can read this recording sees it; only you can change it.";
+const SHARE_HINT = "Everyone who can read this asset sees it; only you can change it.";
 const chip =
   "inline-flex h-[22px] shrink-0 items-center rounded-pill border border-blue-border bg-blue-surface px-2 font-sans text-[12px] font-semibold tabular-nums text-blue-dark hover:bg-blue hover:text-white";
 
@@ -53,13 +53,13 @@ export function NotesTab() {
         </EmptyState>
       ) : list.length === 0 ? (
         <EmptyState icon={<StickyNote />} title="No notes yet" className="py-8">
-          Select words in the transcript and choose Add note, or write one above about where the player is.
+          Select words in the text and choose Add note, or write one above.
         </EmptyState>
       ) : (
         <>
           {whole.length > 0 && (
-            <section aria-label="About the whole recording" className="flex flex-col gap-1">
-              <Label as="h3">About the whole recording</Label>
+            <section aria-label="About the whole asset" className="flex flex-col gap-1">
+              <Label as="h3">About the whole asset</Label>
               <ul className="flex flex-col">
                 {whole.map((n) => (
                   <NoteRow key={n.id} n={n} />
@@ -155,12 +155,12 @@ function Composer() {
                 ? paged
                   ? `On ${where(time)}, the page in view`
                   : `At ${tc(time)}, where the player is`
-                : `About the whole ${paged ? "document" : "recording"}`}
+                : `About the whole ${paged ? "document" : "asset"}`}
             </span>
           }
         />
       ) : (
-        <p className="text-[13px] text-fg-muted">About the whole recording. To note a moment, select its words.</p>
+        <p className="text-[13px] text-fg-muted">About the whole asset. To note a moment, select its words.</p>
       )}
       <Textarea
         ref={box}

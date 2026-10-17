@@ -7,9 +7,11 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Admin, Entities, Search } from "@/app/openapi-client";
+import { EntityDrawer } from "@/components/entities/entity-drawer";
 import { GraphCanvas } from "@/components/graph/canvas";
 import { usePositions, useExplorer } from "@/components/graph/explorer";
 import { ExplorerBar, NodeMenu } from "@/components/graph/explorer-ui";
+import { useGraphJoin } from "@/components/graph/join";
 import { GraphAsk } from "@/components/graph/graph-ask";
 import { GraphFilters } from "@/components/graph/filters";
 import {
@@ -23,10 +25,11 @@ import {
   type GraphData,
   type GraphNode,
 } from "@/components/graph/model";
-import { NodePanel } from "@/components/graph/panel";
+import { editTarget, NodePanel, type EditTarget } from "@/components/graph/panel";
 import { GraphTable } from "@/components/graph/table";
 import { VersionPicker } from "@/components/graph/version-picker";
 import { useSpeakerDirectory } from "@/components/search/data";
+import { TopicDrawer } from "@/components/topics/topic-drawer";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Dialog, Drawer } from "@/components/ui/dialog";
@@ -64,7 +67,7 @@ export function GraphPage() {
   const router = useRouter();
   const pathname = usePathname();
   const client = useApiClient();
-  const { namespaces, namespace: topNs, admin, loaded } = useArchive();
+  const { namespaces, namespace: topNs, admin, loaded, can } = useArchive();
   const nsNames = namespaces.map((n) => n.name);
   const focusParam = params.get("focus");
   const urlNs = params.get("ns");
@@ -86,6 +89,9 @@ export function GraphPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [missing, setMissing] = useState<string | null>(null);
+  // the entity or topic open in its editor, and the entity being merged into the next one picked
+  const [editing, setEditing] = useState<EditTarget | null>(null);
+  const [mergeFrom, setMergeFrom] = useState<string | null>(null);
   const wide = useWide();
   const tried = useRef<string | null>(null);
 
@@ -120,6 +126,8 @@ export function GraphPage() {
   const toast = useToast();
   const onError = useCallback((m: string) => toast({ title: "Couldn’t explore that", body: m, tone: "red" }), [toast]);
   const ex = useExplorer(scope, onError, asOf);
+  useEffect(() => setMergeFrom(null), [scope, asOf]);
+  const { joinable, join: joinNodes } = useGraphJoin();
   const [menu, setMenu] = useState<{ id: string; at: { x: number; y: number } } | null>(null);
   const overview = useMemo(() => graph.data ?? { scope, namespaces: [], nodes: [], edges: [] }, [graph.data, scope]);
   // the overview plus what was found by exploring, less what was hidden
@@ -184,7 +192,25 @@ export function GraphPage() {
     })();
   }, [focusParam, graph.data, all.nodes, scope, dir.speakers.length, dir.isLoading]);
 
+  // Merging from a node's menu: the node picked next is kept. Entities of two namespaces are linked instead.
+  const join = async (from: GraphNode, into: GraphNode) => {
+    setMergeFrom(null);
+    if (await joinNodes(from, into)) {
+      ex.hide(from.id);
+      setSelected(into.id);
+      set({ focus: focusKey(into) });
+    }
+  };
+
   const select = (id: string | null) => {
+    if (mergeFrom && id) {
+      const a = byId.get(mergeFrom);
+      const b = byId.get(id);
+      if (a && b) {
+        void join(a, b);
+        return;
+      }
+    }
     // picking a node while a path is being looked for ends the path there
     const from = ex.pathStart ? byId.get(ex.pathStart) : null;
     const to = id ? byId.get(id) : null;
@@ -249,8 +275,12 @@ export function GraphPage() {
   );
 
   const empty = graph.data && all.nodes.length === 0;
+  const menuNode = menu ? (byId.get(menu.id) ?? null) : null;
+  const menuEdit = menuNode ? editTarget(menuNode, can) : null;
+  // an earlier version is for looking: edits go to the graph as it is now
+  const onEdit = asOf ? undefined : setEditing;
   return (
-    <div className="grid h-[calc(100dvh-4rem)] grid-cols-1 lg:grid-cols-[250px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)_320px]">
+    <div className="grid h-[calc(100dvh-4rem-var(--lens-banner,0px))] grid-cols-1 lg:grid-cols-[250px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)_320px]">
       <h1 className="sr-only">Graph</h1>
       <aside
         aria-label="Graph filters"
@@ -283,8 +313,8 @@ export function GraphPage() {
         </div>
         {missing && (
           <Banner tone="warning" className="m-3 mb-0" onDismiss={() => setMissing(null)}>
-            That {missing.startsWith("s") ? "speaker" : "entity"} isn’t in this graph. It may have too few links to
-            show, or be hidden.
+            That {missing.startsWith("s") ? "person" : "entity"} isn’t in this graph. It may have too few links to show,
+            or be hidden.
           </Banner>
         )}
         {(!loaded || graph.isLoading) && (
@@ -319,14 +349,14 @@ export function GraphPage() {
                 </Link>
               ) : (
                 <Link href="/import" className="text-[13px] font-bold text-fg-accent hover:underline">
-                  Import recordings or documents
+                  Import assets
                 </Link>
               )
             }
           >
             The graph is built by the Analyze step.
             {waiting > 0
-              ? ` ${plural(waiting, "recording")} ${waiting === 1 ? "is" : "are"} waiting for it`
+              ? ` ${plural(waiting, "asset")} ${waiting === 1 ? "is" : "are"} waiting for it`
               : " Nothing is waiting for it"}
             {analyzing > 0 ? ` — ${analyzing} ${analyzing === 1 ? "is" : "are"} being analyzed now.` : "."}
           </EmptyState>
@@ -351,6 +381,8 @@ export function GraphPage() {
               byId={byId}
               asOf={asOf}
               onNow={() => set({ as_of: null })}
+              mergeFrom={mergeFrom}
+              onMergeCancel={() => setMergeFrom(null)}
               version={
                 <VersionPicker
                   asOf={asOf}
@@ -361,12 +393,14 @@ export function GraphPage() {
             />
             <GraphAsk ex={ex} scope={scope} asOf={asOf} onSelect={(id) => select(id)} />
             <NodeMenu
-              node={menu ? (byId.get(menu.id) ?? null) : null}
+              node={menuNode}
               at={menu?.at ?? null}
               ex={ex}
               byId={byId}
               onClose={() => setMenu(null)}
               onSelect={(id) => select(id)}
+              onEdit={menuEdit && !asOf ? () => setEditing(menuEdit) : undefined}
+              onMerge={menuNode && joinable(menuNode) && !asOf ? () => setMergeFrom(menuNode.id) : undefined}
             />
           </div>
         )}
@@ -383,7 +417,14 @@ export function GraphPage() {
         className="hidden min-h-0 overflow-y-auto border-l border-border px-[18px] py-4 xl:block"
       >
         {node ? (
-          <NodePanel node={node} nodes={all.nodes} edges={all.edges} onSelect={select} onClose={() => select(null)} />
+          <NodePanel
+            node={node}
+            nodes={all.nodes}
+            edges={all.edges}
+            onSelect={select}
+            onClose={() => select(null)}
+            onEdit={onEdit}
+          />
         ) : (
           <div className="flex flex-col gap-2 text-[13px] leading-snug text-fg-secondary">
             <h2 className="text-[15px] font-bold text-fg">Nothing selected</h2>
@@ -403,13 +444,36 @@ export function GraphPage() {
       >
         <div className="p-4">
           {node && (
-            <NodePanel node={node} nodes={all.nodes} edges={all.edges} onSelect={select} onClose={() => select(null)} />
+            <NodePanel
+              node={node}
+              nodes={all.nodes}
+              edges={all.edges}
+              onSelect={select}
+              onClose={() => select(null)}
+              onEdit={onEdit}
+            />
           )}
         </div>
       </Drawer>
       <Dialog open={filtersOpen} onOpenChange={setFiltersOpen} title="Graph filters">
         {filters(false)}
       </Dialog>
+      {editing?.kind === "entity" && (
+        <EntityDrawer
+          id={editing.id}
+          ns={editing.ns}
+          onClose={() => setEditing(null)}
+          onOpen={(id) => setEditing({ ...editing, id })}
+        />
+      )}
+      {editing?.kind === "topic" && (
+        <TopicDrawer
+          id={editing.id}
+          ns={editing.ns}
+          onSelect={(id) => setEditing({ ...editing, id })}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </div>
   );
 }

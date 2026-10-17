@@ -132,7 +132,7 @@ export function TopicsPage() {
           )}
         </button>
         <span className="tabular shrink-0 text-[12px] text-fg-muted">
-          {t.recordings ? plural(t.recordings, "recording") : ""}
+          {t.recordings ? plural(t.recordings, "asset") : ""}
         </span>
         {editor && (
           <button
@@ -194,7 +194,7 @@ export function TopicsPage() {
         }
       />
       <p className="m-0 max-w-[720px] text-[13px] text-fg-secondary">
-        What this namespace’s recordings are about, as a controlled vocabulary: each topic can sit under broader ones.
+        What this namespace’s assets are about, as a controlled vocabulary: each topic can sit under broader ones.
         Entities are the people, organisations and things that are named; topics are kept apart from them.
       </p>
       {ns && editor && (
@@ -240,8 +240,8 @@ export function TopicsPage() {
             ) : undefined
           }
         >
-          Add the subjects this namespace’s recordings are about. A topic-like entity (a term) can also become a topic
-          from its entity page.
+          Add the subjects this namespace’s assets are about. A topic-like entity (a term) can also become a topic from
+          its entity page.
         </EmptyState>
       )}
       {all.length > 0 && q.trim() && (
@@ -266,7 +266,7 @@ export function TopicsPage() {
               all.reduce((n, t) => n + t.recordings, 0),
               "link",
             )}{" "}
-            to recordings
+            to assets
           </p>
         </div>
       )}

@@ -15,6 +15,7 @@ import { PlaceDialog } from "@/components/library/collections-ui";
 import { publicPath } from "@/components/public/model";
 import { AttachAudioDialog } from "@/components/recording/attach-audio";
 import { useRec } from "@/components/recording/context";
+import { CLEANER } from "@/components/recording/edits";
 import { ShareEmbedDialog } from "@/components/sharing/share-dialog";
 import { useEdits, useRecordingActions } from "@/components/recording/hooks";
 import { orderedSteps, reprocessOptions, STEP_HELP, toggleStep, type StepKey } from "@/components/recording/jobs";
@@ -84,7 +85,7 @@ export function RenameDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Rename recording"
+      title="Rename asset"
       description="The new title shows everywhere: the Library, search, reports and shared links."
     >
       <form onSubmit={submit} className="flex flex-col gap-5">
@@ -135,7 +136,7 @@ export function AccessDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Who can see this recording"
+      title="Who can see this asset"
       description="Members of its namespace, people it’s shared with and visitors from its IP groups always see all of it."
       wide
     >
@@ -264,7 +265,7 @@ export function ReprocessDialog({ open, onOpenChange }: { open: boolean; onOpenC
   const router = useRouter();
   const steps = orderedSteps(selected).filter((k) => options.some((o) => o.key === k && !o.disabled));
   const speakerEdits = (edits.data ?? []).filter((e) => e.after && "speaker" in e.after).length;
-  const textEdits = (edits.data ?? []).filter((e) => e.after && "text" in e.after).length;
+  const textEdits = (edits.data ?? []).filter((e) => e.after && "text" in e.after && e.by !== CLEANER).length;
   const short = model.title.split(/\s+[—–-]\s+/)[0] || model.title;
 
   const run = () =>

@@ -47,7 +47,7 @@ DEPTH_MAX = 12
 MENTION = re.compile(r"([@#])\[([^\]\n]{1,200})\]\(([a-z]+):(\d{1,18})\)")
 FIELDS = (
     "record::id(id) AS id, space, title, summary, summary_by, date, place, place_by, place_suggestion, parent, position, "
-    "about, author, view, doc_stale, created_by, updated_by, created_at, updated_at"
+    "about, author, view, doc_stale, created_by, updated_by, created_at, updated_at, pinned_by"
 )
 
 
@@ -413,18 +413,146 @@ def move(db, pid, parent=None, before=None):
     db.q("UPDATE $r SET parent = $p, position = $pos, updated_at = $t", r=R("note_page", int(pid)), p=parent, pos=position, t=store.now())
 
 
-def delete(db, pid, cfg=None):
-    """Delete a page, with its files (given `cfg`, to reach where they are kept); the pages inside it move up to its
-    parent. Links to it stay as text."""
+DAILY_ROOT = "Daily notes"
+
+
+def today(db, sid, account, date=None):
+    """The namespace's note for the day `date` (YYYY-MM-DD, the person's today; default the server's), made the first
+    time it's asked for: titled with the date, inside the "Daily notes" note, which is made too when there's none.
+    Its id."""
+    day = _date(date) or store.now()[:10]
+    pid = db.one("SELECT VALUE record::id(id) FROM note_page WHERE space = $s AND daily = $d LIMIT 1", s=sid, d=day)
+    if pid:
+        return int(pid)
+    root = db.one("SELECT VALUE record::id(id) FROM note_page WHERE space = $s AND daily_root = true LIMIT 1", s=sid)
+    if not root:
+        root = create(db, sid, account, DAILY_ROOT, summary="A note for each day")
+        db.q("UPDATE $r SET daily_root = true", r=R("note_page", root))
+    pid = create(db, sid, account, day, date=day, parent=root)
+    db.q("UPDATE $r SET daily = $d", r=R("note_page", pid), d=day)
+    return pid
+
+
+PINS_MAX = 50  # a person's pinned notes, per namespace
+
+
+def pin(db, pid, account, on=True):
+    """Pin the page for this person (on top of their Notes page and tree), or unpin it. Pins are each person's own:
+    pinning a page doesn't change it for anyone else, and needs only to see it. ValueError past PINS_MAX."""
     p = get(db, pid)
-    if cfg is not None:
-        for f in files(db, int(pid)):
-            delete_file(db, cfg, int(pid), f["key"])
-    for child in db.values("SELECT VALUE record::id(id) FROM note_page WHERE parent = $p", p=int(pid)):
+    if on and account not in (p.get("pinned_by") or []):
+        mine = db.values("SELECT VALUE id FROM note_page WHERE space = $s AND pinned_by CONTAINS $a", s=p["space"], a=account)
+        if len(mine) >= PINS_MAX:
+            raise ValueError(f"Up to {PINS_MAX} notes can be pinned in a namespace: unpin one first.")
+    op = "array::union(pinned_by ?? [], [$a])" if on else "array::complement(pinned_by ?? [], [$a])"
+    db.q(f"UPDATE $r SET pinned_by = {op}", r=R("note_page", int(pid)), a=account)
+
+
+TRASH_DAYS = 30  # a deleted page can be put back for this long, then it's gone with its files and history
+
+
+def delete(db, pid, account=None):
+    """Delete a page: it goes to the namespace's recently deleted (note_trash, under its own id) for TRASH_DAYS, with
+    its files and history kept, so it can be put back (undelete). The pages inside it move up to its parent. Links to
+    it stay as text, and show without a name while it's gone."""
+    p = db.one("SELECT * OMIT id FROM $r", r=R("note_page", int(pid)))
+    if not p:
+        raise KeyError(pid)
+    children = db.values("SELECT VALUE record::id(id) FROM note_page WHERE parent = $p", p=int(pid))
+    for child in children:
         db.q("UPDATE $r SET parent = $up", r=R("note_page", child), up=p.get("parent"))
     db.q("DELETE note_link WHERE page = $p", p=int(pid))
-    db.q("DELETE note_version WHERE page = $p", p=int(pid))
+    db.q(
+        "UPSERT $r CONTENT $d",
+        r=R("note_trash", int(pid)),
+        d=store.clean(
+            {
+                "space": p["space"],
+                "title": p.get("title"),
+                "about": p.get("about"),
+                "page": p,
+                "children": children,
+                "deleted_at": store.now(),
+                "deleted_by": account,
+            }
+        ),
+    )
     db.q("DELETE $r", r=R("note_page", int(pid)))
+
+
+TRASH_FIELDS = "record::id(id) AS id, space, title, about, deleted_at, deleted_by"
+
+
+def trash(db, spaces, limit=100):
+    """The pages deleted from these namespaces that can still be put back, the latest deleted first."""
+    return db.rows(
+        f"SELECT {TRASH_FIELDS} FROM note_trash WHERE space IN $s ORDER BY deleted_at DESC LIMIT $n",
+        s=list(spaces),
+        n=int(limit),
+    )
+
+
+def trashed(db, pid):
+    """A deleted page's trash row (its page under `page`), or KeyError."""
+    t = db.one(f"SELECT {TRASH_FIELDS}, page, children FROM $r", r=R("note_trash", int(pid)))
+    if not t:
+        raise KeyError(pid)
+    return t
+
+
+def undelete(db, pid):
+    """Put a deleted page back where it was, with its links, files and history, and the pages that were inside it
+    back inside it (those still where they moved to). A thing's page that the thing no longer has (it's gone, moved
+    away, or has a new page by now) comes back as a free note at the top. Returns the page."""
+    t = trashed(db, pid)
+    p, sid = dict(t["page"]), t["space"]
+    if p.get("about"):
+        kind, key = _about(p["about"])
+        try:
+            kept = owner(db, kind, key) == sid and not db.one(
+                "SELECT VALUE id FROM note_page WHERE about_key = $k LIMIT 1", k=p.get("about_key")
+            )
+        except KeyError:
+            kept = False
+        if not kept:
+            p.update(about=None, about_key=None, parent=None, position=_last_position(db, sid, None))
+    parent = p.get("parent")
+    if parent is not None and not db.one("SELECT VALUE id FROM $r WHERE space = $s", r=R("note_page", int(parent)), s=sid):
+        p.update(parent=None, position=_last_position(db, sid, None))
+    db.q("CREATE $r CONTENT $d", r=R("note_page", int(pid)), d=store.clean(p))
+    for child in t.get("children") or []:
+        c = db.one("SELECT parent, space FROM $r", r=R("note_page", int(child)))
+        if c and c.get("space") == sid and c.get("parent") == t["page"].get("parent"):  # still where it moved up to
+            db.q("UPDATE $r SET parent = $p", r=R("note_page", int(child)), p=int(pid))
+    _links(db, int(pid), sid, p.get("body") or "")
+    db.q("DELETE $r", r=R("note_trash", int(pid)))
+    return get(db, pid)
+
+
+def purge(db, pid, cfg=None):
+    """Delete a page from recently deleted for good: with its files (given `cfg`, to reach where they are kept) and
+    its history."""
+    t = trashed(db, pid)
+    if cfg is not None:
+        for f in files(db, int(pid)):
+            delete_file(db, cfg, int(pid), f["key"], space=t["space"])
+    db.q("DELETE note_file WHERE page = $p", p=int(pid))
+    db.q("DELETE note_version WHERE page = $p", p=int(pid))
+    db.q("DELETE $r", r=R("note_trash", int(pid)))
+
+
+def purge_due(db, cfg, log=None):
+    """The pages deleted more than TRASH_DAYS ago, gone for good. How many."""
+    before = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=TRASH_DAYS)).isoformat(timespec="seconds")
+    gone = 0
+    for pid in db.values("SELECT VALUE record::id(id) FROM note_trash WHERE deleted_at < $t LIMIT 50", t=before):
+        try:
+            purge(db, pid, cfg)
+            gone += 1
+        except Exception as e:  # noqa: BLE001 - one page's files shouldn't stop the rest
+            if log:
+                log(f"note {pid}: {type(e).__name__}: {e}")
+    return gone
 
 
 def links(db, pid):
@@ -512,12 +640,13 @@ def _space_of(db, pid):
     return get(db, pid)["space"]
 
 
-def delete_file(db, cfg, pid, key):
-    """Remove a file from a page and from where it's kept."""
+def delete_file(db, cfg, pid, key, space=None):
+    """Remove a file from a page and from where it's kept (`space`: the page's namespace, for a deleted page)."""
     from . import blobs
 
     row = file_row(db, pid, key)
-    blobs.delete(db, cfg, row.get("where"), f"notes/{_space_of(db, pid)}/{int(pid)}/{row['id']}")
+    sid = space if space is not None else _space_of(db, pid)
+    blobs.delete(db, cfg, row.get("where"), f"notes/{sid}/{int(pid)}/{row['id']}")
     db.q("DELETE $r", r=R("note_file", row["id"]))
 
 
@@ -681,23 +810,46 @@ def labels(db, targets):
     return out
 
 
-def find(db, spaces, query="", place=None, limit=10):
+SNIPPET = 160
+
+
+def snippet(text, query, size=SNIPPET):
+    """The words around the first place the text has the query, on one line, with … where it was cut; None without."""
+    text, q = " ".join(str(text or "").split()), " ".join(str(query or "").split())
+    at = text.casefold().find(q.casefold()) if q else -1
+    if at < 0:
+        return None
+    start = max(0, at - size // 3)
+    if start:
+        cut = text.find(" ", start)
+        start = cut + 1 if 0 <= cut < at else start
+    end = min(len(text), start + size)
+    if end < len(text):
+        cut = text.rfind(" ", at + len(q), end)
+        end = cut if cut > 0 else end
+    return ("…" if start else "") + text[start:end] + ("…" if end < len(text) else "")
+
+
+def find(db, spaces, query="", place=None, limit=10, free=False):
     """Pages in these namespaces whose title, summary or text has the words, those with them in the title first, then
-    the latest changed. Returns (how many matched, the first `limit` without their bodies)."""
+    the latest changed; only free notes with `free`. Returns (how many matched, the first `limit` without their bodies,
+    each with the words around the match in its text as `snippet`)."""
     q = " ".join(str(query or "").split()).casefold()
     rows = db.rows(
-        "SELECT record::id(id) AS id, space, title, summary, place, about, updated_at, text FROM note_page WHERE space IN $s",
+        "SELECT record::id(id) AS id, space, title, summary, place, parent, about, author, updated_at, text FROM note_page "
+        "WHERE space IN $s",
         s=list(spaces),
     )
     hits = [
         r
         for r in rows
         if (not place or r.get("place") == place)
+        and (not free or not r.get("about"))
         and (not q or any(q in str(r.get(k) or "").casefold() for k in ("title", "summary", "text")))
     ]
     hits.sort(key=lambda r: r.get("updated_at") or "", reverse=True)
     hits.sort(key=lambda r: q not in str(r["title"]).casefold())
-    return len(hits), [{k: v for k, v in r.items() if k != "text"} for r in hits[:limit]]
+    return len(hits), [{**{k: v for k, v in r.items() if k != "text"}, "snippet": snippet(r.get("text"), q)} for r in hits[:limit]]
 
 
 def search_targets(db, sid, q="", sign="@", limit=20):
@@ -889,5 +1041,5 @@ def file_due(db, cfg, log=None):
 
 
 def organise_due(db, cfg, log=None):
-    """The notes pass the scheduler runs: titles and summaries first, then filing."""
-    return refine_due(db, cfg, log) + file_due(db, cfg, log)
+    """The notes pass the scheduler runs: titles and summaries first, then filing, then emptying old deletions."""
+    return refine_due(db, cfg, log) + file_due(db, cfg, log) + purge_due(db, cfg, log)

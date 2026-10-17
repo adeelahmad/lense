@@ -5,6 +5,7 @@ import {
   LockKeyhole,
   Cloud,
   Activity,
+  BarChart3,
   Archive,
   AudioLines,
   AudioWaveform,
@@ -29,6 +30,7 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
+  SquareTerminal,
   Terminal,
   Upload,
   type LucideIcon,
@@ -45,12 +47,15 @@ import {
   RefreshCw,
   Network,
   ScrollText,
+  Workflow,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Admin } from "@/app/openapi-client";
 import { isUnreachable, ServerUnreachable } from "@/components/errors/error-states";
+import { findSettings, hitHref, settingHref, SETTINGS_GROUPS, type SettingHit } from "@/components/settings/find";
 import {
   type AnySectionId,
   isWorkspaceSection,
@@ -64,6 +69,7 @@ import { SettingsSection } from "@/components/settings/section";
 import { SpeakersPage } from "@/components/speakers/speakers-page";
 import { EmptyState, Skeleton } from "@/components/ui/states";
 import { Button } from "@/components/ui/button";
+import { SearchInput } from "@/components/ui/field";
 import { data, useApiClient } from "@/lib/api/browser";
 import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
@@ -78,11 +84,13 @@ const ICON: Record<AnySectionId, LucideIcon> = {
   llm: Sparkles,
   "local-model": HardDrive,
   ai: Bot,
+  sandbox: SquareTerminal,
   search: Search,
   reports: ChartNoAxesColumn,
   video: Clapperboard,
   nsfw: EyeOff,
   workers: Cpu,
+  automations: Workflow,
   components: PackageCheck,
   access: ShieldCheck,
   "remote-access": Cloud,
@@ -96,6 +104,7 @@ const ICON: Record<AnySectionId, LucideIcon> = {
   slack: Hash,
   mailbox: AtSign,
   telemetry: Activity,
+  analytics: BarChart3,
   updates: RefreshCw,
   logs: ScrollText,
   fedora: Archive,
@@ -147,12 +156,58 @@ function GroupLabel({ children }: { children: React.ReactNode }) {
   return <div className="px-2.5 pb-1 pt-3 text-[11px] font-bold uppercase tracking-wide text-fg-muted">{children}</div>;
 }
 
+/** What Find found: each section, with the fields in it that matched, under its group. */
+function Found({ hits, section, onNavigate }: { hits: SettingHit[]; section: AnySectionId; onNavigate: () => void }) {
+  if (!hits.length) return <p className="px-2.5 pt-3 text-[13px] text-fg-secondary">No setting matches that.</p>;
+  let group = "";
+  return hits.map((h) => {
+    const label = h.group !== group ? h.group : null;
+    group = h.group;
+    return (
+      <div key={h.section} className="flex flex-col gap-px">
+        {label && <GroupLabel>{label}</GroupLabel>}
+        <SectionLink id={h.section} label={h.label} on={h.section === section} onNavigate={onNavigate} />
+        {h.fields.slice(0, 4).map((f) => (
+          <Link
+            key={f.key}
+            href={settingHref(h.section, f)}
+            onClick={onNavigate}
+            className="truncate rounded-sm py-1 pl-[34px] pr-2.5 text-[12.5px] text-fg-secondary hover:bg-surface-neutral hover:text-fg"
+          >
+            {f.label}
+          </Link>
+        ))}
+      </div>
+    );
+  });
+}
+
 /** Settings: Speakers for every member, then the archive's settings for admins (ST1–ST3, MD5), one at a time. On a
  * phone the sections are a list that opens from the section's name, rather than a strip that scrolls sideways. */
 export function SettingsShell({ section }: { section: AnySectionId }) {
   const { admin } = useArchive();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
-  const close = () => setOpen(false);
+  const [term, setTerm] = useState("");
+  const hits = useMemo(() => findSettings(term, admin), [term, admin]);
+  const close = () => {
+    setOpen(false);
+    setTerm("");
+  };
+  const find = useRef<HTMLInputElement>(null);
+  // "/" finds a setting, as it finds a word in a transcript
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName) || t.isContentEditable || !find.current) return;
+      e.preventDefault();
+      setOpen(true);
+      setTimeout(() => find.current?.focus(), 0);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const current = [...WORKSPACE_SECTIONS, ...SECTIONS].find((s) => s.id === section);
   const CurrentIcon = ICON[section];
   const [withErrors, setWithErrors] = useState<Set<SectionId>>(new Set());
@@ -187,23 +242,47 @@ export function SettingsShell({ section }: { section: AnySectionId }) {
           </button>
         </div>
         <div id="settings-sections" className={cn("flex-col gap-px pt-1 md:flex md:pt-0", open ? "flex" : "hidden")}>
-          <GroupLabel>Your namespaces</GroupLabel>
-          {WORKSPACE_SECTIONS.map((s) => (
-            <SectionLink key={s.id} id={s.id} label={s.label} on={s.id === section} onNavigate={close} />
-          ))}
           {admin && (
+            <SearchInput
+              ref={find}
+              aria-label="Find a setting"
+              placeholder="Find a setting"
+              value={term}
+              onChange={(e) => setTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setTerm("");
+                if (e.key !== "Enter" || !hits[0]) return;
+                e.preventDefault();
+                router.push(hitHref(hits[0]));
+                close();
+              }}
+              className="mx-0.5 mb-1 mt-2"
+            />
+          )}
+          {term.trim() ? (
+            <Found hits={hits} section={section} onNavigate={close} />
+          ) : (
             <>
-              <GroupLabel>Archive</GroupLabel>
-              {SECTIONS.map((s) => (
-                <SectionLink
-                  key={s.id}
-                  id={s.id}
-                  label={s.label}
-                  on={s.id === section}
-                  errors={withErrors.has(s.id)}
-                  onNavigate={close}
-                />
+              <GroupLabel>Your namespaces</GroupLabel>
+              {WORKSPACE_SECTIONS.map((s) => (
+                <SectionLink key={s.id} id={s.id} label={s.label} on={s.id === section} onNavigate={close} />
               ))}
+              {admin &&
+                SETTINGS_GROUPS.map((g) => (
+                  <div key={g.label} className="flex flex-col gap-px">
+                    <GroupLabel>{g.label}</GroupLabel>
+                    {g.sections.map((id) => (
+                      <SectionLink
+                        key={id}
+                        id={id}
+                        label={SECTIONS.find((s) => s.id === id)!.label}
+                        on={id === section}
+                        errors={withErrors.has(id)}
+                        onNavigate={close}
+                      />
+                    ))}
+                  </div>
+                ))}
             </>
           )}
         </div>
@@ -236,6 +315,7 @@ function ArchiveSettings({
 }) {
   const client = useApiClient();
   const { admin, me } = useArchive();
+  const field = useSearchParams().get("field");
   const settings = useQuery({
     queryKey: ["settings"],
     queryFn: async () => (await data(Admin.getSettings({ client }))) as unknown as SettingsView,
@@ -248,7 +328,7 @@ function ArchiveSettings({
         title="These settings are for admins"
         actions={
           <Button asChild>
-            <Link href="/settings/speakers">Go to Speakers</Link>
+            <Link href="/settings/speakers">Go to People</Link>
           </Button>
         }
       >
@@ -279,6 +359,6 @@ function ArchiveSettings({
       </EmptyState>
     )
   ) : (
-    <SettingsSection key={section} id={section} view={settings.data} onErrors={onErrors} />
+    <SettingsSection key={section} id={section} view={settings.data} onErrors={onErrors} field={field} />
   );
 }

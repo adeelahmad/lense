@@ -64,3 +64,56 @@ describe("settings", () => {
     await waitFor(() => expect(Admin.updateSettings).toHaveBeenCalledTimes(1));
   });
 });
+
+describe("opened on one setting", () => {
+  it("focuses its field with the value selected, so typing replaces it", async () => {
+    const qc = new QueryClient();
+    render(
+      <QueryClientProvider client={qc}>
+        <TooltipProvider>
+          <SettingsSection id="mail" view={VIEW} onErrors={() => undefined} field="mail.port" />
+        </TooltipProvider>
+      </QueryClientProvider>,
+    );
+    const port = screen.getByLabelText("Port") as HTMLInputElement;
+    await waitFor(() => expect(port).toHaveFocus());
+    expect([port.selectionStart, port.selectionEnd]).toEqual([0, port.value.length]);
+    expect(port.closest("[data-setting]")).toHaveClass("setting-found");
+  });
+});
+
+describe("options most people leave alone", () => {
+  const UPLOADS = {
+    uploads: { values: { max_mb: 2048, chunk_mb: 8, expire_hours: 24, extensions: [".mp3", ".wav"] } },
+  } as unknown as SettingsView;
+  const uploads = (field?: string) =>
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <TooltipProvider>
+          <SettingsSection id="uploads" view={UPLOADS} onErrors={() => undefined} field={field} />
+        </TooltipProvider>
+      </QueryClientProvider>,
+    );
+
+  it("are folded under a line saying what's in them, the main one left in view", () => {
+    uploads();
+    expect(screen.getByLabelText("Largest audio or video file (MB)").closest("details")).toBeNull();
+    const fold = screen.getByLabelText("Piece size (MB)").closest("details")!;
+    expect(fold).not.toHaveAttribute("open");
+    expect(fold.querySelector("summary")).toHaveTextContent("File types (2 of 20)");
+  });
+
+  it("open by themselves when one has an error", () => {
+    uploads();
+    const piece = screen.getByLabelText("Piece size (MB)");
+    fireEvent.change(piece, { target: { value: "0" } });
+    expect(piece.closest("details")).toHaveAttribute("open");
+  });
+
+  it("open on the field Find or ⌘K found", async () => {
+    uploads("uploads.expire_hours");
+    const hours = screen.getByLabelText("Keep unfinished uploads for (hours)");
+    expect(hours.closest("details")).toHaveAttribute("open");
+    await waitFor(() => expect(hours).toHaveFocus());
+  });
+});

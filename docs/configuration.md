@@ -34,6 +34,8 @@ with AES-GCM and are write-only: the API reports whether one is set, never its v
 | `LENS_SETUP_SETTINGS` | | settings to start with, as JSON `{"section": {"key": value}}` (or that JSON base64url-encoded): saved once at startup as if made in the app, so unlike the variables above they stay editable there. The [web installer](get-started.md#the-web-installer) writes its answers here; a `budget` section (`hard_usd`, `soft_usd`, `period`, `on_over`, `price_in`, `price_out`) sets [the overall budget](budgets.md#one-budget-for-everything) |
 | `LENS_SETUP_WIZARD` | | `off`: never show the setup wizard |
 | `LENS_TELEMETRY` / `LENS_TELEMETRY_ENDPOINT` / `LENS_TELEMETRY_HEADERS` | off | opt-in OpenTelemetry traces and metrics, sent only to this OTLP/HTTP endpoint ([Telemetry](telemetry.md)); `LENS_TELEMETRY=off` keeps it off whatever Settings say |
+| `LENS_ANALYTICS` / `LENS_GA_MEASUREMENT_ID` / `LENS_GA_API_SECRET` | off | opt-in usage events sent to your own Google Analytics 4 property ([Usage analytics](analytics.md)) |
+| `LENS_TARGET` / `LENS_BIND` | | how install.sh set the machine up: the edition (`full` or `lean`) and where the web app's port is published (`0.0.0.0`: the network, `127.0.0.1`: this machine only). `docker-compose.prod.yml` and a microsandbox pass them on from `.env`, and Settings show them; unset, Lens says it doesn't know. They're changed in Settings, which has the install run again ([Updates](updates.md#setting-the-machine-up-again)) |
 | `LENS_LOG_LEVEL` / `LENS_LOG_FORMAT` | info / text | the log level and console format for the API and every worker ([Logging](logging.md)); win over Settings → Logs |
 | `FRONTEND_URL` | `http://localhost:3000` | the web app's address as people use it: links in emails, and where apps send people to sign in ([OAuth](authentication.md#oauth)) |
 | `CORS_ORIGINS` | `["http://localhost:3000"]` | origins allowed to call the API from a browser |
@@ -66,7 +68,8 @@ to Lens. These have defaults, so the wizard doesn't ask them; each is a click aw
 * **Apps and AI**: whether apps and AI assistants (Claude, ChatGPT, Cursor and other MCP clients) may sign people in
   with their Lens account ([OAuth](authentication.md#oauth)), on unless turned off, how long their tokens last, and
   the MCP server's address to add to an assistant.
-* **Telemetry**: off unless chosen ([Telemetry](telemetry.md)).
+* **Telemetry**: off unless chosen ([Telemetry](telemetry.md)), and Google Analytics usage events, off unless
+  chosen ([Usage analytics](analytics.md)).
 
 Every step can be skipped, and the whole wizard too; all of it stays in Settings. Values from the environment win and
 show locked. Installs that already had accounts never see the wizard. The API side is `GET /api/v1/setup`,
@@ -104,11 +107,23 @@ Start from `fastapi_backend/archive.example.yaml`, which documents every key. Th
 ## Settings in the app
 
 Admins can change, in Settings: transcription, speaker separation, speech providers, voice IDs, analysis, the LLM
-provider and key, a local model, the AI assistant, search (word search and search by meaning), reports and graph,
-video, OCR, faces and objects, [NSFW classification](nsfw.md), workers, sign-in, components, access and embedding (embed frame ancestors, transcript
+provider and key, a local model, the AI assistant, the [code sandbox](assistant.md#code-sandbox), search (word
+search and search by meaning), reports and graph,
+video, OCR, faces and objects, [NSFW classification](nsfw.md), workers, sign-in, components (and the edition, full or
+lean), access and embedding (whether other devices on the network reach Lens, embed frame ancestors, text and transcript
 upload limit, allowed hosts, trusted proxies, session length), remote access, email, chat rooms, notifications,
-telemetry, the Fedora repository, sensors, file shares, uploads, storage, documents, API keys, and IIIF and metadata. The API
+automations, telemetry, the Fedora repository, sensors, file shares, uploads, storage, documents, API keys, and IIIF and metadata. The API
 refuses an allowed-host list that leaves out the address you are using.
+
+The sections are in groups: AI and search, Speech and voices, Media and documents, Chat and email, Security and
+access, Files and devices, and System. **Find a setting** at the top of the list (or `/`) finds a section by its name
+or what it's for, and a single setting by its label, hint or choices: Enter opens the first, and a setting found by
+its label opens with its field in focus and its value selected, so typing replaces it. ⌘K (Ctrl+K) finds settings
+the same way, beside recordings and pages. In a section, the options most people leave as they are (tuning numbers,
+file types, the assistant's tool list, a provider not yet set up) are folded under a line that names them; a fold
+opens by itself when one of its fields has an error, and Find opens it on the field it found. Agents reach the same
+settings through the API (`GET/PUT /api/v1/settings/<section>`), and the admin assistant through `read_settings` and
+`change_settings` ([Assistant](assistant.md#setting-up-and-running-the-server-by-chat)).
 
 ## Word search
 
@@ -127,11 +142,13 @@ After changing the engine or stemming, run `lens reindex` (or Settings → Searc
 
 ## Search by meaning
 
-Passages of transcripts, pages and descriptions are embedded by an OpenAI-compatible embeddings server (`POST
+Passages of assets' text and descriptions are embedded by an OpenAI-compatible embeddings server (`POST
 /embeddings`), so search can find moments by meaning ([how it works](processing.md#search-by-meaning)). By default it
 asks the LLM provider's server (`llm.base_url`, with its key) for `nomic-embed-text`, a small model that runs offline
-in Ollama (`ollama pull nomic-embed-text`); set `embeddings.base_url` to use another server, such as Ollama next to
-LM Studio, or llama.cpp's `llama-server --embeddings`. Without a server, search goes by the words as before.
+in Ollama. When that server is Ollama, Lens pulls the model on it the first time it's needed
+([Components](components.md)), so there is nothing to run; set `embeddings.base_url` to use another server, such as
+Ollama next to LM Studio, or llama.cpp's `llama-server --embeddings`. Without a server, search goes by the words as
+before.
 
 ```yaml
 embeddings:
@@ -152,7 +169,7 @@ embeddings:
 | `embeddings.timeout` | 60 | seconds per request (a search waits at most 15) |
 | `embeddings.query_prefix` / `document_prefix` | null | what searches and passages start with; null: what the model wants (`search_query: ` and `search_document: ` for nomic-embed-text, an instruction for mxbai and bge, `query: ` / `passage: ` for e5) |
 
-Changing the model drops the stored vectors (another model's can't be compared) until recordings are indexed again. When the server fails to index (it's down, or
+Changing the model drops the stored vectors (another model's can't be compared) until assets are indexed again. When the server fails to index (it's down, or
 doesn't have the model), indexing jobs skip for ten minutes rather than each waiting on it, and the hourly routine
 waits too; **Test** in Settings → Search, **Index now**, or `lens embed` try again at once.
 
@@ -185,6 +202,20 @@ People can choose the model a conversation uses, and ask a question again with a
 offered and stays the default. Left empty, they may pick whatever the model server lists (`GET /models`, kept for a
 minute); on providers that list many models, or charge by model, list the ones you want offered.
 
+## Web search
+
+Whether the assistant searches the web and reads pages ([Web search and reading pages](assistant.md#web-search-and-reading-pages)).
+Settings → AI assistant → Web search; the setup chat always asks before it changes these:
+
+| Setting | Default | |
+|---|---|---|
+| `web.search` | `off` | the search provider: `off`, `duckduckgo` (no key; fetches the ddgs client, about 30 MB, when picked), `searxng` (your own instance), `brave` or `tavily` (an API key) |
+| `web.searxng_url` | null | your SearXNG instance's address, such as `http://searxng:8080`, with its JSON output on; asked directly, so it may be on your network |
+| `web.api_key` | none | the Brave Search or Tavily API key, stored encrypted |
+| `web.results` | 5 | results per search when the model doesn't say, 1–20 |
+| `web.read_chars` | 20000 | the most of a page's text the model reads at once, 1,000–200,000 characters |
+| `web.render` | false | load a page that comes back nearly empty in Chromium, scripts run, and read it again (needs Chromium: the full edition) |
+
 ## Descriptions
 
 The describe step ([API](api.md#descriptions)) sends each page of a document or an image, and each shot's keyframe of
@@ -214,7 +245,7 @@ uploaded in the web app (Import → Upload) go up in pieces
 
 Pieces are written straight to `data_dir/uploads/.partial`, never held in memory; finished files are kept in
 `data_dir/uploads/<namespace>/`, so give `data_dir` room for them (an upload is refused when it would leave less than
-512 MB free). Transcript files have their own limit, `server.max_upload_mb` (Settings → Access & embedding), which
+512 MB free). Text and transcript imports have their own limit, `server.max_upload_mb` (Settings → Access & embedding), which
 also caps a resource's supplementary files ([API](api.md#files)), kept in `data_dir/files/<resource>/`; watched
 folders have none.
 
@@ -231,8 +262,8 @@ OpenDocument and RTF by LibreOffice; text, Markdown, saved web pages (HTML) and 
 makes of them, or by LibreOffice where there's no Chromium. Outlook `.msg` emails also need the `msg` extra
 (`pip install -e ".[msg]"`; extract-msg is GPL-3.0). The `lens:full` Docker image has LibreOffice and Chromium
 ([Deployment](deployment.md)), and a [microsandbox](microsandbox.md#libreoffice-and-chromium)'s full edition installs
-each the first time it's needed; without them, PDFs and images are read as before, and files that can be transcripts
-(Word, text, Markdown) are imported as transcripts. Settings → Documents:
+each the first time it's needed; without them, PDFs and images are read as before, and files that can be read as plain
+text (Word, text, Markdown) are imported as text. Settings → Documents:
 
 | Setting | Default | |
 |---|---|---|
@@ -331,7 +362,7 @@ faces and the face-id plugin describes them with Lens's SFace file. Lens reads e
 index of that run, then deletes it with the rest of the run.
 
 **Places and dates.** With `analysis.anytopdf` on (Settings › Analysis › Find places and dates with anytopdf; off by
-default), analysis asks anytopdf, run here with no network and no plugins, what a recording's text and a photo hold:
+default), analysis asks anytopdf, run here with no network and no plugins, what a document's text and a photo hold:
 
 - the places its text names, from anytopdf's offline gazetteer (GeoNames, CC BY 4.0), and the dates and times it
   gives, with their ISO value when the text pins one down ("3 March 2026", not "next Friday");
@@ -360,7 +391,7 @@ made of a document is `data_dir/renditions/<resource>.pdf`; both go when the res
 ## Text on screen and scans (OCR)
 
 The OCR engine of `video.ocr_engine` reads text on a video's sampled frames (the ocr step) and on a document's pages
-without text and on images (when they're transcribed, [above](#documents-and-images)):
+without text and on images (when they're read, [above](#documents-and-images)):
 
 * `auto`, the default: Apple Vision on a Mac worker, else Tesseract, else RapidOCR, whichever is there first.
 * `tesseract`: Tesseract (in the Docker images), in the languages of `video.ocr_languages`.
@@ -444,6 +475,41 @@ Where namespaces may send notifications ([Notifications](notifications.md)). Set
 | `notifications.app_url` | null | the web app's address, for links in messages; null uses `FRONTEND_URL` |
 | `notifications.poll_seconds` | 5 | how often the notifier looks for news, 1–3600 |
 | `notifications.max_attempts` | 6 | how many times a message is tried, 1–20 |
+
+## Automations
+
+How automations run ([Running automations](automations.md#running-automations)), the stream of activities they
+follow ([Automations](automations.md#contract)), their timers, and how long their
+[approvals](automations.md#approvals) wait. Settings → Automations:
+
+| Setting | Default | |
+|---|---|---|
+| `automations.enabled` | true | off: no automation runs and nothing is lost; back on, they react to what happens from then on |
+| `automations.max_depth` | 3 | how long a chain of automations setting each other off may get, 1–10 |
+| `automations.max_runs_per_minute` | 60 | runs a minute, all automations together, 1–6000 |
+| `automations.keep_runs_days` | 30 | how long runs are kept, 1–3650 days; each automation keeps its last 20 whatever their age |
+| `automations.catch_up` | `1h` | how late a timer (a schedule, an action that waits) may still fire after Lens was off, `0s` to `7d`; older ones are missed ([Time](automations.md#time)) |
+| `automations.approval_days` | 7 | how long an automation's action waits for your pick before it expires and nothing runs, 1–365 days |
+| `events.poll_seconds` | 5 | how often followers look for new activities when nothing wakes them, 1–3600 |
+| `events.keep_days` | 30 | how long activities with no row of their own (the event log) are kept, 1–3650 days |
+
+## Code sandbox
+
+Where the assistant runs Python and bash ([Code sandbox](assistant.md#code-sandbox)). Settings → Code sandbox; the
+image, CPU, memory, run time and how long sandboxes are kept are under its fold:
+
+| Setting | Default | |
+|---|---|---|
+| `sandbox.enabled` | false | on: the assistant gets `run_python`, `run_bash`, `sandbox_files` and `import_sandbox_file` |
+| `sandbox.who` | `editors` | who may use it: `editors` (people who can edit a namespace, and admins) or `admins` |
+| `sandbox.network` | `off` | `off` (no traffic), `packages` (the Python and npm registries) or `web` (public addresses on ports 80 and 443) |
+| `sandbox.gateway` | `openshell-gateway:8080` | the OpenShell gateway's gRPC address, `host:port` |
+| `sandbox.image` | `python:3.12-slim` | the container image sandboxes are made from; it needs `python3` and `bash` |
+| `sandbox.cpu` | `1` | cores a sandbox may use, like `1`, `0.5` or `500m` (0.1–64) |
+| `sandbox.memory` | `512Mi` | memory a sandbox may use, like `512Mi` or `2Gi` (64Mi–64Gi) |
+| `sandbox.seconds` | 60 | the longest one run may take, 1–600 seconds |
+| `sandbox.idle_minutes` | 15 | a sandbox nobody ran code in for this long is stopped (its files stay), 1–1440 |
+| `sandbox.keep_hours` | 24 | one unused for this long is deleted with its files, 1–720 |
 
 ## Trusted proxies
 

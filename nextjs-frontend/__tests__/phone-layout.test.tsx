@@ -40,7 +40,7 @@ test("on a phone the settings sections open as a list from the section's name, a
       <SettingsShell section="speakers" />
     </TooltipProvider>,
   );
-  const toggle = screen.getByRole("button", { name: "Settings section: Speakers" });
+  const toggle = screen.getByRole("button", { name: "Settings section: People" });
   const list = document.getElementById("settings-sections")!;
   expect(toggle).toHaveAttribute("aria-expanded", "false");
   expect(list).toHaveClass("hidden");

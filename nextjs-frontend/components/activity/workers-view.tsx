@@ -82,7 +82,7 @@ function WorkerCard({
     ];
     now = (
       <Link href={`/activity/${current.id}`} className="hover:underline">
-        {step?.label ?? stepLabel(current.next_step ?? "")} · {current.title ?? `Recording ${current.recording}`}
+        {step?.label ?? stepLabel(current.next_step ?? "")} · {current.title ?? `Asset ${current.recording}`}
       </Link>
     );
   } else if (w.current != null)

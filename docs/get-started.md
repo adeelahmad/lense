@@ -14,7 +14,8 @@ code already filled in. On a server without a desktop, Lens is reachable from th
 server's address. Run the same line again to update: the secrets, the database and the archive are kept. Settings go
 before `sh`: `LENS_DIR`, `LENS_PORT`, `LENS_PUBLIC` (`1`: from the network, `0`: this machine only), `LENS_TARGET`
 (`lean` for the smaller image, kept when the line runs again) and `LENS_REF` (a branch or tag) change the defaults;
-the top of `install.sh` lists them. If Lens doesn't answer in time (`LENS_WAIT`, in seconds: 10 minutes with Docker,
+the top of `install.sh` lists them. Whether the network reaches it and the edition can be changed later in Settings
+(Access & embedding, Components), with no terminal ([Updates](updates.md#setting-the-machine-up-again)). If Lens doesn't answer in time (`LENS_WAIT`, in seconds: 10 minutes with Docker,
 30 in a microsandbox), the installer stops waiting and shows the last lines Lens logged and why.
 
 Where it can (Linux with KVM, or a Mac with Apple silicon), a first install asks whether to run Lens in Docker (the
@@ -152,7 +153,7 @@ Reports, skipping or closing the card all count as seen; **Welcome tour** in the
 type a question and press Enter to send it to the assistant ([Chat](assistant.md)). With only one namespace, it is
 picked for you everywhere.
 
-Put audio under `./local-audio/podcasts` and `./local-audio/interviews` (or set `AUDIO_DIR`), or import transcripts
+Put audio under `./local-audio/podcasts` and `./local-audio/interviews` (or set `AUDIO_DIR`), or import documents and transcripts
 from the web app. Namespaces and folders are configured in `fastapi_backend/docker/archive.yaml`.
 
 ## Without Docker

@@ -75,12 +75,25 @@ def test_clients_are_sent_to_sign_in(client, app, env):
     assert [t["name"] for t in tools if not t["annotations"]["readOnlyHint"]] == [
         "suggest_topic",
         "propose_graph_change",
+        "undo_graph_change",
+        "edit_entity",
+        "edit_topic",
+        "merge_topics",
+        "delete_topic",
+        "undo_topic_change",
         "write_note",
         "create_podcast",
         "set_nsfw",
         "mark_nsfw",
+        "set_namespace_integrations",
         "set_file_storage",
         "set_monitoring",
+        "set_install_settings",
+        "mark_activities",
+        "decline_approval",
+        "set_automation_vars",
+        "save_automation",
+        "run_automation",
     ]
     assert next(t for t in tools if t["name"] == "search")["inputSchema"]["required"] == ["query"]
     # API tokens and sessions work too
@@ -217,7 +230,7 @@ def test_search_and_cite(client, env):
     at = tool(client, h, "cite", recording_id=ep1, seconds=c["seconds"] + 0.5)  # the line being said then
     assert at["line"] == 1 and at["quote"].startswith("Wow, really?")
     assert tool_error(client, h, "cite", recording_id=ep1) == "give line or seconds"
-    assert tool_error(client, h, "cite", recording_id=ep1, line=99) == f"recording {ep1} has no line 99"
+    assert tool_error(client, h, "cite", recording_id=ep1, line=99) == f"asset {ep1} has no line 99"
     assert tool_error(client, h, "cite", recording_id=call, line=0) == "not found, or not something you can read"
 
 
@@ -274,6 +287,7 @@ def test_entities_and_the_graph(client, env, monkeypatch):
 
     e = tool(client, h, "get_entity", entity_id=dyno["entity_id"], mentions=2)
     assert e["name"] == "Dyno Therapeutics" and e["mentions"] == 4 and e["next_mentions_offset"] == 2
+    assert e["url"] == "http://localhost:3000/wiki/pods/Dyno_Therapeutics"  # its page, by name
     assert tool_error(client, h, "get_entity", entity_id=dyno["entity_id"], mentions_offset=10001).startswith("mentions_offset")
     for name in ("list_recordings", "list_entities", "list_topics"):  # every page offset has the same cap as search's
         assert tool_error(client, h, name, offset=10001).startswith("offset"), name
@@ -412,6 +426,45 @@ def test_topic_tools(client, db, env):
     assert tool_error(client, he, "suggest_topic", topic_id=gene, recording_ids=[env["ids"][2]])  # calls isn't theirs
 
 
+def test_editing_topics_and_entities(client, db, env):
+    h = env["h"]  # a read-only app token for a pods viewer
+    pods = store.ns_id(db, "pods")
+    bio = topics.create(db, pods, "Biology")
+    life = topics.create(db, pods, "Life sciences", alt=["bioscience"])
+    dyno = tool(client, h, "list_entities", query="Dyno Therapeutics")["entities"][0]["entity_id"]
+    assert "read-only" in tool_error(client, h, "edit_topic", topic_id=bio, label="Biol")
+    assert "read-only" in tool_error(client, h, "merge_topics", keep_id=bio, other_ids=[life])
+    assert "read-only" in tool_error(client, h, "edit_entity", entity_id=dyno, description="A gene therapy company.")
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    he = login(client, "ed@x.io", "editor password 1")
+    # topics: edit, merge and undo, delete and undo
+    assert "say what changes" in tool_error(client, he, "edit_topic", topic_id=bio)
+    t = tool(client, he, "edit_topic", topic_id=bio, definition="Living things.", also=["bio"])
+    assert (t["label"], t["also"], t["definition"]) == ("Biology", ["bio"], "Living things.")
+    m = tool(client, he, "merge_topics", keep_id=bio, other_ids=[life])
+    assert m["also"] == ["bio", "Life sciences", "bioscience"] and m["undo_id"]
+    assert tool(client, he, "undo_topic_change", undo_id=m["undo_id"]) == {"undone": m["undo_id"]}
+    assert tool(client, h, "get_topic", topic_id=life)["label"] == "Life sciences"
+    assert "Nothing to undo" in tool_error(client, he, "undo_topic_change", undo_id=m["undo_id"])
+    d = tool(client, he, "delete_topic", topic_id=life)
+    assert tool_error(client, h, "get_topic", topic_id=life)
+    tool(client, he, "undo_topic_change", undo_id=d["undo_id"])
+    assert tool(client, h, "get_topic", topic_id=life)["also"] == ["bioscience"]
+    # entities: describe, say how else it's said, rename, hide and show
+    e = tool(client, he, "edit_entity", entity_id=dyno, description="A gene therapy company.", aliases=["Dyno"])
+    assert (e["description"], e["aliases"]) == ("A gene therapy company.", ["dyno"])  # aliases are kept as keys
+    e = tool(client, he, "edit_entity", entity_id=dyno, new_name="Dyno Tx", hidden=True)
+    assert e["name"] == "Dyno Tx" and "dyno therapeutics" in e["aliases"] and e["hidden"] is True
+    assert tool(client, he, "edit_entity", entity_id=dyno, hidden=False)["hidden"] is False
+    assert "say what changes" in tool_error(client, he, "edit_entity", entity_id=dyno)
+    # merging entities goes through a graph change, which can be undone
+    other = client.post("/api/v1/namespaces/pods/entities", json={"name": "Dyno Inc", "type": "ORG"}, headers=he).json()["id"]
+    ch = tool(client, he, "propose_graph_change", kind="merge", a=f"e{dyno}", b=f"e{other}", apply=True)
+    assert ch["status"] == "applied"
+    assert tool(client, he, "undo_graph_change", change_id=ch["id"]) == {"undone": ch["id"]}
+    assert tool(client, h, "get_entity", entity_id=other)["entity_id"] == other
+
+
 def test_note_tools(client, db, env):
     h = env["h"]  # a read-only app token for a pods viewer
     a, _, call = env["ids"]
@@ -426,6 +479,7 @@ def test_note_tools(client, db, env):
     found = tool(client, h, "find_notes", query="capsid")
     assert [(n["note_id"], n["summary"], n["place"]) for n in found["notes"]] == [(plan, "Shipping capsids", "project")]
     assert found["notes"][0]["url"].endswith(f"/notes/{plan}")
+    assert tool(client, h, "find_notes", query="friday")["notes"][0]["snippet"] == "Ship on Friday, see ep1."
     assert tool(client, h, "find_notes", place="area")["total"] == 0
     got = tool(client, h, "read_note", note_id=plan)
     assert got["body"].startswith("Ship on Friday") and got["links"] == [{"target": f"recording:{a}", "name": got["links"][0]["name"]}]
@@ -470,6 +524,33 @@ def test_monitoring_tools(client, db, env, monkeypatch):
     got = tool(client, ha, "monitoring")
     assert (got["on"], got["agent"]) == (False, None) and got["settings"].endswith("/settings/telemetry")
     assert "no upgrade agent" in tool_error(client, ha, "set_monitoring", on=True)
+
+
+def test_install_tools(client, db, env, tmp_path, monkeypatch):
+    monkeypatch.delenv("LENS_CONTROL_DIR", raising=False)
+    monkeypatch.setenv("LENS_BIND", "127.0.0.1")
+    monkeypatch.setenv("LENS_TARGET", "full")
+    assert "only admins" in tool_error(client, env["h"], "install_settings")
+    assert "only admins" in tool_error(client, env["h"], "set_install_settings", public=True)
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    ha = login(client, "root@x.io", "root password 1")
+    got = tool(client, ha, "install_settings")
+    assert (got["public"], got["target"], got["agent"]) == (False, "full", None) and got["settings"].endswith("/settings/access")
+    assert got["manual"]["public"].endswith("LENS_PUBLIC=1 sh")
+    err = tool_error(client, ha, "set_install_settings", public=True)
+    assert "no upgrade agent" in err and err.endswith("LENS_PUBLIC=1 sh")  # the line to run instead
+    assert "say what to change" in tool_error(client, ha, "set_install_settings")
+    assert "full, lean" in tool_error(client, ha, "set_install_settings", target="medium")
+
+    d = tmp_path / "control"
+    (d / "inbox").mkdir(parents=True)
+    (d / "agent").write_text("kind=systemd\n")
+    monkeypatch.setenv("LENS_CONTROL_DIR", str(d))
+    assert tool(client, ha, "set_install_settings", public=False)["changing"] == {}  # so already: nothing restarts
+    got = tool(client, ha, "set_install_settings", target="lean")
+    assert got["changing"] == {"target": "lean"} and got["reconfigure"]["target"] == "lean"
+    detail = db.values("SELECT VALUE detail FROM audit_log WHERE action = 'lens.install'")
+    assert detail == [{"target": "lean", "via": "mcp"}]
 
 
 def test_what_the_archive_says_reaches_agents_as_data(client, db, cfg, env):

@@ -988,7 +988,7 @@ def _store_import(db, cfg, ns, t, title, fp, src, st, audio, speaker_names, engi
 
     segs = t["segments"]
     if not segs:
-        raise SystemExit("no transcript text found")
+        raise SystemExit("no text found")
     nid = store.ns_id(db, ns)
     home = store.home(db, nid, collection)  # KeyError for a collection of another namespace
     deletion.forget(db, nid, fp, src)  # imported on purpose: a deleted recording may come back
@@ -1064,7 +1064,7 @@ def import_text(db, cfg, ns, text, title=None, fmt="auto", speaker_names=None, n
         raise SystemExit("nothing to import")
     t = read_text_transcript(text, fmt, name)
     fp = "paste-" + hashlib.sha1(text.encode("utf-8")).hexdigest()[:20]
-    first = next((l.strip() for l in text.splitlines() if l.strip()), "Pasted transcript")
+    first = next((l.strip() for l in text.splitlines() if l.strip()), "Pasted text")
     return _store_import(
         db,
         cfg,

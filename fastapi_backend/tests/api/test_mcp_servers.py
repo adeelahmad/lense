@@ -1,5 +1,6 @@
-"""MCP servers as extensions: an admin adds one, Lens lists its tools, and the assistant calls them (a read-only one at
-once, the others after a yes); a plugin's MCP servers come along when an admin installs it."""
+"""MCP servers as extensions: an admin adds one (by a manifest, or a config pasted from another app), Lens lists its
+tools, and the assistant calls them (a read-only one at once, the others after a yes, each switched on or off); its
+tokens are sealed and never shown; a plugin's MCP servers come along when an admin installs it."""
 
 from __future__ import annotations
 
@@ -7,7 +8,8 @@ import json
 
 import pytest
 
-from app.domain import extensions, marketplace, mcp_client
+from app.domain import extensions, marketplace, mcp_client, mcp_servers
+from app.domain.store import R
 from tests import fake_llm
 from tests.api._assist import Assist, sse, start_llm
 from tests.api.test_marketplaces import tarball
@@ -162,7 +164,7 @@ def test_a_plugins_mcp_servers_come_with_an_admin_install(app, db, cfg, folder, 
 
 
 FAKE_STDIO = r"""
-import json, sys
+import json, os, sys
 for line in sys.stdin:
     m = json.loads(line)
     if "id" not in m:
@@ -174,7 +176,8 @@ for line in sys.stdin:
     elif m["method"] == "tools/call":
         if m["params"]["arguments"].get("die"):
             sys.exit(3)
-        r = {"content": [{"type": "text", "text": "echo " + json.dumps(m["params"]["arguments"]) + " " + sys.argv[1]}]}
+        said = "echo " + json.dumps(m["params"]["arguments"]) + " " + sys.argv[1] + os.environ.get("API_KEY", "")
+        r = {"content": [{"type": "text", "text": said}]}
     else:
         print(json.dumps({"jsonrpc": "2.0", "id": m["id"], "error": {"code": -32601, "message": "no"}}), flush=True)
         continue
@@ -237,3 +240,179 @@ def test_a_server_that_runs_as_a_program_runs_in_the_runner(app, db, cfg, folder
     monkeypatch.delenv("LENS_MCP_RUNNER_URL")
     no = ca.post("/api/v1/extensions", headers=ha, json={"manifest": {**manifest, "name": "other"}})
     assert no.status_code == 400 and "COMPOSE_PROFILES=mcp" in no.json()["detail"]
+
+
+def test_a_programs_keys_are_sealed_and_go_to_that_program_only(app, db, cfg, folder, new_client, runner):
+    s = Assist(app, db, cfg, folder, new_client)
+    ca, ha = s.cl["admin"]
+    manifest = {"name": "keyed", "kind": "mcp", "command": runner["command"], "args": runner["args"], "env": {"API_KEY": "-k3y", "X": "1"}}
+    eid = ca.post("/api/v1/extensions", headers=ha, json={"manifest": manifest}).json()["id"]
+    env = extensions.get(db, eid)["spec"]["env"]
+    assert mcp_servers.is_sealed(env["API_KEY"]) and env["X"] == "1"
+    got = ca.get(f"/api/v1/extensions/{eid}", headers=ha).json()
+    assert got["spec"]["env"] == {"API_KEY": "••••", "X": "1"}
+    tried = ca.post(f"/api/v1/extensions/{eid}/test", headers=ha, json={"tool": "keyed__echo", "args": {}})
+    assert tried.json()["output"] == {"text": "echo {} hi-k3y"}  # the program got it, opened
+    # another package is another program: the key isn't handed on
+    other = {**manifest, "args": [*runner["args"][:-1], "other"], "env": {"API_KEY": "••••", "X": "1"}}
+    no = ca.post(f"/api/v1/extensions/{eid}/versions", headers=ha, json={"manifest": other})
+    assert no.status_code == 400 and "goes somewhere else" in no.json()["detail"]
+
+
+def test_its_secrets_are_sealed_and_never_shown(app, db, cfg, folder, new_client, server):
+    s = Assist(app, db, cfg, folder, new_client)
+    ca, ha = s.cl["admin"]
+    eid = ca.post("/api/v1/extensions", headers=ha, json={"text": SERVER}).json()["id"]
+    kept = extensions.get(db, eid)["spec"]["headers"]["Authorization"]
+    assert mcp_servers.is_sealed(kept) and "t0ken" not in kept
+    got = ca.get(f"/api/v1/extensions/{eid}", headers=ha).json()
+    assert got["spec"]["headers"] == {"Authorization": "••••"} and "t0ken" not in got["manifest"]
+    assert "Authorization: ••••" in got["manifest"]
+    assert "t0ken" not in json.dumps(ca.get("/api/v1/extensions", headers=ha).json())
+    # opened only to reach the server
+    tried = ca.post(f"/api/v1/extensions/{eid}/test", headers=ha, json={"tool": "tracker__search", "args": {"q": "x"}})
+    assert tried.json()["output"] == {"text": 'search: {"q": "x"}'}
+
+    # saving the manifest as shown keeps the token, and its tools are listed again with it
+    server.clear()
+    saved = ca.post(f"/api/v1/extensions/{eid}/versions", headers=ha, json={"text": got["manifest"], "notes": "again"})
+    assert saved.status_code == 200, saved.text
+    assert any(b["method"] == "tools/list" for _, _, b in server)
+    assert extensions.get(db, eid)["spec"]["headers"]["Authorization"] != kept  # sealed again: the same token
+    again = ca.post(f"/api/v1/extensions/{eid}/test", headers=ha, json={"tool": "tracker__search", "args": {"q": "y"}})
+    assert again.status_code == 200
+    # but not to another host, nor into another extension
+    moved = got["manifest"].replace("mcp.example.com", "evil.example.net")
+    no = ca.post(f"/api/v1/extensions/{eid}/versions", headers=ha, json={"text": moved})
+    assert no.status_code == 400 and "goes somewhere else" in no.json()["detail"]
+    new = ca.post("/api/v1/extensions", headers=ha, json={"text": got["manifest"].replace("name: tracker", "name: copy")})
+    assert new.status_code == 400 and "enter the Authorization value of copy" in new.json()["detail"]
+    pasted = SERVER.replace("name: tracker", "name: copy").replace("Bearer t0ken", kept)
+    no = ca.post("/api/v1/extensions", headers=ha, json={"text": pasted})
+    assert no.status_code == 400 and "sealed for another extension" in no.json()["detail"]
+    # a header that isn't a credential stays as it is
+    headers = {"Authorization": "Bearer t0ken", "X-Team": "blue"}
+    other = {"name": "plain", "kind": "mcp", "url": "https://mcp.example.com/mcp", "headers": headers}
+    pid = ca.post("/api/v1/extensions", headers=ha, json={"manifest": other}).json()["id"]
+    assert extensions.get(db, pid)["spec"]["headers"]["X-Team"] == "blue"
+    assert ca.get(f"/api/v1/extensions/{pid}", headers=ha).json()["spec"]["headers"] == {"Authorization": "••••", "X-Team": "blue"}
+
+
+def test_upgrading_seals_tokens_saved_before(app, db, cfg, folder, new_client, server):
+    s = Assist(app, db, cfg, folder, new_client)
+    ca, ha = s.cl["admin"]
+    eid = ca.post("/api/v1/extensions", headers=ha, json={"text": SERVER}).json()["id"]
+    plain = {**extensions.get(db, eid)["spec"], "headers": {"Authorization": "Bearer t0ken"}}
+    db.q("UPDATE $r SET spec = $s", r=R("extension_version", f"{eid}-1"), s=plain)  # as an older Lens kept it
+    mcp_servers.migrate_seal(db)
+    kept = extensions.get(db, eid)["spec"]["headers"]["Authorization"]
+    assert mcp_servers.is_sealed(kept)
+    mcp_servers.migrate_seal(db)  # twice: nothing changes
+    assert extensions.get(db, eid)["spec"]["headers"]["Authorization"] == kept
+    tried = ca.post(f"/api/v1/extensions/{eid}/test", headers=ha, json={"tool": "tracker__search", "args": {"q": "x"}})
+    assert tried.json()["output"] == {"text": 'search: {"q": "x"}'}
+
+
+def test_each_tool_is_switched_and_says_whether_it_asks(app, db, cfg, folder, new_client, server, llm):
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["editor"]
+    ca, ha = s.cl["admin"]
+    eid = ca.post("/api/v1/extensions", headers=ha, json={"text": SERVER}).json()["id"]
+    ca.patch(f"/api/v1/extensions/{eid}", headers=ha, json={"visibility": "everyone"})
+
+    def effects():
+        return {t["name"]: t["spec"]["effect"] for t in extensions.tool_items(extensions.get(db, eid))}
+
+    def switch(body):
+        return ca.patch(f"/api/v1/extensions/{eid}/tools", headers=ha, json=body)
+
+    assert effects() == {"tracker__search": "read", "tracker__create-issue": "change"}  # as the server says
+    assert switch({"tool": "search", "ask": True}).json()["version"] == 2
+    assert switch({"tool": "create-issue", "on": False}).json()["version"] == 3
+    assert effects() == {"tracker__search": "change"}
+    got = ca.get(f"/api/v1/extensions/{eid}", headers=ha).json()
+    assert got["spec"]["off"] == ["create-issue"] and got["spec"]["ask"] == {"search": True}
+    assert got["history"][0]["notes"] == "create-issue off"
+    # they stay when its tools are listed again on saving its manifest
+    ca.post(f"/api/v1/extensions/{eid}/versions", headers=ha, json={"text": got["manifest"]})
+    assert effects() == {"tracker__search": "change"}
+    # back as the server says: not written down
+    switch({"tool": "search", "ask": False})
+    switch({"tool": "create-issue", "on": True, "ask": False})
+    assert effects() == {"tracker__search": "read", "tracker__create-issue": "read"}
+    assert extensions.get(db, eid)["spec"]["ask"] == {"create-issue": False}
+    assert switch({"tool": "nope", "on": False}).status_code == 400
+    assert c.patch(f"/api/v1/extensions/{eid}/tools", headers=h, json={"tool": "search", "on": False}).status_code == 403
+
+    # in a conversation: a tool switched off isn't offered, and one set to ask first waits for a yes
+    switch({"tool": "create-issue", "on": False})
+    switch({"tool": "search", "ask": True})
+    llm.seen.clear()
+    llm.tool_script = [{"content": "", "tool_calls": [call(1, "tracker__search", {"q": "login"})]}, {"content": "Asked."}]
+    cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    ev = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "Any login bugs?"}).text)
+    names = [t["function"]["name"] for t in [b for b in llm.seen if b.get("tools")][0]["tools"]]
+    assert "tracker__search" in names and "tracker__create-issue" not in names
+    assert ev["step"][0]["summary"] == 'Asked for approval: Run tracker__search(q="login")'
+
+
+CLAUDE = {
+    "mcpServers": {
+        "tracker": {"type": "http", "url": "https://mcp.example.com/mcp", "headers": {"Authorization": "Bearer ${TRACKER_TOKEN}"}},
+        "github": {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-github"], "env": {"GITHUB_TOKEN": "${GH}"}},
+        "old": {"type": "sse", "url": "https://old.example.com/sse"},
+    }
+}
+
+
+def test_a_pasted_config_reads_as_servers_to_add(app, db, cfg, folder, new_client, server):
+    s = Assist(app, db, cfg, folder, new_client)
+    ca, ha = s.cl["admin"]
+
+    def read(text):
+        return ca.post("/api/v1/extensions/mcp/read", headers=ha, json={"text": text})
+
+    got = read(json.dumps(CLAUDE)).json()
+    assert [(x["name"], x["fill"]) for x in got["servers"]] == [("tracker", ["TRACKER_TOKEN"]), ("github", ["GH"])]
+    github = {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-github"], "env": {"GITHUB_TOKEN": "${GH}"}}
+    assert got["servers"][1]["spec"] == github
+    assert [x["name"] for x in got["skipped"]] == ["old"] and "SSE" in got["skipped"][0]["why"]
+    # VS Code's, a list, and one server on its own, its name guessed
+    vscode = {"servers": {"fetch": {"type": "stdio", "command": "uvx", "args": ["mcp-server-fetch"]}}}
+    assert [x["name"] for x in read(json.dumps(vscode)).json()["servers"]] == ["fetch"]
+    one = read('{"command": "npx", "args": ["@playwright/mcp@latest", "--headless"]}').json()["servers"]
+    assert [x["name"] for x in one] == ["playwright"]
+    two = read(json.dumps([{"url": "https://mcp.linear.app/mcp"}, {"url": "https://mcp.linear.app/other"}])).json()["servers"]
+    assert [x["name"] for x in two] == ["linear", "linear_2"]
+    for bad in ('{"mcpServers": {"x": ', "hello there", "[]"):
+        assert read(bad).status_code == 400
+
+    # one is tried, then added with its token filled in
+    first = {**got["servers"][0]["spec"], "headers": {"Authorization": "Bearer t0ken"}}
+    tried = ca.post("/api/v1/extensions/mcp/test", headers=ha, json={"spec": first}).json()
+    assert [t["name"] for t in tried["tools"]] == ["search", "create-issue"]
+    eid = ca.post("/api/v1/extensions", headers=ha, json={"manifest": {"name": "tracker", "kind": "mcp", **first}}).json()["id"]
+    # tried again as saved, its token as ••••
+    shown = {**first, "headers": {"Authorization": "••••"}}
+    again = ca.post("/api/v1/extensions/mcp/test", headers=ha, json={"spec": shown, "extension": eid})
+    assert again.status_code == 200 and len(again.json()["tools"]) == 2
+    no = ca.post("/api/v1/extensions/mcp/test", headers=ha, json={"spec": shown})
+    assert no.status_code == 400 and "there is none" in no.json()["detail"]
+    c, h = s.cl["editor"]
+    no = c.post("/api/v1/extensions/mcp/test", headers=h, json={"spec": first})
+    assert no.status_code == 400 and "only admins" in no.json()["detail"]
+
+
+@pytest.mark.parametrize(
+    "server, name",
+    [
+        ({"command": "npx", "args": ["-y", "@modelcontextprotocol/server-github"]}, "github"),
+        ({"command": "uvx", "args": ["mcp-server-fetch"]}, "fetch"),
+        ({"command": "docker", "args": ["run", "-i", "--rm", "ghcr.io/github/github-mcp-server"]}, "github"),
+        ({"command": "npx", "args": ["@playwright/mcp@latest"]}, "playwright"),
+        ({"url": "https://api.githubcopilot.com/mcp/"}, "githubcopilot"),
+        ({"url": "http://localhost:8931/mcp"}, "localhost"),
+    ],
+)
+def test_a_server_without_a_name_gets_one(server, name):
+    assert mcp_servers.guess_name(server) == name

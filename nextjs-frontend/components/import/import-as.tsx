@@ -24,8 +24,8 @@ export function ImportAs({
   if (cannot)
     return (
       <p className="text-[12.5px] leading-[1.45] text-fg-muted">
-        Imported as a transcript: this server can’t keep {uploadKindName("document", it.file.name).toLowerCase()}s as
-        documents. {cannot}
+        Imported as text: this server can’t keep {uploadKindName("document", it.file.name).toLowerCase()}s as documents.{" "}
+        {cannot}
       </p>
     );
   const doc = it.kind !== "transcript";
@@ -36,13 +36,13 @@ export function ImportAs({
         label="Import as"
         items={[
           { value: "document", label: "Document" },
-          { value: "transcript", label: "Transcript" },
+          { value: "transcript", label: "Text" },
         ]}
         value={doc ? "document" : "transcript"}
         onChange={(v) => onKind(v as FileKind)}
       />
       <span className="text-[12.5px] text-fg-muted">
-        {doc ? "Its pages, to look at and search." : "Only its text, as a transcript without media."}
+        {doc ? "Its pages, to look at and search." : "Only its text, without media."}
       </span>
     </div>
   );

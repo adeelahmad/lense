@@ -1,12 +1,13 @@
 /**
  * Home's "Needs attention": only what the person can act on, each linking to where it gets fixed. Built from failed
  * jobs, recordings in error, unreachable sources and failing watched folders (admins/owners), voice matches to review
- * (editors), requests for access to answer (owners) and API tokens about to expire. Resolved items drop out on their
- * own because the data no longer has them.
+ * (editors), requests for access to answer (owners), approvals waiting for the person's pick and API tokens about to
+ * expire. Resolved items drop out on their own because the data no longer has them.
  */
 import type {
   AccessRequest,
   ApiToken,
+  ApprovalCount,
   Job,
   RecordingSummary,
   Source,
@@ -56,6 +57,7 @@ export function buildAttention(input: {
   reviews?: { namespace: string; speakers: Speaker[] }[];
   requests?: AccessRequest[];
   tokens?: ApiToken[];
+  approvals?: ApprovalCount;
   now?: number;
 }): AttentionItem[] {
   const now = input.now ?? Date.now();
@@ -71,7 +73,7 @@ export function buildAttention(input: {
     out.push({
       key: `job-${j.id}`,
       kind: "fail",
-      title: `${stepLabel(j.next_step)} failed on ${j.title || `recording ${j.recording}`}`,
+      title: `${stepLabel(j.next_step)} failed on ${j.title || `asset ${j.recording}`}`,
       meta: [short(j.error) || "No error message", when ? shortDate(when) : null, worker].filter(Boolean).join(" · "),
       action: { label: "Retry", do: { type: "retry-job", job: j.id } },
       namespace: j.space != null ? (input.nsById.get(j.space) ?? null) : null,
@@ -86,7 +88,7 @@ export function buildAttention(input: {
     out.push({
       key: `rec-${r.id}`,
       kind: "fail",
-      title: `Processing failed on ${r.title || `recording ${r.id}`}`,
+      title: `Processing failed on ${r.title || `asset ${r.id}`}`,
       meta: [short(r.error) || "No error message", r.namespace].filter(Boolean).join(" · "),
       action: {
         label: "Reprocess",
@@ -153,12 +155,30 @@ export function buildAttention(input: {
     out.push({
       key: `request-${r.recording}-${r.account}`,
       kind: "gate",
-      title: `${r.name || r.email} asked for access to ${r.title || `recording ${r.recording}`}`,
+      title: `${r.name || r.email} asked for access to ${r.title || `asset ${r.recording}`}`,
       meta: [r.message ? `“${short(r.message, 70)}”` : null, r.at ? relative(r.at, now) : null, r.namespace]
         .filter(Boolean)
         .join(" · "),
       action: { label: "Review", do: { type: "link", href: `/resources/${r.recording}#access` } },
       namespace: r.namespace ?? null,
+    });
+  }
+
+  // What automations (and the assistant) asked and wait for this person's pick: decided in the inbox.
+  const waiting = input.approvals?.waiting ?? 0;
+  if (waiting > 0) {
+    const auto = input.approvals?.automations ?? 0;
+    out.push({
+      key: "approvals",
+      kind: "gate",
+      title: `${waiting} ${waiting === 1 ? "action waits" : "actions wait"} for your approval`,
+      meta:
+        auto === waiting
+          ? `from ${auto === 1 ? "an automation" : "automations"}`
+          : auto
+            ? `${auto} from automations, ${waiting - auto} from the assistant`
+            : "from the assistant",
+      action: { label: "Review", do: { type: "link", href: "/approvals" } },
     });
   }
 

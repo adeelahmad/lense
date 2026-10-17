@@ -42,7 +42,7 @@ function focusSibling(from: HTMLElement, step: 1 | -1) {
   if (next) next.focus();
   else if (step === -1)
     (
-      document.querySelector<HTMLInputElement>("[data-search-input] input, input[aria-label='Search transcripts']") ??
+      document.querySelector<HTMLInputElement>("[data-search-input] input, input[aria-label='Search your assets']") ??
       undefined
     )?.focus();
 }
@@ -58,7 +58,7 @@ function PlayButton({ hit, player, audio }: { hit: SearchHit; player: InlinePlay
     : untimed
       ? "No time: a line of a file without times"
       : none
-        ? "No audio — transcript only"
+        ? "No audio — text only"
         : `${playing ? "Pause" : "Play"} from ${tc(hit.t0)}`;
   const btn = (
     <button
@@ -99,7 +99,7 @@ function PlayButton({ hit, player, audio }: { hit: SearchHit; player: InlinePlay
           ? `${foundAs(hit) ?? "On the page"}, of a document or an image`
           : untimed
             ? "This line's file doesn't say when it is"
-            : "No audio: this recording is a transcript"
+            : "No audio: this asset is text only"
       }
     >
       {btn}

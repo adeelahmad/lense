@@ -8,7 +8,8 @@ import pytest
 from rdflib import Graph, Literal, URIRef
 from rdflib.namespace import DCMITYPE, DCTERMS, FOAF, RDF, SKOS
 
-from app.domain import metadata, rdf
+from app.domain import metadata, rdf, wiki
+from app.domain.store import R
 from tests.api.test_iiif import BASE, Env
 from tests.helpers import login
 
@@ -105,7 +106,8 @@ def test_namespace_graph_and_other_uris(env):
     eid = next(int(str(e).rsplit("/", 1)[1]) for e in g.subjects(RDF.type, SKOS.Concept))
     assert c.get(f"/id/entity/{eid}", headers={**h, "Accept": "text/turtle"}).status_code == 200
     r = c.get(f"/id/entity/{eid}", headers={**h, "Accept": "text/html"}, follow_redirects=False)
-    assert r.status_code == 303 and r.headers["location"].endswith(f"/entities/{eid}")
+    name = env.db.one("SELECT VALUE name FROM $r", r=R("entity", eid))
+    assert r.status_code == 303 and r.headers["location"] == f"{BASE}{wiki.path('pods', name)}"  # its page, by name
     spk = next(int(str(p).rsplit("/", 1)[1]) for p in people if "/id/speaker/" in str(p))
     assert (URIRef(f"{BASE}/id/speaker/{spk}"), RDF.type, FOAF.Person) in parse(
         c.get(f"/id/speaker/{spk}", headers=h, params={"format": "ttl"})

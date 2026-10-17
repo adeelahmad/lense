@@ -10,6 +10,7 @@ import type { HttpsStatus, MatterbridgeStatus } from "@/app/openapi-client/types
 import { MonitoringSwitch } from "@/components/admin/monitoring-switch";
 import { BackupsPanel } from "@/components/settings/backups-panel";
 import { ComponentsStatus } from "@/components/settings/components-status";
+import { EditionChoice, NetworkReach } from "@/components/settings/install-settings";
 import { LogViewer } from "@/components/settings/log-viewer";
 import { AllTokens } from "@/components/account/all-tokens";
 import { ACCESS } from "@/components/iiif/metadata-model";
@@ -32,6 +33,7 @@ import {
   AI_TOOLS,
   BACKUP_SCHEDULES,
   SPEECH_PROVIDERS,
+  UPLOAD_TYPES,
   type FieldSpec,
   type SectionId,
   type SettingsView,
@@ -85,6 +87,31 @@ function F({
       className={className}
       suggestions={suggestions}
     />
+  );
+}
+
+/** Options most people leave as they are, folded under a line that says what's in them. It opens by itself when one of
+ * `ids` has an error, so a save that fails shows the field; Find and ⌘K open it on the field they found. */
+function More({
+  ctx,
+  ids,
+  title,
+  open,
+  children,
+}: {
+  ctx: BodyCtx;
+  ids: string[];
+  title: ReactNode;
+  /** Open to begin with (a provider already in use). */
+  open?: boolean;
+  children: ReactNode;
+}) {
+  const failed = ids.some((id) => Boolean(ctx.state(id).error));
+  return (
+    <details open={failed || open || undefined} className="group text-[13px]">
+      <summary className="cursor-pointer font-semibold text-fg-secondary hover:text-fg">{title}</summary>
+      <div className="mt-3 flex flex-col gap-4">{children}</div>
+    </details>
   );
 }
 
@@ -192,7 +219,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
               review={v("speakers.review_threshold") as number}
             />
             <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
-              When valid, the three zones read: <b>new speaker</b> below review · <b>◆ review queue</b> between ·{" "}
+              When valid, the three zones read: <b>new person</b> below review · <b>◆ review queue</b> between ·{" "}
               <b>✓ auto-match</b> at match and above.
             </p>
           </div>
@@ -204,15 +231,19 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <div className="border-t border-border py-3.5">
             <F ctx={ctx} id="speakers.cross_namespace" />
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <F ctx={ctx} id="speakers.embedder" />
-            <F ctx={ctx} id="speakers.model" />
-          </div>
+          <More ctx={ctx} ids={["speakers.embedder", "speakers.model"]} title="Voice model">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <F ctx={ctx} id="speakers.embedder" />
+              <F ctx={ctx} id="speakers.model" />
+            </div>
+          </More>
         </>
       );
     case "analysis":
       return (
         <>
+          <F ctx={ctx} id="analysis.cleanup" />
+          {raw("analysis.cleanup") === true && <F ctx={ctx} id="analysis.cleanup_fillers" />}
           <F ctx={ctx} id="analysis.entities" />
           {raw("analysis.entities") === "spacy" && <F ctx={ctx} id="analysis.spacy_model" />}
           <F ctx={ctx} id="analysis.anytopdf" />
@@ -250,30 +281,44 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return (
         <>
           <Sub>Shots and keyframes</Sub>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <F ctx={ctx} id="video.sample_seconds" />
-            <F ctx={ctx} id="video.scene_threshold" />
-            <F ctx={ctx} id="video.min_shot_seconds" />
-            <F ctx={ctx} id="video.frame_width" />
-          </div>
+          <More
+            ctx={ctx}
+            ids={["video.sample_seconds", "video.scene_threshold", "video.min_shot_seconds", "video.frame_width"]}
+            title="How shots are cut and keyframes kept"
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <F ctx={ctx} id="video.sample_seconds" />
+              <F ctx={ctx} id="video.scene_threshold" />
+              <F ctx={ctx} id="video.min_shot_seconds" />
+              <F ctx={ctx} id="video.frame_width" />
+            </div>
+          </More>
           <Sub>Text on screen</Sub>
           <F ctx={ctx} id="video.ocr_engine" />
-          <div className="grid gap-3 sm:grid-cols-2">
-            <F ctx={ctx} id="video.ocr_languages" />
-            <F ctx={ctx} id="video.ocr_min_confidence" />
-          </div>
+          <More ctx={ctx} ids={["video.ocr_languages", "video.ocr_min_confidence"]} title="Languages and confidence">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <F ctx={ctx} id="video.ocr_languages" />
+              <F ctx={ctx} id="video.ocr_min_confidence" />
+            </div>
+          </More>
           <Sub>Faces</Sub>
           <F ctx={ctx} id="video.face_engine" />
-          <ZoneBar
-            match={v("video.face_match_threshold") as number}
-            review={v("video.face_review_threshold") as number}
-            low="New face"
-          />
-          <div className="grid gap-3 sm:grid-cols-3">
-            <F ctx={ctx} id="video.face_match_threshold" />
-            <F ctx={ctx} id="video.face_review_threshold" />
-            <F ctx={ctx} id="video.face_cluster_threshold" />
-          </div>
+          <More
+            ctx={ctx}
+            ids={["video.face_match_threshold", "video.face_review_threshold", "video.face_cluster_threshold"]}
+            title="When a face matches someone"
+          >
+            <ZoneBar
+              match={v("video.face_match_threshold") as number}
+              review={v("video.face_review_threshold") as number}
+              low="New face"
+            />
+            <div className="grid gap-3 sm:grid-cols-3">
+              <F ctx={ctx} id="video.face_match_threshold" />
+              <F ctx={ctx} id="video.face_review_threshold" />
+              <F ctx={ctx} id="video.face_cluster_threshold" />
+            </div>
+          </More>
           <div className="border-t border-border py-3.5">
             <F ctx={ctx} id="video.publish_faces" />
           </div>
@@ -291,6 +336,47 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <p className="text-[12.5px] text-fg-muted">
             Whether a namespace detects or recognises faces is set by its owner. How long face data is kept isn’t
             configurable yet.
+          </p>
+        </>
+      );
+    case "sandbox":
+      return (
+        <>
+          <F ctx={ctx} id="sandbox.enabled" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="sandbox.who" />
+            <F ctx={ctx} id="sandbox.network" />
+          </div>
+          <F ctx={ctx} id="sandbox.gateway" />
+          <More
+            ctx={ctx}
+            ids={[
+              "sandbox.image",
+              "sandbox.cpu",
+              "sandbox.memory",
+              "sandbox.seconds",
+              "sandbox.idle_minutes",
+              "sandbox.keep_hours",
+            ]}
+            title="Image, CPU and memory, run time, and how long sandboxes are kept"
+          >
+            <F ctx={ctx} id="sandbox.image" />
+            <div className="grid gap-3 sm:grid-cols-3">
+              <F ctx={ctx} id="sandbox.cpu" />
+              <F ctx={ctx} id="sandbox.memory" />
+              <F ctx={ctx} id="sandbox.seconds" />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <F ctx={ctx} id="sandbox.idle_minutes" />
+              <F ctx={ctx} id="sandbox.keep_hours" />
+            </div>
+          </More>
+          <p className="text-[12.5px] leading-[1.45] text-fg-muted">
+            Each conversation gets a sandbox of its own the first time the assistant runs code in it, and keeps its
+            files between runs. Nothing of Lens’s is inside: the assistant copies in files people attached when it needs
+            them, and a file it makes reaches a namespace only once the person approves. The sandbox runs on an NVIDIA
+            OpenShell gateway (Docker 28 or newer, and a Linux kernel with Landlock). Starting that gateway from here is
+            in progress; until then, point Lens at one you run.
           </p>
         </>
       );
@@ -317,13 +403,19 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
     case "workers":
       return (
         <>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <F ctx={ctx} id="workers.inline" />
-            <F ctx={ctx} id="workers.poll_seconds" />
-            <F ctx={ctx} id="workers.stale_minutes" />
-            <F ctx={ctx} id="workers.max_attempts" />
-          </div>
-          <F ctx={ctx} id="workers.steps" />
+          <F ctx={ctx} id="workers.inline" />
+          <More
+            ctx={ctx}
+            ids={["workers.poll_seconds", "workers.stale_minutes", "workers.max_attempts", "workers.steps"]}
+            title="The job queue, and the steps they run"
+          >
+            <div className="grid gap-3 sm:grid-cols-3">
+              <F ctx={ctx} id="workers.poll_seconds" />
+              <F ctx={ctx} id="workers.stale_minutes" />
+              <F ctx={ctx} id="workers.max_attempts" />
+            </div>
+            <F ctx={ctx} id="workers.steps" />
+          </More>
           <p className="text-[12.5px] leading-[1.45] text-fg-muted">
             The number of built-in workers and their steps take effect when the server restarts. See which workers are
             alive in{" "}
@@ -351,6 +443,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
     case "components":
       return (
         <>
+          <EditionChoice />
           <F ctx={ctx} id="components.auto" />
           <F ctx={ctx} id="components.hf_token" />
           <ComponentsStatus ctx={ctx} />
@@ -359,6 +452,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
     case "access":
       return (
         <>
+          <NetworkReach />
           <F ctx={ctx} id="server.allowed_hosts" />
           <F ctx={ctx} id="server.embed_frame_ancestors" />
           <F ctx={ctx} id="server.trusted_proxies" />
@@ -376,8 +470,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
         <>
           <F ctx={ctx} id="auth.passwords" />
           <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
-            People add passkeys in their profile. Someone new, or who lost their passkey, gets a sign-in link from
-            People (or <code className="font-mono text-[12px]">lens users link their@email</code> on the server).
+            People add passkeys in their profile. Someone new, or who lost their passkey, gets a sign-in link from Admin
+            → Members (or <code className="font-mono text-[12px]">lens users link their@email</code> on the server).
           </p>
           <SignInProviders />
         </>
@@ -418,6 +512,28 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           </p>
         </>
       );
+    case "automations":
+      return (
+        <>
+          <F ctx={ctx} id="automations.enabled" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="automations.max_depth" />
+            <F ctx={ctx} id="automations.max_runs_per_minute" />
+            <F ctx={ctx} id="automations.keep_runs_days" />
+          </div>
+          <Sub>The stream of activities</Sub>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="events.poll_seconds" />
+            <F ctx={ctx} id="events.keep_days" />
+            <F ctx={ctx} id="automations.approval_days" />
+            <F ctx={ctx} id="automations.catch_up" />
+          </div>
+          <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+            Agents read the same stream with the timeline tool (MCP and the assistant) or GET /api/v1/activities, and
+            manage automations over /api/v1/automations.
+          </p>
+        </>
+      );
     case "encryption":
       return <EncryptionBody ctx={ctx} />;
     case "backups":
@@ -426,6 +542,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return <StorageBody ctx={ctx} />;
     case "telemetry":
       return <TelemetryBody ctx={ctx} />;
+    case "analytics":
+      return <AnalyticsBody ctx={ctx} />;
     case "updates":
       return (
         <>
@@ -455,15 +573,21 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
     case "uploads":
       return (
         <>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <F ctx={ctx} id="uploads.max_mb" />
-            <F ctx={ctx} id="uploads.chunk_mb" />
-            <F ctx={ctx} id="uploads.expire_hours" />
-          </div>
-          <F ctx={ctx} id="uploads.extensions" />
+          <F ctx={ctx} id="uploads.max_mb" />
+          <More
+            ctx={ctx}
+            ids={["uploads.chunk_mb", "uploads.expire_hours", "uploads.extensions"]}
+            title={`File types (${((raw("uploads.extensions") as string[] | undefined) ?? []).length} of ${UPLOAD_TYPES.length}), pieces and unfinished uploads`}
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <F ctx={ctx} id="uploads.chunk_mb" />
+              <F ctx={ctx} id="uploads.expire_hours" />
+            </div>
+            <F ctx={ctx} id="uploads.extensions" />
+          </More>
           <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
             Uploads arrive in pieces and carry on where they stopped if the connection drops. Finished files are kept in
-            the server’s data folder, under uploads. Transcript files have their own limit, under Access &amp;
+            the server’s data folder, under uploads. Text and document files have their own limit, under Access &amp;
             embedding; watched folders have no limit.
           </p>
         </>
@@ -471,13 +595,25 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
     case "documents":
       return (
         <>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <F ctx={ctx} id="documents.page_pixels" />
-            <F ctx={ctx} id="documents.thumb_pixels" />
-            <F ctx={ctx} id="documents.ocr_below_chars" />
-            <F ctx={ctx} id="documents.max_pages" />
-          </div>
-          <F ctx={ctx} id="documents.convert_seconds" />
+          <More
+            ctx={ctx}
+            ids={[
+              "documents.page_pixels",
+              "documents.thumb_pixels",
+              "documents.ocr_below_chars",
+              "documents.max_pages",
+              "documents.convert_seconds",
+            ]}
+            title="Page sizes, OCR and limits"
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <F ctx={ctx} id="documents.page_pixels" />
+              <F ctx={ctx} id="documents.thumb_pixels" />
+              <F ctx={ctx} id="documents.ocr_below_chars" />
+              <F ctx={ctx} id="documents.max_pages" />
+            </div>
+            <F ctx={ctx} id="documents.convert_seconds" />
+          </More>
           <F ctx={ctx} id="documents.attachment_resources" />
           <F ctx={ctx} id="documents.video_urls" />
           <F ctx={ctx} id="documents.web_networks" />
@@ -534,16 +670,22 @@ function LlmBody({ ctx }: { ctx: BodyCtx }) {
         hint={here?.key_url ? <KeyLink provider={here} /> : undefined}
         focus={askKey}
       />
-      <F ctx={ctx} id="llm.api_key_env" hint="Used only when no key is stored above" />
-      <F ctx={ctx} id="llm.chat_models" />
-      <div className="grid gap-3 sm:grid-cols-2">
-        <F ctx={ctx} id="llm.vision_model" />
-        <F ctx={ctx} id="llm.describe_max" />
-      </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <F ctx={ctx} id="llm.max_chars" />
         <F ctx={ctx} id="llm.timeout" />
       </div>
+      <More
+        ctx={ctx}
+        ids={["llm.api_key_env", "llm.chat_models", "llm.vision_model", "llm.describe_max"]}
+        title="Models people may pick, pictures, and a key from the environment"
+      >
+        <F ctx={ctx} id="llm.chat_models" />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <F ctx={ctx} id="llm.vision_model" />
+          <F ctx={ctx} id="llm.describe_max" />
+        </div>
+        <F ctx={ctx} id="llm.api_key_env" hint="Used only when no key is stored above" />
+      </More>
       <div className="flex flex-wrap items-center gap-2.5">
         <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
           {test.isPending ? "Testing…" : "Test"}
@@ -723,8 +865,8 @@ function TelemetryBody({ ctx }: { ctx: BodyCtx }) {
       <F ctx={ctx} id="telemetry.prices" />
       <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
         What is sent: route templates (never paths or queries), job steps and how they ended, record ids, model names,
-        token counts, durations and estimated cost. Never transcript, prompt or answer text, file names, titles,
-        namespace names, people or addresses. Each worker follows these settings on its own.
+        token counts, durations and estimated cost. Never asset, prompt or answer text, file names, titles, namespace
+        names, people or addresses. Each worker follows these settings on its own.
       </p>
       <div className="flex flex-wrap items-center gap-2.5">
         <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending || !where}>
@@ -864,6 +1006,100 @@ function LogsBody({ ctx }: { ctx: BodyCtx }) {
   );
 }
 
+function AnalyticsBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const a = ctx.view.analytics;
+  const saved = a?.values ?? {};
+  const secret = (saved.api_secret ?? {}) as { set?: boolean };
+  const apiSecret = ctx.state("analytics.api_secret");
+  const locked = a?.locked ?? [];
+  const status = useQuery({
+    queryKey: ["analytics-status", a?.updated_at ?? null],
+    queryFn: () => data(Admin.analyticsStatus({ client })),
+    refetchInterval: 60_000,
+  });
+  const test = useMutation({ mutationFn: () => data(Admin.testAnalytics({ client })) });
+  const s = status.data;
+  const on = Boolean(saved.enabled);
+  const id = (saved.measurement_id as string | null | undefined) ?? null;
+  return (
+    <>
+      <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+        Active people, churn, retention and feature use are on the{" "}
+        <Link href="/analytics" className="font-semibold text-fg-accent hover:underline">
+          Analytics
+        </Link>{" "}
+        page, worked out on this server whether or not Google Analytics is on. This section only chooses whether the
+        daily events also go to your Google Analytics property.
+      </p>
+      {on && s?.configured ? (
+        <Banner tone={s.last_error ? "error" : "success"} title={`On: sending to ${id}`}>
+          {s.last_error
+            ? s.last_error
+            : s.last_sent_at
+              ? `Last sent ${new Date(s.last_sent_at).toLocaleString()}: ${(s.last_sent ?? []).join(", ")}`
+              : "Nothing sent yet; the first events go with the next daily check."}
+        </Banner>
+      ) : on ? (
+        <Banner tone="error" title="On, but not set up.">
+          Set the measurement id and the API secret below; until then nothing is sent.
+        </Banner>
+      ) : (
+        <Banner title="Google Analytics is off: nothing is sent.">
+          Turn it on here, in the setup wizard or with <code className="font-mono">LENS_ANALYTICS=on</code> in .env.
+          Events go only to the GA4 property whose id and secret you set.
+        </Banner>
+      )}
+      <F ctx={ctx} id="analytics.enabled" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="analytics.measurement_id" />
+        <F ctx={ctx} id="analytics.region" />
+      </div>
+      <SecretSetting
+        key={a?.updated_at ?? "none"}
+        label={
+          locked.includes("api_secret")
+            ? "Measurement Protocol API secret (set by LENS_GA_API_SECRET in .env)"
+            : "Measurement Protocol API secret"
+        }
+        placeholder="From GA: Admin → Data streams → your stream → Measurement Protocol API secrets"
+        isSet={Boolean(secret.set)}
+        updatedBy={a?.updated_by}
+        updatedAt={a?.updated_at}
+        value={apiSecret.value as string | undefined}
+        onChange={(x) => apiSecret.onChange(x)}
+      />
+      <F ctx={ctx} id="analytics.events" />
+      <F ctx={ctx} id="analytics.inactive_days" />
+      <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+        What is sent, once a day: a random id for this install{s?.client_id ? ` (${s.client_id})` : ""}, the Lens
+        version and platform, and counts. Never names, emails, account ids, titles, file names, namespaces, prompts or
+        any text. In GA, the Retention report and a cohort exploration on lens_daily_active give churn across your
+        installs.
+      </p>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending || !id}>
+          {test.isPending ? "Sending…" : "Send a test event"}
+        </Button>
+        <span className="text-[12px] text-fg-muted">
+          {ctx.dirty
+            ? "Uses the saved settings, not your unsaved changes"
+            : "GA’s validation server checks one lens_test event without recording it"}
+        </span>
+      </div>
+      {test.data &&
+        (test.data.ok ? (
+          <Banner tone="success" title="Google Analytics accepted the test event." />
+        ) : (
+          <Banner tone="error" title="The test failed.">
+            {test.data.error ?? (test.data.messages ?? []).join(" · ")}
+          </Banner>
+        ))}
+      {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
+  );
+}
+
 function EncryptionBody({ ctx }: { ctx: BodyCtx }) {
   const client = useApiClient();
   const progress = useQuery({
@@ -895,8 +1131,8 @@ function EncryptionBody({ ctx }: { ctx: BodyCtx }) {
         </Banner>
       ) : (
         <Banner title={on ? "Files are encrypted on disk." : "Files are kept as they are."}>
-          Encrypted files still play, seek, download and are processed as before. Transcripts, search and the rest of
-          the database aren’t covered; put the data volume on an encrypted disk for those.
+          Encrypted files still play, seek, download and are processed as before. Their text, search and the rest of the
+          database aren’t covered; put the data volume on an encrypted disk for those.
         </Banner>
       )}
       <F ctx={ctx} id="encryption.files" />
@@ -1106,8 +1342,8 @@ function FedoraBody({ ctx }: { ctx: BodyCtx }) {
       </div>
       <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
         Each resource is described with Dublin Core and links back to its Lens address (owl:sameAs). Changes to a
-        recording’s metadata go within a minute; everything is compared on the schedule above, so what analysis changed,
-        new recordings and deletions follow. The workers send it.
+        asset’s metadata go within a minute; everything is compared on the schedule above, so what analysis changed, new
+        assets and deletions follow. The workers send it.
       </p>
       <div className="flex flex-wrap items-center gap-2.5">
         <Button size="sm" icon={<RefreshCw />} onClick={() => sync.mutate()} disabled={sync.isPending || !url}>
@@ -2331,9 +2567,25 @@ function RunMatterbridge({ ctx, status }: { ctx: BodyCtx; status: MatterbridgeSt
   );
 }
 
+const LIMITS = [
+  "ai.confirm_over_recordings",
+  "ai.confirm_over_cost",
+  "ai.price_in",
+  "ai.price_out",
+  "ai.max_steps",
+  "ai.browser_steps",
+  "ai.max_transcript_reads",
+  "ai.compact_model",
+  "ai.context_tokens",
+];
+
 function AiBody({ ctx }: { ctx: BodyCtx }) {
   const tools = ctx.state("ai.disabled_tools");
-  const off = (tools.value as string[]) ?? [];
+  const off = ((tools.value as string[]) ?? []).filter((x) => AI_TOOLS.some((t) => t.name === x));
+  const guards =
+    Number(Boolean(ctx.form["ai.untrusted_marking"])) +
+    Number(Boolean(ctx.form["ai.untrusted_asks"])) +
+    Number((ctx.form["ai.injection_check"] ?? "patterns") !== "off");
   const enabled = Boolean(ctx.form["ai.tools"]);
   const tts = String(ctx.form["voice.tts_provider"] ?? "openai");
   return (
@@ -2342,20 +2594,25 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
         The assistant uses the model set in LLM provider; it needs one that supports tool calls.
       </p>
       <F ctx={ctx} id="ai.tools" />
-      <F ctx={ctx} id="ai.untrusted_marking" />
-      <F ctx={ctx} id="ai.untrusted_asks" />
-      <F ctx={ctx} id="ai.injection_check" />
-      <F ctx={ctx} id="ai.compact" />
-      <div className="grid gap-3 sm:grid-cols-2">
-        <F ctx={ctx} id="ai.compact_model" />
-        <F ctx={ctx} id="ai.context_tokens" />
-      </div>
+      <F ctx={ctx} id="ai.browser" />
       <F ctx={ctx} id="ai.refine_notes" />
       <F ctx={ctx} id="ai.organise_notes" />
-      <F ctx={ctx} id="ai.browser" />
-      <div className="flex flex-col gap-2">
-        <span className="text-[13px] font-bold leading-tight text-fg-strong">Tools</span>
-        <ul className="flex flex-col gap-2">
+      <F ctx={ctx} id="ai.compact" />
+      <More
+        ctx={ctx}
+        ids={["ai.untrusted_marking", "ai.untrusted_asks", "ai.injection_check"]}
+        title={`Text from outside Lens (${guards} of 3 defences on)`}
+      >
+        <F ctx={ctx} id="ai.untrusted_marking" />
+        <F ctx={ctx} id="ai.untrusted_asks" />
+        <F ctx={ctx} id="ai.injection_check" />
+      </More>
+      <More
+        ctx={ctx}
+        ids={["ai.disabled_tools"]}
+        title={`Tools it may use (${AI_TOOLS.length - off.length} of ${AI_TOOLS.length})`}
+      >
+        <ul className="flex flex-col gap-2" aria-label="Tools">
           {AI_TOOLS.map((t) => (
             <li
               key={t.name}
@@ -2374,16 +2631,21 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
             </li>
           ))}
         </ul>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <F ctx={ctx} id="ai.confirm_over_recordings" />
-        <F ctx={ctx} id="ai.confirm_over_cost" />
-        <F ctx={ctx} id="ai.price_in" />
-        <F ctx={ctx} id="ai.price_out" />
-        <F ctx={ctx} id="ai.max_steps" />
-        <F ctx={ctx} id="ai.browser_steps" />
-        <F ctx={ctx} id="ai.max_transcript_reads" />
-      </div>
+      </More>
+      <WebSearch ctx={ctx} />
+      <More ctx={ctx} ids={LIMITS} title="Approvals, steps, prices and long conversations">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <F ctx={ctx} id="ai.confirm_over_recordings" />
+          <F ctx={ctx} id="ai.confirm_over_cost" />
+          <F ctx={ctx} id="ai.price_in" />
+          <F ctx={ctx} id="ai.price_out" />
+          <F ctx={ctx} id="ai.max_steps" />
+          <F ctx={ctx} id="ai.browser_steps" />
+          <F ctx={ctx} id="ai.max_transcript_reads" />
+          <F ctx={ctx} id="ai.compact_model" />
+          <F ctx={ctx} id="ai.context_tokens" />
+        </div>
+      </More>
       <div className="flex flex-col gap-3">
         <span className="text-[13px] font-bold leading-tight text-fg-strong">Voice</span>
         <p className="text-[13px] leading-normal text-fg-secondary">
@@ -2450,6 +2712,69 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
         </div>
       </div>
     </>
+  );
+}
+
+/** Settings › AI assistant › Web search: off until an admin turns it on (DuckDuckGo in one click), then the provider,
+ * its key or address, and how much it reads. */
+function WebSearch({ ctx }: { ctx: BodyCtx }) {
+  const search = ctx.state("web.search");
+  const provider = String(ctx.form["web.search"] ?? "off");
+  const on = provider !== "off";
+  const keyed = provider === "brave" || provider === "tavily";
+  const web = ctx.view.web;
+  const toggle: FieldState = {
+    ...search,
+    value: on,
+    onChange: (v) => search.onChange(v ? "duckduckgo" : "off"),
+  };
+  return (
+    <div className="flex flex-col gap-3">
+      <span className="text-[13px] font-bold leading-tight text-fg-strong">Web search</span>
+      <SettingField
+        spec={{
+          section: "web",
+          key: "search",
+          label: "Let the assistant search the web and read pages",
+          kind: "switch",
+          hint: "For what Lens doesn’t hold; pages are cited like excerpts. Off: nothing leaves this server for it.",
+        }}
+        state={toggle}
+      />
+      {on && (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="web.search" options={ctx.spec("web.search").options?.filter((o) => o.value !== "off")} />
+            <F ctx={ctx} id="web.results" />
+            {provider === "searxng" && <F ctx={ctx} id="web.searxng_url" />}
+          </div>
+          {keyed && (
+            <SecretSetting
+              key={web?.updated_at ?? "none"}
+              label={`${provider === "brave" ? "Brave Search" : "Tavily"} API key`}
+              isSet={Boolean(((web?.values?.api_key ?? {}) as { set?: boolean }).set)}
+              updatedBy={web?.updated_by}
+              updatedAt={web?.updated_at}
+              value={ctx.state("web.api_key").value as string | undefined}
+              onChange={(x) => ctx.state("web.api_key").onChange(x)}
+              hint="Searches past the provider’s free allowance are charged by them; the activity log counts each one."
+            />
+          )}
+          <p className="text-[12.5px] leading-normal text-fg-secondary">
+            {provider === "duckduckgo"
+              ? "DuckDuckGo has no API: Lens reads its results page with ddgs, an unofficial client (about 30 MB, fetched now; Settings › Components shows it) that can stop working when the page changes. SearXNG or a keyed provider is steadier. "
+              : ""}
+            What it searches for goes to the provider, and the pages it reads come straight from their sites, public
+            addresses only. Each search and page is in the activity log. Once an answer has read text from outside Lens,
+            a search or a page you or a tool didn’t give it asks you first.
+          </p>
+          <More ctx={ctx} ids={["web.read_chars", "web.render"]} title="Reading pages">
+            <F ctx={ctx} id="web.read_chars" />
+            <F ctx={ctx} id="web.render" />
+          </More>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -2520,11 +2845,17 @@ function RoutineChoices({ ctx }: { ctx: BodyCtx }) {
               onChange={(x) => key.onChange(x)}
             />
           )}
-          <div className="grid gap-3 sm:grid-cols-3">
-            <F ctx={ctx} id="decisions.base_url" />
-            <F ctx={ctx} id="decisions.model" />
-            <F ctx={ctx} id="decisions.timeout" />
-          </div>
+          <More
+            ctx={ctx}
+            ids={["decisions.base_url", "decisions.model", "decisions.timeout"]}
+            title="Decision model server, model and timeout"
+          >
+            <div className="grid gap-3 sm:grid-cols-3">
+              <F ctx={ctx} id="decisions.base_url" />
+              <F ctx={ctx} id="decisions.model" />
+              <F ctx={ctx} id="decisions.timeout" />
+            </div>
+          </More>
         </>
       )}
       <div className="flex flex-wrap items-center gap-2.5">
@@ -2619,16 +2950,31 @@ function SearchBody({ ctx }: { ctx: BodyCtx }) {
             value={key.value as string | undefined}
             onChange={(x) => key.onChange(x)}
           />
-          <F ctx={ctx} id="embeddings.api_key_env" hint="Used only when no key is stored above" />
-          <div className="grid gap-3 sm:grid-cols-2">
-            <F ctx={ctx} id="embeddings.min_similarity" />
-            <F ctx={ctx} id="embeddings.neighbours" />
-            <F ctx={ctx} id="embeddings.passage_chars" />
-            <F ctx={ctx} id="embeddings.batch_size" />
-            <F ctx={ctx} id="embeddings.query_prefix" />
-            <F ctx={ctx} id="embeddings.document_prefix" />
-            <F ctx={ctx} id="embeddings.timeout" />
-          </div>
+          <More
+            ctx={ctx}
+            ids={[
+              "embeddings.api_key_env",
+              "embeddings.min_similarity",
+              "embeddings.neighbours",
+              "embeddings.passage_chars",
+              "embeddings.batch_size",
+              "embeddings.query_prefix",
+              "embeddings.document_prefix",
+              "embeddings.timeout",
+            ]}
+            title="Matching, passages, prefixes and timeout"
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <F ctx={ctx} id="embeddings.min_similarity" />
+              <F ctx={ctx} id="embeddings.neighbours" />
+              <F ctx={ctx} id="embeddings.passage_chars" />
+              <F ctx={ctx} id="embeddings.batch_size" />
+              <F ctx={ctx} id="embeddings.query_prefix" />
+              <F ctx={ctx} id="embeddings.document_prefix" />
+              <F ctx={ctx} id="embeddings.timeout" />
+            </div>
+            <F ctx={ctx} id="embeddings.api_key_env" hint="Used only when no key is stored above" />
+          </More>
           <div className="flex flex-wrap items-center gap-2.5">
             <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
               {test.isPending ? "Testing…" : "Test"}
@@ -2660,7 +3006,7 @@ function SearchBody({ ctx }: { ctx: BodyCtx }) {
               {!s.configured
                 ? "Search by meaning is off"
                 : s.current
-                  ? `${s.indexed} of ${s.recordings} recordings indexed with ${s.model}`
+                  ? `${s.indexed} of ${s.recordings} assets indexed with ${s.model}`
                   : s.indexed_model
                     ? `Indexed with ${s.indexed_model}; nothing yet with ${s.model}`
                     : `Nothing indexed with ${s.model} yet`}
@@ -2679,8 +3025,8 @@ function SearchBody({ ctx }: { ctx: BodyCtx }) {
           </div>
           <span className="text-[12px] leading-[1.4] text-fg-secondary">
             {s.configured
-              ? `${s.passages} passages${s.dimension ? ` of ${s.dimension} dimensions` : ""}. New recordings are indexed by their pipeline's Index for meaning step; the “${"Index for search by meaning"}” routine catches up every hour (Routines).`
-              : "Turn it on and name a model to start. Recordings are indexed by their pipelines and an hourly routine."}
+              ? `${s.passages} passages${s.dimension ? ` of ${s.dimension} dimensions` : ""}. New assets are indexed by their pipeline's Index for meaning step; the “${"Index for search by meaning"}” routine catches up every hour (Routines).`
+              : "Turn it on and name a model to start. Assets are indexed by their pipelines and an hourly routine."}
             {index.data &&
               ` Queued ${index.data.recordings}${index.data.remaining ? "; more are waiting for the next run" : ""}.`}
           </span>
@@ -2743,22 +3089,6 @@ function IiifBody({ ctx }: { ctx: BodyCtx }) {
     <>
       <F ctx={ctx} id="iiif.base_url" />
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <span className="text-[13px] font-bold leading-tight text-fg-strong">Default IIIF version</span>
-          <Select
-            aria-label="Default IIIF version"
-            value="3"
-            onChange={() => undefined}
-            options={[
-              { value: "3", label: "Presentation 3.0" },
-              {
-                value: "4",
-                label: "Presentation 4.0 (RC) — not available yet",
-                disabled: true,
-              },
-            ]}
-          />
-        </div>
         <F
           ctx={ctx}
           id="iiif.rights"
@@ -2771,53 +3101,81 @@ function IiifBody({ ctx }: { ctx: BodyCtx }) {
           ]}
         />
         <F ctx={ctx} id="iiif.attribution" />
-        <F ctx={ctx} id="iiif.default_language" />
       </div>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <F ctx={ctx} id="iiif.provider.name" />
-        <F ctx={ctx} id="iiif.provider.homepage" label="Homepage" />
-        <F ctx={ctx} id="iiif.provider.logo" label="Logo" />
-      </div>
-      <F
+      <More
         ctx={ctx}
-        id="iiif.layers"
-        hint="Annotation layers are published only when a recording’s transcript is open."
-      />
-      <div className="flex flex-col gap-1.5">
-        <span className="text-[13px] font-bold leading-tight text-fg-strong">
-          External viewers <span className="font-normal text-fg-muted">· “Open in” buttons</span>
-        </span>
-        {viewers.length ? (
-          <ul className="flex flex-col gap-1.5">
-            {viewers.map((x, i) => (
-              <li key={i} className="grid grid-cols-[130px_minmax(0,1fr)] items-center gap-2.5 text-[12.5px]">
-                <b className="font-semibold">{x.name ?? "Viewer"}</b>
-                <code className="truncate font-mono text-[11.5px] text-fg-secondary">{x.url}</code>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-[12.5px] text-fg-muted">None yet.</p>
-        )}
-        <div className="flex items-center gap-2">
-          <Button
-            size="xs"
-            disabled
-            disabledReason="The server can’t save viewer links from the app yet; set iiif.viewers in archive.yaml ({manifest} and {content_state} placeholders)"
-          >
-            Add viewer
-          </Button>
-          <span className="text-[12px] text-fg-muted">Set in the server’s archive.yaml for now.</span>
+        ids={[
+          "iiif.default_language",
+          "iiif.provider.name",
+          "iiif.provider.homepage",
+          "iiif.provider.logo",
+          "iiif.layers",
+          "iiif.allowed_origins",
+          "iiif.token_minutes",
+        ]}
+        title="Version, language, provider, layers, viewers and access tokens"
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[13px] font-bold leading-tight text-fg-strong">Default IIIF version</span>
+            <Select
+              aria-label="Default IIIF version"
+              value="3"
+              onChange={() => undefined}
+              options={[
+                { value: "3", label: "Presentation 3.0" },
+                {
+                  value: "4",
+                  label: "Presentation 4.0 (RC) — not available yet",
+                  disabled: true,
+                },
+              ]}
+            />
+          </div>
+          <F ctx={ctx} id="iiif.default_language" />
         </div>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <F ctx={ctx} id="iiif.allowed_origins" />
-        <F ctx={ctx} id="iiif.token_minutes" />
-      </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <F ctx={ctx} id="iiif.provider.name" />
+          <F ctx={ctx} id="iiif.provider.homepage" label="Homepage" />
+          <F ctx={ctx} id="iiif.provider.logo" label="Logo" />
+        </div>
+        <F ctx={ctx} id="iiif.layers" hint="Annotation layers are published only when an asset’s text is open." />
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[13px] font-bold leading-tight text-fg-strong">
+            External viewers <span className="font-normal text-fg-muted">· “Open in” buttons</span>
+          </span>
+          {viewers.length ? (
+            <ul className="flex flex-col gap-1.5">
+              {viewers.map((x, i) => (
+                <li key={i} className="grid grid-cols-[130px_minmax(0,1fr)] items-center gap-2.5 text-[12.5px]">
+                  <b className="font-semibold">{x.name ?? "Viewer"}</b>
+                  <code className="truncate font-mono text-[11.5px] text-fg-secondary">{x.url}</code>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[12.5px] text-fg-muted">None yet.</p>
+          )}
+          <div className="flex items-center gap-2">
+            <Button
+              size="xs"
+              disabled
+              disabledReason="The server can’t save viewer links from the app yet; set iiif.viewers in archive.yaml ({manifest} and {content_state} placeholders)"
+            >
+              Add viewer
+            </Button>
+            <span className="text-[12px] text-fg-muted">Set in the server’s archive.yaml for now.</span>
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <F ctx={ctx} id="iiif.allowed_origins" />
+          <F ctx={ctx} id="iiif.token_minutes" />
+        </div>
+      </More>
       <div className="flex flex-col gap-2">
         <span className="text-[13px] font-bold leading-tight text-fg-strong">Access per namespace</span>
         <p className="text-[12.5px] text-fg-muted">
-          The default for recordings that don’t set their own. Saved into each namespace’s metadata profile.
+          The default for assets that don’t set their own. Saved into each namespace’s metadata profile.
         </p>
         {!ready ? (
           <Skeleton className="h-24 w-full" />
@@ -2939,32 +3297,46 @@ function SpeechProvidersBody({ ctx }: { ctx: BodyCtx }) {
         Nothing is sent to these services until you pick one in Transcription, Speaker separation or the AI assistant’s
         Voice. Keys are stored encrypted. Change an address to use a proxy, an EU region or a compatible server.
       </p>
-      {SPEECH_PROVIDERS.map((p) => (
-        <div key={p.id} className="flex flex-col gap-3 border-t border-border pt-4">
-          <Sub>{p.label}</Sub>
-          <p className="m-0 text-[12.5px] leading-[1.45] text-fg-secondary">{p.about}</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <F ctx={ctx} id={`speech.${p.id}_base_url`} />
-            <F ctx={ctx} id={`speech.${p.id}_model`} />
-            {!("readsOnly" in p) && (
-              <>
-                <F ctx={ctx} id={`speech.${p.id}_max_minutes`} />
-                <F ctx={ctx} id={`speech.${p.id}_max_mb`} />
-              </>
-            )}
+      {SPEECH_PROVIDERS.map((p) => {
+        const keySet = Boolean(((view?.values?.[`${p.id}_api_key`] ?? {}) as { set?: boolean }).set);
+        return (
+          <div key={p.id} className="border-t border-border pt-4">
+            <More
+              ctx={ctx}
+              ids={[`speech.${p.id}_base_url`, `speech.${p.id}_model`]}
+              open={keySet}
+              title={
+                <>
+                  <h3 className="inline text-[15px] font-bold text-fg">{p.label}</h3>
+                  <span className="font-normal text-fg-muted"> · {keySet ? "key set" : "not set up"}</span>
+                </>
+              }
+            >
+              <p className="m-0 text-[12.5px] leading-[1.45] text-fg-secondary">{p.about}</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <F ctx={ctx} id={`speech.${p.id}_base_url`} />
+                <F ctx={ctx} id={`speech.${p.id}_model`} />
+                {!("readsOnly" in p) && (
+                  <>
+                    <F ctx={ctx} id={`speech.${p.id}_max_minutes`} />
+                    <F ctx={ctx} id={`speech.${p.id}_max_mb`} />
+                  </>
+                )}
+              </div>
+              <SecretSetting
+                key={view?.updated_at ?? "none"}
+                label={`${p.label} API key`}
+                isSet={Boolean(((view?.values?.[`${p.id}_api_key`] ?? {}) as { set?: boolean }).set)}
+                updatedBy={view?.updated_by}
+                updatedAt={view?.updated_at}
+                value={ctx.state(`speech.${p.id}_api_key`).value as string | undefined}
+                onChange={(x) => ctx.state(`speech.${p.id}_api_key`).onChange(x)}
+              />
+              <SpeechTest provider={p.id} dirty={ctx.dirty} />
+            </More>
           </div>
-          <SecretSetting
-            key={view?.updated_at ?? "none"}
-            label={`${p.label} API key`}
-            isSet={Boolean(((view?.values?.[`${p.id}_api_key`] ?? {}) as { set?: boolean }).set)}
-            updatedBy={view?.updated_by}
-            updatedAt={view?.updated_at}
-            value={ctx.state(`speech.${p.id}_api_key`).value as string | undefined}
-            onChange={(x) => ctx.state(`speech.${p.id}_api_key`).onChange(x)}
-          />
-          <SpeechTest provider={p.id} dirty={ctx.dirty} />
-        </div>
-      ))}
+        );
+      })}
       <div className="grid gap-3 border-t border-border pt-4 sm:grid-cols-2">
         <F ctx={ctx} id="speech.sentiment" />
         <F ctx={ctx} id="speech.timeout" />
@@ -3090,13 +3462,19 @@ function LocalModelBody({ ctx }: { ctx: BodyCtx }) {
       )}
       <F ctx={ctx} id="local_llm.model" label="Model (or any GGUF on Hugging Face)" />
       <F ctx={ctx} id="local_llm.use_as_provider" />
-      <div className="grid gap-3 sm:grid-cols-2">
-        <F ctx={ctx} id="local_llm.context" />
-        <F ctx={ctx} id="local_llm.threads" />
-        <F ctx={ctx} id="local_llm.gpu_layers" />
-        <F ctx={ctx} id="local_llm.port" />
-        <F ctx={ctx} id="local_llm.host" />
-      </div>
+      <More
+        ctx={ctx}
+        ids={["local_llm.context", "local_llm.threads", "local_llm.gpu_layers", "local_llm.port", "local_llm.host"]}
+        title="Context, threads, GPU and address"
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <F ctx={ctx} id="local_llm.context" />
+          <F ctx={ctx} id="local_llm.threads" />
+          <F ctx={ctx} id="local_llm.gpu_layers" />
+          <F ctx={ctx} id="local_llm.port" />
+          <F ctx={ctx} id="local_llm.host" />
+        </div>
+      </More>
       {s && s.files.length > 0 && (
         <div className="flex flex-col gap-1.5 border-t border-border pt-3">
           <Sub>Downloaded</Sub>

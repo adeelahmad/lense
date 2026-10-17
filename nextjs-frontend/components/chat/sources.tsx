@@ -1,16 +1,49 @@
 "use client";
 
-import { Play } from "lucide-react";
+import { ExternalLink, Play } from "lucide-react";
 import Link from "next/link";
 
 import type { Passage } from "@/app/openapi-client/types.gen";
-import { citeLabel, passageHref, passageTime, quoteOf, shortTitle } from "@/components/chat/cite";
+import { citeLabel, isWeb, passageHref, passageTime, quoteOf, shortTitle, siteOf } from "@/components/chat/cite";
 import { nameTone } from "@/components/chat/citation";
 import { BottomSheet } from "@/components/chat/sheet";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+/** A web page the answer read or found: its site and title, what was read, and the page in a new tab. */
+function WebSourceCard({ p, active, onHover }: { p: Passage; active: boolean; onHover?: (n: number | null) => void }) {
+  const cited = p.used !== false;
+  return (
+    <li>
+      <a
+        href={passageHref(p)}
+        target="_blank"
+        rel="noopener noreferrer"
+        onMouseEnter={() => onHover?.(p.n)}
+        onMouseLeave={() => onHover?.(null)}
+        aria-label={`Source ${p.n}: ${citeLabel(p)}, a web page${cited ? "" : ", not cited"}. Opens it in a new tab.`}
+        className={cn(
+          "flex flex-col gap-1.5 rounded-md border p-3 transition-colors duration-fast",
+          active ? "border-blue bg-hl" : "border-border bg-background hover:border-blue-border",
+          !cited && !active && "opacity-70",
+        )}
+      >
+        <span className="flex items-center gap-1.5 text-[12px] font-semibold leading-tight text-fg">
+          <span className="tabular shrink-0 text-fg-muted">{p.n}</span>
+          <span className="min-w-0 flex-1 truncate">{shortTitle(p.title, 36)}</span>
+          <span className="flex shrink-0 items-center gap-1 text-fg-secondary">
+            {siteOf(p)} <ExternalLink aria-hidden className="size-3" />
+          </span>
+        </span>
+        <span className="font-serif text-[14px] leading-[1.45] text-fg-strong">“{p.text}”</span>
+        {!cited && <span className="text-[11.5px] font-medium text-fg-muted">Sent to the model, not cited</span>}
+      </a>
+    </li>
+  );
+}
+
 function SourceCard({ p, active, onHover }: { p: Passage; active: boolean; onHover?: (n: number | null) => void }) {
+  if (isWeb(p)) return <WebSourceCard p={p} active={active} onHover={onHover} />;
   const quote = quoteOf(p);
   const color = nameTone(quote.speaker ?? p.speaker);
   const cited = p.used !== false;
@@ -94,7 +127,9 @@ export function SourcesPanel({
       </div>
       {passages && passages.length > 0 && <SourcesList passages={passages} hover={hover} onHover={onHover} />}
       {passages && passages.length === 0 && (
-        <p className="m-0 text-[13px] leading-snug text-fg-secondary">This answer didn’t draw on the archive.</p>
+        <p className="m-0 text-[13px] leading-snug text-fg-secondary">
+          This answer didn’t draw on the archive or the web.
+        </p>
       )}
       {!passages && !loading && (
         <p className="m-0 text-[13px] leading-snug text-fg-secondary">
@@ -105,12 +140,24 @@ export function SourcesPanel({
   );
 }
 
-/** Phone: a tapped citation, with Play opening the recording there. */
+/** Phone: a tapped citation, with Play opening the recording there, or Open the web page in a new tab. */
 export function CitationSheet({ passage, onClose }: { passage: Passage | null; onClose: () => void }) {
   const quote = passage ? quoteOf(passage) : null;
   return (
     <BottomSheet open={!!passage} onOpenChange={(o) => !o && onClose()} title="Source">
-      {passage && quote && (
+      {passage && isWeb(passage) && (
+        <>
+          <span className="text-[15px] font-bold text-fg">{passage.title ?? siteOf(passage)}</span>
+          <span className="text-[12.5px] font-semibold text-fg-secondary">{siteOf(passage)}</span>
+          <span className="font-serif text-[17px] leading-normal text-fg">“{passage.text}”</span>
+          <Button asChild variant="primary" size="lg" className="w-full">
+            <a href={passageHref(passage)} target="_blank" rel="noopener noreferrer">
+              <ExternalLink /> Open the page
+            </a>
+          </Button>
+        </>
+      )}
+      {passage && !isWeb(passage) && quote && (
         <>
           <span className="text-[15px] font-bold text-fg">{citeLabel(passage)}</span>
           <span className="font-serif text-[17px] leading-normal text-fg">“{quote.text}”</span>
@@ -120,7 +167,7 @@ export function CitationSheet({ passage, onClose }: { passage: Passage | null; o
             </Link>
           </Button>
           <p className="m-0 text-center text-[12.5px] text-fg-secondary">
-            Tap a citation to preview it; Play opens the recording.
+            Tap a citation to preview it; Play opens the asset.
           </p>
         </>
       )}
