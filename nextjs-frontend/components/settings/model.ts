@@ -355,7 +355,7 @@ export const SECTIONS: SectionSpec[] = [
     label: "File shares",
     backend: ["shares"],
     description:
-      "Off unless you turn it on. The archive’s assets as folders and files (namespaces and collections, a metadata file beside each asset), served read-only over S3 and WebDAV by Lens’s workers; people make their own access keys.",
+      "Off unless you turn it on. The archive’s assets as folders and files (namespaces and collections, a metadata file beside each asset), served over S3 and WebDAV by Lens’s workers; people make their own access keys, and files they add are imported where they put them.",
   },
   {
     id: "uploads",
@@ -750,6 +750,13 @@ export const FIELDS: FieldSpec[] = [
     label: "Find places and dates with anytopdf",
     kind: "switch",
     hint: "Offline: places a text names, dates it gives and where a photo was taken become hints for the entities found",
+  },
+  {
+    section: "analysis",
+    key: "dates",
+    label: "Read dates as days",
+    kind: "switch",
+    hint: "The dates each line gives (“next Tuesday”, “3 March”, “last week”) become days on the calendar, worked out from the asset's date, for agents and the API to find by day",
   },
   {
     section: "analysis",
@@ -2669,10 +2676,17 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "shares",
+    key: "add_files",
+    label: "Import files people add",
+    kind: "switch",
+    hint: "A file copied into a collection’s folder is imported there, as an upload; a new folder under Collections is a new collection. Off: read-only",
+  },
+  {
+    section: "shares",
     key: "s3",
     label: "S3",
     kind: "switch",
-    hint: "Read-only; each person signs in with their own access key",
+    hint: "Each person signs in with their own access key",
   },
   { section: "shares", key: "s3_port", label: "S3 port", kind: "int", min: 1, max: 65535 },
   {
@@ -2680,7 +2694,7 @@ export const FIELDS: FieldSpec[] = [
     key: "webdav",
     label: "WebDAV",
     kind: "switch",
-    hint: "Read-only; mount it as a drive in Finder, Windows Explorer or a file manager",
+    hint: "Mount it as a drive in Finder, Windows Explorer or a file manager",
   },
   { section: "shares", key: "webdav_port", label: "WebDAV port", kind: "int", min: 1, max: 65535 },
   {

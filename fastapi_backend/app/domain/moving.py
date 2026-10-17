@@ -43,6 +43,7 @@ SPACED = (
     "segment",
     "appearance",
     "section",
+    "date_said",
     "shot",
     "ocr_span",
     "face_track",

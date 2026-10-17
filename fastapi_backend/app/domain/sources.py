@@ -2,8 +2,8 @@
 
 A source is one connection: S3 or S3-compatible, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV, or a folder on
 this machine (only inside sources.local_roots); or, without rclone, an email account (IMAP, or Gmail and Google
-Workspace), a calendar feed (iCal) or Google Calendar, whose messages and events are shown as files (feeds.py). A watch
-maps a folder on a source to a namespace: new audio, video, documents (PDFs) and images become resources queued for
+Workspace), a calendar feed (iCal), Google Calendar or a news feed (RSS or Atom), whose messages, events and posts are
+shown as files (feeds.py). A watch maps a folder on a source to a namespace: new audio, video, documents (PDFs) and images become resources queued for
 the whole pipeline, their files staying on the source; new transcripts are imported and queued for analysis. A watch on an email account can carry routing rules that send some
 messages to other namespaces, or skip them (mail_routes.py). Credentials are stored encrypted and handed to rclone in a private
 temporary config file per call; OAuth tokens rclone refreshes are saved.
@@ -55,7 +55,8 @@ BACKENDS = {
 OBSCURED = {"pass"}  # rclone wants these obscured in its config file
 NOT_RCLONE = {"account"}  # parameters Lens keeps for itself, not rclone options
 SKIPPED = "not audio, video, a document, an image or text"
-TRANSCRIPT_EXT = {".txt", ".text", ".md", ".markdown", ".mdx", ".docx", ".doc", ".pdf", ".srt", ".vtt", ".json", ".jsonl", ".eml", ".ics"}
+TRANSCRIPT_EXT = {".txt", ".text", ".md", ".markdown", ".mdx", ".docx", ".doc", ".pdf", ".srt", ".vtt", ".json", ".jsonl"}
+TRANSCRIPT_EXT |= {".eml", ".ics", ".atom"}  # emails, calendar events and news feeds' posts, read as text
 # what a watched folder picks up (its `kinds`): the first three are from before documents, and read PDFs as transcripts
 TAKES = {
     "audio": {"audio"},
@@ -316,7 +317,12 @@ def cached_copy(db, cfg, sid, path, space=None):
         tmp = dest.with_name(dest.name + ".part")
         try:
             if feeds.handles(src):
-                tmp.write_bytes(feeds.fetch(cfg, src, p))
+                try:
+                    tmp.write_bytes(feeds.fetch(cfg, src, p))
+                except FileNotFoundError:
+                    if dest.exists():  # an event or post gone from its feed since: the copy fetched last
+                        return dest
+                    raise
             else:
                 run(db, cfg, src, lambda n: ["copyto", f"{n}:{p}", str(tmp)], timeout=6 * 3600)
             if encrypt:

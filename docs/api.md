@@ -1258,6 +1258,18 @@ An entity's `page` is its page in the web app, by name: `/wiki/<namespace>/<Name
 spaces), or a name it had before a rename or a merge. It answers `{kind, id, namespace, title, path, canonical}`;
 `canonical` is false when the address is another way of writing `path` ([Notes](notes.md#entity-pages)).
 
+## dates
+
+```
+GET    /api/v1/dates
+```
+
+The dates assets' lines give, as days on the calendar ([Dates](processing.md#dates)): `start` and `end`
+(`YYYY-MM-DD`, or `YYYY-MM` and `YYYY` for their first and last day) keep those that fall between them, `ns`, `recording`
+and `q` narrow them. Each item has `day` and `until` (its first and last day), `period` (`day`, `weekend`, `week`,
+`month`, `year`), `said` (the words), `relative` (worked out from the asset's own date), and the line: `recording_id`,
+`title`, `idx`, `t0`, `time`, `speaker` and `text`. `reading` says whether analysis reads dates now.
+
 ## metadata
 
 ```

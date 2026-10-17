@@ -570,7 +570,7 @@
       "parameter": "any method, path, Host and body, passed to the share servers with X-Forwarded-Prefix and X-Forwarded-For",
       "attacker_controllable": "yes",
       "component": "optional",
-      "caller_must_enforce": "admin enables shares.enabled and shares.remote; per-person access keys, read-only; failed WebDAV sign-ins throttled per visitor from X-Forwarded-For as trusted proxies report it",
+      "caller_must_enforce": "admin enables shares.enabled and shares.remote; per-person access keys, files added imported as at the ports (shares.add_files); failed WebDAV sign-ins throttled per visitor from X-Forwarded-For as trusted proxies report it",
       "provenance": "documented",
       "source": "docs/file-tree.md \"At the web app's address\""
     },
@@ -1252,7 +1252,7 @@
       "property": "P-SHARES",
       "violation_symptom": "info-leak, integrity-bypass",
       "severity_tier": "security",
-      "conditions": "the file shares (S3, WebDAV) are off until an admin enables them, and reach the web app's address (/s3, /dav) only with shares.remote too; every request carries a person's own access key (SigV4 or Basic), reads as them and never writes",
+      "conditions": "the file shares (S3, WebDAV) are off until an admin enables them, and reach the web app's address (/s3, /dav) only with shares.remote too; every request carries a person's own access key (SigV4 or Basic) and reads as them; files written are imported only where that person may import, checked and size-capped as uploads, never over an asset or a file Lens made; shares.add_files off: read-only",
       "provenance": "documented",
       "source": "docs/file-tree.md \"Off until an admin turns it on\""
     },
