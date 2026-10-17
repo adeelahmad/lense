@@ -39,7 +39,7 @@ def h(client, db):
 def test_templates_pipelines_outputs(client, db, cfg, folder, h):
     c = client
     tl = {t["name"]: t["id"] for t in c.get("/api/v1/templates", headers=h).json()}
-    assert set(tl) == {"Meeting notes", "Markdown transcript", "One-page brief"}
+    assert set(tl) == {"Meeting notes", "Markdown transcript", "One-page brief", "Spec from transcript"}
     assert c.post("/api/v1/templates", headers=h, json={"name": "Bad", "kind": "export", "body": "{% for x in %}"}).status_code == 400
     rid = ingest.import_text(
         db, cfg, "calls", "Alice: The capsid samples ship Friday.\nDave: I'll confirm the courier.\nAlice: Thanks.", title="Courier call"
@@ -103,7 +103,7 @@ def test_templates_previews_and_versions(client, new_client, db, cfg, h):
     """The template parts of the flow above that need no rclone, plus who may do what."""
     c = client
     tl = {t["name"]: t["id"] for t in c.get("/api/v1/templates", headers=h).json()}
-    assert set(tl) == {"Meeting notes", "Markdown transcript", "One-page brief"}
+    assert set(tl) == {"Meeting notes", "Markdown transcript", "One-page brief", "Spec from transcript"}
     assert c.post("/api/v1/templates", headers=h, json={"name": "Bad", "kind": "export", "body": "{% for x in %}"}).status_code == 400
     assert c.post("/api/v1/templates", headers=h, json={"name": " ", "kind": "export", "body": "x"}).status_code == 400
     assert c.post("/api/v1/templates", headers=h, json={"name": "x", "kind": "poem", "body": "x"}).status_code == 422
