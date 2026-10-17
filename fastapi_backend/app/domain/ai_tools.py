@@ -275,7 +275,8 @@ TOOLS = [
     ),
     (
         "read_note",
-        "Read a note's Markdown, with its links and the notes linking to it: by note_id, or the page of a thing "
+        "Read a note's Markdown, with its links, the notes linking to it, the notes it's inside (path) and the notes "
+        "inside it: by note_id, or the page of a thing "
         '(about, like "recording:12" or "entity:5").',
         {"note_id": _I, "about": _S},
         [],
@@ -546,6 +547,146 @@ OWN_RESULTS = {
     if t[4]
 }
 
+# The side panel's browser tools have their own guard (browser.py): the ones that act on a web site are labelled as
+# sending data out (BROWSER_OUT) in the tool picker, and ask as browser.py says.
+BROWSER_OUT = {"browser_open", "browser_click", "browser_type", "browser_press"}
+
+# The groups of tools a question can be given (POST /chats/{cid}/messages `tools`; docs/assistant.md, "Choosing tools,
+# namespaces and a limit"), in the order the web app shows them, each built-in tool in one: a new tool joins one here
+# (test_chat_tools checks). Extensions add their own: mcp:<name> for an MCP server's tools, ext:<name> for another
+# extension's (extensions.Active.groups).
+GROUPS = {
+    "archive": {
+        "label": "Archive",
+        "tools": [
+            "search_transcripts",
+            "find_resources",
+            "find_similar",
+            "list_recordings",
+            "read_transcript",
+            "recording_outputs",
+            "classify",
+        ],
+    },
+    "graph": {
+        "label": "Graph",
+        "tools": [
+            "find_entities",
+            "entity_mentions",
+            "entity_timeline",
+            "find_topics",
+            "topic_recordings",
+            "graph_neighbours",
+            "speaker_stats",
+            "graph_schema",
+            "graph_query",
+            "graph_related",
+            "graph_paths",
+        ],
+    },
+    "web": {"label": "The web", "tools": [t[0] for t in webmod.TOOLS]},
+    "notes": {"label": "Notes", "tools": ["find_notes", "read_note", "write_note", "update_note"]},
+    "memory": {"label": "Namespace memory", "tools": [t[0] for t in MEMORY_TOOLS]},
+    "activity": {
+        "label": "Timeline and automations",
+        "tools": ["timeline", "mark_activities", "approvals", "decline_approval", "automations", "test_automation"]
+        + [t[0] for t in AUTOMATION_TOOLS],
+    },
+    "changes": {
+        "label": "Proposed changes",
+        "tools": ["suggest_topic", "propose_entity_change", "propose_topic_change", "entity_setup", "run_template"],
+    },
+    "files": {"label": "Importing files", "tools": [t[0] for t in ops_tools.FILE_TOOLS]},
+    "code": {"label": "Code sandbox", "tools": [t[0] for t in sandboxmod.TOOLS]},
+    "extensions": {"label": "Extensions and skills", "tools": [t[0] for t in AUTHOR_TOOLS] + ["use_skill"]},
+    "server": {"label": "The server", "tools": [t[0] for t in ops_tools.ADMIN_TOOLS]},
+    "browser": {"label": "Your browser", "tools": [t[0] for t in browsermod.TOOLS]},
+}
+
+
+def _effect(changes, out):
+    """What a tool does, as the tool picker labels it: asks (it waits for the person's yes), out (it sends what it's
+    given to another host) or read."""
+    return "asks" if changes else "out" if out else "read"
+
+
+def _why_missing(group, cfg):
+    """Why none of a built-in group's tools is offered to this person: in words, and the setting that would change it
+    (for admins), if one would."""
+    off = set(cfg["ai"].get("disabled_tools") or [])
+    if group == "browser" and not browsermod.enabled(cfg):
+        return "switched off by an admin", "ai.browser"
+    if group == "web" and not webmod.enabled(cfg):
+        return "no web search is set up", "web.search"
+    if group == "code" and not sandboxmod.enabled(cfg):
+        return "the code sandbox is off", "sandbox.enabled"
+    if group == "code" and sandboxmod.settings(cfg)["who"] == "admins":
+        return "for admins", "sandbox.who"
+    if group == "extensions" and not cfg["ai"].get("extensions", True):
+        return "switched off by an admin", "ai.extensions"
+    if all(t in off for t in GROUPS[group]["tools"]):
+        return "switched off by an admin", "ai.disabled_tools"
+    if group == "server":
+        return "for admins", None
+    if group == "memory":
+        return "in a conversation about one namespace whose own assistant is on", None
+    return "needs editor access to a namespace", None
+
+
+def _group(name, label, tools, why=None, setting=None):
+    return {
+        "name": name,
+        "label": label,
+        "tools": tools,
+        "asks": any(t["effect"] == "asks" for t in tools),
+        "out": any(t["out"] for t in tools),
+        "available": any(t["available"] for t in tools),
+        "why": why,
+        "setting": setting,
+    }
+
+
+def catalog(box):
+    """The tool groups a question can be given, for the person `box` is for (GET /chats/tools): the built-in ones, then
+    their extensions'. Each has its label and its tools: what each does (read, asks first or out: sends data to
+    another host), whether it sends data out, and whether this person has it now. A group with none has why, and the
+    setting that changes it. The browser's tools count as there while an admin allows them: a question has them while
+    the browser's Lens side panel it's asked from is connected."""
+    offered = {s["function"]["name"] for s in box.specs()}
+    off = set(box.cfg["ai"].get("disabled_tools") or [])
+    if browsermod.enabled(box.cfg):
+        offered |= {t for t in GROUPS["browser"]["tools"] if t not in off}
+    if sandboxmod.offered(box.cfg, box.admin, bool(box.editable)):  # every conversation of theirs has its sandbox
+        offered |= {t for t in GROUPS["code"]["tools"] if t not in off}
+    # code that can reach another host can carry out what it's given
+    runs_out = {"run_python", "run_bash"} if sandboxmod.sends_out(box.cfg) else set()
+    built = {
+        t[0]: t[4]
+        for t in TOOLS
+        + ops_tools.ADMIN_TOOLS
+        + ops_tools.FILE_TOOLS
+        + AUTHOR_TOOLS
+        + MEMORY_TOOLS
+        + AUTOMATION_TOOLS
+        + sandboxmod.TOOLS
+        + webmod.TOOLS
+    }
+    out = []
+    for name, g in GROUPS.items():
+        tools = []
+        for t in g["tools"]:
+            sends = t in SENDS_OUT or t in BROWSER_OUT or t in runs_out
+            tools.append({"name": t, "effect": _effect(built.get(t, False), sends), "out": sends, "available": t in offered})
+        out.append(_group(name, g["label"], tools, *(() if any(t["available"] for t in tools) else _why_missing(name, box.cfg))))
+    for name, g in box.ext.groups.items() if box.ext else ():
+        tools = []
+        for t in g["tools"]:
+            spec = box.ext.tools[t]["spec"]
+            sends = extensions.sends_out(spec)
+            tools.append({"name": t, "effect": _effect(spec["effect"] == "change", sends), "out": sends, "available": t in offered})
+        out.append(_group(name, g["label"], tools, None if any(t["available"] for t in tools) else "needs editor access to a namespace"))
+    return out
+
 
 def read_before(history, summary=None):
     """Whether earlier answers in a conversation read text from outside Lens (excerpts, or tools other than Lens's own),
@@ -568,7 +709,8 @@ class Toolbox(ops_tools.OpsTools):
     then use. The conversation's code sandbox (sandbox.py) is there when an admin turned it on and the person may use it.
     `account`: the person an automation acts for, when `user` is the automation itself (automation:<id>,
     the by of what it writes): their approvals, extensions, view of the timeline and marks on it; `origin` ({automation, run,
-    node}) is kept on the approvals it asks for."""
+    node}) is kept on the approvals it asks for. `only`: the groups (GROUPS, an extension's mcp:<name> or ext:<name>)
+    and tools the question was given (None: every tool this person may use; an admin's switch still wins)."""
 
     def __init__(
         self,
@@ -588,8 +730,10 @@ class Toolbox(ops_tools.OpsTools):
         act_on=(),
         account=None,
         origin=None,
+        only=None,
     ):
         self.db, self.cfg, self.user, self.chat, self.said = db, cfg, user, chat_id, said
+        self.only = None if only is None else set(only)
         self.account, self.origin = user["id"] if account is None else account, origin
         # where this answer has read text from outside Lens so far (`outside`: before any tool ran, such as the page it
         # was asked from or a chat room's message): once it has, tools that send data out of Lens or change the server
@@ -625,7 +769,7 @@ class Toolbox(ops_tools.OpsTools):
         for this question."""
         out = self._home_note() + (browsermod.NOTE if self.browser else "")
         if self.sandbox:
-            out += sandboxmod.NOTE.format(network=sandboxmod.NETWORK_NOTE[sandboxmod.settings(self.cfg)["network"]])
+            out += sandboxmod.NOTE.format(network=sandboxmod.network_note(self.cfg))
         if self.web and webmod.NAMES & {s["function"]["name"] for s in self.specs()}:
             out += webmod.NOTE
         if not self.ext:
@@ -705,14 +849,30 @@ class Toolbox(ops_tools.OpsTools):
             tools += webmod.TOOLS
         if self.ext:
             tools += self.ext.tool_specs(can_act or self.admin)
+        keep = self.chosen()
         return [
             {
                 "type": "function",
                 "function": {"name": n, "description": d, "parameters": {"type": "object", "properties": p, "required": req}},
             }
             for n, d, p, req, _ in tools
-            if n not in off
+            if n not in off and (keep is None or n in keep)
         ]
+
+    def chosen(self):
+        """The tool names `only` keeps (None: every tool): the tools it names, and those of the groups it names."""
+        if self.only is None:
+            return None
+        groups = self.ext.groups if self.ext else {}
+        out = set()
+        for n in self.only:
+            out |= set(GROUPS[n]["tools"] if n in GROUPS else groups[n]["tools"] if n in groups else [n])
+        return out
+
+    def unknown(self, names):
+        """The names in a choice of tools that are no group or tool this person has (built-in, or of their extensions)."""
+        known = builtin_names() | set(GROUPS) | set(self.ext.groups if self.ext else ()) | set(self.ext.tools if self.ext else ())
+        return [n for n in names if n not in known]
 
     def ref(self, rid, t0, text, speaker=None, title=None, source="said", page=None):
         self.refs.append(
@@ -919,7 +1079,7 @@ class Toolbox(ops_tools.OpsTools):
             first = next((x.strip() for x in source.splitlines() if x.strip()), "")[:80]
             args = store.clean({"code" if kind == "python" else "command": source, "files": files or None})
             lang = "Python" if kind == "python" else "bash"
-            where = "the package registries" if sandboxmod.settings(self.cfg)["network"] == "packages" else "the web"
+            where = sandboxmod.reaches(self.cfg)
             return self._approval(f"run_{kind}", args, f"Run {lang} in the code sandbox, which can reach {where}: {first}" + self.why())
         out = self._sandbox(sandboxmod.run, self.account, kind, source, files)
         return out, sandboxmod.summary(kind, source, out)
@@ -1752,6 +1912,8 @@ class Toolbox(ops_tools.OpsTools):
                 "body": (p.get("body") or "")[:20_000],
                 "links": notebook.links(self.db, p["id"]),
                 "linked_from": [b for b in notebook.backlinks(self.db, p["space"], targets) if b["page"] != p["id"]],
+                "path": [{"id": x["id"], "title": x["title"]} for x in notebook.path(self.db, p)] or None,
+                "notes_inside": [{"id": x["id"], "title": x["title"]} for x in notebook.children(self.db, p)] or None,
                 "could_link": [f"{x['sign']}[{x['label']}]({x['target']})" for x in notebook.suggest_links(self.db, p)] or None,
                 "files": [{"name": f.get("name"), "type": f["type"], "size": f["size"]} for f in notebook.files(self.db, p["id"])] or None,
                 "could_go_in": [

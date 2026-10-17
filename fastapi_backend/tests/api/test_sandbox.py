@@ -108,12 +108,22 @@ def test_the_sandbox_is_off_until_an_admin_turns_it_on_for_the_people_it_names(a
         {"gateway": "http://openshell:8080"},
         {"gateway": "openshell"},
         {"image": "python 3"},
+        {"network": "web"},  # the first build's: OpenShell lets a sandbox reach only names it lists
+        {"hosts": ["10.0.0.1"]},
+        {"hosts": ["localhost"]},
+        {"hosts": ["*.com"]},
+        {"hosts": ["a*.example.com"]},
+        {"hosts": ["example.123"]},
+        {"hosts": ["api.example.com"] * 51},
         {"elsewhere": 1},
     ):
         assert ca.put("/api/v1/settings/sandbox", headers=ha, json=bad).status_code == 400, bad
     good = {"cpu": "500m", "memory": "2Gi", "seconds": 120, "network": "packages", "image": "python:3.13-slim", "gateway": "[::1]:8080"}
     assert ca.put("/api/v1/settings/sandbox", headers=ha, json=good).status_code == 200
     assert {k: v for k, v in ca.get("/api/v1/settings", headers=ha).json()["sandbox"]["values"].items() if k in good} == good
+    hosts = {"network": "hosts", "hosts": "API.Example.com, *.wikipedia.org api.example.com"}
+    assert ca.put("/api/v1/settings/sandbox", headers=ha, json=hosts).status_code == 200
+    assert ca.get("/api/v1/settings", headers=ha).json()["sandbox"]["values"]["hosts"] == ["api.example.com", "*.wikipedia.org"]
 
 
 def test_python_and_bash_share_one_sandbox_per_conversation(app, db, cfg, folder, new_client, llm, gateway):
@@ -258,6 +268,16 @@ def test_with_its_network_on_a_run_after_outside_text_asks_first(app, db, cfg, f
     assert "approval" not in ev and told(llm)[0]["sandbox"].startswith("a fresh sandbox")
     assert dict(gateway.boxes[f"lens-chat-{cid}"]["spec"].policy.network_policies) == {}
 
+    # hosts: the registries and the hosts an admin listed, which the model is told and the approval names
+    hosts = {"network": "hosts", "hosts": ["api.example.com"]}
+    assert ca.put("/api/v1/settings/sandbox", headers=ha, json=hosts).status_code == 200
+    ev = ask(c, h, cid, llm, script, context=page)
+    assert "which can reach the package registries and api.example.com" in ev["step"][0]["summary"]
+    assert "api.example.com; any other address is refused" in json.dumps(llm.seen[-1]["messages"][0])
+    c.post(f"/api/v1/approvals/{ev['approval'][0]['id']}", headers=h, json={"decision": "approve"})
+    rules = gateway.boxes[f"lens-chat-{cid}"]["spec"].policy.network_policies
+    assert set(rules) == {"packages", "hosts"} and [e.host for e in rules["hosts"].endpoints] == ["api.example.com"]
+
 
 def test_idle_sandboxes_stop_and_unused_ones_are_deleted(app, db, cfg, folder, new_client, llm, gateway):
     s = Assist(app, db, cfg, folder, new_client)
@@ -308,17 +328,24 @@ def test_long_output_is_cut_to_fit_and_failures_are_said_plainly(app, db, cfg, f
     assert ev["step"][0]["summary"].startswith("run_bash: the code sandbox's gateway")
 
 
-def test_the_web_reaches_public_addresses_only():
+def test_its_network_reaches_the_names_it_lists_at_public_addresses_only():
     assert sandbox.policy("off")["network_policies"] == {}
     assert [e["host"] for e in sandbox.policy("packages")["network_policies"]["packages"]["endpoints"]] == list(sandbox.PACKAGES)
-    (rule,) = sandbox.policy("web")["network_policies"].values()
-    nets = [ipaddress.ip_network(n) for n in rule["endpoints"][0]["allowed_ips"]]
-    v4 = [n for n in nets if n.version == 4]
-    for private in ("10.1.2.3", "172.18.0.5", "192.168.1.1", "127.0.0.1", "169.254.169.254", "100.64.0.1", "0.0.0.0"):
-        assert not any(ipaddress.ip_address(private) in n for n in v4), private
-    for public in ("8.8.8.8", "1.1.1.1", "151.101.0.223", "203.0.114.1"):
-        assert any(ipaddress.ip_address(public) in n for n in v4), public
-    assert rule["endpoints"][0]["ports"] == [80, 443] and rule["binaries"] == [{"path": "/**"}]
+    assert set(sandbox.policy("packages", ["api.example.com"])["network_policies"]) == {"packages"}  # hosts: only with hosts
+    rules = sandbox.policy("hosts", ["api.example.com", "*.wikipedia.org", "pypi.org"])["network_policies"]
+    assert set(rules) == {"packages", "hosts"}
+    assert [e["host"] for e in rules["hosts"]["endpoints"]] == ["api.example.com", "*.wikipedia.org"]
+    assert rules["hosts"]["endpoints"][0]["ports"] == [80, 443] and rules["hosts"]["binaries"] == [{"path": "/**"}]
+    # a listed name that resolves to a private address is refused: every endpoint is held to public ones
+    for rule in rules.values():
+        for e in rule["endpoints"]:
+            v4 = [n for n in map(ipaddress.ip_network, e["allowed_ips"]) if n.version == 4]
+            for private in ("10.1.2.3", "172.18.0.5", "192.168.1.1", "127.0.0.1", "169.254.169.254", "100.64.0.1", "0.0.0.0"):
+                assert not any(ipaddress.ip_address(private) in n for n in v4), private
+            for public in ("8.8.8.8", "1.1.1.1", "151.101.0.223", "203.0.114.1"):
+                assert any(ipaddress.ip_address(public) in n for n in v4), public
+    # the first build's "web" reads as hosts: the registries, and nothing else until an admin lists names
+    assert sandbox.settings({"sandbox": {"network": "web"}})["network"] == "hosts"
 
 
 def test_its_client_is_fetched_when_the_sandbox_is_turned_on(cfg):
@@ -326,3 +353,131 @@ def test_its_client_is_fetched_when_the_sandbox_is_turned_on(cfg):
     assert not c.needed(cfg, {}) and c.present(cfg)
     cfg["sandbox"] = {**cfg["sandbox"], "enabled": True}
     assert c.needed(cfg, {})
+
+
+# ---------- the gateway on this machine: the Compose profile `sandbox` ----------
+@pytest.fixture
+def control(tmp_path, monkeypatch):
+    """The control folder install.sh shares with the containers, with an agent watching it, on a machine that can run
+    the gateway (the Compose install, a 64-bit machine, Landlock 6)."""
+    d = tmp_path / "control"
+    (d / "inbox").mkdir(parents=True)
+    (d / "agent").write_text("kind=systemd\n")
+    monkeypatch.setenv("LENS_CONTROL_DIR", str(d))
+    monkeypatch.setenv("LENS_SANDBOX_TLS_DIR", str(tmp_path / "no-key"))  # no certificate: the fake gateway has no TLS
+    monkeypatch.setattr(sandbox, "landlock_abi", lambda: 6)
+    monkeypatch.setattr(sandbox.platform, "machine", lambda: "aarch64")
+    return d
+
+
+def request_of(control):
+    return dict(line.split("=", 1) for line in (control / "inbox" / "upgrade").read_text().splitlines())
+
+
+@pytest.mark.parametrize("sandbox_on", [False])
+def test_the_gateway_is_started_and_stopped_from_settings(app, db, cfg, folder, new_client, llm, gateway, control):
+    s = Assist(app, db, cfg, folder, new_client)
+    (ca, ha), (ce, he) = s.cl["admin"], s.cl["editor"]
+    assert ce.get("/api/v1/admin/sandbox", headers=he).status_code == 403
+    v = ca.get("/api/v1/admin/sandbox", headers=ha).json()
+    assert (v["on"], v["state"], v["agent"], v["preflight"], v["reachable"]) == (False, None, "systemd", [], None)  # off: not probed
+    assert v["manual"].endswith("docker compose -f docker-compose.prod.yml --profile sandbox up -d openshell-gateway")
+
+    r = ca.put("/api/v1/admin/sandbox", headers=ha, json={"on": True})
+    assert r.status_code == 202 and (r.json()["on"], r.json()["state"]) == (True, "queued")
+    req = request_of(control)
+    assert (req["action"], req["profile"], req["turn"], req["by"]) == ("services", "sandbox", "on", "root@x.io")
+    got = ca.get("/api/v1/settings", headers=ha).json()["sandbox"]["values"]
+    assert got["enabled"] is True and got["gateway"] == sandbox.GATEWAY  # the sandbox is on, at the profile's gateway
+    assert ca.put("/api/v1/admin/sandbox", headers=ha, json={"on": False}).status_code == 409  # one request at a time
+
+    # the agent picks it up: while it's changing the containers, nothing else is asked of it
+    (control / "inbox" / "upgrade").unlink()
+    (control / "services-status").write_text(f"id={req['id']}\nprofile=sandbox\nstate=running\n")
+    assert "still changing" in ca.put("/api/v1/admin/sandbox", headers=ha, json={"on": False}).json()["detail"]
+    (control / "services-status").write_text(f"id={req['id']}\nprofile=sandbox\nstate=done\ncode=0\n")
+    # here the gateway is the fake one; Lens checks it answers and lets Lens in
+    assert ca.put("/api/v1/settings/sandbox", headers=ha, json={"gateway": gateway.addr}).status_code == 200
+    v = ca.get("/api/v1/admin/sandbox", headers=ha).json()
+    assert (v["on"], v["state"], v["error"], v["reachable"], v["problem"]) == (True, "done", None, True, None)
+    gateway.refuse = True  # as a gateway answers a caller without its client certificate
+    v = ca.get("/api/v1/admin/sandbox", headers=ha).json()
+    assert v["reachable"] is False and "missing authorization header" in v["problem"]
+    gateway.refuse = False
+
+    # off deletes the conversations' sandboxes, and any other Lens made there, then turns the sandbox off
+    c, h = s.cl["editor"]
+    cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    ask(c, h, cid, llm, [{"content": "", "tool_calls": [call(1, "run_bash", {"command": "echo hi > a.txt"})]}, {"content": "Ok."}])
+    eff = app.state.settings.current()
+    with sandbox._gateway(eff) as d:
+        d.create("lens-chat-999", sandbox.settings(eff))  # its conversation is long gone
+    assert set(gateway.boxes) == {f"lens-chat-{cid}", "lens-chat-999"}
+    r = ca.put("/api/v1/admin/sandbox", headers=ha, json={"on": False})
+    assert r.status_code == 202 and request_of(control)["turn"] == "off"
+    assert gateway.boxes == {} and db.rows("SELECT * FROM code_sandbox") == []
+    assert ca.get("/api/v1/settings", headers=ha).json()["sandbox"]["values"]["enabled"] is False
+
+
+@pytest.mark.parametrize("sandbox_on", [False])
+def test_an_agent_older_than_lens_says_to_start_it_by_hand(app, db, cfg, folder, new_client, llm, gateway, control):
+    s = Assist(app, db, cfg, folder, new_client)
+    ca, ha = s.cl["admin"]
+    ca.put("/api/v1/admin/sandbox", headers=ha, json={"on": True})
+    rid = request_of(control)["id"]
+    (control / "inbox" / "upgrade").unlink()
+    (control / "services-status").write_text(f"id={rid}\nstate=failed\ncode=2\nerror=monitoring is on or off\n")
+    v = ca.get("/api/v1/admin/sandbox", headers=ha).json()
+    assert v["state"] == "failed" and "older than this Lens" in v["error"] and "--profile sandbox" in v["manual"]
+    # what it said is kept once another request has the status file, and it can be tried again
+    (control / "services-status").write_text("id=another\nstate=done\n")
+    assert ca.get("/api/v1/admin/sandbox", headers=ha).json()["state"] == "failed"
+    assert ca.put("/api/v1/admin/sandbox", headers=ha, json={"on": True}).status_code == 202
+
+
+@pytest.mark.parametrize("sandbox_on", [False])
+def test_a_machine_that_cant_run_the_gateway_says_why(app, db, cfg, folder, new_client, llm, gateway, control, monkeypatch):
+    s = Assist(app, db, cfg, folder, new_client)
+    ca, ha = s.cl["admin"]
+    monkeypatch.setattr(sandbox, "landlock_abi", lambda: 2)
+    r = ca.put("/api/v1/admin/sandbox", headers=ha, json={"on": True})
+    assert r.status_code == 409 and "Landlock 3 or newer" in r.json()["detail"]
+    assert not (control / "inbox" / "upgrade").exists()
+    assert ca.get("/api/v1/settings", headers=ha).json()["sandbox"]["values"]["enabled"] is False  # nothing changed
+
+    monkeypatch.delenv("LENS_SANDBOX_TLS_DIR")
+    monkeypatch.setattr(sandbox, "landlock_abi", lambda: 0)
+    monkeypatch.setattr(sandbox.platform, "machine", lambda: "armv7l")
+    got = ca.get("/api/v1/admin/sandbox", headers=ha).json()["preflight"]
+    assert len(got) == 3 and "Docker Compose install" in got[0] and "armv7l" in got[1] and "no Landlock" in got[2]
+    # without an agent, it says the line to run on the machine
+    (control / "agent").unlink()
+    monkeypatch.setenv("LENS_SANDBOX_TLS_DIR", "/sandbox-key")
+    monkeypatch.setattr(sandbox, "landlock_abi", lambda: None)  # can't tell: not in the way
+    monkeypatch.setattr(sandbox.platform, "machine", lambda: "x86_64")
+    v = ca.get("/api/v1/admin/sandbox", headers=ha).json()
+    assert (v["agent"], v["preflight"]) == (None, [])
+    assert "no upgrade agent" in ca.put("/api/v1/admin/sandbox", headers=ha, json={"on": True}).json()["detail"]
+
+
+def test_lens_signs_in_to_the_gateway_with_its_client_certificate(tmp_path, monkeypatch):
+    import openshell
+
+    seen = {}
+
+    class Client:
+        def __init__(self, address, tls=None, timeout=None):
+            seen.update(address=address, tls=tls, timeout=timeout)
+
+    monkeypatch.setattr(openshell, "SandboxClient", Client)
+    monkeypatch.setenv("LENS_SANDBOX_TLS_DIR", str(tmp_path))
+    cfg = {"sandbox": {"gateway": "openshell-gateway:17670"}}
+    sandbox.OpenShell(cfg)
+    assert seen["tls"] is None  # no certificate yet (a gateway an admin runs elsewhere, without TLS)
+    for n in ("ca.crt", "tls.crt", "tls.key"):
+        (tmp_path / n).write_text("pem")
+    sandbox.OpenShell(cfg, timeout=5.0)
+    assert seen["address"] == "openshell-gateway:17670" and seen["timeout"] == 5.0
+    tls = seen["tls"]
+    assert (tls.ca_path, tls.cert_path, tls.key_path) == tuple(tmp_path / n for n in ("ca.crt", "tls.crt", "tls.key"))
+    assert isinstance(sandbox.landlock_abi(), int | None)  # this machine's own, read without failing
