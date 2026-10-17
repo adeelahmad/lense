@@ -17,8 +17,10 @@ import time
 from . import activity, analyze, ingest, keyring, pipelines, render, speakers as spk, store, telemetry
 
 R = store.R
-PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "analyze", "embed", "summarize", "report"]
-AFTER_IMPORT = ["analyze", "embed", "summarize", "report"]
+PIPELINE = [
+    "transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "clean", "analyze", "embed", "summarize", "report",
+]  # fmt: skip
+AFTER_IMPORT = ["clean", "analyze", "embed", "summarize", "report"]
 ACTIVE = ["queued", "running", "held"]  # held: over budget, waiting for someone to pick (budgets.py)
 FIELDS = (
     "record::id(id) AS id, recording, space, batch, pipeline, steps, step_index, next_step, status, worker, error, attempts, "
@@ -76,6 +78,18 @@ def _diarize(db, cfg, rid, say, spec=None):
     if rec.get("source") != "audio" or (rec.get("diarizer") == "labels" and not (spec or {}).get("force")):
         raise Skip("the speakers came with the transcript; kept them")
     spk.diarize_one(db, cfg, rid, say)
+
+
+def _clean(db, cfg, rid, say, spec=None):
+    """A transcript's lines tidied before analysis (cleanup.py), where Settings → Analysis turns it on."""
+    from . import cleanup
+
+    if not ((cfg.get("analysis") or {}).get("cleanup") or (spec or {}).get("force")):
+        raise Skip("cleaning up transcripts is off (Settings → Analysis)")
+    if _source(db, rid) not in cleanup.SPEECH:
+        raise Skip("a document's or an image's text is kept as it was read")
+    n = cleanup.clean_recording(db, cfg, rid)
+    say(f"cleaned up {n} line(s); Change history lists them" if n else "nothing to clean up")
 
 
 def _analyze(db, cfg, rid, say, spec=None):
@@ -192,6 +206,7 @@ STEPS = {
     "objects": _objects,
     "nsfw": _nsfw,
     "describe": _describe,
+    "clean": _clean,
     "analyze": _analyze,
     "embed": _embed,
     "summarize": _summarize,
@@ -911,6 +926,8 @@ class Worker:
             self.can |= VIDEO_STEPS
         if self.can & {"analyze", "summarize"}:  # embedding needs what they need; lists written before it existed run it too
             self.can.add("embed")
+        if "analyze" in self.can:  # cleaning up a transcript needs no more than analysing it; older lists run it too
+            self.can.add("clean")
         if not steps and "objects" in self.can:  # NSFW classification runs on ONNX Runtime too; older lists run it as well
             self.can.add("nsfw")
         if not steps and log and (missing := sorted(set(STEPS) - self.can)):

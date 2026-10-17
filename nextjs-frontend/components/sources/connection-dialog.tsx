@@ -1,13 +1,16 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { Sources } from "@/app/openapi-client";
 import type { Source, SourceHealth } from "@/app/openapi-client/types.gen";
 import { ConnectionFields } from "@/components/sources/connection-fields";
+import { startRclone, type RcloneWaiting } from "@/components/sources/rclone-signin";
+import { RcloneWait } from "@/components/sources/rclone-wait";
 import { TYPE_ICON } from "@/components/sources/source-icons";
 import {
+  SIGNIN_SERVICE,
   TYPE_NAME,
   TYPE_ORDER,
   buildPayload,
@@ -23,6 +26,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
+import { navigate } from "@/lib/navigate";
 import { cn } from "@/lib/utils";
 
 type Step = "type" | "details" | "test";
@@ -53,20 +57,20 @@ function StepTrail({ step, editing }: { step: Step; editing: boolean }) {
 
 /** SO2: add a connection (choose type → details → test, named there), or edit one (details → test). A type with
  * nothing to fill in (a folder on this machine) is added, tested and named at once: the test step only shows if it
- * fails. */
+ * fails. Dropbox, OneDrive and Google Drive (as a Google account) sign in at the service in a new tab, through rclone
+ * on the server (RcloneWait), instead of testing a pasted token: the connection is made and tested when the service
+ * sends the browser back, and the dialog goes on to the test step. */
 export function ConnectionDialog({
   open,
   onOpenChange,
   backends,
   source,
-  replaceToken,
   onSaved,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   backends: Record<string, BackendSpec>;
   source?: Source | null;
-  replaceToken?: boolean;
   onSaved?: (id: number) => void;
 }) {
   const client = useApiClient();
@@ -84,16 +88,32 @@ export function ConnectionDialog({
   const [createdName, setCreatedName] = useState("");
   const [result, setResult] = useState<{
     health: SourceHealth;
-    ms: number;
+    /** How long the test took; null when the connection was tested as it was made (signing in). */
+    ms: number | null;
   } | null>(null);
+  /** Waiting for the browser to come back to rclone on the server; `rcloneStarting` while it's asked to. */
+  const [rclone, setRclone] = useState<RcloneWaiting | null>(null);
+  const [rcloneStarting, setRcloneStarting] = useState(false);
+  const rcloneLive = useRef<RcloneWaiting | null>(null);
+  const waitRclone = (w: RcloneWaiting | null) => {
+    rcloneLive.current = w;
+    setRclone(w);
+  };
+  /** Stop waiting for rclone (cancelling, closing, starting over): it stops on the server too. */
+  const dropRclone = () => {
+    const w = rcloneLive.current;
+    if (w) void Sources.cancelRcloneSignin({ client, path: { fid: w.id } });
+    waitRclone(null);
+  };
   /** Secrets saved during this dialog (the source prop doesn't know about them yet). */
   const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
   const spec = backends[type];
   const saved = editing || createdId != null;
   const isSet = (k: string) => (Boolean(source?.secrets?.[k]?.set) && !savedKeys.has(`-${k}`)) || savedKeys.has(k);
 
-  // Start fresh each time the dialog opens.
+  // Start fresh each time the dialog opens; a sign-in through rclone stops when it closes.
   useEffect(() => {
+    dropRclone();
     if (!open) return;
     setStep(editing ? "details" : "type");
     setType(source?.type ?? "s3");
@@ -112,6 +132,7 @@ export function ConnectionDialog({
     setResult(null);
     setSavedKeys(new Set());
   }, [open]);
+  useEffect(() => () => dropRclone(), []);
 
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ["sources"] });
@@ -213,6 +234,80 @@ export function ConnectionDialog({
     },
   });
 
+  // Connect with Google: the connection is saved as it is (made first when new), then this browser goes to Google's
+  // consent screen and comes back to Sources with the account connected
+  const connectGoogle = useMutation({
+    mutationFn: async (oauthClient: { client_id?: string; client_secret?: string }) => {
+      let id = createdId;
+      const body = buildPayload(backends[type], form, type);
+      if (id == null) {
+        const name = form.name.trim() || suggestName(type, form.params);
+        id = (await data(Sources.createSource({ client, body: { type, name, ...body } }))).id;
+        setCreatedId(id);
+        setCreatedName(name);
+      } else
+        await data(
+          Sources.updateSource({
+            client,
+            path: { sid: id },
+            body: { ...body, ...(editing && form.name.trim() ? { name: form.name.trim() } : {}) },
+          }),
+        );
+      return (await data(Sources.connectGoogle({ client, path: { sid: id }, body: oauthClient }))).url;
+    },
+    onSuccess: (url) => navigate.assign(url),
+    onError: (e: Error) => {
+      refresh();
+      setErrors({ _: e.message });
+    },
+  });
+
+  const goConnect = (oauthClient: { client_id?: string; client_secret?: string }) => {
+    const e = validateForm(type, spec, form, saved, isSet);
+    delete e.token; // what Google's consent screen is for
+    setErrors(e);
+    if (!Object.keys(e).length) connectGoogle.mutate(oauthClient);
+  };
+
+  // Dropbox, OneDrive and Google Drive (as a Google account) sign in at the service through rclone on the server,
+  // unless a token is pasted or a saved connection only changes its options
+  const via = spec?.oauth && !(type === "drive" && form.driveAuth === "service_account") ? form.signInWith : null;
+  const needSignIn = via === "rclone" && !(saved && isSet("token"));
+  const service = SIGNIN_SERVICE[type] ?? spec?.label ?? "";
+
+  // the connection is made and tested: on to the test step, as if it had been saved here
+  const connected = async (id: number) => {
+    const made = (await data(Sources.listSources({ client }))).find((s) => s.id === id);
+    setCreatedId(id);
+    setCreatedName(made?.name ?? "");
+    setSavedKeys((prev) => new Set([...prev, "token", "-service_account_credentials"]));
+    setForm((f) => ({ ...f, secrets: {}, tokenText: "", name: editing ? f.name : (made?.name ?? f.name) }));
+    setResult({ health: made?.health ?? { ok: false, error: "Not tested yet" }, ms: null });
+    setStep("test");
+    refresh();
+  };
+
+  // the service's page opens in a new tab now, in the click; the dialog then waits for the address it ends on
+  const startSignIn = async () => {
+    const e = validateForm(type, spec, form, saved, isSet);
+    setErrors(e);
+    if (Object.keys(e).length) return;
+    setRcloneStarting(true);
+    try {
+      const { params } = buildPayload(spec, form, type);
+      waitRclone(
+        await startRclone(
+          client,
+          createdId != null ? { source: createdId, params } : { type, params, name: form.name.trim() || null },
+        ),
+      );
+    } catch (err) {
+      setErrors({ _: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setRcloneStarting(false);
+    }
+  };
+
   const goTest = () => {
     const e = validateForm(type, spec, form, saved, isSet);
     setErrors(e);
@@ -230,9 +325,7 @@ export function ConnectionDialog({
           ? `Edit “${source?.name}”`
           : TYPE_NAME[type] === "S3 / compatible"
             ? "S3 or S3-compatible"
-            : spec?.oauth && type !== "drive"
-              ? `${TYPE_NAME[type]} · paste a token`
-              : (spec?.label ?? TYPE_NAME[type])
+            : (spec?.label ?? TYPE_NAME[type])
         : step === "test"
           ? test.isPending
             ? "Testing…"
@@ -297,7 +390,31 @@ export function ConnectionDialog({
       </Button>
     );
   } else if (step === "details") {
-    body = (
+    const alert = errors._ && (
+      <p
+        role="alert"
+        className="rounded-sm border border-red-border bg-red-surface px-3 py-2 text-[13px] text-red-dark"
+      >
+        {errors._}
+      </p>
+    );
+    body = rclone ? (
+      <div className="flex flex-col gap-3">
+        <RcloneWait
+          waiting={rclone}
+          service={service}
+          onConnected={(id) => {
+            waitRclone(null);
+            void connected(id).catch((e: Error) => setErrors({ _: e.message }));
+          }}
+          onOver={(why) => {
+            waitRclone(null);
+            setErrors({ _: why });
+          }}
+        />
+        {alert}
+      </div>
+    ) : (
       <div className="flex flex-col gap-3">
         {editing && (
           <Field label="Name" error={errors.name}>
@@ -315,20 +432,25 @@ export function ConnectionDialog({
             errors={errors}
             saved={saved}
             isSet={isSet}
-            replaceToken={replaceToken}
+            onSignIn={() => void startSignIn()}
+            signingIn={rcloneStarting}
+            onConnectGoogle={goConnect}
+            connectingGoogle={connectGoogle.isPending || connectGoogle.isSuccess}
           />
         ) : null}
-        {errors._ && (
-          <p
-            role="alert"
-            className="rounded-sm border border-red-border bg-red-surface px-3 py-2 text-[13px] text-red-dark"
-          >
-            {errors._}
-          </p>
-        )}
+        {alert}
       </div>
     );
-    actions = (
+    actions = rclone ? (
+      <>
+        <Button variant="ghost" onClick={dropRclone}>
+          Cancel
+        </Button>
+        <Button variant="primary" disabled disabledReason={`Finish signing in to ${service} in the new tab`}>
+          {`Waiting for ${service}…`}
+        </Button>
+      </>
+    ) : (
       <>
         {!editing && (
           <Button variant="ghost" className="mr-auto" onClick={() => setStep("type")}>
@@ -338,9 +460,20 @@ export function ConnectionDialog({
         <Button variant="ghost" onClick={() => onOpenChange(false)}>
           Cancel
         </Button>
-        <Button variant="primary" onClick={goTest}>
-          {editing ? "Save and test" : "Test connection"}
-        </Button>
+        {needSignIn ? (
+          <Button
+            variant="primary"
+            onClick={() => void startSignIn()}
+            disabled={rcloneStarting}
+            disabledReason={`Opening ${service}’s sign-in page`}
+          >
+            {rcloneStarting ? `Waiting for ${service}…` : `Sign in with ${service}`}
+          </Button>
+        ) : (
+          <Button variant="primary" onClick={goTest} disabled={rcloneStarting}>
+            {editing ? "Save and test" : "Test connection"}
+          </Button>
+        )}
       </>
     );
   } else if (step === "test") {
@@ -364,7 +497,7 @@ export function ConnectionDialog({
                 ? "Listed the top folder"
                 : "Couldn’t list the top folder"}
           </span>
-          <span className="tabular text-[12px] text-fg-muted">{result ? `${result.ms} ms` : ""}</span>
+          <span className="tabular text-[12px] text-fg-muted">{result?.ms != null ? `${result.ms} ms` : ""}</span>
         </div>
         {result && !ok && (
           <div className="flex gap-2 rounded-[10px] border border-red-border bg-red-surface px-3 py-2.5 text-[13px] leading-normal">

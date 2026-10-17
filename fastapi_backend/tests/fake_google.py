@@ -4,6 +4,8 @@ access tokens they get read the calendars and events the test sets up, in pages.
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import http.server
 import json
 import secrets
@@ -36,6 +38,8 @@ class Google:
         self.service_accounts: dict[str, object] = {}  # client_email -> public key
         self.delegated: dict[str, set] = {}  # client_email -> users it may act as
         self.users: dict[str, dict] = {}  # refresh token -> {client_id, client_secret, account}
+        self.clients: set[tuple[str, str]] = set()  # OAuth clients (id, secret) that may swap codes
+        self.codes: dict[str, dict] = {}  # authorization code -> what the consent screen gave
         self.tokens: dict[str, str] = {}  # access token -> account it reads as
         self.calendars: dict[str, dict] = {}  # calendar id -> {summary, timeZone, events: [...], readers: {account}}
         self.lists: dict[str, list] = {}  # account -> calendar ids in its calendar list
@@ -85,6 +89,34 @@ class Google:
                         )
                     if claims.get("scope") != "https://www.googleapis.com/auth/calendar.readonly":
                         return self._json({"error": "invalid_scope"}, 400)
+                elif form.get("grant_type") == "authorization_code":
+                    c = google.codes.pop(form.get("code"), None)
+                    if (form.get("client_id"), form.get("client_secret")) not in google.clients:
+                        return self._json({"error": "invalid_client", "error_description": "The OAuth client was not found."}, 401)
+                    if not c or form.get("redirect_uri") != c["redirect_uri"] or form.get("client_id") != c["client_id"]:
+                        return self._json({"error": "invalid_grant", "error_description": "Bad Request"}, 400)
+                    verifier = form.get("code_verifier") or ""
+                    if base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=") != c["challenge"]:
+                        return self._json({"error": "invalid_grant", "error_description": "Invalid code verifier."}, 400)
+                    refresh = secrets.token_urlsafe(16)
+                    google.users[refresh] = {"client_id": c["client_id"], "client_secret": form["client_secret"], "account": c["account"]}
+                    token = secrets.token_urlsafe(16)
+                    google.tokens[token] = c["account"]
+                    id_token = jwt.encode(
+                        {"iss": "https://accounts.google.com", "sub": "1", "email": c["account"]},
+                        "a key Lens never checks: the id token comes straight from Google",
+                        algorithm="HS256",
+                    )
+                    return self._json(
+                        {
+                            "access_token": token,
+                            "expires_in": 3599,
+                            "refresh_token": refresh,
+                            "id_token": id_token,
+                            "scope": c["granted"],
+                            "token_type": "Bearer",
+                        }
+                    )
                 elif form.get("grant_type") == "refresh_token":
                     u = google.users.get(form.get("refresh_token"))
                     if not u:
@@ -154,6 +186,22 @@ class Google:
         self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         self.base = f"http://127.0.0.1:{self.server.server_address[1]}"
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    def consent(self, url, account, granted=None):
+        """What Google's consent page does for `account`: the address it sends the browser back to, with a code. The
+        scopes granted are those asked for, unless `granted` says which (Google lets people untick some)."""
+        q = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(url).query))
+        assert url.startswith(self.base + "/auth?") and q["access_type"] == "offline" and q["prompt"] == "consent"
+        assert q["code_challenge_method"] == "S256" and "openid" in q["scope"].split()
+        code = secrets.token_urlsafe(12)
+        self.codes[code] = {
+            "client_id": q["client_id"],
+            "redirect_uri": q["redirect_uri"],
+            "challenge": q["code_challenge"],
+            "account": account,
+            "granted": q["scope"] if granted is None else granted,
+        }
+        return q["redirect_uri"] + "?" + urllib.parse.urlencode({"code": code, "state": q["state"]})
 
     def api_calls(self, what=None):
         return [c for c in self.calls if c[0] != "token" and (what is None or c[0].endswith(what))]

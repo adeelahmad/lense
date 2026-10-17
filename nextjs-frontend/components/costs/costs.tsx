@@ -124,7 +124,7 @@ const KIND: Record<string, { label: string; icon: React.ReactNode; tone: Tone }>
   change: { label: "Change", icon: <Pencil aria-hidden />, tone: "gate" },
 };
 
-function actionText(e: ActivityEntry): string {
+export function actionText(e: ActivityEntry): string {
   const a = e.action;
   if (a.startsWith("model."))
     return `${a.slice(6) === "chat" ? "Model call" : `Model ${a.slice(6)}`}${e.model ? ` · ${e.model}` : ""}`;
@@ -132,6 +132,11 @@ function actionText(e: ActivityEntry): string {
   if (a === "decision") return `Decision model${e.model ? ` · ${e.model}` : ""}`;
   if (a.startsWith("notify.")) return `Notification · ${a.slice(7)}`;
   if (a === "tool.http") return "Web tool";
+  if (a === "web.search" || a === "web.read") {
+    const d = (e.detail ?? {}) as { provider?: string; host?: string };
+    const where = a === "web.search" ? d.provider : d.host;
+    return `${a === "web.search" ? "Web search" : "Read a web page"}${where ? ` · ${where}` : ""}`;
+  }
   if (a.startsWith("budget.")) return a === "budget.over" ? "Budget used up" : "Budget nearly used";
   if (a.startsWith("graph.")) {
     const d = (e.detail ?? {}) as { version?: number; why?: string | null };

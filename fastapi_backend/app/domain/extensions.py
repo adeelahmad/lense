@@ -32,7 +32,7 @@ import urllib.request
 
 import yaml
 
-from . import activity, auth, store
+from . import activity, auth, mcp_servers, store
 
 R = store.R
 KINDS = ("tool", "skill", "hook", "plugin", "mcp")
@@ -265,9 +265,12 @@ def _check_hook(spec, me, db=None):
 
 def _check_mcp(spec, me, db=None):
     """An MCP server: its address and the headers it needs (a token), or the program it runs as (command, args, env:
-    run in the MCP runner's sandbox), and its tools as it listed them (mcp_client.py)."""
-    if set(spec) - {"url", "headers", "command", "args", "env", "tools"}:
-        raise ValueError("an MCP server is {url, headers, tools}, or {command, args, env, tools} for one that runs as a program")
+    run in the MCP runner's sandbox), its tools as it listed them (mcp_client.py), the tools switched off (`off`) and
+    which ask first where that isn't the server's own read-only hint (`ask`: {tool: true or false})."""
+    if set(spec) - {"url", "headers", "command", "args", "env", "tools", "off", "ask"}:
+        raise ValueError(
+            "an MCP server is {url, headers, tools, off, ask}, or {command, args, env, tools, off, ask} for one that runs as a program"
+        )
     if not me["admin"]:
         raise ValueError("only admins add MCP servers")
 
@@ -289,11 +292,18 @@ def _check_mcp(spec, me, db=None):
         if not re.match(r"^https?://[^/?#\s]+", url):
             raise ValueError("an MCP server's address starts with http:// or https://")
         server = {"url": url, "headers": words(spec.get("headers") or {}, "headers") or None}
+    off, ask = spec.get("off") or [], spec.get("ask") or {}
+    if not isinstance(off, list) or len(off) > 100 or not all(isinstance(t, str) for t in off):
+        raise ValueError("an MCP server's off is a list of its tools' names")
+    if not isinstance(ask, dict) or len(ask) > 100 or not all(isinstance(k, str) and isinstance(v, bool) for k, v in ask.items()):
+        raise ValueError("an MCP server's ask is {tool: true or false}: whether each asks first")
     tools = spec.get("tools")
-    if tools is None:  # asked of the server: what it offers now
+    # asked of the server: what it offers now (not while a secret is "••••": saving fills that in, then lists them)
+    if tools is None and not mcp_servers.hidden({"kind": "mcp", "spec": server}):
         from . import mcp_client
 
         tools = mcp_client.discover(store.clean(server))
+    server.update({"off": sorted(set(off)) or None, "ask": ask or None})
     if tools is not None:
         if not isinstance(tools, list) or len(tools) > 100:
             raise ValueError("an MCP server's tools are a list of at most 100")
@@ -314,18 +324,23 @@ def _check_mcp(spec, me, db=None):
     return store.clean({**server, "tools": tools})
 
 
-def mcp_tools(item):
-    """An MCP server's tools as the assistant calls them, `<server>__<tool>`: [{name, description, spec}]. Its own
-    readOnlyHint is the only thing that lets one answer without asking."""
+def mcp_tools(item, ext=None):
+    """An MCP server's tools as the assistant calls them, `<server>__<tool>`: [{name, description, spec}], less those
+    switched off. One answers without asking when the server says it only reads (its readOnlyHint) and no admin said it
+    asks first, or when an admin said it needn't ask. `ext` is the extension it's in, which its sealed values are bound
+    to."""
     s, out = item["spec"], []
+    off, ask = set(s.get("off") or []), s.get("ask") or {}
     for t in s.get("tools") or []:
+        if t["name"] in off:
+            continue
         name = re.sub(r"[^A-Za-z0-9_-]", "_", f"{item['name']}__{t['name']}")[:64]
         where = {k: s.get(k) for k in ("url", "headers", "command", "args", "env")}
-        run = store.clean({"type": "mcp", **where, "tool": t["name"]})
+        run = store.clean({"type": "mcp", **where, "tool": t["name"], "ext": ext, "server": item["name"]})
         spec = {
             "params": [],
             "schema": t.get("schema") or {"type": "object"},
-            "effect": "read" if t.get("read_only") else "change",
+            "effect": "change" if ask.get(t["name"], not t.get("read_only")) else "read",
             "run": run,
         }
         out.append({"kind": "tool", "name": name, "description": t.get("description"), "spec": spec})
@@ -339,7 +354,7 @@ def tool_items(g):
         if it["kind"] == "tool":
             out.append(it)
         elif it["kind"] == "mcp":
-            out += mcp_tools(it)
+            out += mcp_tools(it, g.get("id"))
     return out
 
 
@@ -445,7 +460,7 @@ _Dumper.add_representer(
 def to_manifest(ext):
     """An extension as a manifest people can read, change and import again: Markdown with frontmatter for skills and
     prompt tools, YAML for the rest."""
-    spec = json.loads(json.dumps(ext["spec"]))
+    spec = mcp_servers.masked(ext["name"], ext["kind"], ext["spec"])  # secrets: their names and "••••"
     head = store.clean({"name": ext["name"], "kind": ext["kind"], "title": ext.get("title"), "description": ext.get("description")})
     body = None
     if ext["kind"] == "skill":
@@ -518,7 +533,7 @@ def _check_share(db, me, visibility, namespaces):
 def create(db, me, manifest, enabled=True, origin="code", source=None):
     """A new extension from a manifest; its id. `origin` says how it was made: code, canvas or chat (or import, from a
     marketplace or a link, when `source` says where from: marketplace.py)."""
-    m = check_manifest(manifest, me, db)
+    m = check_manifest(mcp_servers.opened(db, manifest), me, db)
     _check_names(db, m["kind"], m["name"], m["spec"])
     vis, sids = _check_share(db, me, m.get("visibility"), m.get("namespaces"))
     eid, t = db.next_id("extension"), store.now()
@@ -543,7 +558,7 @@ def create(db, me, manifest, enabled=True, origin="code", source=None):
             }
         ),
     )
-    _save(db, me, eid, 1, m["spec"], None, origin)
+    _save(db, me, eid, 1, mcp_servers.seal(db, eid, m["name"], m["kind"], m["spec"]), None, origin)
     return eid
 
 
@@ -604,15 +619,69 @@ def _mine(db, me, eid):
 
 
 def save_version(db, me, eid, manifest, notes=None, origin="code"):
-    """A new version from a manifest (its name and kind stay); the version's number."""
+    """A new version from a manifest (its name and kind stay); the version's number. An MCP server's secrets given as
+    "••••" keep the values saved before."""
     d = _mine(db, me, eid)
-    m = check_manifest({**manifest, "name": d["name"], "kind": d["kind"]}, me, db)
+    m = mcp_servers.opened(db, {**manifest, "name": d["name"], "kind": d["kind"]}, d["id"], get(db, d["id"]))
+    m = check_manifest(m, me, db)
     _check_names(db, d["kind"], d["name"], m["spec"], skip=d["id"])
+    spec = mcp_servers.seal(db, d["id"], d["name"], d["kind"], m["spec"])
+    return _new_version(db, me, d, spec, notes, origin, {k: m[k] for k in ("title", "description") if k in m})
+
+
+def _new_version(db, me, d, spec, notes, origin, meta=None):
     n = max(db.values("SELECT VALUE version FROM extension_version WHERE extension = $e", e=d["id"]) or [0]) + 1
-    _save(db, me, d["id"], n, m["spec"], _text(notes, "the notes", 500), origin)
-    meta = {k: m[k] for k in ("title", "description") if k in m}
-    db.q("UPDATE $r MERGE $d", r=R("extension", d["id"]), d={**meta, "current": n, "updated_at": store.now()})
+    _save(db, me, d["id"], n, spec, _text(notes, "the notes", 500), origin)
+    db.q("UPDATE $r MERGE $d", r=R("extension", d["id"]), d={**(meta or {}), "current": n, "updated_at": store.now()})
     return n
+
+
+def switch_tool(db, me, eid, tool, on=None, ask=None):
+    """One of an MCP server's tools switched on or off (`on`), or set to ask first or not (`ask`): a new version, which
+    conversations use at once. Asking as the server's read-only hint says is the default, and isn't written down."""
+    d = _mine(db, me, eid)
+    g = get(db, d["id"])
+    if g["kind"] != "mcp":
+        raise ValueError("only an MCP server's tools are switched one by one: change a plugin's in its manifest")
+    if not me["admin"]:
+        raise ValueError("only admins change MCP servers")
+    spec = json.loads(json.dumps(g["spec"]))
+    t = next((t for t in spec.get("tools") or [] if t["name"] == tool), None)
+    if not t:
+        raise ValueError(f"{g['name']} has no tool {tool}")
+    said = []
+    if on is not None:
+        off = (set(spec.get("off") or []) - {tool}) | (set() if on else {tool})
+        spec["off"] = sorted(off) or None
+        said.append(f"{tool} {'on' if on else 'off'}")
+    if ask is not None:
+        asks = {k: v for k, v in (spec.get("ask") or {}).items() if k != tool}
+        if bool(ask) != (not t.get("read_only")):
+            asks[tool] = bool(ask)
+        spec["ask"] = asks or None
+        said.append(f"{tool} {'asks first' if ask else 'runs without asking'}")
+    if not said:
+        raise ValueError("say whether the tool is on, or whether it asks first")
+    return _new_version(db, me, d, store.clean(spec), ", ".join(said), "code")
+
+
+def try_mcp(db, me, spec, eid=None):
+    """The tools an MCP server ({url, headers}, or {command, args, env}) offers now, asked of it without saving it.
+    Values given as "••••" are the ones `eid`, an MCP server extension, has saved."""
+    if not me["admin"]:
+        raise ValueError("only admins add MCP servers")
+    if not isinstance(spec, dict):
+        raise ValueError("an MCP server is {url, headers}, or {command, args, env} for one that runs as a program")
+    name, before = "server", None
+    if eid is not None:
+        d = _mine(db, me, eid)
+        before = get(db, d["id"])
+        if before["kind"] != "mcp":
+            raise ValueError("that extension isn't an MCP server")
+        name = d["name"]
+    m = mcp_servers.opened(db, {"name": name, "kind": "mcp", "spec": spec}, eid, before)
+    server = {k: v for k, v in m["spec"].items() if k in ("url", "headers", "command", "args", "env")}
+    return check_spec("mcp", server, me, db).get("tools") or []
 
 
 def update(db, me, eid, **meta):
@@ -661,6 +730,7 @@ def _shown(db, g, me, names=None):
     names = names if names is not None else store.space_names(db)
     g["namespaces"] = [names.get(s) for s in g.get("namespaces") or [] if names.get(s)]
     g["editable"] = can_edit(g, me) and not g.get("deleted_at")
+    g["spec"] = mcp_servers.masked(g["name"], g["kind"], g["spec"])  # an MCP server's secrets are never shown
     return g
 
 
@@ -703,7 +773,7 @@ class Active:
             trusted = g.get("owner") == me["id"] or _owner_admin(db, g)
             items = g["spec"]["items"] if g["kind"] == "plugin" else [g]
             if _owner_admin(db, g):  # MCP servers are reached while an admin owns them
-                items = [x for it in items for x in (mcp_tools(it) if it["kind"] == "mcp" else [it])]
+                items = [x for it in items for x in (mcp_tools(it, g["id"]) if it["kind"] == "mcp" else [it])]
             for it in items:
                 if it["kind"] == "mcp":
                     continue
@@ -854,7 +924,7 @@ def run_tool(db, cfg, spec, args, model=None, toolbox=None):
     if run["type"] == "mcp":
         from . import mcp_client
 
-        return mcp_client.call(run, args)
+        return mcp_client.call(mcp_servers.open_run(db, run), args)
     if run["type"] == "python":
         from . import code_tools
 

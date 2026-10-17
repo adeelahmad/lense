@@ -4,7 +4,9 @@ import {
   ChartLine,
   ChartNoAxesColumn,
   HardDriveDownload,
+  History,
   House,
+  Inbox,
   LibraryBig,
   MessagesSquare,
   NotebookPen,
@@ -29,8 +31,11 @@ export type NavItem = {
   adminOnly?: boolean;
   /** Only shown to people who aren't administrators (admins have it under another item). */
   membersOnly?: boolean;
-  /** A count shown next to the label (library size, speakers to review in Settings). */
-  countKey?: "recordings" | "reviews";
+  /** A count shown next to the label (library size, speakers to review in Settings, approvals waiting). */
+  countKey?: "recordings" | "reviews" | "approvals";
+  /** Shown only while its count is above zero, or while its page is open, so the nav of a Lens with nothing there
+   * stays as short as it was (on a phone, every item more pushes the ones below off the screen). */
+  whileCounted?: boolean;
   /** The group it's in, named above its first item; the first group (what people use every day) has no name. */
   group: NavGroup;
 };
@@ -51,11 +56,21 @@ export const NAV: NavItem[] = [
   { label: "Search", href: "/search", icon: Search, group: "" },
   { label: "Chat", href: "/chat", icon: MessagesSquare, group: "" },
   { label: "Notes", href: "/notes", icon: NotebookPen, group: "" },
+  { label: "Timeline", href: "/timeline", icon: History, group: "Explore" },
   { label: "Entities", href: "/entities", icon: Shapes, group: "Explore" },
   { label: "Topics", href: "/topics", icon: Tags, group: "Explore" },
   { label: "Graph", href: "/graph", icon: Waypoints, group: "Explore" },
   { label: "Podcasts", href: "/podcasts", icon: Podcast, group: "Explore" },
   { label: "Reports", href: "/reports", icon: ChartNoAxesColumn, group: "Explore" },
+  // what waits for your pick: in the nav while anything does; the top bar's badge and Home's row lead there too
+  {
+    label: "Approvals",
+    href: "/approvals",
+    icon: Inbox,
+    countKey: "approvals",
+    whileCounted: true,
+    group: "Automate",
+  },
   { label: "Pipelines", href: "/pipelines", icon: Workflow, group: "Automate" },
   { label: "Routines", href: "/routines", icon: CalendarClock, adminOnly: true, group: "Automate" },
   { label: "Extensions", href: "/extensions", icon: Blocks, group: "Automate" },

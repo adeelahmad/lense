@@ -18,7 +18,9 @@ namespace's assistant goes to that namespace; otherwise the decision model picks
 
 The assistant's reversible changes (entity merges and edits, new namespaces: ROOM_SAFE) can be approved by replying
 "yes" (or "no") in the room, when bridge.approve is "low_risk" and the sender is one of bridge.users; everything else
-waits for approval in the web app, linked from the answer.
+waits for approval in the web app, linked from the answer. So can an automation's action that changes something inside
+Lens, in the private chat its person was told about it in (approvals.ask), when it's the only thing waiting there or
+named by its number; one that reaches outside Lens is decided on its card in Lens.
 
 What happens in a room is the same in every chat channel (channels.py): Matterbridge is one adapter, Telegram's own
 bot (telegram.py) another. handle() takes a message from any of them, with their voice notes (transcribed) and files
@@ -36,7 +38,7 @@ import re
 import urllib.error
 import urllib.request
 
-from . import ai_tools, auth, auto_scope, channels, chat, graph_history, llm, matterbridge, ns_assistant, store, untrusted
+from . import activity, ai_tools, auth, auto_scope, channels, chat, graph_history, llm, matterbridge, ns_assistant, store, untrusted
 from .store import R
 
 log = logging.getLogger(__name__)
@@ -176,15 +178,30 @@ def _account(db, cfg):
     return {"id": u["id"], "email": u["email"], "admin": bool(u.get("admin"))}
 
 
-def conversation(db, account, m, namespace=None, label="Matterbridge"):
+def conversation(db, account, m, namespace=None, label="Matterbridge", channel="bridge"):
     """The conversation for this person in this room, started on their first message; scoped to `namespace` (the
     room's namespace assistant), which follows bridge.rooms when it changes. In a room no namespace is given to, the
-    scope is routing's (route). `label` names the channel in its title."""
+    scope is routing's (route). `label` names the channel in its title; the chat keeps where it is (`via`: the
+    channel's key and label, the room, who is talking and whether it's a private chat) for its messages as activities
+    (events_streams.py, chat.message)."""
     who = m["thread"] if m.get("thread") else [m.get("gateway"), m.get("channel"), m.get("account"), m.get("username")]
     key = hashlib.sha1(json.dumps(who).encode()).hexdigest()
     scope = {"namespaces": [namespace]} if namespace else {}
-    cid = db.one("SELECT VALUE record::id(id) FROM chat WHERE bridge = $k AND account = $a LIMIT 1", k=key, a=account["id"])
+    via = store.clean(
+        {
+            "channel": channel,
+            "label": label,
+            "room": str(m.get("channel") or "")[:200] or None,
+            "user": (m.get("username") or "").strip("<> ")[:200] or None,
+            "userid": str(m.get("userid") or "")[:200] or None,
+            "private": bool(m.get("private")),
+        }
+    )
+    row = db.one("SELECT record::id(id) AS id, via FROM chat WHERE bridge = $k AND account = $a LIMIT 1", k=key, a=account["id"])
+    cid = row["id"] if row else None
     if cid:
+        if row.get("via") != via:  # a chat from before chats kept it, or someone renamed
+            db.q("UPDATE $r SET via = $v", r=R("chat", cid), v=via)
         if namespace:
             db.q("UPDATE $r SET scope = $s, room = 'given' WHERE (scope ?? {}) != $s", r=R("chat", cid), s=scope)
         else:  # the room was given to a namespace and no longer is: routing starts again
@@ -192,7 +209,7 @@ def conversation(db, account, m, namespace=None, label="Matterbridge"):
         return cid
     where = " · ".join(x for x in [m.get("channel"), (m.get("username") or "").strip("<> ")] if x)
     cid = chat.create(db, account["id"], title=f"{label} · {where}" if where else label, scope=scope, kind="bridge")
-    db.q("UPDATE $r SET bridge = $k, room = $g", r=R("chat", cid), k=key, g="given" if namespace else None)
+    db.q("UPDATE $r SET bridge = $k, room = $g, via = $v", r=R("chat", cid), k=key, g="given" if namespace else None, v=via)
     return cid
 
 
@@ -310,56 +327,67 @@ def _answer(db, cfg, base, account, cid, q, files, act_on, outside):
         chat.compact(db, cfg, cid, full_only=True)
     except Exception:  # noqa: BLE001 - answered with what fits; tried again after the answer
         log.warning("bridge: couldn't update the summary of chat %s", cid, exc_info=True)
-    past = chat.history(db, cid)
-    summary = chat.memory(db, cfg, cid)
+    past = chat.path(db, cid)  # a room goes on from the head (the version showing, should it be switched in the app)
+    summary = chat.memory(db, cfg, cid, past)
     scope = (db.one("SELECT scope FROM $r", r=R("chat", cid)) or {}).get("scope") or None
-    chat.add(db, cid, "user", q, attachments=list(files) or None)
-    asked = q + chat.attached_note(list(files))
-    passages = chat.retrieve(db, q, readable, scope, cfg=cfg)
-    # the web addresses written by someone other than the model: the person, now and before, and the archive
-    keep = untrusted.links("\n".join([q] + [m["content"] or "" for m in past if m["role"] == "user"] + [p["text"] for p in passages]))
-    steps, approvals, notice = [], [], None
-    wrote = cfg["llm"].get("model") if llm.configured(cfg) else None
-    if llm.configured(cfg) and cfg["ai"].get("tools"):
-        box = ai_tools.Toolbox(
-            db,
-            cfg,
-            {"id": account["id"], "email": account["email"]},
-            readable,
-            editable,
-            scope,
-            cid,
-            base,
-            account["admin"],
-            said=q,
-            outside=list(outside) + ai_tools.read_before(past, summary),
-            act_on=act_on,
-        )
+    chat.add(db, cid, "user", q, attachments=list(files) or None, meta=chat.question_record("room"))
+    # the answer's id up front: every call made for it names it in the ledger, and its record sums them
+    mid = db.next_id("chat_message")
+    record, spent = chat.Record(cfg, scope=scope), f"chat_message:{mid}"
+    with activity.scope(db, f"chat:{cid}", spent, cfg=cfg):
+        asked = q + chat.attached_note(list(files))
+        passages = chat.retrieve(db, q, readable, scope, cfg=cfg)
+        # the web addresses written by someone other than the model: the person, now and before, and the archive
+        keep = untrusted.links("\n".join([q] + [m["content"] or "" for m in past if m["role"] == "user"] + [p["text"] for p in passages]))
+        steps, approvals, notice = [], [], None
+        wrote = cfg["llm"].get("model") if llm.configured(cfg) else None
+
+        def said(words, cited, outcome, **kw):
+            """The answer, saved with its record."""
+            meta = record.meta(db, outcome, spent)
+            chat.add(db, cid, "assistant", words or "(no answer)", cited, steps=steps, model=wrote, mid=mid, meta=meta, **kw)
+
+        if llm.configured(cfg) and cfg["ai"].get("tools"):
+            box = ai_tools.Toolbox(
+                db,
+                cfg,
+                {"id": account["id"], "email": account["email"]},
+                readable,
+                editable,
+                scope,
+                cid,
+                base,
+                account["admin"],
+                said=q,
+                outside=list(outside) + ai_tools.read_before(past, summary),
+                act_on=act_on,
+            )
+            try:
+                text, how = None, "answered"
+                for kind, data in chat.tool_answer(cfg, box, asked, past, cfg["ai"].get("max_steps") or 6, summary=summary, record=record):
+                    if kind == "step":
+                        steps.append(data)
+                    elif kind == "direct" and passages and not box.cited(data):  # unless it cites what it remembers
+                        break
+                    else:
+                        text, how = data, "direct" if kind == "direct" else "answered"
+                if text is not None:
+                    box.after_answer(text)
+                    said(text, box.cited(text), how)
+                    return text, box.approvals, keep | box.links
+            except llm.ToolsUnsupported:
+                notice = "This model can't use tools, so the answer comes from a search instead."
+            except llm.LLMError as e:
+                said("", [], "error", error=str(e))
+                return "I couldn't answer that: " + str(e), box.approvals, keep | box.links
+        error = None
         try:
-            text = None
-            for kind, data in chat.tool_answer(cfg, box, asked, past, cfg["ai"].get("max_steps") or 6, summary=summary):
-                if kind == "step":
-                    steps.append(data)
-                elif kind == "direct" and passages and not box.cited(data):  # unless it cites what it remembers
-                    break
-                else:
-                    text = data
-            if text is not None:
-                box.after_answer(text)
-                chat.add(db, cid, "assistant", text or "(no answer)", box.cited(text), steps=steps, model=wrote)
-                return text, box.approvals, keep | box.links
-        except llm.ToolsUnsupported:
-            notice = "This model can't use tools, so the answer comes from a search instead."
+            text = llm.chat(cfg, chat.messages_for(asked, passages, past, summary, cfg)) if llm.configured(cfg) else chat.fallback(passages)
         except llm.LLMError as e:
-            chat.add(db, cid, "assistant", "(no answer)", [], steps=steps, error=str(e), model=wrote)
-            return "I couldn't answer that: " + str(e), box.approvals, keep | box.links
-    error = None
-    try:
-        text = llm.chat(cfg, chat.messages_for(asked, passages, past, summary, cfg)) if llm.configured(cfg) else chat.fallback(passages)
-    except llm.LLMError as e:
-        text, error = "I couldn't answer that: " + str(e), str(e)
-    chat.add(db, cid, "assistant", text or "(no answer)", chat.cited(text, passages), steps=steps, notice=notice, error=error, model=wrote)
-    return text, approvals, keep
+            text, error = "I couldn't answer that: " + str(e), str(e)
+        how = "error" if error else "fallback" if notice or not llm.configured(cfg) else "answered"
+        said(text, chat.cited(text, passages), how, notice=notice, error=error)
+        return text, approvals, keep
 
 
 # ---------- approving in the room ----------
@@ -383,24 +411,36 @@ def room_approver(cfg, m=None):
     return (m.get("username") or "").strip("<> ").lower() in allowed or (m.get("userid") or "").lower() in allowed
 
 
-def pending(db, cid):
-    return db.rows("SELECT record::id(id) AS id, tool, summary FROM approval WHERE chat = $c AND status = 'pending' ORDER BY id", c=cid)
+def pending(db, cid, account=None):
+    """What waits in a conversation: what the assistant proposed there, and the automations' actions the account's
+    person was told about there (approvals.ask), oldest first."""
+    return db.rows(
+        "SELECT record::id(id) AS id, tool, summary, intent FROM approval WHERE status = 'pending'"
+        + (" AND account = $a" if account is not None else "")
+        + " AND (chat = $c OR told.*.conversation CONTAINS $c) ORDER BY id",
+        c=cid,
+        a=account,
+    )
 
 
 def decide_in_room(db, cfg, base, account, cid, m, q):
-    """A "yes" or "no" to what this conversation is waiting on: carried out (the ROOM_SAFE ones) or declined, and the
-    reply to post. None when q isn't one, or nothing waits."""
+    """A "yes" or "no" to what this conversation is waiting on: carried out (the ROOM_SAFE ones, and an automation's
+    action that changes something inside Lens) or declined, and the reply to post. None when q isn't one, or nothing
+    waits. An automation's action is decided by a reply only when it is the one thing waiting here or named by its
+    number; one that reaches outside Lens is decided on its card in Lens."""
     yes, no = YES_RX.match(q.strip()), NO_RX.match(q.strip())
     if not (yes or no) or not room_approver(cfg, m):
         return None
-    waiting = pending(db, cid)
+    waiting = pending(db, cid, account["id"])
     if not waiting:
         return None
     pick = (yes or no).group(1)
+    one = len(waiting) == 1
     if pick and pick.lower() != "all":
         waiting = [a for a in waiting if a["id"] == int(pick)]
         if not waiting:
             return f"Nothing is waiting as #{pick}."
+        one = True
     elif not pick and len(waiting) > 1 and yes:  # "yes" to several things is ambiguous: say which
         listed = "; ".join(f"#{a['id']} {a['summary']}" for a in waiting)
         return f"Several things are waiting: {listed}. Say “yes all” or “yes <number>”."
@@ -408,29 +448,46 @@ def decide_in_room(db, cfg, base, account, cid, m, q):
     readable, editable = set(roles), {s for s in roles if auth.allows(roles, s, "editor")}
     who = (m.get("username") or "").strip("<> ")
     user = {"id": account["id"], "email": account["email"]}
-    lines, web = [], []
+    lines, web, held = [], [], []
     for a in waiting:
-        if yes and a["tool"] not in ROOM_SAFE:
+        if a.get("intent") and not one:  # "no" or "all" to several: an automation's action is picked on its own
+            held.append(a)
+            continue
+        if yes and (a["intent"].get("effect") != "lens" if a.get("intent") else a["tool"] not in ROOM_SAFE):
             web.append(a)
             continue
         decision = "approve" if yes else "decline"
         try:
             with graph_history.acting(why=f"approved in a chat room by {who}" if yes else None):
-                out = ai_tools.approve(db, cfg, a["id"], user, editable, decision, base, account["admin"], readable)
+                out = ai_tools.approve(db, cfg, a["id"], user, editable, decision, base, account["admin"], readable, via="chat")
         except (ValueError, PermissionError, KeyError) as e:
             lines.append(f"Couldn't do “{a['summary']}”: {e}")
             continue
         auth.audit(db, user, "assistant.approval", f"approval:{a['id']}", {"decision": decision, "via": "chat room", "by": who, **out})
+        if out.get("status") == "failed":
+            lines.append(f"Couldn't do “{a['summary']}”: {out.get('error')}")
+            continue
         lines.append(("Done: " if yes else "Declined: ") + a["summary"])
+    if held:
+        listed = "; ".join(f"#{a['id']} {a['summary']}" for a in held)
+        lines.append(f"Still waiting, one at a time: {listed}. Say “yes <number>” or “no <number>”.")
     if web:
         lines.append(_web_line(cfg, db, cid, web))
     return "\n".join(lines)
 
 
 def _web_line(cfg, db, cid, approvals):
+    """Where to decide what a reply here can't: the conversation in Lens, or an automation's action on its card."""
     from app.email import app_url
 
-    return "Waiting for approval in Lens: " + "; ".join(a["summary"] for a in approvals) + f"\n{app_url(cfg, db)}/chat/{cid}"
+    base, out = app_url(cfg, db), []
+    asked = [a for a in approvals if not a.get("intent")]
+    if asked:
+        out.append("Waiting for approval in Lens: " + "; ".join(a["summary"] for a in asked) + f"\n{base}/chat/{cid}")
+    for a in approvals:
+        if a.get("intent"):
+            out.append(f"Decide in Lens: {a['summary']}\n{base}/approvals?id={a['id']}")
+    return "\n".join(out)
 
 
 def reply_text(cfg, text, approvals, cid, db=None):
@@ -456,11 +513,14 @@ def sources(db, cfg, cid):
     from app.email import app_url
 
     row = db.one("SELECT id, passages FROM chat_message WHERE chat = $c AND role = 'assistant' ORDER BY id DESC LIMIT 1", c=cid) or {}
-    used = [p for p in row.get("passages") or [] if isinstance(p, dict) and p.get("used") and p.get("recording_id")]
+    used = [p for p in row.get("passages") or [] if isinstance(p, dict) and p.get("used") and (p.get("recording_id") or p.get("url"))]
     if not used:
         return ""
     base, lines = app_url(cfg, db), []
     for p in used:
+        if p.get("recording_id") is None:  # a web page a tool found: its own address, as the tool gave it
+            lines.append(f"[{p['n']}] {p.get('title') or p.get('site') or 'A web page'}: {p['url']}")
+            continue
         at = f"?page={p['page'] + 1}" if p.get("page") is not None else f"?t={int((p.get('t0') or 0) // 1000)}"
         where = ", ".join(str(x) for x in (p.get("title") or "Untitled", p.get("time")) if x)
         lines.append(f"[{p['n']}] {where}: {base}/resources/{p['recording_id']}{at}")
@@ -513,7 +573,11 @@ def handle(db, cfg, base, m, ch=None):
     if not q:
         return False
     account = _account(db, cfg)
-    cid = conversation(db, account, m, ns if sid is not None else None, ch.label)
+    cid = conversation(db, account, m, ns if sid is not None else None, ch.label, ch.key)
+    try:  # a private chat with someone the channel vouches for is where the account's person is told things
+        channels.remember(db, cfg, ch, account, m, cid)
+    except Exception:  # noqa: BLE001 - answering comes first
+        log.warning("%s: couldn't keep where to tell %s things", ch.key, account["email"], exc_info=True)
     note = None
     cmd = chat.command(q)
     if cmd:  # /clear or /compact, for this room's conversation

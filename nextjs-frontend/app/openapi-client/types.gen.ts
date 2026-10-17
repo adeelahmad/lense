@@ -92,6 +92,12 @@ export type AccountToken = {
    */
   last_used_at?: string | null;
   /**
+   * Namespace
+   *
+   * the one namespace it opens (its own servers alone), when it was made for one
+   */
+  namespace?: string | null;
+  /**
    * Account
    */
   account: number;
@@ -99,6 +105,76 @@ export type AccountToken = {
    * Email
    */
   email?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ActionInfo
+ */
+export type ActionInfo = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Group
+   */
+  group: string;
+  /**
+   * Description
+   */
+  description?: string;
+  /**
+   * Params
+   *
+   * a JSON Schema (type object) of its params; a string holding {{ }} stands for any type
+   */
+  params: {
+    [key: string]: unknown;
+  };
+  /**
+   * Required
+   */
+  required?: Array<string>;
+  /**
+   * Effect
+   *
+   * what it reaches: read and self run at once; lens asks unless it changes the event's own object; out asks first unless you let it run on its own; depends: worked out from its params
+   */
+  effect: "read" | "self" | "lens" | "out" | "depends";
+  /**
+   * Output
+   *
+   * a JSON Schema of what it gives back, for later nodes (steps.<node id>)
+   */
+  output?: {
+    [key: string]: unknown;
+  } | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ActivityActor
+ */
+export type ActivityActor = {
+  /**
+   * Type
+   */
+  type: "Service" | "Person" | "Application";
+  /**
+   * Id
+   *
+   * a Lens reference, like lens:account/1 or lens:automation/4
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
   [key: string]: unknown;
 };
 
@@ -203,6 +279,217 @@ export type ActivityEntry = {
    * Detail
    */
   detail?: unknown;
+  [key: string]: unknown;
+};
+
+/**
+ * ActivityKind
+ */
+export type ActivityKind = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Source
+   */
+  source: string;
+  /**
+   * Type
+   *
+   * the Activity Streams verb its activities have
+   */
+  type: string;
+  /**
+   * Object Type
+   */
+  object_type: string;
+  /**
+   * Parent
+   */
+  parent?: string | null;
+  /**
+   * Children
+   */
+  children?: Array<string>;
+  /**
+   * Fields
+   *
+   * JSON Schemas of its own object, actor or target fields
+   */
+  fields?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Schema
+   *
+   * a JSON Schema of its activities, with every field
+   */
+  schema: {
+    [key: string]: unknown;
+  };
+  /**
+   * Untrusted
+   */
+  untrusted?: Array<string>;
+  /**
+   * Noisy
+   *
+   * left out of the timeline unless named
+   */
+  noisy?: boolean;
+  /**
+   * Sample
+   */
+  sample?: {
+    [key: string]: unknown;
+  } | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ActivityLens
+ */
+export type ActivityLens = {
+  /**
+   * Source
+   *
+   * the source that made it, like recordings or log
+   */
+  source: string;
+  /**
+   * Pos
+   *
+   * the source's position, [time, id]; for the stream machinery
+   */
+  pos: Array<unknown>;
+  /**
+   * Untrusted
+   *
+   * dotted paths holding text from outside Lens
+   */
+  untrusted?: Array<string>;
+  /**
+   * Cause
+   *
+   * {automation, run, depth} when an automation caused it
+   */
+  cause?: {
+    [key: string]: number;
+  } | null;
+  /**
+   * Spaces
+   *
+   * every namespace it belongs to, when there are several
+   */
+  spaces?: Array<number> | null;
+  /**
+   * Audience
+   *
+   * who may see it (default: space)
+   */
+  audience?: "space" | "owner" | "admins" | null;
+  /**
+   * Owner
+   *
+   * the account that alone sees it, with audience owner
+   */
+  owner?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ActivityMark
+ *
+ * Your own review marks on an activity; nobody else sees them.
+ */
+export type ActivityMark = {
+  /**
+   * Reviewed
+   */
+  reviewed?: boolean;
+  /**
+   * Important
+   */
+  important?: boolean;
+  /**
+   * Hidden
+   */
+  hidden?: boolean;
+  /**
+   * At
+   *
+   * when you last marked it
+   */
+  at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ActivityObject
+ *
+ * What the activity is about; each kind adds its own fields (GET /activities/kinds has its schema).
+ */
+export type ActivityObject = {
+  /**
+   * Type
+   */
+  type: string;
+  /**
+   * Id
+   *
+   * a Lens reference, like lens:recording/7
+   */
+  id?: string | null;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Url
+   *
+   * its page in the web app, relative to it
+   */
+  url?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ActivityPage
+ */
+export type ActivityPage = {
+  /**
+   * Items
+   *
+   * newest first
+   */
+  items: Array<StreamActivity>;
+  /**
+   * Next
+   *
+   * give it as before for the page after; null at the end
+   */
+  next?: string | null;
+  /**
+   * Namespaces
+   *
+   * the names of the namespaces in items, by id
+   */
+  namespaces?: {
+    [key: string]: string;
+  };
+  /**
+   * Marks
+   *
+   * your marks on items, by id (those you marked)
+   */
+  marks?: {
+    [key: string]: ActivityMark;
+  };
   [key: string]: unknown;
 };
 
@@ -583,6 +870,12 @@ export type ApiToken = {
    * Last Used At
    */
   last_used_at?: string | null;
+  /**
+   * Namespace
+   *
+   * the one namespace it opens (its own servers alone), when it was made for one
+   */
+  namespace?: string | null;
   [key: string]: unknown;
 };
 
@@ -598,6 +891,12 @@ export type ApiTokenCreate = {
    * Scope
    */
   scope?: "read" | "write";
+  /**
+   * Namespace
+   *
+   * a namespace you can read: the key opens that namespace's own MCP server and chat completions alone, and nothing else in Lens; none: whatever you can reach
+   */
+  namespace?: string | null;
   /**
    * Days
    *
@@ -661,6 +960,8 @@ export type Approval = {
   estimate?: unknown;
   /**
    * Status
+   *
+   * pending (waiting), running, done, failed, declined or expired
    */
   status: string;
   /**
@@ -671,6 +972,93 @@ export type Approval = {
    * Result
    */
   result?: unknown;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * the automation run that asked, when one did
+   */
+  origin?: ApprovalOrigin | null;
+  /**
+   * an automation's action: what it would do
+   */
+  intent?: ApprovalIntent | null;
+  /**
+   * Automation
+   *
+   * the automation's name
+   */
+  automation?: string | null;
+  /**
+   * Space
+   */
+  space?: number | null;
+  why?: ApprovalWhy | null;
+  /**
+   * Expires At
+   *
+   * when it expires and nothing runs (automations only)
+   */
+  expires_at?: string | null;
+  /**
+   * Decided By
+   */
+  decided_by?: string | null;
+  /**
+   * Decided At
+   */
+  decided_at?: string | null;
+  /**
+   * Told
+   *
+   * the chats you were told in
+   */
+  told?: Array<ApprovalTold>;
+  can?: ApprovalCan | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ApprovalCan
+ *
+ * What you can do with it from where you asked: approving an automation's action is yours, signed in or in the
+ * chat it told you in; an API key, an app or an agent can only decline it.
+ */
+export type ApprovalCan = {
+  /**
+   * Approve
+   */
+  approve?: boolean;
+  /**
+   * Decline
+   */
+  decline?: boolean;
+  /**
+   * Edit
+   */
+  edit?: boolean;
+  /**
+   * Always
+   */
+  always?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * ApprovalCount
+ */
+export type ApprovalCount = {
+  /**
+   * Waiting
+   */
+  waiting: number;
+  /**
+   * Automations
+   *
+   * of them, waiting for an automation
+   */
+  automations: number;
   [key: string]: unknown;
 };
 
@@ -680,8 +1068,82 @@ export type Approval = {
 export type ApprovalDecision = {
   /**
    * Decision
+   *
+   * sample: a batch run on 3 assets first; edit: an automation's action with `params` changed, then carried out; always: carried out, and that action node of the automation runs without asking from now on (signed in only)
    */
-  decision?: "approve" | "sample" | "decline";
+  decision?: "approve" | "sample" | "decline" | "edit" | "always";
+  /**
+   * Params
+   *
+   * edit: the params to change (null leaves one out)
+   */
+  params?: {
+    [key: string]: unknown;
+  } | null;
+};
+
+/**
+ * ApprovalIntent
+ *
+ * What an automation's action would do, as the inbox shows it (credential headers hidden).
+ */
+export type ApprovalIntent = {
+  /**
+   * Action
+   */
+  action: string;
+  /**
+   * Params
+   */
+  params?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Effect
+   */
+  effect?: string | null;
+  /**
+   * Risk
+   */
+  risk?: string | null;
+  /**
+   * Untrusted
+   *
+   * its run read text from outside Lens
+   */
+  untrusted?: boolean | null;
+  /**
+   * Node
+   */
+  node?: string | null;
+  /**
+   * Status
+   */
+  status?: string | null;
+  /**
+   * Spaces
+   */
+  spaces?: Array<number> | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ApprovalOrigin
+ */
+export type ApprovalOrigin = {
+  /**
+   * Automation
+   */
+  automation?: number | null;
+  /**
+   * Run
+   */
+  run?: number | null;
+  /**
+   * Node
+   */
+  node?: string | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -698,6 +1160,72 @@ export type ApprovalOutcome = {
    * the batch run started, for run_template
    */
   batch?: number | null;
+  /**
+   * Error
+   *
+   * why an automation's action failed
+   */
+  error?: string | null;
+  /**
+   * Result
+   *
+   * what an automation's action gave back
+   */
+  result?: unknown;
+  /**
+   * Always
+   *
+   * that node runs without asking from now on
+   */
+  always?: boolean | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ApprovalTold
+ */
+export type ApprovalTold = {
+  /**
+   * Channel
+   */
+  channel: string;
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Chat
+   */
+  chat?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ApprovalWhy
+ *
+ * The activity that caused it, as it was when it asked.
+ */
+export type ApprovalWhy = {
+  /**
+   * Activity
+   */
+  activity: string;
+  /**
+   * Kind
+   */
+  kind?: string | null;
+  /**
+   * Summary
+   */
+  summary?: string | null;
+  /**
+   * Published
+   */
+  published?: string | null;
+  /**
+   * Url
+   */
+  url?: string | null;
   [key: string]: unknown;
 };
 
@@ -886,6 +1414,920 @@ export type AuthStatus = {
    */
   passwords?: boolean;
   [key: string]: unknown;
+};
+
+/**
+ * Automation
+ */
+export type Automation = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Enabled At
+   *
+   * when it was last switched on: it reacts only to what happens after
+   */
+  enabled_at?: string | null;
+  /**
+   * Spaces
+   *
+   * the namespaces it works in; none for every one (admins)
+   */
+  spaces?: Array<number> | null;
+  /**
+   * Namespace Names
+   */
+  namespace_names?: Array<string | null> | null;
+  /**
+   * Run As
+   *
+   * the account it acts for, with that person's permissions: its maker
+   */
+  run_as: number;
+  /**
+   * Triggers
+   *
+   * each {as, on, ...}: {as, on: event, kinds, where?, from_automations?}, {as, on: manual}; on schedule, at, relative and webhook are coming soon (docs/automations.md, Triggers)
+   */
+  triggers: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Join
+   *
+   * how several triggers make one run: {mode: any} (each on its own)
+   */
+  join: {
+    [key: string]: unknown;
+  };
+  /**
+   * If
+   *
+   * a match tree over the run context, tested before the Then runs, like {all: [{path, op, value}]}
+   */
+  if?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Workflow
+   *
+   * its workflow (scope event)
+   */
+  workflow: number;
+  /**
+   * Version
+   *
+   * the workflow version it runs; none follows the published one
+   */
+  version?: number | null;
+  /**
+   * Runs Version
+   *
+   * the version it runs now
+   */
+  runs_version?: number | null;
+  /**
+   * Graph
+   *
+   * the Then: a workflow graph of scope event (an input node, then action nodes and the flow primitives)
+   */
+  graph?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Policy
+   *
+   * {action node id: ask or auto}
+   */
+  policy?: {
+    [key: string]: "ask" | "auto";
+  };
+  /**
+   * Limits
+   *
+   * {cooldown (like 10m), max_per_hour}
+   */
+  limits: {
+    [key: string]: unknown;
+  };
+  /**
+   * Counters
+   *
+   * {runs, skipped (its If was false), limited (over a limit), missed}
+   */
+  counters: {
+    [key: string]: number;
+  };
+  /**
+   * Last Run At
+   */
+  last_run_at?: string | null;
+  /**
+   * Last Status
+   */
+  last_status?: string | null;
+  /**
+   * Created By
+   */
+  created_by?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Removed At
+   *
+   * when it was deleted (restore brings it back)
+   */
+  removed_at?: string | null;
+  /**
+   * Waiting
+   *
+   * in lists: its actions waiting for your pick or for their time
+   */
+  waiting?: number | null;
+  /**
+   * Cost Month
+   *
+   * in lists: what it cost this month {cost_usd, estimate (true when some calls had no price)}
+   */
+  cost_month?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Next At
+   *
+   * in lists: when it runs next, from its schedules (coming soon)
+   */
+  next_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationCatalog
+ */
+export type AutomationCatalog = {
+  /**
+   * Automations
+   */
+  automations: Array<Automation>;
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationCreate
+ */
+export type AutomationCreate = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Enabled
+   *
+   * switched on, it reacts to what happens from now on
+   */
+  enabled?: boolean;
+  /**
+   * Spaces
+   *
+   * namespace ids you can edit; default: each one you can edit (every one, for admins)
+   */
+  spaces?: Array<number> | null;
+  /**
+   * Triggers
+   *
+   * each {as, on, ...}: {as, on: event, kinds, where?, from_automations?}, {as, on: manual}; on schedule, at, relative and webhook are coming soon (docs/automations.md, Triggers)
+   */
+  triggers: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Join
+   *
+   * default {mode: any}: each trigger starts a run of its own
+   */
+  join?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * If
+   *
+   * a match tree over the run context, tested before the Then runs, like {all: [{path, op, value}]}
+   */
+  if?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Graph
+   *
+   * the Then: a workflow graph of scope event (an input node, then action nodes and the flow primitives); or name a saved one in workflow
+   */
+  graph?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Workflow
+   *
+   * a saved workflow of scope event, instead of a graph
+   */
+  workflow?: number | null;
+  /**
+   * Version
+   *
+   * with workflow: the version to run; none follows the published one
+   */
+  version?: number | null;
+  /**
+   * Policy
+   *
+   * {action node id: ask}; only you, signed in, let a node run on its own (POST /automations/{id}/policy)
+   */
+  policy?: {
+    [key: string]: "ask";
+  } | null;
+  /**
+   * Limits
+   *
+   * {cooldown: 0s, max_per_hour: 60}
+   */
+  limits?: {
+    [key: string]: unknown;
+  } | null;
+};
+
+/**
+ * AutomationDraftRequest
+ */
+export type AutomationDraftRequest = {
+  /**
+   * Text
+   *
+   * what it should do, in a sentence, like: when a recording is added to pods, log its title
+   */
+  text: string;
+  /**
+   * Spaces
+   *
+   * namespace ids it would work in; default: each one you can edit
+   */
+  spaces?: Array<number> | null;
+};
+
+/**
+ * AutomationDraftTry
+ */
+export type AutomationDraftTry = {
+  /**
+   * Activity
+   *
+   * an activity's id to run it on (GET /api/v1/activities)
+   */
+  activity?: string | null;
+  /**
+   * As
+   *
+   * which trigger it runs as (its `as`); default: the first that fits
+   */
+  as?: string | null;
+  /**
+   * Kind
+   *
+   * else a kind of activity, to run it on that kind's sample
+   */
+  kind?: string | null;
+  /**
+   * the automation as you would save it
+   */
+  draft: AutomationCreate;
+};
+
+/**
+ * AutomationDrafted
+ */
+export type AutomationDrafted = {
+  /**
+   * Draft
+   *
+   * what POST /automations takes, switched off: name, triggers, if, graph
+   */
+  draft: {
+    [key: string]: unknown;
+  };
+  /**
+   * Dropped
+   *
+   * parts of the model's draft that didn't fit, and why
+   */
+  dropped?: Array<string>;
+  /**
+   * Unmapped
+   *
+   * parts of the sentence it couldn't express (schedules, say)
+   */
+  unmapped?: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationPolicy
+ */
+export type AutomationPolicy = {
+  /**
+   * Node
+   *
+   * an action node's id
+   */
+  node: string;
+  /**
+   * Value
+   *
+   * ask: it asks you first; auto: it runs on its own
+   */
+  value: "ask" | "auto";
+};
+
+/**
+ * AutomationRun
+ */
+export type AutomationRun = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Automation
+   */
+  automation: number;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Version
+   *
+   * the workflow version it ran
+   */
+  version?: number | null;
+  /**
+   * Trigger
+   *
+   * the trigger (its `as`) that started it
+   */
+  trigger?: string | null;
+  /**
+   * Trigger On
+   */
+  trigger_on?: string | null;
+  /**
+   * Event
+   *
+   * the activity that started it (an id)
+   */
+  event?: string | null;
+  /**
+   * Event Ids
+   *
+   * every activity it ran on (a join's are several)
+   */
+  event_ids?: Array<string>;
+  /**
+   * Status
+   *
+   * running, done, partly (some actions failed), failed, waiting (actions wait for your pick or their time), held (over a budget: decide), released or skipped (your pick on a held run)
+   */
+  status: string;
+  /**
+   * By
+   *
+   * who started it by hand
+   */
+  by?: string | null;
+  /**
+   * Started At
+   */
+  started_at?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Counts
+   *
+   * its actions: {done, waiting, scheduled, failed}
+   */
+  counts?: {
+    [key: string]: number;
+  };
+  /**
+   * Cost Usd
+   */
+  cost_usd?: number | null;
+  /**
+   * Tokens
+   */
+  tokens?: number | null;
+  /**
+   * Cost Estimate
+   *
+   * true when some calls had no price, so the cost is a floor
+   */
+  cost_estimate?: boolean | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Why
+   *
+   * why it was held
+   */
+  why?: string | null;
+  /**
+   * Hold
+   *
+   * a held run: the budget it is over and how many runs it missed
+   */
+  hold?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Cause Depth
+   *
+   * how many automations' runs led to this one
+   */
+  cause_depth?: number | null;
+  /**
+   * Space
+   */
+  space?: number | null;
+  /**
+   * Dry
+   */
+  dry?: boolean | null;
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationRunDetail
+ */
+export type AutomationRunDetail = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Automation
+   */
+  automation: number;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Version
+   *
+   * the workflow version it ran
+   */
+  version?: number | null;
+  /**
+   * Trigger
+   *
+   * the trigger (its `as`) that started it
+   */
+  trigger?: string | null;
+  /**
+   * Trigger On
+   */
+  trigger_on?: string | null;
+  /**
+   * Event
+   *
+   * the activity that started it (an id)
+   */
+  event?: string | null;
+  /**
+   * Event Ids
+   *
+   * every activity it ran on (a join's are several)
+   */
+  event_ids?: Array<string>;
+  /**
+   * Status
+   *
+   * running, done, partly (some actions failed), failed, waiting (actions wait for your pick or their time), held (over a budget: decide), released or skipped (your pick on a held run)
+   */
+  status: string;
+  /**
+   * By
+   *
+   * who started it by hand
+   */
+  by?: string | null;
+  /**
+   * Started At
+   */
+  started_at?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Counts
+   *
+   * its actions: {done, waiting, scheduled, failed}
+   */
+  counts?: {
+    [key: string]: number;
+  };
+  /**
+   * Cost Usd
+   */
+  cost_usd?: number | null;
+  /**
+   * Tokens
+   */
+  tokens?: number | null;
+  /**
+   * Cost Estimate
+   *
+   * true when some calls had no price, so the cost is a floor
+   */
+  cost_estimate?: boolean | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Why
+   *
+   * why it was held
+   */
+  why?: string | null;
+  /**
+   * Hold
+   *
+   * a held run: the budget it is over and how many runs it missed
+   */
+  hold?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Cause Depth
+   *
+   * how many automations' runs led to this one
+   */
+  cause_depth?: number | null;
+  /**
+   * Space
+   */
+  space?: number | null;
+  /**
+   * Dry
+   */
+  dry?: boolean | null;
+  /**
+   * Trace
+   *
+   * by node id: what each node took in and passed on
+   */
+  trace?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Log
+   */
+  log?: Array<string>;
+  /**
+   * Intents
+   *
+   * what its actions did, asked or wait to do: action, params, effect, risk, status, result
+   */
+  intents?: Array<{
+    [key: string]: unknown;
+  }>;
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationRunNow
+ */
+export type AutomationRunNow = {
+  /**
+   * Activity
+   *
+   * an activity's id to run it on (GET /api/v1/activities)
+   */
+  activity?: string | null;
+  /**
+   * As
+   *
+   * which trigger it runs as (its `as`); default: the first that fits
+   */
+  as?: string | null;
+};
+
+/**
+ * AutomationRuns
+ */
+export type AutomationRuns = {
+  /**
+   * Runs
+   */
+  runs: Array<AutomationRun>;
+  /**
+   * Next
+   *
+   * for the page after: pass it as `before`
+   */
+  next?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationSaved
+ */
+export type AutomationSaved = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Hooks
+   *
+   * new webhook triggers' addresses and signing secrets {as, url, secret}, shown this once
+   */
+  hooks?: Array<{
+    [key: string]: string;
+  }>;
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationStarted
+ */
+export type AutomationStarted = {
+  /**
+   * Run
+   *
+   * the run's id (GET /automations/runs/{run}); none when nothing ran
+   */
+  run?: number | null;
+  /**
+   * Status
+   */
+  status?: string | null;
+  /**
+   * Why
+   *
+   * why it didn't run, or was held
+   */
+  why?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationSwitch
+ */
+export type AutomationSwitch = {
+  /**
+   * On
+   */
+  on?: boolean;
+};
+
+/**
+ * AutomationTried
+ */
+export type AutomationTried = {
+  /**
+   * Status
+   *
+   * done, waiting, partly or failed as it would end; skipped when its If is false (limits and budgets aren't checked: a try costs no run)
+   */
+  status?: string | null;
+  /**
+   * Why
+   */
+  why?: string | null;
+  /**
+   * Trace
+   */
+  trace?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Log
+   */
+  log?: Array<string>;
+  /**
+   * Intents
+   *
+   * what each action would do (nothing is done)
+   */
+  intents?: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Steps
+   */
+  steps?: number;
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationTry
+ */
+export type AutomationTry = {
+  /**
+   * Activity
+   *
+   * an activity's id to run it on (GET /api/v1/activities)
+   */
+  activity?: string | null;
+  /**
+   * As
+   *
+   * which trigger it runs as (its `as`); default: the first that fits
+   */
+  as?: string | null;
+  /**
+   * Kind
+   *
+   * else a kind of activity, to run it on that kind's sample
+   */
+  kind?: string | null;
+};
+
+/**
+ * AutomationUpcoming
+ */
+export type AutomationUpcoming = {
+  /**
+   * Times
+   *
+   * when it runs next, from its schedules and timers (coming soon)
+   */
+  times?: Array<unknown>;
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationUpdate
+ */
+export type AutomationUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean | null;
+  /**
+   * Spaces
+   */
+  spaces?: Array<number> | null;
+  /**
+   * Triggers
+   */
+  triggers?: Array<{
+    [key: string]: unknown;
+  }> | null;
+  /**
+   * Join
+   */
+  join?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * If
+   *
+   * a match tree over the run context, tested before the Then runs, like {all: [{path, op, value}]}; null for none
+   */
+  if?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Graph
+   *
+   * a new Then, saved as a new version of its workflow
+   */
+  graph?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Workflow
+   */
+  workflow?: number | null;
+  /**
+   * Version
+   *
+   * the workflow version to run; null follows the published one
+   */
+  version?: number | null;
+  /**
+   * Policy
+   *
+   * {action node id: ask}; a node already set to auto may stay auto, and only you set auto (its own route)
+   */
+  policy?: {
+    [key: string]: "ask" | "auto";
+  } | null;
+  /**
+   * Limits
+   */
+  limits?: {
+    [key: string]: unknown;
+  } | null;
+};
+
+/**
+ * AutomationVar
+ */
+export type AutomationVar = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Value
+   *
+   * JSON up to 16 KB
+   */
+  value?: unknown;
+  /**
+   * Untrusted
+   *
+   * set from text from outside Lens: prompts mark it as data
+   */
+  untrusted?: boolean;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Updated By
+   *
+   * who set it last: an email, or automation:<id>
+   */
+  updated_by?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationVars
+ */
+export type AutomationVars = {
+  /**
+   * Vars
+   */
+  vars: Array<AutomationVar>;
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationVarsIn
+ */
+export type AutomationVarsIn = {
+  /**
+   * Vars
+   *
+   * {name: value}: each one set to its value (JSON up to 16 KB), null clears it; the others stay
+   */
+  vars: {
+    [key: string]: unknown;
+  };
 };
 
 /**
@@ -1954,9 +3396,23 @@ export type Chat = {
    */
   account: number;
   /**
+   * Head
+   *
+   * the last message of the version showing, which the next question follows
+   */
+  head?: number | null;
+  /**
    * Messages
+   *
+   * the version showing, from the first message to `head`
    */
   messages?: Array<ChatMessage>;
+  /**
+   * Tree
+   *
+   * every message of every version, oldest first
+   */
+  tree?: Array<ChatNode>;
   [key: string]: unknown;
 };
 
@@ -2000,6 +3456,88 @@ export type ChatCapabilities = {
    * the models people may pick, the configured one first (llm.chat_models, else the server's list)
    */
   models?: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
+ * ChatCompletion
+ */
+export type ChatCompletion = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Object
+   */
+  object?: string;
+  /**
+   * Created
+   */
+  created: number;
+  /**
+   * Model
+   */
+  model: string;
+  /**
+   * Choices
+   */
+  choices: Array<CompletionChoice>;
+  /**
+   * Citations
+   *
+   * the links of what it can cite, in order: [n] is the n-th
+   */
+  citations: Array<string>;
+  lens: CompletionLens;
+  [key: string]: unknown;
+};
+
+/**
+ * ChatCompletionRequest
+ *
+ * OpenAI's request. Fields it has that aren't listed here (n, top_p, user, max_tokens, tools, …) are taken and
+ * left alone.
+ */
+export type ChatCompletionRequest = {
+  /**
+   * Messages
+   *
+   * the conversation: system, user, assistant (and tool) messages; the last is the question
+   */
+  messages: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Model
+   *
+   * lens (the configured model), or one people may pick in Lens's chat; anything else is lens
+   */
+  model?: string | null;
+  /**
+   * Stream
+   *
+   * send the answer as server-sent events, OpenAI's chunks, ending in data: [DONE]
+   */
+  stream?: boolean;
+  /**
+   * Temperature
+   */
+  temperature?: number | null;
+  /**
+   * Stream Options
+   */
+  stream_options?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Response Format
+   *
+   * any format asked for: the answer then has no Sources list after it (the format itself isn't enforced yet)
+   */
+  response_format?: {
+    [key: string]: unknown;
+  } | null;
   [key: string]: unknown;
 };
 
@@ -2094,6 +3632,45 @@ export type ChatMessage = {
    * the model that wrote the answer
    */
   model?: string | null;
+  /**
+   * Parent
+   *
+   * the message it follows; null for a first question
+   */
+  parent?: number | null;
+  /**
+   * it and the others said in its place, from regenerating or editing
+   */
+  versions?: Versions | null;
+  /**
+   * what produced it; none on messages from before it was recorded
+   */
+  meta?: MessageRecord | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ChatNode
+ *
+ * A message of any version, as `tree` lists them.
+ */
+export type ChatNode = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Parent
+   */
+  parent?: number | null;
+  /**
+   * Role
+   */
+  role: "user" | "assistant";
+  /**
+   * Created At
+   */
+  created_at?: string | null;
   [key: string]: unknown;
 };
 
@@ -2880,6 +4457,149 @@ export type CommentUpdate = {
    * resolve or reopen the thread: its writer, or an editor of the resource
    */
   resolved?: boolean | null;
+};
+
+/**
+ * CompletionChoice
+ */
+export type CompletionChoice = {
+  /**
+   * Index
+   */
+  index?: number;
+  message: CompletionMessage;
+  /**
+   * Finish Reason
+   */
+  finish_reason?: string;
+  [key: string]: unknown;
+};
+
+/**
+ * CompletionLens
+ */
+export type CompletionLens = {
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Sources
+   */
+  sources: Array<CompletionSource>;
+  /**
+   * Steps
+   *
+   * the tools it looked things up with
+   */
+  steps?: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Notice
+   */
+  notice?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * CompletionMessage
+ */
+export type CompletionMessage = {
+  /**
+   * Role
+   */
+  role?: string;
+  /**
+   * Content
+   */
+  content: string;
+  [key: string]: unknown;
+};
+
+/**
+ * CompletionModel
+ */
+export type CompletionModel = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Object
+   */
+  object?: string;
+  /**
+   * Created
+   */
+  created?: number;
+  /**
+   * Owned By
+   */
+  owned_by?: string;
+  [key: string]: unknown;
+};
+
+/**
+ * CompletionModels
+ */
+export type CompletionModels = {
+  /**
+   * Object
+   */
+  object?: string;
+  /**
+   * Data
+   */
+  data: Array<CompletionModel>;
+  [key: string]: unknown;
+};
+
+/**
+ * CompletionSource
+ */
+export type CompletionSource = {
+  /**
+   * N
+   *
+   * what the answer cites it as: [n]
+   */
+  n: number;
+  /**
+   * Recording Id
+   *
+   * the asset it comes from
+   */
+  recording_id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Time
+   *
+   * the moment, as "12:34", or a document's page, as "p. 2"
+   */
+  time?: string | null;
+  /**
+   * Speaker
+   *
+   * who spoke, in audio or video
+   */
+  speaker?: string | null;
+  /**
+   * Url
+   *
+   * the moment in the web app
+   */
+  url: string;
+  /**
+   * Cited
+   *
+   * whether the answer cites it
+   */
+  cited: boolean;
+  [key: string]: unknown;
 };
 
 /**
@@ -3827,6 +5547,18 @@ export type EmailInfo = {
    * when it was sent (ISO 8601)
    */
   date?: string | null;
+  /**
+   * Attachments
+   *
+   * how many files it carried
+   */
+  attachments?: number | null;
+  /**
+   * Snippet
+   *
+   * the start of its text, at most 300 characters
+   */
+  snippet?: string | null;
   [key: string]: unknown;
 };
 
@@ -4604,7 +6336,14 @@ export type EventInfo = {
   /**
    * Type
    */
-  type: "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added" | "lens.release";
+  type:
+    | "job.succeeded"
+    | "job.failed"
+    | "job.cancelled"
+    | "batch.finished"
+    | "recording.added"
+    | "lens.release"
+    | "approval.waiting";
   /**
    * Label
    */
@@ -5782,6 +7521,58 @@ export type ForgotPasswordRequest = {
 };
 
 /**
+ * GoogleClient
+ */
+export type GoogleClient = {
+  /**
+   * Origin
+   *
+   * where the OAuth client for connecting a Google account comes from: the Google sign-in provider, an earlier Google connection, or none (enter one to connect)
+   */
+  origin: "sign-in" | "connection" | null;
+  /**
+   * Client Id
+   */
+  client_id?: string | null;
+  /**
+   * Redirect Uri
+   *
+   * the address to add to the OAuth client's authorized redirect URIs
+   */
+  redirect_uri: string;
+  [key: string]: unknown;
+};
+
+/**
+ * GoogleConnect
+ */
+export type GoogleConnect = {
+  /**
+   * Client Id
+   *
+   * an OAuth client of your own (else the one Lens has)
+   */
+  client_id?: string | null;
+  /**
+   * Client Secret
+   */
+  client_secret?: string | null;
+};
+
+/**
+ * GoogleConnectStart
+ */
+export type GoogleConnectStart = {
+  /**
+   * Url
+   *
+   * Google's consent page; open it in this browser
+   */
+  url: string;
+  [key: string]: unknown;
+};
+
+/**
  * Gpu
  */
 export type Gpu = {
@@ -6067,6 +7858,18 @@ export type HandlingChange = {
    * Digest
    */
   digest?: boolean | null;
+};
+
+/**
+ * HeadUpdate
+ */
+export type HeadUpdate = {
+  /**
+   * Message
+   *
+   * a message of the version to show: the head moves to the newest message below it
+   */
+  message: number;
 };
 
 /**
@@ -6406,6 +8209,19 @@ export type HighlightUpdate = {
    * a new label; empty clears it
    */
   label?: string | null;
+};
+
+/**
+ * HookCalled
+ */
+export type HookCalled = {
+  /**
+   * Id
+   *
+   * the webhook.received activity the call made (the same one again for a retried call)
+   */
+  id: string;
+  [key: string]: unknown;
 };
 
 /**
@@ -7213,6 +9029,21 @@ export type InstallStatus = {
    * the last run that changed either (as in /admin/updates)
    */
   reconfigure?: UpgradeRun | null;
+  [key: string]: unknown;
+};
+
+/**
+ * IntegrationTool
+ */
+export type IntegrationTool = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description: string;
   [key: string]: unknown;
 };
 
@@ -8419,6 +10250,26 @@ export type ManifestChecked = {
 };
 
 /**
+ * MarkIn
+ *
+ * Marks to set: each given true or false; one left out stays as it is.
+ */
+export type MarkIn = {
+  /**
+   * Reviewed
+   */
+  reviewed?: boolean | null;
+  /**
+   * Important
+   */
+  important?: boolean | null;
+  /**
+   * Hidden
+   */
+  hidden?: boolean | null;
+};
+
+/**
  * Marketplace
  */
 export type Marketplace = {
@@ -8546,6 +10397,51 @@ export type MarketplaceSuggestion = {
 };
 
 /**
+ * MarksIn
+ */
+export type MarksIn = {
+  /**
+   * Reviewed
+   */
+  reviewed?: boolean | null;
+  /**
+   * Important
+   */
+  important?: boolean | null;
+  /**
+   * Hidden
+   */
+  hidden?: boolean | null;
+  /**
+   * Ids
+   *
+   * the activities' ids
+   */
+  ids: Array<string>;
+};
+
+/**
+ * MarksOut
+ */
+export type MarksOut = {
+  /**
+   * Marks
+   *
+   * your marks now, by id
+   */
+  marks: {
+    [key: string]: ActivityMark;
+  };
+  /**
+   * Unknown
+   *
+   * ids of activities there are none of, or you can't see
+   */
+  unknown?: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
  * MatterbridgeRoom
  */
 export type MatterbridgeRoom = {
@@ -8591,6 +10487,138 @@ export type MatterbridgeStatus = {
    */
   error?: string | null;
   [key: string]: unknown;
+};
+
+/**
+ * McpConfig
+ */
+export type McpConfig = {
+  /**
+   * Servers
+   */
+  servers?: Array<McpServerFound>;
+  /**
+   * Skipped
+   */
+  skipped?: Array<McpServerSkipped>;
+  [key: string]: unknown;
+};
+
+/**
+ * McpConfigText
+ */
+export type McpConfigText = {
+  /**
+   * Text
+   *
+   * an MCP config from another app: Claude's .mcp.json or mcpServers, VS Code's servers, or one server
+   */
+  text: string;
+};
+
+/**
+ * McpServerFound
+ */
+export type McpServerFound = {
+  /**
+   * Name
+   *
+   * a name for it, from the config or guessed from its package or address
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Spec
+   *
+   * {url, headers}, or {command, args, env} for one that runs as a program
+   */
+  spec: {
+    [key: string]: unknown;
+  };
+  /**
+   * Fill
+   *
+   * values written as ${NAME}, which its app filled in and Lens can't
+   */
+  fill?: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
+ * McpServerSkipped
+ */
+export type McpServerSkipped = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Why
+   */
+  why: string;
+  [key: string]: unknown;
+};
+
+/**
+ * McpServerTools
+ */
+export type McpServerTools = {
+  /**
+   * Tools
+   *
+   * its tools, as it lists them now: {name, description, schema, read_only}
+   */
+  tools: Array<{
+    [key: string]: unknown;
+  }>;
+  [key: string]: unknown;
+};
+
+/**
+ * McpServerTry
+ */
+export type McpServerTry = {
+  /**
+   * Spec
+   *
+   * {url, headers}, or {command, args, env} for one that runs as a program
+   */
+  spec: {
+    [key: string]: unknown;
+  };
+  /**
+   * Extension
+   *
+   * the MCP server whose saved secrets fill in values sent as ••••
+   */
+  extension?: number | null;
+};
+
+/**
+ * McpToolSwitch
+ */
+export type McpToolSwitch = {
+  /**
+   * Tool
+   *
+   * the tool's name, as the server lists it
+   */
+  tool: string;
+  /**
+   * On
+   *
+   * switch it on or off
+   */
+  on?: boolean | null;
+  /**
+   * Ask
+   *
+   * whether it asks first (default: unless the server says it only reads)
+   */
+  ask?: boolean | null;
 };
 
 /**
@@ -8814,9 +10842,21 @@ export type MessageCreate = {
    */
   model?: string | null;
   /**
+   * Parent
+   *
+   * the message to go on from (one of this conversation's, of any version); null: the conversation's `head`
+   */
+  parent?: number | null;
+  /**
+   * Regenerate
+   *
+   * an answer's message id: write a new answer to its question, as another version beside it (`content` is not needed; `model` picks another model)
+   */
+  regenerate?: number | null;
+  /**
    * Edit
    *
-   * edit one of your earlier questions (its message id): it and everything after it are replaced by this question and a new answer
+   * edit one of your earlier questions (its message id): this question becomes a new version beside it, and is answered; the old one and what followed it stay as the other version
    */
   edit?: number | null;
   /**
@@ -8825,6 +10865,192 @@ export type MessageCreate = {
    * asked from a browser's Lens side panel: its session (POST /browser/sessions). While it's connected, the assistant can use that browser (docs/browser-assistant.md)
    */
   browser?: string | null;
+  /**
+   * Via
+   *
+   * voice: said in a voice conversation (the question's record keeps it)
+   */
+  via?: "voice" | null;
+};
+
+/**
+ * MessageDetail
+ */
+export type MessageDetail = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Role
+   */
+  role: "user" | "assistant";
+  /**
+   * Content
+   */
+  content: string;
+  /**
+   * a question asked from a page: the page, and any highlighted text
+   */
+  context?: SharedContext | null;
+  /**
+   * Attachments
+   *
+   * files sent with it (POST /uploads with hold)
+   */
+  attachments?: Array<Attachment>;
+  /**
+   * Passages
+   */
+  passages?: Array<Passage> | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Stopped
+   *
+   * the answer was stopped (POST /chats/{cid}/stop): `content` is what came before
+   */
+  stopped?: boolean;
+  /**
+   * Steps
+   *
+   * the tools the assistant used for this answer, in order
+   */
+  steps?: Array<ToolStep>;
+  /**
+   * Notice
+   *
+   * e.g. the model can't use tools, so the answer came from a search
+   */
+  notice?: string | null;
+  /**
+   * Error
+   *
+   * why there's no answer
+   */
+  error?: string | null;
+  /**
+   * its latest source check (POST .../messages/{mid}/check)
+   */
+  check?: AnswerCheck | null;
+  /**
+   * Model
+   *
+   * the model that wrote the answer
+   */
+  model?: string | null;
+  /**
+   * Parent
+   *
+   * the message it follows; null for a first question
+   */
+  parent?: number | null;
+  /**
+   * it and the others said in its place, from regenerating or editing
+   */
+  versions?: Versions | null;
+  /**
+   * what produced it; none on messages from before it was recorded
+   */
+  meta?: MessageRecord | null;
+  /**
+   * Ledger
+   *
+   * its rows in the activity ledger: the model and tool calls made for it, newest first
+   */
+  ledger?: Array<ActivityEntry>;
+  [key: string]: unknown;
+};
+
+/**
+ * MessageRecord
+ *
+ * What produced a message, recorded as it was written (docs/assistant.md, "What each answer records"). A question's
+ * has `via` and `options`; an answer's the rest. Messages from before it was recorded have none.
+ */
+export type MessageRecord = {
+  /**
+   * Via
+   *
+   * a question: how it was sent
+   */
+  via?: "web" | "api" | "room" | "voice" | "automation" | "completions" | null;
+  /**
+   * a question: the options it was asked with
+   */
+  options?: RecordOptions | null;
+  /**
+   * Model
+   *
+   * the model that wrote the answer
+   */
+  model?: string | null;
+  /**
+   * Provider
+   *
+   * the host name of the model server it ran on (never its address or key)
+   */
+  provider?: string | null;
+  tools?: RecordTools | null;
+  /**
+   * Scope
+   *
+   * the scope it answered in, after a conversation over everything was narrowed
+   */
+  scope?: {
+    [key: string]: unknown;
+  } | null;
+  limits?: RecordLimits | null;
+  used?: RecordUse | null;
+  /**
+   * Outcome
+   *
+   * answered (after looking things up), direct (without looking anything up), limit (its rounds ran out, so it answered from what it found), fallback (from a search: the model can't use tools, or none is set up), stopped, or error
+   */
+  outcome?: "answered" | "direct" | "limit" | "fallback" | "stopped" | "error" | null;
+  /**
+   * the tokens of the model calls made for it (the activity ledger)
+   */
+  tokens?: RecordTokens | null;
+  /**
+   * Cost Usd
+   *
+   * what those calls cost, from the prices in Settings
+   */
+  cost_usd?: number | null;
+  /**
+   * Cost Estimated
+   *
+   * some calls had a price but no token counts: the cost is at least this
+   */
+  cost_estimated?: boolean | null;
+  /**
+   * Ms
+   *
+   * how long it took to write, from the question
+   */
+  ms?: number | null;
+  /**
+   * Flagged
+   *
+   * tools whose results read like instructions to an AI
+   */
+  flagged?: Array<string> | null;
+  /**
+   * Research
+   *
+   * the research it belongs to
+   */
+  research?: number | null;
+  /**
+   * Version
+   *
+   * the version of Lens that wrote it
+   */
+  version?: string | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -9218,6 +11444,77 @@ export type NamespaceFaces = {
     [key: string]: unknown;
   }>;
   [key: string]: unknown;
+};
+
+/**
+ * NamespaceIntegrations
+ */
+export type NamespaceIntegrations = {
+  /**
+   * Mcp
+   *
+   * the namespace's own MCP server answers, seeing this namespace alone
+   */
+  mcp: boolean;
+  /**
+   * Mcp Url
+   *
+   * where MCP clients connect to it
+   */
+  mcp_url: string;
+  /**
+   * Chat
+   *
+   * the namespace's own chat completions answer apps, from this namespace alone
+   */
+  chat?: boolean;
+  /**
+   * Chat Url
+   *
+   * the base URL OpenAI-compatible apps are given (they add /chat/completions)
+   */
+  chat_url?: string;
+  /**
+   * Tools
+   *
+   * the read tools the model may use there (none: one search)
+   */
+  tools?: Array<string>;
+  /**
+   * Tool Choices
+   *
+   * the tools that can be offered there
+   */
+  tool_choices?: Array<IntegrationTool>;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Updated By
+   */
+  updated_by?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * NamespaceIntegrationsUpdate
+ *
+ * Only the fields you send change.
+ */
+export type NamespaceIntegrationsUpdate = {
+  /**
+   * Mcp
+   */
+  mcp?: boolean | null;
+  /**
+   * Chat
+   */
+  chat?: boolean | null;
+  /**
+   * Tools
+   */
+  tools?: Array<string> | null;
 };
 
 /**
@@ -9784,6 +12081,41 @@ export type NoteCreate = {
 };
 
 /**
+ * NoteDeleted
+ */
+export type NoteDeleted = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * About
+   *
+   * what it was the page of, like "recording:12"; null for a free note
+   */
+  about?: string | null;
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Deleted At
+   */
+  deleted_at: string;
+  /**
+   * Deleted By
+   *
+   * who deleted it (their email)
+   */
+  deleted_by?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * NoteFile
  */
 export type NoteFile = {
@@ -10063,6 +12395,12 @@ export type NotePage = {
    */
   view?: "page" | "edgeless" | null;
   /**
+   * Pinned
+   *
+   * you pinned it: it shows first on your Notes page and in your tree
+   */
+  pinned?: boolean;
+  /**
    * Created At
    */
   created_at?: string | null;
@@ -10279,6 +12617,12 @@ export type NotePageItem = {
    */
   view?: "page" | "edgeless" | null;
   /**
+   * Pinned
+   *
+   * you pinned it: it shows first on your Notes page and in your tree
+   */
+  pinned?: boolean;
+  /**
    * Created At
    */
   created_at?: string | null;
@@ -10364,6 +12708,24 @@ export type NoteSearch = {
    */
   pages: Array<NoteHit>;
   [key: string]: unknown;
+};
+
+/**
+ * NoteToday
+ */
+export type NoteToday = {
+  /**
+   * Ns
+   *
+   * the namespace whose daily note it is
+   */
+  ns: string;
+  /**
+   * Date
+   *
+   * YYYY-MM-DD, your today (default: the server's)
+   */
+  date?: string | null;
 };
 
 /**
@@ -10585,7 +12947,13 @@ export type NotifyTarget = {
    * Events
    */
   events: Array<
-    "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added" | "lens.release"
+    | "job.succeeded"
+    | "job.failed"
+    | "job.cancelled"
+    | "batch.finished"
+    | "recording.added"
+    | "lens.release"
+    | "approval.waiting"
   >;
   /**
    * Enabled
@@ -10662,7 +13030,13 @@ export type NotifyTargetCreate = {
    * default: job.failed and batch.finished
    */
   events?: Array<
-    "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added" | "lens.release"
+    | "job.succeeded"
+    | "job.failed"
+    | "job.cancelled"
+    | "batch.finished"
+    | "recording.added"
+    | "lens.release"
+    | "approval.waiting"
   > | null;
   /**
    * Enabled
@@ -10720,7 +13094,13 @@ export type NotifyTargetUpdate = {
    * Events
    */
   events?: Array<
-    "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added" | "lens.release"
+    | "job.succeeded"
+    | "job.failed"
+    | "job.cancelled"
+    | "batch.finished"
+    | "recording.added"
+    | "lens.release"
+    | "approval.waiting"
   > | null;
   /**
    * Enabled
@@ -11265,6 +13645,8 @@ export type PageContext = {
 
 /**
  * Passage
+ *
+ * A numbered excerpt an answer can cite: a moment of an asset, or a web page (`source` "web", with its `url`).
  */
 export type Passage = {
   /**
@@ -11273,8 +13655,34 @@ export type Passage = {
   n: number;
   /**
    * Recording Id
+   *
+   * the asset it's from; none for a web page
    */
-  recording_id: number;
+  recording_id?: number | null;
+  /**
+   * Source
+   *
+   * what it is: said (speech), page (a document's), screen (text shown in a video), memory, or web
+   */
+  source?: string | null;
+  /**
+   * Url
+   *
+   * a web page's address (source web): the citation opens it
+   */
+  url?: string | null;
+  /**
+   * Site
+   *
+   * a web page's site, like example.com
+   */
+  site?: string | null;
+  /**
+   * Fetched At
+   *
+   * when the web page or search result was read
+   */
+  fetched_at?: string | null;
   /**
    * Title
    */
@@ -12419,6 +14827,27 @@ export type PodcastVoices = {
 };
 
 /**
+ * PreviewActivity
+ */
+export type PreviewActivity = {
+  /**
+   * Id
+   */
+  id?: string | null;
+  /**
+   * Kind
+   */
+  kind?: string | null;
+  /**
+   * Sample
+   *
+   * the kind's sample, not a real activity
+   */
+  sample: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * PreviewLine
  */
 export type PreviewLine = {
@@ -13176,6 +15605,105 @@ export type Pushed = {
 };
 
 /**
+ * RcloneSignIn
+ */
+export type RcloneSignIn = {
+  /**
+   * Id
+   *
+   * this sign-in, to finish or cancel
+   */
+  id: string;
+  /**
+   * Url
+   *
+   * the service's sign-in page, to open in a browser (it asks to allow rclone); once, within ten minutes
+   */
+  url: string;
+  /**
+   * Port
+   *
+   * where the service sends the browser back afterwards: http://127.0.0.1:<port>/?state=…&code=…
+   */
+  port: number;
+  /**
+   * Expires At
+   */
+  expires_at: string;
+  [key: string]: unknown;
+};
+
+/**
+ * RcloneSignInFinish
+ */
+export type RcloneSignInFinish = {
+  /**
+   * Address
+   *
+   * the address the browser ended on after signing in (http://127.0.0.1:53682/?state=…&code=…); leave out to only look whether rclone already got it (a browser on the machine Lens runs on reaches it itself)
+   */
+  address?: string | null;
+};
+
+/**
+ * RcloneSignInStart
+ */
+export type RcloneSignInStart = {
+  /**
+   * Type
+   *
+   * the kind of connection to make (drive, dropbox, onedrive); leave out with `source`
+   */
+  type?:
+    | "s3"
+    | "dropbox"
+    | "drive"
+    | "onedrive"
+    | "sftp"
+    | "smb"
+    | "webdav"
+    | "local"
+    | "imap"
+    | "gmail"
+    | "ical"
+    | "gcal"
+    | null;
+  /**
+   * Source
+   *
+   * a connection to sign in again, instead of making a new one
+   */
+  source?: number | null;
+  /**
+   * Name
+   *
+   * the new connection's name; by default the service's
+   */
+  name?: string | null;
+  /**
+   * Params
+   *
+   * its options, as for POST /sources (scope, root_folder_id...)
+   */
+  params?: {
+    [key: string]: unknown;
+  } | null;
+};
+
+/**
+ * RcloneSignInState
+ */
+export type RcloneSignInState = {
+  /**
+   * Connected
+   *
+   * the connection, made or signed in again, and tested; none while it waits
+   */
+  connected?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * RdfImport
  */
 export type RdfImport = {
@@ -13316,6 +15844,105 @@ export type Reading = {
    * syslog severity: 0 emergency to 7 debug
    */
   level?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * RecordLimits
+ */
+export type RecordLimits = {
+  /**
+   * Rounds
+   *
+   * rounds of tool calls it had (calls in one round run together)
+   */
+  rounds?: number | null;
+  /**
+   * Tool Calls
+   *
+   * tool calls it had; null: only the rounds limit them
+   */
+  tool_calls?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * RecordOptions
+ *
+ * What a question was asked with (only what it set).
+ */
+export type RecordOptions = {
+  /**
+   * Model
+   */
+  model?: string | null;
+  /**
+   * Tools
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   */
+  max_tool_calls?: number | null;
+  /**
+   * Scope
+   */
+  scope?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Research
+   */
+  research?: boolean | null;
+  [key: string]: unknown;
+};
+
+/**
+ * RecordTokens
+ */
+export type RecordTokens = {
+  /**
+   * In
+   */
+  in?: number;
+  /**
+   * Out
+   */
+  out?: number;
+  [key: string]: unknown;
+};
+
+/**
+ * RecordTools
+ */
+export type RecordTools = {
+  /**
+   * Picked
+   *
+   * the tools or groups the question asked for; null: Auto
+   */
+  picked?: Array<string> | null;
+  /**
+   * Offered
+   *
+   * every tool the model was offered
+   */
+  offered?: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
+ * RecordUse
+ */
+export type RecordUse = {
+  /**
+   * Rounds
+   */
+  rounds?: number;
+  /**
+   * Tool Calls
+   */
+  tool_calls?: number;
   [key: string]: unknown;
 };
 
@@ -17862,6 +20489,60 @@ export type Stream = {
 };
 
 /**
+ * StreamActivity
+ */
+export type StreamActivity = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Type
+   *
+   * the Activity Streams verb, like Create
+   */
+  type: string;
+  /**
+   * Kind
+   *
+   * the Lens kind triggers subscribe to, like asset.added
+   */
+  kind: string;
+  /**
+   * Published
+   *
+   * when it happened, ISO 8601 in UTC
+   */
+  published: string;
+  actor: ActivityActor;
+  object: ActivityObject;
+  /**
+   * Target
+   */
+  target?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Tag
+   */
+  tag?: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * Summary
+   */
+  summary: string;
+  /**
+   * Space
+   *
+   * its namespace's id, or null
+   */
+  space?: number | null;
+  lens: ActivityLens;
+  [key: string]: unknown;
+};
+
+/**
  * Suggestion
  */
 export type Suggestion = {
@@ -18215,6 +20896,96 @@ export type TemplatePreview = {
 };
 
 /**
+ * TemplatePreviewIn
+ */
+export type TemplatePreviewIn = {
+  /**
+   * Template
+   *
+   * a param's value (text with {{ }}, or a list or object of them), or a prompt
+   */
+  template: unknown;
+  /**
+   * Draft
+   *
+   * the automation as drafted, as for /automations/variables
+   */
+  draft: {
+    [key: string]: unknown;
+  };
+  /**
+   * Activity
+   *
+   * an activity's id to render against; default the trigger kind's sample
+   */
+  activity?: string | null;
+  /**
+   * Trigger
+   *
+   * which trigger fired (as); default the first
+   */
+  trigger?: string | null;
+  /**
+   * Node
+   *
+   * the node the template is in: earlier steps are filled with stand-ins
+   */
+  node?: string | null;
+  /**
+   * Prompt
+   *
+   * render it as a prompt, with outside text marked as the model sees it
+   */
+  prompt?: boolean;
+};
+
+/**
+ * TemplatePreviewOut
+ */
+export type TemplatePreviewOut = {
+  /**
+   * Text
+   *
+   * what it gives, written out
+   */
+  text?: string | null;
+  /**
+   * Value
+   *
+   * what a param gets: one {{ }} expression keeps its type
+   */
+  value?: unknown;
+  /**
+   * Prompt
+   */
+  prompt?: boolean;
+  /**
+   * Rules
+   *
+   * for a prompt: the system prompt's paragraph about marked text
+   */
+  rules?: string | null;
+  /**
+   * System
+   *
+   * a saved prompt template's own instructions
+   */
+  system?: string | null;
+  /**
+   * Error
+   *
+   * why it can't be rendered: the missing variable and its nearest name
+   */
+  error?: string | null;
+  /**
+   * Line
+   */
+  line?: number | null;
+  activity: PreviewActivity;
+  [key: string]: unknown;
+};
+
+/**
  * TemplatePreviewRequest
  *
  * A saved template (`template`, optional `version`), or the unsaved text in the editor (`body` and friends).
@@ -18489,6 +21260,18 @@ export type ToolStep = {
    * Summary
    */
   summary?: string;
+  /**
+   * Ms
+   *
+   * how long the tool took
+   */
+  ms?: number | null;
+  /**
+   * Failed
+   *
+   * the tool failed (or was unknown or blocked); its summary says why
+   */
+  failed?: boolean | null;
   [key: string]: unknown;
 };
 
@@ -19580,6 +22363,78 @@ export type ValidationError = {
 };
 
 /**
+ * VariableCatalog
+ */
+export type VariableCatalog = {
+  /**
+   * Variables
+   */
+  variables: Array<VariableEntry>;
+  [key: string]: unknown;
+};
+
+/**
+ * VariableCatalogIn
+ */
+export type VariableCatalogIn = {
+  /**
+   * Draft
+   *
+   * the automation as drafted: {triggers, join?, workflow? (an id or a graph), spaces?, id?, name?}
+   */
+  draft: {
+    [key: string]: unknown;
+  };
+  /**
+   * Node
+   *
+   * a node of its workflow: what the nodes before it pass on is listed too
+   */
+  node?: string | null;
+};
+
+/**
+ * VariableEntry
+ */
+export type VariableEntry = {
+  /**
+   * Path
+   *
+   * what a template writes: {{ events.mail.object.subject }}
+   */
+  path: string;
+  /**
+   * Type
+   */
+  type: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Example
+   */
+  example?: unknown;
+  /**
+   * Group
+   *
+   * where it comes from, for the picker's headings
+   */
+  group: string;
+  /**
+   * Untrusted
+   *
+   * text from outside Lens: prompts mark it as data
+   */
+  untrusted?: boolean;
+  /**
+   * Description
+   */
+  description?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * VaultAnswer
  */
 export type VaultAnswer = {
@@ -19678,6 +22533,29 @@ export type VersionSaved = {
    * Version
    */
   version: number;
+  [key: string]: unknown;
+};
+
+/**
+ * Versions
+ *
+ * A message's versions: it and the others with the same parent and role, oldest first.
+ */
+export type Versions = {
+  /**
+   * Index
+   *
+   * which of them this one is, from 1
+   */
+  index: number;
+  /**
+   * Count
+   */
+  count: number;
+  /**
+   * Ids
+   */
+  ids: Array<number>;
   [key: string]: unknown;
 };
 
@@ -20530,7 +23408,7 @@ export type WorkflowCreate = {
   /**
    * Scope
    */
-  scope?: "recording" | "graph";
+  scope?: "recording" | "graph" | "event";
 };
 
 /**
@@ -20588,7 +23466,7 @@ export type WorkflowSummary = {
   /**
    * Scope
    *
-   * recording (run by pipelines) or graph (run over namespaces by routines)
+   * recording (run by pipelines), graph (run over namespaces by routines) or event (what an automation does)
    */
   scope?: string;
   /**
@@ -20632,6 +23510,14 @@ export type WorkflowTry = {
    * Steps
    */
   steps: number;
+  /**
+   * Intents
+   *
+   * an automation's workflow: what its action nodes would do (status done: at once; waiting: asks you first; scheduled: waits for its time; failed), with each one's params, effect, risk and what it would give back (result)
+   */
+  intents?: Array<{
+    [key: string]: unknown;
+  }>;
   [key: string]: unknown;
 };
 
@@ -20643,7 +23529,7 @@ export type WorkflowTryRequest = {
   /**
    * Scope
    */
-  scope?: "recording" | "graph";
+  scope?: "recording" | "graph" | "event";
   /**
    * Recording
    *
@@ -20653,9 +23539,21 @@ export type WorkflowTryRequest = {
   /**
    * Namespaces
    *
-   * the namespaces to try a graph workflow over (default: all)
+   * the namespaces to try a graph workflow over, or an automation's workflow in (default: all)
    */
   namespaces?: Array<string>;
+  /**
+   * Activity
+   *
+   * an automation's workflow: the activity to try it on, by its id
+   */
+  activity?: string | null;
+  /**
+   * Kind
+   *
+   * an automation's workflow: try it on this kind of activity's sample
+   */
+  kind?: string | null;
 };
 
 /**
@@ -23748,6 +26646,974 @@ export type TopResourcesResponses = {
 
 export type TopResourcesResponse = TopResourcesResponses[keyof TopResourcesResponses];
 
+export type ListActivitiesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Kinds
+     *
+     * kinds of activity, like asset.added (the kinds under them count too)
+     */
+    kinds?: Array<string> | null;
+    /**
+     * Actor
+     *
+     * who did it, by the actor's id, like lens:account/1
+     */
+    actor?: Array<string> | null;
+    /**
+     * Namespace
+     *
+     * only these namespaces, by name
+     */
+    namespace?: Array<string> | null;
+    /**
+     * Tag
+     *
+     * tagged with this entity, by its id (lens:entity/9) or name
+     */
+    tag?: string | null;
+    /**
+     * Since
+     *
+     * published after this time (ISO 8601)
+     */
+    since?: string | null;
+    /**
+     * Until
+     *
+     * published at or before this time (ISO 8601)
+     */
+    until?: string | null;
+    /**
+     * Q
+     *
+     * words in the summary
+     */
+    q?: string | null;
+    /**
+     * Where
+     *
+     * a match tree on the activity, as JSON
+     */
+    where?: string | null;
+    /**
+     * Reviewed
+     *
+     * only those you marked reviewed (true) or haven't (false)
+     */
+    reviewed?: boolean | null;
+    /**
+     * Important
+     *
+     * only those you marked important (true) or haven't (false)
+     */
+    important?: boolean | null;
+    /**
+     * Hidden
+     *
+     * only those you hid (true) or haven't (false)
+     */
+    hidden?: boolean | null;
+    /**
+     * Before
+     *
+     * the next of the page before
+     */
+    before?: string | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/activities";
+};
+
+export type ListActivitiesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListActivitiesError = ListActivitiesErrors[keyof ListActivitiesErrors];
+
+export type ListActivitiesResponses = {
+  /**
+   * Successful Response
+   */
+  200: ActivityPage;
+};
+
+export type ListActivitiesResponse = ListActivitiesResponses[keyof ListActivitiesResponses];
+
+export type ListActivityKindsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/activities/kinds";
+};
+
+export type ListActivityKindsResponses = {
+  /**
+   * Response Activities-List Activity Kinds
+   *
+   * Successful Response
+   */
+  200: Array<ActivityKind>;
+};
+
+export type ListActivityKindsResponse = ListActivityKindsResponses[keyof ListActivityKindsResponses];
+
+export type MarkActivitiesData = {
+  body: MarksIn;
+  path?: never;
+  query?: never;
+  url: "/api/v1/activities/mark";
+};
+
+export type MarkActivitiesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type MarkActivitiesError = MarkActivitiesErrors[keyof MarkActivitiesErrors];
+
+export type MarkActivitiesResponses = {
+  /**
+   * Successful Response
+   */
+  200: MarksOut;
+};
+
+export type MarkActivitiesResponse = MarkActivitiesResponses[keyof MarkActivitiesResponses];
+
+export type GetActivityData = {
+  body?: never;
+  path: {
+    /**
+     * Activity Id
+     */
+    activity_id: string;
+  };
+  query?: never;
+  url: "/api/v1/activities/{activity_id}";
+};
+
+export type GetActivityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetActivityError = GetActivityErrors[keyof GetActivityErrors];
+
+export type GetActivityResponses = {
+  /**
+   * Successful Response
+   */
+  200: StreamActivity;
+};
+
+export type GetActivityResponse = GetActivityResponses[keyof GetActivityResponses];
+
+export type MarkActivityData = {
+  body: MarkIn;
+  path: {
+    /**
+     * Activity Id
+     */
+    activity_id: string;
+  };
+  query?: never;
+  url: "/api/v1/activities/{activity_id}/mark";
+};
+
+export type MarkActivityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type MarkActivityError = MarkActivityErrors[keyof MarkActivityErrors];
+
+export type MarkActivityResponses = {
+  /**
+   * Successful Response
+   */
+  200: ActivityMark;
+};
+
+export type MarkActivityResponse = MarkActivityResponses[keyof MarkActivityResponses];
+
+export type CallAutomationHookData = {
+  body?: unknown;
+  path: {
+    /**
+     * Token
+     */
+    token: string;
+  };
+  query?: never;
+  url: "/api/v1/automations/hooks/{token}";
+};
+
+export type CallAutomationHookErrors = {
+  /**
+   * not a webhook's token, or a signature that doesn't match
+   */
+  401: unknown;
+  /**
+   * the automation is switched off
+   */
+  403: unknown;
+  /**
+   * over 64 KB
+   */
+  413: unknown;
+  /**
+   * neither JSON, a form nor text
+   */
+  415: unknown;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+  /**
+   * over 60 calls a minute to this webhook
+   */
+  429: unknown;
+};
+
+export type CallAutomationHookError = CallAutomationHookErrors[keyof CallAutomationHookErrors];
+
+export type CallAutomationHookResponses = {
+  /**
+   * Successful Response
+   */
+  202: HookCalled;
+};
+
+export type CallAutomationHookResponse = CallAutomationHookResponses[keyof CallAutomationHookResponses];
+
+export type GetAutomationVarsData = {
+  body?: never;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/{aid}/vars";
+};
+
+export type GetAutomationVarsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetAutomationVarsError = GetAutomationVarsErrors[keyof GetAutomationVarsErrors];
+
+export type GetAutomationVarsResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationVars;
+};
+
+export type GetAutomationVarsResponse = GetAutomationVarsResponses[keyof GetAutomationVarsResponses];
+
+export type PutAutomationVarsData = {
+  body: AutomationVarsIn;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/{aid}/vars";
+};
+
+export type PutAutomationVarsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PutAutomationVarsError = PutAutomationVarsErrors[keyof PutAutomationVarsErrors];
+
+export type PutAutomationVarsResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationVars;
+};
+
+export type PutAutomationVarsResponse = PutAutomationVarsResponses[keyof PutAutomationVarsResponses];
+
+export type GetNamespaceVarsData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/automation-vars";
+};
+
+export type GetNamespaceVarsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetNamespaceVarsError = GetNamespaceVarsErrors[keyof GetNamespaceVarsErrors];
+
+export type GetNamespaceVarsResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationVars;
+};
+
+export type GetNamespaceVarsResponse = GetNamespaceVarsResponses[keyof GetNamespaceVarsResponses];
+
+export type PutNamespaceVarsData = {
+  body: AutomationVarsIn;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/automation-vars";
+};
+
+export type PutNamespaceVarsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PutNamespaceVarsError = PutNamespaceVarsErrors[keyof PutNamespaceVarsErrors];
+
+export type PutNamespaceVarsResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationVars;
+};
+
+export type PutNamespaceVarsResponse = PutNamespaceVarsResponses[keyof PutNamespaceVarsResponses];
+
+export type VariableCatalogData = {
+  body: VariableCatalogIn;
+  path?: never;
+  query?: never;
+  url: "/api/v1/automations/variables";
+};
+
+export type VariableCatalogErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type VariableCatalogError = VariableCatalogErrors[keyof VariableCatalogErrors];
+
+export type VariableCatalogResponses = {
+  /**
+   * Successful Response
+   */
+  200: VariableCatalog;
+};
+
+export type VariableCatalogResponse = VariableCatalogResponses[keyof VariableCatalogResponses];
+
+export type PreviewTemplateData = {
+  body: TemplatePreviewIn;
+  path?: never;
+  query?: never;
+  url: "/api/v1/automations/preview";
+};
+
+export type PreviewTemplateErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PreviewTemplateError = PreviewTemplateErrors[keyof PreviewTemplateErrors];
+
+export type PreviewTemplateResponses = {
+  /**
+   * Successful Response
+   */
+  200: TemplatePreviewOut;
+};
+
+export type PreviewTemplateResponse = PreviewTemplateResponses[keyof PreviewTemplateResponses];
+
+export type ListAutomationsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Removed
+     */
+    removed?: boolean;
+  };
+  url: "/api/v1/automations";
+};
+
+export type ListAutomationsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListAutomationsError = ListAutomationsErrors[keyof ListAutomationsErrors];
+
+export type ListAutomationsResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationCatalog;
+};
+
+export type ListAutomationsResponse = ListAutomationsResponses[keyof ListAutomationsResponses];
+
+export type CreateAutomationData = {
+  body: AutomationCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/automations";
+};
+
+export type CreateAutomationErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateAutomationError = CreateAutomationErrors[keyof CreateAutomationErrors];
+
+export type CreateAutomationResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationSaved;
+};
+
+export type CreateAutomationResponse = CreateAutomationResponses[keyof CreateAutomationResponses];
+
+export type ListActionsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/automations/actions";
+};
+
+export type ListActionsResponses = {
+  /**
+   * Response Automations-List Actions
+   *
+   * Successful Response
+   */
+  200: Array<ActionInfo>;
+};
+
+export type ListActionsResponse = ListActionsResponses[keyof ListActionsResponses];
+
+export type DeleteAutomationData = {
+  body?: never;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/{aid}";
+};
+
+export type DeleteAutomationErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteAutomationError = DeleteAutomationErrors[keyof DeleteAutomationErrors];
+
+export type DeleteAutomationResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteAutomationResponse = DeleteAutomationResponses[keyof DeleteAutomationResponses];
+
+export type GetAutomationData = {
+  body?: never;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/{aid}";
+};
+
+export type GetAutomationErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetAutomationError = GetAutomationErrors[keyof GetAutomationErrors];
+
+export type GetAutomationResponses = {
+  /**
+   * Successful Response
+   */
+  200: Automation;
+};
+
+export type GetAutomationResponse = GetAutomationResponses[keyof GetAutomationResponses];
+
+export type UpdateAutomationData = {
+  body: AutomationUpdate;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/{aid}";
+};
+
+export type UpdateAutomationErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateAutomationError = UpdateAutomationErrors[keyof UpdateAutomationErrors];
+
+export type UpdateAutomationResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationSaved;
+};
+
+export type UpdateAutomationResponse = UpdateAutomationResponses[keyof UpdateAutomationResponses];
+
+export type EnableAutomationData = {
+  body: AutomationSwitch;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/{aid}/enable";
+};
+
+export type EnableAutomationErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type EnableAutomationError = EnableAutomationErrors[keyof EnableAutomationErrors];
+
+export type EnableAutomationResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type EnableAutomationResponse = EnableAutomationResponses[keyof EnableAutomationResponses];
+
+export type RestoreAutomationData = {
+  body?: never;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/{aid}/restore";
+};
+
+export type RestoreAutomationErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RestoreAutomationError = RestoreAutomationErrors[keyof RestoreAutomationErrors];
+
+export type RestoreAutomationResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RestoreAutomationResponse = RestoreAutomationResponses[keyof RestoreAutomationResponses];
+
+export type SetPolicyData = {
+  body: AutomationPolicy;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/{aid}/policy";
+};
+
+export type SetPolicyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetPolicyError = SetPolicyErrors[keyof SetPolicyErrors];
+
+export type SetPolicyResponses = {
+  /**
+   * Response Automations-Set Policy
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: string;
+  };
+};
+
+export type SetPolicyResponse = SetPolicyResponses[keyof SetPolicyResponses];
+
+export type RunsCausedData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Activity
+     *
+     * an activity's id
+     */
+    activity: string;
+  };
+  url: "/api/v1/automations/runs";
+};
+
+export type RunsCausedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RunsCausedError = RunsCausedErrors[keyof RunsCausedErrors];
+
+export type RunsCausedResponses = {
+  /**
+   * Response Automations-Runs Caused
+   *
+   * Successful Response
+   */
+  200: Array<AutomationRun>;
+};
+
+export type RunsCausedResponse = RunsCausedResponses[keyof RunsCausedResponses];
+
+export type GetRunData = {
+  body?: never;
+  path: {
+    /**
+     * Run
+     */
+    run: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/runs/{run}";
+};
+
+export type GetRunErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetRunError = GetRunErrors[keyof GetRunErrors];
+
+export type GetRunResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationRunDetail;
+};
+
+export type GetRunResponse = GetRunResponses[keyof GetRunResponses];
+
+export type DecideHeldRunData = {
+  body: HeldRunDecision;
+  path: {
+    /**
+     * Run
+     */
+    run: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/runs/{run}/decide";
+};
+
+export type DecideHeldRunErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DecideHeldRunError = DecideHeldRunErrors[keyof DecideHeldRunErrors];
+
+export type DecideHeldRunResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationStarted;
+};
+
+export type DecideHeldRunResponse = DecideHeldRunResponses[keyof DecideHeldRunResponses];
+
+export type DraftAutomationData = {
+  body: AutomationDraftRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/automations/draft";
+};
+
+export type DraftAutomationErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DraftAutomationError = DraftAutomationErrors[keyof DraftAutomationErrors];
+
+export type DraftAutomationResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationDrafted;
+};
+
+export type DraftAutomationResponse = DraftAutomationResponses[keyof DraftAutomationResponses];
+
+export type TestDraftData = {
+  body: AutomationDraftTry;
+  path?: never;
+  query?: never;
+  url: "/api/v1/automations/test";
+};
+
+export type TestDraftErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TestDraftError = TestDraftErrors[keyof TestDraftErrors];
+
+export type TestDraftResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationTried;
+};
+
+export type TestDraftResponse = TestDraftResponses[keyof TestDraftResponses];
+
+export type TestAutomationData = {
+  /**
+   * Body
+   */
+  body?: AutomationTry | null;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/{aid}/test";
+};
+
+export type TestAutomationErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TestAutomationError = TestAutomationErrors[keyof TestAutomationErrors];
+
+export type TestAutomationResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationTried;
+};
+
+export type TestAutomationResponse = TestAutomationResponses[keyof TestAutomationResponses];
+
+export type RunAutomationData = {
+  /**
+   * Body
+   */
+  body?: AutomationRunNow | null;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: never;
+  url: "/api/v1/automations/{aid}/run";
+};
+
+export type RunAutomationErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RunAutomationError = RunAutomationErrors[keyof RunAutomationErrors];
+
+export type RunAutomationResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationStarted;
+};
+
+export type RunAutomationResponse = RunAutomationResponses[keyof RunAutomationResponses];
+
+export type ListRunsData = {
+  body?: never;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: {
+    /**
+     * Before
+     *
+     * a run id: the runs before it
+     */
+    before?: number | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/automations/{aid}/runs";
+};
+
+export type ListRunsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListRunsError = ListRunsErrors[keyof ListRunsErrors];
+
+export type ListRunsResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationRuns;
+};
+
+export type ListRunsResponse = ListRunsResponses[keyof ListRunsResponses];
+
+export type UpcomingData = {
+  body?: never;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: {
+    /**
+     * N
+     */
+    n?: number;
+  };
+  url: "/api/v1/automations/{aid}/upcoming";
+};
+
+export type UpcomingErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpcomingError = UpcomingErrors[keyof UpcomingErrors];
+
+export type UpcomingResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationUpcoming;
+};
+
+export type UpcomingResponse = UpcomingResponses[keyof UpcomingResponses];
+
 export type RemoveBudgetData = {
   body?: never;
   path?: never;
@@ -23755,7 +27621,7 @@ export type RemoveBudgetData = {
     /**
      * Resource
      *
-     * all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     * all (everything Lens spends), routine:<id>, automation:<id>, pipeline:<id>, workflow:<id> or space:<id>
      */
     resource: string;
   };
@@ -23805,7 +27671,7 @@ export type SetBudgetData = {
     /**
      * Resource
      *
-     * all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     * all (everything Lens spends), routine:<id>, automation:<id>, pipeline:<id>, workflow:<id> or space:<id>
      */
     resource: string;
   };
@@ -23881,7 +27747,7 @@ export type BudgetStatusData = {
     /**
      * Resource
      *
-     * all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     * all (everything Lens spends), routine:<id>, automation:<id>, pipeline:<id>, workflow:<id> or space:<id>
      */
     resource: string;
   };
@@ -24763,6 +28629,177 @@ export type UpdateAssistantMemoryResponses = {
 };
 
 export type UpdateAssistantMemoryResponse = UpdateAssistantMemoryResponses[keyof UpdateAssistantMemoryResponses];
+
+export type GetNamespaceIntegrationsData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/integrations";
+};
+
+export type GetNamespaceIntegrationsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetNamespaceIntegrationsError = GetNamespaceIntegrationsErrors[keyof GetNamespaceIntegrationsErrors];
+
+export type GetNamespaceIntegrationsResponses = {
+  /**
+   * Successful Response
+   */
+  200: NamespaceIntegrations;
+};
+
+export type GetNamespaceIntegrationsResponse =
+  GetNamespaceIntegrationsResponses[keyof GetNamespaceIntegrationsResponses];
+
+export type UpdateNamespaceIntegrationsData = {
+  body: NamespaceIntegrationsUpdate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/integrations";
+};
+
+export type UpdateNamespaceIntegrationsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateNamespaceIntegrationsError =
+  UpdateNamespaceIntegrationsErrors[keyof UpdateNamespaceIntegrationsErrors];
+
+export type UpdateNamespaceIntegrationsResponses = {
+  /**
+   * Successful Response
+   */
+  200: NamespaceIntegrations;
+};
+
+export type UpdateNamespaceIntegrationsResponse =
+  UpdateNamespaceIntegrationsResponses[keyof UpdateNamespaceIntegrationsResponses];
+
+export type ListCompletionModelsData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/models";
+};
+
+export type ListCompletionModelsErrors = {
+  /**
+   * OpenAI's error shape: {error: {message, type, code}}
+   */
+  400: unknown;
+  /**
+   * no token, or one that doesn't open this namespace
+   */
+  401: unknown;
+  /**
+   * the namespace's chat completions are off
+   */
+  403: unknown;
+  /**
+   * no such namespace, or not one you can read
+   */
+  404: unknown;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+  /**
+   * a budget is used up
+   */
+  429: unknown;
+  /**
+   * the model server failed
+   */
+  502: unknown;
+};
+
+export type ListCompletionModelsError = ListCompletionModelsErrors[keyof ListCompletionModelsErrors];
+
+export type ListCompletionModelsResponses = {
+  /**
+   * Successful Response
+   */
+  200: CompletionModels;
+};
+
+export type ListCompletionModelsResponse = ListCompletionModelsResponses[keyof ListCompletionModelsResponses];
+
+export type CreateChatCompletionData = {
+  body: ChatCompletionRequest;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/chat/completions";
+};
+
+export type CreateChatCompletionErrors = {
+  /**
+   * OpenAI's error shape: {error: {message, type, code}}
+   */
+  400: unknown;
+  /**
+   * no token, or one that doesn't open this namespace
+   */
+  401: unknown;
+  /**
+   * the namespace's chat completions are off
+   */
+  403: unknown;
+  /**
+   * no such namespace, or not one you can read
+   */
+  404: unknown;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+  /**
+   * a budget is used up
+   */
+  429: unknown;
+  /**
+   * the model server failed
+   */
+  502: unknown;
+};
+
+export type CreateChatCompletionError = CreateChatCompletionErrors[keyof CreateChatCompletionErrors];
+
+export type CreateChatCompletionResponses = {
+  /**
+   * Successful Response
+   */
+  200: ChatCompletion;
+};
+
+export type CreateChatCompletionResponse = CreateChatCompletionResponses[keyof CreateChatCompletionResponses];
 
 export type ListNamespaceCollectionsData = {
   body?: never;
@@ -26678,6 +30715,31 @@ export type CreatePageResponses = {
 
 export type CreatePageResponse = CreatePageResponses[keyof CreatePageResponses];
 
+export type TodayPageData = {
+  body: NoteToday;
+  path?: never;
+  query?: never;
+  url: "/api/v1/notes/today";
+};
+
+export type TodayPageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TodayPageError = TodayPageErrors[keyof TodayPageErrors];
+
+export type TodayPageResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type TodayPageResponse = TodayPageResponses[keyof TodayPageResponses];
+
 export type LinkTargetsData = {
   body?: never;
   path?: never;
@@ -26775,6 +30837,100 @@ export type SearchPagesResponses = {
 };
 
 export type SearchPagesResponse = SearchPagesResponses[keyof SearchPagesResponses];
+
+export type DeletedPagesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Ns
+     *
+     * only this namespace (default: every one you can read)
+     */
+    ns?: string | null;
+  };
+  url: "/api/v1/notes/deleted";
+};
+
+export type DeletedPagesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeletedPagesError = DeletedPagesErrors[keyof DeletedPagesErrors];
+
+export type DeletedPagesResponses = {
+  /**
+   * Response Notes-Deleted Pages
+   *
+   * Successful Response
+   */
+  200: Array<NoteDeleted>;
+};
+
+export type DeletedPagesResponse = DeletedPagesResponses[keyof DeletedPagesResponses];
+
+export type RestoreDeletedData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/deleted/{pid}/restore";
+};
+
+export type RestoreDeletedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RestoreDeletedError = RestoreDeletedErrors[keyof RestoreDeletedErrors];
+
+export type RestoreDeletedResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type RestoreDeletedResponse = RestoreDeletedResponses[keyof RestoreDeletedResponses];
+
+export type PurgeDeletedData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/deleted/{pid}";
+};
+
+export type PurgeDeletedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PurgeDeletedError = PurgeDeletedErrors[keyof PurgeDeletedErrors];
+
+export type PurgeDeletedResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type PurgeDeletedResponse = PurgeDeletedResponses[keyof PurgeDeletedResponses];
 
 export type PageAboutData = {
   body?: never;
@@ -27098,6 +31254,66 @@ export type MovePageResponses = {
 };
 
 export type MovePageResponse = MovePageResponses[keyof MovePageResponses];
+
+export type UnpinPageData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/pin";
+};
+
+export type UnpinPageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UnpinPageError = UnpinPageErrors[keyof UnpinPageErrors];
+
+export type UnpinPageResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type UnpinPageResponse = UnpinPageResponses[keyof UnpinPageResponses];
+
+export type PinPageData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/pin";
+};
+
+export type PinPageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PinPageError = PinPageErrors[keyof PinPageErrors];
+
+export type PinPageResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type PinPageResponse = PinPageResponses[keyof PinPageResponses];
 
 export type DeletePageFileData = {
   body?: never;
@@ -32691,6 +36907,91 @@ export type UpdateSourceResponses = {
 
 export type UpdateSourceResponse = UpdateSourceResponses[keyof UpdateSourceResponses];
 
+export type StartRcloneSigninData = {
+  body: RcloneSignInStart;
+  path?: never;
+  query?: never;
+  url: "/api/v1/sources/rclone-signin";
+};
+
+export type StartRcloneSigninErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type StartRcloneSigninError = StartRcloneSigninErrors[keyof StartRcloneSigninErrors];
+
+export type StartRcloneSigninResponses = {
+  /**
+   * Successful Response
+   */
+  200: RcloneSignIn;
+};
+
+export type StartRcloneSigninResponse = StartRcloneSigninResponses[keyof StartRcloneSigninResponses];
+
+export type CancelRcloneSigninData = {
+  body?: never;
+  path: {
+    /**
+     * Fid
+     */
+    fid: string;
+  };
+  query?: never;
+  url: "/api/v1/sources/rclone-signin/{fid}";
+};
+
+export type CancelRcloneSigninErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CancelRcloneSigninError = CancelRcloneSigninErrors[keyof CancelRcloneSigninErrors];
+
+export type CancelRcloneSigninResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type CancelRcloneSigninResponse = CancelRcloneSigninResponses[keyof CancelRcloneSigninResponses];
+
+export type FinishRcloneSigninData = {
+  body: RcloneSignInFinish;
+  path: {
+    /**
+     * Fid
+     */
+    fid: string;
+  };
+  query?: never;
+  url: "/api/v1/sources/rclone-signin/{fid}";
+};
+
+export type FinishRcloneSigninErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type FinishRcloneSigninError = FinishRcloneSigninErrors[keyof FinishRcloneSigninErrors];
+
+export type FinishRcloneSigninResponses = {
+  /**
+   * Successful Response
+   */
+  200: RcloneSignInState;
+};
+
+export type FinishRcloneSigninResponse = FinishRcloneSigninResponses[keyof FinishRcloneSigninResponses];
+
 export type TestSourceData = {
   body?: never;
   path: {
@@ -32720,6 +37021,55 @@ export type TestSourceResponses = {
 };
 
 export type TestSourceResponse = TestSourceResponses[keyof TestSourceResponses];
+
+export type GoogleClientData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/sources/google-client";
+};
+
+export type GoogleClientResponses = {
+  /**
+   * Successful Response
+   */
+  200: GoogleClient;
+};
+
+export type GoogleClientResponse = GoogleClientResponses[keyof GoogleClientResponses];
+
+export type ConnectGoogleData = {
+  /**
+   * Body
+   */
+  body?: GoogleConnect | null;
+  path: {
+    /**
+     * Sid
+     */
+    sid: number;
+  };
+  query?: never;
+  url: "/api/v1/sources/{sid}/google";
+};
+
+export type ConnectGoogleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ConnectGoogleError = ConnectGoogleErrors[keyof ConnectGoogleErrors];
+
+export type ConnectGoogleResponses = {
+  /**
+   * Successful Response
+   */
+  200: GoogleConnectStart;
+};
+
+export type ConnectGoogleResponse = ConnectGoogleResponses[keyof ConnectGoogleResponses];
 
 export type BrowseSourceData = {
   body?: never;
@@ -32986,30 +37336,30 @@ export type CreateTemplateResponses = {
 
 export type CreateTemplateResponse = CreateTemplateResponses[keyof CreateTemplateResponses];
 
-export type PreviewTemplateData = {
+export type PreviewTemplate2Data = {
   body: TemplatePreviewRequest;
   path?: never;
   query?: never;
   url: "/api/v1/templates/preview";
 };
 
-export type PreviewTemplateErrors = {
+export type PreviewTemplate2Errors = {
   /**
    * Validation Error
    */
   422: HttpValidationError;
 };
 
-export type PreviewTemplateError = PreviewTemplateErrors[keyof PreviewTemplateErrors];
+export type PreviewTemplate2Error = PreviewTemplate2Errors[keyof PreviewTemplate2Errors];
 
-export type PreviewTemplateResponses = {
+export type PreviewTemplate2Responses = {
   /**
    * Successful Response
    */
   200: TemplatePreview;
 };
 
-export type PreviewTemplateResponse = PreviewTemplateResponses[keyof PreviewTemplateResponses];
+export type PreviewTemplate2Response = PreviewTemplate2Responses[keyof PreviewTemplate2Responses];
 
 export type GetTemplateData = {
   body?: never;
@@ -33475,9 +37825,23 @@ export type SetRecordingContentTypeResponse = SetRecordingContentTypeResponses[k
 export type ListWorkflowsData = {
   body?: never;
   path?: never;
-  query?: never;
+  query?: {
+    /**
+     * Scope
+     */
+    scope?: "recording" | "graph" | "tool" | "event" | null;
+  };
   url: "/api/v1/workflows";
 };
+
+export type ListWorkflowsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListWorkflowsError = ListWorkflowsErrors[keyof ListWorkflowsErrors];
 
 export type ListWorkflowsResponses = {
   /**
@@ -33981,6 +38345,56 @@ export type ImportArchiveResponses = {
 
 export type ImportArchiveResponse = ImportArchiveResponses[keyof ImportArchiveResponses];
 
+export type ReadMcpConfigData = {
+  body: McpConfigText;
+  path?: never;
+  query?: never;
+  url: "/api/v1/extensions/mcp/read";
+};
+
+export type ReadMcpConfigErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ReadMcpConfigError = ReadMcpConfigErrors[keyof ReadMcpConfigErrors];
+
+export type ReadMcpConfigResponses = {
+  /**
+   * Successful Response
+   */
+  200: McpConfig;
+};
+
+export type ReadMcpConfigResponse = ReadMcpConfigResponses[keyof ReadMcpConfigResponses];
+
+export type TestMcpServerData = {
+  body: McpServerTry;
+  path?: never;
+  query?: never;
+  url: "/api/v1/extensions/mcp/test";
+};
+
+export type TestMcpServerErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TestMcpServerError = TestMcpServerErrors[keyof TestMcpServerErrors];
+
+export type TestMcpServerResponses = {
+  /**
+   * Successful Response
+   */
+  200: McpServerTools;
+};
+
+export type TestMcpServerResponse = TestMcpServerResponses[keyof TestMcpServerResponses];
+
 export type DeleteExtensionData = {
   body?: never;
   path: {
@@ -34105,6 +38519,36 @@ export type CreateExtensionVersionResponses = {
 };
 
 export type CreateExtensionVersionResponse = CreateExtensionVersionResponses[keyof CreateExtensionVersionResponses];
+
+export type SwitchMcpToolData = {
+  body: McpToolSwitch;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/extensions/{eid}/tools";
+};
+
+export type SwitchMcpToolErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SwitchMcpToolError = SwitchMcpToolErrors[keyof SwitchMcpToolErrors];
+
+export type SwitchMcpToolResponses = {
+  /**
+   * Successful Response
+   */
+  200: VersionSaved;
+};
+
+export type SwitchMcpToolResponse = SwitchMcpToolResponses[keyof SwitchMcpToolResponses];
 
 export type TestExtensionData = {
   body: ExtensionTest;
@@ -34511,6 +38955,70 @@ export type UpdateChatResponses = {
 
 export type UpdateChatResponse = UpdateChatResponses[keyof UpdateChatResponses];
 
+export type SwitchVersionData = {
+  body: HeadUpdate;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/chats/{cid}/head";
+};
+
+export type SwitchVersionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SwitchVersionError = SwitchVersionErrors[keyof SwitchVersionErrors];
+
+export type SwitchVersionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Chat;
+};
+
+export type SwitchVersionResponse = SwitchVersionResponses[keyof SwitchVersionResponses];
+
+export type GetMessageData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+    /**
+     * Mid
+     */
+    mid: number;
+  };
+  query?: never;
+  url: "/api/v1/chats/{cid}/messages/{mid}";
+};
+
+export type GetMessageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetMessageError = GetMessageErrors[keyof GetMessageErrors];
+
+export type GetMessageResponses = {
+  /**
+   * Successful Response
+   */
+  200: MessageDetail;
+};
+
+export type GetMessageResponse = GetMessageResponses[keyof GetMessageResponses];
+
 export type SendMessageData = {
   body: MessageCreate;
   path: {
@@ -34611,6 +39119,28 @@ export type ListApprovalsData = {
      * Chat Id
      */
     chat_id?: number | null;
+    /**
+     * Status
+     */
+    status?: "pending" | "running" | "done" | "failed" | "declined" | "expired" | null;
+    /**
+     * Origin
+     */
+    origin?: "automation" | "chat" | null;
+    /**
+     * Automation
+     */
+    automation?: number | null;
+    /**
+     * Before
+     *
+     * ids below this one: the last id of the page before
+     */
+    before?: number | null;
+    /**
+     * Limit
+     */
+    limit?: number;
   };
   url: "/api/v1/approvals";
 };
@@ -34634,6 +39164,52 @@ export type ListApprovalsResponses = {
 };
 
 export type ListApprovalsResponse = ListApprovalsResponses[keyof ListApprovalsResponses];
+
+export type CountApprovalsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/approvals/count";
+};
+
+export type CountApprovalsResponses = {
+  /**
+   * Successful Response
+   */
+  200: ApprovalCount;
+};
+
+export type CountApprovalsResponse = CountApprovalsResponses[keyof CountApprovalsResponses];
+
+export type GetApprovalData = {
+  body?: never;
+  path: {
+    /**
+     * Aid
+     */
+    aid: number;
+  };
+  query?: never;
+  url: "/api/v1/approvals/{aid}";
+};
+
+export type GetApprovalErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetApprovalError = GetApprovalErrors[keyof GetApprovalErrors];
+
+export type GetApprovalResponses = {
+  /**
+   * Successful Response
+   */
+  200: Approval;
+};
+
+export type GetApprovalResponse = GetApprovalResponses[keyof GetApprovalResponses];
 
 export type DecideApprovalData = {
   body: ApprovalDecision;
@@ -35965,7 +40541,7 @@ export type RunRoutineResponses = {
 
 export type RunRoutineResponse = RunRoutineResponses[keyof RunRoutineResponses];
 
-export type DecideHeldRunData = {
+export type DecideHeldRun2Data = {
   body: HeldRunDecision;
   path: {
     /**
@@ -35977,25 +40553,25 @@ export type DecideHeldRunData = {
   url: "/api/v1/routines/runs/{run_id}/decide";
 };
 
-export type DecideHeldRunErrors = {
+export type DecideHeldRun2Errors = {
   /**
    * Validation Error
    */
   422: HttpValidationError;
 };
 
-export type DecideHeldRunError = DecideHeldRunErrors[keyof DecideHeldRunErrors];
+export type DecideHeldRun2Error = DecideHeldRun2Errors[keyof DecideHeldRun2Errors];
 
-export type DecideHeldRunResponses = {
+export type DecideHeldRun2Responses = {
   /**
    * Successful Response
    */
   200: Ok;
 };
 
-export type DecideHeldRunResponse = DecideHeldRunResponses[keyof DecideHeldRunResponses];
+export type DecideHeldRun2Response = DecideHeldRun2Responses[keyof DecideHeldRun2Responses];
 
-export type ListRunsData = {
+export type ListRuns2Data = {
   body?: never;
   path: {
     /**
@@ -36012,16 +40588,16 @@ export type ListRunsData = {
   url: "/api/v1/routines/{rid}/runs";
 };
 
-export type ListRunsErrors = {
+export type ListRuns2Errors = {
   /**
    * Validation Error
    */
   422: HttpValidationError;
 };
 
-export type ListRunsError = ListRunsErrors[keyof ListRunsErrors];
+export type ListRuns2Error = ListRuns2Errors[keyof ListRuns2Errors];
 
-export type ListRunsResponses = {
+export type ListRuns2Responses = {
   /**
    * Response Routines-List Runs
    *
@@ -36030,9 +40606,9 @@ export type ListRunsResponses = {
   200: Array<RoutineRun>;
 };
 
-export type ListRunsResponse = ListRunsResponses[keyof ListRunsResponses];
+export type ListRuns2Response = ListRuns2Responses[keyof ListRuns2Responses];
 
-export type GetRunData = {
+export type GetRun2Data = {
   body?: never;
   path: {
     /**
@@ -36044,23 +40620,23 @@ export type GetRunData = {
   url: "/api/v1/routine-runs/{run_id}";
 };
 
-export type GetRunErrors = {
+export type GetRun2Errors = {
   /**
    * Validation Error
    */
   422: HttpValidationError;
 };
 
-export type GetRunError = GetRunErrors[keyof GetRunErrors];
+export type GetRun2Error = GetRun2Errors[keyof GetRun2Errors];
 
-export type GetRunResponses = {
+export type GetRun2Responses = {
   /**
    * Successful Response
    */
   200: RoutineRun;
 };
 
-export type GetRunResponse = GetRunResponses[keyof GetRunResponses];
+export type GetRun2Response = GetRun2Responses[keyof GetRun2Responses];
 
 export type UndoRunData = {
   body?: never;

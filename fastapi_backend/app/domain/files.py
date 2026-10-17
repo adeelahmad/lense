@@ -21,8 +21,7 @@ import shutil
 import unicodedata
 import xml.etree.ElementTree as ET
 
-from . import access as acc, ingest, keyring, render, store
-from .metadata import LANG_RX
+from . import access as acc, ingest, keyring, metadata, render, store
 
 R = store.R
 ROLES = ("transcript", "captions", "translation", "index", "thumbnail", "attachment")
@@ -141,7 +140,7 @@ def _language(v):
     if v in (None, ""):
         return None
     v = str(v).strip()
-    if not LANG_RX.match(v) or v == "none":
+    if not metadata.LANG_RX.match(v) or v == "none":
         raise ValueError("Use a language code such as en or pt-BR.")
     return v
 

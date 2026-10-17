@@ -7,7 +7,12 @@ import { CommandPalette } from "@/components/app-shell/command-palette";
 import { NotesHome } from "@/components/notes/notes-home";
 
 jest.mock("@/app/openapi-client", () => ({
-  Notes: { listPages: jest.fn(), searchPages: jest.fn(), createPage: jest.fn() },
+  Notes: {
+    listPages: jest.fn(),
+    searchPages: jest.fn(),
+    createPage: jest.fn(),
+    deletedPages: jest.fn(() => Promise.resolve({ data: [], response: { ok: true, status: 200 } })),
+  },
   Resources: { listRecordings: jest.fn(() => Promise.resolve({ data: [], response: { ok: true, status: 200 } })) },
 }));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
@@ -93,6 +98,18 @@ describe("the Notes page", () => {
     expect(m(Notes.searchPages).mock.calls.at(-1)[0].query).toMatchObject({ q: "capsids", ns: "home", place: null });
     fireEvent.keyDown(box, { key: "Enter" });
     expect(push).toHaveBeenCalledWith("/entities/5");
+  });
+
+  it("lists the notes this person pinned first", async () => {
+    m(Notes.listPages).mockImplementation(() =>
+      ok({ namespace: "home", pages: [page(1, "Fresh"), page(2, "Pinned plan", { pinned: true }), page(3, "Newest")] }),
+    );
+    show(<NotesHome />);
+    await screen.findByRole("link", { name: /Pinned plan/ });
+    const rows = screen.getAllByRole("listitem").map((li) => li.textContent);
+    expect(rows[0]).toContain("Pinned plan");
+    expect(rows.slice(1)).toEqual([expect.stringContaining("Newest"), expect.stringContaining("Fresh")]);
+    expect(screen.getByLabelText("Pinned")).toBeInTheDocument();
   });
 
   it("says when no note has the words", async () => {
