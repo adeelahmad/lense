@@ -4,6 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Choose the tools, a limit and the namespaces of an answer.** A conversation, or one question, can pick the tool
+  groups or tools its answers may use (`tools`), cap their tool calls (`max_tool_calls`, up to the new Settings → AI
+  assistant → Most tool calls a question may ask for, 50 by default) and narrow one answer to its own namespaces
+  (`scope`). `GET /api/v1/chats/tools` lists the groups a person has, what each tool does (reads, asks first, sends data
+  out) and why a group is missing. An admin's switches still win, and new conversations start with the person's last
+  choice. The web app's Tools chip is in progress
+  ([Choosing tools, namespaces and a limit](docs/assistant.md#choosing-tools-namespaces-and-a-limit)).
 - **Automations run.** An automation saved over the API (`/api/v1/automations`) now reacts to new assets in its
   namespaces: when its If passes, it runs its workflow as the person who made it, within its limits and budgets, and
   each run shows what its actions did. Try one on an activity without keeping or sending anything, or run it now;

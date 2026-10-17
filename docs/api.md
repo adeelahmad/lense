@@ -1444,6 +1444,7 @@ version.
 ```
 GET    /api/v1/chats
 GET    /api/v1/chats/capabilities
+GET    /api/v1/chats/tools
 POST   /api/v1/chats
 GET    /api/v1/chats/{cid}
 PATCH  /api/v1/chats/{cid}
@@ -1467,7 +1468,7 @@ that node runs without asking from now on). Approving, editing and `always` on a
 session (403 for an API key or an app); each approval's `can` says what you may do with it.
 
 `GET /chats/capabilities` tells anyone signed in whether a language model is set up (`configured`), which (`model`),
-whether it uses tools (`tools`, `max_steps`), whether answers can be checked (`check`) and the `models` people may pick
+whether it uses tools (`tools`, `max_steps`, `max_tool_calls`), whether answers can be checked (`check`) and the `models` people may pick
 (the configured one first; `llm.chat_models`, else the server's list); never the model server's address or key. A
 conversation's `model` (`POST /chats`, `PATCH /chats/{cid}`; null for the configured one) answers in it, and a
 question can name another (`POST /chats/{cid}/messages {content, model}`, e.g. to retry); a model that isn't offered is
@@ -1479,6 +1480,13 @@ step it's on: the stream sends `stopped`, then `done` with the saved message, wh
 `POST /chats/{cid}/messages {content, edit}` edits one of your earlier questions (`edit` is its message id): it and
 everything after it are replaced by this question and its new answer; 404 when `edit` isn't a question in that
 conversation. A conversation titled after the first question is retitled when that question is edited.
+
+`GET /chats/tools` lists the tool groups and tools you have, each tool's `effect` (`read`, `asks` or `out`), why a
+group isn't available and the setting that switches it on, the most tool calls a question may ask for
+(`max_tool_calls`) and your latest choice (`remembered`); `chat_id` reads it for that conversation's scope. A
+conversation's `tools` and `max_tool_calls` (`POST /chats`, `PATCH /chats/{cid}`; null for Auto) are what its answers
+may use, and a question can set its own, with a `scope` for that answer alone (`POST /chats/{cid}/messages {content,
+tools, max_tool_calls, scope}`) ([Choosing tools, namespaces and a limit](assistant.md#choosing-tools-namespaces-and-a-limit)).
 
 A conversation's `scope` narrows what it draws on: `namespaces`, `recordings`, `collections`, `speakers`, `from` and
 `to`; every key narrows it further, and an empty scope is everything you can read. `collections` are ids of
