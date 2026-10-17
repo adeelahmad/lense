@@ -10,6 +10,7 @@ import {
   type LucideIcon,
   Mail,
   Network,
+  Rss,
   Server,
 } from "lucide-react";
 
@@ -28,6 +29,7 @@ export const TYPE_ICON: Record<SourceType, LucideIcon> = {
   gmail: Mail,
   ical: CalendarDays,
   gcal: CalendarCheck,
+  rss: Rss,
 };
 
 /** The connection's type in a 32px rounded tile. */

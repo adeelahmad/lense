@@ -317,9 +317,15 @@ people it's turned on for: those who can edit a namespace, and admins (`sandbox.
 - **The tools.** `run_python` (code) and `run_bash` (a script) each run for at most `sandbox.seconds` (60) and give
   back stdout, stderr and the exit code: the model reads the start of stdout and the end of stderr, up to 10,000
   characters, and is told when more was cut off. `files` copies files attached to the conversation in first, by their
-  own names (25 MB each, 100 MB a run). `sandbox_files` lists what the sandbox holds. `import_sandbox_file` copies a
-  file out (25 MB at most) as if the person had attached it and puts it in a namespace with `import_files`, so it
-  waits for their approval; its type must be one uploads take.
+  own names (25 MB each, 100 MB a run). `sandbox_files` lists what the sandbox holds. `share_sandbox_file` copies a
+  file out (25 MB at most) for the person to download from the answer: a chart, a converted document, a cleaned
+  table. `import_sandbox_file` copies one out as if the person had attached it and puts it in a namespace with
+  `import_files`, so it waits for their approval; its type must be one uploads take.
+- **In the conversation.** Each run is a step under the answer, folded: opening it shows the code, then what it
+  printed (the first 4,000 characters of stdout, the last 4,000 of stderr in red) and how it ended. A file the
+  sandbox shared is a button on the answer that downloads it (`GET /api/v1/chats/{id}/files/{file}`, only for the
+  person whose conversation it is). Lens keeps those files with the conversation, encrypted with a key derived from
+  the server's secret key, at most 20 a conversation, and deletes them with the conversation or the person's account.
 - **Nothing of Lens's inside.** A sandbox holds no keys, no database address and no archive: only the code, and the
   files a run copies in. What it prints reaches the model marked as third-party text, like any tool's result.
 - **Its network** (`sandbox.network`): `off` (the default) allows no traffic in or out at all; `packages` reaches
@@ -368,15 +374,15 @@ docker compose -f docker-compose.prod.yml --profile sandbox up -d openshell-gate
   time it starts, plus `sandbox.image`. Each sandbox is a container with its own CPU, memory and process limits.
 
 In progress: the upgrade agent that starts the profile ships with the agent's next release; until this machine's agent
-knows the `sandbox` profile, Settings says to start it by hand and shows the line above. Also in progress: the step in
-the conversation showing the code (folded) and its output, and handing a file back as a download on the answer.
+knows the `sandbox` profile, Settings says to start it by hand and shows the line above.
 
 Refine later: automations' agent runs without a conversation get no sandbox yet; running admins' Python extension
 tools in the sandbox so people who aren't admins can write them; asking the person before a run reaches a host that
 isn't listed; the gateway's port (17670) as a setting; the gateway on macOS (Docker Desktop doesn't share
 `/var/lib/openshell`) and in a [microsandbox](microsandbox.md) (the gateway on the host, or OpenShell's MicroVM
 driver); the Podman driver for hosts without Docker; GPUs; a direct sandbox API for agents (today an agent asks the
-assistant); one real run against OpenShell in CI (the tests use a fake gateway with OpenShell's own client).
+assistant); one real run against OpenShell in CI (the tests use a fake gateway with OpenShell's own client); showing
+an image the sandbox shared inline in the answer, not only as a download; the 20-file cap as a setting.
 
 ## Third-party content and prompt injection
 
