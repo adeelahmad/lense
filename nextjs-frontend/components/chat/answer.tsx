@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ChevronDown, RotateCcw, ShieldCheck, Sparkles, Square } from "lucide-react";
+import { ChevronDown, RefreshCw, RotateCcw, ShieldCheck, Square } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 
@@ -22,19 +22,25 @@ import { RichText } from "@/components/chat/rich-text";
 import { scopeWords, type Scope } from "@/components/chat/scope";
 import { ToolSteps } from "@/components/chat/steps";
 import type { ToolStep, TurnStatus } from "@/components/chat/stream";
-import { Button } from "@/components/ui/button";
+import { Button, IconButton } from "@/components/ui/button";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from "@/components/ui/menu";
 import { data, useApiClient } from "@/lib/api/browser";
 import { plural } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
-/** Where an answer comes from: "3 recordings in podcasts". */
+/** Where an answer comes from: "3 assets in podcasts", "2 web pages", "3 assets in podcasts and 2 web pages". */
 function fromWhere(passages: Passage[] | null): string | null {
   if (!passages?.length) return null;
-  const recs = new Set(passages.map((p) => p.recording_id)).size;
-  const nss = [...new Set(passages.map((p) => p.namespace).filter(Boolean))] as string[];
-  return `${plural(recs, "asset")}${nss.length ? ` in ${nss.join(", ")}` : ""}`;
+  const archive = passages.filter((p) => p.recording_id != null);
+  const pages = new Set(passages.filter((p) => p.source === "web").map((p) => p.url)).size;
+  const recs = new Set(archive.map((p) => p.recording_id)).size;
+  const nss = [...new Set(archive.map((p) => p.namespace).filter(Boolean))] as string[];
+  const parts = [
+    recs ? `${plural(recs, "asset")}${nss.length ? ` in ${nss.join(", ")}` : ""}` : null,
+    pages ? plural(pages, "web page") : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(" and ") : null;
 }
 
 function StateCard({
@@ -137,9 +143,12 @@ export type AnswerProps = {
   /** Stop was pressed: the answer ends after the piece or step it's on. */
   stopping?: boolean;
   onRetry?: () => void;
-  /** Ask the same question again with another of these models (the one that wrote this answer is left out). */
+  /** Write a new answer to the same question, as another version beside this one: with this answer's model, or with
+   * another of `models` (the one that wrote this answer is left out). */
   models?: string[];
-  onRetryWith?: (model: string) => void;
+  onRegenerate?: (model?: string) => void;
+  /** The switch between this answer's versions (VersionSwitch), shown with its actions. */
+  versions?: React.ReactNode;
   onAddScope?: (ns: string) => void;
   onShowSources?: () => void;
   active?: boolean;
@@ -178,6 +187,7 @@ export function Answer(p: AnswerProps) {
   const result = p.check ?? check.data ?? null;
   const unsupported = (result?.verdicts ?? []).filter((v) => v.supported === false).map((v) => String(v.claim ?? ""));
   const from = fromWhere(p.passages);
+  const others = (p.models ?? []).filter((m) => m !== p.model);
 
   return (
     <article aria-label="Answer" aria-busy={streaming || undefined} className="flex max-w-[720px] flex-col gap-3">
@@ -306,24 +316,30 @@ export function Answer(p: AnswerProps) {
             {p.stopping ? "Stopping…" : "Stop"}
           </Button>
         )}
-        {!streaming && p.onRetryWith && (p.models ?? []).filter((m) => m !== p.model).length > 0 && (
-          <Menu>
-            <MenuTrigger asChild>
-              <Button size="sm" variant="ghost" icon={<Sparkles />}>
-                Try another model <ChevronDown />
-              </Button>
-            </MenuTrigger>
-            <MenuContent align="start" className="max-h-[320px] min-w-[220px] overflow-y-auto">
-              <MenuLabel>Ask again with</MenuLabel>
-              {(p.models ?? [])
-                .filter((m) => m !== p.model)
-                .map((m) => (
-                  <MenuItem key={m} onSelect={() => p.onRetryWith?.(m)}>
-                    <span className="font-mono text-[12.5px]">{m}</span>
-                  </MenuItem>
-                ))}
-            </MenuContent>
-          </Menu>
+        {p.versions}
+        {!streaming && p.onRegenerate && (
+          <span className="inline-flex items-center">
+            <IconButton label="Regenerate" size={32} onClick={() => p.onRegenerate?.()} className="[&_svg]:size-4">
+              <RefreshCw />
+            </IconButton>
+            {others.length > 0 && (
+              <Menu>
+                <MenuTrigger asChild>
+                  <IconButton label="Regenerate with another model" size={24} className="[&_svg]:size-3.5">
+                    <ChevronDown />
+                  </IconButton>
+                </MenuTrigger>
+                <MenuContent align="start" className="max-h-[320px] min-w-[220px] overflow-y-auto">
+                  <MenuLabel>Regenerate with…</MenuLabel>
+                  {others.map((m) => (
+                    <MenuItem key={m} onSelect={() => p.onRegenerate?.(m)}>
+                      <span className="font-mono text-[12.5px]">{m}</span>
+                    </MenuItem>
+                  ))}
+                </MenuContent>
+              </Menu>
+            )}
+          </span>
         )}
         {p.status === "done" && p.messageId != null && p.chatId != null && cites.length > 0 && !noModel && !result && (
           <Button

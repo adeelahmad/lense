@@ -28,6 +28,7 @@ from . import (
     ops_tools,
     recsets,
     render,
+    sandbox as sandboxmod,
     search as searchmod,
     browser as browsermod,
     similar,
@@ -37,6 +38,8 @@ from . import (
     topics,
     untrusted,
     uploads,
+    web as webmod,
+    webcapture,
     wiki,
 )
 
@@ -457,8 +460,22 @@ MEMORY_TOOLS = [
 
 def builtin_names():
     """The assistant's own tool names, which extensions can't take."""
-    every = TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS + AUTOMATION_TOOLS + browsermod.TOOLS
-    return {t[0] for t in every} | {"use_skill"}
+    every = (
+        TOOLS
+        + ops_tools.ADMIN_TOOLS
+        + ops_tools.FILE_TOOLS
+        + AUTHOR_TOOLS
+        + MEMORY_TOOLS
+        + AUTOMATION_TOOLS
+        + browsermod.TOOLS
+        + sandboxmod.TOOLS
+    )
+    return {t[0] for t in every + webmod.TOOLS} | {"use_skill"}
+
+
+# the built-in tools that carry what the model gives them to another host (the words searched for, the address read):
+# once an answer has read text from outside Lens, they ask first (Toolbox.wary)
+SENDS_OUT = set(webmod.NAMES)
 
 
 # tools whose results the model may take as Lens's own word: the server's state and settings, the skills the person
@@ -473,7 +490,11 @@ OWN_RESULTS = {
     "use_skill",
     "mark_activities",
     "decline_approval",
-} | {t[0] for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS + AUTOMATION_TOOLS if t[4]}
+} | {
+    t[0]
+    for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS + AUTOMATION_TOOLS + sandboxmod.TOOLS
+    if t[4]
+}
 
 
 def read_before(history, summary=None):
@@ -494,7 +515,8 @@ class Toolbox(ops_tools.OpsTools):
     """`admin` adds the server tools (ops_tools.py), with `base` (archive.yaml's config) to save settings over; `act`
     makes their changes at once instead of asking for approval, `act_on` only those of these tools (a chat channel's:
     channels.Channel.acts). `browser`: the person's connected side panel (browser.py), whose browser the assistant can
-    then use. `account`: the person an automation acts for, when `user` is the automation itself (automation:<id>,
+    then use. The conversation's code sandbox (sandbox.py) is there when an admin turned it on and the person may use it.
+    `account`: the person an automation acts for, when `user` is the automation itself (automation:<id>,
     the by of what it writes): their approvals, extensions, view of the timeline and marks on it; `origin` ({automation, run,
     node}) is kept on the approvals it asks for."""
 
@@ -543,11 +565,18 @@ class Toolbox(ops_tools.OpsTools):
         # the browser the person is talking from, while its side panel is connected (and an admin hasn't turned it off)
         on = browser and browsermod.enabled(cfg) and browsermod.live(db, browser, user["id"])
         self.browser = str(browser) if on else None
+        # Python and bash in the conversation's own sandbox, once an admin turned it on (sandbox.enabled, sandbox.who)
+        self.sandbox = chat_id is not None and sandboxmod.offered(cfg, admin, bool(self.editable))
+        self.web = webmod.enabled(cfg)  # web search and page reading, once an admin picked a provider (web.py)
 
     def system_note(self):
         """What the model is told besides its usual instructions: the skills it can follow, and context that hooks add
         for this question."""
         out = self._home_note() + (browsermod.NOTE if self.browser else "")
+        if self.sandbox:
+            out += sandboxmod.NOTE.format(network=sandboxmod.NETWORK_NOTE[sandboxmod.settings(self.cfg)["network"]])
+        if self.web and webmod.NAMES & {s["function"]["name"] for s in self.specs()}:
+            out += webmod.NOTE
         if not self.ext:
             return out
         out += self.ext.system_note()
@@ -619,6 +648,10 @@ class Toolbox(ops_tools.OpsTools):
             tools += [t for t in MEMORY_TOOLS if self.home[0] in self.editable or not t[4]]
         if self.browser:
             tools += browsermod.TOOLS
+        if self.sandbox:
+            tools += sandboxmod.TOOLS
+        if self.web:
+            tools += webmod.TOOLS
         if self.ext:
             tools += self.ext.tool_specs(can_act or self.admin)
         return [
@@ -816,6 +849,106 @@ class Toolbox(ops_tools.OpsTools):
         attached = {"upload_id": uid, "filename": up["filename"], "size": up["size"], "next": "import_files puts it in a namespace"}
         return attached, f"Attached {up['filename']} from the browser"
 
+    # ---- the conversation's code sandbox (sandbox.py): Python and bash on the OpenShell gateway ----
+    def _sandbox(self, fn, *args):
+        try:
+            return fn(self.db, self.cfg, self.chat, *args)
+        except sandboxmod.SandboxError as e:
+            raise ValueError(str(e)) from None
+
+    def _sandbox_run(self, kind, source, files):
+        source = str(source or "")
+        files = [str(f) for f in ([files] if isinstance(files, str) else files or [])]
+        if sandboxmod.sends_out(self.cfg) and self.wary():
+            # code that reaches another host can carry out what the answer read: after text from outside Lens, which
+            # may have put it there, a run asks first
+            first = next((x.strip() for x in source.splitlines() if x.strip()), "")[:80]
+            args = store.clean({"code" if kind == "python" else "command": source, "files": files or None})
+            lang = "Python" if kind == "python" else "bash"
+            where = "the package registries" if sandboxmod.settings(self.cfg)["network"] == "packages" else "the web"
+            return self._approval(f"run_{kind}", args, f"Run {lang} in the code sandbox, which can reach {where}: {first}" + self.why())
+        out = self._sandbox(sandboxmod.run, self.account, kind, source, files)
+        return out, sandboxmod.summary(kind, source, out)
+
+    def t_run_python(self, code, files=None):
+        return self._sandbox_run("python", code, files)
+
+    def t_run_bash(self, command, files=None):
+        return self._sandbox_run("bash", command, files)
+
+    def t_sandbox_files(self):
+        out = self._sandbox(sandboxmod.listing, self.account)
+        n = len(out.get("files") or []) + int(out.get("more") or 0)
+        return out, f"Looked at the sandbox's files ({n})"
+
+    def t_import_sandbox_file(self, path, namespace=None):
+        # out of the sandbox as one of the person's held uploads, then imported as a file they attached would be
+        up = self._sandbox(sandboxmod.hold, self.user, path)
+        return self.t_import_files([up["id"]], namespace)
+
+    # ---- the web (web.py): searching it and reading pages, once an admin picked a search provider ----
+    def _web(self, tool, args, what, own):
+        """A web search or page read, as (what it found, None), or (None, the approval it waits for): the words or the
+        address leave the machine, so once this answer has read text from outside Lens, which may have put them there,
+        it asks first, unless the person wrote them (`own`) or already approved the same call in this conversation."""
+        if own or not self.wary():
+            return webmod.run(self.cfg, tool, args), None
+        rows = (
+            self.db.rows(
+                "SELECT id, args, result FROM approval WHERE chat = $c AND account = $a AND tool = $t AND status = 'done' ORDER BY id DESC LIMIT 20",
+                c=self.chat,
+                a=self.account,
+                t=tool,
+            )
+            if self.chat is not None
+            else []
+        )
+        for a in rows:
+            got = a.get("result")
+            if webmod.same_call(tool, a.get("args"), args) and isinstance(got, dict) and "output" in got:
+                return got["output"], None
+        return None, self._approval(tool, args, what + self.why())
+
+    def web_ref(self, url, title, site, text, fetched_at=None):
+        """A web page or search result to cite as [n] (web.py): its address instead of an asset's moment. The same
+        address keeps its number, with the page's own text once it's read."""
+        for r in self.refs:
+            if r.get("source") == "web" and r.get("url") == url:
+                r.update(
+                    store.clean(
+                        {"title": title or r.get("title"), "text": text or r.get("text"), "fetched_at": fetched_at or r.get("fetched_at")}
+                    )
+                )
+                return r["n"]
+        n = len(self.refs) + 1
+        self.refs.append(
+            store.clean({"n": n, "source": "web", "url": url, "title": title, "site": site, "fetched_at": fetched_at, "text": text})
+        )
+        return n
+
+    def t_web_search(self, query, limit=None, time_range=None):
+        args = store.clean({"query": " ".join(str(query or "").split()), "limit": limit, "time_range": time_range})
+        out, asked = self._web("web_search", args, f"Search the web for “{args['query'][:120]}”", self.said_it(args["query"]))
+        if asked:
+            return asked
+        when = store.now()
+        found = [
+            {"ref": self.web_ref(r["url"], r.get("title"), r.get("site"), r.get("snippet") or r.get("title"), when), **r}
+            for r in out["results"]
+        ]
+        return {"query": out["query"], "results": found}, webmod.summary("web_search", args, out)
+
+    def t_web_read(self, url, find=None):
+        args = store.clean({"url": str(url or "").strip(), "find": find})
+        own = args["url"] in self.links or self.said_it(args["url"])  # an address a tool gave back carries nothing it read
+        out, asked = self._web("web_read", args, f"Read the web page {webcapture.placeholder(args['url'])[:160]}", own)
+        if asked:
+            return asked
+        excerpt = " ".join(out.get("text", "").split())[:600]
+        return {"ref": self.web_ref(out["url"], out.get("title"), out.get("site"), excerpt, out.get("fetched_at")), **out}, webmod.summary(
+            "web_read", args, out
+        )
+
     # ---- extensions, from chat ----
     def _ext_named(self, name):
         for g in extensions.visible(self.db, self.me):
@@ -899,7 +1032,11 @@ class Toolbox(ops_tools.OpsTools):
         except Exception as e:  # noqa: BLE001 - the model hears what went wrong instead of the answer breaking off
             log.exception("assistant tool %s failed", name)
             return json.dumps({"error": f"the tool failed: {e}"}), f"{name} failed"
-        return json.dumps(out, ensure_ascii=False, default=str)[:12000], summary
+        return json.dumps(out, ensure_ascii=False, default=str)[: self._most(name)], summary
+
+    def _most(self, name):
+        """The most of a tool's result the model reads: a web page read takes what web.read_chars allows."""
+        return max(12000, int(webmod.read_chars(self.cfg) * 1.2) + 4000) if name == "web_read" else 12000
 
     # ---- read tools ----
     def t_search_transcripts(self, query, namespace=None, limit=8):
@@ -1710,6 +1847,15 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
         result = author_extension(db, a["tool"], args, user, admin, readable if readable is not None else editable, editable)
     elif a["tool"] in ("switch_automation", "run_automation"):
         result = _automation_approved(db, cfg, a["tool"], args, user, admin)
+    elif a["tool"] in ("run_python", "run_bash"):  # a run that can reach another host, asked first (Toolbox._sandbox_run)
+        if a.get("chat") is None or not sandboxmod.offered(cfg, admin, bool(editable)):
+            raise PermissionError("the code sandbox is off, or not yours to use")
+        kind = a["tool"].removeprefix("run_")
+        source = args.get("code") if kind == "python" else args.get("command")
+        try:
+            result = {"result": sandboxmod.run(db, cfg, a["chat"], a.get("account") or user["id"], kind, source, args.get("files") or [])}
+        except sandboxmod.SandboxError as e:
+            raise ValueError(str(e)) from None
     elif a["tool"] in ("change_settings", "create_namespace", "import_files", "import_urls", "invite_person", "change_person"):
         result = ops_tools.apply(db, cfg, base or cfg, a["tool"], args, user, editable, admin)
     elif a["tool"] == "decline_approval":  # the person's yes to declining another of their approvals
@@ -1725,6 +1871,8 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
     elif a["tool"] == "mark_activities":  # the person's own marks, on activities they could see when it was asked
         flags = {k: v for k, v in args.items() if k in event_marks.FLAGS}
         result = {"marked": len(event_marks.mark(db, user["id"], args["ids"], flags))}
+    elif a["tool"] in webmod.NAMES:  # the person's yes to a search or page read after the answer read outside text
+        result = {"output": webmod.run(cfg, a["tool"], args)}
     elif a["tool"] in ("write_note", "update_note"):  # proposed by an automation's agent (actions_ai.Box)
         box = Toolbox(db, cfg, user, readable if readable is not None else editable, editable, None, a["chat"], base, admin)
         result = getattr(box, "t_" + a["tool"])(**args)[0]

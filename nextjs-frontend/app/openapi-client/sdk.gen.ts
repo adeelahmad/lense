@@ -10054,6 +10054,8 @@ export class Chats {
 
   /**
    * Delete Chat
+   *
+   * Delete a conversation, with its code sandbox and the files in it.
    */
   public static deleteChat<ThrowOnError extends boolean = false>(
     options: Options<DeleteChatData, ThrowOnError>,
@@ -10068,7 +10070,8 @@ export class Chats {
    * Get Chat
    *
    * A conversation with the version showing (`messages`, each with its `versions`) and every version's messages
-   * (`tree`). Citations follow your current access: ones you can no longer read are left out.
+   * (`tree`). Citations follow your current access: ones you can no longer read are left out (web pages it cited stay:
+   * they aren't the archive's).
    */
   public static getChat<ThrowOnError extends boolean = false>(
     options: Options<GetChatData, ThrowOnError>,
