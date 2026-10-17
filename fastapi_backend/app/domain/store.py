@@ -303,6 +303,7 @@ DEFAULTS = {
         "injection_check": "patterns",  # flag text that reads like instructions to an AI: patterns, classifier, model, off
         "disabled_tools": [],
         "max_steps": 6,
+        "max_tool_calls": 50,  # the most tool calls a question may give one answer (its `max_tool_calls`; chat.tool_answer)
         "max_transcript_reads": 20,
         "confirm_over_recordings": 100,
         "confirm_over_cost": None,
@@ -559,12 +560,14 @@ DEFAULTS = {
     # the assistant's code sandbox (sandbox.py, docs/assistant.md#code-sandbox): off until an admin turns it on. Then
     # each conversation's Python and bash run in a sandbox of its own on the OpenShell gateway at `gateway`, made from
     # `image` with `cpu` and `memory`, stopped after idle_minutes and deleted keep_hours after its last run. network:
-    # off (none), packages (PyPI and npm) or web (public addresses). who: editors (and admins), or admins only.
+    # off (none), packages (PyPI and npm) or hosts (those and `hosts`). who: editors (and admins), or admins only. The
+    # gateway's address is the one the Compose profile `sandbox` runs.
     "sandbox": {
         "enabled": False,
-        "gateway": "openshell-gateway:8080",
+        "gateway": "openshell-gateway:17670",
         "image": "python:3.12-slim",
         "network": "off",
+        "hosts": [],
         "who": "editors",
         "cpu": "1",
         "memory": "512Mi",

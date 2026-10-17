@@ -160,7 +160,8 @@ When the configured model supports function calling, chat becomes an agent.
   (`save_automation` with `enabled`) and running one now wait for the person's approval; switching one off acts at once
   ([Automations](automations.md#agents)).
 - **Limits:** everything is limited to what the person can read and to the conversation's scope, and capped by
-  `ai.max_steps` (Settings → AI assistant, Tool steps per answer; 6 by default) and `ai.max_transcript_reads`.
+  `ai.max_steps` (Settings → AI assistant, Tool steps per answer; 6 by default) and `ai.max_transcript_reads`, or by
+  the tool calls a question allows ([below](#choosing-tools-namespaces-and-a-limit)).
 - **Always an answer:** the model is told its step budget. When the steps run out, or it replies with nothing, it is
   asked once more to answer from what it found, with the tools off, and to say what it didn't get to check. A server
   that calls tools anyway gets the conversation again as plain text, without tools. That last ask is one more model
@@ -239,12 +240,67 @@ gets two more tools, for everyone who may use the assistant:
 Refine later: an opt-in SearXNG service in the Docker Compose file (SearXNG is AGPL, so it would stay an extra),
 prices per search for the paid providers, web access per namespace, and keeping recent results to search less.
 
+### Choosing tools, namespaces and a limit
+
+By default (Auto) an answer may use every tool the person has. A conversation, or one question, can instead pick the
+tools it may use, how many tool calls it may make, and which namespaces it reads.
+
+- **Tool groups.** `GET /api/v1/chats/tools` lists the groups and the tools in each that the person has, and why a
+  group isn't there for them:
+    - `archive` (search and read assets);
+    - `graph` (entities, topics, the knowledge graph);
+    - `web` (searching the web and reading pages, once an admin has set up a search);
+    - `notes`;
+    - `memory` (a namespace's own assistant);
+    - `activity` (the timeline, approvals and automations);
+    - `changes` (proposals that become approvals);
+    - `files` (importing files and web pages);
+    - `code` (the [code sandbox](#code-sandbox): Python and bash, once an admin turns it on);
+    - `extensions`;
+    - `server` (admins);
+    - `browser`;
+    - `mcp:<name>` and `ext:<name>`, one for each of the person's extensions.
+
+    Each tool says its `effect`: `read`, `asks` (it waits for the person's approval) or `out` (it sends data out of
+    Lens, as a web search, the browser's open, click and type, and code runs while the sandbox's network is on do). A
+    group that isn't available says why (switched off by an admin, no web search is set up, the code sandbox is off,
+    for admins, or needs editor access to a namespace) and names the setting that switches it back on (`setting`, such
+    as `ai.browser`, `web.search` or `sandbox.enabled`).
+- **Picking.** `tools` (on `POST /chats`, `PATCH /chats/<id>` or one question, `POST /chats/<id>/messages`) is a list
+  of group and tool names. The model is then offered only those tools, and a tool it calls that it wasn't offered isn't
+  run. Null is Auto. An empty list means no tools: the answer is written from a search, as when the model can't use
+  tools. A name that is no group or tool the person has is a 400. An admin's switches (`ai.disabled_tools`,
+  `ai.browser`, `ai.extensions`) still win over any pick.
+- **A limit on tool calls.** `max_tool_calls` (in the same places) caps how many tool calls one answer may make in
+  all. The model is told the budget. Calls past it get a reply saying they weren't made, and then the answer is written
+  from what was found, with outcome `limit`. With a limit, the rounds of calls may go past `ai.max_steps`, up to the
+  limit. It is a whole number from 1 to `ai.max_tool_calls` (Settings → AI assistant, Most tool calls a question may
+  ask for; 50 by default, at most 500). `GET /chats/capabilities` gives it as `max_tool_calls`.
+- **A scope for one answer.** `scope` on `POST /chats/<id>/messages` narrows that answer alone, with the same keys as
+  a conversation's scope. `{}` means everything the person can read, and a namespace they can't read is a 404. The
+  conversation keeps its own scope, and a question with a scope isn't narrowed by the
+  [namespace picker](#picking-the-namespace-for-a-conversation-over-everything).
+- **Remembered.** Each answer records what it was offered and its limits (`tools`, `limits`, `scope`), and each
+  question records the options it was asked with ([What each answer records](#what-each-answer-records)). A
+  conversation keeps its `tools` and `max_tool_calls`. The person's latest choice (the last `POST /chats` or `PATCH
+  /chats/<id>` that set them) is kept on their account, so a new conversation starts with it (`remembered` in `GET
+  /chats/tools`) unless `POST /chats` says otherwise.
+- **Web and MCP tools reach beyond your namespaces.** The namespaces picked narrow the archive's tools only. A web
+  search, an MCP server or the browser reads and sends wherever it reaches.
+
+In the web app, a Tools chip beside the composer's scope picks these (in progress).
+
+Refine later: tool choice in chat rooms and voice mode, a default choice per namespace, and the model suggesting the
+tools a question needs.
+
 ## Code sandbox
 
-Built: an admin turns it on in Settings → Code sandbox (`sandbox.enabled`, off by default) and points Lens at an
-[NVIDIA OpenShell](https://github.com/NVIDIA/OpenShell) gateway (`sandbox.gateway`, `openshell-gateway:8080` by
-default). Then the assistant can run Python and bash for the people it's turned on for: those who can edit a namespace,
-and admins (`sandbox.who`: `editors`), or admins only (`admins`). Viewers never get it.
+Built: an admin turns it on in Settings → Code sandbox with **Run the gateway on this machine**, which starts an
+[NVIDIA OpenShell](https://github.com/NVIDIA/OpenShell) gateway next to Lens and turns the sandbox on
+(`sandbox.enabled`, off by default; see [The gateway](#the-gateway)), or turns it on and points Lens at a gateway they
+run (`sandbox.gateway`, `openshell-gateway:17670` by default). Then the assistant can run Python and bash for the
+people it's turned on for: those who can edit a namespace, and admins (`sandbox.who`: `editors`), or admins only
+(`admins`). Viewers never get it.
 
 - **One sandbox per conversation.** The first run in a conversation creates its sandbox, `lens-chat-<id>`, from
   `sandbox.image` (`python:3.12-slim` by default, about 45 MB to download) with `sandbox.cpu` (1 core) and
@@ -263,28 +319,59 @@ and admins (`sandbox.who`: `editors`), or admins only (`admins`). Viewers never 
   files a run copies in. What it prints reaches the model marked as third-party text, like any tool's result.
 - **Its network** (`sandbox.network`): `off` (the default) allows no traffic in or out at all; `packages` reaches
   only the Python and npm registries (pypi.org, files.pythonhosted.org, registry.npmjs.org), so `pip install` works;
-  `web` reaches public addresses on ports 80 and 443, never private ones (Lens's own services, your home network, the
-  cloud metadata address). With the network on, a run after the answer read text from outside Lens waits for the
-  person's approval (below), since code could carry what it read out.
+  `hosts` reaches those and the names an admin lists in `sandbox.hosts` (Hosts it may reach: `api.example.com`, or
+  `*.example.com` for its subdomains) on ports 80 and 443. OpenShell resolves only names its policy lists, so there is
+  no "any website" setting. Every name is held to public addresses: one that resolves to a private address (Lens's own
+  services, your home network, the cloud metadata address) is refused. The model is told what the network reaches.
+  With the network on, a run after the answer read text from outside Lens waits for the person's approval (below),
+  since code could carry what it read out.
 - **How it's kept apart.** OpenShell runs each sandbox as a container under its supervisor: the code runs as an
   unprivileged user with no capabilities, Landlock lets it write only its working folder and `/tmp` and read the
   image's programs, seccomp filters its system calls, and its egress is denied unless the policy above allows it.
 - **Cost.** It makes no model calls of its own, and the compute is your machine's. Each run is a row in the
   [activity ledger](activity.md) (`sandbox.run`, with its time, language and exit code), counted for the conversation.
-- **The gateway.** It needs Docker 28 or newer and a Linux kernel with Landlock (6.2 or newer, with Landlock turned
-  on); it runs on Linux on amd64 and arm64 and on macOS on Apple silicon. Lens's own client for it (the `sandbox`
-  Python extra, OpenShell's SDK, Apache-2.0) is fetched once the sandbox is on ([Components](components.md)).
+- **Its client.** Lens's own client for the gateway (the `sandbox` Python extra, OpenShell's SDK, Apache-2.0) is
+  fetched once the sandbox is on ([Components](components.md)).
 
-In progress: starting the OpenShell gateway from Settings (a `sandbox` profile of the Docker Compose install, turned
-on like monitoring) with a check that says why it can't run on a machine; until then, run a gateway yourself on a
-network only Lens reaches and set `sandbox.gateway`. Also in progress: the step in the conversation showing the code
-(folded) and its output, and handing a file back as a download on the answer.
+### The gateway
+
+Built: the Docker Compose install has a `sandbox` profile that runs OpenShell's gateway (release 0.1.4) next to Lens.
+**Run the gateway on this machine** (Settings → Code sandbox, admins) has the machine's upgrade agent add `sandbox` to
+`COMPOSE_PROFILES` and start it, as it does for [monitoring](prometheus.md), then turns the sandbox on with
+`sandbox.gateway` set to `openshell-gateway:17670`. Turning it off deletes every conversation's sandbox, files and
+all, turns the sandbox off and stops the gateway. Agents do the same with `PUT /api/v1/admin/sandbox` (`{"on": true}`)
+or the MCP tools `sandbox_gateway` and `set_sandbox_gateway`; `GET /api/v1/admin/sandbox` says how the machine's last
+change went and whether Lens reaches the gateway and is let in. With no upgrade agent, Settings shows the line to run
+on the machine:
+
+```sh
+docker compose -f docker-compose.prod.yml --profile sandbox up -d openshell-gateway
+```
+
+- **What it checks first.** It says why the gateway can't run here, and doesn't start it: Lens isn't running from its
+  Docker Compose install (a [microsandbox](microsandbox.md), say), the machine isn't 64-bit Intel, AMD or ARM, or its
+  Linux kernel has no Landlock 3 (Linux 6.2 or newer, with Landlock turned on). OpenShell also needs Docker 28 or
+  newer, which Lens can't see from its container: the start fails with Docker's own message when it's older.
+- **The containers.** `openshell-init` makes the gateway's certificates once, in `/var/lib/openshell` on the machine
+  (the gateway has Docker mount files from that folder into each sandbox, so it is the same path inside and out);
+  `openshell-key` copies the client's certificate to the `sandbox-key` volume, readable only by Lens's backend and
+  worker. `openshell-gateway` runs as root to drive Docker through its socket, with no capabilities, a read-only image
+  and no telemetry, configured by `sandbox/gateway.toml`. Lens reaches it on a network of their own (`sandbox`) over
+  mutual TLS; each sandbox's supervisor reaches it on the machine's `127.0.0.1:17670`, which isn't published to the
+  network.
+- **Size.** About 300 MB of images on disk (the gateway, the supervisor and the sandbox runtime), downloaded the first
+  time it starts, plus `sandbox.image`. Each sandbox is a container with its own CPU, memory and process limits.
+
+In progress: the upgrade agent that starts the profile ships with the agent's next release; until this machine's agent
+knows the `sandbox` profile, Settings says to start it by hand and shows the line above. Also in progress: the step in
+the conversation showing the code (folded) and its output, and handing a file back as a download on the answer.
 
 Refine later: automations' agent runs without a conversation get no sandbox yet; running admins' Python extension
-tools in the sandbox so people who aren't admins can write them; installs in a [microsandbox](microsandbox.md) (the
-gateway on the host, or OpenShell's MicroVM driver); the Podman driver for hosts without Docker; GPUs; a direct sandbox
-API for agents (today an agent asks the assistant); one real run against OpenShell in CI (the tests use a fake
-gateway with OpenShell's own client).
+tools in the sandbox so people who aren't admins can write them; asking the person before a run reaches a host that
+isn't listed; the gateway's port (17670) as a setting; the gateway on macOS (Docker Desktop doesn't share
+`/var/lib/openshell`) and in a [microsandbox](microsandbox.md) (the gateway on the host, or OpenShell's MicroVM
+driver); the Podman driver for hosts without Docker; GPUs; a direct sandbox API for agents (today an agent asks the
+assistant); one real run against OpenShell in CI (the tests use a fake gateway with OpenShell's own client).
 
 ## Third-party content and prompt injection
 

@@ -52,6 +52,12 @@ class NoteBacklink(ResponseModel):
     updated_at: str | None = None
 
 
+class NoteCrumb(ResponseModel):
+    id: int
+    title: str
+    updated_at: str | None = None
+
+
 class NoteVersionItem(ResponseModel):
     id: int
     at: str = Field(description="when the page changed from this")
@@ -79,6 +85,8 @@ class NotePage(NotePageItem):
     created_by: str | None = Field(None, description="its writer's email")
     links: list[NoteLink] = []
     backlinks: list[NoteBacklink] = []
+    path: list[NoteCrumb] = Field([], description="the notes it's inside, from the top of the tree down to its parent")
+    children: list[NoteCrumb] = Field([], description="the notes inside it, in the tree's order")
     can_edit: bool = False
 
 

@@ -45,7 +45,8 @@ Each namespace can have its own server, at `/mcp/<namespace>` (`https://lens.exa
 that should see that namespace and nothing else: a family assistant, a project's coding agent, a client's app. It
 has the same tools, but sees only that namespace, whatever else the person who signs the agent in can read. Tools
 that take a namespace use this one when none is named, `list_namespaces` and `list_files` show only it, and the tools
-about the server itself (`file_storage`, `monitoring`, `install_settings` and the ones that change them) aren't there,
+about the server itself (`file_storage`, `monitoring`, `sandbox_gateway`, `install_settings` and the ones that change
+them) aren't there,
 even for admins. An admin counts as an owner of the namespace there.
 
 It is off until an owner of the namespace turns it on: **Admin → Namespaces →** the namespace **→ Connect apps**, which
@@ -140,8 +141,9 @@ which records an undoable change (proposed by default), `undo_graph_change`, `ed
 app (merges and deletes can be undone), `write_note`, which adds a note, `create_podcast`, which
 queues an episode, `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
 editors), `enhance`, which enhances an image and reads it again (the process permission),
-`set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_file_storage`, which changes where new files are kept (admins), and `set_monitoring` and
-`set_install_settings`, which have the machine change how Lens runs (admins).
+`set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_file_storage`, which changes where new files are kept (admins), and `set_monitoring`,
+`set_sandbox_gateway` (the [code sandbox](assistant.md#code-sandbox)'s gateway) and `set_install_settings`, which have
+the machine change how Lens runs (admins).
 Importing stays in the web app and the API.
 
 ### What the archive says is data
