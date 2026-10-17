@@ -24,6 +24,7 @@ import {
   useModelProviders,
   type ModelProvider,
 } from "@/components/settings/model-providers";
+import { SandboxGatewaySwitch } from "@/components/settings/sandbox-gateway";
 import { SignInProviders } from "@/components/settings/sign-in-providers";
 import { UpdatesPanel } from "@/components/settings/updates-panel";
 import { VoicePicker } from "@/components/settings/voice-picker";
@@ -242,9 +243,17 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
     case "analysis":
       return (
         <>
+          <F ctx={ctx} id="analysis.cleanup" />
+          {raw("analysis.cleanup") === true && (
+            <div className="grid gap-3.5 sm:grid-cols-2">
+              <F ctx={ctx} id="analysis.cleanup_fillers" />
+              <F ctx={ctx} id="analysis.cleanup_punctuation" />
+            </div>
+          )}
           <F ctx={ctx} id="analysis.entities" />
           {raw("analysis.entities") === "spacy" && <F ctx={ctx} id="analysis.spacy_model" />}
           <F ctx={ctx} id="analysis.anytopdf" />
+          <F ctx={ctx} id="analysis.dates" />
           <F
             ctx={ctx}
             id="analysis.gazetteer"
@@ -334,6 +343,49 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <p className="text-[12.5px] text-fg-muted">
             Whether a namespace detects or recognises faces is set by its owner. How long face data is kept isn’t
             configurable yet.
+          </p>
+        </>
+      );
+    case "sandbox":
+      return (
+        <>
+          <SandboxGatewaySwitch />
+          <F ctx={ctx} id="sandbox.enabled" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="sandbox.who" />
+            <F ctx={ctx} id="sandbox.network" />
+          </div>
+          {ctx.values["sandbox.network"] === "hosts" && <F ctx={ctx} id="sandbox.hosts" />}
+          <F ctx={ctx} id="sandbox.gateway" />
+          <More
+            ctx={ctx}
+            ids={[
+              "sandbox.image",
+              "sandbox.cpu",
+              "sandbox.memory",
+              "sandbox.seconds",
+              "sandbox.idle_minutes",
+              "sandbox.keep_hours",
+            ]}
+            title="Image, CPU and memory, run time, and how long sandboxes are kept"
+          >
+            <F ctx={ctx} id="sandbox.image" />
+            <div className="grid gap-3 sm:grid-cols-3">
+              <F ctx={ctx} id="sandbox.cpu" />
+              <F ctx={ctx} id="sandbox.memory" />
+              <F ctx={ctx} id="sandbox.seconds" />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <F ctx={ctx} id="sandbox.idle_minutes" />
+              <F ctx={ctx} id="sandbox.keep_hours" />
+            </div>
+          </More>
+          <p className="text-[12.5px] leading-[1.45] text-fg-muted">
+            Each conversation gets a sandbox of its own the first time the assistant runs code in it, and keeps its
+            files between runs. Nothing of Lens’s is inside: the assistant copies in files people attached when it needs
+            them, and a file it makes reaches a namespace only once the person approves. The sandbox runs on an NVIDIA
+            OpenShell gateway: Lens runs one next to itself on a Linux machine with Docker 28 or newer and a kernel with
+            Landlock (6.2 or newer), or point it at one you run elsewhere.
           </p>
         </>
       );
@@ -633,15 +685,26 @@ function LlmBody({ ctx }: { ctx: BodyCtx }) {
       </div>
       <More
         ctx={ctx}
-        ids={["llm.api_key_env", "llm.chat_models", "llm.vision_model", "llm.describe_max"]}
-        title="Models people may pick, pictures, and a key from the environment"
+        ids={["llm.api_key_env", "llm.chat_models"]}
+        title="Models people may pick, and a key from the environment"
       >
         <F ctx={ctx} id="llm.chat_models" />
+        <F ctx={ctx} id="llm.api_key_env" hint="Used only when no key is stored above" />
+      </More>
+      <More
+        ctx={ctx}
+        ids={["llm.describe_engine", "llm.vision_model", "llm.florence_model", "llm.describe_max"]}
+        title="Describing pictures"
+      >
+        <F ctx={ctx} id="llm.describe_engine" />
         <div className="grid gap-3 sm:grid-cols-2">
-          <F ctx={ctx} id="llm.vision_model" />
+          {ctx.state("llm.describe_engine").value === "florence-2" ? (
+            <F ctx={ctx} id="llm.florence_model" />
+          ) : (
+            <F ctx={ctx} id="llm.vision_model" />
+          )}
           <F ctx={ctx} id="llm.describe_max" />
         </div>
-        <F ctx={ctx} id="llm.api_key_env" hint="Used only when no key is stored above" />
       </More>
       <div className="flex flex-wrap items-center gap-2.5">
         <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
@@ -1523,6 +1586,7 @@ function SharesBody({ ctx }: { ctx: BodyCtx }) {
         <F ctx={ctx} id="shares.webdav" />
         <F ctx={ctx} id="shares.webdav_port" />
       </div>
+      <F ctx={ctx} id="shares.remote" />
       <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
         With Docker, the worker container publishes 9555 (S3) and 9556 (WebDAV) where the web app is; set{" "}
         <code className="font-mono">LENS_S3_PORT</code> or <code className="font-mono">LENS_WEBDAV_PORT</code> in .env
@@ -2530,6 +2594,7 @@ const LIMITS = [
   "ai.price_in",
   "ai.price_out",
   "ai.max_steps",
+  "ai.max_tool_calls",
   "ai.browser_steps",
   "ai.max_transcript_reads",
   "ai.compact_model",
@@ -2589,6 +2654,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
           ))}
         </ul>
       </More>
+      <WebSearch ctx={ctx} />
       <More ctx={ctx} ids={LIMITS} title="Approvals, steps, prices and long conversations">
         <div className="grid gap-3 sm:grid-cols-2">
           <F ctx={ctx} id="ai.confirm_over_recordings" />
@@ -2596,6 +2662,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
           <F ctx={ctx} id="ai.price_in" />
           <F ctx={ctx} id="ai.price_out" />
           <F ctx={ctx} id="ai.max_steps" />
+          <F ctx={ctx} id="ai.max_tool_calls" />
           <F ctx={ctx} id="ai.browser_steps" />
           <F ctx={ctx} id="ai.max_transcript_reads" />
           <F ctx={ctx} id="ai.compact_model" />
@@ -2668,6 +2735,69 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
         </div>
       </div>
     </>
+  );
+}
+
+/** Settings › AI assistant › Web search: off until an admin turns it on (DuckDuckGo in one click), then the provider,
+ * its key or address, and how much it reads. */
+function WebSearch({ ctx }: { ctx: BodyCtx }) {
+  const search = ctx.state("web.search");
+  const provider = String(ctx.form["web.search"] ?? "off");
+  const on = provider !== "off";
+  const keyed = provider === "brave" || provider === "tavily";
+  const web = ctx.view.web;
+  const toggle: FieldState = {
+    ...search,
+    value: on,
+    onChange: (v) => search.onChange(v ? "duckduckgo" : "off"),
+  };
+  return (
+    <div className="flex flex-col gap-3">
+      <span className="text-[13px] font-bold leading-tight text-fg-strong">Web search</span>
+      <SettingField
+        spec={{
+          section: "web",
+          key: "search",
+          label: "Let the assistant search the web and read pages",
+          kind: "switch",
+          hint: "For what Lens doesn’t hold; pages are cited like excerpts. Off: nothing leaves this server for it.",
+        }}
+        state={toggle}
+      />
+      {on && (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="web.search" options={ctx.spec("web.search").options?.filter((o) => o.value !== "off")} />
+            <F ctx={ctx} id="web.results" />
+            {provider === "searxng" && <F ctx={ctx} id="web.searxng_url" />}
+          </div>
+          {keyed && (
+            <SecretSetting
+              key={web?.updated_at ?? "none"}
+              label={`${provider === "brave" ? "Brave Search" : "Tavily"} API key`}
+              isSet={Boolean(((web?.values?.api_key ?? {}) as { set?: boolean }).set)}
+              updatedBy={web?.updated_by}
+              updatedAt={web?.updated_at}
+              value={ctx.state("web.api_key").value as string | undefined}
+              onChange={(x) => ctx.state("web.api_key").onChange(x)}
+              hint="Searches past the provider’s free allowance are charged by them; the activity log counts each one."
+            />
+          )}
+          <p className="text-[12.5px] leading-normal text-fg-secondary">
+            {provider === "duckduckgo"
+              ? "DuckDuckGo has no API: Lens reads its results page with ddgs, an unofficial client (about 30 MB, fetched now; Settings › Components shows it) that can stop working when the page changes. SearXNG or a keyed provider is steadier. "
+              : ""}
+            What it searches for goes to the provider, and the pages it reads come straight from their sites, public
+            addresses only. Each search and page is in the activity log. Once an answer has read text from outside Lens,
+            a search or a page you or a tool didn’t give it asks you first.
+          </p>
+          <More ctx={ctx} ids={["web.read_chars", "web.render"]} title="Reading pages">
+            <F ctx={ctx} id="web.read_chars" />
+            <F ctx={ctx} id="web.render" />
+          </More>
+        </>
+      )}
+    </div>
   );
 }
 

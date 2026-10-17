@@ -2,6 +2,73 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-17 · Dates read as days
+
+Adeel: dates extraction. `dates.py` reads the dates each line gives (written out, numeric, and relative to the day)
+into `date_said` as first and last days, worked out from the asset's `recorded_at`, when Settings → Analysis → Read
+dates is on. `GET /api/v1/dates`, MCP `list_dates` and the assistant's `find_dates` find them by day or range with
+their lines. English rules in Lens's own code rather than dateparser: dateparser couldn't read "next Tuesday" or "this
+Friday", and its own search over a line finds dates in ordinary words.
+
+Refine later: DATE entities named by their day, so "next Tuesday" and "20 October" in two assets meet in the graph;
+other languages' month and day names; a Dates view in the web app (a calendar of what was said); times of day.
+
+## 2026-10-17 · Entities found by spaCy
+
+Adeel: NLP libraries for named entities. Settings → Analysis → Entity extraction → spaCy existed but needed spaCy
+installed by hand; it's now a component fetched the first time an asset needs it (the `spacy` extra and a pinned,
+checksummed model wheel: English, German or the multi-language one, all MIT). The defined entities come first, spaCy's
+names fill in around them, and the rules stand in until spaCy is there. Workflows' rules node uses the same extractor.
+
+Refine later: pick the model by the transcript's language; spaCy's medium and large English models (MIT too, 40 to
+560 MB) as options; run spaCy over a recording's lines in one batch.
+
+## 2026-10-17 · Cleaning up transcripts before analysis
+
+Adeel: a text cleaning step before entity extraction and transcript processing, from a punctuation and grammar
+script he pasted. The `clean` step (cleanup.py) runs before `analyze` in the standard pipeline, off until Settings →
+Analysis turns it on: rules take out fillers and stutters and tidy spacing and capitals, each change kept in the edit
+history with Revert. The script's alternating "Speaker 1 / Speaker 2" labels aren't carried over: Lens tells voices
+apart by diarization, or keeps the labels a transcript came with.
+
+Next: punctuation restored by a local model (the script's deepmultilingualpunctuation, fetched on first use), grammar
+from a LanguageTool server, spaCy fetched for named entities, and dates found and normalised.
+
+Refine later: revert a whole cleanup at once; cleanup rules for other languages' fillers; per-namespace switch.
+
+## 2026-10-17 · Describing pictures with Florence-2 on this machine
+
+Adeel: use Moondream 3 and/or Microsoft Florence for visual descriptions. Florence-2 (MIT) is now a describe engine
+(`llm.describe_engine` `florence-2`): its 8-bit ONNX export runs on ONNX Runtime on the CPU, fetched on first use,
+pinned and hashed, base or large. It runs a Raspberry Pi's way (no PyTorch, about 280 MB for base) and needs no model
+provider. Checked on two photos here: base takes about 3 s a picture on four CPU cores, large about 9 s, and both say
+plainly what each shows.
+
+Moondream 3 comes next as an opt-in engine. Its licences aren't open: Moondream 3 Preview's weights are BSL 1.1 (with
+a production use grant; Apache-2.0 two years after release) and Moondream 3.1's are the Moondream Model License; 3.1
+runs only on Photon, whose kernels (`kestrel-kernels`) are proprietary and licensed only under a separate agreement, so
+Lens won't install Photon. Moondream 3 Preview runs through Hugging Face transformers (permissive) on an NVIDIA GPU or
+a Mac with enough memory (about 19 GB of weights): not on a Pi.
+
+Refine later: beam search (the model's own default is three beams; greedy with no repeated trigrams matches it on the
+photos tried); Florence-2's OCR task beside the OCR step; a GPU (CUDA or CoreML execution provider) when there is one;
+the Q4 exports for a smaller download; describing only the pictures NSFW classification didn't flag.
+
+## 2026-10-15 · Entity types beyond Term
+
+Adeel: "every entity comes as term? why!!". The default rules extractor typed a capitalised name PERSON only after a
+title, ORG only before Inc/Corp-like words and PRODUCT with a digit; everything else (people, places, most
+organisations) was TERM. `name_types.py` now types names from built-in lists (given names, places, well-known
+organisations and products, holidays), the words a name starts or ends with, roles and "called" phrases before it,
+verbs of saying after it and the namespace's named speakers; a recording gives each name one type. Upgrade step
+`entity-types` retypes old analysis-made Terms, skipping types people or agents set (graph history and audit log).
+
+Refine later: the decision model (Jev or Laya) for the names the rules leave as Terms, in analysis and as an action
+on existing Terms (next PR); place, name and brand lists for more languages and regions (Custom vocabulary in
+Settings covers one install's own names); type existing entities again when a later recording gives better evidence
+(needs a marker for types people set, kept out of the versioned rows); "Google Cloud"-like names (a known company,
+then a word) as products.
+
 ## 2026-10-14 · Long recordings in pieces a speech provider takes
 
 Adeel: large audio files are segmented automatically to each transcription provider's limits. `speech.Engine` cuts a

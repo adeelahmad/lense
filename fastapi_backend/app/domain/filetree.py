@@ -16,8 +16,9 @@ topics shows under each.
 
 What someone sees is what the web app shows them: the namespaces they have a role in (admins: all of them), and in a
 namespace where they only have roles on some collections, those collections and the topics and entities of the
-assets in them. The tree only reads; names are made safe for every file system (no `/ \\ : * ? " < > |`) and unique
-in their folder, ignoring case.
+assets in them. Names are made safe for every file system (no `/ \\ : * ? " < > |`) and unique in their folder,
+ignoring case. The tree itself only reads: a file someone adds through a share is imported by share_import.py, which
+shows it to them under the name they gave it for a while (overlay).
 """
 
 from __future__ import annotations
@@ -58,17 +59,24 @@ class NotAFolder(ValueError):
 @dataclass(frozen=True)
 class Viewer:
     """Who is looking: an admin sees every namespace; others their namespaces (`roles`) and, in namespaces they have
-    no role in, the collections they were given a role on, with the ones inside them (`collections`)."""
+    no role in, the collections they were given a role on, with the ones inside them (`collections`). `account` and
+    `perms` (their permissions in each namespace, roles.py) are for adding files (share_import.py)."""
 
     admin: bool = False
     roles: dict[int, str] = field(default_factory=dict)
     collections: dict[int, dict[int, str]] = field(default_factory=dict)
+    account: int | None = None
+    perms: dict[int, frozenset[str]] = field(default_factory=dict)
 
     @classmethod
     def of(cls, db, account: dict[str, Any]) -> Viewer:
         """For an account row ({id, admin})."""
+        from . import roles as rl
+
         admin = bool(account.get("admin"))
-        return cls(admin, auth.roles(db, account), {} if admin else hierarchy.roles_of(db, account["id"]))
+        perms = auth.permissions(db, account)
+        roles = {sid: rl.rank(p) for sid, p in perms.items()}  # as auth.roles
+        return cls(admin, roles, {} if admin else hierarchy.roles_of(db, account["id"]), account.get("id"), perms)
 
     def spaces(self, db) -> dict[int, set[int] | None]:
         """{namespace: None (all of it) or the collections seen}."""
@@ -84,7 +92,9 @@ class Viewer:
 @dataclass
 class Entry:
     """A file or a folder. A file's bytes come from `data` (made here) or `path` (stored, maybe encrypted) or a storage
-    source (`remote`: {source, path, space})."""
+    source (`remote`: {source, path, space}). `added` marks a file someone just added through a share, shown to them
+    under the name they gave it (share_import.py): "arrived" (imported: the asset's own file) or "pending" (kept
+    aside, not imported)."""
 
     name: str
     folder: bool
@@ -95,11 +105,14 @@ class Entry:
     path: str | None = None
     encrypted: bool = False
     remote: dict[str, Any] | None = None
+    added: str | None = None
+    md5: str | None = None  # of a file just added, as the client sent it (its ETag over S3)
+    mtime: str | None = None  # the time the client gave a file just added, as it wrote it (rclone's x-amz-meta-mtime)
 
     @property
     def version(self) -> str:
-        """Changes when the file does (for ETags): its name, size and time."""
-        return hashlib.sha256(f"{self.name}\0{self.size}\0{self.modified}".encode()).hexdigest()[:24]
+        """Changes when the file does (for ETags): its name, size and time; a file just added, its MD5."""
+        return self.md5 or hashlib.sha256(f"{self.name}\0{self.size}\0{self.modified}".encode()).hexdigest()[:24]
 
     def out(self) -> dict[str, Any]:
         d: dict[str, Any] = {"name": self.name, "folder": self.folder, "modified": self.modified}
@@ -203,7 +216,23 @@ class Tree:
                 raise NotAFolder(path) from None
             raise
 
+    def forget(self) -> None:
+        """Read the database afresh from now on (after a file was added or a collection made)."""
+        self._cols.clear()
+        self._seen.clear()
+        self._topic_rows.clear()
+
     def _list(self, parts: list[str]) -> list[Entry]:
+        out = self._listing(parts)
+        if parts and self.viewer.account is not None:
+            from . import share_import
+
+            extra = share_import.overlay(self, parts, {e.name for e in out})
+            if extra:
+                out = sorted(out + extra, key=lambda e: e.name.casefold())
+        return out
+
+    def _listing(self, parts: list[str]) -> list[Entry]:
         if not parts:
             return [_folder(n) for n in sorted(self._names.values(), key=str.casefold)]
         sid = self._space(parts[0])

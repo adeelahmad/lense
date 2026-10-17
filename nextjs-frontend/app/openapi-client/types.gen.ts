@@ -3384,6 +3384,18 @@ export type Chat = {
    */
   model?: string | null;
   /**
+   * Tools
+   *
+   * the tool groups and tools its answers may use; null: Auto
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in each answer; null: no limit but the rounds
+   */
+  max_tool_calls?: number | null;
+  /**
    * Created At
    */
   created_at?: string | null;
@@ -3441,9 +3453,15 @@ export type ChatCapabilities = {
   /**
    * Max Steps
    *
-   * the most tool calls it makes for one answer
+   * the most rounds of tool calls it makes for one answer (a round makes one call or more)
    */
   max_steps: number;
+  /**
+   * Max Tool Calls
+   *
+   * the most tool calls a question may give one answer (`max_tool_calls`)
+   */
+  max_tool_calls?: number;
   /**
    * Check
    *
@@ -3562,6 +3580,18 @@ export type ChatCreate = {
    * the model that answers in it (one of GET /chats/capabilities `models`); null: the configured one
    */
   model?: string | null;
+  /**
+   * Tools
+   *
+   * what its answers may use: tool groups and tools (GET /chats/tools); [] for none; left out: your latest choice (PATCH /chats/{cid}), else Auto
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in each answer (1 to ai.max_tool_calls); left out: your latest choice
+   */
+  max_tool_calls?: number | null;
 };
 
 /**
@@ -3743,6 +3773,18 @@ export type ChatSummary = {
    */
   model?: string | null;
   /**
+   * Tools
+   *
+   * the tool groups and tools its answers may use; null: Auto
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in each answer; null: no limit but the rounds
+   */
+  max_tool_calls?: number | null;
+  /**
    * Created At
    */
   created_at?: string | null;
@@ -3750,6 +3792,35 @@ export type ChatSummary = {
    * Updated At
    */
   updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ChatTools
+ */
+export type ChatTools = {
+  /**
+   * Groups
+   *
+   * the built-in groups, then your extensions' (mcp:<server>, ext:<extension>)
+   */
+  groups: Array<ToolGroup>;
+  /**
+   * Max Tool Calls
+   *
+   * the most tool calls one answer may be given (ai.max_tool_calls)
+   */
+  max_tool_calls: number;
+  /**
+   * your latest choice, which new conversations start with
+   */
+  remembered: ToolChoice;
+  /**
+   * Namespaces Note
+   *
+   * what the choice of namespaces doesn't narrow
+   */
+  namespaces_note?: string;
   [key: string]: unknown;
 };
 
@@ -3768,6 +3839,136 @@ export type ChatUpdate = {
    * the model that answers in it (one of GET /chats/capabilities `models`); null: the configured one
    */
   model?: string | null;
+  /**
+   * Tools
+   *
+   * what its answers may use: tool groups and tools (GET /chats/tools); [] for none; null: Auto (everything you may use). Your new conversations start with it too
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in each answer (1 to ai.max_tool_calls); null: no limit but the rounds
+   */
+  max_tool_calls?: number | null;
+};
+
+/**
+ * ClassifyRequest
+ *
+ * Give a `recording` or a `text`, and `labels` or a `vocabulary`.
+ */
+export type ClassifyRequest = {
+  /**
+   * Recording
+   *
+   * the asset to classify
+   */
+  recording?: number | null;
+  /**
+   * Text
+   *
+   * text to classify instead
+   */
+  text?: string | null;
+  /**
+   * Labels
+   *
+   * the labels to choose from (2 to 60): names, or {name: what it means}
+   */
+  labels?:
+    | {
+        [key: string]: string;
+      }
+    | Array<string>
+    | null;
+  /**
+   * Vocabulary
+   *
+   * choose from Lens's content types (of the asset's kind), or the namespace's topics
+   */
+  vocabulary?: "content_type" | "topic" | null;
+  /**
+   * Namespace
+   *
+   * whose topics, when classifying a text by topic
+   */
+  namespace?: string | null;
+  /**
+   * Question
+   *
+   * what to ask (default: which label fits best)
+   */
+  question?: string | null;
+  /**
+   * Apply
+   *
+   * act on a sure answer: set the content type, suggest the topic, or add the label as a tag (editors)
+   */
+  apply?: boolean;
+};
+
+/**
+ * ClassifyResult
+ */
+export type ClassifyResult = {
+  /**
+   * Choice
+   *
+   * the label that fits best
+   */
+  choice: string;
+  /**
+   * Confidence
+   *
+   * how sure, from 0 to 1
+   */
+  confidence: number;
+  /**
+   * Sure
+   *
+   * sure enough to act on without asking (decisions.act_above)
+   */
+  sure: boolean;
+  /**
+   * Ranked
+   *
+   * every label, the likeliest first
+   */
+  ranked: Array<RankedLabel>;
+  /**
+   * By
+   *
+   * what answered: jev, laya, llm, or only option
+   */
+  by: string;
+  /**
+   * Vocabulary
+   */
+  vocabulary?: string | null;
+  /**
+   * Question
+   */
+  question: string;
+  /**
+   * Applied
+   *
+   * what was done with a sure answer, when apply was asked
+   */
+  applied?: "content_type" | "topic_suggested" | "tag" | null;
+  /**
+   * Key
+   *
+   * content_type: the chosen content type's key
+   */
+  key?: string | null;
+  /**
+   * Id
+   *
+   * topic: the chosen topic's id
+   */
+  id?: number | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -5299,6 +5500,114 @@ export type CustomNodeVersionCreate = {
    * Notes
    */
   notes?: string | null;
+};
+
+/**
+ * DateList
+ */
+export type DateList = {
+  /**
+   * Total
+   */
+  total: number;
+  /**
+   * Items
+   */
+  items: Array<DateSaid>;
+  /**
+   * Reading
+   *
+   * whether analysis reads dates (Settings → Analysis → Read dates); off, nothing new is read
+   */
+  reading: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * DateSaid
+ *
+ * A date an asset's line gives, as days on the calendar.
+ */
+export type DateSaid = {
+  /**
+   * Day
+   *
+   * the first day it means, YYYY-MM-DD
+   */
+  day: string;
+  /**
+   * Until
+   *
+   * the last day it means: the same day for a day, the Sunday for a week, the 31st for a month
+   */
+  until: string;
+  /**
+   * Period
+   *
+   * day, weekend, week, month or year
+   */
+  period: string;
+  /**
+   * Said
+   *
+   * the words that give it, like "next Tuesday" or "3 March 2024"
+   */
+  said: string;
+  /**
+   * Relative
+   *
+   * worked out from the asset's own date (recorded_at): a day said relative to it, or without its year
+   */
+  relative: boolean;
+  /**
+   * Recording Id
+   */
+  recording_id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Recorded At
+   */
+  recorded_at?: string | null;
+  /**
+   * Segment
+   *
+   * the line's id
+   */
+  segment: number;
+  /**
+   * Idx
+   *
+   * the line's place in the asset's text
+   */
+  idx: number;
+  /**
+   * T0
+   *
+   * ms
+   */
+  t0?: number | null;
+  /**
+   * Time
+   */
+  time?: string | null;
+  /**
+   * Speaker
+   */
+  speaker?: string | null;
+  /**
+   * Text
+   *
+   * the line
+   */
+  text?: string | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -7511,6 +7820,460 @@ export type FileUpdate = {
 };
 
 /**
+ * FindItem
+ */
+export type FindItem = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Recorded At
+   */
+  recorded_at?: string | null;
+  /**
+   * Duration Ms
+   */
+  duration_ms?: number | null;
+  /**
+   * Status
+   */
+  status?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Source
+   */
+  source?: string | null;
+  /**
+   * Space
+   */
+  space: number;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Collection
+   *
+   * the collection it lives in
+   */
+  collection?: number | null;
+  /**
+   * Collection Name
+   */
+  collection_name?: string | null;
+  /**
+   * Media Kind
+   *
+   * audio, video, transcript (text without media), document or image
+   */
+  media_kind: string;
+  /**
+   * Pages
+   *
+   * a document's or an image's pages
+   */
+  pages?: number | null;
+  /**
+   * Poster
+   *
+   * signed link to a video's first frame, or a document's or image's first page
+   */
+  poster?: string | null;
+  /**
+   * Emotions
+   */
+  emotions?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Words
+   */
+  words?: number | null;
+  /**
+   * Importance
+   */
+  importance?: unknown;
+  /**
+   * Sentiment
+   */
+  sentiment?: unknown;
+  /**
+   * Speakers
+   *
+   * names of the people in it, comma separated
+   */
+  speakers?: string;
+  /**
+   * Access
+   *
+   * its own access, or its namespace's default
+   */
+  access?: "public" | "restricted" | "private";
+  /**
+   * Open
+   *
+   * the parts anyone may use when it is public
+   */
+  open?: Array<"media" | "transcript" | "index">;
+  /**
+   * Featured
+   */
+  featured?: boolean;
+  /**
+   * Tags
+   */
+  tags?: Array<string>;
+  /**
+   * Language
+   *
+   * its language code, when known
+   */
+  language?: string | null;
+  /**
+   * Origin
+   *
+   * where it came from: source:<id> (a connected source), upload, paste, iiif, folder or file
+   */
+  origin?: string | null;
+  /**
+   * Origin Name
+   *
+   * what to call its origin: the source's name, or e.g. Uploaded
+   */
+  origin_name?: string | null;
+  /**
+   * Role
+   *
+   * your role on it: through its namespace or its collection (an admin of the collection is an owner)
+   */
+  role?: "viewer" | "editor" | "owner" | null;
+  /**
+   * NSFW classification, where it's on in its namespace and it was classified
+   */
+  nsfw?: NsfwState | null;
+  /**
+   * Why
+   *
+   * why it matched
+   */
+  why?: Array<FindReason>;
+  [key: string]: unknown;
+};
+
+/**
+ * FindMoment
+ */
+export type FindMoment = {
+  /**
+   * T0
+   *
+   * ms from the start, on a timeline
+   */
+  t0?: number | null;
+  /**
+   * T1
+   *
+   * ms, where it ends
+   */
+  t1?: number | null;
+  /**
+   * Page
+   *
+   * in a document or an image: the page (from 0)
+   */
+  page?: number | null;
+  /**
+   * Last Page
+   *
+   * a face over several pages: the last of them
+   */
+  last_page?: number | null;
+  /**
+   * Text
+   *
+   * the words there, when it has any
+   */
+  text?: string | null;
+  /**
+   * Speaker
+   */
+  speaker?: string | null;
+  /**
+   * Source
+   *
+   * words: said, screen, file, page, object or described (as search has it)
+   */
+  source?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * FindNamed
+ */
+export type FindNamed = {
+  /**
+   * Id
+   */
+  id?: number | null;
+  /**
+   * Key
+   */
+  key?: string | null;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * FindQuery
+ *
+ * Filters combine with AND, the values of one filter with OR. Faces, speakers, entities and topics are ids or names
+ * (ignoring case; an entity's other names count, and any of a topic's labels).
+ */
+export type FindQuery = {
+  /**
+   * Namespace
+   *
+   * one namespace (default: every namespace you can read)
+   */
+  namespace?: string | null;
+  /**
+   * Text
+   *
+   * words said or written in them, as search takes them (words, "phrases", OR); by meaning too when that is set up
+   */
+  text?: string | null;
+  /**
+   * Title
+   *
+   * words that must all appear in the title, the namespace or a person's name
+   */
+  title?: string | null;
+  /**
+   * Faces
+   *
+   * people seen in them: face identities, by id or name
+   */
+  faces?: Array<number | string> | null;
+  /**
+   * Speakers
+   *
+   * people heard in them: speakers, by id or name
+   */
+  speakers?: Array<number | string> | null;
+  /**
+   * Entities
+   *
+   * entities they mention, by id or name
+   */
+  entities?: Array<number | string> | null;
+  /**
+   * Topics
+   *
+   * topics they were accepted as about, by id or label; a topic's narrower topics count too
+   */
+  topics?: Array<number | string> | null;
+  /**
+   * Types
+   *
+   * their kind: audio, video, transcript, document or image
+   */
+  types?: Array<"audio" | "video" | "transcript" | "document" | "image"> | null;
+  /**
+   * Content Types
+   *
+   * content types (podcast, interview, scan, photo, email …, GET /content-types), by key or label
+   */
+  content_types?: Array<string> | null;
+  /**
+   * Date From
+   *
+   * made on or after this day, month or year (2026-09-30, 2026-09, 2026)
+   */
+  date_from?: string | null;
+  /**
+   * Date To
+   *
+   * made on or before this day, month or year
+   */
+  date_to?: string | null;
+  /**
+   * Min Duration
+   *
+   * at least this many seconds long
+   */
+  min_duration?: number | null;
+  /**
+   * Max Duration
+   *
+   * shorter than this many seconds
+   */
+  max_duration?: number | null;
+  /**
+   * Tags
+   *
+   * tags (ignoring case)
+   */
+  tags?: Array<string> | null;
+  /**
+   * Languages
+   *
+   * language codes; none for those whose language isn't known
+   */
+  languages?: Array<string> | null;
+  /**
+   * Objects
+   *
+   * kinds of object seen in them (person, car, dog …)
+   */
+  objects?: Array<string> | null;
+  /**
+   * Emotions
+   *
+   * emotions heard in them (ignoring case)
+   */
+  emotions?: Array<string> | null;
+  /**
+   * Status
+   *
+   * statuses, or processing and failed
+   */
+  status?: Array<"new" | "transcribed" | "diarized" | "analyzed" | "error" | "processing" | "failed"> | null;
+  /**
+   * Origins
+   *
+   * where they came from: source:<id>, upload, paste, iiif, folder or file
+   */
+  origins?: Array<string> | null;
+  /**
+   * Collection
+   *
+   * a collection: what's in it and in the collections inside it
+   */
+  collection?: number | null;
+  /**
+   * Sensitive
+   *
+   * where NSFW classification is on: only those flagged, exclude them, or include them
+   */
+  sensitive?: "include" | "only" | "exclude" | null;
+  /**
+   * Sort
+   *
+   * relevance (the default with text: best matching words first), else newest first
+   */
+  sort?: "relevance" | "-date" | "date" | "-title" | "title" | "-duration" | "duration" | null;
+  /**
+   * Limit
+   */
+  limit?: number;
+  /**
+   * Offset
+   */
+  offset?: number;
+};
+
+/**
+ * FindReason
+ */
+export type FindReason = {
+  /**
+   * By
+   */
+  by: "words" | "face" | "voice" | "entity" | "topic" | "content_type" | "object" | "emotion";
+  /**
+   * Name
+   *
+   * what matched: the words, the person's or the entity's name, the topic's label …
+   */
+  name?: string | null;
+  /**
+   * Moments
+   *
+   * up to 3 moments that show it, to cite
+   */
+  moments?: Array<FindMoment>;
+  /**
+   * Count
+   *
+   * emotion: how many lines have it
+   */
+  count?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * FindResults
+ */
+export type FindResults = {
+  /**
+   * Total
+   *
+   * how many assets match, on all pages
+   */
+  total: number;
+  /**
+   * Items
+   */
+  items: Array<FindItem>;
+  /**
+   * Resolved
+   *
+   * what the names given matched, by filter (and how many narrower topics came with them)
+   */
+  resolved?: {
+    [key: string]: Array<FindNamed> | number;
+  };
+  text?: FindText | null;
+  [key: string]: unknown;
+};
+
+/**
+ * FindText
+ */
+export type FindText = {
+  /**
+   * Mode
+   *
+   * how the words were matched: keyword, semantic or hybrid
+   */
+  mode: string;
+  /**
+   * Meaning
+   *
+   * why not by meaning, when it was asked and couldn't be
+   */
+  meaning?: string | null;
+  /**
+   * Moments
+   *
+   * moments the words were found in
+   */
+  moments: number;
+  /**
+   * Capped
+   *
+   * more moments matched than were looked through, so some assets may be missing
+   */
+  capped: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * ForgotPasswordRequest
  */
 export type ForgotPasswordRequest = {
@@ -8913,6 +9676,51 @@ export type ImportResult = {
    * Job
    */
   job: number;
+  [key: string]: unknown;
+};
+
+/**
+ * ImportTarget
+ *
+ * Where pushes with a token go (GET /hooks/import).
+ */
+export type ImportTarget = {
+  /**
+   * Kind
+   *
+   * an import webhook's token, or a person's own
+   */
+  kind: "hook" | "person";
+  /**
+   * Hook
+   *
+   * the hook's name
+   */
+  hook?: string | null;
+  /**
+   * Email
+   *
+   * whom a person's own token acts as
+   */
+  email?: string | null;
+  /**
+   * Namespace
+   *
+   * where a push goes without ?namespace=; null when there's a choice
+   */
+  namespace?: string | null;
+  /**
+   * Namespaces
+   *
+   * every namespace this token can push into
+   */
+  namespaces?: Array<string>;
+  /**
+   * Write
+   *
+   * false for a read-only API token, which can't push
+   */
+  write: boolean;
   [key: string]: unknown;
 };
 
@@ -10871,6 +11679,22 @@ export type MessageCreate = {
    * voice: said in a voice conversation (the question's record keeps it)
    */
   via?: "voice" | null;
+  /**
+   * Tools
+   *
+   * what this answer may use: tool groups (archive, notes, mcp:tracker) and tools, as GET /chats/tools lists them; [] for none (it answers from a search); null: the conversation's choice, else Auto (everything you may use). An admin's switch still wins
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in this answer (1 to ai.max_tool_calls); null: the conversation's
+   */
+  max_tool_calls?: number | null;
+  /**
+   * what this answer draws on, instead of the conversation's scope (which stays as it is); {} for everything you can read
+   */
+  scope?: ChatScope | null;
 };
 
 /**
@@ -12047,6 +12871,24 @@ export type NoteBacklink = {
 };
 
 /**
+ * NoteCopy
+ */
+export type NoteCopy = {
+  /**
+   * Title
+   *
+   * its title (default: the page's)
+   */
+  title?: string | null;
+  /**
+   * Parent
+   *
+   * put it inside this page (default: the top)
+   */
+  parent?: number | null;
+};
+
+/**
  * NoteCreate
  */
 export type NoteCreate = {
@@ -12078,6 +12920,25 @@ export type NoteCreate = {
    * share it with everyone who can read the asset (needs editor access)
    */
   shared?: boolean;
+};
+
+/**
+ * NoteCrumb
+ */
+export type NoteCrumb = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -12445,6 +13306,18 @@ export type NotePage = {
    */
   backlinks?: Array<NoteBacklink>;
   /**
+   * Path
+   *
+   * the notes it's inside, from the top of the tree down to its parent
+   */
+  path?: Array<NoteCrumb>;
+  /**
+   * Children
+   *
+   * the notes inside it, in the tree's order
+   */
+  children?: Array<NoteCrumb>;
+  /**
    * Can Edit
    */
   can_edit?: boolean;
@@ -12708,6 +13581,58 @@ export type NoteSearch = {
    */
   pages: Array<NoteHit>;
   [key: string]: unknown;
+};
+
+/**
+ * NoteTemplate
+ */
+export type NoteTemplate = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Summary
+   */
+  summary?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * NoteTemplates
+ */
+export type NoteTemplates = {
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Root
+   *
+   * the "Templates" note: each note inside it is a template; null until made
+   */
+  root?: number | null;
+  /**
+   * Templates
+   */
+  templates: Array<NoteTemplate>;
+  [key: string]: unknown;
+};
+
+/**
+ * NoteTemplatesCreate
+ */
+export type NoteTemplatesCreate = {
+  /**
+   * Ns
+   *
+   * the namespace whose Templates note to make
+   */
+  ns: string;
 };
 
 /**
@@ -13645,6 +14570,8 @@ export type PageContext = {
 
 /**
  * Passage
+ *
+ * A numbered excerpt an answer can cite: a moment of an asset, or a web page (`source` "web", with its `url`).
  */
 export type Passage = {
   /**
@@ -13653,8 +14580,34 @@ export type Passage = {
   n: number;
   /**
    * Recording Id
+   *
+   * the asset it's from; none for a web page
    */
-  recording_id: number;
+  recording_id?: number | null;
+  /**
+   * Source
+   *
+   * what it is: said (speech), page (a document's), screen (text shown in a video), memory, or web
+   */
+  source?: string | null;
+  /**
+   * Url
+   *
+   * a web page's address (source web): the citation opens it
+   */
+  url?: string | null;
+  /**
+   * Site
+   *
+   * a web page's site, like example.com
+   */
+  site?: string | null;
+  /**
+   * Fetched At
+   *
+   * when the web page or search result was read
+   */
+  fetched_at?: string | null;
   /**
    * Title
    */
@@ -15577,6 +16530,35 @@ export type Pushed = {
 };
 
 /**
+ * RankedLabel
+ */
+export type RankedLabel = {
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * P
+   *
+   * how likely, from 0 to 1
+   */
+  p: number;
+  /**
+   * Key
+   *
+   * content_type: the content type's key
+   */
+  key?: string | null;
+  /**
+   * Id
+   *
+   * topic: the topic's id
+   */
+  id?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * RcloneSignIn
  */
 export type RcloneSignIn = {
@@ -15639,6 +16621,7 @@ export type RcloneSignInStart = {
     | "gmail"
     | "ical"
     | "gcal"
+    | "rss"
     | null;
   /**
    * Source
@@ -17618,13 +18601,156 @@ export type S3Status = {
    * what the process running it says; none while it's off
    */
   service?: S3Service | null;
+  /**
+   * Add Files
+   *
+   * whether files people add through it are imported (shares.add_files)
+   */
+  add_files?: boolean;
   webdav: ShareServer;
+  /**
+   * Remote
+   *
+   * whether an admin opened both at the web app's address too, /s3 and /dav (shares.remote), so remote access reaches them
+   */
+  remote?: boolean;
   /**
    * Keys
    *
    * your access keys
    */
   keys: Array<S3Key>;
+  [key: string]: unknown;
+};
+
+/**
+ * SandboxFile
+ *
+ * A file the code sandbox handed the person: GET /chats/{cid}/files/{id} downloads it.
+ */
+export type SandboxFile = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Size
+   */
+  size: number;
+  [key: string]: unknown;
+};
+
+/**
+ * SandboxGateway
+ */
+export type SandboxGateway = {
+  /**
+   * On
+   *
+   * the sandbox profile (the code sandbox's OpenShell gateway) as last asked
+   */
+  on: boolean;
+  /**
+   * State
+   *
+   * how the machine's last change went
+   */
+  state?: "queued" | "running" | "done" | "failed" | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Asked At
+   */
+  asked_at?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Agent
+   *
+   * what changes it on this machine (systemd, launchd); none: run `manual` there
+   */
+  agent?: string | null;
+  /**
+   * Manual
+   *
+   * the line that starts it by hand, on the machine Lens runs on
+   */
+  manual: string;
+  /**
+   * Preflight
+   *
+   * what stands in the way of running it on this machine, a sentence each
+   */
+  preflight: Array<string>;
+  /**
+   * Address
+   *
+   * where Lens reaches the gateway (sandbox.gateway)
+   */
+  address: string;
+  /**
+   * Reachable
+   *
+   * whether the gateway answered and let Lens in; null: not checked
+   */
+  reachable?: boolean | null;
+  /**
+   * Problem
+   *
+   * why it didn't, when it didn't
+   */
+  problem?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SandboxGatewayRequest
+ */
+export type SandboxGatewayRequest = {
+  /**
+   * On
+   *
+   * start (true) or stop (false) the code sandbox's gateway; stopping deletes its sandboxes
+   */
+  on: boolean;
+};
+
+/**
+ * SandboxOutput
+ *
+ * What a code sandbox run printed, as its step shows it (the start of stdout, the end of stderr).
+ */
+export type SandboxOutput = {
+  /**
+   * Stdout
+   */
+  stdout?: string;
+  /**
+   * Stderr
+   */
+  stderr?: string;
+  /**
+   * Exit Code
+   */
+  exit_code?: number | null;
+  /**
+   * Timed Out
+   */
+  timed_out?: boolean;
+  /**
+   * Cut
+   *
+   * there was more than this
+   */
+  cut?: boolean;
   [key: string]: unknown;
 };
 
@@ -19135,6 +20261,12 @@ export type ShareServer = {
    * what the process running it says; none while it's off
    */
   service?: S3Service | null;
+  /**
+   * Add Files
+   *
+   * whether files people add through it are imported (shares.add_files)
+   */
+  add_files?: boolean;
   [key: string]: unknown;
 };
 
@@ -19607,7 +20739,19 @@ export type Source = {
    * Type
    */
   type:
-    "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "gmail" | "ical" | "gcal";
+    | "s3"
+    | "dropbox"
+    | "drive"
+    | "onedrive"
+    | "sftp"
+    | "smb"
+    | "webdav"
+    | "local"
+    | "imap"
+    | "gmail"
+    | "ical"
+    | "gcal"
+    | "rss";
   /**
    * Label
    */
@@ -19652,7 +20796,19 @@ export type SourceCreate = {
    * Type
    */
   type:
-    "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "gmail" | "ical" | "gcal";
+    | "s3"
+    | "dropbox"
+    | "drive"
+    | "onedrive"
+    | "sftp"
+    | "smb"
+    | "webdav"
+    | "local"
+    | "imap"
+    | "gmail"
+    | "ical"
+    | "gcal"
+    | "rss";
   /**
    * Params
    */
@@ -21203,6 +22359,101 @@ export type TokenPair = {
 };
 
 /**
+ * ToolChoice
+ */
+export type ToolChoice = {
+  /**
+   * Tools
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   */
+  max_tool_calls?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ToolGroup
+ */
+export type ToolGroup = {
+  /**
+   * Name
+   *
+   * what `tools` names it by: a built-in group, mcp:<server> or ext:<extension>
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Tools
+   */
+  tools: Array<ToolInfo>;
+  /**
+   * Asks
+   *
+   * one of its tools waits for your yes
+   */
+  asks: boolean;
+  /**
+   * Out
+   *
+   * one of its tools sends data to another host
+   */
+  out: boolean;
+  /**
+   * Available
+   *
+   * you have one of its tools now
+   */
+  available: boolean;
+  /**
+   * Why
+   *
+   * why you don't, when you have none
+   */
+  why?: string | null;
+  /**
+   * Setting
+   *
+   * the setting that would change that (section.key), for admins
+   */
+  setting?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ToolInfo
+ */
+export type ToolInfo = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Effect
+   *
+   * read: it looks things up; asks: it waits for your yes; out: it sends what it's given to another host
+   */
+  effect: "read" | "asks" | "out";
+  /**
+   * Out
+   *
+   * it sends what it's given to another host (and asks first after outside text)
+   */
+  out?: boolean;
+  /**
+   * Available
+   *
+   * you have it now
+   */
+  available: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * ToolStep
  */
 export type ToolStep = {
@@ -21220,6 +22471,14 @@ export type ToolStep = {
    * Summary
    */
   summary?: string;
+  /**
+   * a code sandbox run's output
+   */
+  output?: SandboxOutput | null;
+  /**
+   * a file to download, from share_sandbox_file
+   */
+  file?: SandboxFile | null;
   /**
    * Ms
    *
@@ -26354,6 +27613,47 @@ export type SetMonitoringResponses = {
 
 export type SetMonitoringResponse = SetMonitoringResponses[keyof SetMonitoringResponses];
 
+export type GetSandboxGatewayData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/sandbox";
+};
+
+export type GetSandboxGatewayResponses = {
+  /**
+   * Successful Response
+   */
+  200: SandboxGateway;
+};
+
+export type GetSandboxGatewayResponse = GetSandboxGatewayResponses[keyof GetSandboxGatewayResponses];
+
+export type SetSandboxGatewayData = {
+  body: SandboxGatewayRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/sandbox";
+};
+
+export type SetSandboxGatewayErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetSandboxGatewayError = SetSandboxGatewayErrors[keyof SetSandboxGatewayErrors];
+
+export type SetSandboxGatewayResponses = {
+  /**
+   * Successful Response
+   */
+  202: SandboxGateway;
+};
+
+export type SetSandboxGatewayResponse = SetSandboxGatewayResponses[keyof SetSandboxGatewayResponses];
+
 export type ListBackupsData = {
   body?: never;
   path?: never;
@@ -29120,6 +30420,36 @@ export type ListRecordingsData = {
      */
     sensitive?: "include" | "only" | "exclude" | null;
     /**
+     * Face
+     *
+     * face identity ids: the assets they're seen in; repeat for several
+     */
+    face?: Array<number> | null;
+    /**
+     * Entity
+     *
+     * entity ids: the assets mentioning them; repeat for several
+     */
+    entity?: Array<number> | null;
+    /**
+     * Topic
+     *
+     * topic ids: the assets accepted as about them (not their narrower topics); repeat for several
+     */
+    topic?: Array<number> | null;
+    /**
+     * Content Type
+     *
+     * content type keys (podcast, scan, email …; GET /content-types): their assets; repeat for several
+     */
+    content_type?: Array<string> | null;
+    /**
+     * Emotion
+     *
+     * emotions heard in them (ignoring case); repeat for several
+     */
+    emotion?: Array<string> | null;
+    /**
      * Collection
      *
      * a collection: the assets in it and in the collections inside it
@@ -30700,6 +32030,61 @@ export type TodayPageResponses = {
 
 export type TodayPageResponse = TodayPageResponses[keyof TodayPageResponses];
 
+export type ListTemplatesData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Ns
+     */
+    ns: string;
+  };
+  url: "/api/v1/notes/templates";
+};
+
+export type ListTemplatesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListTemplatesError = ListTemplatesErrors[keyof ListTemplatesErrors];
+
+export type ListTemplatesResponses = {
+  /**
+   * Successful Response
+   */
+  200: NoteTemplates;
+};
+
+export type ListTemplatesResponse = ListTemplatesResponses[keyof ListTemplatesResponses];
+
+export type TemplatesNoteData = {
+  body: NoteTemplatesCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/notes/templates";
+};
+
+export type TemplatesNoteErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TemplatesNoteError = TemplatesNoteErrors[keyof TemplatesNoteErrors];
+
+export type TemplatesNoteResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type TemplatesNoteResponse = TemplatesNoteResponses[keyof TemplatesNoteResponses];
+
 export type LinkTargetsData = {
   body?: never;
   path?: never;
@@ -30797,6 +32182,36 @@ export type SearchPagesResponses = {
 };
 
 export type SearchPagesResponse = SearchPagesResponses[keyof SearchPagesResponses];
+
+export type ExportNotesData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Ns
+     */
+    ns: string;
+  };
+  url: "/api/v1/notes/export";
+};
+
+export type ExportNotesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ExportNotesError = ExportNotesErrors[keyof ExportNotesErrors];
+
+export type ExportNotesResponses = {
+  /**
+   * a zip of Markdown files
+   */
+  200: Blob | File;
+};
+
+export type ExportNotesResponse = ExportNotesResponses[keyof ExportNotesResponses];
 
 export type DeletedPagesData = {
   body?: never;
@@ -31082,6 +32497,34 @@ export type HomeSuggestionsResponses = {
 
 export type HomeSuggestionsResponse = HomeSuggestionsResponses[keyof HomeSuggestionsResponses];
 
+export type PageMarkdownData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/markdown";
+};
+
+export type PageMarkdownErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PageMarkdownError = PageMarkdownErrors[keyof PageMarkdownErrors];
+
+export type PageMarkdownResponses = {
+  /**
+   * the page as a Markdown file
+   */
+  200: unknown;
+};
+
 export type PageHistoryData = {
   body?: never;
   path: {
@@ -31214,6 +32657,36 @@ export type MovePageResponses = {
 };
 
 export type MovePageResponse = MovePageResponses[keyof MovePageResponses];
+
+export type CopyPageData = {
+  body: NoteCopy;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/copy";
+};
+
+export type CopyPageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CopyPageError = CopyPageErrors[keyof CopyPageErrors];
+
+export type CopyPageResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type CopyPageResponse = CopyPageResponses[keyof CopyPageResponses];
 
 export type UnpinPageData = {
   body?: never;
@@ -32934,6 +34407,56 @@ export type ListMentionsResponses = {
 
 export type ListMentionsResponse = ListMentionsResponses[keyof ListMentionsResponses];
 
+export type FindResourcesData = {
+  body: FindQuery;
+  path?: never;
+  query?: never;
+  url: "/api/v1/find";
+};
+
+export type FindResourcesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type FindResourcesError = FindResourcesErrors[keyof FindResourcesErrors];
+
+export type FindResourcesResponses = {
+  /**
+   * Successful Response
+   */
+  200: FindResults;
+};
+
+export type FindResourcesResponse = FindResourcesResponses[keyof FindResourcesResponses];
+
+export type ClassifyData = {
+  body: ClassifyRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/classify";
+};
+
+export type ClassifyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ClassifyError = ClassifyErrors[keyof ClassifyErrors];
+
+export type ClassifyResponses = {
+  /**
+   * Successful Response
+   */
+  200: ClassifyResult;
+};
+
+export type ClassifyResponse = ClassifyResponses[keyof ClassifyResponses];
+
 export type ListSearchesData = {
   body?: never;
   path?: never;
@@ -34101,6 +35624,70 @@ export type FindGraphPathResponses = {
 };
 
 export type FindGraphPathResponse = FindGraphPathResponses[keyof FindGraphPathResponses];
+
+export type ListDatesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Start
+     *
+     * from this day on: YYYY-MM-DD, or YYYY-MM or YYYY for its first day
+     */
+    start?: string;
+    /**
+     * End
+     *
+     * up to this day: YYYY-MM-DD, or YYYY-MM or YYYY for its last day
+     */
+    end?: string;
+    /**
+     * Ns
+     *
+     * one namespace
+     */
+    ns?: string | null;
+    /**
+     * Recording
+     *
+     * one asset
+     */
+    recording?: number | null;
+    /**
+     * Q
+     *
+     * only dates whose words or line have this text
+     */
+    q?: string;
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+  };
+  url: "/api/v1/dates";
+};
+
+export type ListDatesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListDatesError = ListDatesErrors[keyof ListDatesErrors];
+
+export type ListDatesResponses = {
+  /**
+   * Successful Response
+   */
+  200: DateList;
+};
+
+export type ListDatesResponse = ListDatesResponses[keyof ListDatesResponses];
 
 export type ListTopicsData = {
   body?: never;
@@ -37253,14 +38840,14 @@ export type ScanWatchResponses = {
 
 export type ScanWatchResponse = ScanWatchResponses[keyof ScanWatchResponses];
 
-export type ListTemplatesData = {
+export type ListTemplates2Data = {
   body?: never;
   path?: never;
   query?: never;
   url: "/api/v1/templates";
 };
 
-export type ListTemplatesResponses = {
+export type ListTemplates2Responses = {
   /**
    * Response Templates-List Templates
    *
@@ -37269,7 +38856,7 @@ export type ListTemplatesResponses = {
   200: Array<TemplateSummary>;
 };
 
-export type ListTemplatesResponse = ListTemplatesResponses[keyof ListTemplatesResponses];
+export type ListTemplates2Response = ListTemplates2Responses[keyof ListTemplates2Responses];
 
 export type CreateTemplateData = {
   body: TemplateCreate;
@@ -38825,6 +40412,36 @@ export type ChatCapabilitiesResponses = {
 
 export type ChatCapabilitiesResponse = ChatCapabilitiesResponses[keyof ChatCapabilitiesResponses];
 
+export type ChatToolsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Chat Id
+     */
+    chat_id?: number | null;
+  };
+  url: "/api/v1/chats/tools";
+};
+
+export type ChatToolsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ChatToolsError = ChatToolsErrors[keyof ChatToolsErrors];
+
+export type ChatToolsResponses = {
+  /**
+   * Successful Response
+   */
+  200: ChatTools;
+};
+
+export type ChatToolsResponse = ChatToolsResponses[keyof ChatToolsResponses];
+
 export type DeleteChatData = {
   body?: never;
   path: {
@@ -39029,6 +40646,40 @@ export type ExportChatResponses = {
    */
   200: unknown;
 };
+
+export type DownloadChatFileData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+    /**
+     * Fid
+     */
+    fid: string;
+  };
+  query?: never;
+  url: "/api/v1/chats/{cid}/files/{fid}";
+};
+
+export type DownloadChatFileErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DownloadChatFileError = DownloadChatFileErrors[keyof DownloadChatFileErrors];
+
+export type DownloadChatFileResponses = {
+  /**
+   * the file
+   */
+  200: Blob | File;
+};
+
+export type DownloadChatFileResponse = DownloadChatFileResponses[keyof DownloadChatFileResponses];
 
 export type SendMessageData = {
   body: MessageCreate;
@@ -41599,6 +43250,22 @@ export type NewImportHookTokenResponses = {
 
 export type NewImportHookTokenResponse = NewImportHookTokenResponses[keyof NewImportHookTokenResponses];
 
+export type ImportTargetData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/hooks/import";
+};
+
+export type ImportTargetResponses = {
+  /**
+   * Successful Response
+   */
+  200: ImportTarget;
+};
+
+export type ImportTargetResponse = ImportTargetResponses[keyof ImportTargetResponses];
+
 export type PushToImportHookData = {
   /**
    * HookPush
@@ -41637,6 +43304,12 @@ export type PushToImportHookData = {
      * its title (default: the file's name, or the page's)
      */
     title?: string | null;
+    /**
+     * Namespace
+     *
+     * with your own token: the namespace it goes into (default: the only one you can import into)
+     */
+    namespace?: string | null;
   };
   url: "/api/v1/hooks/import";
 };

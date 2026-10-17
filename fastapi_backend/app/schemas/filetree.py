@@ -54,10 +54,15 @@ class ShareServer(ResponseModel):
     enabled: bool = Field(description="whether an admin turned it on (shares.enabled and its own switch)")
     port: int = Field(description="the port it listens on in the worker (Docker publishes LENS_S3_PORT, LENS_WEBDAV_PORT)")
     service: S3Service | None = Field(None, description="what the process running it says; none while it's off")
+    add_files: bool = Field(False, description="whether files people add through it are imported (shares.add_files)")
 
 
 class S3Status(ShareServer):
     """The S3 server (these fields), the WebDAV server, and your access keys (they sign in to both)."""
 
     webdav: ShareServer
+    remote: bool = Field(
+        False,
+        description="whether an admin opened both at the web app's address too, /s3 and /dav (shares.remote), so remote access reaches them",
+    )
     keys: list[S3Key] = Field(description="your access keys")

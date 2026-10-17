@@ -6,7 +6,7 @@
   "scope_subpath": null,
   "description": "Lens is a self-hosted archive for documents, recordings, photos and messages: it reads, transcribes, indexes and publishes them, and people search and chat over them. One operator (the instance admin) runs an instance for their own people: a FastAPI API, a Next.js web app that proxies the API and holds the sign-in session, and background workers, around one SurrealDB database, with content split into namespaces and per-namespace roles. Exposing an instance to the internet behind HTTPS (reverse proxy or Cloudflare tunnel) is supported. Only the instance admin (equivalent to host code execution) and the host operator are trusted; everyone else is trusted only as far as their role.",
   "confidence": {
-    "documented": 246,
+    "documented": 250,
     "inferred": 99
   },
   "components": [
@@ -70,7 +70,7 @@
         "Google Calendar sources",
         "Connect with Google",
         "POST /imports/web, extension http tools, notification targets",
-        "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer)",
+        "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer, web search)",
         "replies from remote servers",
         ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY"
       ],
@@ -87,7 +87,8 @@
     {
       "name": "ingest",
       "entry_points": [
-        "/uploads, /import, /recordings/{rid}/files"
+        "/uploads, /import, /recordings/{rid}/files",
+        "POST /hooks/import"
       ],
       "touches": [
         "filesystem",
@@ -120,7 +121,8 @@
         "MCP servers: POST /extensions/mcp/read and /mcp/test, saving an extension of kind mcp, PATCH /extensions/{id}/tools",
         "Python code tools, shipped and admin-created templates, workflows, pipelines, routines",
         "Lens extension side panel",
-        "automations"
+        "automations",
+        "the assistant's web_search and web_read"
       ],
       "touches": [
         "network",
@@ -402,6 +404,15 @@
       "source": "docs/configuration.md \"Uploads accept only the types\""
     },
     {
+      "entry_point": "POST /hooks/import",
+      "parameter": "bearer (a hook's lih_ token, or a person's la_, lo_ or web token with ?namespace=), file bytes, URL, text",
+      "attacker_controllable": "yes",
+      "component": "ingest",
+      "caller_must_enforce": "none — P-UPLOAD; the address form /hooks/import/{token} takes hook tokens only, so a person's token never sits in a logged path",
+      "provenance": "documented",
+      "source": "docs/api.md \"the address form takes hook tokens only\""
+    },
+    {
       "entry_point": "watched folders, storage sources, IMAP, Gmail, iCal",
       "parameter": "remote file names, bytes, mail, events",
       "attacker_controllable": "yes",
@@ -438,7 +449,16 @@
       "source": "maintainer ruling, 2026-10"
     },
     {
-      "entry_point": "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer)",
+      "entry_point": "the assistant's web_search and web_read",
+      "parameter": "a search query and a page address, both chosen by the model; the results and pages that come back",
+      "attacker_controllable": "yes",
+      "component": "assistant",
+      "caller_must_enforce": "none — queries go only to the admin's provider; pages are fetched through netguard like web import, 10 MB at most (P-SSRF-GUARD); once the answer has read outside text, a query or address neither the person nor a tool gave it asks first (P-INJECTION-EGRESS); results and pages reach the model marked as data; the ledger keeps the provider or host, never the query or page",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"a search or a page read sends words out of Lens\""
+    },
+    {
+      "entry_point": "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer, web search)",
       "parameter": "URL, credentials, api_key_env",
       "attacker_controllable": "no",
       "component": "outbound",
@@ -546,6 +566,15 @@
       "source": "docs/smb.md \"What keeps it safe\""
     },
     {
+      "entry_point": "web app /s3 and /dav (file shares relayed by lens-relay.js, ahead of Next)",
+      "parameter": "any method, path, Host and body, passed to the share servers with X-Forwarded-Prefix and X-Forwarded-For",
+      "attacker_controllable": "yes",
+      "component": "optional",
+      "caller_must_enforce": "admin enables shares.enabled and shares.remote; per-person access keys, files added imported as at the ports (shares.add_files); failed WebDAV sign-ins throttled per visitor from X-Forwarded-For as trusted proxies report it",
+      "provenance": "documented",
+      "source": "docs/file-tree.md \"At the web app's address\""
+    },
+    {
       "entry_point": ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY",
       "parameter": "process configuration",
       "attacker_controllable": "no",
@@ -598,6 +627,33 @@
       "caller_must_enforce": "none — it runs as its maker with their permissions at run time (P-AUTOMATION-ACTOR); actions reaching outside Lens ask first; outside text marks intents untrusted and breaks up links (P-INJECTION-EGRESS); chains and bursts are bounded (P-AUTOMATION-LOOP)",
       "provenance": "documented",
       "source": "docs/automations.md \"Running automations\""
+    },
+    {
+      "entry_point": "admin sandbox gateway",
+      "parameter": "PUT /api/v1/admin/sandbox {on}, MCP set_sandbox_gateway",
+      "attacker_controllable": "no",
+      "component": "authz",
+      "caller_must_enforce": "admin is trusted; audited (lens.sandbox); refused when preflight finds the machine can't run the gateway; reaches the machine only as an inbox request (action=services, profile=sandbox) the agent checks again; off deletes every sandbox first",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"The gateway\""
+    },
+    {
+      "entry_point": "code sandbox",
+      "parameter": "assistant run_python, run_bash, sandbox_files, share_sandbox_file and import_sandbox_file: code the model writes, attachment ids, a path in the sandbox; sandbox.* settings (admins)",
+      "attacker_controllable": "yes",
+      "component": "assistant",
+      "caller_must_enforce": "none — off by default; the code runs in the conversation's own OpenShell sandbox with none of Lens's data or keys and no network unless sandbox.network allows it (P-SANDBOX); with the network on, a run after outside text asks first (P-INJECTION-EGRESS); files in only from the person's attachments, out only through an approved import or as a download for that person",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"Code sandbox\""
+    },
+    {
+      "entry_point": "code sandbox shared files",
+      "parameter": "GET /api/v1/chats/{cid}/files/{fid}: a file share_sandbox_file copied out of the conversation's sandbox; its bytes come from code the model wrote",
+      "attacker_controllable": "yes",
+      "component": "assistant",
+      "caller_must_enforce": "none — served only to the conversation's person (404 otherwise, or for another conversation's id) as an attachment with nosniff and a sandbox content policy, never rendered; random 96-bit id checked against the conversation; kept AES-256-GCM encrypted with a key derived from the server's secret, bound to the file and conversation; at most 20 a conversation, 25 MB each; deleted with the conversation or the account",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"Code sandbox\""
     },
     {
       "entry_point": "microsandbox program requests",
@@ -771,6 +827,14 @@
       "discouraged": false,
       "provenance": "documented",
       "source": "docs/sensors.md \"Sensors are off until an admin turns them on\""
+    },
+    {
+      "name": "shares.enabled, shares.remote",
+      "default": "off (bind 0.0.0.0); off",
+      "effect": "narrows P-SHARES",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "docs/file-tree.md \"At the web app's address\""
     },
     {
       "name": "tunnel.mode, local_llm.enabled, telemetry",
@@ -1021,7 +1085,7 @@
       "property": "P-SSRF-GUARD",
       "violation_symptom": "info-leak",
       "severity_tier": "security",
-      "conditions": "URLs a non-admin sets (web import and extension http tools by editors; notification targets by owners; an automation's http_request by its person, within the notification networks) reach public addresses only, or networks the operator listed; web paths use ports 80 and 443, follow redirects only to http and https, re-check every redirect and sub-request, and connect to the checked address; an automation's http_request follows no redirect, takes 10 seconds and reads 64 KB at most, asks first unless the person set its node to run on its own, and passes the answer on as outside text",
+      "conditions": "URLs a non-admin sets (web import and extension http tools by editors; notification targets by owners; an automation's http_request by its person, within the notification networks; the page addresses the assistant's web_read reads, which the model picks for whoever uses the assistant) reach public addresses only, or networks the operator listed; web paths use ports 80 and 443, follow redirects only to http and https, re-check every redirect and sub-request, and connect to the checked address; an automation's http_request follows no redirect, takes 10 seconds and reads 64 KB at most, asks first unless the person set its node to run on its own, and passes the answer on as outside text",
       "provenance": "documented",
       "source": "maintainer ruling, 2026-10"
     },
@@ -1077,7 +1141,7 @@
       "property": "P-INJECTION-EGRESS",
       "violation_symptom": "info-leak",
       "severity_tier": "correctness",
-      "conditions": "Once an assistant answer has read text from outside Lens (a tool result other than Lens's own, the page it was asked from, a namespace assistant's memories, a message in a chat room with no bridge.users, or an earlier answer in the conversation that read any of these), tools that could carry it out of Lens (the person's own read web tools, other servers' MCP tools, Python tools with the network) and an admin setup conversation's own changes wait for the person's approval. A chat room's answer keeps a web address linkable only when the person, the archive, a tool or Lens wrote it. A bypass is VALID-HARDENING (Q26). An automation's model and agent actions (ask_model, call_tool, ask_agent) run with nobody reading along: the activity and earlier steps reach the model marked as data, every change they would make (notes included) is an approval of the automation's person, and anything that could carry data out of Lens asks first whatever the run read (docs/automations.md \"The model and the agent\"). A saved variable a run set from outside text stays marked as data in later runs' prompts, and an action whose params read it counts as reading outside text (docs/automations.md \"Saved variables\").",
+      "conditions": "Once an assistant answer has read text from outside Lens (a tool result other than Lens's own, the page it was asked from, a namespace assistant's memories, a message in a chat room with no bridge.users, or an earlier answer in the conversation that read any of these), tools that could carry it out of Lens (the person's own read web tools, a web search or page read neither the person nor a tool gave it, other servers' MCP tools, Python tools with the network) and an admin setup conversation's own changes wait for the person's approval. A chat room's answer keeps a web address linkable only when the person, the archive, a tool or Lens wrote it. A bypass is VALID-HARDENING (Q26). An automation's model and agent actions (ask_model, call_tool, ask_agent) run with nobody reading along: the activity and earlier steps reach the model marked as data, every change they would make (notes included) is an approval of the automation's person, and anything that could carry data out of Lens asks first whatever the run read (docs/automations.md \"The model and the agent\"). A saved variable a run set from outside text stays marked as data in later runs' prompts, and an action whose params read it counts as reading outside text (docs/automations.md \"Saved variables\").",
       "provenance": "documented",
       "source": "docs/assistant.md \"it read out of Lens waits for your approval\""
     },
@@ -1197,7 +1261,7 @@
       "property": "P-SHARES",
       "violation_symptom": "info-leak, integrity-bypass",
       "severity_tier": "security",
-      "conditions": "the file shares (S3, WebDAV) are off until an admin enables them; every request carries a person's own access key (SigV4 or Basic), reads as them and never writes",
+      "conditions": "the file shares (S3, WebDAV) are off until an admin enables them, and reach the web app's address (/s3, /dav) only with shares.remote too; every request carries a person's own access key (SigV4 or Basic) and reads as them; files written are imported only where that person may import, checked and size-capped as uploads, never over an asset or a file Lens made; shares.add_files off: read-only",
       "provenance": "documented",
       "source": "docs/file-tree.md \"Off until an admin turns it on\""
     },
@@ -1274,6 +1338,14 @@
       "source": "docs/browser-assistant.md \"Letting it use your browser\""
     },
     {
+      "property": "P-SANDBOX",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "code the assistant runs (sandbox.enabled, off by default) runs only for people sandbox.who allows, in its conversation's own OpenShell sandbox, never in Lens's processes; the sandbox gets none of Lens's data, keys or database address, only the code and files the person attached to that conversation; egress: none (off), PyPI and npm on 443 (packages), or those and the names in sandbox.hosts on 80 and 443 (hosts), every endpoint held to public addresses; a file leaves only as the person's held upload placed by an import_files approval, or as a download (share_sandbox_file) kept encrypted with the conversation and served only to its person; stopped when idle, deleted when unused or with its conversation",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"Code sandbox\""
+    },
+    {
       "property": "MX-AUTHZ-LIST-CAPS",
       "violation_symptom": "x-cap-exceeded",
       "severity_tier": "correctness",
@@ -1300,7 +1372,7 @@
     },
     {
       "property": "N-EGRESS",
-      "reason": "an egress firewall; netguard guards web import, iCal feeds, extension http tools, notifications and Chromium, nothing else; admin-set URLs other than iCal feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel) are unguarded",
+      "reason": "an egress firewall; netguard guards web import, iCal feeds, extension http tools, notifications, the assistant's web search and page reads, and Chromium, nothing else; admin-set URLs other than iCal feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded",
       "false_friend": true,
       "provenance": "documented",
       "source": "maintainer ruling, 2026-10"

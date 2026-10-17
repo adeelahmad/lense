@@ -55,6 +55,7 @@ DEFAULTS = [
     ("archive", "text", "Archive", "A zip or tar file, and the files in it", {"extensions": [".tar", ".tgz", ".zip"]}),
     ("email", "text", "Email", "A message, with its attachments", {"extensions": [".eml", ".msg"]}),
     ("calendar_event", "text", "Calendar event", "An invitation or a calendar entry", {"extensions": [".ics"]}),
+    ("feed_post", "text", "Feed post", "A post from a news feed (RSS or Atom)", {"extensions": [".atom"]}),
 ]  # fmt: skip
 
 
@@ -283,6 +284,26 @@ def of_recording(db, rid):
         if chosen and chosen["base"] == base_of(rec):
             return chosen, True
     return recognise(db, rec, types), False
+
+
+TYPE_FIELDS = "record::id(id) AS id, source, media, path, title, duration_ms, form, content_type"
+
+
+def keys_of(db, rows):
+    """{recording id: its subtype's key} for recording rows (with TYPE_FIELDS), as of_recording tells one, with the
+    vocabulary read once."""
+    types = all_types(db)
+    by_key = {t["key"]: t for t in types}
+    out = {}
+    for rec in rows:
+        chosen = by_key.get(rec.get("content_type") or "")
+        if chosen and chosen["base"] == base_of(rec):
+            out[rec["id"]] = chosen["key"]
+            continue
+        t = recognise(db, rec, types)
+        if t:
+            out[rec["id"]] = t["key"]
+    return out
 
 
 def choose(db, rid, key):

@@ -12,6 +12,9 @@ What a hook takes (see accept_* below):
 - text: imported as a transcript, as pasted text is.
 
 Everything a hook brings in is audited under the hook's own name (`import.hook`), never a person's.
+
+A person can push the same way with their own token (an API token with write access, an app's, or the web app's
+session), naming the namespace: for_person() makes the target, and what it brings in is theirs (`import.push`).
 """
 
 from __future__ import annotations
@@ -147,12 +150,22 @@ def by_token(db, token):
     return hook
 
 
+def for_person(db, sid, who):
+    """Where a person's own push goes: namespace `sid`, its default collection and its pipeline, by `who`
+    ({id, email}), the way a hook's target is shaped."""
+    return {"space": sid, "namespace": store.space_names(db).get(sid), "collection": None, "pipeline": None, "person": who}
+
+
 def actor(hook):
-    """Who a hook's imports are by, in jobs, uploads and the audit log."""
+    """Who a hook's imports are by, in jobs, uploads and the audit log (for a person's push, the person)."""
+    if hook.get("person"):
+        return hook["person"]
     return {"id": f"import_hook:{hook['id']}", "email": f"import hook: {hook['name']}"}
 
 
 def _used(db, hook, n):
+    if hook.get("person"):
+        return  # a person's push isn't a hook's: nothing to count
     db.q("UPDATE $r SET last_used_at = $t, used += $n", r=R("import_hook", hook["id"]), t=store.now(), n=n)
 
 
@@ -206,7 +219,8 @@ def accept_file(db, cfg, hook, path, filename, title=None):
                 )
             except SystemExit as e:
                 raise ValueError(str(e)) from None
-            db.q("UPDATE $r SET path = $p", r=R("recording", rid), p=f"hook:{hook['id']}:{name}")
+            origin = f"upload:{name}" if hook.get("person") else f"hook:{hook['id']}:{name}"
+            db.q("UPDATE $r SET path = $p", r=R("recording", rid), p=origin)
             job, dup = jobs.enqueue(db, rid, None, by=by["email"], pipeline=hook.get("pipeline")), False
     finally:
         path.unlink(missing_ok=True)

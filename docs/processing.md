@@ -14,12 +14,47 @@ How assets move through Lens: where they come from, what each step does, and how
   ([Documents and images](configuration.md#documents-and-images)).
 - `diarize` splits genuinely two-channel files by channel, otherwise clusters voice embeddings (or uses pyannote), then
   matches voiceprints against the namespace's people.
+- `clean` (off until Settings → Analysis → Clean up transcripts before analysis is on) tidies a transcript before
+  analysis reads it: [Cleaning up transcripts](#cleaning-up-transcripts).
 - `analyze` finds entities, chapters, keywords and talk statistics; `summarize` (optional) calls any OpenAI-compatible
   server for a summary, key points, action items (with who will do them), topics, people, tone and importance, each
   key point and action item with the time of the line it comes from; `report` writes static HTML per asset and
   per namespace, with word clouds.
 
 Every step takes `--ns`, `--limit` and `--force`; `run` does them all, and a lock stops two runs overlapping.
+
+### Cleaning up transcripts
+
+Speech comes out of transcription as it was said, and the extractor, chapters, keywords and search all read it. With
+`analysis.cleanup` on (Settings → Analysis → Clean up transcripts before analysis; off by default), the `clean` step,
+which the standard pipeline runs just before `analyze`, tidies each line of a transcript with rules. It needs no model,
+fetches nothing and sends nothing out:
+
+- a word said three times or more in a row is kept once ("I I I looked" → "I looked"), and a doubled pronoun, article
+  or conjunction ("the the", "I, I") once; "had had", "that that" and "very very" stay;
+- "um", "uh", "erm" and "hmm" go, with the comma after them (`analysis.cleanup_fillers`, Take out "um" and "uh"; on);
+- one space between words, none before a comma or a full stop, one after a comma;
+- "i" becomes "I", and each sentence starts with a capital. A line that carries on the one before (same speaker, no
+  full stop) keeps its lower case.
+- punctuation (`analysis.cleanup_punctuation`, Put punctuation back; off): a local model, kredor/punctuate-all (MIT;
+  English, German, French, Spanish, Italian, Dutch, Portuguese, Polish, Czech, Slovak, Slovenian and Bulgarian), adds
+  full stops, commas and question marks after words that have none, where it is at least 70% sure. "Where a
+  transcript has none" (`missing`) does it only for a transcript with fewer than one full stop in 40 words, such as
+  imported captions; "In every transcript" (`always`) for every one. It keeps the marks a transcript has, and gives
+  each line marks once. The model, Transformers and PyTorch (about 2 GB) are fetched the first time a clean step
+  needs them ([Components](components.md)); until then, and in other languages, the rules run alone and the job's
+  log says why.
+
+These are English rules ("um" is a word in German and Portuguese), so they apply to English lines: the line's or the
+asset's language when transcription gave one, else when the text reads as English. In other languages only a word
+said three times in a row is kept once, and sentences start with a capital. Documents and images keep their text as
+it was read.
+
+Every line it changes is in the asset's Change history (by "text cleanup"), with Revert. A line someone corrected,
+or reverted, is never cleaned again, and running the step again on cleaned text changes nothing. Turn it on for a
+custom pipeline by adding the Clean up step before Analyze (with Force it runs even while the setting is off); run it
+on an asset with Reprocess → Clean up, `POST /api/v1/recordings/{id}/reprocess` with `{"steps": ["clean", "analyze"]}`,
+or `lens clean`. Workers whose `workers.steps` list has `analyze` run it too.
 
 ## Importing text and transcripts {#importing-transcripts}
 
@@ -110,6 +145,44 @@ Nodes are people and named things. Edges are:
 People, organisations, products, places, events, works and topics are extracted from every asset's text. Dates and
 numbers are extracted too, but hidden unless asked for.
 
+**How they're found.** By rules out of the box: capitalised names, titles, organisation endings, dates and numbers,
+after the entities a namespace defines. With `analysis.entities` set to `spacy` (Settings → Analysis → Entity
+extraction), spaCy's small language model finds them instead, after the defined entities, which keep their names and
+types where the two overlap; a lone word like "Okay" isn't taken for a name. Lens fetches spaCy (MIT) and the model
+named in `analysis.spacy_model` the first time an asset needs them ([Components](components.md)): `en_core_web_sm`
+(English, the default), `de_core_news_sm` (German) or `xx_ent_wiki_sm` (many languages; people, organisations and
+places). spaCy's other languages' models carry GPL, LGPL or Creative Commons licenses, so Lens doesn't fetch them; one
+installed by hand works. Until spaCy is there the rules find the entities and the job log says so. The workflows'
+Extract entities (rules) node uses the same extractor.
+
+**How a name gets its type.** The built-in extractor (`analysis.entities: rules`, the default) needs no model. It
+reads each name and the words around it (`app/domain/name_types.py`):
+
+- **Person:** a title (Dr Lee, President Obama) or a role before it (our CEO Maria Garcia, my colleague Tom); a
+  given name first (Sarah Johnson, Maria); a full name followed by a verb of saying (Sarah Connor said); or one of the
+  namespace's named speakers.
+- **Organisation, event, work, place:** the word it ends or starts with (Acme Corp, University of Oxford; Web Summit,
+  World Cup; Clean Air Act; Hudson River, Mount Fuji), or what it's called (a company called Lumen, an app called
+  Notion, a town called Hope).
+- **Built-in lists:** countries, regions, states and large cities (Place); well-known companies and institutions
+  (Organisation: Google, Anthropic, NASA) and products and tools (Product: ChatGPT, Kubernetes, Excel); holidays
+  (Event); days and months on their own (Date). A name with a number in it is a Product (iPhone 16).
+- **Term:** anything none of these tells, such as a single unknown word (a brand or a project). A Term can be made a
+  topic, or retyped on the Entities page (one at a time or ticked together). Names listed in Settings › Analysis ›
+  Custom vocabulary (`Name | TYPE`) always get the type given there.
+
+A name gets one type per recording, the one most of its lines give it, so "Lee" after "Dr Lee" is a person too. "And"
+no longer joins two names into one ("Kenya and Nigeria" are two places). The given names are mostly the US Census
+Bureau's frequent first names of 1990 (public domain); the other lists are written for Lens. With
+`analysis.entities: spacy`, spaCy's types are used instead, and with
+[Find places and dates](configuration.md#anytopdf) anytopdf's places join them.
+
+Older installs get the same types once, as an upgrade step (`entity-types`, [Upgrades](database.md#upgrades)) when
+they first start on this version: entities analysis left as Terms get the type these rules give them from their names
+and the lines that mention them. Types people or agents set, entities on a fixed list, hidden ones, Unknown and
+Unlabeled stay as they are. The changes are recorded in the graph's history as **Gave a type to** events, so they can
+be rolled back there.
+
 The **Entities** page in the web app lists a namespace's entities (search, type and collection filters, a Hidden tab).
 An entity's name opens its own page, `/wiki/<namespace>/<Name>`, with its notes, every line that says it and what it
 comes up with ([Entity pages](notes.md#entity-pages)); the rest of its row opens a side panel where editors rename,
@@ -148,6 +221,25 @@ retype, describe, merge and hide it.
   - **Link the same thing across namespaces.**
 - **Merge suggestions:** same letters (ignoring case, spaces and punctuation), acronyms, one name containing the other,
   close spellings, and names that sound alike (likely transcription errors).
+
+### Dates
+
+With `analysis.dates` on (Settings → Analysis → Read dates; off by default), analysis reads each line for the dates it
+gives and keeps them as days on the calendar, so agents and the API can ask what was said about a day, a month or a
+range: `GET /api/v1/dates?start=2026-10&end=2026-10`, the MCP tool `list_dates`, the assistant's `find_dates`. Each
+date keeps the words said, its first and last day and how long it is (a day, a weekend, a week, a month or a year), and
+its line, linked to that moment.
+
+- **Said relative to the day:** "yesterday", "tomorrow", "in three days", "two weeks ago", "next month", "this
+  weekend" are worked out from the asset's own date (its `recorded_at`), and marked `relative`. "this Friday" is the
+  coming one, "next Friday" the Friday of the week after, "last Friday" the one before. "last week" is Monday to Sunday.
+- **Written out:** "3 March 2024", "March 3rd", "March 2024" (the whole month), "2026-10-20", "20/10/2026", and a year
+  after a word that makes it one ("in 2024", "since 1998"). A day without its year takes the asset's year.
+- **Left out rather than guessed:** a weekday on its own ("on Friday": the one before or after?), a date that reads two
+  ways ("10/11/2026"), "may" and short month names in small letters ("I may", "to mar"), and a bare number like "2000
+  people". Without an asset date, only dates that give their year are kept.
+- The rules read English. Nothing is sent anywhere and no model is called. Turning it on reads dates as assets are
+  analysed; Reprocess (Analyze) reads them for assets already there.
 
 ### Entity setup
 
@@ -260,6 +352,67 @@ In the web app:
 * a topic's and an entity's drawer, and a resource, topic or entity selected on the graph canvas, list similar
   content too.
 
+### Finding by any attribute
+
+The API (`POST /find`), the assistant (`find_resources`) and the MCP server (`find`) find assets by what is known
+about them, one filter for all three:
+
+* who is **seen** in them (`faces`: face identities, [Video](video.md)) and **heard** (`speakers`: people, by voice);
+* the **entities** they mention and the **topics** they were accepted as about (a topic brings its narrower topics);
+* their **kind** (`types`: audio, video, transcript, document, image) and **content type** (`content_types`: podcast,
+  interview, scan, photo, email … [Content types](#content-types));
+* **when** they were made (`date_from`, `date_to`: a day, a month or a year, so `2025` is the whole year) and how
+  long they are;
+* their tags, language, the kinds of object seen in them, the emotions heard, their status, collection and where they
+  came from;
+* and words said or written in them (`text`, matched as a search is, by meaning too when that is set up).
+
+Filters combine with AND, the values of one filter with OR. Faces, people heard, entities and topics take an id or a
+name: a name matches every face, person, entity (or one of the other ways it's said) or topic label called that in the
+namespaces you can read, ignoring case, and `resolved` says what it matched. A name that matches nothing is an error
+that lists the closest names, so an agent can correct itself.
+
+Each asset found says **why** it matched, with up to three moments per reason to cite: where the words are, when the
+face is on screen (or the pages it's on), the person's first lines, the lines that mention the entity, and the topics,
+content type, kinds of object and emotions that matched. With `text`, the asset whose moment matches best comes
+first; otherwise the newest. Nothing here calls a model, apart from `text` searching by meaning when it is set up
+(one embedding request, logged in the activity ledger).
+
+The Library list (`GET /resources`) takes the same attributes as ids: `face`, `entity`, `topic` (as it is, without its
+narrower topics), `content_type` and `emotion`, besides its other filters ([API](api.md#resources)).
+
+Planned, not built yet: these filters in the Library's filter bar and in saved collections, finding by what a photo
+shows (`GET /search/photos`) inside the same filter, and ranking by more than the best matching moment.
+
+### Classifying
+
+The API (`POST /classify`), the assistant (`classify`) and the MCP server (`classify`) say which of some labels fits an
+asset, or a piece of text, how sure that is, and every label ranked. The labels are:
+
+* given, as a list (`["science", "sport: games and teams"]`, what a label means after `: `) or as
+  `{label: what it means}`, two to 60 of them;
+* or a vocabulary Lens keeps: `content_type`, the [content types](#content-types) of the asset's base type (all of
+  them for text), or `topic`, its namespace's topics with their definitions and other labels (a text names the
+  namespace), the most used first.
+
+The decision model answers when it is set up (Settings → AI assistant: Jev, typesafe.ai's System One, or Laya on
+the machine), else the language model, asked for JSON; `by` says which, and the call is in the
+[activity ledger](activity.md), counted for the asset and its namespace. The model reads the asset's kind, file
+name, length, language, tags and accepted topics, and its title, summary, the entities it mentions most and the start
+of its text, marked as data so instructions in it aren't followed
+([prompt injection](assistant.md#third-party-content-and-prompt-injection)). `question`
+asks something of your own ("Which desk should this go to?").
+
+An answer is `sure` at `decisions.act_above` confidence or more (0.8 by default). Nothing changes unless `apply` is
+set, by an editor, and the answer is sure: then the asset's content type is set (as choosing it in its Details tab
+does), the topic is suggested for it, waiting for someone to accept it (one it already has, waits for or was dismissed
+from stays as it is), or the label given is added as a tag (at most 40 characters). `applied` says which, and it is
+in the audit log. The MCP and assistant tools never apply; the assistant can then suggest the topic (`suggest_topic`).
+
+Workflows classify too, with a Classify node ([Workflows and the canvas](#workflows-and-the-canvas)), so a pipeline
+can classify every asset it runs on. Planned, not built yet: classifying many assets at once from the API, and labels
+with examples.
+
 ## Background work
 
 Imports, pipeline runs and folder scans return at once and run as jobs stored in SurrealDB. The server runs
@@ -293,7 +446,8 @@ A folder scan and a routine run are each claimed first, so several processes doi
 ## Storage sources
 
 Admins add sources in the app (`/api/v1/sources`): S3 or S3-compatible, Dropbox, Google Drive, OneDrive, SFTP, SMB,
-WebDAV, or a folder on this machine; or an email account (IMAP, or Gmail and Google Workspace), a calendar feed (iCal) or Google Calendar, below. A watched folder maps a path on a source to a namespace, with include/exclude
+WebDAV, or a folder on this machine; or an email account (IMAP, or Gmail and Google Workspace), a calendar feed (iCal),
+Google Calendar or a [news feed](#news-feeds-rss-and-atom) (RSS or Atom), below. A watched folder maps a path on a source to a namespace, with include/exclude
 patterns, audio and/or transcripts, a polling interval, how long a file must be unchanged before it is picked up, and
 whether files already there are imported (backfill). New audio is queued for the full pipeline; new transcripts are
 imported and analysed. Audio stays where it is: it is copied to a cache for processing and streamed from the source for
@@ -345,8 +499,8 @@ files, then Import (`POST /api/v1/import/source`). The listing marks files that 
 
 ### Email (IMAP), calendar feeds (iCal) and Google Calendar
 
-Three kinds of source aren't storage and don't use rclone; their messages and events are shown as files, so browsing,
-importing chosen ones and watching work as above.
+These kinds of source aren't storage and don't use rclone; their messages and events are shown as files, so browsing,
+importing chosen ones and watching work as above. [News feeds](#news-feeds-rss-and-atom) work the same way.
 
 - **Email (IMAP)**: host, port, security (SSL/TLS, STARTTLS or none), user and password (an app password where the
   provider has them). Mailboxes are the folders, and each message is a file `<mailbox>/<uidvalidity>-<uid>.eml`,
@@ -414,6 +568,38 @@ importing chosen ones and watching work as above.
     a Google calendar's secret address in iCal format (Settings › Integrate calendar) works as a calendar feed.
 - `.eml` and `.ics` files in any source, and uploaded through Import, can be read as text this way too.
 
+### News feeds (RSS and Atom)
+
+A news feed (type `rss`) is a source too: Settings › Sources › Add › News feed, then watch it. Watching a feed
+subscribes to it: each new post becomes a text resource of the namespace, titled and dated by the post, so answers cite
+it and its link.
+
+- **Address**: the feed's own (`https://`, or `feed://`), or a page of the site: when the page names its feed
+  (`<link rel="alternate" type="application/rss+xml">`, as blogs and news sites do), the first feed it names is read.
+  A user and password if the feed asks for one. The address is kept encrypted like a password and never shown again,
+  since a private feed's address often carries its key. It is fetched as calendar feeds are: public addresses only
+  (and the networks in `documents.web_networks`), on ports 80 and 443, and the password is never sent to another
+  server, including one that a page names as its feed's.
+- **Posts**: the feed is one folder of posts, each a file `<id>.atom` named by its date and title. RSS (0.9x, 1.0,
+  2.0) and Atom (0.3, 1.0) are read by [feedparser](https://github.com/kurtmckee/feedparser) (BSD), which drops
+  scripts, styles and event handlers from the posts' HTML and makes their links absolute. Whatever the feed, each post
+  is kept as an Atom entry document of its own (RFC 4287): its title, the post's page, enclosures (a podcast's audio),
+  when it was published and updated, its authors, categories, summary and content, and the feed's title and site
+  (never its address). It comes in as text: the title, its link, who wrote it, when, the feed, its categories and
+  enclosures, then its text. Its content type is Feed post, so a namespace can give feed posts a pipeline of their own
+  (Settings › Content types).
+- **New posts only, unless you backfill**: as for any watch, a new watch on a feed takes the posts published after it
+  starts; turn on backfill to bring in those the feed lists already. The newest 500 posts of a feed are listed.
+- **Light on the network**: a feed read is reused for a minute, then asked for again with its `ETag` and
+  `Last-Modified`, so a feed that hasn't changed costs one small request. A post is known by its id (an RSS item's
+  `guid`), so a feed that reorders or retitles its posts doesn't bring them in twice; a post whose text changes is read
+  again into the resource it already is. A post the feed drops later keeps its resource and its file.
+- `.atom` files uploaded through Import (a single post, or a whole Atom feed) are read as text the same way.
+
+Refine later: JSON Feed (feedparser reads RSS and Atom only); an option to capture each post's whole page, for feeds
+that carry only a summary; podcast feeds bringing in each episode's audio to transcribe; OPML import of a feed list;
+subscribing in one step (address and namespace) from Settings.
+
 ### Gmail and Google Workspace
 
 A Gmail or Google Workspace mailbox (type `gmail`) is read through Google's Gmail API, read only (`gmail.readonly`),
@@ -457,7 +643,8 @@ A pipeline is a named, versioned list of steps; each namespace can choose its de
 analyze, summarize, report). Imports, watched folders and reprocessing use the namespace's pipeline; steps that need
 audio skip themselves for imported text. Steps:
 
-- `transcribe`, `diarize`, `analyze`, `summarize`, and `report` (the built-in report).
+- `transcribe`, `diarize`, `clean` ([Cleaning up transcripts](#cleaning-up-transcripts)), `analyze`, `summarize`, and
+  `report` (the built-in report).
 - `llm`: renders a prompt template, sends it to the configured model, checks the reply against the template's JSON
   Schema and saves it as a named output (e.g. `meeting_notes`).
 - `report` with a template: renders an HTML page into the namespace's reports. These pages may not run scripts.
@@ -484,15 +671,18 @@ A pipeline's steps make derived files (a transcript or a page's text, shots, tex
 workflow is a versioned graph drawn on a canvas (Pipelines → Workflows): it starts from the Asset node, and each
 node passes what it makes along its connections.
 
-- **Entities:** Extract entities (rules) runs the built-in extractor analyze uses, plus your terms (`Name|TYPE`) and
+- **Entities:** Extract entities (rules) runs the extractor analyze uses (the rules, or spaCy), plus your terms (`Name|TYPE`) and
   regular expressions (`TYPE: pattern`); Extract entities (LLM) asks the model for structured entities and keeps,
   corrects or adds to any passed in; Merge joins lists; Save entities makes them the asset's entities (people's
   corrections kept) and redoes keywords and chapters.
-- **AI and logic:** LLM prompt (a prompt template, with what came in as `{{ input }}`), Pick (a path like
-  `action_items.0.text`), Condition (yes and no branches; one test, or a [match tree](automations.md#match-trees) of
-  several) and Merge.
-- **Keeping results:** Save output (`outputs.<name>`), Set field (a custom field, kept in the metadata history) and
-  Save entities.
+- **AI and logic:** LLM prompt (a prompt template, with what came in as `{{ input }}`), Classify (which of your
+  labels, the content types or the namespace's topics fits the asset, or what came in as text; it passes on `choice`,
+  `confidence`, `sure` and `ranked`, so a Condition or Switch can branch on them; [classifying](#classifying)), Pick
+  (a path like `action_items.0.text`), Condition (yes and no branches; one test, or a
+  [match tree](automations.md#match-trees) of several) and Merge.
+- **Keeping results:** Save output (`outputs.<name>`), Set field (a custom field, kept in the metadata history), Save
+  entities, and a Classify node set to act on a sure answer (it sets the content type, suggests the topic or adds the
+  tag; a try on the canvas only says what it would do).
 
 A pipeline runs a workflow as a Workflow step, pinned to the workflow's published version when the run is queued
 (`POST /api/v1/workflows/{id}/run` runs one on an asset). Pipelines can be drawn on the canvas too: a connection

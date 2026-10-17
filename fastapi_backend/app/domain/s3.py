@@ -1,14 +1,21 @@
-"""The file tree over S3 (docs/file-tree.md#s3): a read-only S3 server any S3 client mounts or syncs (rclone,
-Cyberduck, the AWS CLI, s3fs, boto3), each person's namespaces as buckets.
+"""The file tree over S3 (docs/file-tree.md#s3): an S3 server any S3 client mounts or syncs (rclone, Cyberduck, the
+AWS CLI, s3fs, boto3), each person's namespaces as buckets.
 
 Off until an admin turns it on (`shares.enabled`); then the process that runs routines (`lens worker`) listens on
 `shares.s3_port`, as the sensor hub does (shares.py). Every request is signed (AWS Signature Version 4, in the Authorization
 header or a presigned link) with an access key someone made for themselves in the web app; the key acts as them and
 sees what they see in the web app. Keys' secrets are sealed with the server's key (they must be readable: SigV4 signs
-with the secret itself), shown once, and can be revoked. Writes answer AccessDenied.
+with the secret itself), shown once, and can be revoked.
 
 Path-style addressing (http://host:port/<bucket>/<key>), any region name. Supported: ListBuckets, HeadBucket,
-GetBucketLocation, ListObjects (v1 and v2, with a delimiter or recursive), HeadObject and GetObject (with Range).
+GetBucketLocation, ListObjects (v1 and v2, with a delimiter or recursive), HeadObject and GetObject (with Range). While
+`shares.add_files` is on, a file put into the tree is imported (share_import.py): PutObject (whole, chunked, or
+aws-chunked with signed chunks), multipart uploads, a folder marker (a key ending in /) under Collections makes a
+collection, and DeleteObject(s) removes only what share_import.py keeps aside. Anything else that writes answers
+AccessDenied or NotImplemented.
+
+With `shares.remote` on, the web app relays it at its own address too (https://<web app>/s3/<bucket>/<key>), path and
+all: clients sign that path, and the bucket and key come after /s3 (shares.web_path()).
 """
 
 from __future__ import annotations
@@ -16,17 +23,22 @@ from __future__ import annotations
 import base64
 import datetime as dt
 import email.utils
+import errno
 import hashlib
 import hmac
-import http.server
+import json
+import os
 import re
 import secrets
+import shutil
 import threading
+import time
 import urllib.parse
+import xml.etree.ElementTree as ET
 from typing import Any
 from xml.sax.saxutils import escape
 
-from . import auth, filetree, keyring, settings, store
+from . import auth, filetree, http_body, keyring, settings, share_import, store, uploads
 
 R = store.R
 NS = "http://s3.amazonaws.com/doc/2006-03-01/"
@@ -36,6 +48,9 @@ SKEW = dt.timedelta(minutes=15)
 MAX_KEYS = 1000
 MAX_PRESIGN_SECONDS = 7 * 24 * 3600
 NAME_MAX = 80
+UPLOAD_ID = re.compile(r"^[A-Za-z0-9_-]{32}$")
+MAX_PARTS = 10000
+XML_MAX = 1 << 20  # a CompleteMultipartUpload or DeleteObjects body
 
 
 class S3Error(Exception):
@@ -193,9 +208,12 @@ def _hmac(key, msg):
     return hmac.new(key, msg.encode(), hashlib.sha256).digest()
 
 
+def signing_key(secret, date, region, service):
+    return _hmac(_hmac(_hmac(_hmac(("AWS4" + secret).encode(), date), region), service), "aws4_request")
+
+
 def signature(secret, date, region, service, to_sign):
-    k = _hmac(_hmac(_hmac(_hmac(("AWS4" + secret).encode(), date), region), service), "aws4_request")
-    return hmac.new(k, to_sign.encode(), hashlib.sha256).hexdigest()
+    return hmac.new(signing_key(secret, date, region, service), to_sign.encode(), hashlib.sha256).hexdigest()
 
 
 def _amz_time(s):
@@ -205,9 +223,10 @@ def _amz_time(s):
         raise S3Error(403, "AccessDenied", "the request's date is missing or malformed") from None
 
 
-def verify(db, cfg, method, raw_path, pairs, headers, now=None):
+def verify(db, cfg, method, raw_path, pairs, headers, now=None, chunks=None):
     """Check a request's signature; the account it acts as. `pairs`: the query string's (name, value) pairs, `headers`
-    lowercased names to values."""
+    lowercased names to values. `chunks`, a dict, gets what a streaming body's chunks are signed with
+    (http_body.Signed) under "signed"."""
     now = now or dt.datetime.now(dt.timezone.utc)
     q = dict(pairs)
     presigned = "X-Amz-Signature" in q
@@ -255,6 +274,9 @@ def verify(db, cfg, method, raw_path, pairs, headers, now=None):
     if not hmac.compare_digest(signature(secret, date, region, service, to_sign), sig):
         raise S3Error(403, "SignatureDoesNotMatch", "the signature doesn't match: check the secret key")
     db.q("UPDATE $r SET last_used_at = $t", r=R("file_key", kid), t=store.now())
+    if chunks is not None:
+        stamp = amz or when.strftime("%Y%m%dT%H%M%SZ")
+        chunks["signed"] = http_body.Signed(signing_key(secret, date, region, service), stamp, "/".join(scope[1:]), sig)
     return acct
 
 
@@ -388,7 +410,7 @@ def list_objects(tree, bucket, q):
 
 
 # ---------- the server ----------
-class Handler(http.server.BaseHTTPRequestHandler):
+class Handler(http_body.Lingering):
     server_version = "Lens"
     protocol_version = "HTTP/1.1"
     server: Any  # shares.Server
@@ -416,19 +438,92 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_HEAD(self):
         self._handle(head=True)
 
+    def handle_expect_100(self):
+        """Hold back 100 Continue until the request is known to be allowed (_go_on): a refused upload is never sent."""
+        return True
+
+    def _go_on(self):
+        if self.headers.get("expect", "").lower() == "100-continue":
+            self.send_response_only(100)
+            self.end_headers()
+
     def _write(self):
-        self.rfile.read(min(int(self.headers.get("content-length") or 0), 1 << 20))  # what was sent, to keep the connection
-        self._fail(S3Error(403, "AccessDenied", "the file tree is read-only"))
+        from . import shares
+
+        raw, _, query = self.path.partition("?")
+        headers = {k.lower(): v for k, v in self.headers.items()}
+        self._read = False
+        try:
+            pairs = urllib.parse.parse_qsl(query, keep_blank_values=True)
+            db, cfg = self.server.db, self.server.cfg_fn()
+            prefix = shares.web_path(headers, "s3")
+            if prefix and not shares.remote(cfg):
+                raise S3Error(
+                    403, "AccessDenied", "S3 isn't open at the web app's address: an admin turns that on in Settings, File shares"
+                )
+            chunks: dict[str, Any] = {}
+            acct = verify(db, cfg, self.command, raw, pairs, headers, chunks=chunks)
+            raw = shares.share_path(raw, prefix)
+            if not share_import.accepting(cfg, "s3"):
+                raise S3Error(403, "AccessDenied", "the file tree is read-only")
+            adder = share_import.Adder(db, cfg, acct, "s3")
+            bucket, _, key = urllib.parse.unquote(raw).lstrip("/").partition("/")
+            q = dict(pairs)
+            if not bucket or (not key and self.command != "POST"):
+                raise S3Error(403, "AccessDenied", "namespaces are made in the web app" if bucket else "name a bucket")
+            if bucket not in [e.name for e in adder.tree.list("")]:
+                raise S3Error(404, "NoSuchBucket", "no such bucket, or not yours to read")
+            Writes(self, db, cfg, acct, adder, bucket, key, q, headers, chunks.get("signed")).run()
+        except S3Error as e:
+            self._refuse(e, raw, headers)
+        except http_body.BodyError as e:
+            self._refuse(S3Error(e.status, e.code, e.message), raw, headers)
+        except share_import.TooLarge as e:
+            self._refuse(S3Error(400, "EntityTooLarge", str(e)), raw, headers)
+        except share_import.Rejected as e:
+            self._refuse(S3Error(400, "InvalidArgument", str(e)), raw, headers)
+        except share_import.Refused as e:
+            self._refuse(S3Error(403, "AccessDenied", str(e)), raw, headers)
+        except filetree.NotFound:
+            self._refuse(S3Error(403, "AccessDenied", "no such folder: files go in a namespace, or in Collections/…"), raw, headers)
+        except keyring.Locked:
+            self._refuse(S3Error(403, "AccessDenied", "this namespace is a locked vault: an owner unlocks it in the web app"), raw, headers)
+        except (BrokenPipeError, ConnectionResetError):
+            self.close_connection = True
+        except OSError as e:
+            if e.errno != errno.ENOSPC:
+                self.server.log(f"s3: {type(e).__name__}: {e}")
+            msg = "the server doesn't have room for this file" if e.errno == errno.ENOSPC else "something went wrong on the server"
+            self._refuse(S3Error(507 if e.errno == errno.ENOSPC else 500, "InternalError", msg), raw, headers)
+        except Exception as e:  # noqa: BLE001 - say so, and keep serving
+            self.server.log(f"s3: {type(e).__name__}: {e}")
+            self._refuse(S3Error(500, "InternalError", "something went wrong on the server"), raw, headers)
+
+    def _refuse(self, e, raw, headers):
+        try:
+            if not self._read and not http_body.drain(self.rfile, headers):
+                self.close_connection = True  # the body is still coming (or never will): don't read it
+            self._fail(e, raw)
+        except (BrokenPipeError, ConnectionResetError):  # the client went away mid-file
+            self.close_connection = True
 
     do_PUT = do_POST = do_DELETE = _write  # noqa: N815 - http.server's names
 
     def _handle(self, head):
+        from . import shares
+
         raw, _, query = self.path.partition("?")
         try:
             pairs = urllib.parse.parse_qsl(query, keep_blank_values=True)
             headers = {k.lower(): v for k, v in self.headers.items()}
             db, cfg = self.server.db, self.server.cfg_fn()
+            prefix = shares.web_path(headers, "s3")
+            if prefix and not shares.remote(cfg):
+                raise S3Error(
+                    403, "AccessDenied", "S3 isn't open at the web app's address: an admin turns that on in Settings, File shares"
+                )
             acct = verify(db, cfg, self.command, raw, pairs, headers)
+            raw = shares.share_path(raw, prefix)
             tree = filetree.Tree(db, cfg, filetree.Viewer.of(db, acct))
             path = urllib.parse.unquote(raw)
             bucket, _, key = path.lstrip("/").partition("/")
@@ -442,9 +537,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     return self._send(200, _xml(f'<LocationConstraint xmlns="{NS}"></LocationConstraint>'), head=head)
                 if head:
                     return self._send(200, head=True)
-                if set(q) & {"acl", "policy", "versioning", "lifecycle", "cors", "tagging", "uploads", "website", "object-lock"}:
-                    raise S3Error(501, "NotImplemented", "the file tree only lists and reads")
+                if "uploads" in q:
+                    return self._send(200, list_uploads(cfg, acct, bucket))
+                if set(q) & {"acl", "policy", "versioning", "lifecycle", "cors", "tagging", "website", "object-lock"}:
+                    raise S3Error(501, "NotImplemented", "the file tree only lists, reads and takes files")
                 return self._send(200, list_objects(tree, bucket, q))
+            if "uploadId" in q and not head:
+                return self._send(200, list_parts(cfg, acct, bucket, key, q["uploadId"]))
             return self._object(tree, db, cfg, bucket, key, head)
         except S3Error as e:
             self._fail(e, raw)
@@ -485,11 +584,300 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_header("Accept-Ranges", "bytes")
         if status == 206:
             self.send_header("Content-Range", f"bytes {start}-{end}/{e.size}")
+        if e.mtime:
+            self.send_header("x-amz-meta-mtime", e.mtime)  # as rclone sent it
         self.end_headers()
         if head or end < start:
             return
         for chunk in e.read(db, cfg, start, end):
             self.wfile.write(chunk)
+
+
+# ---------- adding files ----------
+def _mtime(headers):
+    """The file's own time a client sent (rclone: x-amz-meta-mtime, seconds since 1970, as text), or None."""
+    return headers.get("x-amz-meta-mtime") or None
+
+
+def _limit(cfg):
+    return int(cfg["uploads"]["max_mb"]) * uploads.MB
+
+
+class Writes:
+    """One request that writes (PUT, POST, DELETE), for an account allowed to add files."""
+
+    def __init__(self, h, db, cfg, acct, adder, bucket, key, q, headers, signed):
+        self.h, self.db, self.cfg, self.acct, self.adder = h, db, cfg, acct, adder
+        self.bucket, self.key, self.q, self.headers, self.signed = bucket, key, q, headers, signed
+        self.path = f"{bucket}/{key}"
+
+    def run(self):
+        m, q = self.h.command, self.q
+        if not self.key:  # POST to the bucket
+            if "delete" in q:
+                return self.delete_many()
+            raise S3Error(501, "NotImplemented", "the file tree only lists, reads and takes files")
+        if "uploadId" in q:
+            if m == "PUT" and "partNumber" in q:
+                return self.part()
+            if m == "POST":
+                return self.complete()
+            if m == "DELETE":
+                return self.abort()
+        if m == "POST" and "uploads" in q:
+            return self.start()
+        if m == "DELETE":
+            return self.delete()
+        if m == "PUT" and not set(q) - {"x-id"}:  # x-id: the AWS SDKs' operation name
+            if self.headers.get("x-amz-copy-source"):
+                return self.retime()
+            return self.folder() if self.key.endswith("/") else self.put()
+        raise S3Error(501, "NotImplemented", "copying, tags and the like aren't served: put a file, or upload it in parts")
+
+    def _declared(self):
+        n = self.headers.get("x-amz-decoded-content-length") or self.headers.get("content-length") or ""
+        return int(n) if n.isdigit() else None
+
+    def _receive(self, dest):
+        """The body into `dest`: (size, md5 hex)."""
+        self.h._go_on()
+        self.h._read = True
+        if "chunked" in self.headers.get("transfer-encoding", "").lower():
+            self.h.close_connection = True  # a chunked body may have been read past its end
+        return http_body.receive(self.h.rfile, self.headers, dest, _limit(self.cfg), self.signed)
+
+    def put(self):
+        self.adder.check(self.path, self._declared())
+        dest = share_import.spool(self.cfg)
+        try:
+            _, md5 = self._receive(dest)
+            self.adder.put(self.path, dest, _mtime(self.headers), md5)  # imported (moved away), or kept aside there
+        except BaseException:
+            share_import._remove(dest)
+            raise
+        self.h._send(200, headers={"ETag": f'"{md5}"'})
+
+    def retime(self):
+        """CopyObject of a file just added onto itself with new metadata: rclone setting its time. Nothing else."""
+        source = urllib.parse.unquote(self.headers["x-amz-copy-source"].split("?")[0]).lstrip("/")
+        replace = self.headers.get("x-amz-metadata-directive", "").upper() == "REPLACE"
+        if source != self.path or not replace or not self.adder.touch(self.path, _mtime(self.headers)):
+            raise S3Error(501, "NotImplemented", "copying isn't served: put the file instead")
+        self.h._read = True
+        e = self.adder.tree.stat(self.path)
+        self.h._send(200, _xml(f'<CopyObjectResult xmlns="{NS}"><LastModified>{_iso(e.modified)}</LastModified>'
+                               f"<ETag>&quot;{e.version}&quot;</ETag></CopyObjectResult>"))  # fmt: skip
+
+    def folder(self):
+        if self._declared():
+            raise S3Error(400, "InvalidArgument", "a key ending in / is a folder: it holds no bytes")
+        self.h._read = True
+        self.adder.folder(self.path.rstrip("/"))
+        self.h._send(200, headers={"ETag": f'"{hashlib.md5(b"", usedforsecurity=False).hexdigest()}"'})
+
+    def delete(self):
+        self.h._read = True
+        try:
+            self.adder.delete(self.path)
+        except share_import.Refused:
+            try:
+                self.adder.tree.stat(self.path)
+            except filetree.NotFound:
+                return self.h._send(204)  # nothing there: S3 says done
+            raise
+        self.h._send(204)
+
+    def delete_many(self):
+        body = self._xml_body()
+        quiet = (body.findtext("{*}Quiet") or body.findtext("Quiet") or "").lower() == "true"
+        done, errs = [], []
+        for o in body.iter():
+            if o.tag.split("}")[-1] != "Object":
+                continue
+            k = next((c.text or "" for c in o if c.tag.split("}")[-1] == "Key"), "")
+            try:
+                self.adder.delete(f"{self.bucket}/{k}")
+                done.append(k)
+            except share_import.Refused as e:
+                try:
+                    self.adder.tree.stat(f"{self.bucket}/{k}")
+                    errs.append((k, str(e)))
+                except filetree.NotFound:
+                    done.append(k)
+        out = [] if quiet else [f"<Deleted><Key>{escape(k)}</Key></Deleted>" for k in done]
+        out += [f"<Error><Key>{escape(k)}</Key><Code>AccessDenied</Code><Message>{escape(m)}</Message></Error>" for k, m in errs]
+        self.h._send(200, _xml(f'<DeleteResult xmlns="{NS}">' + "".join(out) + "</DeleteResult>"))
+
+    def _xml_body(self):
+        n = self._declared() or 0
+        if n > XML_MAX:
+            raise S3Error(400, "MalformedXML", "the request is too large")
+        dest = share_import.spool(self.cfg)
+        try:
+            self._receive(dest)
+            raw = dest.read_bytes()
+        finally:
+            share_import._remove(dest)
+        if len(raw) > XML_MAX:
+            raise S3Error(400, "MalformedXML", "the request is too large")
+        if b"<!DOCTYPE" in raw or b"<!ENTITY" in raw:
+            raise S3Error(400, "MalformedXML", "the request isn't valid")
+        try:
+            return ET.fromstring(raw)
+        except ET.ParseError:
+            raise S3Error(400, "MalformedXML", "the request isn't valid XML") from None
+
+    # ---------- in parts ----------
+    def start(self):
+        self.adder.check(self.path)
+        self.h._read = True
+        uid = start_upload(self.cfg, self.acct["id"], self.bucket, self.key, _mtime(self.headers))
+        self.h._send(200, _xml(f'<InitiateMultipartUploadResult xmlns="{NS}"><Bucket>{escape(self.bucket)}</Bucket>'
+                               f"<Key>{escape(self.key)}</Key><UploadId>{uid}</UploadId></InitiateMultipartUploadResult>"))  # fmt: skip
+
+    def part(self):
+        d, _ = upload_of(self.cfg, self.acct["id"], self.bucket, self.key, self.q["uploadId"])
+        try:
+            n = int(self.q["partNumber"])
+        except ValueError:
+            n = 0
+        if not 1 <= n <= MAX_PARTS:
+            raise S3Error(400, "InvalidArgument", f"part numbers go from 1 to {MAX_PARTS}")
+        tmp = d / f"{n:05d}.part"
+        try:
+            size, md5 = self._receive(tmp)
+            os.replace(tmp, d / f"{n:05d}")
+            (d / f"{n:05d}.md5").write_text(md5)
+        finally:
+            share_import._remove(tmp)
+        if sum(p["size"] for p in parts_of(d)) > _limit(self.cfg):
+            raise S3Error(400, "EntityTooLarge", f"files up to {self.cfg['uploads']['max_mb']} MB")
+        self.h._send(200, headers={"ETag": f'"{md5}"'})
+
+    def complete(self):
+        d, meta = upload_of(self.cfg, self.acct["id"], self.bucket, self.key, self.q["uploadId"])
+        body = self._xml_body()
+        listed = []
+        for p in body.iter():
+            if p.tag.split("}")[-1] != "Part":
+                continue
+            kids = {c.tag.split("}")[-1]: (c.text or "").strip() for c in p}
+            try:
+                listed.append((int(kids.get("PartNumber", "")), kids.get("ETag", "").strip('"')))
+            except ValueError:
+                raise S3Error(400, "MalformedXML", "a part's number isn't a number") from None
+        if not listed:
+            raise S3Error(400, "MalformedXML", "list the parts to put together")
+        if [n for n, _ in listed] != sorted({n for n, _ in listed}):
+            raise S3Error(400, "InvalidPartOrder", "list the parts in order, each once")
+        have = {p["number"]: p for p in parts_of(d)}
+        for n, etag in listed:
+            if n not in have or (etag and etag != have[n]["etag"]):
+                raise S3Error(400, "InvalidPart", f"part {n} wasn't uploaded, or its ETag differs")
+        whole = share_import.spool(self.cfg)
+        md5s = hashlib.md5(usedforsecurity=False)
+        self.h._read = True
+        try:
+            with open(whole, "wb") as out:
+                for n, _ in listed:
+                    with open(d / f"{n:05d}", "rb") as f:
+                        shutil.copyfileobj(f, out, 1 << 20)
+                    md5s.update(bytes.fromhex(have[n]["etag"]))
+            self.adder.put(self.path, whole, meta.get("mtime"))
+        except BaseException:
+            share_import._remove(whole)
+            raise
+        shutil.rmtree(d, ignore_errors=True)
+        etag = f"{md5s.hexdigest()}-{len(listed)}"
+        self.h._send(200, _xml(f'<CompleteMultipartUploadResult xmlns="{NS}"><Location>/{escape(self.path)}</Location>'
+                               f"<Bucket>{escape(self.bucket)}</Bucket><Key>{escape(self.key)}</Key>"
+                               f"<ETag>&quot;{etag}&quot;</ETag></CompleteMultipartUploadResult>"))  # fmt: skip
+
+    def abort(self):
+        d, _ = upload_of(self.cfg, self.acct["id"], self.bucket, self.key, self.q["uploadId"])
+        self.h._read = True
+        shutil.rmtree(d, ignore_errors=True)
+        self.h._send(204)
+
+
+def _uploads_dir(cfg, uid):
+    if not UPLOAD_ID.match(uid or ""):
+        raise S3Error(404, "NoSuchUpload", "no such upload")
+    return uploads.incoming(cfg) / f"s3mp-{uid}"
+
+
+def start_upload(cfg, account, bucket, key, mtime=None):
+    """A new multipart upload of `key` by an account: its id. Uploads nobody finished within uploads.expire_hours go."""
+    sweep_uploads(cfg)
+    uid = secrets.token_urlsafe(24)
+    d = _uploads_dir(cfg, uid)
+    d.mkdir()
+    meta = {"account": account, "bucket": bucket, "key": key, "created": store.now(), "mtime": mtime}
+    (d / "meta.json").write_text(json.dumps(meta))
+    return uid
+
+
+def upload_of(cfg, account, bucket, key, uid):
+    """(its folder, its meta) for one of the account's uploads of this key; NoSuchUpload otherwise."""
+    d = _uploads_dir(cfg, uid)
+    try:
+        meta = json.loads((d / "meta.json").read_text())
+    except (OSError, ValueError):
+        raise S3Error(404, "NoSuchUpload", "no such upload: it was finished, cancelled or expired") from None
+    if (meta.get("account"), meta.get("bucket"), meta.get("key")) != (account, bucket, key):
+        raise S3Error(404, "NoSuchUpload", "no such upload")
+    return d, meta
+
+
+def parts_of(d):
+    out = []
+    for p in sorted(d.glob("[0-9][0-9][0-9][0-9][0-9]")):
+        try:
+            out.append({"number": int(p.name), "size": p.stat().st_size, "etag": (d / f"{p.name}.md5").read_text().strip(),
+                        "modified": p.stat().st_mtime})  # fmt: skip
+        except (OSError, ValueError):
+            continue
+    return out
+
+
+def sweep_uploads(cfg):
+    cut = time.time() - int(cfg["uploads"]["expire_hours"]) * 3600
+    for d in uploads.incoming(cfg).glob("s3mp-*"):
+        try:
+            if d.stat().st_mtime < cut and all(p.stat().st_mtime < cut for p in d.iterdir()):
+                shutil.rmtree(d, ignore_errors=True)
+        except OSError:
+            pass
+
+
+def _stamp(t):
+    return dt.datetime.fromtimestamp(t, dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+
+def list_parts(cfg, acct, bucket, key, uid):
+    d, _ = upload_of(cfg, acct["id"], bucket, key, uid)
+    parts = "".join(
+        f"<Part><PartNumber>{p['number']}</PartNumber><LastModified>{_stamp(p['modified'])}</LastModified>"
+        f"<ETag>&quot;{p['etag']}&quot;</ETag><Size>{p['size']}</Size></Part>"
+        for p in parts_of(d)
+    )
+    return _xml(f'<ListPartsResult xmlns="{NS}"><Bucket>{escape(bucket)}</Bucket><Key>{escape(key)}</Key><UploadId>{uid}</UploadId>'
+                f"<IsTruncated>false</IsTruncated>{parts}</ListPartsResult>")  # fmt: skip
+
+
+def list_uploads(cfg, acct, bucket):
+    """The account's unfinished multipart uploads in a bucket."""
+    out = []
+    for d in sorted(uploads.incoming(cfg).glob("s3mp-*")):
+        try:
+            meta = json.loads((d / "meta.json").read_text())
+        except (OSError, ValueError):
+            continue
+        if meta.get("account") == acct["id"] and meta.get("bucket") == bucket:
+            out.append(f"<Upload><Key>{escape(meta['key'])}</Key><UploadId>{d.name[5:]}</UploadId>"
+                       f"<Initiated>{_iso(meta.get('created'))}</Initiated></Upload>")  # fmt: skip
+    return _xml(f'<ListMultipartUploadsResult xmlns="{NS}"><Bucket>{escape(bucket)}</Bucket><IsTruncated>false</IsTruncated>'
+                + "".join(out) + "</ListMultipartUploadsResult>")  # fmt: skip
 
 
 def password_account(db, cfg, kid, secret):

@@ -153,8 +153,20 @@ DEFAULTS = {
         "sample_seconds": 60,
         "cross_namespace": "suggest",
     },
-    # anytopdf: the places and dates anytopdf (run here) finds, as hints for the extractor (enrich.py)
-    "analysis": {"entities": "rules", "spacy_model": "en_core_web_sm", "gazetteer": [], "anytopdf": False},
+    # anytopdf: the places and dates anytopdf (run here) finds, as hints for the extractor (enrich.py); dates: the dates
+    # each line gives kept as days on the calendar (dates.py); cleanup: the
+    # clean step tidies transcripts before analysis (cleanup.py), cleanup_fillers taking out "um" and "uh" too, and
+    # cleanup_punctuation (off, missing, always) putting marks back with a local model
+    "analysis": {
+        "entities": "rules",
+        "spacy_model": "en_core_web_sm",
+        "gazetteer": [],
+        "anytopdf": False,
+        "dates": False,
+        "cleanup": False,
+        "cleanup_fillers": True,
+        "cleanup_punctuation": "off",
+    },
     # chat_models: the models people may pick in Chat; empty: whatever the model server lists (docs/configuration.md)
     "llm": {
         "base_url": None,
@@ -166,6 +178,9 @@ DEFAULTS = {
         # a model the admin knows can see images: it describes pages and shots (the describe step); none, none are
         "vision_model": None,
         "describe_max": 50,  # pages or shots of a resource described at most
+        # what describes them: "llm" (vision_model, above) or "florence-2" (on this machine, florence.py)
+        "describe_engine": "llm",
+        "florence_model": "base",  # Florence-2 base (about 280 MB) or large (about 830 MB)
     },
     "graph": {"max_nodes": 150, "min_edge_weight": 2},
     "search": {
@@ -264,6 +279,7 @@ DEFAULTS = {
             "objects",
             "nsfw",
             "describe",
+            "clean",
             "analyze",
             "embed",
             "summarize",
@@ -291,12 +307,18 @@ DEFAULTS = {
         "injection_check": "patterns",  # flag text that reads like instructions to an AI: patterns, classifier, model, off
         "disabled_tools": [],
         "max_steps": 6,
+        "max_tool_calls": 50,  # the most tool calls a question may give one answer (its `max_tool_calls`; chat.tool_answer)
         "max_transcript_reads": 20,
         "confirm_over_recordings": 100,
         "confirm_over_cost": None,
         "price_in": None,
         "price_out": None,
     },
+    # the assistant's web search and page reading (web.py, docs/assistant.md#web-search): off until an admin picks a
+    # provider. duckduckgo needs no key (the ddgs package, fetched when it's picked); searxng asks the instance at
+    # searxng_url; brave and tavily need api_key. results: per search; read_chars: of a page's text the model reads;
+    # render: a page that comes back nearly empty is loaded with Chromium (scripts run), when Chromium is installed
+    "web": {"search": "off", "searxng_url": None, "api_key": None, "results": 5, "read_chars": 20000, "render": False},
     # talking to Lens (voice.py): input auto uses the server's speech-to-text engine when it has one, else the
     # browser's; spoken answers come from tts_model (an OpenAI-compatible /audio/speech), else the browser reads them
     # stt: the engine that hears voice chat ("same": the transcription engine); tts_provider: who reads answers aloud
@@ -524,6 +546,24 @@ DEFAULTS = {
         "port": int(os.environ.get("LENS_SMB_LISTEN_PORT") or 4445),
         "allowed_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "100.64.0.0/10", "fc00::/7", "::1/128"],
     },
+    # the assistant's code sandbox (sandbox.py, docs/assistant.md#code-sandbox): off until an admin turns it on. Then
+    # each conversation's Python and bash run in a sandbox of its own on the OpenShell gateway at `gateway`, made from
+    # `image` with `cpu` and `memory`, stopped after idle_minutes and deleted keep_hours after its last run. network:
+    # off (none), packages (PyPI and npm) or hosts (those and `hosts`). who: editors (and admins), or admins only. The
+    # gateway's address is the one the Compose profile `sandbox` runs.
+    "sandbox": {
+        "enabled": False,
+        "gateway": "openshell-gateway:17670",
+        "image": "python:3.12-slim",
+        "network": "off",
+        "hosts": [],
+        "who": "editors",
+        "cpu": "1",
+        "memory": "512Mi",
+        "seconds": 60,
+        "idle_minutes": 15,
+        "keep_hours": 24,
+    },
     # sensors (sensors.py, docs/sensors.md): off until an admin turns them on. Then the MQTT hub and the syslog listener
     # run in the process that runs routines (`lens worker`), on these ports; syslog is taken only from syslog_networks.
     # store, raw_days, rollup_days, important_days and max_per_minute are what a stream sensor gets unless it has its own.
@@ -555,8 +595,19 @@ DEFAULTS = {
         "account": None,
     },
     # the graph as files over S3 and WebDAV (shares.py, docs/file-tree.md): off until an admin turns it on. Then the process
-    # that runs routines (`lens worker`) serves it, read-only, on these ports. bind is a startup setting only.
-    "shares": {"enabled": False, "bind": "0.0.0.0", "s3": True, "s3_port": 9555, "webdav": True, "webdav_port": 9556},
+    # that runs routines (`lens worker`) serves it on these ports; add_files imports the files people add to it
+    # (share_import.py), off: read-only. bind is a startup setting only. remote: also at the web app's address (/s3, /dav),
+    # so through Settings › Remote access and HTTPS too; off until an admin turns it on.
+    "shares": {
+        "enabled": False,
+        "bind": "0.0.0.0",
+        "s3": True,
+        "s3_port": 9555,
+        "webdav": True,
+        "webdav_port": 9556,
+        "add_files": True,
+        "remote": False,
+    },
     # notifications to webhooks and Matterbridge (docs/notifications.md): targets reach public addresses only, and the
     # private networks listed here (a Matterbridge on the LAN or the Docker network); app_url is where links in messages
     # point (null: FRONTEND_URL)
@@ -1134,6 +1185,10 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS merge SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS section SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS section_rec ON section FIELDS recording",
+    # the dates a recording's lines give, as days on the calendar (dates.py)
+    "DEFINE TABLE IF NOT EXISTS date_said SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS date_said_rec ON date_said FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS date_said_day ON date_said FIELDS space, day",
     "DEFINE TABLE IF NOT EXISTS entity SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS entity_space ON entity FIELDS space",
     "DEFINE INDEX IF NOT EXISTS entity_key ON entity FIELDS ekey UNIQUE",
@@ -1419,6 +1474,11 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS browser_session_account ON browser_session FIELDS account",
     "DEFINE TABLE IF NOT EXISTS browser_action SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS browser_action_session ON browser_action FIELDS session, state",
+    # each conversation's code sandbox on the OpenShell gateway (sandbox.py): its name, settings and last use
+    "DEFINE TABLE IF NOT EXISTS code_sandbox SCHEMALESS",
+    # files a conversation's sandbox handed the person to download (sandbox.share), kept with the conversation
+    "DEFINE TABLE IF NOT EXISTS chat_file SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS chat_file_chat ON chat_file FIELDS chat",
     "DEFINE TABLE IF NOT EXISTS segment_edit SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS segment_edit_rec ON segment_edit FIELDS recording",
     # descriptive metadata history, IIIF change discovery and IIIF authorization
@@ -1727,6 +1787,7 @@ DOWNSTREAM = [
     "DELETE mentions WHERE recording = $rid",
     "DELETE term WHERE recording = $rid",
     "DELETE section WHERE recording = $rid",
+    "DELETE date_said WHERE recording = $rid",
     "DELETE appearance WHERE recording = $rid",
     "DELETE segment WHERE recording = $rid AND idx >= $keep",
     "DELETE passage WHERE recording = $rid",

@@ -102,6 +102,9 @@ import type {
   ChangePasswordResponses,
   ChatCapabilitiesData,
   ChatCapabilitiesResponses,
+  ChatToolsData,
+  ChatToolsErrors,
+  ChatToolsResponses,
   CheckComponentsData,
   CheckComponentsResponses,
   CheckManifestData,
@@ -112,9 +115,12 @@ import type {
   CheckMessageResponses,
   CheckUpdatesData,
   CheckUpdatesResponses,
+  ClassifyData,
+  ClassifyErrors,
   ClassifyNamespaceNsfwData,
   ClassifyNamespaceNsfwErrors,
   ClassifyNamespaceNsfwResponses,
+  ClassifyResponses,
   ClearEntitySetupData,
   ClearEntitySetupErrors,
   ClearEntitySetupResponses,
@@ -142,6 +148,9 @@ import type {
   ControlWorkerData,
   ControlWorkerErrors,
   ControlWorkerResponses,
+  CopyPageData,
+  CopyPageErrors,
+  CopyPageResponses,
   CountApprovalsData,
   CountApprovalsResponses,
   CreateAutomationData,
@@ -418,6 +427,9 @@ import type {
   DownloadBackupData,
   DownloadBackupErrors,
   DownloadBackupResponses,
+  DownloadChatFileData,
+  DownloadChatFileErrors,
+  DownloadChatFileResponses,
   DownloadFileData,
   DownloadFileErrors,
   DownloadFileResponses,
@@ -451,6 +463,9 @@ import type {
   ExportChatData,
   ExportChatErrors,
   ExportChatResponses,
+  ExportNotesData,
+  ExportNotesErrors,
+  ExportNotesResponses,
   ExportRecordingData,
   ExportRecordingErrors,
   ExportRecordingResponses,
@@ -468,6 +483,9 @@ import type {
   FindGraphPathData,
   FindGraphPathErrors,
   FindGraphPathResponses,
+  FindResourcesData,
+  FindResourcesErrors,
+  FindResourcesResponses,
   FindSimilarData,
   FindSimilarErrors,
   FindSimilarResponses,
@@ -671,6 +689,8 @@ import type {
   GetRunData,
   GetRunErrors,
   GetRunResponses,
+  GetSandboxGatewayData,
+  GetSandboxGatewayResponses,
   GetSensorData,
   GetSensorErrors,
   GetSensorResponses,
@@ -771,6 +791,8 @@ import type {
   ImportNamespaceRdfData,
   ImportNamespaceRdfErrors,
   ImportNamespaceRdfResponses,
+  ImportTargetData,
+  ImportTargetResponses,
   ImportTranscriptData,
   ImportTranscriptErrors,
   ImportTranscriptResponses,
@@ -856,6 +878,9 @@ import type {
   ListCustomNodesData,
   ListCustomNodesErrors,
   ListCustomNodesResponses,
+  ListDatesData,
+  ListDatesErrors,
+  ListDatesResponses,
   ListEntitiesData,
   ListEntitiesErrors,
   ListEntitiesResponses,
@@ -1008,7 +1033,10 @@ import type {
   ListTagsData,
   ListTagsErrors,
   ListTagsResponses,
+  ListTemplates2Data,
+  ListTemplates2Responses,
   ListTemplatesData,
+  ListTemplatesErrors,
   ListTemplatesResponses,
   ListTokensData,
   ListTokensResponses,
@@ -1121,6 +1149,9 @@ import type {
   PageHistoryData,
   PageHistoryErrors,
   PageHistoryResponses,
+  PageMarkdownData,
+  PageMarkdownErrors,
+  PageMarkdownResponses,
   PageVersionData,
   PageVersionErrors,
   PageVersionResponses,
@@ -1444,6 +1475,9 @@ import type {
   SetRecordingContentTypeData,
   SetRecordingContentTypeErrors,
   SetRecordingContentTypeResponses,
+  SetSandboxGatewayData,
+  SetSandboxGatewayErrors,
+  SetSandboxGatewayResponses,
   SetupData,
   SetupErrors,
   SetupResponses,
@@ -1514,6 +1548,9 @@ import type {
   TelegramStatusResponses,
   TelemetryStatusData,
   TelemetryStatusResponses,
+  TemplatesNoteData,
+  TemplatesNoteErrors,
+  TemplatesNoteResponses,
   TestAnalyticsData,
   TestAnalyticsResponses,
   TestAutomationData,
@@ -3671,6 +3708,40 @@ export class Updates {
   ): RequestResult<SetMonitoringResponses, SetMonitoringErrors, ThrowOnError> {
     return (options.client ?? client).put<SetMonitoringResponses, SetMonitoringErrors, ThrowOnError>({
       url: "/api/v1/admin/monitoring",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Sandbox Gateway
+   *
+   * Whether the code sandbox's OpenShell gateway runs next to Lens (the sandbox profile), how the machine's last
+   * change went, what stands in the way here, and whether Lens reaches the gateway at sandbox.gateway.
+   */
+  public static getSandboxGateway<ThrowOnError extends boolean = false>(
+    options?: Options<GetSandboxGatewayData, ThrowOnError>,
+  ): RequestResult<GetSandboxGatewayResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetSandboxGatewayResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/sandbox",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Sandbox Gateway
+   *
+   * Have this machine start or stop the code sandbox's gateway. On also turns the sandbox on, at that gateway; off
+   * deletes the conversations' sandboxes first and turns the sandbox off. GET /admin/sandbox follows along.
+   */
+  public static setSandboxGateway<ThrowOnError extends boolean = false>(
+    options: Options<SetSandboxGatewayData, ThrowOnError>,
+  ): RequestResult<SetSandboxGatewayResponses, SetSandboxGatewayErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetSandboxGatewayResponses, SetSandboxGatewayErrors, ThrowOnError>({
+      url: "/api/v1/admin/sandbox",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -5871,6 +5942,40 @@ export class Notes {
   }
 
   /**
+   * List Templates
+   *
+   * The namespace's templates: the notes inside its "Templates" note, in the tree's order. Start a note from one
+   * with `POST /notes/{pid}/copy`.
+   */
+  public static listTemplates<ThrowOnError extends boolean = false>(
+    options: Options<ListTemplatesData, ThrowOnError>,
+  ): RequestResult<ListTemplatesResponses, ListTemplatesErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListTemplatesResponses, ListTemplatesErrors, ThrowOnError>({
+      url: "/api/v1/notes/templates",
+      ...options,
+    });
+  }
+
+  /**
+   * Templates Note
+   *
+   * The namespace's "Templates" note, made the first time it's asked for: each note put inside it is a template.
+   * Needs editor access.
+   */
+  public static templatesNote<ThrowOnError extends boolean = false>(
+    options: Options<TemplatesNoteData, ThrowOnError>,
+  ): RequestResult<TemplatesNoteResponses, TemplatesNoteErrors, ThrowOnError> {
+    return (options.client ?? client).post<TemplatesNoteResponses, TemplatesNoteErrors, ThrowOnError>({
+      url: "/api/v1/notes/templates",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Link Targets
    *
    * What a mention can link to, best matches first: `#` for topics; `@` for pages, assets, named people and other
@@ -5896,6 +6001,21 @@ export class Notes {
   ): RequestResult<SearchPagesResponses, SearchPagesErrors, ThrowOnError> {
     return (options?.client ?? client).get<SearchPagesResponses, SearchPagesErrors, ThrowOnError>({
       url: "/api/v1/notes/search",
+      ...options,
+    });
+  }
+
+  /**
+   * Export Notes
+   *
+   * Every page of the namespace as Markdown files in a zip, for other notes apps (Obsidian and the like): free notes
+   * in folders that follow the tree, the pages of things under "Pages of things".
+   */
+  public static exportNotes<ThrowOnError extends boolean = false>(
+    options: Options<ExportNotesData, ThrowOnError>,
+  ): RequestResult<ExportNotesResponses, ExportNotesErrors, ThrowOnError> {
+    return (options.client ?? client).get<ExportNotesResponses, ExportNotesErrors, ThrowOnError>({
+      url: "/api/v1/notes/export",
       ...options,
     });
   }
@@ -6035,6 +6155,21 @@ export class Notes {
   }
 
   /**
+   * Page Markdown
+   *
+   * The page as a Markdown file of its own: front matter with its title, date, filing and summary, then its text,
+   * with links to other pages as [[Title]] wiki links.
+   */
+  public static pageMarkdown<ThrowOnError extends boolean = false>(
+    options: Options<PageMarkdownData, ThrowOnError>,
+  ): RequestResult<PageMarkdownResponses, PageMarkdownErrors, ThrowOnError> {
+    return (options.client ?? client).get<PageMarkdownResponses, PageMarkdownErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/markdown",
+      ...options,
+    });
+  }
+
+  /**
    * Page History
    *
    * What the page was before each change to its title, summary or text, newest first.
@@ -6086,6 +6221,25 @@ export class Notes {
   ): RequestResult<MovePageResponses, MovePageErrors, ThrowOnError> {
     return (options.client ?? client).post<MovePageResponses, MovePageErrors, ThrowOnError>({
       url: "/api/v1/notes/{pid}/move",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Copy Page
+   *
+   * A new free note with this page's text, drawings, files, filing and view: a note started from a template, or a
+   * copy. Titled `title` (default the page's), inside `parent` (default the top). Needs editor access.
+   */
+  public static copyPage<ThrowOnError extends boolean = false>(
+    options: Options<CopyPageData, ThrowOnError>,
+  ): RequestResult<CopyPageResponses, CopyPageErrors, ThrowOnError> {
+    return (options.client ?? client).post<CopyPageResponses, CopyPageErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/copy",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -6963,6 +7117,51 @@ export class Search {
       ...options,
     });
   }
+
+  /**
+   * Find Resources
+   *
+   * Assets you can read that match every filter given: the people seen in them (faces) and heard (speakers), the
+   * entities they mention, the topics they're about, their kind and content type, when they were made, their tags,
+   * language, objects seen, emotions heard, length, status, collection and origin, and words said or written in them.
+   * Faces, people heard, entities and topics can be named instead of numbered; `resolved` says what each name matched, and
+   * a name that matches nothing is a 400 naming the closest ones. Each asset says `why` it matched, with up to three
+   * moments per reason to cite (a time, or a page). With `text`, the best matching come first.
+   */
+  public static findResources<ThrowOnError extends boolean = false>(
+    options: Options<FindResourcesData, ThrowOnError>,
+  ): RequestResult<FindResourcesResponses, FindResourcesErrors, ThrowOnError> {
+    return (options.client ?? client).post<FindResourcesResponses, FindResourcesErrors, ThrowOnError>({
+      url: "/api/v1/find",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Classify
+   *
+   * Which label fits an asset (or a text) best, how sure that is, and every label ranked: the labels given, Lens's
+   * content types (of the asset's kind) or the namespace's topics. The decision model answers when it's set up
+   * (Settings → AI assistant), else the language model; the call is in the activity ledger. With `apply` (editors), a
+   * sure answer is acted on: the content type is set, the topic is suggested for someone to accept, or the label is
+   * added as a tag; one that isn't sure changes nothing. 409 when no model is set up to answer.
+   */
+  public static classify<ThrowOnError extends boolean = false>(
+    options: Options<ClassifyData, ThrowOnError>,
+  ): RequestResult<ClassifyResponses, ClassifyErrors, ThrowOnError> {
+    return (options.client ?? client).post<ClassifyResponses, ClassifyErrors, ThrowOnError>({
+      url: "/api/v1/classify",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
 }
 
 export class Searches {
@@ -7623,6 +7822,24 @@ export class Entities {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+}
+
+export class Dates {
+  /**
+   * List Dates
+   *
+   * The dates the assets you can read give that fall between `start` and `end` (a date that spans days counts when
+   * any of its days does), the earliest first, each with its line. Analysis reads them while Settings → Analysis → Read
+   * dates is on.
+   */
+  public static listDates<ThrowOnError extends boolean = false>(
+    options?: Options<ListDatesData, ThrowOnError>,
+  ): RequestResult<ListDatesResponses, ListDatesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListDatesResponses, ListDatesErrors, ThrowOnError>({
+      url: "/api/v1/dates",
+      ...options,
     });
   }
 }
@@ -9097,9 +9314,9 @@ export class Templates {
    * List Templates
    */
   public static listTemplates<ThrowOnError extends boolean = false>(
-    options?: Options<ListTemplatesData, ThrowOnError>,
-  ): RequestResult<ListTemplatesResponses, unknown, ThrowOnError> {
-    return (options?.client ?? client).get<ListTemplatesResponses, unknown, ThrowOnError>({
+    options?: Options<ListTemplates2Data, ThrowOnError>,
+  ): RequestResult<ListTemplates2Responses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListTemplates2Responses, unknown, ThrowOnError>({
       url: "/api/v1/templates",
       ...options,
     });
@@ -9971,6 +10188,10 @@ export class Chats {
 
   /**
    * Create Chat
+   *
+   * A conversation. Its answers may use what `tools` and `max_tool_calls` say, which become your latest choice;
+   * left out, your latest choice (here or PATCH /chats/{cid}), else Auto: everything you may use, limited by the rounds
+   * alone.
    */
   public static createChat<ThrowOnError extends boolean = false>(
     options?: Options<CreateChatData, ThrowOnError>,
@@ -10002,7 +10223,28 @@ export class Chats {
   }
 
   /**
+   * Chat Tools
+   *
+   * The tool groups and tools an answer can be given (`tools` on a question or a conversation), as you have them: each
+   * tool with what it does (read, asks: it waits for your yes, out: it sends what it's given to another host) and
+   * whether you have it now, each group with why you don't when you have none of it, and the setting that changes it.
+   * Built-in groups first, then your extensions' (mcp:<server>, ext:<extension>). With `chat_id`, as in that
+   * conversation's scope (a namespace's own memory is there only in a conversation about that namespace). Also: the most
+   * tool calls an answer may be given, and your latest choice, which new conversations start with.
+   */
+  public static chatTools<ThrowOnError extends boolean = false>(
+    options?: Options<ChatToolsData, ThrowOnError>,
+  ): RequestResult<ChatToolsResponses, ChatToolsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ChatToolsResponses, ChatToolsErrors, ThrowOnError>({
+      url: "/api/v1/chats/tools",
+      ...options,
+    });
+  }
+
+  /**
    * Delete Chat
+   *
+   * Delete a conversation, with its code sandbox and the files in it.
    */
   public static deleteChat<ThrowOnError extends boolean = false>(
     options: Options<DeleteChatData, ThrowOnError>,
@@ -10017,7 +10259,8 @@ export class Chats {
    * Get Chat
    *
    * A conversation with the version showing (`messages`, each with its `versions`) and every version's messages
-   * (`tree`). Citations follow your current access: ones you can no longer read are left out.
+   * (`tree`). Citations follow your current access: ones you can no longer read are left out (web pages it cited stay:
+   * they aren't the archive's).
    */
   public static getChat<ThrowOnError extends boolean = false>(
     options: Options<GetChatData, ThrowOnError>,
@@ -10031,7 +10274,9 @@ export class Chats {
   /**
    * Update Chat
    *
-   * Rename a conversation, change what it draws on, or the model that answers in it (null: the configured one).
+   * Rename a conversation, change what it draws on, the model that answers in it (null: the configured one), or
+   * what its answers may use (`tools`, null: Auto) and at most how many tool calls each makes (`max_tool_calls`, null:
+   * no limit but the rounds). The choice of tools and limit is also what your new conversations start with.
    */
   public static updateChat<ThrowOnError extends boolean = false>(
     options: Options<UpdateChatData, ThrowOnError>,
@@ -10099,6 +10344,20 @@ export class Chats {
   }
 
   /**
+   * Download Chat File
+   *
+   * A file the code sandbox handed you in this conversation (share_sandbox_file, the download on its answer).
+   */
+  public static downloadChatFile<ThrowOnError extends boolean = false>(
+    options: Options<DownloadChatFileData, ThrowOnError>,
+  ): RequestResult<DownloadChatFileResponses, DownloadChatFileErrors, ThrowOnError> {
+    return (options.client ?? client).get<DownloadChatFileResponses, DownloadChatFileErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/files/{fid}",
+      ...options,
+    });
+  }
+
+  /**
    * Send Message
    *
    * Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model
@@ -10114,6 +10373,11 @@ export class Chats {
    * conversation). Either keeps the page the question was asked from (where, and the highlighted text; not the page's
    * text, which isn't kept) unless `context` is given, and streams `branch` first ({message, parent, versions}: the
    * new version, the message it follows and its versions); so does a question beside others under `parent`.
+   *
+   * What the answer may use: `tools` (tool groups and tools, GET /chats/tools; [] for none, when it answers from a
+   * search) and `max_tool_calls` (at most that many tool calls, in as many rounds as it takes), else the conversation's
+   * choice (PATCH /chats/{cid}); and `scope`, what this answer alone draws on (the conversation keeps its own). Its
+   * record keeps what it was given and used.
    *
    * `/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the
    * conversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.
@@ -11312,8 +11576,8 @@ export class Shares {
   /**
    * S3 Status
    *
-   * Whether the S3 server is on and on which port, what the worker running it says, the same for WebDAV, and your
-   * access keys.
+   * Whether the S3 server is on and on which port, what the worker running it says, the same for WebDAV, whether
+   * both are open at the web app's address too (/s3, /dav), and your access keys.
    */
   public static s3Status<ThrowOnError extends boolean = false>(
     options?: Options<S3StatusData, ThrowOnError>,
@@ -11454,9 +11718,27 @@ export class ImportHooks {
   }
 
   /**
+   * Import Target
+   *
+   * Where pushes with this bearer token go, without importing anything: an import webhook's token goes into its
+   * namespace; a person's own token (an API token, an app's, or the web app's) into any namespace they can import into,
+   * named with `?namespace=`. 401 for a token Lens doesn't know, saying which kind it is; 403 while a hook is paused.
+   */
+  public static importTarget<ThrowOnError extends boolean = false>(
+    options?: Options<ImportTargetData, ThrowOnError>,
+  ): RequestResult<ImportTargetResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ImportTargetResponses, unknown, ThrowOnError>({
+      url: "/api/v1/hooks/import",
+      ...options,
+    });
+  }
+
+  /**
    * Push To Import Hook
    *
-   * Push something into an import webhook's namespace, with its token as a bearer token. Three ways:
+   * Push something into an import webhook's namespace, with its token as a bearer token, or into one of your own
+   * namespaces with your own token (an API token with write access, an app's, or the web app's) and `?namespace=`.
+   * Three ways:
    *
    * - a file as the raw body, named by `?filename=`, Content-Disposition or X-Filename: audio, video, documents and
    * images become assets and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as
@@ -11465,8 +11747,9 @@ export class ImportHooks {
    * - JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as text), with an optional
    * `title`.
    *
-   * Each runs the hook's pipeline, or the namespace's. 401 for an unknown token, 403 while the hook is paused, 413 over
-   * uploads.max_mb. Audited as `import.hook`.
+   * Each runs the hook's pipeline, or the namespace's. 401 for an unknown token, saying which kind it is; 403 while the
+   * hook is paused, for a read-only token, or without the import permission; 413 over uploads.max_mb. Audited as
+   * `import.hook` (by the hook) or `import.push` (by the person).
    */
   public static pushToImportHook<ThrowOnError extends boolean = false>(
     options?: Options<PushToImportHookData, ThrowOnError>,
@@ -11484,8 +11767,8 @@ export class ImportHooks {
   /**
    * Push To Import Hook Token
    *
-   * The same, with the token in the address, for services that can only be given a URL. Prefer the bearer token:
-   * addresses end up in logs.
+   * The same, with an import webhook's token in the address, for services that can only be given a URL. Prefer the
+   * bearer token: addresses end up in logs. A person's own token is never taken here.
    */
   public static pushToImportHookToken<ThrowOnError extends boolean = false>(
     options: Options<PushToImportHookTokenData, ThrowOnError>,

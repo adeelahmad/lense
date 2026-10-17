@@ -22,6 +22,7 @@ import {
   Save,
   ScanSearch,
   SearchCheck,
+  Shapes,
   Sparkles,
   Tags,
   TextCursorInput,
@@ -126,6 +127,18 @@ export const NODES: Record<string, Info> = {
     takes: "entities[]",
     gives: "entity index · graph",
     group: "Entities",
+  },
+  classify: {
+    label: "Classify",
+    describe:
+      "Says which of your labels, the content types or the namespace’s topics fits the asset (or what came in), how sure, and every label ranked; can act on a sure answer",
+    icon: Shapes,
+    tone: "gold",
+    inputs: 1,
+    outputs: ["out"],
+    takes: "asset or text",
+    gives: "choice · confidence · ranked",
+    group: "AI",
   },
   llm: {
     label: "LLM prompt",
@@ -377,7 +390,7 @@ export const PRIMITIVES = [
 
 /** Node types per scope, for when the catalog hasn't said (it lists each type's scopes). */
 const SCOPE_NODES: Record<Scope, string[]> = {
-  recording: [...PRIMITIVES, "extract_rules", "extract_llm", "save_entities", "llm", "output", "field"],
+  recording: [...PRIMITIVES, "extract_rules", "extract_llm", "save_entities", "llm", "classify", "output", "field"],
   graph: [...PRIMITIVES, "candidates", "llm_judge", "apply_changes"],
   tool: [...PRIMITIVES, "ask_model", "call_tool"],
 };
@@ -389,8 +402,12 @@ export function inScope(type: string, scope: Scope, catalog?: { type: string; sc
 }
 
 export const GROUPS = ["Entities", "AI", "Logic", "Data", "Loops", "Keep"] as const;
-/** Nodes that keep something: a workflow needs one. */
+/** Nodes that keep something: a workflow needs one (or a node that keeps something as set up, see savesAsSet). */
 export const KEEPS = ["output", "field", "save_entities", "apply_changes"];
+/** A node that keeps something only as it's set up: a classify node that acts on a sure answer. */
+export const savesAsSet = (n: WfNode) => n.type === "classify" && Boolean(n.config.apply);
+/** What a classify node chooses from. */
+export const VOCABULARIES: Record<string, string> = { content_type: "Content types", topic: "The namespace’s topics" };
 /** Nodes with a body of nodes inside, opened by double-clicking. */
 export const BODIES = ["for_each", "repeat", "group"];
 /** What a loop's body starts from. */
@@ -484,6 +501,7 @@ export function defaultConfig(type: string): Record<string, unknown> {
   if (type === "template") return { template: "{{ input }}" };
   if (type === "ask_model") return { prompt: "{{ input }}" };
   if (type === "call_tool") return { tool: "search_transcripts" };
+  if (type === "classify") return { vocabulary: "topic" };
   if (type === "for_each") return { body: starterBody("for_each") };
   if (type === "repeat") return { body: starterBody("repeat"), max_rounds: 5 };
   if (type === "group") return { body: starterBody("group") };
@@ -806,6 +824,15 @@ export function nodeSummary(
     }
     case "extract_llm":
       return (c.types as string[] | undefined)?.length ? (c.types as string[]).join(", ") : "all types";
+    case "classify": {
+      const labels = (c.labels as string[] | undefined) ?? [];
+      const from = c.vocabulary
+        ? (VOCABULARIES[String(c.vocabulary)] ?? String(c.vocabulary))
+        : labels.length
+          ? labels.map((l) => l.split(": ")[0]).join(", ")
+          : "Give labels";
+      return `${c.of === "input" ? "what comes in · " : ""}${from}${c.apply ? " · acts when sure" : ""}`;
+    }
     case "output":
       return c.key
         ? paramRef(c.key)
@@ -936,6 +963,16 @@ export function problems(
     else if (n.type === "output" && !KEY_RX.test(String(c.key ?? "")))
       fail("Name it: lowercase letters, digits and _, e.g. meeting_notes.");
     else if (n.type === "field" && c.field == null) fail("Choose a custom field.");
+    else if (n.type === "classify" && (c.vocabulary == null) === (c.labels == null))
+      fail("Give labels, or choose content types or topics.");
+    else if (
+      n.type === "classify" &&
+      c.labels != null &&
+      new Set((c.labels as string[]).map((l) => l.split(": ")[0].trim())).size < 2
+    )
+      fail("Give at least two labels to choose from.");
+    else if (n.type === "classify" && c.apply && c.of === "input")
+      fail("Only the asset’s classification can be acted on.");
     else if (n.type === "candidates" && !between(c.min_confidence, 0, 1, false))
       fail("How sure is a number from 0 to 1.");
     else if (n.type === "candidates" && !between(c.limit, 1, 1000, true)) fail("At most is 1 to 1000 pairs.");
@@ -980,7 +1017,7 @@ export function problems(
     out[""] =
       scope === "graph"
         ? "Add an Apply changes node, or the workflow changes nothing."
-        : "Add a Save output, Set field or Save entities node, or the workflow keeps nothing.";
+        : "Add a Save output, Set field or Save entities node (or a Classify node that acts), or the workflow keeps nothing.";
   return out;
 }
 
@@ -990,6 +1027,7 @@ function keeps(g: WfGraph, custom?: (id: number) => CustomDef | undefined, scope
   return g.nodes.some(
     (n) =>
       saving.includes(n.type) ||
+      (scope === "recording" && savesAsSet(n)) ||
       (BODIES.includes(n.type) && n.config.body ? keeps(n.config.body as WfGraph, custom, scope) : false) ||
       (n.type === "custom" && Boolean(custom?.(Number(n.config.node))?.keeps)),
   );

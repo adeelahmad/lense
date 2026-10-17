@@ -20,6 +20,14 @@ def run_steps(db, cfg, which, ns=None, limit=0, force=False, recording=None, aud
         log("transcribe:", ingest.transcribe_pending(db, cfg, ns, limit, force, log), "recording(s)")
     if "diarize" in which:
         log("diarize:", spk.diarize_pending(db, cfg, ns, limit, force, log), "recording(s)")
+    if "clean" in which:
+        from .domain import cleanup, settings
+
+        ccfg = settings.effective(db, cfg)
+        if (ccfg.get("analysis") or {}).get("cleanup") or force:
+            log("clean:", cleanup.clean_pending(db, ccfg, ns, limit, force, log), "asset(s)")
+        else:
+            log("clean: skipped; cleaning up transcripts is off (analysis.cleanup, Settings → Analysis)")
     if "analyze" in which:
         log("analyze:", analyze.analyze_pending(db, cfg, ns, limit, force, log), "asset(s)")
     if "embed" in which:
@@ -51,10 +59,11 @@ def _main_base(argv=None):
         ("scan", "register new files in each namespace's folders"),
         ("transcribe", "transcribe new recordings"),
         ("diarize", "split speakers and match voice IDs within each namespace"),
+        ("clean", "tidy transcripts before analysis: fillers, repeated words, spacing and capitals"),
         ("analyze", "named things, keywords, sections and speaking-time statistics"),
         ("embed", "index passages for search by meaning (with the configured embedding model)"),
         ("summarize", "optional LLM summaries"),
-        ("run", "scan, transcribe, diarize, analyze, embed, summarize and report, resuming where it stopped"),
+        ("run", "scan, transcribe, diarize, clean, analyze, embed, summarize and report, resuming where it stopped"),
     ):
         p = sub.add_parser(name, help=helptext)
         p.add_argument("--ns")
@@ -136,8 +145,8 @@ def _main_base(argv=None):
         return
     conn = store.connect(cfg, upgrade=a.cmd != "migrations")  # so a failed upgrade can still be looked at
     try:
-        if a.cmd in ("scan", "transcribe", "diarize", "analyze", "embed", "summarize", "run", "report"):
-            which = ["scan", "transcribe", "diarize", "analyze", "embed", "summarize", "report"] if a.cmd == "run" else [a.cmd]
+        if a.cmd in ("scan", "transcribe", "diarize", "clean", "analyze", "embed", "summarize", "run", "report"):
+            which = ["scan", "transcribe", "diarize", "clean", "analyze", "embed", "summarize", "report"] if a.cmd == "run" else [a.cmd]
             with store.lock(cfg, "pipeline"):
                 run_steps(
                     conn,
@@ -333,6 +342,10 @@ def platform_main(argv, config):
         except decide.Undecided as e:
             raise SystemExit(str(e)) from None
         return
+    if a.cmd == "worker" or (a.cmd == "watch" and not a.once):
+        # every line as a record: the console, the log file and syslog (docs/logging.md), from before the database
+        # opens, so the upgrade it may run as it starts is in its log too (docs/database.md, Upgrades)
+        logs.setup("worker" if a.cmd == "worker" else "watcher")
     db = store.connect(cfg)
     activity.bind(db)  # calls made here reach the activity ledger (docs/activity.md)
     C = settings.Settings(db, cfg).current
@@ -376,7 +389,6 @@ def platform_main(argv, config):
                     print(f"password changed for {a.email}")
         elif a.cmd == "worker":
             telemetry.set_role("worker")
-            logs.setup("worker")  # every line as a record: the console, the log file and syslog (docs/logging.md)
             say = logs.printer("lens.worker")
             wk = jobs.Worker(db, C, a.name, a.steps.split(",") if a.steps else None, log=say)
             if a.once:
@@ -408,7 +420,6 @@ def platform_main(argv, config):
             print(f"ran {routines.run_due(db, C(), print)} routine(s)")
         else:
             telemetry.set_role("watcher")
-            logs.setup("watcher")
             say = logs.printer("lens.watch")
             print("watching storage sources and running routines; Ctrl-C to stop")
             _stop_on_term()

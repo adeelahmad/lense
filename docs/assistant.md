@@ -202,9 +202,15 @@ engine), `POST /voice/transcribe` (a clip as the raw body; nothing is kept), `PO
 When the configured model supports function calling, chat becomes an agent.
 
 - **What it can look things up with:** assets' text (transcripts and documents, and on-screen text), assets, passages,
-  outputs, entities and their mentions and timelines, the knowledge graph, people, and content similar to a text,
+  outputs, entities and their mentions and timelines, dates said as days on the calendar (`find_dates`), the
+  knowledge graph, people, and content similar to a text,
   an asset, a topic or an entity (`find_similar`), and what happened in Lens, newest first (`timeline`, the
-  [stream of activities](automations.md#timeline-reads); `unreviewed` for what the person hasn't marked reviewed).
+  [stream of activities](automations.md#timeline-reads); `unreviewed` for what the person hasn't marked reviewed),
+  and assets by any attribute: faces seen, people heard, entities, topics, kind, content type, dates and the rest,
+  each with the moments that show why it matched (`find_resources`,
+  [Finding by any attribute](processing.md#finding-by-any-attribute)). It can also ask which of some labels, content
+  types or topics fits an asset or a text, and how sure that is (`classify`, [Classifying](processing.md#classifying));
+  it changes nothing.
 - **The person's review marks:** `mark_activities` marks activities of the timeline reviewed, important or hidden for
   the person ([Timeline](timeline.md#review-marks)). After it has read text from outside Lens, hiding or marking
   reviewed waits for their yes; marking important or bringing things back acts at once.
@@ -219,7 +225,8 @@ When the configured model supports function calling, chat becomes an agent.
   (`save_automation` with `enabled`) and running one now wait for the person's approval; switching one off acts at once
   ([Automations](automations.md#agents)).
 - **Limits:** everything is limited to what the person can read and to the conversation's scope, and capped by
-  `ai.max_steps` (Settings → AI assistant, Tool steps per answer; 6 by default) and `ai.max_transcript_reads`.
+  `ai.max_steps` (Settings → AI assistant, Tool steps per answer; 6 by default) and `ai.max_transcript_reads`, or by
+  the tool calls a question allows ([below](#choosing-tools-namespaces-and-a-limit)).
 - **Always an answer:** the model is told its step budget. When the steps run out, or it replies with nothing, it is
   asked once more to answer from what it found, with the tools off, and to say what it didn't get to check. A server
   that calls tools anyway gets the conversation again as plain text, without tools. That last ask is one more model
@@ -247,6 +254,198 @@ When the configured model supports function calling, chat becomes an agent.
 - **Your browser** (Chrome and Edge): asked from the Lens extension's side panel, the assistant can open, read, click
   and type in that browser and download files into the conversation, on sites you allow, asking before anything that
   sends, deletes or buys. See [The assistant in your browser](browser-assistant.md).
+- **Python and bash** (off until an admin turns it on): `run_python` and `run_bash` run code in a sandbox of the
+  conversation's own, to compute, analyse or convert files. See [Code sandbox](#code-sandbox).
+- **The web:** when an admin turns on web search, `web_search` and `web_read` look up what the archive doesn't hold,
+  cited like excerpts ([below](#web-search-and-reading-pages)).
+
+### Web search and reading pages
+
+Built, off by default. An admin turns it on in Settings → AI assistant → Web search (`web.search`), and the assistant
+gets two more tools, for everyone who may use the assistant:
+
+- **`web_search`** searches the web: each result's title, address, site and snippet, numbered like the archive's
+  excerpts, so an answer cites [n] across both. `time_range` keeps only results from the last day, week, month or
+  year. The step reads 'Searched the web for "solar output": 5 result(s)'.
+- **`web_read`** reads a page or an online PDF by its address: its title and text, numbered to cite. `find` keeps only
+  the paragraphs that mention some words, with the ones around them. It doesn't save the page; `import_urls` captures
+  it into the archive.
+- **Citations:** a cited page's chip shows its site ("example.org · Harbour news") and opens the page in a new tab;
+  the sources list shows it with its site, and a conversation keeps its web citations when it is opened again (they
+  aren't the archive's, so nobody's reads hide them). In [chat rooms](chat-rooms.md) the sources line gives the
+  page's address.
+- **Providers** (`web.search`): `duckduckgo` needs no key or account. DuckDuckGo has no API, so Lens reads its results
+  page with [ddgs](https://pypi.org/project/ddgs/) (MIT), an unofficial client that can stop working when the page
+  changes; it is about 30 MB and is fetched the first time an admin picks it (Settings → Components shows it, as
+  "DuckDuckGo search"). `searxng` asks your own [SearXNG](https://docs.searxng.org/) instance at `web.searxng_url`,
+  whose JSON output must be on (`search.formats: [html, json]` in its `settings.yml`). `brave` and `tavily` use those
+  services' APIs with the key in `web.api_key`, kept encrypted like other secrets; searches past their free
+  allowance are charged by them.
+- **What leaves the server:** what it searches for goes to the provider, and the pages it reads come straight from
+  their sites. Like [captured pages](api.md#web-pages), every request goes through Lens's network guard: public
+  addresses only (plus the networks allowed for pages, `documents.web_networks`), on the web's ports, every redirect
+  checked again, so neither a result nor a redirect reaches this machine's own services. Pages and PDFs are read up
+  to 10 MB, and the model reads at most `web.read_chars` of a page's text (20,000 characters by default; `find` picks
+  the parts that matter in a longer page).
+- **Pages that need scripts:** with `web.render` on (Settings → AI assistant → Web search → Reading pages), a page
+  that comes back nearly empty is loaded in Chromium, its scripts run, and read again. That needs Chromium on the
+  server (the full edition); the light install reads the page as it comes.
+- **Asks first after outside text:** a search or a page read sends words out of Lens, so once an answer has read text
+  from outside Lens ([below](#third-party-content-and-prompt-injection)), one the model wrote itself waits for your
+  approval. Searching for what you typed, and reading an address you wrote or that a search or page gave back, run at
+  once. Once approved, the assistant asks the same thing again and gets what the approved call found, without
+  searching twice.
+- **Cost:** each search and each page read is a row in the activity ledger (`web.search` with the provider and how
+  many results came back, `web.read` with the site), never with the query or the page. Brave and Tavily searches are
+  marked as estimates, since Lens doesn't know your plan's price.
+- **Agents:** an agent turns it on like any setting, with `PUT /api/v1/settings/web` (admins) or by asking the
+  [setup chat](#setting-up-and-running-the-server-by-chat), which waits for your approval before it changes web search.
+  Each tool can be switched off in Tools it may use (`ai.disabled_tools`).
+
+Refine later: an opt-in SearXNG service in the Docker Compose file (SearXNG is AGPL, so it would stay an extra),
+prices per search for the paid providers, web access per namespace, and keeping recent results to search less.
+
+### Choosing tools, namespaces and a limit
+
+By default (Auto) an answer may use every tool the person has. A conversation, or one question, can instead pick the
+tools it may use, how many tool calls it may make, and which namespaces it reads.
+
+- **Tool groups.** `GET /api/v1/chats/tools` lists the groups and the tools in each that the person has, and why a
+  group isn't there for them:
+    - `archive` (search and read assets);
+    - `graph` (entities, topics, the knowledge graph);
+    - `web` (searching the web and reading pages, once an admin has set up a search);
+    - `notes`;
+    - `memory` (a namespace's own assistant);
+    - `activity` (the timeline, approvals and automations);
+    - `changes` (proposals that become approvals);
+    - `files` (importing files and web pages);
+    - `code` (the [code sandbox](#code-sandbox): Python and bash, once an admin turns it on);
+    - `extensions`;
+    - `server` (admins);
+    - `browser`;
+    - `mcp:<name>` and `ext:<name>`, one for each of the person's extensions.
+
+    Each tool says its `effect`: `read`, `asks` (it waits for the person's approval) or `out` (it sends data out of
+    Lens, as a web search, the browser's open, click and type, and code runs while the sandbox's network is on do). A
+    group that isn't available says why (switched off by an admin, no web search is set up, the code sandbox is off,
+    for admins, or needs editor access to a namespace) and names the setting that switches it back on (`setting`, such
+    as `ai.browser`, `web.search` or `sandbox.enabled`).
+- **Picking.** `tools` (on `POST /chats`, `PATCH /chats/<id>` or one question, `POST /chats/<id>/messages`) is a list
+  of group and tool names. The model is then offered only those tools, and a tool it calls that it wasn't offered isn't
+  run. Null is Auto. An empty list means no tools: the answer is written from a search, as when the model can't use
+  tools. A name that is no group or tool the person has is a 400. An admin's switches (`ai.disabled_tools`,
+  `ai.browser`, `ai.extensions`) still win over any pick.
+- **A limit on tool calls.** `max_tool_calls` (in the same places) caps how many tool calls one answer may make in
+  all. The model is told the budget. Calls past it get a reply saying they weren't made, and then the answer is written
+  from what was found, with outcome `limit`. With a limit, the rounds of calls may go past `ai.max_steps`, up to the
+  limit. It is a whole number from 1 to `ai.max_tool_calls` (Settings → AI assistant, Most tool calls a question may
+  ask for; 50 by default, at most 500). `GET /chats/capabilities` gives it as `max_tool_calls`.
+- **A scope for one answer.** `scope` on `POST /chats/<id>/messages` narrows that answer alone, with the same keys as
+  a conversation's scope. `{}` means everything the person can read, and a namespace they can't read is a 404. The
+  conversation keeps its own scope, and a question with a scope isn't narrowed by the
+  [namespace picker](#picking-the-namespace-for-a-conversation-over-everything).
+- **Remembered.** Each answer records what it was offered and its limits (`tools`, `limits`, `scope`), and each
+  question records the options it was asked with ([What each answer records](#what-each-answer-records)). A
+  conversation keeps its `tools` and `max_tool_calls`. The person's latest choice (the last `POST /chats` or `PATCH
+  /chats/<id>` that set them) is kept on their account, so a new conversation starts with it (`remembered` in `GET
+  /chats/tools`) unless `POST /chats` says otherwise.
+- **Web and MCP tools reach beyond your namespaces.** The namespaces picked narrow the archive's tools only. A web
+  search, an MCP server or the browser reads and sends wherever it reaches.
+
+In the web app, the **Tools** chip beside the composer's scope picks these for the conversation (Enter or a tap opens
+it): Auto, a switch for each group (marked "needs approval" or "sends data out"; one you don't have says why, with a
+link to its setting for admins) and a limit on tool calls per answer. A conversation not started yet opens on your
+latest choice. "All my namespaces" at the top of the scope's namespaces goes back to everything in one tap.
+
+Refine later: tool choice in chat rooms and voice mode, a default choice per namespace, and the model suggesting the
+tools a question needs.
+
+## Code sandbox
+
+Built: an admin turns it on in Settings → Code sandbox with **Run the gateway on this machine**, which starts an
+[NVIDIA OpenShell](https://github.com/NVIDIA/OpenShell) gateway next to Lens and turns the sandbox on
+(`sandbox.enabled`, off by default; see [The gateway](#the-gateway)), or turns it on and points Lens at a gateway they
+run (`sandbox.gateway`, `openshell-gateway:17670` by default). Then the assistant can run Python and bash for the
+people it's turned on for: those who can edit a namespace, and admins (`sandbox.who`: `editors`), or admins only
+(`admins`). Viewers never get it.
+
+- **One sandbox per conversation.** The first run in a conversation creates its sandbox, `lens-chat-<id>`, from
+  `sandbox.image` (`python:3.12-slim` by default, about 45 MB to download) with `sandbox.cpu` (1 core) and
+  `sandbox.memory` (512Mi). It keeps its files between runs in that conversation, and no other conversation sees them.
+  A sandbox nobody ran code in for `sandbox.idle_minutes` (15) is stopped; the next run starts it again, files and
+  all. One unused for `sandbox.keep_hours` (24) is deleted with its files, and deleting the conversation deletes its
+  sandbox at once. Changing the image or the network makes the conversation's next run start a fresh sandbox; CPU and
+  memory apply to new sandboxes.
+- **The tools.** `run_python` (code) and `run_bash` (a script) each run for at most `sandbox.seconds` (60) and give
+  back stdout, stderr and the exit code: the model reads the start of stdout and the end of stderr, up to 10,000
+  characters, and is told when more was cut off. `files` copies files attached to the conversation in first, by their
+  own names (25 MB each, 100 MB a run). `sandbox_files` lists what the sandbox holds. `share_sandbox_file` copies a
+  file out (25 MB at most) for the person to download from the answer: a chart, a converted document, a cleaned
+  table. `import_sandbox_file` copies one out as if the person had attached it and puts it in a namespace with
+  `import_files`, so it waits for their approval; its type must be one uploads take.
+- **In the conversation.** Each run is a step under the answer, folded: opening it shows the code, then what it
+  printed (the first 4,000 characters of stdout, the last 4,000 of stderr in red) and how it ended. A file the
+  sandbox shared is a button on the answer that downloads it (`GET /api/v1/chats/{id}/files/{file}`, only for the
+  person whose conversation it is). Lens keeps those files with the conversation, encrypted with a key derived from
+  the server's secret key, at most 20 a conversation, and deletes them with the conversation or the person's account.
+- **Nothing of Lens's inside.** A sandbox holds no keys, no database address and no archive: only the code, and the
+  files a run copies in. What it prints reaches the model marked as third-party text, like any tool's result.
+- **Its network** (`sandbox.network`): `off` (the default) allows no traffic in or out at all; `packages` reaches
+  only the Python and npm registries (pypi.org, files.pythonhosted.org, registry.npmjs.org), so `pip install` works;
+  `hosts` reaches those and the names an admin lists in `sandbox.hosts` (Hosts it may reach: `api.example.com`, or
+  `*.example.com` for its subdomains) on ports 80 and 443. OpenShell resolves only names its policy lists, so there is
+  no "any website" setting. Every name is held to public addresses: one that resolves to a private address (Lens's own
+  services, your home network, the cloud metadata address) is refused. The model is told what the network reaches.
+  With the network on, a run after the answer read text from outside Lens waits for the person's approval (below),
+  since code could carry what it read out.
+- **How it's kept apart.** OpenShell runs each sandbox as a container under its supervisor: the code runs as an
+  unprivileged user with no capabilities, Landlock lets it write only its working folder and `/tmp` and read the
+  image's programs, seccomp filters its system calls, and its egress is denied unless the policy above allows it.
+- **Cost.** It makes no model calls of its own, and the compute is your machine's. Each run is a row in the
+  [activity ledger](activity.md) (`sandbox.run`, with its time, language and exit code), counted for the conversation.
+- **Its client.** Lens's own client for the gateway (the `sandbox` Python extra, OpenShell's SDK, Apache-2.0) is
+  fetched once the sandbox is on ([Components](components.md)).
+
+### The gateway
+
+Built: the Docker Compose install has a `sandbox` profile that runs OpenShell's gateway (release 0.1.4) next to Lens.
+**Run the gateway on this machine** (Settings → Code sandbox, admins) has the machine's upgrade agent add `sandbox` to
+`COMPOSE_PROFILES` and start it, as it does for [monitoring](prometheus.md), then turns the sandbox on with
+`sandbox.gateway` set to `openshell-gateway:17670`. Turning it off deletes every conversation's sandbox, files and
+all, turns the sandbox off and stops the gateway. Agents do the same with `PUT /api/v1/admin/sandbox` (`{"on": true}`)
+or the MCP tools `sandbox_gateway` and `set_sandbox_gateway`; `GET /api/v1/admin/sandbox` says how the machine's last
+change went and whether Lens reaches the gateway and is let in. With no upgrade agent, Settings shows the line to run
+on the machine:
+
+```sh
+docker compose -f docker-compose.prod.yml --profile sandbox up -d openshell-gateway
+```
+
+- **What it checks first.** It says why the gateway can't run here, and doesn't start it: Lens isn't running from its
+  Docker Compose install (a [microsandbox](microsandbox.md), say), the machine isn't 64-bit Intel, AMD or ARM, or its
+  Linux kernel has no Landlock 3 (Linux 6.2 or newer, with Landlock turned on). OpenShell also needs Docker 28 or
+  newer, which Lens can't see from its container: the start fails with Docker's own message when it's older.
+- **The containers.** `openshell-init` makes the gateway's certificates once, in `/var/lib/openshell` on the machine
+  (the gateway has Docker mount files from that folder into each sandbox, so it is the same path inside and out);
+  `openshell-key` copies the client's certificate to the `sandbox-key` volume, readable only by Lens's backend and
+  worker. `openshell-gateway` runs as root to drive Docker through its socket, with no capabilities, a read-only image
+  and no telemetry, configured by `sandbox/gateway.toml`. Lens reaches it on a network of their own (`sandbox`) over
+  mutual TLS; each sandbox's supervisor reaches it on the machine's `127.0.0.1:17670`, which isn't published to the
+  network.
+- **Size.** About 300 MB of images on disk (the gateway, the supervisor and the sandbox runtime), downloaded the first
+  time it starts, plus `sandbox.image`. Each sandbox is a container with its own CPU, memory and process limits.
+
+In progress: the upgrade agent that starts the profile ships with the agent's next release; until this machine's agent
+knows the `sandbox` profile, Settings says to start it by hand and shows the line above.
+
+Refine later: automations' agent runs without a conversation get no sandbox yet; running admins' Python extension
+tools in the sandbox so people who aren't admins can write them; asking the person before a run reaches a host that
+isn't listed; the gateway's port (17670) as a setting; the gateway on macOS (Docker Desktop doesn't share
+`/var/lib/openshell`) and in a [microsandbox](microsandbox.md) (the gateway on the host, or OpenShell's MicroVM
+driver); the Podman driver for hosts without Docker; GPUs; a direct sandbox API for agents (today an agent asks the
+assistant); one real run against OpenShell in CI (the tests use a fake gateway with OpenShell's own client); showing
+an image the sandbox shared inline in the answer, not only as a download; the 20-file cap as a setting.
 
 ## Third-party content and prompt injection
 
@@ -285,7 +484,9 @@ apart from what the person asks:
   other than Lens's own, the page it was asked from, the namespace assistant's memories, a message in a chat room
   open to anyone, or an earlier answer in the conversation that read any of these), anything that could carry what
   it read out of Lens waits for your approval, even where it would otherwise run at once: your own `read` web tools,
-  other servers' MCP tools and Python tools with the network, the changes a setup conversation makes itself, and, in
+  a [web search or page read](#web-search-and-reading-pages) you or a tool didn't give it, other servers' MCP tools
+  and Python tools with the network, code in the [code sandbox](#code-sandbox) when its network is on, the changes a
+  setup conversation makes itself, and, in
   [your browser](browser-assistant.md), opening or downloading an address or typing text you didn't write. The
   approval card says why ("asked first: this answer read text from outside Lens: tool search_transcripts"). Notes and
   memories are still written at once: they stay in Lens, and are marked as data when read back.

@@ -13,20 +13,103 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   Markdown or plain text and exports it, questions and code blocks have their own copy buttons, and the conversation's
   header has Export; without a PDF printer on the server, the browser prints it instead
   ([Copy and export](docs/assistant.md#copy-and-export)).
+
+## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
+
+- **Dates read as days, for agents.** With Settings → Analysis → Read dates on (off by default), analysis reads the
+  dates each line gives as days on the calendar: "next Tuesday" in a recording made on a Wednesday is the Tuesday
+  after, "last week" Monday to Sunday before, "March 2024" all of March, worked out from the asset's own date. Agents
+  ask what was said about a day or a range with `GET /api/v1/dates`, the MCP tool `list_dates` and the assistant's
+  `find_dates`, each date with its line and a link to that moment. English rules, no model; a weekday alone or
+  "10/11/2026" is left out rather than guessed ([Dates](docs/processing.md#dates)).
+- **Choose the tools, a limit and the namespaces of an answer.** A conversation, or one question, can pick the tool
+  groups or tools its answers may use (`tools`), cap their tool calls (`max_tool_calls`, up to the new Settings → AI
+  assistant → Most tool calls a question may ask for, 50 by default) and narrow one answer to its own namespaces
+  (`scope`). `GET /api/v1/chats/tools` lists the groups a person has, what each tool does (reads, asks first, sends data
+  out) and why a group is missing. An admin's switches still win, and new conversations start with the person's last
+  choice. In the web app, a Tools chip beside the scope picks them, and "All my namespaces" tops the scope's list
+  ([Choosing tools, namespaces and a limit](docs/assistant.md#choosing-tools-namespaces-and-a-limit)).
+- **Names get their real types, not Term.** The built-in extractor now tells people, places, organisations, events,
+  works and dates apart without a model: by a title or role before a name, a given name, the word a name ends or
+  starts with (Corp, University of, Summit, Act, River), lists of countries, regions and large cities and of
+  well-known companies and products, what a name is called ("a company called Lumen") and the namespace's named
+  speakers. Only names nothing tells stay Terms, and "and"
+  no longer joins two names into one. Existing entities analysis left as Terms are typed once on upgrade, keeping
+  every type people set; the change is in the graph's history to roll back
+  ([How a name gets its type](docs/processing.md#entities-and-the-graph-explorer)).
+- **Entities found by spaCy, fetched when picked.** Settings → Analysis → Entity extraction → spaCy now fetches spaCy
+  (MIT) and its small model the first time an asset needs it (about 60 MB): English, German, or one for many
+  languages. The defined entities still come first, a lone word like "Okay" isn't taken for a name, and until spaCy is
+  there the rules find them and the job log says so. Workflows' Extract entities (rules) node uses it too
+  ([Entities and the graph explorer](docs/processing.md#entities-and-the-graph-explorer)).
+- **Punctuation put back in transcripts.** With transcripts cleaned up, Settings → Analysis → Put punctuation back
+  adds full stops, commas and question marks with a local model (kredor/punctuate-all, MIT, 12 languages), to
+  transcripts that have hardly any (imported captions) or to every one, keeping the marks they have. The model and
+  PyTorch (about 2 GB) are fetched the first time it's needed; off by default
+  ([Cleaning up transcripts](docs/processing.md#cleaning-up-transcripts)).
+- **Clean up transcripts before analysis.** With Settings → Analysis → Clean up transcripts before analysis on (off
+  by default), a new Clean up step runs before Analyze: a word said three times in a row is kept once ("I I I looked"
+  → "I looked"), doubled pronouns and articles once, "um" and "uh" go, and spacing, "i" and sentence capitals are
+  fixed, by rules, on English lines. Every changed line is in Change history with Revert, and lines someone corrected
+  are left alone. Reprocess, pipelines, `POST /api/v1/recordings/<id>/reprocess` and `lens clean` run it
+  ([Cleaning up transcripts](docs/processing.md#cleaning-up-transcripts)).
+- **Describe pictures on this machine with Florence-2.** Settings → LLM provider → Describing pictures can now have
+  Microsoft's Florence-2 (MIT) describe each page and shot instead of the provider's model that can see images
+  (`llm.describe_engine` `florence-2`). It runs on the CPU through ONNX Runtime, so no picture leaves the machine and
+  no provider is needed; its 8-bit export is fetched the first time a job waits to describe something, pinned and
+  checked against its SHA-256: base (about 280 MB, `llm.florence_model`) or large (about 830 MB). Each picture is a
+  `model.describe` row in the activity ledger. Agents read and change it with the MCP tools `picture_descriptions` and
+  `set_picture_descriptions`. The default stays the provider's model ([Descriptions](docs/configuration.md#descriptions)).
 - **Automations run.** An automation saved over the API (`/api/v1/automations`) now reacts to new assets in its
   namespaces: when its If passes, it runs its workflow as the person who made it, within its limits and budgets, and
   each run shows what its actions did. Try one on an activity without keeping or sending anything, or run it now;
   Settings → Automations switches them all off and sets how far they may go
   ([Running automations](docs/automations.md#running-automations)).
+- **News feeds.** Subscribe to a blog's or a news site's RSS or Atom feed: add it on the Sources page (its address,
+  or just the site's) and watch it, and each new post comes into a namespace as text, with its link, author and date,
+  so answers cite it. Feeds are asked for again only when they've changed, and a private feed's address is kept like a
+  password ([News feeds](docs/processing.md#news-feeds-rss-and-atom)).
 - **Each answer says what produced it.** The *i* in an answer's header shows the model and the host it ran on, the
   tools it was offered and used, the scope, its limits and what it used, tokens, cost (an estimate from your prices),
   how long it took, how it ended and which tool results read like instructions to an AI, with the calls made for it.
   Agents read the same record over the API (`GET /api/v1/chats/<id>/messages/<mid>`), and each tool step shows how long
   it took. Answers from before have no record ([What each answer records](docs/assistant.md#what-each-answer-records)).
+- **Download notes as Markdown.** A note's ⋯ menu in the tree downloads it as a Markdown file, and the Notes page's ⋯
+  menu downloads all of a namespace's notes as a zip in folders that follow the tree, for Obsidian and other notes apps
+  ([Downloading as Markdown](docs/notes.md#downloading-as-markdown)).
+- **Templates.** Notes inside a namespace's Templates note are templates: **New note from a template…** on the Notes
+  page and in Jump to starts a note from one, with its text, drawings, files and filing. Any note's menu in the tree can
+  also **Make a copy** ([Templates](docs/notes.md#templates)).
+- **A note says where it is.** Above a note's title, **Notes › namespace ›** each note it's inside, every one a link;
+  under its text, **Inside this note** lists the notes inside it with **Add a note inside**. The text now starts in line
+  with the title, the word count shows next to Saved, and Pin, History, Download and Delete are in the note's **⋯**
+  menu. **Costs and activity** is folded at the bottom ([On a note](docs/notes.md#on-a-note)).
 - **Automations for agents.** Agents list, save, try and run automations through the MCP tools `automations`,
   `automation_actions`, `save_automation`, `test_automation` and `run_automation`, with problems in plain words. The
   assistant saves them switched off and asks before switching one on or running it
   ([Agents](docs/automations.md#agents)).
+- **File shares through Remote access.** S3 and WebDAV can now be reached at the web app's own address, `/s3` and
+  `/dav`, so they work through the Cloudflare tunnel and HTTPS as well as on the network, and on Cloudron, which
+  publishes only the web app. It's off until an admin turns on **At the web app's address too** in Settings › File
+  shares; then a new access key's dialog gives those addresses. Signing in is the same: a person's own access key,
+  read-only. MQTT, syslog, SMB and NFS aren't HTTP and stay on their own ports
+  ([The graph as files](docs/file-tree.md#at-the-web-apps-address), [Remote access](docs/remote-access.md#what-it-reaches)).
+- **Files added over S3 and WebDAV are imported.** Copy a file into a collection's folder (`rclone copy`, Finder,
+  Windows Explorer, any S3 client) and it's imported there as an upload is, with the same checks and the namespace's
+  pipeline; a new folder under `Collections` is a new collection, and a file anywhere else goes to the namespace's
+  default collection. It takes the import permission (or an editor's role on the collection), files the system writes
+  for itself (`.DS_Store`, `Thumbs.db`, half-written files) are never imported, and a re-sync copies nothing twice.
+  The S3 server now takes streamed and multipart uploads; WebDAV takes PUT, MKCOL and Finder's and Explorer's ways of
+  copying. This is on whenever the shares are; **Import files people add** in Settings, File shares
+  (`shares.add_files`) turns it off and makes them read-only again ([Adding files](docs/file-tree.md#adding-files)).
+- **The web clipper takes your API token, or just signs in.** It used to take only an import webhook's token, so an API
+  token was refused with "Lens didn't recognise this token: make a new import webhook and paste its token". Now its
+  options have **Sign in**: Lens asks you to allow the clipper, nothing to copy, and clips go into the namespace you
+  pick (the popup offers each one you can add to). **Use a token instead** takes an API token with write access or a
+  hook's token, and when Lens refuses one the clipper says why: unknown, revoked, read-only, or a Lens too old for
+  API tokens. Anything acting as you (an agent, a script) can push to `POST /api/v1/hooks/import?namespace=` with
+  your own token too, and `GET` there says where a token's pushes go ([Web clipper](docs/web-clipper.md#setting-it-up),
+  [API](docs/api.md#import-webhooks)).
 - **Versions in conversations.** A conversation is now a tree: editing a question makes a new version beside it
   instead of deleting what followed, regenerating an answer (`regenerate`, with the same model or another) writes one
   beside it, and a question can go on from any message (`parent`). `GET /api/v1/chats/<id>` shows each message's
@@ -34,6 +117,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   only the version showing. In the web app, Regenerate (and Regenerate with… another model) replaces Try another
   model, and `‹ 2 / 3 ›` under a question or an answer moves between its versions. Existing conversations are upgraded
   on the next start (`chat-tree`) ([Versions](docs/assistant.md)).
+- **The assistant searches the web.** With web search on (off by default; Settings → AI assistant → Web search), the
+  assistant gets `web_search` and `web_read`: it searches with DuckDuckGo (no key), your own SearXNG, Brave Search or
+  Tavily, and reads pages and online PDFs, public addresses only, through the same guard as captured pages. Pages are
+  cited [n] like excerpts, with their site, and open in a new tab; each search and read is in the activity ledger, and
+  once an answer has read outside text, one it chose itself asks first
+  ([Web search and reading pages](docs/assistant.md#web-search-and-reading-pages)).
 - **Add an MCP server with a form, or paste its config.** Extensions → Add MCP server (admins) takes an address and
   its headers, or a command with its arguments and environment, or reads a config pasted from Claude (`.mcp.json`) or
   VS Code, one server or many; Test lists its tools before it's saved. Tokens and keys in headers and env are now
@@ -43,6 +132,59 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Describe an automation in words.** `POST /api/v1/automations/draft` asks the model once to turn a sentence into
   a draft automation to try and save, and says what didn't fit and what it couldn't express
   ([Describe it in words](docs/automations.md#describe-it-in-words)).
+- **The assistant runs Python and bash.** Turn on Settings → Code sandbox and point Lens at an NVIDIA OpenShell
+  gateway, and the assistant gets `run_python`, `run_bash`, `sandbox_files` and `import_sandbox_file`: code runs in a
+  sandbox of the conversation's own, with none of Lens's data or keys and no network unless you allow the package
+  registries, or those and hosts you list. Files attached to the conversation go in; a file it makes reaches a
+  namespace once the person approves. Off by default ([Code sandbox](docs/assistant.md#code-sandbox)).
+- **Start the code sandbox's gateway from Settings.** Settings → Code sandbox → Run the gateway on this machine has
+  the upgrade agent start NVIDIA OpenShell's gateway next to Lens (the Compose profile `sandbox`) and turns the sandbox
+  on; Lens signs in to it over mutual TLS. First it checks the machine can run it (the Docker Compose install, a
+  64-bit machine, Landlock in its Linux kernel) and says why not. Off deletes every sandbox and stops it. The same
+  over `PUT /api/v1/admin/sandbox` and the MCP tools `sandbox_gateway` and `set_sandbox_gateway`
+  ([The gateway](docs/assistant.md#the-gateway)).
+- **See the code the assistant ran, and download the files it made.** Each Python or bash run is a folded step under
+  the answer that opens to the code, its output and how it ended. With `share_sandbox_file` the assistant hands you a
+  file the sandbox made, a chart or a converted document, as a download button on the answer; Lens keeps it
+  encrypted with the conversation and deletes it with the conversation
+  ([In the conversation](docs/assistant.md#code-sandbox)).
+- **Find anything by who, what and when.** Agents and the API can find assets by the faces seen in them, the people
+  heard, the entities they mention, the topics they're about, their kind and content type, when they were made (a
+  day, a month or a year), tags, language, objects seen, emotions heard, length and words in them, together or alone,
+  naming people and things instead of looking up ids. Each result says why it matched, with moments to cite
+  (`POST /find`, the MCP tool `find`, the assistant's `find_resources`; [Finding by any
+  attribute](docs/processing.md#finding-by-any-attribute)). The Library list takes faces, entities, topics, content
+  types and emotions as filters too.
+- **Classify an asset or a text.** Agents and the API can ask which of some labels fits, how sure that is and every
+  label ranked: labels they give, Lens's content types or a namespace's topics. The decision model answers, else the
+  language model, logged in the activity ledger; with `apply`, an editor's sure answer sets the content type, suggests
+  the topic or adds the tag (`POST /classify`, the MCP and assistant tool `classify`;
+  [Classifying](docs/processing.md#classifying)).
+- **Classify in workflows.** A Classify node on the workflow canvas picks one of your labels, a content type or a topic
+  for the asset (or for what came in) and passes on the choice, how sure and every label ranked, for a Condition
+  or Switch to branch on; set to act, a sure answer sets the content type, suggests the topic or adds the tag
+  ([Workflows and the canvas](docs/processing.md#workflows-and-the-canvas)).
+
+### Features
+
+- **automations:** the variable picker's catalog and a template's preview for a draft automation ([#461](https://github.com/adeelahmad/lense/pull/461))
+- **automations:** the Approvals page, its badge, and Home's row ([#459](https://github.com/adeelahmad/lense/pull/459))
+- **automations:** save automations for their maker, with checks and an API ([#451](https://github.com/adeelahmad/lense/pull/451))
+
+### Fixes
+
+- **assistant:** let the assistant's tools be imported first ([#466](https://github.com/adeelahmad/lense/pull/466))
+- **files:** let the metadata module be imported first ([#475](https://github.com/adeelahmad/lense/pull/475))
+- **worker:** log the database upgrade a worker runs as it starts ([#496](https://github.com/adeelahmad/lense/pull/496))
+- **ci:** the upgrade check counts entities of every type ([#512](https://github.com/adeelahmad/lense/pull/512))
+
+### Dependencies
+
+- Bump the python-minor group across 1 directory with 11 updates ([#478](https://github.com/adeelahmad/lense/pull/478))
+- bump the javascript-minor group across 1 directory with 16 updates ([#381](https://github.com/adeelahmad/lense/pull/381))
+- update fastapi[standard] requirement in /fastapi_backend ([#367](https://github.com/adeelahmad/lense/pull/367))
+- bump the javascript-minor group ([#500](https://github.com/adeelahmad/lense/pull/500))
+- bump transformers ([#503](https://github.com/adeelahmad/lense/pull/503))
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 

@@ -16,6 +16,9 @@ what flows between these, the nodes of a recording workflow:
 - `field`: sets a custom field of the recording to the value, checked like an edit (and kept in its history).
 - `save_entities`: makes the entities passed in the recording's entities (in place of what analyze found), with
   people's corrections kept, then redoes keywords and sections as analyze does.
+- `classify`: which of some labels (or the content types, or the namespace's topics) fits the asset, or what came
+  in as text, as classify.py says: passes on {choice, confidence, sure, ranked, by}. With `apply` it acts on a sure
+  answer (sets the content type, suggests the topic, adds the tag), so it keeps something.
 
 Positions are only for the canvas.
 
@@ -26,11 +29,14 @@ automation does when it runs, from the run context: see automation_nodes.py for 
 
 from __future__ import annotations
 
+import json
 import re
 
 from . import (
     analyze,
     automation_nodes,
+    classify as classifymod,
+    decide,
     fields as fieldmod,
     flow,
     llm,
@@ -44,7 +50,7 @@ from . import (
 )
 
 R = store.R
-OWN_NODES = ("llm", "extract_rules", "extract_llm", "output", "field", "save_entities")
+OWN_NODES = ("llm", "extract_rules", "extract_llm", "classify", "output", "field", "save_entities")
 TERMINAL = {"output", "field", "save_entities", "apply_changes"}
 OPS = flow.OPS
 OWN_CONFIG = {
@@ -54,6 +60,7 @@ OWN_CONFIG = {
     "output": {"key"},
     "field": {"field"},
     "save_entities": set(),
+    "classify": {"labels", "vocabulary", "question", "of", "apply"},
 }
 ENTITY_TYPES = ("PERSON", "ORG", "PRODUCT", "PLACE", "EVENT", "WORK", "TERM", "DATE", "NUMBER")
 PATH_RX = flow.PATH_RX
@@ -131,6 +138,29 @@ def _check_config(db, nid, t, cfg):
             fieldmod.get(db, int(cfg.get("field") or 0))
         except (KeyError, TypeError, ValueError):
             raise ValueError(f"field node {nid}: choose a custom field") from None
+    elif t == "classify":
+        _check_classify(nid, cfg)
+
+
+def _check_classify(nid, cfg):
+    labels, vocab = cfg.get("labels"), cfg.get("vocabulary")
+    if (labels is None) == (vocab is None):
+        raise ValueError(f"classify node {nid}: give labels, or choose content types or topics")
+    try:
+        if vocab is not None and vocab not in classifymod.VOCABULARIES:
+            raise ValueError(f"choose from {' or '.join(classifymod.VOCABULARIES)}")
+        if labels is not None:
+            if not isinstance(labels, list):
+                raise ValueError("labels are lines like science: research and medicine")
+            classifymod._labels(labels)
+    except ValueError as e:
+        raise ValueError(f"classify node {nid}: {e}") from None
+    if cfg.get("question") is not None and not isinstance(cfg["question"], str):
+        raise ValueError(f"classify node {nid}: the question is text")
+    if cfg.get("of", "resource") not in ("resource", "input"):
+        raise ValueError(f"classify node {nid}: it classifies the asset or what comes in")
+    if cfg.get("apply") and cfg.get("of") == "input":
+        raise ValueError(f"classify node {nid}: only the asset's classification can be acted on")
 
 
 def _check_types(nid, cfg):
@@ -237,19 +267,18 @@ def extract_rules(db, cfg, rid, c):
         list(c.get("terms") or []) + (list(cfg["analysis"].get("gazetteer") or []) if c.get("builtin", True) else [])
     )
     pats = [(re.compile(p["pattern"]), p["type"]) for p in c.get("patterns") or []]
-    spacy = c.get("builtin", True) and cfg["analysis"]["entities"] == "spacy"
+    nid = db.one("SELECT VALUE space FROM $r", r=R("recording", rid))
+    find = analyze.entity_finder(cfg, gaz, analyze.people_of(db, nid)) if c.get("builtin", True) else None
     types = set(c.get("types") or [])
     out = []
     for k, s in enumerate(_segments(db, rid)):
         text, found = s["text"] or "", []
         for rx, typ in pats:
             found += [(m.group(0), typ) for m in rx.finditer(text) if m.group(0).strip()]
-        if c.get("builtin", True) and not spacy:
-            found += analyze.extract_entities(text, gaz)  # as analyze finds them, your terms included
+        if find:
+            found += find(text)  # as analyze finds them (the rules, or spaCy), your terms included
         else:
             found += [(m.group(0), typ) for _, typ, rx in gaz for m in rx.finditer(text)]
-            if spacy:
-                found += analyze.spacy_entities(text, cfg["analysis"]["spacy_model"])
         out += [{"name": n.strip(), "type": t, "seg": k} for n, t in found if not types or t in types]
     return merge([out])
 
@@ -368,6 +397,8 @@ def _run_node(r, f, node, value, vals):
             if after != (row.get("fields") or {}):
                 metadata.save_fields(db, cfg, rid, after, r.extra["by"])
             r.say(f"set {fd['label']}")
+    elif t == "classify":
+        return {"out": _classify(r, c, upstream, name)}
     elif t == "save_entities":
         if not isinstance(value, list):
             raise ValueError(f"{name}: needs a list of entities")
@@ -376,6 +407,27 @@ def _run_node(r, f, node, value, vals):
         else:
             r.say(f"{name}: {save_entities(db, cfg, rid, value)} mentions kept")
     return {}
+
+
+def _classify(r, c, upstream, name):
+    """A classify node: the asset, or what came in as text."""
+    rid, text, space = r.extra["rid"], None, None
+    if c.get("of") == "input":  # its topics are the recording's namespace's
+        text = upstream if isinstance(upstream, str) else json.dumps(upstream, ensure_ascii=False, default=str)
+        rid, space = None, r.db.values("SELECT VALUE space FROM $r", r=R("recording", int(rid)))[0]
+    try:
+        res = classifymod.classify(
+            r.db, r.cfg, rid=rid, text=text, labels=c.get("labels"), vocab=c.get("vocabulary"), question=c.get("question"),
+            apply=bool(c.get("apply")) and not r.dry, user=r.extra.get("by"), space=space,
+        )  # fmt: skip
+    except decide.Undecided as e:
+        raise ValueError(f"{name}: nothing could answer ({e})") from None
+    sure = f"{round(res['confidence'] * 100)}% sure"
+    if c.get("apply") and r.dry and res["sure"]:
+        r.say(f"{name}: {res['choice']} ({sure}); would act on it")
+    else:
+        r.say(f"{name}: {res['choice']} ({sure}){'; ' + res['applied'].replace('_', ' ') if res['applied'] else ''}")
+    return {k: v for k, v in res.items() if k not in ("vocabulary", "question", "applied") and v is not None}
 
 
 RUN_BY = {"graph": "organises the graph; a routine runs it", "event": "is what an automation does; its automation runs it"}
@@ -443,7 +495,8 @@ def _fit(f, v):
 KITS = {
     "recording": flow.Kit(
         "recording", OWN_NODES, OWN_CONFIG, _check_config, _run_node, TERMINAL - {"apply_changes"},
-        "a workflow needs an output, field or save entities node, or it keeps nothing",
+        "a workflow needs an output, field or save entities node (or a classify node that acts), or it keeps nothing",
+        keeps=lambda n: n["type"] == "classify" and bool((n.get("config") or {}).get("apply")),
     ),
     "graph": flow.Kit(
         "graph", organize.OWN_NODES, organize.CONFIG, _check_config, organize.run_node, {"apply_changes"},

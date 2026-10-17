@@ -67,6 +67,7 @@ export type SectionId =
   | "llm"
   | "local-model"
   | "ai"
+  | "sandbox"
   | "search"
   | "reports"
   | "video"
@@ -168,9 +169,16 @@ export const SECTIONS: SectionSpec[] = [
   {
     id: "ai",
     label: "AI assistant",
-    backend: ["ai", "decisions", "voice"],
+    backend: ["ai", "web", "decisions", "voice"],
     description:
-      "What the chat assistant may do with tools, which routine choices it makes for you, and when a batch run needs a typed confirmation.",
+      "What the chat assistant may do with tools, whether it searches the web, which routine choices it makes for you, and when a batch run needs a typed confirmation.",
+  },
+  {
+    id: "sandbox",
+    label: "Code sandbox",
+    backend: ["sandbox"],
+    description:
+      "Off unless you turn it on. The assistant runs Python and bash for people in a sandbox of each conversation’s own, on an NVIDIA OpenShell gateway: no Lens data or keys inside, and no network unless you allow it.",
   },
   {
     id: "search",
@@ -347,7 +355,7 @@ export const SECTIONS: SectionSpec[] = [
     label: "File shares",
     backend: ["shares"],
     description:
-      "Off unless you turn it on. The archive’s assets as folders and files (namespaces and collections, a metadata file beside each asset), served read-only over S3 and WebDAV by Lens’s workers; people make their own access keys.",
+      "Off unless you turn it on. The archive’s assets as folders and files (namespaces and collections, a metadata file beside each asset), served over S3 and WebDAV by Lens’s workers; people make their own access keys, and files they add are imported where they put them.",
   },
   {
     id: "uploads",
@@ -503,6 +511,8 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
   },
   { name: "import_files", label: "Import files sent in a conversation", acts: true },
   { name: "import_urls", label: "Capture web pages from addresses or a list of links", acts: true },
+  { name: "web_search", label: "Search the web (when web search is on)", acts: false },
+  { name: "web_read", label: "Read web pages (when web search is on)", acts: false },
   { name: "server_status", label: "Check what the server has set up (admins)", acts: false },
   { name: "find_model_servers", label: "Find model servers nearby (admins)", acts: false },
   { name: "read_settings", label: "Read settings (admins)", acts: false },
@@ -724,6 +734,7 @@ export const FIELDS: FieldSpec[] = [
       { value: "rules", label: "Rules" },
       { value: "spacy", label: "spaCy" },
     ],
+    hint: "spaCy finds people, organisations, places and dates with a small language model, fetched the first time it's needed (about 60 MB). Defined entities still come first",
   },
   {
     section: "analysis",
@@ -731,6 +742,7 @@ export const FIELDS: FieldSpec[] = [
     label: "spaCy model",
     kind: "text",
     mono: true,
+    hint: "Lens fetches en_core_web_sm (English), de_core_news_sm (German) and xx_ent_wiki_sm (many languages); another spaCy model you install works too",
   },
   {
     section: "analysis",
@@ -738,6 +750,38 @@ export const FIELDS: FieldSpec[] = [
     label: "Find places and dates with anytopdf",
     kind: "switch",
     hint: "Offline: places a text names, dates it gives and where a photo was taken become hints for the entities found",
+  },
+  {
+    section: "analysis",
+    key: "dates",
+    label: "Read dates as days",
+    kind: "switch",
+    hint: "The dates each line gives (“next Tuesday”, “3 March”, “last week”) become days on the calendar, worked out from the asset's date, for agents and the API to find by day",
+  },
+  {
+    section: "analysis",
+    key: "cleanup",
+    label: "Clean up transcripts before analysis",
+    kind: "switch",
+    hint: "Repeated words, spacing and capitals tidied by rules before entities are found; every change is in Change history, with Revert",
+  },
+  {
+    section: "analysis",
+    key: "cleanup_fillers",
+    label: "Take out “um” and “uh”",
+    kind: "switch",
+  },
+  {
+    section: "analysis",
+    key: "cleanup_punctuation",
+    label: "Put punctuation back",
+    kind: "select",
+    options: [
+      { value: "off", label: "Off" },
+      { value: "missing", label: "Where a transcript has none" },
+      { value: "always", label: "In every transcript" },
+    ],
+    hint: "A local model adds full stops, commas and question marks, keeping the ones there; about 2 GB, fetched the first time it’s needed",
   },
   {
     section: "analysis",
@@ -775,6 +819,27 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "llm",
+    key: "describe_engine",
+    label: "Describe pictures with",
+    kind: "select",
+    options: [
+      { value: "llm", label: "The provider’s model that can see images" },
+      { value: "florence-2", label: "Florence-2 on this server (MIT, runs on the CPU)" },
+    ],
+    hint: "The Describe step says what each page and shot shows. Florence-2 sends no picture anywhere and is fetched the first time it’s needed",
+  },
+  {
+    section: "llm",
+    key: "florence_model",
+    label: "Florence-2 size",
+    kind: "select",
+    options: [
+      { value: "base", label: "Base (about 280 MB, for small machines)" },
+      { value: "large", label: "Large (about 830 MB, more detail, slower)" },
+    ],
+  },
+  {
+    section: "llm",
     key: "vision_model",
     label: "Model that can see images",
     kind: "text",
@@ -790,7 +855,7 @@ export const FIELDS: FieldSpec[] = [
     kind: "int",
     min: 1,
     max: 1000,
-    hint: "Of a resource, in order: each is a request to the model",
+    hint: "Of a resource, in order: each is one call to the model",
   },
   { section: "llm", key: "api_key", label: "API key", kind: "secret" },
   {
@@ -907,6 +972,15 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "ai",
+    key: "max_tool_calls",
+    label: "Most tool calls a question may ask for",
+    kind: "int",
+    hint: "The highest limit a question or a conversation can set on the tool calls of one answer.",
+    min: 1,
+    max: 500,
+  },
+  {
+    section: "ai",
     key: "browser",
     label: "Let the assistant use a connected browser",
     kind: "switch",
@@ -961,6 +1035,61 @@ export const FIELDS: FieldSpec[] = [
     kind: "number",
     min: 0,
     nullable: true,
+  },
+  // Web search (the assistant's web_search and web_read)
+  {
+    section: "web",
+    key: "search",
+    label: "Search provider",
+    kind: "select",
+    options: [
+      { value: "off", label: "Off" },
+      {
+        value: "duckduckgo",
+        label: "DuckDuckGo (no key)",
+        hint: "An unofficial client of DuckDuckGo’s results page (ddgs), fetched when you pick it. It can stop working when the page changes.",
+      },
+      { value: "searxng", label: "SearXNG (your own instance)" },
+      { value: "brave", label: "Brave Search (API key)" },
+      { value: "tavily", label: "Tavily (API key)" },
+    ],
+    hint: "What the assistant searches with. Off: it reads only what’s in Lens.",
+  },
+  {
+    section: "web",
+    key: "searxng_url",
+    label: "SearXNG address",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "http://searxng:8080",
+    hint: "Its JSON output must be on (search.formats: json in its settings.yml).",
+  },
+  { section: "web", key: "api_key", label: "Search API key", kind: "secret" },
+  {
+    section: "web",
+    key: "results",
+    label: "Results per search",
+    kind: "int",
+    min: 1,
+    max: 20,
+  },
+  {
+    section: "web",
+    key: "read_chars",
+    label: "Characters read per page",
+    kind: "int",
+    min: 1000,
+    max: 200000,
+    unit: "characters",
+    hint: "The most of a page’s text the model reads at once; longer pages are cut, and find picks the parts that matter.",
+  },
+  {
+    section: "web",
+    key: "render",
+    label: "Use Chromium for pages that need scripts",
+    kind: "switch",
+    hint: "A page that comes back nearly empty is loaded in Chromium, scripts run, and read again. Only where Chromium is installed (the full edition).",
   },
   // Email
   {
@@ -2181,6 +2310,97 @@ export const FIELDS: FieldSpec[] = [
     max: 0.95,
     hint: "Objects the detector is less sure of are left out",
   },
+  // Code sandbox (opt-in)
+  {
+    section: "sandbox",
+    key: "enabled",
+    label: "Let the assistant run Python and bash",
+    kind: "switch",
+    hint: "In a sandbox of each conversation’s own on the OpenShell gateway below; its client (about 10 MB) is fetched the first time",
+  },
+  {
+    section: "sandbox",
+    key: "who",
+    label: "Who may use it",
+    kind: "select",
+    options: [
+      { value: "editors", label: "People who can edit a namespace, and admins" },
+      { value: "admins", label: "Admins only" },
+    ],
+  },
+  {
+    section: "sandbox",
+    key: "network",
+    label: "Its network",
+    kind: "select",
+    options: [
+      { value: "off", label: "None: nothing goes in or out" },
+      { value: "packages", label: "Python and npm package registries only" },
+      { value: "hosts", label: "Those and the hosts below (asks first after reading outside text)" },
+    ],
+  },
+  {
+    section: "sandbox",
+    key: "hosts",
+    label: "Hosts it may reach",
+    kind: "lines",
+    mono: true,
+    hint: "With the network on hosts: one per line, like api.github.com or *.wikipedia.org, on ports 80 and 443. Private addresses are refused whatever name they have",
+  },
+  {
+    section: "sandbox",
+    key: "gateway",
+    label: "OpenShell gateway",
+    kind: "text",
+    mono: true,
+    placeholder: "openshell-gateway:17670",
+    hint: "host:port of its gRPC service, on a network only Lens reaches. Running the gateway on this machine sets it",
+  },
+  {
+    section: "sandbox",
+    key: "image",
+    label: "Image",
+    kind: "text",
+    mono: true,
+    placeholder: "python:3.12-slim",
+    hint: "A container image with python3 and bash; new sandboxes use it",
+  },
+  {
+    section: "sandbox",
+    key: "cpu",
+    label: "CPU per sandbox",
+    kind: "text",
+    mono: true,
+    hint: "Cores, like 1, 0.5 or 500m",
+  },
+  {
+    section: "sandbox",
+    key: "memory",
+    label: "Memory per sandbox",
+    kind: "text",
+    mono: true,
+    hint: "Like 512Mi or 2Gi",
+  },
+  { section: "sandbox", key: "seconds", label: "Longest run", kind: "int", min: 1, max: 600, unit: "seconds" },
+  {
+    section: "sandbox",
+    key: "idle_minutes",
+    label: "Stop an idle sandbox after",
+    kind: "int",
+    min: 1,
+    max: 1440,
+    unit: "minutes",
+  },
+  {
+    section: "sandbox",
+    key: "keep_hours",
+    label: "Delete an unused sandbox after",
+    kind: "int",
+    min: 1,
+    max: 720,
+    unit: "hours",
+    hint: "With its files. Deleting the conversation deletes it at once",
+  },
   // NSFW
   {
     section: "nsfw",
@@ -2442,10 +2662,17 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "shares",
+    key: "add_files",
+    label: "Import files people add",
+    kind: "switch",
+    hint: "A file copied into a collection’s folder is imported there, as an upload; a new folder under Collections is a new collection. Off: read-only",
+  },
+  {
+    section: "shares",
     key: "s3",
     label: "S3",
     kind: "switch",
-    hint: "Read-only; each person signs in with their own access key",
+    hint: "Each person signs in with their own access key",
   },
   { section: "shares", key: "s3_port", label: "S3 port", kind: "int", min: 1, max: 65535 },
   {
@@ -2453,9 +2680,16 @@ export const FIELDS: FieldSpec[] = [
     key: "webdav",
     label: "WebDAV",
     kind: "switch",
-    hint: "Read-only; mount it as a drive in Finder, Windows Explorer or a file manager",
+    hint: "Mount it as a drive in Finder, Windows Explorer or a file manager",
   },
   { section: "shares", key: "webdav_port", label: "WebDAV port", kind: "int", min: 1, max: 65535 },
+  {
+    section: "shares",
+    key: "remote",
+    label: "At the web app’s address too",
+    kind: "switch",
+    hint: "S3 at /s3 and WebDAV at /dav wherever the web app opens, Remote access and HTTPS included. Off: only on their ports",
+  },
   // Sensors (opt-in)
   {
     section: "sensors",
@@ -3511,6 +3745,22 @@ export function gazetteerErrors(lines: string[]): string | null {
   return null;
 }
 
+/** A host the code sandbox may reach (sandbox.hosts), as the backend takes it: api.example.com, or a wildcard first
+ *  label with at least three labels in all (*.example.com, **.example.com); never an address. */
+export function sandboxHost(raw: string): boolean {
+  const h = raw.trim().toLowerCase().replace(/\.$/, "");
+  const labels = h.split(".");
+  const wild = labels[0] === "*" || labels[0] === "**";
+  const label = /^(?!-)[a-z0-9-]{1,63}(?<!-)$/;
+  return (
+    h.length <= 253 &&
+    labels.length >= (wild ? 3 : 2) &&
+    (wild || label.test(labels[0])) &&
+    labels.slice(1).every((x) => label.test(x)) &&
+    !/^\d+$/.test(labels[labels.length - 1])
+  );
+}
+
 /** Checks across fields and the backend's own rules. Values are the parsed values of the whole section group. */
 export function crossErrors(values: Record<string, unknown>): Record<string, string> {
   const e: Record<string, string> = {};
@@ -3559,6 +3809,10 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   if (g) e["analysis.gazetteer"] = g;
   const llm = values["llm.base_url"] as string | null | undefined;
   if (llm && !URL_RX.test(llm)) e["llm.base_url"] = "Use an http(s) address, such as https://api.example.org/v1";
+  const searx = values["web.searxng_url"] as string | null | undefined;
+  if (searx && !URL_RX.test(searx)) e["web.searxng_url"] = "Use an http(s) address, such as http://searxng:8080";
+  else if (values["web.search"] === "searxng" && !searx)
+    e["web.searxng_url"] = "Give your SearXNG instance’s address, or pick another provider";
   const embed = values["embeddings.base_url"] as string | null | undefined;
   if (embed && !URL_RX.test(embed))
     e["embeddings.base_url"] = "Use an http(s) address, such as http://localhost:11434/v1";
@@ -3575,6 +3829,19 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   const badNNet = nNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badNNet) e["nfs.allowed_networks"] = `“${badNNet}” isn’t a network like 192.168.1.0/24`;
   else if (nNets && nNets.length === 0) e["nfs.allowed_networks"] = "List at least one network";
+  const cpu = values["sandbox.cpu"] as string | undefined;
+  if (cpu !== undefined && !/^(\d+(\.\d+)?|\d+m)$/.test(String(cpu).trim()))
+    e["sandbox.cpu"] = "Cores, like 1, 0.5 or 500m";
+  const mem = values["sandbox.memory"] as string | undefined;
+  if (mem !== undefined && !/^\d+(Ki|Mi|Gi|K|M|G)?$/.test(String(mem).trim()))
+    e["sandbox.memory"] = "Like 512Mi or 2Gi";
+  const gw = values["sandbox.gateway"] as string | undefined;
+  if (gw !== undefined && !/^(\[[0-9a-f:]+\]|[a-z0-9][a-z0-9.-]*):\d{1,5}$/i.test(String(gw).trim()))
+    e["sandbox.gateway"] = "host:port, like openshell-gateway:17670";
+  const sHosts = values["sandbox.hosts"] as string[] | undefined;
+  const badHost = sHosts?.find((x) => !sandboxHost(x));
+  if (badHost) e["sandbox.hosts"] = `“${badHost}” isn’t a host name like api.github.com or *.wikipedia.org`;
+  else if (sHosts && sHosts.length > 50) e["sandbox.hosts"] = "50 hosts at most";
   const mNets = values["smb.allowed_networks"] as string[] | undefined;
   const badMNet = mNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badMNet) e["smb.allowed_networks"] = `“${badMNet}” isn’t a network like 192.168.1.0/24`;

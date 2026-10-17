@@ -102,15 +102,12 @@ class Box(ai_tools.Toolbox):
     none of the person's extensions, skills or hooks, and nothing that changes data."""
 
     def __init__(self, db, cfg, user, sid, ns, tools, said, base, note_text):
-        super().__init__(db, cfg, user, {sid}, set(), {"namespaces": [ns]}, None, base, said=said)
-        self.only, self.note_text = set(tools), note_text
+        super().__init__(db, cfg, user, {sid}, set(), {"namespaces": [ns]}, None, base, said=said, only=tools)
+        self.note_text = note_text
         self.ext, self.home, self.browser = None, None, None
 
     def system_note(self):
         return self.note_text
-
-    def specs(self):
-        return [s for s in super().specs() if s["function"]["name"] in self.only]
 
 
 def answer(db, cfg, sid, ns, user, question, history, app="", model=None, tools=(), base=None, temperature=None):

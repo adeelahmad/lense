@@ -35,6 +35,8 @@ EDITABLE = {
     "workers": None,
     "iiif": None,
     "ai": None,
+    "sandbox": None,
+    "web": None,
     "decisions": None,
     "components": None,
     "voice": None,
@@ -84,7 +86,7 @@ EDITABLE = {
         "triage",
     ),
     # bind is a startup setting only
-    "shares": ("enabled", "s3", "s3_port", "webdav", "webdav_port"),
+    "shares": ("enabled", "s3", "s3_port", "webdav", "webdav_port", "add_files", "remote"),
     "video": (
         "sample_seconds",
         "scene_threshold",
@@ -147,6 +149,7 @@ SECRETS = {
     "https": ("dns_credentials", "eab_hmac_key"),
     "documents": ("anytopdf_token",),
     "components": ("hf_token",),
+    "web": ("api_key",),
 }
 ENUMS = {
     ("transcribe", "engine"): {"sensevoice", "whisper", "mlx-whisper", "openai", "elevenlabs", "assemblyai", "deepgram"},
@@ -155,9 +158,12 @@ ENUMS = {
     ("speakers", "embedder"): {"speechbrain", "none"},
     ("speakers", "cross_namespace"): {"suggest", "off"},
     ("analysis", "entities"): {"rules", "spacy"},
+    ("analysis", "cleanup_punctuation"): {"off", "missing", "always"},
     ("search", "stemming"): {"english", "none"},
     ("search", "engine"): set(store.SEARCH_ENGINES),
     ("reports", "audio"): {"link", "embed", "none"},
+    ("llm", "describe_engine"): {"llm", "florence-2"},
+    ("llm", "florence_model"): {"base", "large"},
     ("video", "ocr_engine"): {"auto", "tesseract", "apple-vision", "rapidocr", "doctr", "none"},
     ("video", "face_engine"): {"opencv", "insightface", "anytopdf", "none"},
     ("video", "object_engine"): {"yolox", "ultralytics", "anytopdf", "off"},
@@ -176,6 +182,7 @@ ENUMS = {
     ("mailbox", "check"): {"authenticated", "off"},
     ("mailbox", "imports"): {"auto", "ask"},
     ("ai", "injection_check"): {"patterns", "classifier", "model", "off"},
+    ("web", "search"): {"off", "duckduckgo", "searxng", "brave", "tavily"},
     ("slack", "answer"): {"mention", "all"},
     ("slack", "approve"): {"off", "low_risk"},
     ("tunnel", "mode"): {"off", "quick", "token", "managed"},
@@ -445,6 +452,10 @@ def _check(section, key, value, default):
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 100):
             raise ValueError("ai.browser_steps is a whole number of steps from 1 to 100")
         return value
+    if (section, key) == ("ai", "max_tool_calls"):
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 500):
+            raise ValueError("ai.max_tool_calls is a whole number of tool calls from 1 to 500")
+        return value
     if (section, key) == ("llm", "describe_max"):
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 1000):
             raise ValueError("llm.describe_max is a whole number from 1 to 1000")
@@ -494,6 +505,10 @@ def _check(section, key, value, default):
         return _nfs_setting(key, value)
     if section == "smb":
         return _smb_setting(key, value)
+    if section == "sandbox":
+        return _sandbox_setting(key, value)
+    if section == "web" and key != "search":
+        return _web_setting(key, value)
     if section == "components":
         return _component_setting(key, value)
     if section == "nsfw":
@@ -1306,8 +1321,111 @@ def _smb_setting(key, value):
     return list(dict.fromkeys(out))
 
 
+SANDBOX_CPU = re.compile(r"^(\d+(\.\d+)?|\d+m)$")
+SANDBOX_MEMORY = re.compile(r"^(\d+)(Ki|Mi|Gi|K|M|G)?$")
+SANDBOX_GATEWAY = re.compile(r"^(\[[0-9A-Fa-f:]+\]|[A-Za-z0-9][A-Za-z0-9.-]{0,252}):\d{1,5}$")
+SANDBOX_IMAGE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/:@+-]{0,254}$")
+SANDBOX_RANGES = {"seconds": (1, 600), "idle_minutes": (1, 1440), "keep_hours": (1, 720)}
+_BYTES = {"": 1, "K": 1000, "M": 1000**2, "G": 1000**3, "Ki": 1024, "Mi": 1024**2, "Gi": 1024**3}
+_LABEL = re.compile(r"^(?!-)[a-z0-9-]{1,63}(?<!-)$")
+
+
+def _sandbox_hosts(value, most):
+    """sandbox.hosts: names the code sandbox may reach with sandbox.network hosts, as OpenShell's policy takes them:
+    api.example.com, or a wildcard first label with at least three labels in all (*.example.com, **.example.com). No
+    addresses: a name is held to public addresses anyway, and an address would skip that."""
+    raw = value.replace(",", " ").split() if isinstance(value, str) else value
+    if not isinstance(raw, list) or len(raw) > most:
+        raise ValueError(f"sandbox.hosts is a list of up to {most} host names, like api.example.com or *.example.com")
+    out = []
+    for v in raw:
+        h = str(v).strip().lower().rstrip(".")
+        labels = h.split(".")
+        first, rest = labels[0], labels[1:]
+        wild = first in ("*", "**")
+        ok = (
+            len(h) <= 253
+            and len(labels) >= (3 if wild else 2)
+            and (wild or _LABEL.match(first))
+            and all(_LABEL.match(x) for x in rest)
+            and not rest[-1].isdigit()
+        )
+        if not ok:
+            raise ValueError(f"sandbox.hosts: {v} isn't a host name like api.example.com or *.example.com")
+        out.append(h)
+    return list(dict.fromkeys(out))
+
+
+def _sandbox_setting(key, value):
+    """The code sandbox (sandbox.py): cpu like 1, 0.5 or 500m (up to 64 cores); memory like 512Mi or 2Gi (64Mi to
+    64Gi); the gateway as host:port; the image as an OCI image reference; hosts as host names (_sandbox_hosts)."""
+    from . import sandbox
+
+    if key == "enabled":
+        if not isinstance(value, bool):
+            raise ValueError("sandbox.enabled is true or false")
+        return value
+    if key == "network":
+        if value not in sandbox.NETWORKS:
+            raise ValueError("sandbox.network is off, packages (PyPI and npm only) or hosts (those and sandbox.hosts)")
+        return value
+    if key == "hosts":
+        return _sandbox_hosts(value, sandbox.HOSTS_MAX)
+    if key == "who":
+        if value not in sandbox.WHO:
+            raise ValueError("sandbox.who is editors (people who can edit a namespace, and admins) or admins")
+        return value
+    if key in SANDBOX_RANGES:
+        lo, hi = SANDBOX_RANGES[key]
+        if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+            raise ValueError(f"sandbox.{key} is a whole number from {lo} to {hi}")
+        return value
+    text = str(value).strip() if isinstance(value, (str, int, float)) and not isinstance(value, bool) else ""
+    if key == "cpu":
+        cores = (int(text[:-1]) / 1000 if text.endswith("m") else float(text)) if SANDBOX_CPU.match(text) else 0
+        if not 0.1 <= cores <= 64:
+            raise ValueError("sandbox.cpu is how many cores a sandbox may use, like 1, 0.5 or 500m (0.1 to 64)")
+        return text
+    if key == "memory":
+        m = SANDBOX_MEMORY.match(text)
+        size = int(m.group(1)) * _BYTES[m.group(2) or ""] if m else 0
+        if not 64 * 2**20 <= size <= 64 * 2**30:
+            raise ValueError("sandbox.memory is how much memory a sandbox may use, like 512Mi or 2Gi (64Mi to 64Gi)")
+        return text
+    if key == "gateway":
+        if not SANDBOX_GATEWAY.match(text) or not 0 < int(text.rsplit(":", 1)[1]) < 65536:
+            raise ValueError("sandbox.gateway is the OpenShell gateway's host:port, like openshell-gateway:17670")
+        return text
+    if key == "image":
+        if not SANDBOX_IMAGE.match(text):
+            raise ValueError("sandbox.image is a container image with python3 and bash, like python:3.12-slim")
+        return text
+    raise ValueError(f"unknown setting sandbox.{key}")
+
+
+WEB_RANGES = {"results": (1, 20), "read_chars": (1000, 200_000)}
+
+
+def _web_setting(key, value):
+    if key == "render":
+        if not isinstance(value, bool):
+            raise ValueError("web.render is true or false")
+        return value
+    if key == "searxng_url":
+        if value in (None, ""):
+            return None
+        u = urllib.parse.urlsplit(value.strip()) if isinstance(value, str) else None
+        if not (u and VIEWER_URL.match(value.strip()) and u.hostname and u.username is None and u.password is None):
+            raise ValueError("web.searxng_url is a SearXNG instance's http(s) address with no password in it, such as http://searxng:8080")
+        return value.strip().rstrip("/")
+    lo, hi = WEB_RANGES[key]
+    if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+        raise ValueError(f"web.{key} is a whole number from {lo} to {hi}")
+    return value
+
+
 def _share_setting(key, value):
-    if key in ("enabled", "s3", "webdav"):
+    if key in ("enabled", "s3", "webdav", "add_files", "remote"):
         if not isinstance(value, bool):
             raise ValueError(f"shares.{key} is true or false")
         return value

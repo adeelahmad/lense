@@ -30,6 +30,7 @@ from app.api.v1.routes import activities as activity_routes
 from app.api.v1.routes import automation_vars as var_routes
 from app.api.v1.routes import automations as automation_routes
 from app.api.v1.routes import chats as chat_routes
+from app.api.v1.routes import dates as date_routes
 from app.api.v1.routes import entities as entity_routes
 from app.api.v1.routes import graph as graph_routes
 from app.api.v1.routes import namespaces as namespace_routes
@@ -46,9 +47,12 @@ from app.domain import (
     blobs,
     chat,
     chat_export,
+    decide,
+    descriptions,
     events,
     feeds,
     filetree,
+    florence,
     graph_history,
     integrations,
     library,
@@ -64,7 +68,10 @@ from app.domain import (
     updates,
     variables,
 )
+from app.domain import classify as classifymod
 from app.domain import entities as ents
+from app.domain import find as findmod
+from app.domain import sandbox as sandboxmod
 from app.domain import speakers as spk
 from app.domain import topics as topicmod
 from app.domain.store import DB
@@ -653,6 +660,149 @@ def list_recordings(
     return out
 
 
+FIND_SORTS = ("relevance", "-date", "date", "-title", "title", "-duration", "duration")
+
+
+@tool(
+    "find",
+    "Find assets by any attribute",
+    "Assets (recordings, videos, documents and images) you can read by who is seen in them (faces) and heard (speakers), the "
+    "entities they mention, the topics they're about, their kind and content type, when they were made, tags, language, "
+    "objects seen, emotions heard, length, collection, and words said or written in them. Filters combine with AND, the "
+    "values of one with OR. Faces, people heard, entities and topics are ids or names (ignoring case); `resolved` says what "
+    "each name matched, and one that matches nothing comes back as an error naming the closest. Each result says `why` "
+    "it matched, with up to three moments per reason (a time or a page, the words there, and a url that opens it), to cite.",
+    Arg("namespace", "string", "only this namespace"),
+    Arg("text", "string", 'words said or written in them (words, "phrases", OR); by meaning too when that is set up', max_length=300),
+    Arg("title", "string", "words that must all appear in the title, the namespace or a person's name", max_length=200),
+    Arg("faces", "string[]", "people seen in them: face ids or names"),
+    Arg("speakers", "string[]", "people heard in them: speaker ids or names"),
+    Arg("entities", "string[]", "entities they mention (people, organisations, places …): ids or names"),
+    Arg("topics", "string[]", "topics they're about: ids or labels; narrower topics count too"),
+    Arg("types", "string[]", "their kind", enum=MEDIA),
+    Arg("content_types", "string[]", "content types by key or label: podcast, interview, meeting_audio, scan, photo, email, document …"),
+    Arg("date_from", "string", "made on or after this day, month or year (2026-09-30, 2026-09, 2026)"),
+    Arg("date_to", "string", "made on or before this day, month or year"),
+    Arg("min_duration", "number", "at least this many seconds long", minimum=0),
+    Arg("max_duration", "number", "shorter than this many seconds", minimum=0),
+    Arg("tags", "string[]", "tags (ignoring case)"),
+    Arg("languages", "string[]", "language codes (en, de …); none for those whose language isn't known"),
+    Arg("objects", "string[]", "kinds of object seen in them (person, car, dog …)"),
+    Arg("emotions", "string[]", "emotions heard in them (happy, sad, angry …)"),
+    Arg("collection_id", "integer", "only what's in this collection (and the collections inside it)"),
+    Arg(
+        "sensitive",
+        "string",
+        "where NSFW classification is on: only those flagged NSFW, exclude them, or include them",
+        enum=("include", "only", "exclude"),
+    ),
+    Arg("sort", "string", "relevance (the default with text), else date, title or duration; - first for descending", enum=FIND_SORTS),
+    Arg("limit", "integer", "how many", default=20, minimum=1, maximum=100),
+    Arg("offset", "integer", "skip this many (for the next page)", default=0, minimum=0, maximum=10000),
+)
+def find(
+    ctx: Context,
+    namespace: str | None,
+    limit: int,
+    offset: int,
+    sort: str | None,
+    collection_id: int | None,
+    **spec: Any,
+) -> dict[str, Any]:
+    spaces, within = ctx.acl.scope(namespace)
+    if collection_id is not None:
+        spec["collection"] = collection_id
+    res = findmod.find(ctx.db, ctx.cfg, spaces, within, spec, sort=sort, limit=limit, offset=offset)
+    items = []
+    for r in res["items"]:
+        rid = r["id"]
+        why = []
+        for w in r["why"]:
+            moments = [
+                store.clean(
+                    {
+                        **({"page": m["page"] + 1} if m.get("page") is not None else {}),
+                        **({"to_page": m["last_page"] + 1} if m.get("last_page") is not None else {}),
+                        **({"time": store.tc(m["t0"])} if m.get("t0") is not None else {}),
+                        **({"until": store.tc(m["t1"])} if m.get("t1") is not None and w["by"] == "face" else {}),
+                        "speaker": m.get("speaker"),
+                        "text": _cut(m["text"], 400) if m.get("text") else None,
+                        "url": ctx.link(rid, m.get("t0")),
+                    }
+                )
+                for m in w.get("moments") or []
+            ]
+            why.append(store.clean({"by": w["by"], "name": w.get("name"), "count": w.get("count"), "moments": moments or None}))
+        items.append(
+            store.clean(
+                {
+                    "recording_id": rid,
+                    "title": r.get("title"),
+                    "namespace": r.get("namespace"),
+                    "recorded_at": r.get("recorded_at"),
+                    "duration": store.tc(r.get("duration_ms")) if r.get("duration_ms") else None,
+                    "media": r.get("media_kind"),
+                    "speakers": r.get("speakers") or None,
+                    "tags": r.get("tags") or None,
+                    "language": r.get("language"),
+                    "nsfw": True if (r.get("nsfw") or {}).get("flagged") else None,
+                    "url": ctx.link(rid),
+                    "why": why,
+                }
+            )
+        )
+    out: dict[str, Any] = {"total": res["total"], "results": items}
+    if res["resolved"]:
+        out["resolved"] = res["resolved"]
+    if res["text"]:
+        out["text"] = res["text"]
+    if offset + len(items) < res["total"]:
+        out["next_offset"] = offset + len(items)
+    return out
+
+
+@tool(
+    "classify",
+    "Classify an asset or a text",
+    "Which label fits an asset (or a text) best, how sure that is, and every label ranked: labels you give "
+    '("name" or "name: what it means"), Lens\'s content types (vocabulary content_type: podcast, interview, scan, '
+    "email …, of the asset's kind) or its namespace's topics (vocabulary topic). A decision model answers when "
+    "one is set up, else the language model; `sure` says whether it is sure enough to act on without asking. "
+    "It changes nothing: to act, set the content type in the web app, suggest_topic, or tag it.",
+    Arg("recording_id", "integer", "the asset to classify"),
+    Arg("text", "string", "a text to classify instead", max_length=20000),
+    Arg("labels", "string[]", 'the labels to choose from (2 to 60): "name", or "name: what it means"'),
+    Arg("vocabulary", "string", "choose from Lens's content types or the namespace's topics instead", enum=("content_type", "topic")),
+    Arg("namespace", "string", "whose topics, when classifying a text by topic"),
+    Arg("question", "string", "what to ask (default: which label fits best)", max_length=500),
+)
+def classify(
+    ctx: Context,
+    recording_id: int | None,
+    text: str | None,
+    labels: list[str] | None,
+    vocabulary: str | None,
+    namespace: str | None,
+    question: str | None,
+) -> dict[str, Any]:
+    space = None
+    if recording_id is not None:
+        _recording(ctx, recording_id)
+    elif namespace:
+        space = ctx.acl.namespace(namespace)
+    try:
+        res = classifymod.classify(
+            ctx.db, ctx.cfg, rid=recording_id, text=text, labels=labels, vocab=vocabulary, question=question, space=space
+        )
+    except decide.Undecided as e:
+        raise ToolError(f"nothing could answer: {e}") from None
+    out = {k: res[k] for k in ("choice", "confidence", "sure", "ranked", "by")}
+    for k in ("key", "id"):
+        if res.get(k) is not None:
+            out[k] = res[k]
+    return out
+
+
 @tool(
     "list_speakers",
     "List people",
@@ -1051,6 +1201,77 @@ def _node(n: str | None, entity_id: int | None, speaker_id: int | None, name: st
 
 def _scope(namespace: str | None) -> str:
     return f"ns:{namespace}" if namespace else "all"
+
+
+@tool(
+    "list_dates",
+    "Find what was said about a day",
+    'Dates said in assets, read as days on the calendar: "next Tuesday" in a recording made on a Wednesday is the '
+    'Tuesday after, "last week" the seven days before that Monday, "March 2024" all of March. Give start and end '
+    "(YYYY-MM-DD, or YYYY-MM or YYYY) for what falls between them, the earliest first, each with the words said, the "
+    "line and a url to that moment. relative: worked out from the asset's own date. Only assets analysed while Settings "
+    "→ Analysis → Read dates was on have them (reading says whether it is).",
+    Arg("start", "string", "from this day on: YYYY-MM-DD, YYYY-MM or YYYY", max_length=10),
+    Arg("end", "string", "up to this day: YYYY-MM-DD, YYYY-MM or YYYY", max_length=10),
+    Arg("namespace", "string", "only this namespace"),
+    Arg("recording_id", "integer", "only this asset"),
+    Arg("query", "string", "only dates whose words or line have this text", max_length=200),
+    Arg("limit", "integer", "how many", default=25, minimum=1, maximum=100),
+    Arg("offset", "integer", "skip this many (for the next page)", default=0, minimum=0, maximum=10000),
+)
+def list_dates(
+    ctx: Context,
+    start: str | None,
+    end: str | None,
+    namespace: str | None,
+    recording_id: int | None,
+    query: str | None,
+    limit: int,
+    offset: int,
+) -> dict[str, Any]:
+    res = date_routes.list_dates(
+        ctx.acl,
+        ctx.user,
+        ctx.db,
+        ctx.cfg,
+        start=start or "",
+        end=end or "",
+        ns=namespace,
+        recording=recording_id,
+        q=query or "",
+        limit=limit,
+        offset=offset,
+    )
+    out: dict[str, Any] = {
+        "reading": res.reading,
+        "total": res.total,
+        "dates": [
+            {
+                k: v
+                for k, v in {
+                    "day": d.day,
+                    "until": d.until if d.until != d.day else None,
+                    "period": d.period,
+                    "said": d.said,
+                    "relative": d.relative or None,
+                    "recording_id": d.recording_id,
+                    "title": d.title,
+                    "namespace": d.namespace,
+                    "recorded_at": d.recorded_at,
+                    "line": d.idx,
+                    "at": d.time,
+                    "speaker": d.speaker,
+                    "text": _cut(d.text),
+                    "url": ctx.link(d.recording_id, d.t0),
+                }.items()
+                if v is not None
+            }
+            for d in res.items
+        ],
+    }
+    if offset + len(res.items) < res.total:
+        out["next_offset"] = offset + len(res.items)
+    return out
 
 
 @tool(
@@ -1542,7 +1763,8 @@ def find_notes(ctx: Context, query: str | None, namespace: str | None, place: st
 @tool(
     "read_note",
     "Read a note",
-    "A note's Markdown, with what it links to and the notes linking to it: by note_id, or the page of a thing "
+    "A note's Markdown, with what it links to, the notes linking to it, the notes it is inside (path, from the top) and "
+    "the notes inside it: by note_id, or the page of a thing "
     '(about, like "recording:12", "entity:5" or "topic:9"). Links in the Markdown are written @[label](kind:id) and, for '
     "topics, #[label](topic:id).",
     Arg("note_id", "integer", "the note (from find_notes)"),
@@ -1575,6 +1797,8 @@ def read_note(ctx: Context, note_id: int | None, about: str | None) -> dict[str,
             "body": _cut(p.body, FETCH_CHARS),
             "links": [{"target": x.target, "name": x.name} for x in p.links] or None,
             "linked_from": [{"note_id": b.page, "title": b.title} for b in p.backlinks] or None,
+            "path": [{"note_id": c.id, "title": c.title} for c in p.path] or None,
+            "notes_inside": [{"note_id": c.id, "title": c.title} for c in p.children] or None,
             "url": _note_url(ctx, p.id),
         }
     )
@@ -2019,6 +2243,62 @@ def read_file(ctx: Context, path: str, offset: int) -> dict[str, Any]:
     return out
 
 
+# ---------- describing pictures (admins) ----------
+@tool(
+    "picture_descriptions",
+    "Describing pictures",
+    "What describes the pages of documents and images and the shots of videos (the describe step; search finds what "
+    "it says): the LLM provider's model that can see images, or Florence-2 on this server. Its model, whether it's "
+    "ready and why not, how many pages or shots of a resource are described at most, and the engines there are. "
+    "Admins only.",
+    admin=True,
+)
+def picture_descriptions(ctx: Context) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins see how pictures are described")
+    return {**descriptions.status(ctx.cfg), "settings": f"{ctx.web}/settings/llm"}
+
+
+@tool(
+    "set_picture_descriptions",
+    "Change how pictures are described",
+    "Choose what describes the pages and shots of new and reprocessed resources: engine llm, the LLM provider's model "
+    "that can see images (vision_model), or florence-2, Florence-2 (MIT) on this server's CPU, so no picture leaves it "
+    "(florence_model base, about 280 MB, or large, about 830 MB, fetched the first time a job needs it); and "
+    "describe_max, how many pages or shots of a resource are described at most. Admins only, with a token that has "
+    "the write scope.",
+    Arg("engine", "string", "what describes pictures", enum=tuple(descriptions.ENGINES)),
+    Arg("vision_model", "string", "the LLM provider's model that can see images, for engine llm; empty for none", max_length=200),
+    Arg("florence_model", "string", "Florence-2's size, for engine florence-2", enum=florence.SIZES),
+    Arg("describe_max", "integer", "pages or shots of a resource described at most, 1 to 1000"),
+    writes=True,
+    admin=True,
+)
+def set_picture_descriptions(
+    ctx: Context,
+    engine: str | None = None,
+    vision_model: str | None = None,
+    florence_model: str | None = None,
+    describe_max: int | None = None,
+) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins change how pictures are described")
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to change how pictures are described")
+    given = (
+        ("describe_engine", engine),
+        ("vision_model", vision_model),
+        ("florence_model", florence_model),
+        ("describe_max", describe_max),
+    )
+    changes = {k: v for k, v in given if v is not None}
+    if not changes:
+        raise ToolError("say what to change: engine, vision_model, florence_model or describe_max")
+    settings.save(ctx.db, ctx.request.app.state.archive.base, "llm", changes, ctx.user.email)
+    auth.audit(ctx.db, ctx.user.as_audit(), "settings.save", "llm", sorted(changes) + ["mcp"])
+    return {"saved": changes, **descriptions.status(ctx.request.app.state.settings.current())}
+
+
 # ---------- where files are kept (admins) ----------
 def _admin(ctx: Context) -> None:
     if not ctx.user.admin:
@@ -2124,6 +2404,44 @@ def set_monitoring(ctx: Context, on: bool) -> dict[str, Any]:
     except monitoring.MonitoringError as e:
         raise ToolError(str(e)) from None
     auth.audit(ctx.db, ctx.user.as_audit(), "lens.monitoring", None, {"on": bool(on), "via": "mcp"})
+    return got
+
+
+# ---------- the code sandbox's OpenShell gateway next to Lens (admins) ----------
+@tool(
+    "sandbox_gateway",
+    "Code sandbox gateway",
+    "Whether the code sandbox's OpenShell gateway runs next to Lens (the Compose profile sandbox), how the machine's "
+    "last change went, what stands in the way of running it here (preflight), and whether Lens reaches it at "
+    "sandbox.gateway (reachable, problem). Admins only.",
+    admin=True,
+)
+def sandbox_gateway(ctx: Context) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins see or change the code sandbox's gateway")
+    return sandboxmod.gateway_view(ctx.db, ctx.cfg) | {"settings": f"{ctx.web}/settings/sandbox"}
+
+
+@tool(
+    "set_sandbox_gateway",
+    "Start or stop the code sandbox's gateway",
+    "Have this machine start (on true) or stop the code sandbox's OpenShell gateway. On also turns the sandbox on, at "
+    "that gateway; off deletes every conversation's sandbox, files and all, and turns the sandbox off. The machine's "
+    "upgrade agent does it; sandbox_gateway follows along. Admins only, with a token that has the write scope.",
+    Arg("on", "boolean", "start (true) or stop (false)", required=True),
+    writes=True,
+    admin=True,
+)
+def set_sandbox_gateway(ctx: Context, on: bool) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins see or change the code sandbox's gateway")
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to change the gateway")
+    try:
+        got = sandboxmod.turn(ctx.db, ctx.request.app.state.archive.base, ctx.cfg, bool(on), by=ctx.user.email)
+    except sandboxmod.GatewayError as e:
+        raise ToolError(str(e)) from None
+    auth.audit(ctx.db, ctx.user.as_audit(), "lens.sandbox", None, {"on": bool(on), "via": "mcp"})
     return got
 
 

@@ -9,6 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 jest.mock("@/app/openapi-client", () => ({ Chats: { checkMessage: jest.fn() }, Search: {} }));
 jest.mock("@/lib/api/browser", () => ({ useApiClient: () => ({}), data: jest.fn() }));
+jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
 jest.mock("@/lib/hooks/session", () => ({
   useArchive: () => ({ can: () => true, namespaces: [], roleIn: () => "editor" }),
 }));

@@ -513,11 +513,14 @@ def sources(db, cfg, cid):
     from app.email import app_url
 
     row = db.one("SELECT id, passages FROM chat_message WHERE chat = $c AND role = 'assistant' ORDER BY id DESC LIMIT 1", c=cid) or {}
-    used = [p for p in row.get("passages") or [] if isinstance(p, dict) and p.get("used") and p.get("recording_id")]
+    used = [p for p in row.get("passages") or [] if isinstance(p, dict) and p.get("used") and (p.get("recording_id") or p.get("url"))]
     if not used:
         return ""
     base, lines = app_url(cfg, db), []
     for p in used:
+        if p.get("recording_id") is None:  # a web page a tool found: its own address, as the tool gave it
+            lines.append(f"[{p['n']}] {p.get('title') or p.get('site') or 'A web page'}: {p['url']}")
+            continue
         at = f"?page={p['page'] + 1}" if p.get("page") is not None else f"?t={int((p.get('t0') or 0) // 1000)}"
         where = ", ".join(str(x) for x in (p.get("title") or "Untitled", p.get("time")) if x)
         lines.append(f"[{p['n']}] {where}: {base}/resources/{p['recording_id']}{at}")
