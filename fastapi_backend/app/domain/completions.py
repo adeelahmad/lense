@@ -115,32 +115,34 @@ class Box(ai_tools.Toolbox):
 
 def answer(db, cfg, sid, ns, user, question, history, app="", model=None, tools=(), base=None, temperature=None):
     """Answer one request. Yields ("step", {tool, args, summary}) for each tool call, ("token", text) for the
-    answer's pieces, then ("done", {refs, text, model, notice}): what it can cite (numbered, as [n]) and the whole
-    answer. Raises llm.LLMError when the model server fails, and activity.OverBudget at the hard limit."""
+    answer's pieces, then ("done", {refs, text, model, notice, record}): what it can cite (numbered, as [n]), the whole
+    answer and what produced it (chat.Record, without tokens and cost: no message keeps it). Raises llm.LLMError when
+    the model server fails, and activity.OverBudget at the hard limit."""
     scope = {"namespaces": [ns]}
+    record = chat.Record(cfg, model, scope, picked=list(tools) or None)
     passages = chat.retrieve(db, question, {sid}, scope, cfg=cfg)
     extra, notice = note(db, sid, ns, app), None
     used = model or cfg["llm"].get("model")
     if not llm.configured(cfg):
         text = chat.fallback(passages)
         yield "token", text
-        yield "done", {"refs": passages, "text": text, "model": MODEL, "notice": None}
+        yield "done", {"refs": passages, "text": text, "model": MODEL, "notice": None, "record": record.meta(db, "fallback")}
         return
     if tools and cfg["ai"].get("tools", True):
         box = Box(db, cfg, user, sid, ns, tools, question, base, extra)
         try:
-            text = ""
-            for kind, data in chat.tool_answer(cfg, box, question, history, cfg["ai"].get("max_steps") or 6, model):
+            text, how = "", "answered"
+            for kind, data in chat.tool_answer(cfg, box, question, history, cfg["ai"].get("max_steps") or 6, model, record=record):
                 if kind == "step":
                     yield "step", data
                 # a model that skips the tools hasn't seen the namespace: it answers from the excerpts instead
                 elif kind == "direct" and passages and not box.cited(data):
                     break
                 else:
-                    text = data
+                    text, how = data, "direct" if kind == "direct" else "answered"
             else:
                 yield "token", text
-                yield "done", {"refs": box.refs, "text": text, "model": used, "notice": None}
+                yield "done", {"refs": box.refs, "text": text, "model": used, "notice": None, "record": record.meta(db, how)}
                 return
         except llm.ToolsUnsupported:
             notice = "This model can't use tools, so the answer comes from a search instead."
@@ -150,7 +152,10 @@ def answer(db, cfg, sid, ns, user, question, history, app="", model=None, tools=
     for piece in llm.stream_chat(cfg, msgs, model=model, temperature=0.2 if temperature is None else temperature):
         text += piece
         yield "token", piece
-    yield "done", {"refs": passages, "text": text, "model": used, "notice": notice}
+    yield (
+        "done",
+        {"refs": passages, "text": text, "model": used, "notice": notice, "record": record.meta(db, "fallback" if notice else "answered")},
+    )
 
 
 def link(web, ref):
