@@ -147,8 +147,14 @@ Exports carry each tool call's arguments and summary, never its raw result, whic
 export the same way over MCP: `list_chats`, `read_chat` and `export_chat` ([MCP](mcp.md)) work on the person's own
 conversations.
 
-The web app's copy buttons and Export menus are in progress. Planned: importing a conversation from its JSON,
-exporting one to a note, and a styled PDF without Chromium.
+In the web app, an answer's copy button offers **Copy as Markdown** (its citations as footnotes linking back to Lens,
+as in the Markdown export) and **Copy text** (without Markdown or citation numbers), then exports that answer with
+its question as Markdown, PDF or JSON. A question has its own copy button, shown on hover, and each code block in an
+answer has one that copies the code as written. The download icon in a conversation's header exports the whole
+conversation. When the server can't make a PDF, the browser's print dialog opens on the conversation (or that one
+answer), without the app around it, so Save as PDF still works.
+
+Planned: importing a conversation from its JSON, exporting one to a note, and a styled PDF without Chromium.
 
 ### Picking the namespace for a conversation over everything
 

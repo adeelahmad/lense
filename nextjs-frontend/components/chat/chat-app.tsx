@@ -16,6 +16,7 @@ import { Composer, ScopeBar } from "@/components/chat/composer";
 import { ConversationList } from "@/components/chat/conversations";
 import { useApprovals, useChat, useChats, useLlmStatus, useStopAnswer } from "@/components/chat/data";
 import { EmptyChat } from "@/components/chat/empty";
+import { ExportMenu, useChatExport } from "@/components/chat/export";
 import { NamespaceOffer, spokenPick } from "@/components/chat/namespace-offer";
 import { fromApiScope, scopeFromParams, toApiScope, type Scope } from "@/components/chat/scope";
 import { CitationSheet, SourcesPanel, SourcesSheet } from "@/components/chat/sources";
@@ -124,6 +125,17 @@ export function ChatApp() {
   const files = useAttachments();
   const [queue, setQueue] = useState<Queued[]>([]);
   const threadRef = useRef<HTMLDivElement>(null);
+
+  // The browser prints the conversation, or one message and its question, when the server can't make its PDF.
+  const [printing, setPrinting] = useState<{ message?: number } | null>(null);
+  useEffect(() => {
+    if (!printing) return;
+    const done = () => setPrinting(null);
+    window.addEventListener("afterprint", done, { once: true });
+    window.print();
+    return () => window.removeEventListener("afterprint", done);
+  }, [printing]);
+  const exporter = useChatExport(activeId, chat.data?.title, (message) => setPrinting({ message }));
 
   // A new conversation starts from the top-bar namespace unless a link says otherwise.
   useEffect(() => {
@@ -570,7 +582,7 @@ export function ChatApp() {
   return (
     <div
       className={cn(
-        "grid h-[calc(100dvh-4rem-var(--lens-banner,0px))] grid-cols-1 md:grid-cols-[260px_minmax(0,1fr)]",
+        "grid h-[calc(100dvh-4rem-var(--lens-banner,0px))] grid-cols-1 md:grid-cols-[260px_minmax(0,1fr)] print:block! print:h-auto",
         !setupChat && "xl:grid-cols-[260px_minmax(0,1fr)_360px]",
       )}
     >
@@ -580,7 +592,7 @@ export function ChatApp() {
       </div>
       <aside
         className={cn(
-          "min-h-0 overflow-y-auto border-r border-border bg-surface px-2.5 py-3.5",
+          "min-h-0 overflow-y-auto border-r border-border bg-surface px-2.5 py-3.5 print:hidden!",
           showThread || composing ? "hidden md:block" : "block",
         )}
       >
@@ -591,17 +603,41 @@ export function ChatApp() {
         aria-label={title}
         className={cn("min-h-0 min-w-0 flex-col", showThread || composing ? "flex" : "hidden md:flex")}
       >
-        <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-2 md:hidden">
-          <IconButton label="All conversations" onClick={() => (setComposing(false), router.push("/chat"))}>
+        <header
+          className={cn(
+            "flex h-12 shrink-0 items-center gap-2 border-b border-border px-2 md:px-4 print:border-0 print:px-0",
+            activeId == null && "md:hidden",
+          )}
+        >
+          <IconButton
+            label="All conversations"
+            onClick={() => (setComposing(false), router.push("/chat"))}
+            className="md:hidden print:hidden"
+          >
             <ChevronLeft />
           </IconButton>
           <span className="min-w-0 flex-1 truncate text-[15.5px] font-bold text-fg">{title}</span>
-          <IconButton label="Sources" onClick={() => setSourcesOpen(true)} disabled={!focusPassages?.length}>
+          {activeId != null && (
+            <ExportMenu
+              label="Export conversation"
+              onExport={(fmt) => exporter.mutate({ fmt })}
+              disabled={!msgs.length || exporter.isPending}
+            />
+          )}
+          <IconButton
+            label="Sources"
+            onClick={() => setSourcesOpen(true)}
+            disabled={!focusPassages?.length}
+            className={cn("print:hidden", !setupChat && "xl:hidden")}
+          >
             <LibraryBig />
           </IconButton>
         </header>
 
-        <div ref={threadRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-10">
+        <div
+          ref={threadRef}
+          className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-10 print:overflow-visible print:px-0"
+        >
           <div className="mx-auto flex max-w-[820px] flex-col gap-5">
             {activeId != null && chat.isLoading && (
               <div className="flex flex-col gap-4" aria-busy="true" aria-label="Loading conversation">
@@ -643,8 +679,9 @@ export function ChatApp() {
               const aKey = it.a ? `a${it.a.id}` : it.key;
               const partial = !it.a && it.q ? partials[`${activeId}:${it.q.content}`] : undefined;
               const ex = it.a ? extras[it.a.id] : undefined;
+              const another = printing?.message != null && ![it.q?.id, it.a?.id].includes(printing.message);
               return (
-                <div key={it.key} className="flex flex-col gap-5">
+                <div key={it.key} className={cn("flex flex-col gap-5", another && "print:hidden")}>
                   {it.q && (
                     <div className="flex flex-col gap-1.5">
                       <SharedFrom context={it.q.context} />
@@ -681,6 +718,7 @@ export function ChatApp() {
                       check={checks[it.a.id] ?? it.a.check}
                       meta={it.a.meta}
                       onChecked={(c) => setChecks((x) => ({ ...x, [it.a!.id]: c }))}
+                      onExport={(fmt) => exporter.mutate({ fmt, message: it.a!.id })}
                       {...answerHandlers(aKey)}
                     />
                   ) : partial ? (
@@ -739,7 +777,7 @@ export function ChatApp() {
           </div>
         </div>
 
-        <div className="shrink-0 border-t border-border px-4 pb-4 pt-3 md:px-10">
+        <div className="shrink-0 border-t border-border px-4 pb-4 pt-3 md:px-10 print:hidden">
           <div className="mx-auto flex max-w-[820px] flex-col gap-2.5">
             {noProvider && showThread && (
               <Banner tone="info">
@@ -816,7 +854,10 @@ export function ChatApp() {
 
       <aside
         aria-label="Sources"
-        className={cn("hidden min-h-0 overflow-y-auto border-l border-border px-[18px] py-4", !setupChat && "xl:block")}
+        className={cn(
+          "hidden min-h-0 overflow-y-auto border-l border-border px-[18px] py-4 print:hidden!",
+          !setupChat && "xl:block",
+        )}
       >
         <SourcesPanel
           passages={focusPassages}
