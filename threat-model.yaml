@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:033758f23473179fce6bf38ee7794b176e98c6e0f5561fe224d1a32507b243bc"
+prose_version: "threat-model.md@sha256:5d6df5f909d7e0f2488503810ae30f7e28a5250f0a54618dc94b9aabdd7feccc"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -407,6 +407,16 @@ entry_points:
         obligation_id: enable-only-trusted-extensions
         caller_must_enforce: "person enables only extensions they trust"
         provenance: {kind: documented, source: 'docs/assistant.md "other people''s run only when an admin shared them"'}
+  - id: "MCP servers: POST /extensions/mcp/read and /mcp/test, saving an extension of kind mcp, PATCH /extensions/{id}/tools"
+    component: assistant
+    parameters:
+      - name: "config text (JSON or YAML), a server's address and headers, or a command, its arguments and env; a tool name and its switches"
+        attacker_controllable: false
+        x-condition: "admins only, except reading a config, which any signed-in person may and which reaches nothing"
+        control_kinds: [data, x-network-destination, x-credential, callback-code]
+        obligation_id: admin-is-trusted
+        caller_must_enforce: "admin is trusted with the address and the command; reading a config parses text only; a command runs only in the MCP runner; credential values are sealed to the extension and where they go and shown as ••••; a tool switched off isn't offered, and every MCP tool asks first after outside text"
+        provenance: {kind: documented, source: 'docs/assistant.md "Adding an MCP server"'}
   - id: "Python code tools, shipped and admin-created templates, workflows, pipelines, routines"
     component: assistant
     parameters:
@@ -1439,9 +1449,9 @@ properties_claimed:
     kind: confidentiality
     components: [outbound]
     tier: security-critical
-    conditions: "stored secrets (source credentials, notification secrets, model API keys, iCal addresses, an automation's credential headers, sealed to that automation and the address they were saved for) are encrypted and write-only; the API reports whether one is set, never its value; a key from the environment is never shown; they do not leak through the API, logs, exports, or a redirect to another server"
+    conditions: "stored secrets (source credentials, notification secrets, model API keys, iCal addresses, an automation's credential headers, sealed to that automation and the address they were saved for, an MCP server's credential headers and env values, sealed to its extension and the address or command they were saved for) are encrypted and write-only; the API reports whether one is set, never its value; a key from the environment is never shown; they do not leak through the API, logs, exports, or a redirect to another server"
     violation_symptoms: [info-leak]
-    x-voided-by: "secret.key or ARCHIVE_SECRET_KEY holders (domain/settings.py:196-199, Q14); an admin moving a model URL sends the key there (domain/llm.py:30-32, trusted); LLM errors name the URL as typed (domain/llm.py:41, Q18)"
+    x-voided-by: "secret.key or ARCHIVE_SECRET_KEY holders (domain/settings.py:196-199, Q14); an admin moving a model URL sends the key there (domain/llm.py:30-32, trusted); LLM errors name the URL as typed (domain/llm.py:41, Q18); an MCP server's values whose names don't say they carry a credential, and a secret written into its address or arguments, are kept as given (domain/mcp_servers.py)"
     provenance: {kind: documented, source: 'SECURITY.md "stored credentials for sources and model servers leaking"'}
   - id: P-SSRF-GUARD
     kind: confidentiality
