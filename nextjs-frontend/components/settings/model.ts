@@ -2707,6 +2707,22 @@ export const FIELDS: FieldSpec[] = [
     kind: "switch",
     hint: "Off: devices sign in with a hub login (Sensors → Hub logins)",
   },
+  {
+    section: "sensors",
+    key: "mqtt_web",
+    label: "MQTT at the web app’s address too",
+    kind: "switch",
+    hint: "Over WebSockets at /mqtt wherever the web app opens, Remote access and HTTPS included, for devices with a hub login. Off: only on the MQTT port",
+  },
+  {
+    section: "sensors",
+    key: "mqtt_web_port",
+    label: "MQTT over WebSockets port",
+    kind: "int",
+    min: 1,
+    max: 65535,
+    hint: "Where the web app passes /mqtt on to (LENS_MQTT_WS_URL)",
+  },
   { section: "sensors", key: "syslog", label: "Syslog", kind: "switch" },
   {
     section: "sensors",

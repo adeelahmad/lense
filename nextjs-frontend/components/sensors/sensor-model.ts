@@ -111,16 +111,24 @@ export function parseDays(text: string): number | null | "bad" {
   return n <= 36500 ? n : "bad";
 }
 
-/** Where a device sends to, for the add dialog and a sensor's page. */
+/** The broker over WebSockets at the web app's address (`origin`, the page's): wss:// under https. */
+export function mqttWebUrl(origin: string): string {
+  return `${origin.replace(/^http/, "ws").replace(/\/+$/, "")}/mqtt`;
+}
+
+/** Where a device sends to, for the add dialog and a sensor's page. `origin`: the page's, for MQTT over WebSockets. */
 export function connectText(
   type: StreamType,
   host: string,
-  hub: { mqtt_port?: number | null; syslog_port?: number | null },
+  hub: { mqtt_port?: number | null; syslog_port?: number | null; mqtt_web?: boolean },
   token?: string | null,
+  origin?: string,
 ): string {
   switch (type) {
-    case "mqtt":
-      return `mqtt://${host}:${hub.mqtt_port ?? 1883}`;
+    case "mqtt": {
+      const tcp = `mqtt://${host}:${hub.mqtt_port ?? 1883}`;
+      return hub.mqtt_web && origin ? `${tcp} or ${mqttWebUrl(origin)}` : tcp;
+    }
     case "syslog":
       return `${host}:${hub.syslog_port ?? 5514} (UDP or TCP)`;
     case "webhook":
@@ -223,10 +231,11 @@ export function hubText(hub: {
   const errors: string[] = [];
   const listening: string[] = [];
   for (const p of hub.processes) {
-    for (const what of ["mqtt", "syslog"] as const) {
+    for (const what of ["mqtt", "mqtt_web", "syslog"] as const) {
       const st = p[what] as { running?: boolean; port?: number; error?: string } | undefined;
-      if (st?.running) listening.push(`${what === "mqtt" ? "MQTT" : "syslog"} on port ${st.port}`);
-      else if (st?.error) errors.push(`${what === "mqtt" ? "MQTT" : "Syslog"}: ${st.error}`);
+      const name = { mqtt: "MQTT", mqtt_web: "MQTT over WebSockets", syslog: "syslog" }[what];
+      if (st?.running) listening.push(`${name} on port ${st.port}${what === "mqtt_web" ? " (/mqtt)" : ""}`);
+      else if (st?.error) errors.push(`${name[0].toUpperCase()}${name.slice(1)}: ${st.error}`);
     }
   }
   if (!hub.processes.length)

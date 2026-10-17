@@ -47397,6 +47397,12 @@
             ],
             "title": "Mqtt Port"
           },
+          "mqtt_web": {
+            "type": "boolean",
+            "title": "Mqtt Web",
+            "description": "the broker over WebSockets too, which the web app relays at /mqtt",
+            "default": false
+          },
           "syslog": {
             "type": "boolean",
             "title": "Syslog"

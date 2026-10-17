@@ -12,6 +12,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   step in the pipeline editor. Agents write one with `POST /api/v1/recordings/{id}/spec`, the MCP tools `write_spec` and
   `get_spec`, and the assistant's `write_spec` (which asks first); pipelines and batches run it as a `spec` step
   ([Specs from transcripts](docs/notes.md#specs-from-transcripts)).
+- **MQTT through Remote access.** Devices away from home can publish to the sensor hub, and subscribe to it, at the
+  web app's own address: MQTT over WebSockets at `/mqtt` (`wss://` under HTTPS), through the Cloudflare tunnel and
+  HTTPS too. It's off until an admin turns on **MQTT at the web app's address too** in Settings › Sensors, and there
+  every client signs in with a hub login, with too many wrong passwords from one address turned away for a while. It's
+  the same broker as on port 1883. SMB, NFS and syslog stay on the local network, and Remote access now says why
+  ([Sensors](docs/sensors.md#at-the-web-apps-address), [Remote access](docs/remote-access.md#what-it-reaches)).
 - **Export a conversation.** `GET /api/v1/chats/<id>/export.md`, `.pdf` or `.json` gives the version showing, one
   message (`?message=`) or, as JSON, every version (`?all=true`). The Markdown has each question and answer, its
   citations as footnotes linking back to the moment in Lens and the tools it used; the PDF is that Markdown printed by
