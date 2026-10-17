@@ -11444,8 +11444,8 @@ export class Shares {
   /**
    * S3 Status
    *
-   * Whether the S3 server is on and on which port, what the worker running it says, the same for WebDAV, and your
-   * access keys.
+   * Whether the S3 server is on and on which port, what the worker running it says, the same for WebDAV, whether
+   * both are open at the web app's address too (/s3, /dav), and your access keys.
    */
   public static s3Status<ThrowOnError extends boolean = false>(
     options?: Options<S3StatusData, ThrowOnError>,

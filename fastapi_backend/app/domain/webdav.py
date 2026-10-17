@@ -4,6 +4,9 @@ Windows Explorer, GNOME Files, Dolphin, rclone and davfs2 mount as a drive.
 Each person signs in with one of their access keys (s3.py): the key id as the user name and its secret as the
 password (HTTP Basic). They see the namespaces and collections the web app shows them. OPTIONS, PROPFIND (depth 0
 or 1), GET and HEAD (with Range); anything that writes answers 403. Run by shares.py.
+
+With `shares.remote` on, the web app relays it at its own address too (https://<web app>/dav/), and links in listings
+start with /dav (shares.web_path()).
 """
 
 from __future__ import annotations
@@ -32,11 +35,11 @@ def _http_date(s):
     return email.utils.format_datetime((t if t.tzinfo else t.replace(tzinfo=dt.timezone.utc)).astimezone(dt.timezone.utc), usegmt=True)
 
 
-def href(parts, folder):
-    return "/" + "/".join(urllib.parse.quote(p, safe="") for p in parts) + ("/" if folder and parts else "")
+def href(parts, folder, prefix=""):
+    return prefix + "/" + "/".join(urllib.parse.quote(p, safe="") for p in parts) + ("/" if folder and parts else "")
 
 
-def _response(parts, e):
+def _response(parts, e, prefix=""):
     props = [f"<D:displayname>{escape(e.name)}</D:displayname>", f"<D:getlastmodified>{_http_date(e.modified)}</D:getlastmodified>"]
     if e.folder:
         props.append("<D:resourcetype><D:collection/></D:resourcetype>")
@@ -48,17 +51,17 @@ def _response(parts, e):
             f'<D:getetag>"{e.version}"</D:getetag>',
         ]
     return (
-        f"<D:response><D:href>{escape(href(parts, e.folder))}</D:href><D:propstat><D:prop>{''.join(props)}</D:prop>"
+        f"<D:response><D:href>{escape(href(parts, e.folder, prefix))}</D:href><D:propstat><D:prop>{''.join(props)}</D:prop>"
         "<D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response>"
     )
 
 
-def multistatus(tree, parts, depth):
-    """The PROPFIND answer for a path: itself, and with depth 1 what's in it."""
+def multistatus(tree, parts, depth, prefix=""):
+    """The PROPFIND answer for a path: itself, and with depth 1 what's in it. `prefix`: the path the share is at."""
     e = tree.stat("/".join(parts))
-    out = [_response(parts, e)]
+    out = [_response(parts, e, prefix)]
     if depth != "0" and e.folder:
-        out += [_response([*parts, k.name], k) for k in tree.list("/".join(parts))]
+        out += [_response([*parts, k.name], k, prefix) for k in tree.list("/".join(parts))]
     return ('<?xml version="1.0" encoding="utf-8"?>\n<D:multistatus xmlns:D="DAV:">' + "".join(out) + "</D:multistatus>").encode()
 
 
@@ -88,9 +91,27 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         self.rfile.read(n)
 
+    def _prefix(self):
+        from . import shares
+
+        return shares.web_path(self.headers, "webdav")
+
+    def _closed(self):
+        """True (and turned away) when the request came through the web app while that's not allowed."""
+        from . import shares
+
+        if self._prefix() and not shares.remote(self.server.cfg_fn()):
+            self._send(403, b"WebDAV isn't open at the web app's address: an admin turns that on in Settings, File shares\n")
+            return True
+        return False
+
     def _account(self):
         """The account the request signs in as, or None (an answer was sent)."""
-        ip = self.client_address[0]
+        from . import shares
+
+        if self._closed():
+            return None
+        ip = shares.visitor(self, self.server.cfg_fn())
         if auth.throttled(f"webdav:{ip}"):
             self._send(429, b"too many failed sign-ins: try again later\n")
             return None
@@ -109,16 +130,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return acct
 
     def _parts(self):
-        raw = self.path.partition("?")[0]
+        from . import shares
+
+        raw = shares.share_path(self.path.partition("?")[0], self._prefix())
         return [urllib.parse.unquote(p) for p in raw.split("/") if p]
 
     def do_OPTIONS(self):  # noqa: N802 - http.server's names
         self._drain()
-        self._send(200, headers={"Allow": ALLOW, "MS-Author-Via": "DAV"})
+        if not self._closed():
+            self._send(200, headers={"Allow": ALLOW, "MS-Author-Via": "DAV"})
 
     def _write(self):
         self._drain()
-        self._send(403, b"the file tree is read-only\n", headers={"Allow": ALLOW})
+        if not self._closed():
+            self._send(403, b"the file tree is read-only\n", headers={"Allow": ALLOW})
 
     do_PUT = do_POST = do_DELETE = do_MKCOL = do_MOVE = do_COPY = do_PROPPATCH = do_LOCK = do_UNLOCK = _write  # noqa: N815
 
@@ -135,7 +160,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if depth not in ("0", "1"):
             return self._send(403, b"PROPFIND with Depth: infinity isn't supported; ask for depth 1\n")
         try:
-            body = multistatus(self._tree(acct), self._parts(), depth)
+            body = multistatus(self._tree(acct), self._parts(), depth, self._prefix())
         except filetree.NotFound:
             return self._send(404, b"not found\n")
         self._send(207, body, "application/xml; charset=utf-8")

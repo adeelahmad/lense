@@ -40,6 +40,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   `automation_actions`, `save_automation`, `test_automation` and `run_automation`, with problems in plain words. The
   assistant saves them switched off and asks before switching one on or running it
   ([Agents](docs/automations.md#agents)).
+- **File shares through Remote access.** S3 and WebDAV can now be reached at the web app's own address, `/s3` and
+  `/dav`, so they work through the Cloudflare tunnel and HTTPS as well as on the network, and on Cloudron, which
+  publishes only the web app. It's off until an admin turns on **At the web app's address too** in Settings › File
+  shares; then a new access key's dialog gives those addresses. Signing in is the same: a person's own access key,
+  read-only. MQTT, syslog, SMB and NFS aren't HTTP and stay on their own ports
+  ([The graph as files](docs/file-tree.md#at-the-web-apps-address), [Remote access](docs/remote-access.md#what-it-reaches)).
 - **Versions in conversations.** A conversation is now a tree: editing a question makes a new version beside it
   instead of deleting what followed, regenerating an answer (`regenerate`, with the same model or another) writes one
   beside it, and a question can go on from any message (`parent`). `GET /api/v1/chats/<id>` shows each message's
@@ -80,6 +86,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   language model, logged in the activity ledger; with `apply`, an editor's sure answer sets the content type, suggests
   the topic or adds the tag (`POST /classify`, the MCP and assistant tool `classify`;
   [Classifying](docs/processing.md#classifying)).
+- **Classify in workflows.** A Classify node on the workflow canvas picks one of your labels, a content type or a topic
+  for the asset (or for what came in) and passes on the choice, how sure and every label ranked, for a Condition
+  or Switch to branch on; set to act, a sure answer sets the content type, suggests the topic or adds the tag
+  ([Workflows and the canvas](docs/processing.md#workflows-and-the-canvas)).
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 
