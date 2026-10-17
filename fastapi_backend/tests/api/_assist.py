@@ -26,6 +26,7 @@ def sse(text):
 def start_llm(cfg):
     fake_llm.Handler.tool_script, fake_llm.Handler.reject_tools, fake_llm.Handler.decision = [], False, None
     fake_llm.Handler.ignore_tool_choice = False
+    fake_llm.Handler.title = None
     fake_llm.Handler.names, fake_llm.Handler.cypher_script = None, []
     fake_llm.Handler.seen = []  # what earlier tests on this worker sent isn't this test's
     srv, url = fake_llm.start()

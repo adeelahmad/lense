@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Conversations title themselves.** After a conversation's first answer, the model gives it a short title from the
+  question and the answer, with the model for summaries (`ai.compact_model`) when one is set, in one call counted for
+  the conversation in the activity ledger; until then, and when there's no model, it's titled with the first
+  question's words. A title someone gives it is kept. `title_by` says who titled it, `POST /api/v1/chats/<id>/title`
+  and the MCP tool `rename_chat` (without a title) have Lens title it again, and `rename_chat` with a title renames it.
+  Settings → AI assistant → Title conversations (on) turns it off ([Titles](docs/assistant.md#titles)).
 - **Specs from transcripts.** Turn a voice session or a meeting into a technical spec, saved as a note linked to it:
   the model writes the spec, then lists every named decision, every "no" and "not that, this", every constraint and
   every gap the speaker left to decide later, each with its quote and a link to the moment it was said; a quote the
