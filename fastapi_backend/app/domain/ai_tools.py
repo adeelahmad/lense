@@ -275,7 +275,8 @@ TOOLS = [
     ),
     (
         "read_note",
-        "Read a note's Markdown, with its links and the notes linking to it: by note_id, or the page of a thing "
+        "Read a note's Markdown, with its links, the notes linking to it, the notes it's inside (path) and the notes "
+        "inside it: by note_id, or the page of a thing "
         '(about, like "recording:12" or "entity:5").',
         {"note_id": _I, "about": _S},
         [],
@@ -1911,6 +1912,8 @@ class Toolbox(ops_tools.OpsTools):
                 "body": (p.get("body") or "")[:20_000],
                 "links": notebook.links(self.db, p["id"]),
                 "linked_from": [b for b in notebook.backlinks(self.db, p["space"], targets) if b["page"] != p["id"]],
+                "path": [{"id": x["id"], "title": x["title"]} for x in notebook.path(self.db, p)] or None,
+                "notes_inside": [{"id": x["id"], "title": x["title"]} for x in notebook.children(self.db, p)] or None,
                 "could_link": [f"{x['sign']}[{x['label']}]({x['target']})" for x in notebook.suggest_links(self.db, p)] or None,
                 "files": [{"name": f.get("name"), "type": f["type"], "size": f["size"]} for f in notebook.files(self.db, p["id"])] or None,
                 "could_go_in": [

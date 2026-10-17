@@ -174,6 +174,29 @@ def _check_parent(db, sid, pid, parent):
     return int(parent)
 
 
+def path(db, p):
+    """The notes p is inside, from the top of the tree down to its parent: [{id, title}], for breadcrumbs."""
+    out, at = [], p.get("parent")
+    while at is not None and len(out) <= DEPTH_MAX:
+        row = db.one("SELECT record::id(id) AS id, title, parent FROM $r", r=R("note_page", int(at)))
+        if not row:
+            break
+        out.append({"id": row["id"], "title": row["title"]})
+        at = row.get("parent")
+    return out[::-1]
+
+
+def children(db, p):
+    """The notes inside p, in the tree's order: [{id, title, updated_at}]."""
+    rows = db.rows(
+        "SELECT record::id(id) AS id, title, position, updated_at FROM note_page WHERE space = $s AND parent = $p AND about = NONE",
+        s=p["space"],
+        p=int(p["id"]),
+    )
+    rows.sort(key=lambda r: (r.get("position") or 0, r["id"]))
+    return [{"id": r["id"], "title": r["title"], "updated_at": r.get("updated_at")} for r in rows]
+
+
 def _last_position(db, sid, parent):
     rows = db.values(
         "SELECT VALUE position FROM note_page WHERE space = $s AND parent = $p AND about = NONE",

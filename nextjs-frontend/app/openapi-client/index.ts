@@ -2269,6 +2269,7 @@ export type {
   NoteBacklink,
   NoteCopy,
   NoteCreate,
+  NoteCrumb,
   NoteDeleted,
   NoteFile,
   NoteHistory,
