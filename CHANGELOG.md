@@ -41,6 +41,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Download notes as Markdown.** A note's ⋯ menu in the tree downloads it as a Markdown file, and the Notes page's ⋯
   menu downloads all of a namespace's notes as a zip in folders that follow the tree, for Obsidian and other notes apps
   ([Downloading as Markdown](docs/notes.md#downloading-as-markdown)).
+- **Templates.** Notes inside a namespace's Templates note are templates: **New note from a template…** on the Notes
+  page and in Jump to starts a note from one, with its text, drawings, files and filing. Any note's menu in the tree can
+  also **Make a copy** ([Templates](docs/notes.md#templates)).
 - **Automations for agents.** Agents list, save, try and run automations through the MCP tools `automations`,
   `automation_actions`, `save_automation`, `test_automation` and `run_automation`, with problems in plain words. The
   assistant saves them switched off and asks before switching one on or running it
@@ -59,6 +62,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   The S3 server now takes streamed and multipart uploads; WebDAV takes PUT, MKCOL and Finder's and Explorer's ways of
   copying. This is on whenever the shares are; **Import files people add** in Settings, File shares
   (`shares.add_files`) turns it off and makes them read-only again ([Adding files](docs/file-tree.md#adding-files)).
+- **The web clipper takes your API token, or just signs in.** It used to take only an import webhook's token, so an API
+  token was refused with "Lens didn't recognise this token: make a new import webhook and paste its token". Now its
+  options have **Sign in**: Lens asks you to allow the clipper, nothing to copy, and clips go into the namespace you
+  pick (the popup offers each one you can add to). **Use a token instead** takes an API token with write access or a
+  hook's token, and when Lens refuses one the clipper says why: unknown, revoked, read-only, or a Lens too old for
+  API tokens. Anything acting as you (an agent, a script) can push to `POST /api/v1/hooks/import?namespace=` with
+  your own token too, and `GET` there says where a token's pushes go ([Web clipper](docs/web-clipper.md#setting-it-up),
+  [API](docs/api.md#import-webhooks)).
 - **Versions in conversations.** A conversation is now a tree: editing a question makes a new version beside it
   instead of deleting what followed, regenerating an answer (`regenerate`, with the same model or another) writes one
   beside it, and a question can go on from any message (`parent`). `GET /api/v1/chats/<id>` shows each message's
