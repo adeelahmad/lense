@@ -48,6 +48,8 @@ insightface = ["insightface", "onnxruntime"]
 objects = ["onnxruntime"]
 # Punctuation put back in transcripts (analysis.cleanup_punctuation): kredor/punctuate-all on Transformers and PyTorch
 punctuation = ["transformers", "torch"]
+# Named entities found by spaCy (analysis.entities "spacy"); its MIT-licensed models are fetched as pinned wheels
+spacy = ["spacy>=3.8,<3.9"]
 # A local prompt-injection classifier (ai.injection_check "classifier"): ProtectAI's DeBERTa model on ONNX Runtime
 injection = ["onnxruntime", "tokenizers"]
 # Checking IIIF manifests against the official schema
