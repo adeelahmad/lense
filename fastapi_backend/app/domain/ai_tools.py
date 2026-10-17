@@ -625,7 +625,7 @@ class Toolbox(ops_tools.OpsTools):
         for this question."""
         out = self._home_note() + (browsermod.NOTE if self.browser else "")
         if self.sandbox:
-            out += sandboxmod.NOTE.format(network=sandboxmod.NETWORK_NOTE[sandboxmod.settings(self.cfg)["network"]])
+            out += sandboxmod.NOTE.format(network=sandboxmod.network_note(self.cfg))
         if self.web and webmod.NAMES & {s["function"]["name"] for s in self.specs()}:
             out += webmod.NOTE
         if not self.ext:
@@ -919,7 +919,7 @@ class Toolbox(ops_tools.OpsTools):
             first = next((x.strip() for x in source.splitlines() if x.strip()), "")[:80]
             args = store.clean({"code" if kind == "python" else "command": source, "files": files or None})
             lang = "Python" if kind == "python" else "bash"
-            where = "the package registries" if sandboxmod.settings(self.cfg)["network"] == "packages" else "the web"
+            where = sandboxmod.reaches(self.cfg)
             return self._approval(f"run_{kind}", args, f"Run {lang} in the code sandbox, which can reach {where}: {first}" + self.why())
         out = self._sandbox(sandboxmod.run, self.account, kind, source, files)
         return out, sandboxmod.summary(kind, source, out)
