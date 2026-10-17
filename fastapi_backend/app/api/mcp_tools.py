@@ -43,6 +43,7 @@ from app.domain import (
     approvals,
     auth,
     blobs,
+    decide,
     enhance,
     events,
     feeds,
@@ -62,6 +63,7 @@ from app.domain import (
     updates,
     variables,
 )
+from app.domain import classify as classifymod
 from app.domain import entities as ents
 from app.domain import find as findmod
 from app.domain import speakers as spk
@@ -748,6 +750,48 @@ def find(
         out["text"] = res["text"]
     if offset + len(items) < res["total"]:
         out["next_offset"] = offset + len(items)
+    return out
+
+
+@tool(
+    "classify",
+    "Classify an asset or a text",
+    "Which label fits an asset (or a text) best, how sure that is, and every label ranked: labels you give "
+    '("name" or "name: what it means"), Lens\'s content types (vocabulary content_type: podcast, interview, scan, '
+    "email …, of the asset's kind) or its namespace's topics (vocabulary topic). A decision model answers when "
+    "one is set up, else the language model; `sure` says whether it is sure enough to act on without asking. "
+    "It changes nothing: to act, set the content type in the web app, suggest_topic, or tag it.",
+    Arg("recording_id", "integer", "the asset to classify"),
+    Arg("text", "string", "a text to classify instead", max_length=20000),
+    Arg("labels", "string[]", 'the labels to choose from (2 to 60): "name", or "name: what it means"'),
+    Arg("vocabulary", "string", "choose from Lens's content types or the namespace's topics instead", enum=("content_type", "topic")),
+    Arg("namespace", "string", "whose topics, when classifying a text by topic"),
+    Arg("question", "string", "what to ask (default: which label fits best)", max_length=500),
+)
+def classify(
+    ctx: Context,
+    recording_id: int | None,
+    text: str | None,
+    labels: list[str] | None,
+    vocabulary: str | None,
+    namespace: str | None,
+    question: str | None,
+) -> dict[str, Any]:
+    space = None
+    if recording_id is not None:
+        _recording(ctx, recording_id)
+    elif namespace:
+        space = ctx.acl.namespace(namespace)
+    try:
+        res = classifymod.classify(
+            ctx.db, ctx.cfg, rid=recording_id, text=text, labels=labels, vocab=vocabulary, question=question, space=space
+        )
+    except decide.Undecided as e:
+        raise ToolError(f"nothing could answer: {e}") from None
+    out = {k: res[k] for k in ("choice", "confidence", "sure", "ranked", "by")}
+    for k in ("key", "id"):
+        if res.get(k) is not None:
+            out[k] = res[k]
     return out
 
 
