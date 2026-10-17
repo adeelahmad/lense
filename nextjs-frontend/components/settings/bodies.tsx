@@ -24,6 +24,7 @@ import {
   useModelProviders,
   type ModelProvider,
 } from "@/components/settings/model-providers";
+import { SandboxGatewaySwitch } from "@/components/settings/sandbox-gateway";
 import { SignInProviders } from "@/components/settings/sign-in-providers";
 import { UpdatesPanel } from "@/components/settings/updates-panel";
 import { VoicePicker } from "@/components/settings/voice-picker";
@@ -253,6 +254,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           {raw("analysis.entities") === "spacy" && <F ctx={ctx} id="analysis.spacy_model" />}
           <F ctx={ctx} id="analysis.typing" />
           <F ctx={ctx} id="analysis.anytopdf" />
+          <F ctx={ctx} id="analysis.dates" />
           <F
             ctx={ctx}
             id="analysis.gazetteer"
@@ -348,11 +350,13 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
     case "sandbox":
       return (
         <>
+          <SandboxGatewaySwitch />
           <F ctx={ctx} id="sandbox.enabled" />
           <div className="grid gap-3 sm:grid-cols-2">
             <F ctx={ctx} id="sandbox.who" />
             <F ctx={ctx} id="sandbox.network" />
           </div>
+          {ctx.values["sandbox.network"] === "hosts" && <F ctx={ctx} id="sandbox.hosts" />}
           <F ctx={ctx} id="sandbox.gateway" />
           <More
             ctx={ctx}
@@ -381,8 +385,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             Each conversation gets a sandbox of its own the first time the assistant runs code in it, and keeps its
             files between runs. Nothing of Lens’s is inside: the assistant copies in files people attached when it needs
             them, and a file it makes reaches a namespace only once the person approves. The sandbox runs on an NVIDIA
-            OpenShell gateway (Docker 28 or newer, and a Linux kernel with Landlock). Starting that gateway from here is
-            in progress; until then, point Lens at one you run.
+            OpenShell gateway: Lens runs one next to itself on a Linux machine with Docker 28 or newer and a kernel with
+            Landlock (6.2 or newer), or point it at one you run elsewhere.
           </p>
         </>
       );
@@ -682,15 +686,26 @@ function LlmBody({ ctx }: { ctx: BodyCtx }) {
       </div>
       <More
         ctx={ctx}
-        ids={["llm.api_key_env", "llm.chat_models", "llm.vision_model", "llm.describe_max"]}
-        title="Models people may pick, pictures, and a key from the environment"
+        ids={["llm.api_key_env", "llm.chat_models"]}
+        title="Models people may pick, and a key from the environment"
       >
         <F ctx={ctx} id="llm.chat_models" />
+        <F ctx={ctx} id="llm.api_key_env" hint="Used only when no key is stored above" />
+      </More>
+      <More
+        ctx={ctx}
+        ids={["llm.describe_engine", "llm.vision_model", "llm.florence_model", "llm.describe_max"]}
+        title="Describing pictures"
+      >
+        <F ctx={ctx} id="llm.describe_engine" />
         <div className="grid gap-3 sm:grid-cols-2">
-          <F ctx={ctx} id="llm.vision_model" />
+          {ctx.state("llm.describe_engine").value === "florence-2" ? (
+            <F ctx={ctx} id="llm.florence_model" />
+          ) : (
+            <F ctx={ctx} id="llm.vision_model" />
+          )}
           <F ctx={ctx} id="llm.describe_max" />
         </div>
-        <F ctx={ctx} id="llm.api_key_env" hint="Used only when no key is stored above" />
       </More>
       <div className="flex flex-wrap items-center gap-2.5">
         <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
@@ -2580,6 +2595,7 @@ const LIMITS = [
   "ai.price_in",
   "ai.price_out",
   "ai.max_steps",
+  "ai.max_tool_calls",
   "ai.browser_steps",
   "ai.max_transcript_reads",
   "ai.compact_model",
@@ -2647,6 +2663,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
           <F ctx={ctx} id="ai.price_in" />
           <F ctx={ctx} id="ai.price_out" />
           <F ctx={ctx} id="ai.max_steps" />
+          <F ctx={ctx} id="ai.max_tool_calls" />
           <F ctx={ctx} id="ai.browser_steps" />
           <F ctx={ctx} id="ai.max_transcript_reads" />
           <F ctx={ctx} id="ai.compact_model" />

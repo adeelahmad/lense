@@ -111,12 +111,10 @@ class Box(ai_tools.Toolbox):
     would write become approvals (the chat assistant writes them at once), what could carry data out of Lens asks first
     whatever the run read (wary), and it keeps no memories."""
 
-    only: set | None = None
     note = ""
 
     def specs(self):
-        got = [s for s in super().specs() if s["function"]["name"] not in LEFT_OUT]
-        return got if self.only is None else [s for s in got if s["function"]["name"] in self.only]
+        return [s for s in super().specs() if s["function"]["name"] not in LEFT_OUT]
 
     def system_note(self):
         return super().system_note() + self.note

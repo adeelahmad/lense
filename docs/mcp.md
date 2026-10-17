@@ -45,7 +45,8 @@ Each namespace can have its own server, at `/mcp/<namespace>` (`https://lens.exa
 that should see that namespace and nothing else: a family assistant, a project's coding agent, a client's app. It
 has the same tools, but sees only that namespace, whatever else the person who signs the agent in can read. Tools
 that take a namespace use this one when none is named, `list_namespaces` and `list_files` show only it, and the tools
-about the server itself (`file_storage`, `monitoring`, `install_settings` and the ones that change them) aren't there,
+about the server itself (`file_storage`, `monitoring`, `sandbox_gateway`, `install_settings` and the ones that change
+them) aren't there,
 even for admins. An admin counts as an owner of the namespace there.
 
 It is off until an owner of the namespace turns it on: **Admin → Namespaces →** the namespace **→ Connect apps**, which
@@ -79,6 +80,7 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `cite` | a citation for a moment (a line or a second, and a few lines from there): the words, who said or wrote them, the asset and date, the time, the link, and all of it as Markdown |
 | `list_entities` | people, organisations, products, places, events, works and terms mentioned, by name, type, namespace or asset |
 | `get_entity` | one entity: its names, its page's link, how often and when it is mentioned, what it is mentioned with, who mentions it most, and the lines that mention it |
+| `list_dates` | what was said about a day or a range: dates said in assets as days on the calendar ([Dates](processing.md#dates)), each with the words, the line and a link to that moment |
 | `explore_graph` | the knowledge graph around an entity (`e12`) or a person (`s3`), one or two steps out |
 | `find_path` | the shortest chain of links between two of them, with lines that show each link |
 | `sparql` | a read-only SPARQL query (SELECT, ASK, CONSTRUCT or DESCRIBE) over one namespace's linked data ([RDF](rdf.md)): JSON results, or Turtle |
@@ -117,6 +119,8 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `preview_template` | what a template in a drafted automation gives before it's saved, against an activity or the trigger kind's sample; a prompt shows outside text marked as the model sees it; an error names the missing variable and its nearest name |
 | `file_storage` | where Lens keeps its own files (notes' images and attachments) and the connections it could use; `check` tests it. Admins only |
 | `set_file_storage` | keep new files on this machine or a storage connection (folder, rclone crypt); checked before it's saved. Admins only, with a write-scope token |
+| `picture_descriptions` | what describes the pages and shots of resources ([Descriptions](configuration.md#descriptions)): the LLM provider's model that can see images or Florence-2 on this server, its model, whether it's ready and why not, and the engines there are. Admins only |
+| `set_picture_descriptions` | choose what describes pictures (`engine` `llm` or `florence-2`), the provider's `vision_model`, Florence-2's size (`florence_model`) and `describe_max`. Admins only, with a write-scope token |
 | `install_settings` | whether other devices on the network reach Lens and its edition (full or lean), whether the machine's upgrade agent can change them, and the install line to run when it can't. Admins only |
 | `set_install_settings` | open Lens to the network or keep it to this machine, or change the edition: the machine sets itself up again and Lens restarts ([Updates](updates.md#setting-the-machine-up-again)). Admins only, with a write-scope token |
 | `propose_graph_change` | ask for two entities to be merged or linked; it waits in Proposed changes unless `apply` makes it at once (it can be undone). Needs a write-scope token and editor access |
@@ -138,8 +142,9 @@ which records an undoable change (proposed by default), `undo_graph_change`, `ed
 `merge_topics`, `delete_topic` and `undo_topic_change`, which curate entities and topics as an editor does in the web
 app (merges and deletes can be undone), `write_note`, which adds a note, `create_podcast`, which
 queues an episode, `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
-editors), `set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_file_storage`, which changes where new files are kept (admins), and `set_monitoring` and
-`set_install_settings`, which have the machine change how Lens runs (admins).
+editors), `set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_picture_descriptions`, which changes what describes pictures (admins), `set_file_storage`, which changes where new files are kept (admins), and `set_monitoring`,
+`set_sandbox_gateway` (the [code sandbox](assistant.md#code-sandbox)'s gateway) and `set_install_settings`, which have
+the machine change how Lens runs (admins).
 Importing stays in the web app and the API.
 
 ### What the archive says is data

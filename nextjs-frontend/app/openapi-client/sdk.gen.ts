@@ -102,6 +102,9 @@ import type {
   ChangePasswordResponses,
   ChatCapabilitiesData,
   ChatCapabilitiesResponses,
+  ChatToolsData,
+  ChatToolsErrors,
+  ChatToolsResponses,
   CheckComponentsData,
   CheckComponentsResponses,
   CheckManifestData,
@@ -424,6 +427,9 @@ import type {
   DownloadBackupData,
   DownloadBackupErrors,
   DownloadBackupResponses,
+  DownloadChatFileData,
+  DownloadChatFileErrors,
+  DownloadChatFileResponses,
   DownloadFileData,
   DownloadFileErrors,
   DownloadFileResponses,
@@ -680,6 +686,8 @@ import type {
   GetRunData,
   GetRunErrors,
   GetRunResponses,
+  GetSandboxGatewayData,
+  GetSandboxGatewayResponses,
   GetSensorData,
   GetSensorErrors,
   GetSensorResponses,
@@ -867,6 +875,9 @@ import type {
   ListCustomNodesData,
   ListCustomNodesErrors,
   ListCustomNodesResponses,
+  ListDatesData,
+  ListDatesErrors,
+  ListDatesResponses,
   ListEntitiesData,
   ListEntitiesErrors,
   ListEntitiesResponses,
@@ -1461,6 +1472,9 @@ import type {
   SetRecordingContentTypeData,
   SetRecordingContentTypeErrors,
   SetRecordingContentTypeResponses,
+  SetSandboxGatewayData,
+  SetSandboxGatewayErrors,
+  SetSandboxGatewayResponses,
   SetupData,
   SetupErrors,
   SetupResponses,
@@ -3691,6 +3705,40 @@ export class Updates {
   ): RequestResult<SetMonitoringResponses, SetMonitoringErrors, ThrowOnError> {
     return (options.client ?? client).put<SetMonitoringResponses, SetMonitoringErrors, ThrowOnError>({
       url: "/api/v1/admin/monitoring",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Sandbox Gateway
+   *
+   * Whether the code sandbox's OpenShell gateway runs next to Lens (the sandbox profile), how the machine's last
+   * change went, what stands in the way here, and whether Lens reaches the gateway at sandbox.gateway.
+   */
+  public static getSandboxGateway<ThrowOnError extends boolean = false>(
+    options?: Options<GetSandboxGatewayData, ThrowOnError>,
+  ): RequestResult<GetSandboxGatewayResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetSandboxGatewayResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/sandbox",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Sandbox Gateway
+   *
+   * Have this machine start or stop the code sandbox's gateway. On also turns the sandbox on, at that gateway; off
+   * deletes the conversations' sandboxes first and turns the sandbox off. GET /admin/sandbox follows along.
+   */
+  public static setSandboxGateway<ThrowOnError extends boolean = false>(
+    options: Options<SetSandboxGatewayData, ThrowOnError>,
+  ): RequestResult<SetSandboxGatewayResponses, SetSandboxGatewayErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetSandboxGatewayResponses, SetSandboxGatewayErrors, ThrowOnError>({
+      url: "/api/v1/admin/sandbox",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -7775,6 +7823,24 @@ export class Entities {
   }
 }
 
+export class Dates {
+  /**
+   * List Dates
+   *
+   * The dates the assets you can read give that fall between `start` and `end` (a date that spans days counts when
+   * any of its days does), the earliest first, each with its line. Analysis reads them while Settings → Analysis → Read
+   * dates is on.
+   */
+  public static listDates<ThrowOnError extends boolean = false>(
+    options?: Options<ListDatesData, ThrowOnError>,
+  ): RequestResult<ListDatesResponses, ListDatesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListDatesResponses, ListDatesErrors, ThrowOnError>({
+      url: "/api/v1/dates",
+      ...options,
+    });
+  }
+}
+
 export class Topics {
   /**
    * List Topics
@@ -10119,6 +10185,10 @@ export class Chats {
 
   /**
    * Create Chat
+   *
+   * A conversation. Its answers may use what `tools` and `max_tool_calls` say, which become your latest choice;
+   * left out, your latest choice (here or PATCH /chats/{cid}), else Auto: everything you may use, limited by the rounds
+   * alone.
    */
   public static createChat<ThrowOnError extends boolean = false>(
     options?: Options<CreateChatData, ThrowOnError>,
@@ -10145,6 +10215,25 @@ export class Chats {
   ): RequestResult<ChatCapabilitiesResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).get<ChatCapabilitiesResponses, unknown, ThrowOnError>({
       url: "/api/v1/chats/capabilities",
+      ...options,
+    });
+  }
+
+  /**
+   * Chat Tools
+   *
+   * The tool groups and tools an answer can be given (`tools` on a question or a conversation), as you have them: each
+   * tool with what it does (read, asks: it waits for your yes, out: it sends what it's given to another host) and
+   * whether you have it now, each group with why you don't when you have none of it, and the setting that changes it.
+   * Built-in groups first, then your extensions' (mcp:<server>, ext:<extension>). With `chat_id`, as in that
+   * conversation's scope (a namespace's own memory is there only in a conversation about that namespace). Also: the most
+   * tool calls an answer may be given, and your latest choice, which new conversations start with.
+   */
+  public static chatTools<ThrowOnError extends boolean = false>(
+    options?: Options<ChatToolsData, ThrowOnError>,
+  ): RequestResult<ChatToolsResponses, ChatToolsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ChatToolsResponses, ChatToolsErrors, ThrowOnError>({
+      url: "/api/v1/chats/tools",
       ...options,
     });
   }
@@ -10182,7 +10271,9 @@ export class Chats {
   /**
    * Update Chat
    *
-   * Rename a conversation, change what it draws on, or the model that answers in it (null: the configured one).
+   * Rename a conversation, change what it draws on, the model that answers in it (null: the configured one), or
+   * what its answers may use (`tools`, null: Auto) and at most how many tool calls each makes (`max_tool_calls`, null:
+   * no limit but the rounds). The choice of tools and limit is also what your new conversations start with.
    */
   public static updateChat<ThrowOnError extends boolean = false>(
     options: Options<UpdateChatData, ThrowOnError>,
@@ -10233,6 +10324,20 @@ export class Chats {
   }
 
   /**
+   * Download Chat File
+   *
+   * A file the code sandbox handed you in this conversation (share_sandbox_file, the download on its answer).
+   */
+  public static downloadChatFile<ThrowOnError extends boolean = false>(
+    options: Options<DownloadChatFileData, ThrowOnError>,
+  ): RequestResult<DownloadChatFileResponses, DownloadChatFileErrors, ThrowOnError> {
+    return (options.client ?? client).get<DownloadChatFileResponses, DownloadChatFileErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/files/{fid}",
+      ...options,
+    });
+  }
+
+  /**
    * Send Message
    *
    * Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model
@@ -10248,6 +10353,11 @@ export class Chats {
    * conversation). Either keeps the page the question was asked from (where, and the highlighted text; not the page's
    * text, which isn't kept) unless `context` is given, and streams `branch` first ({message, parent, versions}: the
    * new version, the message it follows and its versions); so does a question beside others under `parent`.
+   *
+   * What the answer may use: `tools` (tool groups and tools, GET /chats/tools; [] for none, when it answers from a
+   * search) and `max_tool_calls` (at most that many tool calls, in as many rounds as it takes), else the conversation's
+   * choice (PATCH /chats/{cid}); and `scope`, what this answer alone draws on (the conversation keeps its own). Its
+   * record keeps what it was given and used.
    *
    * `/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the
    * conversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.

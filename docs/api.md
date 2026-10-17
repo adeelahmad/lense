@@ -842,10 +842,12 @@ DELETE /api/v1/notes/{pid}/files
 ```
 
 Note pages ([Notes](notes.md)), apart from the notes on an asset above. `GET /notes?ns=` is a namespace's page tree
-(`all=true` adds the pages of things). `today` gives the namespace's note for `date`, made the first time it's asked
-for ([Today's note](notes.md#todays-note)). `templates` lists the notes inside the namespace's Templates note, and
-`POST /notes/templates` makes that note the first time; `copy` makes a new note from a page, with its text, drawings,
-files and filing ([Templates](notes.md#templates)). `search?q=` finds pages by the words in their title, summary or text, title
+(`all=true` adds the pages of things). `GET /notes/{pid}` gives a page with its text, links, backlinks, `path` (the
+notes it's inside, from the top) and `children` (the notes inside it) ([On a note](notes.md#on-a-note)). `today` gives
+the namespace's note for `date`, made the first time it's asked for ([Today's note](notes.md#todays-note)).
+`templates` lists the notes inside the namespace's Templates note, and `POST /notes/templates` makes that note the first
+time; `copy` makes a new note from a page, with its text, drawings, files and filing ([Templates](notes.md#templates)).
+`search?q=` finds pages by the words in their title, summary or text, title
 matches first, each with the words around the match ([Finding notes](notes.md#finding-notes)). `DELETE /notes/{pid}`
 moves a page to recently deleted for 30 days: `deleted` lists them, `restore` puts one back where it was and
 `DELETE /notes/deleted/{pid}` deletes one for good ([Deleting](notes.md#deleting-and-putting-back)). `move` puts a
@@ -1256,6 +1258,18 @@ An entity's `page` is its page in the web app, by name: `/wiki/<namespace>/<Name
 spaces), or a name it had before a rename or a merge. It answers `{kind, id, namespace, title, path, canonical}`;
 `canonical` is false when the address is another way of writing `path` ([Notes](notes.md#entity-pages)).
 
+## dates
+
+```
+GET    /api/v1/dates
+```
+
+The dates assets' lines give, as days on the calendar ([Dates](processing.md#dates)): `start` and `end`
+(`YYYY-MM-DD`, or `YYYY-MM` and `YYYY` for their first and last day) keep those that fall between them, `ns`, `recording`
+and `q` narrow them. Each item has `day` and `until` (its first and last day), `period` (`day`, `weekend`, `week`,
+`month`, `year`), `said` (the words), `relative` (worked out from the asset's own date), and the line: `recording_id`,
+`title`, `idx`, `t0`, `time`, `speaker` and `text`. `reading` says whether analysis reads dates now.
+
 ## metadata
 
 ```
@@ -1364,14 +1378,16 @@ photo search results carry `nsfw: true` for the ones the web app blurs.
 
 ### Descriptions
 
-The `describe` step has a model that can see images, the one an admin chose as `llm.vision_model`, say in a few
-sentences what each page of a document or an image shows, and each shot of a video (from its keyframe): the setting,
-the people (by what they do and wear, never who they might be), the things and any text in it. It comes after
-`nsfw` in the standard pipeline, and describes at most `llm.describe_max` pages or shots of a resource. Without an
-LLM, or with no `llm.vision_model`, it's skipped, saying why; a model that can't see makes it fail with what the server
-said ([Configuration](configuration.md#descriptions)). The player's `descriptions` lists them in order:
+The `describe` step has a model that can see images say in a few sentences what each page of a document or an image
+shows, and each shot of a video (from its keyframe): the setting, the people (by what they do and wear, never who they
+might be), the things and any text in it. The model is the one an admin chose as `llm.vision_model` on the LLM
+provider, or, with `llm.describe_engine` `florence-2`, Florence-2 on the server itself, which needs no provider. It
+comes after `nsfw` in the standard pipeline, and describes at most `llm.describe_max` pages or shots of a resource.
+Without an LLM, with no `llm.vision_model`, or before Florence-2 is fetched, it's skipped, saying why; a model that
+can't see makes it fail with what the server said ([Configuration](configuration.md#descriptions)). The player's `descriptions` lists them in order:
 `{idx, t0, t1, text, model, frame, paged}`: the shot or page, where it starts and ends (ms; on pages, the page from 0
-and the next), what the model said, which model, and a signed link to the picture it was shown. Search finds them
+and the next), what the model said, which model (such as `Florence-2-base`), and a signed link to the picture it was
+shown. Search finds them
 (`source: described`, [search](#search)). Moving or deleting a resource moves or deletes them; the step run again
 replaces them.
 
@@ -1498,6 +1514,7 @@ version.
 ```
 GET    /api/v1/chats
 GET    /api/v1/chats/capabilities
+GET    /api/v1/chats/tools
 POST   /api/v1/chats
 GET    /api/v1/chats/{cid}
 PATCH  /api/v1/chats/{cid}
@@ -1521,7 +1538,7 @@ that node runs without asking from now on). Approving, editing and `always` on a
 session (403 for an API key or an app); each approval's `can` says what you may do with it.
 
 `GET /chats/capabilities` tells anyone signed in whether a language model is set up (`configured`), which (`model`),
-whether it uses tools (`tools`, `max_steps`), whether answers can be checked (`check`) and the `models` people may pick
+whether it uses tools (`tools`, `max_steps`, `max_tool_calls`), whether answers can be checked (`check`) and the `models` people may pick
 (the configured one first; `llm.chat_models`, else the server's list); never the model server's address or key. A
 conversation's `model` (`POST /chats`, `PATCH /chats/{cid}`; null for the configured one) answers in it, and a
 question can name another (`POST /chats/{cid}/messages {content, model}`, e.g. to retry); a model that isn't offered is
@@ -1533,6 +1550,13 @@ step it's on: the stream sends `stopped`, then `done` with the saved message, wh
 `POST /chats/{cid}/messages {content, edit}` edits one of your earlier questions (`edit` is its message id): it and
 everything after it are replaced by this question and its new answer; 404 when `edit` isn't a question in that
 conversation. A conversation titled after the first question is retitled when that question is edited.
+
+`GET /chats/tools` lists the tool groups and tools you have, each tool's `effect` (`read`, `asks` or `out`), why a
+group isn't available and the setting that switches it on, the most tool calls a question may ask for
+(`max_tool_calls`) and your latest choice (`remembered`); `chat_id` reads it for that conversation's scope. A
+conversation's `tools` and `max_tool_calls` (`POST /chats`, `PATCH /chats/{cid}`; null for Auto) are what its answers
+may use, and a question can set its own, with a `scope` for that answer alone (`POST /chats/{cid}/messages {content,
+tools, max_tool_calls, scope}`) ([Choosing tools, namespaces and a limit](assistant.md#choosing-tools-namespaces-and-a-limit)).
 
 A conversation's `scope` narrows what it draws on: `namespaces`, `recordings`, `collections`, `speakers`, `from` and
 `to`; every key narrows it further, and an empty scope is everything you can read. `collections` are ids of

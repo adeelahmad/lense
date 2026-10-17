@@ -29,6 +29,7 @@ from app.api.deps import Access, Principal
 from app.api.v1.routes import activities as activity_routes
 from app.api.v1.routes import automation_vars as var_routes
 from app.api.v1.routes import automations as automation_routes
+from app.api.v1.routes import dates as date_routes
 from app.api.v1.routes import entities as entity_routes
 from app.api.v1.routes import graph as graph_routes
 from app.api.v1.routes import namespaces as namespace_routes
@@ -44,9 +45,11 @@ from app.domain import (
     auth,
     blobs,
     decide,
+    descriptions,
     events,
     feeds,
     filetree,
+    florence,
     graph_history,
     integrations,
     library,
@@ -65,6 +68,7 @@ from app.domain import (
 from app.domain import classify as classifymod
 from app.domain import entities as ents
 from app.domain import find as findmod
+from app.domain import sandbox as sandboxmod
 from app.domain import speakers as spk
 from app.domain import topics as topicmod
 from app.domain.store import DB
@@ -1195,6 +1199,77 @@ def _scope(namespace: str | None) -> str:
 
 
 @tool(
+    "list_dates",
+    "Find what was said about a day",
+    'Dates said in assets, read as days on the calendar: "next Tuesday" in a recording made on a Wednesday is the '
+    'Tuesday after, "last week" the seven days before that Monday, "March 2024" all of March. Give start and end '
+    "(YYYY-MM-DD, or YYYY-MM or YYYY) for what falls between them, the earliest first, each with the words said, the "
+    "line and a url to that moment. relative: worked out from the asset's own date. Only assets analysed while Settings "
+    "→ Analysis → Read dates was on have them (reading says whether it is).",
+    Arg("start", "string", "from this day on: YYYY-MM-DD, YYYY-MM or YYYY", max_length=10),
+    Arg("end", "string", "up to this day: YYYY-MM-DD, YYYY-MM or YYYY", max_length=10),
+    Arg("namespace", "string", "only this namespace"),
+    Arg("recording_id", "integer", "only this asset"),
+    Arg("query", "string", "only dates whose words or line have this text", max_length=200),
+    Arg("limit", "integer", "how many", default=25, minimum=1, maximum=100),
+    Arg("offset", "integer", "skip this many (for the next page)", default=0, minimum=0, maximum=10000),
+)
+def list_dates(
+    ctx: Context,
+    start: str | None,
+    end: str | None,
+    namespace: str | None,
+    recording_id: int | None,
+    query: str | None,
+    limit: int,
+    offset: int,
+) -> dict[str, Any]:
+    res = date_routes.list_dates(
+        ctx.acl,
+        ctx.user,
+        ctx.db,
+        ctx.cfg,
+        start=start or "",
+        end=end or "",
+        ns=namespace,
+        recording=recording_id,
+        q=query or "",
+        limit=limit,
+        offset=offset,
+    )
+    out: dict[str, Any] = {
+        "reading": res.reading,
+        "total": res.total,
+        "dates": [
+            {
+                k: v
+                for k, v in {
+                    "day": d.day,
+                    "until": d.until if d.until != d.day else None,
+                    "period": d.period,
+                    "said": d.said,
+                    "relative": d.relative or None,
+                    "recording_id": d.recording_id,
+                    "title": d.title,
+                    "namespace": d.namespace,
+                    "recorded_at": d.recorded_at,
+                    "line": d.idx,
+                    "at": d.time,
+                    "speaker": d.speaker,
+                    "text": _cut(d.text),
+                    "url": ctx.link(d.recording_id, d.t0),
+                }.items()
+                if v is not None
+            }
+            for d in res.items
+        ],
+    }
+    if offset + len(res.items) < res.total:
+        out["next_offset"] = offset + len(res.items)
+    return out
+
+
+@tool(
     "explore_graph",
     "Explore the knowledge graph",
     "The knowledge graph around an entity or a person: what and who it is connected to (mentioned together, or "
@@ -1683,7 +1758,8 @@ def find_notes(ctx: Context, query: str | None, namespace: str | None, place: st
 @tool(
     "read_note",
     "Read a note",
-    "A note's Markdown, with what it links to and the notes linking to it: by note_id, or the page of a thing "
+    "A note's Markdown, with what it links to, the notes linking to it, the notes it is inside (path, from the top) and "
+    "the notes inside it: by note_id, or the page of a thing "
     '(about, like "recording:12", "entity:5" or "topic:9"). Links in the Markdown are written @[label](kind:id) and, for '
     "topics, #[label](topic:id).",
     Arg("note_id", "integer", "the note (from find_notes)"),
@@ -1716,6 +1792,8 @@ def read_note(ctx: Context, note_id: int | None, about: str | None) -> dict[str,
             "body": _cut(p.body, FETCH_CHARS),
             "links": [{"target": x.target, "name": x.name} for x in p.links] or None,
             "linked_from": [{"note_id": b.page, "title": b.title} for b in p.backlinks] or None,
+            "path": [{"note_id": c.id, "title": c.title} for c in p.path] or None,
+            "notes_inside": [{"note_id": c.id, "title": c.title} for c in p.children] or None,
             "url": _note_url(ctx, p.id),
         }
     )
@@ -2045,6 +2123,62 @@ def read_file(ctx: Context, path: str, offset: int) -> dict[str, Any]:
     return out
 
 
+# ---------- describing pictures (admins) ----------
+@tool(
+    "picture_descriptions",
+    "Describing pictures",
+    "What describes the pages of documents and images and the shots of videos (the describe step; search finds what "
+    "it says): the LLM provider's model that can see images, or Florence-2 on this server. Its model, whether it's "
+    "ready and why not, how many pages or shots of a resource are described at most, and the engines there are. "
+    "Admins only.",
+    admin=True,
+)
+def picture_descriptions(ctx: Context) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins see how pictures are described")
+    return {**descriptions.status(ctx.cfg), "settings": f"{ctx.web}/settings/llm"}
+
+
+@tool(
+    "set_picture_descriptions",
+    "Change how pictures are described",
+    "Choose what describes the pages and shots of new and reprocessed resources: engine llm, the LLM provider's model "
+    "that can see images (vision_model), or florence-2, Florence-2 (MIT) on this server's CPU, so no picture leaves it "
+    "(florence_model base, about 280 MB, or large, about 830 MB, fetched the first time a job needs it); and "
+    "describe_max, how many pages or shots of a resource are described at most. Admins only, with a token that has "
+    "the write scope.",
+    Arg("engine", "string", "what describes pictures", enum=tuple(descriptions.ENGINES)),
+    Arg("vision_model", "string", "the LLM provider's model that can see images, for engine llm; empty for none", max_length=200),
+    Arg("florence_model", "string", "Florence-2's size, for engine florence-2", enum=florence.SIZES),
+    Arg("describe_max", "integer", "pages or shots of a resource described at most, 1 to 1000"),
+    writes=True,
+    admin=True,
+)
+def set_picture_descriptions(
+    ctx: Context,
+    engine: str | None = None,
+    vision_model: str | None = None,
+    florence_model: str | None = None,
+    describe_max: int | None = None,
+) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins change how pictures are described")
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to change how pictures are described")
+    given = (
+        ("describe_engine", engine),
+        ("vision_model", vision_model),
+        ("florence_model", florence_model),
+        ("describe_max", describe_max),
+    )
+    changes = {k: v for k, v in given if v is not None}
+    if not changes:
+        raise ToolError("say what to change: engine, vision_model, florence_model or describe_max")
+    settings.save(ctx.db, ctx.request.app.state.archive.base, "llm", changes, ctx.user.email)
+    auth.audit(ctx.db, ctx.user.as_audit(), "settings.save", "llm", sorted(changes) + ["mcp"])
+    return {"saved": changes, **descriptions.status(ctx.request.app.state.settings.current())}
+
+
 # ---------- where files are kept (admins) ----------
 def _admin(ctx: Context) -> None:
     if not ctx.user.admin:
@@ -2150,6 +2284,44 @@ def set_monitoring(ctx: Context, on: bool) -> dict[str, Any]:
     except monitoring.MonitoringError as e:
         raise ToolError(str(e)) from None
     auth.audit(ctx.db, ctx.user.as_audit(), "lens.monitoring", None, {"on": bool(on), "via": "mcp"})
+    return got
+
+
+# ---------- the code sandbox's OpenShell gateway next to Lens (admins) ----------
+@tool(
+    "sandbox_gateway",
+    "Code sandbox gateway",
+    "Whether the code sandbox's OpenShell gateway runs next to Lens (the Compose profile sandbox), how the machine's "
+    "last change went, what stands in the way of running it here (preflight), and whether Lens reaches it at "
+    "sandbox.gateway (reachable, problem). Admins only.",
+    admin=True,
+)
+def sandbox_gateway(ctx: Context) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins see or change the code sandbox's gateway")
+    return sandboxmod.gateway_view(ctx.db, ctx.cfg) | {"settings": f"{ctx.web}/settings/sandbox"}
+
+
+@tool(
+    "set_sandbox_gateway",
+    "Start or stop the code sandbox's gateway",
+    "Have this machine start (on true) or stop the code sandbox's OpenShell gateway. On also turns the sandbox on, at "
+    "that gateway; off deletes every conversation's sandbox, files and all, and turns the sandbox off. The machine's "
+    "upgrade agent does it; sandbox_gateway follows along. Admins only, with a token that has the write scope.",
+    Arg("on", "boolean", "start (true) or stop (false)", required=True),
+    writes=True,
+    admin=True,
+)
+def set_sandbox_gateway(ctx: Context, on: bool) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins see or change the code sandbox's gateway")
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to change the gateway")
+    try:
+        got = sandboxmod.turn(ctx.db, ctx.request.app.state.archive.base, ctx.cfg, bool(on), by=ctx.user.email)
+    except sandboxmod.GatewayError as e:
+        raise ToolError(str(e)) from None
+    auth.audit(ctx.db, ctx.user.as_audit(), "lens.sandbox", None, {"on": bool(on), "via": "mcp"})
     return got
 
 

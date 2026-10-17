@@ -2,6 +2,17 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-17 · Dates read as days
+
+Adeel: dates extraction. `dates.py` reads the dates each line gives (written out, numeric, and relative to the day)
+into `date_said` as first and last days, worked out from the asset's `recorded_at`, when Settings → Analysis → Read
+dates is on. `GET /api/v1/dates`, MCP `list_dates` and the assistant's `find_dates` find them by day or range with
+their lines. English rules in Lens's own code rather than dateparser: dateparser couldn't read "next Tuesday" or "this
+Friday", and its own search over a line finds dates in ordinary words.
+
+Refine later: DATE entities named by their day, so "next Tuesday" and "20 October" in two assets meet in the graph;
+other languages' month and day names; a Dates view in the web app (a calendar of what was said); times of day.
+
 ## 2026-10-17 · Entities found by spaCy
 
 Adeel: NLP libraries for named entities. Settings → Analysis → Entity extraction → spaCy existed but needed spaCy
@@ -24,6 +35,24 @@ Next: punctuation restored by a local model (the script's deepmultilingualpunctu
 from a LanguageTool server, spaCy fetched for named entities, and dates found and normalised.
 
 Refine later: revert a whole cleanup at once; cleanup rules for other languages' fillers; per-namespace switch.
+
+## 2026-10-17 · Describing pictures with Florence-2 on this machine
+
+Adeel: use Moondream 3 and/or Microsoft Florence for visual descriptions. Florence-2 (MIT) is now a describe engine
+(`llm.describe_engine` `florence-2`): its 8-bit ONNX export runs on ONNX Runtime on the CPU, fetched on first use,
+pinned and hashed, base or large. It runs a Raspberry Pi's way (no PyTorch, about 280 MB for base) and needs no model
+provider. Checked on two photos here: base takes about 3 s a picture on four CPU cores, large about 9 s, and both say
+plainly what each shows.
+
+Moondream 3 comes next as an opt-in engine. Its licences aren't open: Moondream 3 Preview's weights are BSL 1.1 (with
+a production use grant; Apache-2.0 two years after release) and Moondream 3.1's are the Moondream Model License; 3.1
+runs only on Photon, whose kernels (`kestrel-kernels`) are proprietary and licensed only under a separate agreement, so
+Lens won't install Photon. Moondream 3 Preview runs through Hugging Face transformers (permissive) on an NVIDIA GPU or
+a Mac with enough memory (about 19 GB of weights): not on a Pi.
+
+Refine later: beam search (the model's own default is three beams; greedy with no repeated trigrams matches it on the
+photos tried); Florence-2's OCR task beside the OCR step; a GPU (CUDA or CoreML execution provider) when there is one;
+the Q4 exports for a smaller download; describing only the pictures NSFW classification didn't flag.
 
 ## 2026-10-15 · Entity types beyond Term
 

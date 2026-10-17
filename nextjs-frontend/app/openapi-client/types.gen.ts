@@ -3384,6 +3384,18 @@ export type Chat = {
    */
   model?: string | null;
   /**
+   * Tools
+   *
+   * the tool groups and tools its answers may use; null: Auto
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in each answer; null: no limit but the rounds
+   */
+  max_tool_calls?: number | null;
+  /**
    * Created At
    */
   created_at?: string | null;
@@ -3441,9 +3453,15 @@ export type ChatCapabilities = {
   /**
    * Max Steps
    *
-   * the most tool calls it makes for one answer
+   * the most rounds of tool calls it makes for one answer (a round makes one call or more)
    */
   max_steps: number;
+  /**
+   * Max Tool Calls
+   *
+   * the most tool calls a question may give one answer (`max_tool_calls`)
+   */
+  max_tool_calls?: number;
   /**
    * Check
    *
@@ -3562,6 +3580,18 @@ export type ChatCreate = {
    * the model that answers in it (one of GET /chats/capabilities `models`); null: the configured one
    */
   model?: string | null;
+  /**
+   * Tools
+   *
+   * what its answers may use: tool groups and tools (GET /chats/tools); [] for none; left out: your latest choice (PATCH /chats/{cid}), else Auto
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in each answer (1 to ai.max_tool_calls); left out: your latest choice
+   */
+  max_tool_calls?: number | null;
 };
 
 /**
@@ -3743,6 +3773,18 @@ export type ChatSummary = {
    */
   model?: string | null;
   /**
+   * Tools
+   *
+   * the tool groups and tools its answers may use; null: Auto
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in each answer; null: no limit but the rounds
+   */
+  max_tool_calls?: number | null;
+  /**
    * Created At
    */
   created_at?: string | null;
@@ -3750,6 +3792,35 @@ export type ChatSummary = {
    * Updated At
    */
   updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ChatTools
+ */
+export type ChatTools = {
+  /**
+   * Groups
+   *
+   * the built-in groups, then your extensions' (mcp:<server>, ext:<extension>)
+   */
+  groups: Array<ToolGroup>;
+  /**
+   * Max Tool Calls
+   *
+   * the most tool calls one answer may be given (ai.max_tool_calls)
+   */
+  max_tool_calls: number;
+  /**
+   * your latest choice, which new conversations start with
+   */
+  remembered: ToolChoice;
+  /**
+   * Namespaces Note
+   *
+   * what the choice of namespaces doesn't narrow
+   */
+  namespaces_note?: string;
   [key: string]: unknown;
 };
 
@@ -3768,6 +3839,18 @@ export type ChatUpdate = {
    * the model that answers in it (one of GET /chats/capabilities `models`); null: the configured one
    */
   model?: string | null;
+  /**
+   * Tools
+   *
+   * what its answers may use: tool groups and tools (GET /chats/tools); [] for none; null: Auto (everything you may use). Your new conversations start with it too
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in each answer (1 to ai.max_tool_calls); null: no limit but the rounds
+   */
+  max_tool_calls?: number | null;
 };
 
 /**
@@ -5417,6 +5500,114 @@ export type CustomNodeVersionCreate = {
    * Notes
    */
   notes?: string | null;
+};
+
+/**
+ * DateList
+ */
+export type DateList = {
+  /**
+   * Total
+   */
+  total: number;
+  /**
+   * Items
+   */
+  items: Array<DateSaid>;
+  /**
+   * Reading
+   *
+   * whether analysis reads dates (Settings → Analysis → Read dates); off, nothing new is read
+   */
+  reading: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * DateSaid
+ *
+ * A date an asset's line gives, as days on the calendar.
+ */
+export type DateSaid = {
+  /**
+   * Day
+   *
+   * the first day it means, YYYY-MM-DD
+   */
+  day: string;
+  /**
+   * Until
+   *
+   * the last day it means: the same day for a day, the Sunday for a week, the 31st for a month
+   */
+  until: string;
+  /**
+   * Period
+   *
+   * day, weekend, week, month or year
+   */
+  period: string;
+  /**
+   * Said
+   *
+   * the words that give it, like "next Tuesday" or "3 March 2024"
+   */
+  said: string;
+  /**
+   * Relative
+   *
+   * worked out from the asset's own date (recorded_at): a day said relative to it, or without its year
+   */
+  relative: boolean;
+  /**
+   * Recording Id
+   */
+  recording_id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Recorded At
+   */
+  recorded_at?: string | null;
+  /**
+   * Segment
+   *
+   * the line's id
+   */
+  segment: number;
+  /**
+   * Idx
+   *
+   * the line's place in the asset's text
+   */
+  idx: number;
+  /**
+   * T0
+   *
+   * ms
+   */
+  t0?: number | null;
+  /**
+   * Time
+   */
+  time?: string | null;
+  /**
+   * Speaker
+   */
+  speaker?: string | null;
+  /**
+   * Text
+   *
+   * the line
+   */
+  text?: string | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -11488,6 +11679,22 @@ export type MessageCreate = {
    * voice: said in a voice conversation (the question's record keeps it)
    */
   via?: "voice" | null;
+  /**
+   * Tools
+   *
+   * what this answer may use: tool groups (archive, notes, mcp:tracker) and tools, as GET /chats/tools lists them; [] for none (it answers from a search); null: the conversation's choice, else Auto (everything you may use). An admin's switch still wins
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in this answer (1 to ai.max_tool_calls); null: the conversation's
+   */
+  max_tool_calls?: number | null;
+  /**
+   * what this answer draws on, instead of the conversation's scope (which stays as it is); {} for everything you can read
+   */
+  scope?: ChatScope | null;
 };
 
 /**
@@ -12716,6 +12923,25 @@ export type NoteCreate = {
 };
 
 /**
+ * NoteCrumb
+ */
+export type NoteCrumb = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * NoteDeleted
  */
 export type NoteDeleted = {
@@ -13079,6 +13305,18 @@ export type NotePage = {
    * Backlinks
    */
   backlinks?: Array<NoteBacklink>;
+  /**
+   * Path
+   *
+   * the notes it's inside, from the top of the tree down to its parent
+   */
+  path?: Array<NoteCrumb>;
+  /**
+   * Children
+   *
+   * the notes inside it, in the tree's order
+   */
+  children?: Array<NoteCrumb>;
   /**
    * Can Edit
    */
@@ -16383,6 +16621,7 @@ export type RcloneSignInStart = {
     | "gmail"
     | "ical"
     | "gcal"
+    | "rss"
     | null;
   /**
    * Source
@@ -18362,6 +18601,12 @@ export type S3Status = {
    * what the process running it says; none while it's off
    */
   service?: S3Service | null;
+  /**
+   * Add Files
+   *
+   * whether files people add through it are imported (shares.add_files)
+   */
+  add_files?: boolean;
   webdav: ShareServer;
   /**
    * Remote
@@ -18375,6 +18620,137 @@ export type S3Status = {
    * your access keys
    */
   keys: Array<S3Key>;
+  [key: string]: unknown;
+};
+
+/**
+ * SandboxFile
+ *
+ * A file the code sandbox handed the person: GET /chats/{cid}/files/{id} downloads it.
+ */
+export type SandboxFile = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Size
+   */
+  size: number;
+  [key: string]: unknown;
+};
+
+/**
+ * SandboxGateway
+ */
+export type SandboxGateway = {
+  /**
+   * On
+   *
+   * the sandbox profile (the code sandbox's OpenShell gateway) as last asked
+   */
+  on: boolean;
+  /**
+   * State
+   *
+   * how the machine's last change went
+   */
+  state?: "queued" | "running" | "done" | "failed" | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Asked At
+   */
+  asked_at?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Agent
+   *
+   * what changes it on this machine (systemd, launchd); none: run `manual` there
+   */
+  agent?: string | null;
+  /**
+   * Manual
+   *
+   * the line that starts it by hand, on the machine Lens runs on
+   */
+  manual: string;
+  /**
+   * Preflight
+   *
+   * what stands in the way of running it on this machine, a sentence each
+   */
+  preflight: Array<string>;
+  /**
+   * Address
+   *
+   * where Lens reaches the gateway (sandbox.gateway)
+   */
+  address: string;
+  /**
+   * Reachable
+   *
+   * whether the gateway answered and let Lens in; null: not checked
+   */
+  reachable?: boolean | null;
+  /**
+   * Problem
+   *
+   * why it didn't, when it didn't
+   */
+  problem?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SandboxGatewayRequest
+ */
+export type SandboxGatewayRequest = {
+  /**
+   * On
+   *
+   * start (true) or stop (false) the code sandbox's gateway; stopping deletes its sandboxes
+   */
+  on: boolean;
+};
+
+/**
+ * SandboxOutput
+ *
+ * What a code sandbox run printed, as its step shows it (the start of stdout, the end of stderr).
+ */
+export type SandboxOutput = {
+  /**
+   * Stdout
+   */
+  stdout?: string;
+  /**
+   * Stderr
+   */
+  stderr?: string;
+  /**
+   * Exit Code
+   */
+  exit_code?: number | null;
+  /**
+   * Timed Out
+   */
+  timed_out?: boolean;
+  /**
+   * Cut
+   *
+   * there was more than this
+   */
+  cut?: boolean;
   [key: string]: unknown;
 };
 
@@ -19885,6 +20261,12 @@ export type ShareServer = {
    * what the process running it says; none while it's off
    */
   service?: S3Service | null;
+  /**
+   * Add Files
+   *
+   * whether files people add through it are imported (shares.add_files)
+   */
+  add_files?: boolean;
   [key: string]: unknown;
 };
 
@@ -20357,7 +20739,19 @@ export type Source = {
    * Type
    */
   type:
-    "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "gmail" | "ical" | "gcal";
+    | "s3"
+    | "dropbox"
+    | "drive"
+    | "onedrive"
+    | "sftp"
+    | "smb"
+    | "webdav"
+    | "local"
+    | "imap"
+    | "gmail"
+    | "ical"
+    | "gcal"
+    | "rss";
   /**
    * Label
    */
@@ -20402,7 +20796,19 @@ export type SourceCreate = {
    * Type
    */
   type:
-    "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "gmail" | "ical" | "gcal";
+    | "s3"
+    | "dropbox"
+    | "drive"
+    | "onedrive"
+    | "sftp"
+    | "smb"
+    | "webdav"
+    | "local"
+    | "imap"
+    | "gmail"
+    | "ical"
+    | "gcal"
+    | "rss";
   /**
    * Params
    */
@@ -21953,6 +22359,101 @@ export type TokenPair = {
 };
 
 /**
+ * ToolChoice
+ */
+export type ToolChoice = {
+  /**
+   * Tools
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   */
+  max_tool_calls?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ToolGroup
+ */
+export type ToolGroup = {
+  /**
+   * Name
+   *
+   * what `tools` names it by: a built-in group, mcp:<server> or ext:<extension>
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Tools
+   */
+  tools: Array<ToolInfo>;
+  /**
+   * Asks
+   *
+   * one of its tools waits for your yes
+   */
+  asks: boolean;
+  /**
+   * Out
+   *
+   * one of its tools sends data to another host
+   */
+  out: boolean;
+  /**
+   * Available
+   *
+   * you have one of its tools now
+   */
+  available: boolean;
+  /**
+   * Why
+   *
+   * why you don't, when you have none
+   */
+  why?: string | null;
+  /**
+   * Setting
+   *
+   * the setting that would change that (section.key), for admins
+   */
+  setting?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ToolInfo
+ */
+export type ToolInfo = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Effect
+   *
+   * read: it looks things up; asks: it waits for your yes; out: it sends what it's given to another host
+   */
+  effect: "read" | "asks" | "out";
+  /**
+   * Out
+   *
+   * it sends what it's given to another host (and asks first after outside text)
+   */
+  out?: boolean;
+  /**
+   * Available
+   *
+   * you have it now
+   */
+  available: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * ToolStep
  */
 export type ToolStep = {
@@ -21970,6 +22471,14 @@ export type ToolStep = {
    * Summary
    */
   summary?: string;
+  /**
+   * a code sandbox run's output
+   */
+  output?: SandboxOutput | null;
+  /**
+   * a file to download, from share_sandbox_file
+   */
+  file?: SandboxFile | null;
   /**
    * Ms
    *
@@ -27103,6 +27612,47 @@ export type SetMonitoringResponses = {
 };
 
 export type SetMonitoringResponse = SetMonitoringResponses[keyof SetMonitoringResponses];
+
+export type GetSandboxGatewayData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/sandbox";
+};
+
+export type GetSandboxGatewayResponses = {
+  /**
+   * Successful Response
+   */
+  200: SandboxGateway;
+};
+
+export type GetSandboxGatewayResponse = GetSandboxGatewayResponses[keyof GetSandboxGatewayResponses];
+
+export type SetSandboxGatewayData = {
+  body: SandboxGatewayRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/sandbox";
+};
+
+export type SetSandboxGatewayErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetSandboxGatewayError = SetSandboxGatewayErrors[keyof SetSandboxGatewayErrors];
+
+export type SetSandboxGatewayResponses = {
+  /**
+   * Successful Response
+   */
+  202: SandboxGateway;
+};
+
+export type SetSandboxGatewayResponse = SetSandboxGatewayResponses[keyof SetSandboxGatewayResponses];
 
 export type ListBackupsData = {
   body?: never;
@@ -35075,6 +35625,70 @@ export type FindGraphPathResponses = {
 
 export type FindGraphPathResponse = FindGraphPathResponses[keyof FindGraphPathResponses];
 
+export type ListDatesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Start
+     *
+     * from this day on: YYYY-MM-DD, or YYYY-MM or YYYY for its first day
+     */
+    start?: string;
+    /**
+     * End
+     *
+     * up to this day: YYYY-MM-DD, or YYYY-MM or YYYY for its last day
+     */
+    end?: string;
+    /**
+     * Ns
+     *
+     * one namespace
+     */
+    ns?: string | null;
+    /**
+     * Recording
+     *
+     * one asset
+     */
+    recording?: number | null;
+    /**
+     * Q
+     *
+     * only dates whose words or line have this text
+     */
+    q?: string;
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+  };
+  url: "/api/v1/dates";
+};
+
+export type ListDatesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListDatesError = ListDatesErrors[keyof ListDatesErrors];
+
+export type ListDatesResponses = {
+  /**
+   * Successful Response
+   */
+  200: DateList;
+};
+
+export type ListDatesResponse = ListDatesResponses[keyof ListDatesResponses];
+
 export type ListTopicsData = {
   body?: never;
   path?: never;
@@ -39798,6 +40412,36 @@ export type ChatCapabilitiesResponses = {
 
 export type ChatCapabilitiesResponse = ChatCapabilitiesResponses[keyof ChatCapabilitiesResponses];
 
+export type ChatToolsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Chat Id
+     */
+    chat_id?: number | null;
+  };
+  url: "/api/v1/chats/tools";
+};
+
+export type ChatToolsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ChatToolsError = ChatToolsErrors[keyof ChatToolsErrors];
+
+export type ChatToolsResponses = {
+  /**
+   * Successful Response
+   */
+  200: ChatTools;
+};
+
+export type ChatToolsResponse = ChatToolsResponses[keyof ChatToolsResponses];
+
 export type DeleteChatData = {
   body?: never;
   path: {
@@ -39951,6 +40595,40 @@ export type GetMessageResponses = {
 };
 
 export type GetMessageResponse = GetMessageResponses[keyof GetMessageResponses];
+
+export type DownloadChatFileData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+    /**
+     * Fid
+     */
+    fid: string;
+  };
+  query?: never;
+  url: "/api/v1/chats/{cid}/files/{fid}";
+};
+
+export type DownloadChatFileErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DownloadChatFileError = DownloadChatFileErrors[keyof DownloadChatFileErrors];
+
+export type DownloadChatFileResponses = {
+  /**
+   * the file
+   */
+  200: Blob | File;
+};
+
+export type DownloadChatFileResponse = DownloadChatFileResponses[keyof DownloadChatFileResponses];
 
 export type SendMessageData = {
   body: MessageCreate;

@@ -355,7 +355,7 @@ export const SECTIONS: SectionSpec[] = [
     label: "File shares",
     backend: ["shares"],
     description:
-      "Off unless you turn it on. The archive’s assets as folders and files (namespaces and collections, a metadata file beside each asset), served read-only over S3 and WebDAV by Lens’s workers; people make their own access keys.",
+      "Off unless you turn it on. The archive’s assets as folders and files (namespaces and collections, a metadata file beside each asset), served over S3 and WebDAV by Lens’s workers; people make their own access keys, and files they add are imported where they put them.",
   },
   {
     id: "uploads",
@@ -765,6 +765,13 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "analysis",
+    key: "dates",
+    label: "Read dates as days",
+    kind: "switch",
+    hint: "The dates each line gives (“next Tuesday”, “3 March”, “last week”) become days on the calendar, worked out from the asset's date, for agents and the API to find by day",
+  },
+  {
+    section: "analysis",
     key: "cleanup",
     label: "Clean up transcripts before analysis",
     kind: "switch",
@@ -824,6 +831,27 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "llm",
+    key: "describe_engine",
+    label: "Describe pictures with",
+    kind: "select",
+    options: [
+      { value: "llm", label: "The provider’s model that can see images" },
+      { value: "florence-2", label: "Florence-2 on this server (MIT, runs on the CPU)" },
+    ],
+    hint: "The Describe step says what each page and shot shows. Florence-2 sends no picture anywhere and is fetched the first time it’s needed",
+  },
+  {
+    section: "llm",
+    key: "florence_model",
+    label: "Florence-2 size",
+    kind: "select",
+    options: [
+      { value: "base", label: "Base (about 280 MB, for small machines)" },
+      { value: "large", label: "Large (about 830 MB, more detail, slower)" },
+    ],
+  },
+  {
+    section: "llm",
     key: "vision_model",
     label: "Model that can see images",
     kind: "text",
@@ -839,7 +867,7 @@ export const FIELDS: FieldSpec[] = [
     kind: "int",
     min: 1,
     max: 1000,
-    hint: "Of a resource, in order: each is a request to the model",
+    hint: "Of a resource, in order: each is one call to the model",
   },
   { section: "llm", key: "api_key", label: "API key", kind: "secret" },
   {
@@ -953,6 +981,15 @@ export const FIELDS: FieldSpec[] = [
     hint: "Rounds of tool calls the assistant makes for one question. When they run out, it answers from what it found.",
     min: 1,
     max: 50,
+  },
+  {
+    section: "ai",
+    key: "max_tool_calls",
+    label: "Most tool calls a question may ask for",
+    kind: "int",
+    hint: "The highest limit a question or a conversation can set on the tool calls of one answer.",
+    min: 1,
+    max: 500,
   },
   {
     section: "ai",
@@ -2311,8 +2348,16 @@ export const FIELDS: FieldSpec[] = [
     options: [
       { value: "off", label: "None: nothing goes in or out" },
       { value: "packages", label: "Python and npm package registries only" },
-      { value: "web", label: "Public web addresses (asks first after reading outside text)" },
+      { value: "hosts", label: "Those and the hosts below (asks first after reading outside text)" },
     ],
+  },
+  {
+    section: "sandbox",
+    key: "hosts",
+    label: "Hosts it may reach",
+    kind: "lines",
+    mono: true,
+    hint: "With the network on hosts: one per line, like api.github.com or *.wikipedia.org, on ports 80 and 443. Private addresses are refused whatever name they have",
   },
   {
     section: "sandbox",
@@ -2320,8 +2365,8 @@ export const FIELDS: FieldSpec[] = [
     label: "OpenShell gateway",
     kind: "text",
     mono: true,
-    placeholder: "openshell-gateway:8080",
-    hint: "host:port of its gRPC service, on a network only Lens reaches",
+    placeholder: "openshell-gateway:17670",
+    hint: "host:port of its gRPC service, on a network only Lens reaches. Running the gateway on this machine sets it",
   },
   {
     section: "sandbox",
@@ -2629,10 +2674,17 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "shares",
+    key: "add_files",
+    label: "Import files people add",
+    kind: "switch",
+    hint: "A file copied into a collection’s folder is imported there, as an upload; a new folder under Collections is a new collection. Off: read-only",
+  },
+  {
+    section: "shares",
     key: "s3",
     label: "S3",
     kind: "switch",
-    hint: "Read-only; each person signs in with their own access key",
+    hint: "Each person signs in with their own access key",
   },
   { section: "shares", key: "s3_port", label: "S3 port", kind: "int", min: 1, max: 65535 },
   {
@@ -2640,7 +2692,7 @@ export const FIELDS: FieldSpec[] = [
     key: "webdav",
     label: "WebDAV",
     kind: "switch",
-    hint: "Read-only; mount it as a drive in Finder, Windows Explorer or a file manager",
+    hint: "Mount it as a drive in Finder, Windows Explorer or a file manager",
   },
   { section: "shares", key: "webdav_port", label: "WebDAV port", kind: "int", min: 1, max: 65535 },
   {
@@ -3705,6 +3757,22 @@ export function gazetteerErrors(lines: string[]): string | null {
   return null;
 }
 
+/** A host the code sandbox may reach (sandbox.hosts), as the backend takes it: api.example.com, or a wildcard first
+ *  label with at least three labels in all (*.example.com, **.example.com); never an address. */
+export function sandboxHost(raw: string): boolean {
+  const h = raw.trim().toLowerCase().replace(/\.$/, "");
+  const labels = h.split(".");
+  const wild = labels[0] === "*" || labels[0] === "**";
+  const label = /^(?!-)[a-z0-9-]{1,63}(?<!-)$/;
+  return (
+    h.length <= 253 &&
+    labels.length >= (wild ? 3 : 2) &&
+    (wild || label.test(labels[0])) &&
+    labels.slice(1).every((x) => label.test(x)) &&
+    !/^\d+$/.test(labels[labels.length - 1])
+  );
+}
+
 /** Checks across fields and the backend's own rules. Values are the parsed values of the whole section group. */
 export function crossErrors(values: Record<string, unknown>): Record<string, string> {
   const e: Record<string, string> = {};
@@ -3781,7 +3849,11 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
     e["sandbox.memory"] = "Like 512Mi or 2Gi";
   const gw = values["sandbox.gateway"] as string | undefined;
   if (gw !== undefined && !/^(\[[0-9a-f:]+\]|[a-z0-9][a-z0-9.-]*):\d{1,5}$/i.test(String(gw).trim()))
-    e["sandbox.gateway"] = "host:port, like openshell-gateway:8080";
+    e["sandbox.gateway"] = "host:port, like openshell-gateway:17670";
+  const sHosts = values["sandbox.hosts"] as string[] | undefined;
+  const badHost = sHosts?.find((x) => !sandboxHost(x));
+  if (badHost) e["sandbox.hosts"] = `“${badHost}” isn’t a host name like api.github.com or *.wikipedia.org`;
+  else if (sHosts && sHosts.length > 50) e["sandbox.hosts"] = "50 hosts at most";
   const mNets = values["smb.allowed_networks"] as string[] | undefined;
   const badMNet = mNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badMNet) e["smb.allowed_networks"] = `“${badMNet}” isn’t a network like 192.168.1.0/24`;

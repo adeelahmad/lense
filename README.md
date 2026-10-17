@@ -62,15 +62,17 @@ measured numbers ([requirements and their checks](docs/requirements.md)). Work t
 listed under [In progress](#in-progress), and what comes next under [Planned](#planned).
 
 - **Connect your agents.** Lens is an MCP server (`/mcp`): agents search, find assets by face, voice, entity, topic,
-  type, content type or date in one call, classify an asset or a text with the decision model, read assets' text and
-  notes, cite exact moments, find similar content, explore the graph with Cypher or SPARQL or browse it as folders and
-  files, suggest topics and graph changes, edit and merge entities and topics (with undo), write notes and make
+  type, content type or date in one call, find what was said about a day, classify an asset or a text with the
+  decision model, read assets' text and notes, cite exact moments, find similar content, explore the graph with Cypher
+  or SPARQL or browse it as folders and files, suggest topics and graph changes, edit and merge entities and topics
+  (with undo), write notes and make
   podcasts. They sign in with OAuth and see only what their person may read; the account menu copies the MCP address in
   one click. A namespace can also have an MCP server of its own (`/mcp/<namespace>`) and answer OpenAI's chat
   completions API for any app, cited from that namespace alone, each off until its owner turns it on, with API keys that
-  open that one namespace and nothing else. The same folders and files can be mounted read-only over S3, WebDAV, NFS or
-  SMB, so file managers and scripts read Lens too. The web app runs on the same REST API, so an agent can do what a
-  person can.
+  open that one namespace and nothing else. The same folders and files can be mounted over S3, WebDAV, NFS or SMB (S3
+  and WebDAV also at the web app's address, through remote access), so file managers and scripts read Lens too, and a
+  file copied in over S3 or WebDAV is imported where it was put. The web app runs on the same REST API, so an agent can
+  do what a person can.
   ([MCP](docs/mcp.md), [one namespace's MCP server](docs/mcp.md#one-namespaces-mcp-server),
   [chat completions](docs/api.md#chat-completions-for-any-app), [API](docs/api.md),
   [the graph as files](docs/file-tree.md), [authentication](docs/authentication.md);
@@ -97,13 +99,14 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [adding an MCP server](docs/assistant.md#adding-an-mcp-server), [the MCP runner](docs/assistant.md#the-mcp-runner);
   [checks](docs/requirements.md#extend-the-assistant))
 - **Bring in everything.** Watched folders on S3, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV or local disks (a
-  local folder in four clicks); IMAP mail, Gmail and Google Workspace, iCal calendars and Google Calendar; a built-in
-  MQTT broker, syslog and webhook streams; import webhooks for scanners and phone shortcuts. Google accounts connect
-  with Connect with Google once Lens has a Google client, and Dropbox, OneDrive and Google Drive can sign in through
-  rclone on the Lens server, with no app of your own to register. Upload audio, video, PDFs, Office files, photos, JSON
-  and zip or tar archives, and, with an Apache Tika server (an opt-in extra), documents nothing else here can read;
-  capture web pages one at a time, from a link list or a bookmarks file, by API or by asking the assistant, from private
-  networks you allow in Settings too; and import videos and podcasts by their address (off by default).
+  local folder in four clicks); IMAP mail, Gmail and Google Workspace, iCal calendars, Google Calendar and RSS and Atom
+  news feeds; a built-in MQTT broker, syslog and webhook streams; import webhooks for scanners and phone shortcuts.
+  Google accounts connect with Connect with Google once Lens has a Google client, and Dropbox, OneDrive and Google
+  Drive can sign in through rclone on the Lens server, with no app of your own to register. Upload audio, video, PDFs,
+  Office files, photos, JSON and zip or tar archives, and, with an Apache Tika server (an opt-in extra), documents
+  nothing else here can read; capture web pages one at a time, from a link list or a bookmarks file, by API or by asking
+  the assistant, from private networks you allow in Settings too; and import videos and podcasts by their address (off
+  by default).
   ([Sensors](docs/sensors.md), [processing](docs/processing.md), [Apache Tika](docs/configuration.md#apache-tika),
   [import webhooks](docs/api.md#import-webhooks); [checks](docs/requirements.md#bring-in-everything))
 - **Clip from the browser.** The Lens web clipper for Chrome, Edge, Firefox and Safari turns a page, a selection or a
@@ -120,18 +123,23 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   asset, with Undo instead of a confirm. Names get their real types (people, places, organisations, events, works) by
   rules, without a model, and a decision model types the ones the rules can't. Find what is most like a passage, an
   asset, a topic or an entity, in a Similar tab on every asset or by selecting text anywhere, and, with anytopdf, photos
-  by what they show.
+  by what they show. Pages and shots are described in words by the model provider's vision model or, off by default, by
+  Florence-2 on your own server. Transcripts can be cleaned up before analysis (stutters, "um"s, spacing and, with a
+  local model, punctuation put back), entities found by spaCy instead of the rules, and the dates people say read as
+  days on the calendar, each off by default.
   ([Graph](docs/graph.md), [entity pages](docs/notes.md#entity-pages),
   [similar content](docs/processing.md#similar-content), [graph history](docs/graph-history.md),
   [topics](docs/topics.md), [video](docs/video.md), [NSFW classification](docs/nsfw.md),
-  [long recordings](docs/speech-providers.md#long-recordings); [checks](docs/requirements.md#understand-it))
+  [long recordings](docs/speech-providers.md#long-recordings),
+  [cleaning up transcripts](docs/processing.md#cleaning-up-transcripts), [dates](docs/processing.md#dates);
+  [checks](docs/requirements.md#understand-it))
 - **Learn from it.** Make a two-host podcast episode about what you pick, every claim cited and checked against its
   source, read aloud in two voices. Keep notes beside every asset, entity and topic, written by you or the assistant, in
-  a tree where notes are renamed, moved, copied and pinned (pins are your own), with today's note one click away,
-  templates to start from, a search by their words, a download as Markdown, and Undo and Recently deleted instead of a
-  confirm. Export an asset or a collection as an evidence PDF with everything Lens found about it, or the parts you
-  pick. ([Podcasts](docs/podcasts.md), [notes](docs/notes.md),
-  [evidence PDFs](docs/api.md#evidence-pdfs); [checks](docs/requirements.md#learn-from-it))
+  a tree where notes are renamed, moved, copied and pinned (pins are your own) and each note shows the notes it's
+  inside and the ones inside it, with today's note one click away, templates to start from, a search by their words, a
+  download as Markdown, and Undo and Recently deleted instead of a confirm. Export an asset or a collection as an
+  evidence PDF with everything Lens found about it, or the parts you pick. ([Podcasts](docs/podcasts.md),
+  [notes](docs/notes.md), [evidence PDFs](docs/api.md#evidence-pdfs); [checks](docs/requirements.md#learn-from-it))
 - **Automate it.** Pipelines and workflows on a canvas, routines on a schedule, batch runs over a collection, and
   notifications to webhooks, Slack, Discord and Matterbridge. Everything that happens in Lens (new assets, emails,
   calendar events, files, what people say to Lens, sensor readings, notes, graph changes, runs, budget warnings) is kept
@@ -207,14 +215,10 @@ These are open pull requests, not yet part of Lens:
 - **The assistant** answering questions about Lens itself, from its docs and this server
   ([#400](https://github.com/adeelahmad/lense/pull/400)).
 - **Chat:** a conversation exported as Markdown, PDF or JSON ([#474](https://github.com/adeelahmad/lense/pull/474)).
-- **Sources:** RSS and Atom news feeds ([#453](https://github.com/adeelahmad/lense/pull/453)).
-- **Pictures:** described on this machine with Florence-2 ([#477](https://github.com/adeelahmad/lense/pull/477)), and
-  low-quality images enhanced before they're read ([#479](https://github.com/adeelahmad/lense/pull/479)).
+- **Pictures:** low-quality images enhanced before they're read ([#479](https://github.com/adeelahmad/lense/pull/479)).
 - **Web clipper:** signing in, or using your API token, not only an import webhook's
   ([#406](https://github.com/adeelahmad/lense/pull/406)).
 - **Automations:** more operators for conditions ([#434](https://github.com/adeelahmad/lense/pull/434)).
-- **Shares:** S3 and WebDAV reached through remote access ([#402](https://github.com/adeelahmad/lense/pull/402)),
-  and files added over them imported ([#408](https://github.com/adeelahmad/lense/pull/408)).
 
 ## Planned
 

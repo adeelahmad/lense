@@ -219,17 +219,34 @@ Settings → AI assistant → Web search; the setup chat always asks before it c
 
 ## Descriptions
 
-The describe step ([API](api.md#descriptions)) sends each page of a document or an image, and each shot's keyframe of
-a video (at most 1024 pixels on a side), to a model that can see images, and keeps what it says each shows, for
-search and for people who can't see them. It uses the LLM provider's server (Settings → LLM provider) with a model you
-choose there as one that can see images: OpenAI's, or a vision model on LM Studio, Ollama or vLLM (LLaVA, Qwen-VL,
-Llama 3.2 Vision, Gemma 3 …). Lens can't tell which models see, so none is chosen until you choose one. Each page or
-shot is a request, so a long document costs as many: `llm.describe_max` caps how many of a resource are described.
+The describe step ([API](api.md#descriptions)) shows each page of a document or an image, and each shot's keyframe of
+a video, to a model that can see images, and keeps what it says each shows, for search and for people who can't see
+them. Settings → LLM provider → Describing pictures chooses the model (`llm.describe_engine`):
+
+- **The provider's model that can see images** (`llm`, the default). Each picture (at most 1024 pixels on a side) is a
+  request to the LLM provider's server, with a model you choose as one that can see images: OpenAI's, or a vision
+  model on LM Studio, Ollama or vLLM (LLaVA, Qwen-VL, Llama 3.2 Vision, Gemma 3 …). Lens can't tell which models see,
+  so none is chosen until you choose one.
+- **Florence-2 on this server** (`florence-2`). Microsoft's Florence-2 (MIT), fine-tuned, describes each picture in a
+  paragraph on the worker's CPU, through ONNX Runtime: no picture leaves the machine, no provider is needed and nothing
+  is billed. Its 8-bit ONNX export is fetched the first time a job waits to describe something
+  ([Components](components.md)), pinned to a revision and checked against its SHA-256: base (0.23B parameters, about
+  280 MB; a few seconds a picture on a laptop's CPU, longer on a Raspberry Pi) or large (0.77B, about 830 MB, more
+  detail and about three times slower). It says what it sees in its own words: it reads no instructions, so it isn't
+  told what the picture is, and it describes, rather than transcribes, the text in it (the OCR step reads that).
+
+Each page or shot is a call to the model, so a long document costs as many: `llm.describe_max` caps how many of a
+resource are described. Each call is in the [activity ledger](activity.md) (`model.chat` for the provider's model,
+`model.describe` for Florence-2, with the tokens read and written and the time it took).
 
 | Setting | Default | |
 |---|---|---|
-| `llm.vision_model` | none | the model that describes pages and shots; none: the describe step is skipped |
+| `llm.describe_engine` | `llm` | what describes pages and shots: `llm` (the provider's model below) or `florence-2` (on this server) |
+| `llm.vision_model` | none | the provider's model that describes pages and shots; none (with `llm`): the describe step is skipped |
+| `llm.florence_model` | `base` | Florence-2's size: `base` or `large` |
 | `llm.describe_max` | 50 | pages or shots of a resource described at most, 1–1000 (in order: the rest aren't) |
+
+Agents read and change these with the MCP tools `picture_descriptions` and `set_picture_descriptions` (admins).
 
 ## Uploads
 
@@ -275,7 +292,7 @@ text (Word, text, Markdown) are imported as text. Settings → Documents:
 | `documents.convert_seconds` | 300 | how long making one PDF may take before its job fails, 10–3600 seconds |
 | `documents.attachment_resources` | true | whether an email's attachments that Lens can read (documents, images, audio, video, emails) also become resources of their own; they're kept as its files either way |
 | `documents.video_urls` | false | whether videos and podcasts can be imported by their address ([API](api.md#videos-and-podcasts)): their media is downloaded with yt-dlp, which Lens fetches on first use |
-| `documents.web_networks` | `[]` | private networks (CIDR, such as `192.168.1.0/24`) that web pages, calendar feeds and videos may be fetched from besides the public internet: for an intranet, or a calendar server at home. The web app can't list this machine (loopback) or link-local addresses, where clouds answer with the server's own credentials; archive.yaml or `LENS_WEB_NETWORKS` in `.env` (comma-separated, added to archive.yaml's) can. Those stay whatever Settings saves: the networks listed in Settings are added to them |
+| `documents.web_networks` | `[]` | private networks (CIDR, such as `192.168.1.0/24`) that web pages, calendar and news feeds and videos may be fetched from besides the public internet: for an intranet, or a calendar server at home. The web app can't list this machine (loopback) or link-local addresses, where clouds answer with the server's own credentials; archive.yaml or `LENS_WEB_NETWORKS` in `.env` (comma-separated, added to archive.yaml's) can. Those stay whatever Settings saves: the networks listed in Settings are added to them |
 | `documents.converter` | `auto` | who makes the PDFs: `auto` uses [anytopdf](#anytopdf) only for what LibreOffice and Chromium can't do here, `anytopdf` uses it for every document and image (and fetches it), `lens` never uses it |
 | `documents.anytopdf_url` | none | a conversion node: another machine running `anytopdf queue serve` and `anytopdf queue work`, such as `https://convert.home:8640`. Set, it converts instead of the program here |
 | `documents.anytopdf_token` | none | the node's bearer token (its `ANYTOPDF_QUEUE_TOKEN`), kept encrypted |
@@ -503,8 +520,9 @@ image, CPU, memory, run time and how long sandboxes are kept are under its fold:
 |---|---|---|
 | `sandbox.enabled` | false | on: the assistant gets `run_python`, `run_bash`, `sandbox_files` and `import_sandbox_file` |
 | `sandbox.who` | `editors` | who may use it: `editors` (people who can edit a namespace, and admins) or `admins` |
-| `sandbox.network` | `off` | `off` (no traffic), `packages` (the Python and npm registries) or `web` (public addresses on ports 80 and 443) |
-| `sandbox.gateway` | `openshell-gateway:8080` | the OpenShell gateway's gRPC address, `host:port` |
+| `sandbox.network` | `off` | `off` (no traffic), `packages` (the Python and npm registries) or `hosts` (those and `sandbox.hosts`) |
+| `sandbox.hosts` | `[]` | with `hosts`: the names it may reach on ports 80 and 443, like `api.example.com` or `*.wikipedia.org` (up to 50); only at public addresses |
+| `sandbox.gateway` | `openshell-gateway:17670` | the OpenShell gateway's gRPC address, `host:port`; Run the gateway on this machine sets it |
 | `sandbox.image` | `python:3.12-slim` | the container image sandboxes are made from; it needs `python3` and `bash` |
 | `sandbox.cpu` | `1` | cores a sandbox may use, like `1`, `0.5` or `500m` (0.1–64) |
 | `sandbox.memory` | `512Mi` | memory a sandbox may use, like `512Mi` or `2Gi` (64Mi–64Gi) |
