@@ -20,6 +20,14 @@ def run_steps(db, cfg, which, ns=None, limit=0, force=False, recording=None, aud
         log("transcribe:", ingest.transcribe_pending(db, cfg, ns, limit, force, log), "recording(s)")
     if "diarize" in which:
         log("diarize:", spk.diarize_pending(db, cfg, ns, limit, force, log), "recording(s)")
+    if "clean" in which:
+        from .domain import cleanup, settings
+
+        ccfg = settings.effective(db, cfg)
+        if (ccfg.get("analysis") or {}).get("cleanup") or force:
+            log("clean:", cleanup.clean_pending(db, ccfg, ns, limit, force, log), "asset(s)")
+        else:
+            log("clean: skipped; cleaning up transcripts is off (analysis.cleanup, Settings → Analysis)")
     if "analyze" in which:
         log("analyze:", analyze.analyze_pending(db, cfg, ns, limit, force, log), "asset(s)")
     if "embed" in which:
@@ -51,10 +59,11 @@ def _main_base(argv=None):
         ("scan", "register new files in each namespace's folders"),
         ("transcribe", "transcribe new recordings"),
         ("diarize", "split speakers and match voice IDs within each namespace"),
+        ("clean", "tidy transcripts before analysis: fillers, repeated words, spacing and capitals"),
         ("analyze", "named things, keywords, sections and speaking-time statistics"),
         ("embed", "index passages for search by meaning (with the configured embedding model)"),
         ("summarize", "optional LLM summaries"),
-        ("run", "scan, transcribe, diarize, analyze, embed, summarize and report, resuming where it stopped"),
+        ("run", "scan, transcribe, diarize, clean, analyze, embed, summarize and report, resuming where it stopped"),
     ):
         p = sub.add_parser(name, help=helptext)
         p.add_argument("--ns")
@@ -136,8 +145,8 @@ def _main_base(argv=None):
         return
     conn = store.connect(cfg, upgrade=a.cmd != "migrations")  # so a failed upgrade can still be looked at
     try:
-        if a.cmd in ("scan", "transcribe", "diarize", "analyze", "embed", "summarize", "run", "report"):
-            which = ["scan", "transcribe", "diarize", "analyze", "embed", "summarize", "report"] if a.cmd == "run" else [a.cmd]
+        if a.cmd in ("scan", "transcribe", "diarize", "clean", "analyze", "embed", "summarize", "run", "report"):
+            which = ["scan", "transcribe", "diarize", "clean", "analyze", "embed", "summarize", "report"] if a.cmd == "run" else [a.cmd]
             with store.lock(cfg, "pipeline"):
                 run_steps(
                     conn,

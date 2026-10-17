@@ -76,13 +76,14 @@ export const NEEDS: Record<string, string[]> = {
   objects: ["shots"],
   nsfw: ["read", "shots"],
   describe: ["shots"],
-  analyze: ["transcribe", "read", "diarize"],
-  embed: ["transcribe", "read", "describe"],
+  clean: ["transcribe", "diarize"],
+  analyze: ["transcribe", "read", "diarize", "clean"],
+  embed: ["transcribe", "read", "describe", "clean"],
   summarize: ["analyze"],
-  llm: ["transcribe", "read", "diarize", "analyze"],
+  llm: ["transcribe", "read", "diarize", "clean", "analyze"],
   report: ["analyze", "summarize", "llm"],
   export: ["analyze", "summarize", "llm"],
-  workflow: ["transcribe", "read", "diarize"],
+  workflow: ["transcribe", "read", "diarize", "clean"],
 };
 
 /** What a step makes available to later steps and templates. */
@@ -96,6 +97,7 @@ export const PROVIDES: Record<string, string> = {
   objects: "objects[]",
   nsfw: "nsfw (flagged · score)",
   describe: "descriptions[]",
+  clean: "tidied transcript lines",
   analyze: "sections[] · entities[] · keywords[] · stats",
   embed: "passages searchable by meaning",
   summarize: "summary.*",
@@ -115,6 +117,8 @@ export const DESCRIBE: Record<string, string> = {
   objects: "Finds objects (people, cars, animals …) in keyframes and pages (Settings → Video)",
   nsfw: "Flags NSFW pictures in keyframes, pages and images with a local model, where it’s on (Settings → NSFW)",
   describe: "Describes each shot and page with a model that can see images (Settings → LLM provider)",
+  clean:
+    "Tidies a transcript before analysis: fillers, repeated words, spacing and capitals, where it’s on (Settings → Analysis)",
   analyze: "Chapters, entities, keywords and talk-time stats",
   embed: "Embeds passages so search finds them by meaning, not only their words (Settings → Search)",
   summarize: "The built-in summary with the LLM in Settings",

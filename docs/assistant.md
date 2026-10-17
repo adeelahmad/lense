@@ -151,6 +151,8 @@ When the configured model supports function calling, chat becomes an agent.
 - **Your browser** (Chrome and Edge): asked from the Lens extension's side panel, the assistant can open, read, click
   and type in that browser and download files into the conversation, on sites you allow, asking before anything that
   sends, deletes or buys. See [The assistant in your browser](browser-assistant.md).
+- **Python and bash** (off until an admin turns it on): `run_python` and `run_bash` run code in a sandbox of the
+  conversation's own, to compute, analyse or convert files. See [Code sandbox](#code-sandbox).
 - **The web:** when an admin turns on web search, `web_search` and `web_read` look up what the archive doesn't hold,
   cited like excerpts ([below](#web-search-and-reading-pages)).
 
@@ -200,6 +202,53 @@ gets two more tools, for everyone who may use the assistant:
 Refine later: an opt-in SearXNG service in the Docker Compose file (SearXNG is AGPL, so it would stay an extra),
 prices per search for the paid providers, web access per namespace, and keeping recent results to search less.
 
+## Code sandbox
+
+Built: an admin turns it on in Settings → Code sandbox (`sandbox.enabled`, off by default) and points Lens at an
+[NVIDIA OpenShell](https://github.com/NVIDIA/OpenShell) gateway (`sandbox.gateway`, `openshell-gateway:8080` by
+default). Then the assistant can run Python and bash for the people it's turned on for: those who can edit a namespace,
+and admins (`sandbox.who`: `editors`), or admins only (`admins`). Viewers never get it.
+
+- **One sandbox per conversation.** The first run in a conversation creates its sandbox, `lens-chat-<id>`, from
+  `sandbox.image` (`python:3.12-slim` by default, about 45 MB to download) with `sandbox.cpu` (1 core) and
+  `sandbox.memory` (512Mi). It keeps its files between runs in that conversation, and no other conversation sees them.
+  A sandbox nobody ran code in for `sandbox.idle_minutes` (15) is stopped; the next run starts it again, files and
+  all. One unused for `sandbox.keep_hours` (24) is deleted with its files, and deleting the conversation deletes its
+  sandbox at once. Changing the image or the network makes the conversation's next run start a fresh sandbox; CPU and
+  memory apply to new sandboxes.
+- **The tools.** `run_python` (code) and `run_bash` (a script) each run for at most `sandbox.seconds` (60) and give
+  back stdout, stderr and the exit code: the model reads the start of stdout and the end of stderr, up to 10,000
+  characters, and is told when more was cut off. `files` copies files attached to the conversation in first, by their
+  own names (25 MB each, 100 MB a run). `sandbox_files` lists what the sandbox holds. `import_sandbox_file` copies a
+  file out (25 MB at most) as if the person had attached it and puts it in a namespace with `import_files`, so it
+  waits for their approval; its type must be one uploads take.
+- **Nothing of Lens's inside.** A sandbox holds no keys, no database address and no archive: only the code, and the
+  files a run copies in. What it prints reaches the model marked as third-party text, like any tool's result.
+- **Its network** (`sandbox.network`): `off` (the default) allows no traffic in or out at all; `packages` reaches
+  only the Python and npm registries (pypi.org, files.pythonhosted.org, registry.npmjs.org), so `pip install` works;
+  `web` reaches public addresses on ports 80 and 443, never private ones (Lens's own services, your home network, the
+  cloud metadata address). With the network on, a run after the answer read text from outside Lens waits for the
+  person's approval (below), since code could carry what it read out.
+- **How it's kept apart.** OpenShell runs each sandbox as a container under its supervisor: the code runs as an
+  unprivileged user with no capabilities, Landlock lets it write only its working folder and `/tmp` and read the
+  image's programs, seccomp filters its system calls, and its egress is denied unless the policy above allows it.
+- **Cost.** It makes no model calls of its own, and the compute is your machine's. Each run is a row in the
+  [activity ledger](activity.md) (`sandbox.run`, with its time, language and exit code), counted for the conversation.
+- **The gateway.** It needs Docker 28 or newer and a Linux kernel with Landlock (6.2 or newer, with Landlock turned
+  on); it runs on Linux on amd64 and arm64 and on macOS on Apple silicon. Lens's own client for it (the `sandbox`
+  Python extra, OpenShell's SDK, Apache-2.0) is fetched once the sandbox is on ([Components](components.md)).
+
+In progress: starting the OpenShell gateway from Settings (a `sandbox` profile of the Docker Compose install, turned
+on like monitoring) with a check that says why it can't run on a machine; until then, run a gateway yourself on a
+network only Lens reaches and set `sandbox.gateway`. Also in progress: the step in the conversation showing the code
+(folded) and its output, and handing a file back as a download on the answer.
+
+Refine later: automations' agent runs without a conversation get no sandbox yet; running admins' Python extension
+tools in the sandbox so people who aren't admins can write them; installs in a [microsandbox](microsandbox.md) (the
+gateway on the host, or OpenShell's MicroVM driver); the Podman driver for hosts without Docker; GPUs; a direct sandbox
+API for agents (today an agent asks the assistant); one real run against OpenShell in CI (the tests use a fake
+gateway with OpenShell's own client).
+
 ## Third-party content and prompt injection
 
 The assistant reads text nobody vouched for: what was said in recordings, documents, text read off screens, web pages
@@ -237,7 +286,9 @@ apart from what the person asks:
   other than Lens's own, the page it was asked from, the namespace assistant's memories, a message in a chat room
   open to anyone, or an earlier answer in the conversation that read any of these), anything that could carry what
   it read out of Lens waits for your approval, even where it would otherwise run at once: your own `read` web tools,
-  a [web search or page read](#web-search-and-reading-pages) you or a tool didn't give it, other servers' MCP tools and Python tools with the network, the changes a setup conversation makes itself, and, in
+  a [web search or page read](#web-search-and-reading-pages) you or a tool didn't give it, other servers' MCP tools
+  and Python tools with the network, code in the [code sandbox](#code-sandbox) when its network is on, the changes a
+  setup conversation makes itself, and, in
   [your browser](browser-assistant.md), opening or downloading an address or typing text you didn't write. The
   approval card says why ("asked first: this answer read text from outside Lens: tool search_transcripts"). Notes and
   memories are still written at once: they stay in Lens, and are marked as data when read back.

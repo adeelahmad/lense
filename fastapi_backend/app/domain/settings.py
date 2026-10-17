@@ -35,6 +35,7 @@ EDITABLE = {
     "workers": None,
     "iiif": None,
     "ai": None,
+    "sandbox": None,
     "web": None,
     "decisions": None,
     "components": None,
@@ -499,6 +500,8 @@ def _check(section, key, value, default):
         return _nfs_setting(key, value)
     if section == "smb":
         return _smb_setting(key, value)
+    if section == "sandbox":
+        return _sandbox_setting(key, value)
     if section == "web" and key != "search":
         return _web_setting(key, value)
     if section == "components":
@@ -1311,6 +1314,59 @@ def _smb_setting(key, value):
         except ValueError:
             raise ValueError(f"smb.allowed_networks: {v} isn't a network like 192.168.1.0/24") from None
     return list(dict.fromkeys(out))
+
+
+SANDBOX_CPU = re.compile(r"^(\d+(\.\d+)?|\d+m)$")
+SANDBOX_MEMORY = re.compile(r"^(\d+)(Ki|Mi|Gi|K|M|G)?$")
+SANDBOX_GATEWAY = re.compile(r"^(\[[0-9A-Fa-f:]+\]|[A-Za-z0-9][A-Za-z0-9.-]{0,252}):\d{1,5}$")
+SANDBOX_IMAGE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/:@+-]{0,254}$")
+SANDBOX_RANGES = {"seconds": (1, 600), "idle_minutes": (1, 1440), "keep_hours": (1, 720)}
+_BYTES = {"": 1, "K": 1000, "M": 1000**2, "G": 1000**3, "Ki": 1024, "Mi": 1024**2, "Gi": 1024**3}
+
+
+def _sandbox_setting(key, value):
+    """The code sandbox (sandbox.py): cpu like 1, 0.5 or 500m (up to 64 cores); memory like 512Mi or 2Gi (64Mi to
+    64Gi); the gateway as host:port; the image as an OCI image reference."""
+    from . import sandbox
+
+    if key == "enabled":
+        if not isinstance(value, bool):
+            raise ValueError("sandbox.enabled is true or false")
+        return value
+    if key == "network":
+        if value not in sandbox.NETWORKS:
+            raise ValueError("sandbox.network is off, packages (PyPI and npm only) or web (public addresses)")
+        return value
+    if key == "who":
+        if value not in sandbox.WHO:
+            raise ValueError("sandbox.who is editors (people who can edit a namespace, and admins) or admins")
+        return value
+    if key in SANDBOX_RANGES:
+        lo, hi = SANDBOX_RANGES[key]
+        if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+            raise ValueError(f"sandbox.{key} is a whole number from {lo} to {hi}")
+        return value
+    text = str(value).strip() if isinstance(value, (str, int, float)) and not isinstance(value, bool) else ""
+    if key == "cpu":
+        cores = (int(text[:-1]) / 1000 if text.endswith("m") else float(text)) if SANDBOX_CPU.match(text) else 0
+        if not 0.1 <= cores <= 64:
+            raise ValueError("sandbox.cpu is how many cores a sandbox may use, like 1, 0.5 or 500m (0.1 to 64)")
+        return text
+    if key == "memory":
+        m = SANDBOX_MEMORY.match(text)
+        size = int(m.group(1)) * _BYTES[m.group(2) or ""] if m else 0
+        if not 64 * 2**20 <= size <= 64 * 2**30:
+            raise ValueError("sandbox.memory is how much memory a sandbox may use, like 512Mi or 2Gi (64Mi to 64Gi)")
+        return text
+    if key == "gateway":
+        if not SANDBOX_GATEWAY.match(text) or not 0 < int(text.rsplit(":", 1)[1]) < 65536:
+            raise ValueError("sandbox.gateway is the OpenShell gateway's host:port, like openshell-gateway:8080")
+        return text
+    if key == "image":
+        if not SANDBOX_IMAGE.match(text):
+            raise ValueError("sandbox.image is a container image with python3 and bash, like python:3.12-slim")
+        return text
+    raise ValueError(f"unknown setting sandbox.{key}")
 
 
 WEB_RANGES = {"results": (1, 20), "read_chars": (1000, 200_000)}
