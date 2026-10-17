@@ -41,3 +41,4 @@ It becomes this PR's line in the changelog and decides the next version (CONTRIB
 - [ ] Tests, docs and generated files updated.
 - [ ] Open standards; dependencies keep Lens MIT.
 - [ ] Result reported with evidence; "refine later" items written down.
+- [ ] Reuse: existing Lens code and permissive libraries reused, nothing reinvented.
