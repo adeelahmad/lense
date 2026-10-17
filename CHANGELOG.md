@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Entities found by spaCy, fetched when picked.** Settings → Analysis → Entity extraction → spaCy now fetches spaCy
+  (MIT) and its small model the first time an asset needs it (about 60 MB): English, German, or one for many
+  languages. The defined entities still come first, a lone word like "Okay" isn't taken for a name, and until spaCy is
+  there the rules find them and the job log says so. Workflows' Extract entities (rules) node uses it too
+  ([Entities and the graph explorer](docs/processing.md#entities-and-the-graph-explorer)).
 - **Punctuation put back in transcripts.** With transcripts cleaned up, Settings → Analysis → Put punctuation back
   adds full stops, commas and question marks with a local model (kredor/punctuate-all, MIT, 12 languages), to
   transcripts that have hardly any (imported captions) or to every one, keeping the marks they have. The model and
@@ -67,6 +72,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   file the sandbox made, a chart or a converted document, as a download button on the answer; Lens keeps it
   encrypted with the conversation and deletes it with the conversation
   ([In the conversation](docs/assistant.md#code-sandbox)).
+- **Find anything by who, what and when.** Agents and the API can find assets by the faces seen in them, the people
+  heard, the entities they mention, the topics they're about, their kind and content type, when they were made (a
+  day, a month or a year), tags, language, objects seen, emotions heard, length and words in them, together or alone,
+  naming people and things instead of looking up ids. Each result says why it matched, with moments to cite
+  (`POST /find`, the MCP tool `find`, the assistant's `find_resources`; [Finding by any
+  attribute](docs/processing.md#finding-by-any-attribute)). The Library list takes faces, entities, topics, content
+  types and emotions as filters too.
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 
