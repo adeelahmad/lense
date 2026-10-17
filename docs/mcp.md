@@ -47,7 +47,7 @@ has the same tools, but sees only that namespace, whatever else the person who s
 that take a namespace use this one when none is named, `list_namespaces` and `list_files` show only it, and the tools
 about the server itself (`file_storage`, `monitoring`, `sandbox_gateway`, `install_settings` and the ones that change
 them) aren't there, even for admins. Nor are the person's own conversations (`list_chats`, `read_chat`,
-`export_chat`), which belong to no namespace. An admin counts as an owner of the namespace there.
+`rename_chat`, `export_chat`), which belong to no namespace. An admin counts as an owner of the namespace there.
 
 It is off until an owner of the namespace turns it on: **Admin → Namespaces →** the namespace **→ Connect apps**, which
 also copies its address, or `PATCH /api/v1/namespaces/<namespace>/integrations` with `{"mcp": true}`, or an agent's
@@ -96,6 +96,7 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `write_note` | write a note or a thing's page, marked as written by an assistant. Needs a write-scope token and editor access |
 | `list_chats` | the person's conversations with Lens's [assistant](assistant.md#chat), newest first, by words in their title, each with its link |
 | `read_chat` | one of them: what it draws on, and the version showing (or the one ending at a `message`), each message with its versions, the tools an answer used, its citations with links and its record; `tree` adds every message's parent and role |
+| `rename_chat` | name one of them, or have Lens [title](assistant.md#titles) it from how it starts (no `title`). Needs a write-scope token |
 | `export_chat` | one of them as Markdown or JSON ([Copy and export](assistant.md#copy-and-export)): the version showing, one `message`, every version (`all_versions`) or OpenAI's `{"messages": [...]}` shape (`as_messages`) |
 | `create_podcast` | make a two-host learning [episode](podcasts.md) about assets or lines in them, with an angle, a length and a style; it's made in the background. Needs a write-scope token and editor access where it goes |
 | `get_podcast` | an episode: how far it has got, its script with each line's speaker and the sources it cites (links), and what the fact-check changed |
