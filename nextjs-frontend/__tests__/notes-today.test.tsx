@@ -18,7 +18,10 @@ jest.mock("@/app/openapi-client", () => ({
 }));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
 const replace = jest.fn();
-jest.mock("next/navigation", () => ({ useRouter: () => ({ replace, push: jest.fn() }) }));
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ replace, push: jest.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
 jest.mock("@/components/ui/toast", () => ({ useToast: () => jest.fn() }));
 let roles: Record<string, string> = { home: "editor", pods: "viewer" };
 let picked: string | null = "home";
