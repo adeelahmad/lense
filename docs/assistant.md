@@ -248,9 +248,10 @@ shared with namespaces (admins can share with everyone), and switched on or off 
 - **MCP server** (admins add them): a server that speaks the Model Context Protocol over Streamable HTTP, at the
   address an admin gives (this machine and the local network included, as for the model's address), with the headers
   it needs (a token). Lens lists its tools when it's saved, and the assistant calls them as `<server>__<tool>`: one the
-  server marks read-only answers at once, the others ask for approval. A server that runs as a program (stdio:
-  `command`, `args` and `env` instead of an address, as in Claude's `.mcp.json`, usually `npx` or `uvx`) runs in the
-  MCP runner, below.
+  server marks read-only answers at once, the others ask for approval, and an admin switches each on or off and says
+  which ask first ([Adding an MCP server](#adding-an-mcp-server)). A server that runs as a program (stdio: `command`,
+  `args` and `env` instead of an address, as in Claude's `.mcp.json`, usually `npx` or `uvx`) runs in the MCP runner,
+  below.
 - **Plugin**: a bundle of tools, skills, hooks and MCP servers, shared and switched off as one.
 
 Make one however suits you:
@@ -299,6 +300,35 @@ as its system prompt. Claude Code's hooks run commands on the computer, so they'
 the network (`.mcp.json`) come along when an admin installs it, and those that run as a program too when the MCP
 runner is on (ones that run a program shipped inside the plugin are left out). Repositories are read from GitHub or GitLab (or the archive link) through the same guard as web
 tools: public addresses only.
+
+### Adding an MCP server
+
+On **Extensions**, **Add MCP server** (admins) takes a name and either the server's address with the headers it needs,
+or the command it runs as with its arguments and environment. **Paste a config** reads the JSON other apps keep their
+servers in, one server or many: Claude's `.mcp.json` (or `mcpServers` in its settings), VS Code's `mcp.json`
+(`servers`), or a server on its own as its README gives it. A server without a name is named after its package or its
+address (`@modelcontextprotocol/server-github` is `github`), and values written as `${NAME}`, which those apps fill in
+from their own settings, are pointed out to fill in. Servers on the older SSE transport are left out with a note.
+**Test** asks the server for its tools before anything is saved, and Enter adds it. Over the API:
+`POST /api/v1/extensions/mcp/read` reads a config (nothing is reached), `POST /api/v1/extensions/mcp/test` lists a
+server's tools without saving it, and `POST /api/v1/extensions` saves it as an extension of kind `mcp`.
+
+Header and environment values whose names say they carry a credential (Authorization, API keys, tokens, secrets,
+passwords, cookies, sessions) are sealed when the server is saved, with the server's key (as notification targets and
+sources are, since an MCP server belongs to the whole install rather than a namespace), bound to the extension, the
+value's name and where it goes: the address's scheme, host and port, or the command with its arguments. They're opened
+only to reach the server and never shown again: the page, the API and the manifest give the name and `••••`. Saving a
+manifest with `••••` keeps the value saved before, unless the server now goes somewhere else (another host, or another
+command or package), when it asks for the value again, and a sealed value copied into another extension doesn't open.
+Other headers (`X-Team: blue`) stay as they are, and so does a secret written into the address or the arguments, so
+put tokens in headers or the environment.
+
+Each server's page lists its tools with a switch and **Asks first**. A tool the server marks read-only runs at once and
+the others ask, unless an admin says otherwise; the choices are kept in its manifest (`off`, the tools switched off,
+and `ask`, `{tool: true or false}` where it differs from the server's hint), stay when its tools are listed again, and
+each change is a new version (`PATCH /api/v1/extensions/{id}/tools` with `{tool, on, ask}`). Whatever the switch says,
+an MCP tool still asks first after the conversation read outside text, as every tool that sends to another host does
+([Third-party content and prompt injection](#third-party-content-and-prompt-injection)).
 
 ### The MCP runner
 
