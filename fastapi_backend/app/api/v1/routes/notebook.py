@@ -74,8 +74,9 @@ def _out(acl: Access, db: DB, p: dict[str, Any], user: Principal) -> NotePage:
     out_links = []
     for x in links:
         t = found.get(x["target"])
-        seen = t is not None and t.get("space") in readable
-        out_links.append({**x, "name": t["name"] if seen else None, "namespace": names.get(t["space"]) if seen else None})
+        # a conversation (chat:12) is named only for the person whose conversation it is
+        seen = t is not None and (t.get("account") == user.id if x["target"].startswith("chat:") else t.get("space") in readable)
+        out_links.append({**x, "name": t["name"] if seen else None, "namespace": names.get(t.get("space")) if seen else None})
     writer = db.one("SELECT email FROM $r", r=store.R("account", p["created_by"])) if p.get("created_by") else None
     targets = [f"page:{p['id']}"] + ([p["about"]] if p.get("about") else [])
     return NotePage(

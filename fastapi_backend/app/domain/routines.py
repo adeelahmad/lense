@@ -675,7 +675,8 @@ def start(db, cfg_fn, stop, log=None):
     """The scheduling threads, until `stop` is set: watched folders scanned when due (every sources.check_seconds),
     routines run when due (every CHECK_SECONDS), the scheduled backup taken when due, and automations' timers fired
     when due (timers.py). The API runs them with its background work; `lens worker` runs them too, since Docker and
-    the packages run the API without it."""
+    the packages run the API without it. Research runs no process is on (research.py) are picked up here too."""
+    from . import research  # it loads the chat, which loads what routines run
 
     def every(seconds, fn, what):
         def loop():
@@ -696,6 +697,7 @@ def start(db, cfg_fn, stop, log=None):
         every(lambda: cfg_fn()["fedora"]["sync_seconds"], fedora.sync_due, "fedora"),
         every(lambda: notebook.QUIET_SECONDS / 2, notebook.organise_due, "notes"),
         every(lambda: CHECK_SECONDS, backups.run_due, "backups"),
+        every(lambda: research.SWEEP_SECONDS, research.sweep, "research"),
         timers.start(db, cfg_fn, stop, log=log),
     ]
 

@@ -4,6 +4,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Deep research.** Give the assistant a goal (`/research <goal>`, `research: true` on a question, `POST
+  /api/v1/chats/<id>/research`, its `start_research` tool, or MCP) and it plans the research: up to three follow-up
+  questions, the sub-questions, where it looks (the archive, the graph, notes, the web, the code sandbox), the tool
+  calls it may make, the report's outline, and a labelled cost estimate. Approve the plan as it is or edited, revise
+  it, or say "yes" in a chat room; an API key or an app only declines it unless `research.agents_skip_review` is on.
+  It runs in the background, one run per person at a time, within its tool calls, `research.max_minutes` and your
+  budgets, survives a restart, and stops when asked; the cited report comes back in the conversation, its claims
+  checked against their sources, and saves as a note or makes a podcast episode. The web app's plan and progress
+  cards are in progress ([Deep research](docs/assistant.md#deep-research)).
 - **Choose the tools, a limit and the namespaces of an answer.** A conversation, or one question, can pick the tool
   groups or tools its answers may use (`tools`), cap their tool calls (`max_tool_calls`, up to the new Settings → AI
   assistant → Most tool calls a question may ask for, 50 by default) and narrow one answer to its own namespaces

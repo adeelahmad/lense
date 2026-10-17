@@ -29,11 +29,13 @@ from app.api.deps import Access, Principal
 from app.api.v1.routes import activities as activity_routes
 from app.api.v1.routes import automation_vars as var_routes
 from app.api.v1.routes import automations as automation_routes
+from app.api.v1.routes import chats as chat_routes
 from app.api.v1.routes import entities as entity_routes
 from app.api.v1.routes import graph as graph_routes
 from app.api.v1.routes import namespaces as namespace_routes
 from app.api.v1.routes import notebook as note_routes
 from app.api.v1.routes import recordings as recording_routes
+from app.api.v1.routes import research as research_routes
 from app.api.v1.routes import routines as routine_routes
 from app.api.v1.routes import search as search_routes
 from app.api.v1.routes import topics as topic_routes
@@ -43,6 +45,7 @@ from app.domain import (
     approvals,
     auth,
     blobs,
+    chat,
     decide,
     events,
     feeds,
@@ -55,6 +58,7 @@ from app.domain import (
     nsfw,
     rdf,
     render,
+    research,
     settings,
     sources,
     store,
@@ -78,6 +82,7 @@ from app.schemas.automations import (
     AutomationTry,
     AutomationUpdate,
 )
+from app.schemas.chats import ChatScope
 from app.schemas.entities import EntityHide, EntityList, EntityRename, EntityRetype, EntityUpdate
 from app.schemas.notebook import NotePage
 from app.schemas.search import SearchResults
@@ -2338,6 +2343,109 @@ def decline_approval(ctx: Context, id: int) -> dict[str, Any]:
     except ValueError as e:
         raise ToolError(str(e)) from None
     return {"approval": id, "status": out.get("status")}
+
+
+# ---------- deep research (docs/assistant.md#deep-research) ----------
+@tool(
+    "start_research",
+    "Start deep research",
+    "Research a goal for the person: one planning call makes a plan (the sub-questions, where it looks: the archive, the "
+    "graph, notes, the web or the code sandbox, the tool calls it may make, the report's outline) and up to three "
+    "follow-up questions. The plan waits for the person's approval in Lens (url), unless the admin let agents start "
+    "research without review (research.agents_skip_review); approved, it runs in the background and its cited report "
+    "comes back in the conversation: follow it with research_status. Needs a token with the write scope.",
+    Arg("goal", "string", "what to research, in the person's words", required=True, max_length=4000),
+    Arg("chat_id", "integer", "the conversation to research in; a new one when left out", minimum=1),
+    Arg("namespaces", "string[]", "only these namespaces (a new conversation's scope)"),
+    Arg("tools", "string[]", "what it may use: tool groups (archive, graph, notes, web, code) and tools; else the conversation's choice"),
+    Arg("max_tool_calls", "integer", "the most tool calls it may make (research.max_tool_calls at most)", minimum=1, maximum=500),
+    writes=True,
+)
+def start_research(
+    ctx: Context, goal: str, chat_id: int | None, namespaces: list[str] | None, tools: list[str] | None, max_tool_calls: int | None
+) -> dict[str, Any]:
+    _writer(ctx, "start research")
+    if not research.available(ctx.cfg):
+        raise ToolError("research needs a language model that uses tools: an admin sets one up in Settings › AI assistant")
+    asked = [ctx.ns] if ctx.ns else namespaces
+    scope = chat_routes._scope(ctx.acl, ctx.db, ChatScope(namespaces=asked)) if asked else None
+    if chat_id is not None:
+        c = chat_routes._own_chat(ctx.db, chat_id, ctx.user)
+        scope = scope if scope is not None else c.get("scope")
+    else:
+        chat_id = chat.create(ctx.db, ctx.user.id, goal[:80], scope)
+        c = chat.get(ctx.db, chat_id, ctx.user.id)
+    box = research_routes.toolbox(ctx.db, ctx.cfg, ctx.user, ctx.acl, chat_id, scope, None, ctx.request)
+    if tools is not None and box.unknown(tools):
+        raise ToolError(f"no tool or tool group {box.unknown(tools)[0]!r}")
+    box = research_routes.toolbox(
+        ctx.db, ctx.cfg, ctx.user, ctx.acl, chat_id, scope, tools if tools is not None else c.get("tools"), ctx.request
+    )
+    skip = research.settings(ctx.cfg)["agents_skip_review"]
+    out = research.start(
+        ctx.db,
+        ctx.cfg,
+        box,
+        " ".join(goal.split()),
+        "api",
+        model=research.model_for(ctx.cfg),
+        max_tool_calls=max_tool_calls,
+        options={"tools": tools, "max_tool_calls": max_tool_calls},
+        review=not skip,
+    )
+    if out.get("error"):
+        raise ToolError(out["error"])
+    r = research.view(ctx.db, out["research"])
+    return {
+        "research": r["id"],
+        "chat_id": chat_id,
+        "status": r["status"],
+        "plan": r["plan"],
+        "questions": r["questions"],
+        "estimate": r["estimate"],
+        "approval": r["approval"],
+        "url": f"{ctx.web}/chat/{chat_id}",
+        "next": "running: follow it with research_status"
+        if r["status"] in ("queued", "running")
+        else "waiting for the person to approve the plan in Lens (url); follow it with research_status",
+    }
+
+
+@tool(
+    "research_status",
+    "Research status",
+    "Where a deep research run stands: its plan and status (planned: waiting for the person's approval; queued, "
+    "running, held by a budget, done, stopped, failed), its stage (gather, write, check, done) and progress "
+    "(sub-questions done, sources found, tool calls and cost so far). Once it's done (or stopped), the report in "
+    "Markdown with its numbered sources, each with a link.",
+    Arg("id", "integer", "the research (start_research's)", required=True, minimum=1),
+)
+def research_status(ctx: Context, id: int) -> dict[str, Any]:  # noqa: A002 - the argument's name
+    try:
+        r = research.mine(ctx.db, id, ctx.user.id)
+    except KeyError:
+        raise ToolError(f"no research {id} of yours") from None
+    out = research.view(ctx.db, r)
+    out["url"] = f"{ctx.web}/chat/{r['chat']}"
+    if r.get("answer"):
+        m = ctx.db.one("SELECT content, passages FROM $r", r=R("chat_message", r["answer"])) or {}
+        ok = None if ctx.user.admin else set(ctx.acl.spaces())
+        spaces = {
+            x["id"]: x["space"]
+            for x in ctx.db.rows(
+                "SELECT record::id(id) AS id, space FROM recording WHERE id IN $ids",
+                ids=[R("recording", p["recording_id"]) for p in m.get("passages") or [] if p.get("recording_id") is not None],
+            )
+        }
+        sources = []
+        for p in m.get("passages") or []:
+            if p.get("source") == "web":
+                sources.append({"n": p["n"], "title": p.get("title"), "url": p.get("url"), "site": p.get("site")})
+            elif p.get("recording_id") in spaces and (ok is None or spaces[p["recording_id"]] in ok):
+                sources.append({"n": p["n"], "title": p.get("title"), "at": p.get("time"), "url": ctx.link(p["recording_id"], p.get("t0"))})
+        out["report"] = m.get("content")
+        out["sources"] = sources
+    return out
 
 
 @tool(

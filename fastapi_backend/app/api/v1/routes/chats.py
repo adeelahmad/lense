@@ -2,7 +2,7 @@
 
 A question streams back server-sent events: ``branch`` (a new version: regenerated, edited, or beside others),
 ``scoped`` (the namespace a conversation over everything was narrowed
-to) or ``suggested`` (namespaces to offer when it isn't clear, new ones included), ``step`` (a tool the assistant used), ``approval`` (work it proposed that waits for you), ``notice``, ``passages`` (the numbered excerpts), ``token`` (answer text), ``error``, ``meta`` (the answer's record) and ``done``.
+to) or ``suggested`` (namespaces to offer when it isn't clear, new ones included), ``step`` (a tool the assistant used), ``research`` (a research goal's plan, research.py), ``approval`` (work it proposed that waits for you), ``notice``, ``passages`` (the numbered excerpts), ``token`` (answer text), ``error``, ``meta`` (the answer's record) and ``done``.
 The assistant only ever sees, and cites, what the asker can read.
 """
 
@@ -20,7 +20,7 @@ from starlette.concurrency import run_in_threadpool
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer
 from app.api.media import sign_urls
 from app.api.v1.routes.collections import own_collection
-from app.domain import activity, ai_tools, approvals, auth, auto_scope, browser, chat, llm, sandbox, store, uploads
+from app.domain import activity, ai_tools, approvals, auth, auto_scope, browser, chat, llm, research, sandbox, store, uploads
 from app.domain.store import DB
 from app.schemas.chats import (
     AnswerCheck,
@@ -281,6 +281,71 @@ def _ev(name: str, data: Any) -> str:
     return f"event: {name}\ndata: {json.dumps(sign_urls(data, full=True), default=str)}\n\n"
 
 
+def _research_reply(
+    cid: int,
+    c: dict[str, Any],
+    goal: str,
+    said: str,
+    under: Any,
+    model: str | None,
+    tools: list[str] | None,
+    body: MessageCreate,
+    own_scope: dict[str, Any] | None,
+    user: Principal,
+    acl: Access,
+    db: DB,
+    cfg: dict[str, Any],
+    request: Request,
+) -> StreamingResponse:
+    """A question that is a research goal (`research: true`, or /research <goal>): its answer is a plan to approve
+    (research.start). Streams research (the plan, as GET /research/{id}), approval, passages, token (the plan as
+    text), meta and done; error when the plan couldn't be made."""
+    if not research.available(cfg):
+        raise HTTPException(400, "research needs a language model that uses tools (Settings › AI assistant)")
+    scope = own_scope if own_scope is not None else c.get("scope")
+
+    def run() -> Iterator[str]:
+        box = ai_tools.Toolbox(
+            db,
+            cfg,
+            user.as_audit(),
+            set(acl.roles),
+            set(acl.editable()),
+            scope,
+            cid,
+            request.app.state.archive.base,
+            user.admin,
+            only=tools,
+        )
+        if c["title"] == "New conversation":
+            db.q("UPDATE $r SET title = $t", r=R("chat", cid), t=goal[:80])
+        via = "voice" if body.via == "voice" else "web" if user.via == "access" else "api"
+        options = {"model": body.model, "tools": body.tools, "max_tool_calls": body.max_tool_calls, "scope": own_scope}
+        out = research.start(
+            db,
+            cfg,
+            box,
+            goal,
+            via,
+            said=said,
+            parent=under,
+            model=research.model_for(cfg, model),
+            max_tool_calls=body.max_tool_calls,
+            options=options,
+        )
+        if out.get("error"):
+            yield _ev("error", {"message": out["error"]})
+        else:
+            yield _ev("research", research.view(db, out["research"]))
+            yield _ev("approval", out["approval"])
+            yield _ev("passages", [])
+            yield _ev("token", {"text": out["text"]})
+        yield _ev("meta", out["meta"])
+        yield _ev("done", {"message": out["message"]})
+
+    return StreamingResponse(run(), media_type="text/event-stream", headers=SSE_HEADERS)
+
+
 @router.post(
     "/chats/{cid}/messages",
     response_class=StreamingResponse,
@@ -308,6 +373,10 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
 
     `/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the
     conversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.
+
+    With `research` (or /research <goal>) the content is a research goal: the answer is a plan to approve (streamed as
+    `research`, then `approval`), which runs in the background once approved (POST /chats/{cid}/research, GET
+    /research/{id}).
 
     With `browser` (the session of a browser's Lens side panel, POST /browser/sessions), the assistant can use that
     browser while the side panel is connected: open pages, read them, click, type and download files into the
@@ -362,6 +431,9 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         tools = c.get("tools")
     limit = _limit(cfg, body.max_tool_calls) if body.max_tool_calls is not None else _most(cfg, c.get("max_tool_calls"))
     own_scope = await run_in_threadpool(_scope, acl, db, body.scope) if body.scope is not None else None
+    goal = (q if body.research else research.command(q)) if not files and body.edit is None and again is None else None
+    if goal:  # a research goal: the answer is a plan to approve (research.py)
+        return _research_reply(cid, c, goal, q, under, model, tools, body, own_scope, user, acl, db, cfg, request)
     record = chat.Record(cfg, model, picked=tools, tool_calls=limit)  # what produced the answer (from here: it times it)
     title = c["title"]
     page = body.context.model_dump() if body.context else None
@@ -598,15 +670,16 @@ def _via(user: Principal) -> str:
     return "web" if user.via == "access" else user.via
 
 
-def approval_view(a: dict, via: str = "web") -> Any:
+def approval_view(a: dict, via: str = "web", cfg: dict[str, Any] | None = None) -> Any:
     """An approval as the API shows it: an automation's intent with credentials hidden, and what `via` can do."""
-    return {**a, "intent": approvals.shown(a.get("intent")), "told": a.get("told") or [], "can": approvals.can(a, via)}
+    return {**a, "intent": approvals.shown(a.get("intent")), "told": a.get("told") or [], "can": approvals.can(a, via, cfg)}
 
 
 @router.get("/approvals")
 def list_approvals(
     user: CurrentUser,
     db: Db,
+    cfg: Cfg,
     chat_id: int | None = None,
     status: Literal["pending", "running", "done", "failed", "declined", "expired"] | None = None,
     origin: Literal["automation", "chat"] | None = None,
@@ -618,7 +691,7 @@ def list_approvals(
     actions. Filter by `status` (pending is waiting), `origin` (automation or chat), one `automation` or one chat
     (`chat_id`); page with `before`."""
     rows = approvals.listing(db, user.id, status, origin, automation, chat_id, before, limit)
-    return [approval_view(a, _via(user)) for a in rows]
+    return [approval_view(a, _via(user), cfg) for a in rows]
 
 
 @router.get("/approvals/count")
@@ -628,12 +701,12 @@ def count_approvals(user: CurrentUser, db: Db) -> ApprovalCount:
 
 
 @router.get("/approvals/{aid}")
-def get_approval(aid: int, user: CurrentUser, db: Db) -> Approval:
+def get_approval(aid: int, user: CurrentUser, db: Db, cfg: Cfg) -> Approval:
     """One of your approvals."""
     a = approvals.get(db, aid)
     if not a or a["account"] != user.id:
         raise HTTPException(404, "not found")
-    return approval_view(a, _via(user))
+    return approval_view(a, _via(user), cfg)
 
 
 @router.post("/approvals/{aid}")
