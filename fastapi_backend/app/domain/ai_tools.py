@@ -2148,7 +2148,8 @@ class Toolbox(ops_tools.OpsTools):
 
 def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=False, readable=None, params=None, via="web"):
     """Carry out an approved action: a batch run (or a sample of it), an entity change, a note an automation's agent
-    proposed, or a change to the server (ops_tools.py: settings, a namespace, importing attached files or web pages).
+    proposed, or a change to the server (ops_tools.py: settings, a namespace, importing attached files or web pages,
+    following a news feed).
     An automation's action (an approval with an intent) is decided by approvals.decide: `params` are an edit's, `via`
     where the pick was made (web, chat, token, oauth or agent; only the person, signed in or in their own chat,
     approves it)."""
@@ -2198,7 +2199,16 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
             result = {"result": sandboxmod.run(db, cfg, a["chat"], a.get("account") or user["id"], kind, source, args.get("files") or [])}
         except sandboxmod.SandboxError as e:
             raise ValueError(str(e)) from None
-    elif a["tool"] in ("change_settings", "create_namespace", "import_files", "import_urls", "invite_person", "change_person"):
+    elif a["tool"] in (
+        "change_settings",
+        "create_namespace",
+        "import_files",
+        "import_urls",
+        "invite_person",
+        "change_person",
+        "subscribe_feed",
+        "unsubscribe_feed",
+    ):
         result = ops_tools.apply(db, cfg, base or cfg, a["tool"], args, user, editable, admin)
     elif a["tool"] == "decline_approval":  # the person's yes to declining another of their approvals
         from . import approvals

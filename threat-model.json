@@ -436,7 +436,7 @@
       "parameter": "the feed's address (or a site's page that names its feed), user and password; the feed's XML and its posts' HTML",
       "attacker_controllable": "yes",
       "component": "outbound",
-      "caller_must_enforce": "admin creates sources; fetched as iCal feeds are; feedparser reads the XML with external entities off and drops scripts, styles and event handlers from a post's HTML; each post kept as an Atom entry Lens writes, without the feed's address; post text is marked untrusted in prompts",
+      "caller_must_enforce": "admins add them (web app, API, MCP subscribe_feed with a write-scope token, or the assistant's tool, which asks first outside a setup conversation or once it has read outside text); fetched as iCal feeds are; feedparser reads the XML with external entities off and drops scripts, styles and event handlers from a post's HTML; each post kept as an Atom entry Lens writes, without the feed's address; post text is marked untrusted in prompts",
       "provenance": "documented",
       "source": "docs/processing.md \"News feeds (RSS and Atom)\""
     },
