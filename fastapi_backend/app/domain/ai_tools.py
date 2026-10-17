@@ -537,7 +537,7 @@ BROWSER_OUT = {"browser_open", "browser_click", "browser_type", "browser_press"}
 GROUPS = {
     "archive": {
         "label": "Archive",
-        "tools": ["search_transcripts", "find_similar", "list_recordings", "read_transcript", "recording_outputs"],
+        "tools": ["search_transcripts", "find_resources", "find_similar", "list_recordings", "read_transcript", "recording_outputs"],
     },
     "graph": {
         "label": "Graph",
