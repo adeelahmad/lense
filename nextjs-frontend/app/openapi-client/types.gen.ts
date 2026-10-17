@@ -18902,6 +18902,154 @@ export type SavedView = {
 };
 
 /**
+ * Schedule
+ */
+export type Schedule = {
+  /**
+   * Id
+   *
+   * routine:<id>, automation:<id>:<trigger> or backups
+   */
+  id: string;
+  /**
+   * Kind
+   */
+  kind: "routine" | "automation" | "backups";
+  /**
+   * Name
+   *
+   * the routine's or automation's name
+   */
+  name: string;
+  /**
+   * Trigger
+   *
+   * an automation's trigger (its `as`)
+   */
+  trigger?: string | null;
+  /**
+   * On
+   *
+   * schedule: repeats on a cron; at: once, at a time; manual: no schedule (a routine run by hand, no backups)
+   */
+  on: "schedule" | "at" | "manual";
+  /**
+   * Cron
+   *
+   * five-field cron (minute hour day month weekday) or @daily...
+   */
+  cron?: string | null;
+  /**
+   * At
+   *
+   * an at trigger's time (ISO 8601, in its time zone when it names none)
+   */
+  at?: string | null;
+  /**
+   * Timezone
+   */
+  timezone?: string;
+  /**
+   * Text
+   *
+   * when it runs, in words: every weekday at 07:00, once on Fri 16 Oct at 07:00, ...
+   */
+  text: string;
+  /**
+   * Enabled
+   *
+   * whether it runs on its own (for an automation: the whole automation is on)
+   */
+  enabled: boolean;
+  /**
+   * State
+   *
+   * on, off or running (routines, the backup); waiting, done (an at trigger whose time came), missed, failed or off (automations)
+   */
+  state: string;
+  /**
+   * Next Run At
+   *
+   * when it runs next (UTC); none while it's off or has no schedule
+   */
+  next_run_at?: string | null;
+  /**
+   * Last Run At
+   */
+  last_run_at?: string | null;
+  /**
+   * Last Status
+   *
+   * how its last run went (done, error, failed, partly, skipped, ...)
+   */
+  last_status?: string | null;
+  /**
+   * Running
+   */
+  running?: boolean;
+  /**
+   * Href
+   *
+   * its page in the web app
+   */
+  href: string;
+  /**
+   * Namespace Names
+   *
+   * the namespaces it works in; none for every one
+   */
+  namespace_names?: Array<string | null> | null;
+  /**
+   * Note
+   *
+   * something to know about it: why it doesn't run, its last error
+   */
+  note?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ScheduleCatalog
+ */
+export type ScheduleCatalog = {
+  /**
+   * Schedules
+   */
+  schedules: Array<Schedule>;
+  [key: string]: unknown;
+};
+
+/**
+ * ScheduleChange
+ */
+export type ScheduleChange = {
+  /**
+   * Cron
+   *
+   * a new schedule (five-field cron or @daily...); null for a routine runs it only by hand, and for the backup stops scheduled backups
+   */
+  cron?: string | null;
+  /**
+   * At
+   *
+   * a new time for an automation's at trigger, like 2026-11-02T07:30
+   */
+  at?: string | null;
+  /**
+   * Timezone
+   *
+   * a time zone, like Europe/London
+   */
+  timezone?: string | null;
+  /**
+   * Enabled
+   *
+   * switch it on or off: an automation's whole automation; the backup off clears its schedule
+   */
+  enabled?: boolean | null;
+};
+
+/**
  * SchedulePreview
  */
 export type SchedulePreview = {
@@ -18921,6 +19069,49 @@ export type SchedulePreview = {
    * Next
    */
   next: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
+ * ScheduleRun
+ */
+export type ScheduleRun = {
+  /**
+   * Over Budget
+   *
+   * run it even though it's over a budget (docs/budgets.md)
+   */
+  over_budget?: boolean;
+};
+
+/**
+ * ScheduleStarted
+ */
+export type ScheduleStarted = {
+  /**
+   * Status
+   *
+   * asked (a routine starts within half a minute), done, waiting, partly, failed, held (over a budget), skipped (its If was false), limited or off (automations), or done for a backup
+   */
+  status: string;
+  /**
+   * Why
+   *
+   * why it didn't run, or was held
+   */
+  why?: string | null;
+  /**
+   * Run
+   *
+   * an automation's run (GET /api/v1/automations/runs/{run})
+   */
+  run?: number | null;
+  /**
+   * Backup
+   *
+   * the backup it took
+   */
+  backup?: string | null;
   [key: string]: unknown;
 };
 
@@ -42566,6 +42757,115 @@ export type UndoGraphChangeResponses = {
 };
 
 export type UndoGraphChangeResponse = UndoGraphChangeResponses[keyof UndoGraphChangeResponses];
+
+export type ListSchedulesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/schedules";
+};
+
+export type ListSchedulesResponses = {
+  /**
+   * Successful Response
+   */
+  200: ScheduleCatalog;
+};
+
+export type ListSchedulesResponse = ListSchedulesResponses[keyof ListSchedulesResponses];
+
+export type GetScheduleData = {
+  body?: never;
+  path: {
+    /**
+     * Sid
+     */
+    sid: string;
+  };
+  query?: never;
+  url: "/api/v1/schedules/{sid}";
+};
+
+export type GetScheduleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetScheduleError = GetScheduleErrors[keyof GetScheduleErrors];
+
+export type GetScheduleResponses = {
+  /**
+   * Successful Response
+   */
+  200: Schedule;
+};
+
+export type GetScheduleResponse = GetScheduleResponses[keyof GetScheduleResponses];
+
+export type ChangeScheduleData = {
+  body: ScheduleChange;
+  path: {
+    /**
+     * Sid
+     */
+    sid: string;
+  };
+  query?: never;
+  url: "/api/v1/schedules/{sid}";
+};
+
+export type ChangeScheduleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ChangeScheduleError = ChangeScheduleErrors[keyof ChangeScheduleErrors];
+
+export type ChangeScheduleResponses = {
+  /**
+   * Successful Response
+   */
+  200: Schedule;
+};
+
+export type ChangeScheduleResponse = ChangeScheduleResponses[keyof ChangeScheduleResponses];
+
+export type RunScheduleData = {
+  /**
+   * Body
+   */
+  body?: ScheduleRun | null;
+  path: {
+    /**
+     * Sid
+     */
+    sid: string;
+  };
+  query?: never;
+  url: "/api/v1/schedules/{sid}/run";
+};
+
+export type RunScheduleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RunScheduleError = RunScheduleErrors[keyof RunScheduleErrors];
+
+export type RunScheduleResponses = {
+  /**
+   * Successful Response
+   */
+  200: ScheduleStarted;
+};
+
+export type RunScheduleResponse = RunScheduleResponses[keyof RunScheduleResponses];
 
 export type ListSensorsData = {
   body?: never;

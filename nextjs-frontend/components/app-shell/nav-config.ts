@@ -1,4 +1,5 @@
 import {
+  AlarmClock,
   Blocks,
   CalendarClock,
   ChartLine,
@@ -72,6 +73,8 @@ export const NAV: NavItem[] = [
     group: "Automate",
   },
   { label: "Pipelines", href: "/pipelines", icon: Workflow, group: "Automate" },
+  // everything that runs on a clock in one list: everyone has it, for the schedules of their own automations
+  { label: "Schedules", href: "/schedules", icon: AlarmClock, group: "Automate" },
   { label: "Routines", href: "/routines", icon: CalendarClock, adminOnly: true, group: "Automate" },
   { label: "Extensions", href: "/extensions", icon: Blocks, group: "Automate" },
   // Admins see every source as a sensor; members see the watched folders feeding their namespaces.

@@ -28865,6 +28865,181 @@
         }
       }
     },
+    "/api/v1/schedules": {
+      "get": {
+        "tags": [
+          "schedules"
+        ],
+        "summary": "List Schedules",
+        "description": "Everything that runs on a clock that you manage, soonest first: for admins every routine (those run only by\nhand too) and the scheduled backup; for everyone the schedule and at triggers of their automations. Each with\nwhen it runs in words, its next and last run, how that went and whether it's on.",
+        "operationId": "list_schedules",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleCatalog"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/schedules/{sid}": {
+      "get": {
+        "tags": [
+          "schedules"
+        ],
+        "summary": "Get Schedule",
+        "operationId": "get_schedule",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Schedule"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "schedules"
+        ],
+        "summary": "Change Schedule",
+        "description": "Change when it runs or switch it on or off; give only what changes. A routine's `cron: null` runs it only by\nhand. Switching an automation's schedule switches the whole automation (every trigger it has). Switching the\nbackup off clears backups.schedule; switching it on needs a cron.",
+        "operationId": "change_schedule",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduleChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Schedule"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/schedules/{sid}/run": {
+      "post": {
+        "tags": [
+          "schedules"
+        ],
+        "summary": "Run Schedule",
+        "description": "Run it now, even when it's off: a routine as soon as the scheduler next looks (within half a minute), an\nautomation here and now as its trigger would when its time comes, the backup now (it can take a while). A run over\na budget is refused (routines: 409) or held for your pick (automations) unless over_budget is true.",
+        "operationId": "run_schedule",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ScheduleRun"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleStarted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sensors": {
       "get": {
         "tags": [
@@ -63879,6 +64054,259 @@
         ],
         "title": "SavedView"
       },
+      "Schedule": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "routine:<id>, automation:<id>:<trigger> or backups"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "routine",
+              "automation",
+              "backups"
+            ],
+            "title": "Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "the routine's or automation's name"
+          },
+          "trigger": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger",
+            "description": "an automation's trigger (its `as`)"
+          },
+          "on": {
+            "type": "string",
+            "enum": [
+              "schedule",
+              "at",
+              "manual"
+            ],
+            "title": "On",
+            "description": "schedule: repeats on a cron; at: once, at a time; manual: no schedule (a routine run by hand, no backups)"
+          },
+          "cron": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cron",
+            "description": "five-field cron (minute hour day month weekday) or @daily..."
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "an at trigger's time (ISO 8601, in its time zone when it names none)"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone",
+            "default": "UTC"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "when it runs, in words: every weekday at 07:00, once on Fri 16 Oct at 07:00, ..."
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "whether it runs on its own (for an automation: the whole automation is on)"
+          },
+          "state": {
+            "type": "string",
+            "title": "State",
+            "description": "on, off or running (routines, the backup); waiting, done (an at trigger whose time came), missed, failed or off (automations)"
+          },
+          "next_run_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Run At",
+            "description": "when it runs next (UTC); none while it's off or has no schedule"
+          },
+          "last_run_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run At"
+          },
+          "last_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Status",
+            "description": "how its last run went (done, error, failed, partly, skipped, ...)"
+          },
+          "running": {
+            "type": "boolean",
+            "title": "Running",
+            "default": false
+          },
+          "href": {
+            "type": "string",
+            "title": "Href",
+            "description": "its page in the web app"
+          },
+          "namespace_names": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace Names",
+            "description": "the namespaces it works in; none for every one"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "something to know about it: why it doesn't run, its last error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "on",
+          "text",
+          "enabled",
+          "state",
+          "href"
+        ],
+        "title": "Schedule"
+      },
+      "ScheduleCatalog": {
+        "properties": {
+          "schedules": {
+            "items": {
+              "$ref": "#/components/schemas/Schedule"
+            },
+            "type": "array",
+            "title": "Schedules"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "schedules"
+        ],
+        "title": "ScheduleCatalog"
+      },
+      "ScheduleChange": {
+        "properties": {
+          "cron": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cron",
+            "description": "a new schedule (five-field cron or @daily...); null for a routine runs it only by hand, and for the backup stops scheduled backups"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "a new time for an automation's at trigger, like 2026-11-02T07:30"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone",
+            "description": "a time zone, like Europe/London"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled",
+            "description": "switch it on or off: an automation's whole automation; the backup off clears its schedule"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ScheduleChange"
+      },
       "SchedulePreview": {
         "properties": {
           "schedule": {
@@ -63910,6 +64338,70 @@
           "next"
         ],
         "title": "SchedulePreview"
+      },
+      "ScheduleRun": {
+        "properties": {
+          "over_budget": {
+            "type": "boolean",
+            "title": "Over Budget",
+            "description": "run it even though it's over a budget (docs/budgets.md)",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ScheduleRun"
+      },
+      "ScheduleStarted": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "asked (a routine starts within half a minute), done, waiting, partly, failed, held (over a budget), skipped (its If was false), limited or off (automations), or done for a backup"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why",
+            "description": "why it didn't run, or was held"
+          },
+          "run": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run",
+            "description": "an automation's run (GET /api/v1/automations/runs/{run})"
+          },
+          "backup": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Backup",
+            "description": "the backup it took"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "ScheduleStarted"
       },
       "SearchCreate": {
         "properties": {

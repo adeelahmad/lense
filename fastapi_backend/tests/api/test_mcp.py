@@ -97,6 +97,8 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "set_automation_vars",
         "save_automation",
         "run_automation",
+        "set_schedule",
+        "run_schedule",
     ]
     assert next(t for t in tools if t["name"] == "search")["inputSchema"]["required"] == ["query"]
     # API tokens and sessions work too

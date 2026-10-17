@@ -33,6 +33,14 @@ describe("navigation", () => {
     ).toEqual(["Costs", "Analytics", "Settings", "Admin"]);
   });
 
+  it("has Schedules, everything that runs on a clock, under Automate for everyone", () => {
+    for (const admin of [true, false]) {
+      expect(navFor(admin).find((i) => i.href === "/schedules")?.group).toBe("Automate");
+    }
+    expect(isActive("/schedules", "/schedules")).toBe(true);
+    expect(isActive("/schedules", "/routines")).toBe(false);
+  });
+
   it("matches the active section", () => {
     expect(isActive("/", "/")).toBe(true);
     expect(isActive("/library", "/")).toBe(false);
