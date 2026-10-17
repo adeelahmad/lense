@@ -769,6 +769,7 @@ class Toolbox(ops_tools.OpsTools):
         # ask first, even where they'd act at once (wary)
         self.outside = list(dict.fromkeys(outside))
         self.links = set()  # web addresses the tools gave back, as written (untrusted.defang)
+        self.detail = None  # what the last tool adds to its step for the person (a run's output, a file to download)
         self.base, self.admin, self.act, self.act_on = base or cfg, admin, act, set(act_on or ())
         self.scope = scope or {}
         self.readable, self.editable = set(readable), set(editable)
@@ -959,10 +960,16 @@ class Toolbox(ops_tools.OpsTools):
         words = " ".join(str(text or "").split()).casefold()
         return bool(words) and words in " ".join(str(self.said or "").split()).casefold()
 
+    def take_detail(self):
+        """What the last tool added to its step for the person ({} when nothing), once."""
+        got, self.detail = self.detail or {}, None
+        return got
+
     def call(self, name, args, model=False):
         """A tool's result (JSON) and the step's summary. `model`: the result as the model reads it, third-party text
         marked as data (untrusted), with what hooks add after it, unmarked."""
         offered = {s["function"]["name"] for s in self.specs()}
+        self.detail = None
         self.failed = True  # until it runs: a tool that's unknown or blocked failed
         try:
             if name not in offered:
@@ -1113,6 +1120,7 @@ class Toolbox(ops_tools.OpsTools):
             where = sandboxmod.reaches(self.cfg)
             return self._approval(f"run_{kind}", args, f"Run {lang} in the code sandbox, which can reach {where}: {first}" + self.why())
         out = self._sandbox(sandboxmod.run, self.account, kind, source, files)
+        self.detail = sandboxmod.shown(out)  # the output under the code, on the step the person sees
         return out, sandboxmod.summary(kind, source, out)
 
     def t_run_python(self, code, files=None):
@@ -1125,6 +1133,14 @@ class Toolbox(ops_tools.OpsTools):
         out = self._sandbox(sandboxmod.listing, self.account)
         n = len(out.get("files") or []) + int(out.get("more") or 0)
         return out, f"Looked at the sandbox's files ({n})"
+
+    def t_share_sandbox_file(self, path):
+        got = self._sandbox(sandboxmod.share, self.account, path)
+        self.detail = {"file": got}  # a download on the answer
+        return (
+            {"shared": got["name"], "size": got["size"], "note": "the person downloads it from your answer"},
+            f"Shared {got['name']} to download",
+        )
 
     def t_import_sandbox_file(self, path, namespace=None):
         # out of the sandbox as one of the person's held uploads, then imported as a file they attached would be

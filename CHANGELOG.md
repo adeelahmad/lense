@@ -65,6 +65,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   each run shows what its actions did. Try one on an activity without keeping or sending anything, or run it now;
   Settings → Automations switches them all off and sets how far they may go
   ([Running automations](docs/automations.md#running-automations)).
+- **News feeds.** Subscribe to a blog's or a news site's RSS or Atom feed: add it on the Sources page (its address,
+  or just the site's) and watch it, and each new post comes into a namespace as text, with its link, author and date,
+  so answers cite it. Feeds are asked for again only when they've changed, and a private feed's address is kept like a
+  password ([News feeds](docs/processing.md#news-feeds-rss-and-atom)).
 - **Each answer says what produced it.** The *i* in an answer's header shows the model and the host it ran on, the
   tools it was offered and used, the scope, its limits and what it used, tokens, cost (an estimate from your prices),
   how long it took, how it ended and which tool results read like instructions to an AI, with the calls made for it.
@@ -139,6 +143,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   64-bit machine, Landlock in its Linux kernel) and says why not. Off deletes every sandbox and stops it. The same
   over `PUT /api/v1/admin/sandbox` and the MCP tools `sandbox_gateway` and `set_sandbox_gateway`
   ([The gateway](docs/assistant.md#the-gateway)).
+- **See the code the assistant ran, and download the files it made.** Each Python or bash run is a folded step under
+  the answer that opens to the code, its output and how it ended. With `share_sandbox_file` the assistant hands you a
+  file the sandbox made, a chart or a converted document, as a download button on the answer; Lens keeps it
+  encrypted with the conversation and deletes it with the conversation
+  ([In the conversation](docs/assistant.md#code-sandbox)).
 - **Find anything by who, what and when.** Agents and the API can find assets by the faces seen in them, the people
   heard, the entities they mention, the topics they're about, their kind and content type, when they were made (a
   day, a month or a year), tags, language, objects seen, emotions heard, length and words in them, together or alone,

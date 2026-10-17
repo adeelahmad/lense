@@ -1486,6 +1486,9 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS research_account ON research FIELDS account, status",
     "DEFINE INDEX IF NOT EXISTS research_chat ON research FIELDS chat",
     "DEFINE TABLE IF NOT EXISTS research_run SCHEMALESS",
+    # files a conversation's sandbox handed the person to download (sandbox.share), kept with the conversation
+    "DEFINE TABLE IF NOT EXISTS chat_file SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS chat_file_chat ON chat_file FIELDS chat",
     "DEFINE TABLE IF NOT EXISTS segment_edit SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS segment_edit_rec ON segment_edit FIELDS recording",
     # descriptive metadata history, IIIF change discovery and IIIF authorization
