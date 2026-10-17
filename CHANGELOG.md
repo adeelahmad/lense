@@ -78,6 +78,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   shares; then a new access key's dialog gives those addresses. Signing in is the same: a person's own access key,
   read-only. MQTT, syslog, SMB and NFS aren't HTTP and stay on their own ports
   ([The graph as files](docs/file-tree.md#at-the-web-apps-address), [Remote access](docs/remote-access.md#what-it-reaches)).
+- **Files added over S3 and WebDAV are imported.** Copy a file into a collection's folder (`rclone copy`, Finder,
+  Windows Explorer, any S3 client) and it's imported there as an upload is, with the same checks and the namespace's
+  pipeline; a new folder under `Collections` is a new collection, and a file anywhere else goes to the namespace's
+  default collection. It takes the import permission (or an editor's role on the collection), files the system writes
+  for itself (`.DS_Store`, `Thumbs.db`, half-written files) are never imported, and a re-sync copies nothing twice.
+  The S3 server now takes streamed and multipart uploads; WebDAV takes PUT, MKCOL and Finder's and Explorer's ways of
+  copying. This is on whenever the shares are; **Import files people add** in Settings, File shares
+  (`shares.add_files`) turns it off and makes them read-only again ([Adding files](docs/file-tree.md#adding-files)).
 - **The web clipper takes your API token, or just signs in.** It used to take only an import webhook's token, so an API
   token was refused with "Lens didn't recognise this token: make a new import webhook and paste its token". Now its
   options have **Sign in**: Lens asks you to allow the clipper, nothing to copy, and clips go into the namespace you
