@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 from pydantic import ConfigDict, Field
 
+from app.schemas.activity import ActivityEntry
 from app.schemas.common import RequestModel, ResponseModel
 
 
@@ -17,7 +18,7 @@ class ChatScope(RequestModel):
     namespaces: list[str] | None = None
     recordings: list[int] | None = None
     collections: list[int] | None = Field(
-        default=None, description="saved collections (yours or shared): their recordings as they are when it answers"
+        default=None, description="saved collections (yours or shared): their assets as they are when it answers"
     )
     speakers: list[int] | None = None
     date_from: str | None = Field(default=None, alias="from", description="YYYY-MM-DD")
@@ -56,13 +57,21 @@ class ChatSummary(ResponseModel):
 
 
 class Passage(ResponseModel):
+    """A numbered excerpt an answer can cite: a moment of an asset, or a web page (`source` "web", with its `url`)."""
+
     n: int
-    recording_id: int
+    recording_id: int | None = Field(None, description="the asset it's from; none for a web page")
+    source: str | None = Field(
+        None, description="what it is: said (speech), page (a document's), screen (text shown in a video), memory, or web"
+    )
+    url: str | None = Field(None, description="a web page's address (source web): the citation opens it")
+    site: str | None = Field(None, description="a web page's site, like example.com")
+    fetched_at: str | None = Field(None, description="when the web page or search result was read")
     title: str | None = None
     namespace: str | None = None
     recorded_at: str | None = None
     t0: int | float | None = None
-    time: str | None = Field(None, description='when it was said ("12:34"), or for a document its page ("p. 3")')
+    time: str | None = Field(None, description='where it is: a time ("12:34"), or for a document its page ("p. 3")')
     page: int | None = Field(None, description="a document's or an image's page it's on (from 0)")
     speaker: str | None = None
     text: str
@@ -80,6 +89,67 @@ class ToolStep(ResponseModel):
     tool: str
     args: dict[str, Any] = {}
     summary: str = ""
+    ms: int | None = Field(None, description="how long the tool took")
+    failed: bool | None = Field(None, description="the tool failed (or was unknown or blocked); its summary says why")
+
+
+class RecordTools(ResponseModel):
+    picked: list[str] | None = Field(None, description="the tools or groups the question asked for; null: Auto")
+    offered: list[str] = Field(default_factory=list, description="every tool the model was offered")
+
+
+class RecordLimits(ResponseModel):
+    rounds: int | None = Field(None, description="rounds of tool calls it had (calls in one round run together)")
+    tool_calls: int | None = Field(None, description="tool calls it had; null: only the rounds limit them")
+
+
+class RecordUse(ResponseModel):
+    rounds: int = 0
+    tool_calls: int = 0
+
+
+class RecordTokens(ResponseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True, serialize_by_alias=True)
+
+    in_: int = Field(0, alias="in")
+    out: int = 0
+
+
+class RecordOptions(ResponseModel):
+    """What a question was asked with (only what it set)."""
+
+    model: str | None = None
+    tools: list[str] | None = None
+    max_tool_calls: int | None = None
+    scope: dict[str, Any] | None = None
+    research: bool | None = None
+
+
+class MessageRecord(ResponseModel):
+    """What produced a message, recorded as it was written (docs/assistant.md, "What each answer records"). A question's
+    has `via` and `options`; an answer's the rest. Messages from before it was recorded have none."""
+
+    via: Literal["web", "api", "room", "voice", "automation", "completions"] | None = Field(None, description="a question: how it was sent")
+    options: RecordOptions | None = Field(None, description="a question: the options it was asked with")
+    model: str | None = Field(None, description="the model that wrote the answer")
+    provider: str | None = Field(None, description="the host name of the model server it ran on (never its address or key)")
+    tools: RecordTools | None = None
+    scope: dict[str, Any] | None = Field(None, description="the scope it answered in, after a conversation over everything was narrowed")
+    limits: RecordLimits | None = None
+    used: RecordUse | None = None
+    outcome: Literal["answered", "direct", "limit", "fallback", "stopped", "error"] | None = Field(
+        None,
+        description="answered (after looking things up), direct (without looking anything up), limit (its rounds ran "
+        "out, so it answered from what it found), fallback (from a search: the model can't use tools, or none is set "
+        "up), stopped, or error",
+    )
+    tokens: RecordTokens | None = Field(None, description="the tokens of the model calls made for it (the activity ledger)")
+    cost_usd: float | None = Field(None, description="what those calls cost, from the prices in Settings")
+    cost_estimated: bool | None = Field(None, description="some calls had a price but no token counts: the cost is at least this")
+    ms: int | None = Field(None, description="how long it took to write, from the question")
+    flagged: list[str] | None = Field(None, description="tools whose results read like instructions to an AI")
+    research: int | None = Field(None, description="the research it belongs to")
+    version: str | None = Field(None, description="the version of Lens that wrote it")
 
 
 class PageContext(RequestModel):
@@ -110,7 +180,15 @@ class Attachment(ResponseModel):
     id: str = Field(description="the upload")
     filename: str
     size: int
-    recording: int | None = Field(None, description="the recording it became, once imported")
+    recording: int | None = Field(None, description="the asset it became, once imported")
+
+
+class Versions(ResponseModel):
+    """A message's versions: it and the others with the same parent and role, oldest first."""
+
+    index: int = Field(description="which of them this one is, from 1")
+    count: int
+    ids: list[int]
 
 
 class ChatMessage(ResponseModel):
@@ -127,6 +205,24 @@ class ChatMessage(ResponseModel):
     error: str | None = Field(None, description="why there's no answer")
     check: AnswerCheck | None = Field(None, description="its latest source check (POST .../messages/{mid}/check)")
     model: str | None = Field(None, description="the model that wrote the answer")
+    parent: int | None = Field(None, description="the message it follows; null for a first question")
+    versions: Versions | None = Field(None, description="it and the others said in its place, from regenerating or editing")
+    meta: MessageRecord | None = Field(None, description="what produced it; none on messages from before it was recorded")
+
+
+class MessageDetail(ChatMessage):
+    ledger: list[ActivityEntry] = Field(
+        default_factory=list, description="its rows in the activity ledger: the model and tool calls made for it, newest first"
+    )
+
+
+class ChatNode(ResponseModel):
+    """A message of any version, as `tree` lists them."""
+
+    id: int
+    parent: int | None = None
+    role: Literal["user", "assistant"]
+    created_at: str | None = None
 
 
 class ChatCapabilities(ResponseModel):
@@ -147,7 +243,13 @@ class StopResult(ResponseModel):
 
 class Chat(ChatSummary):
     account: int
-    messages: list[ChatMessage] = []
+    head: int | None = Field(None, description="the last message of the version showing, which the next question follows")
+    messages: list[ChatMessage] = Field(default_factory=list, description="the version showing, from the first message to `head`")
+    tree: list[ChatNode] = Field(default_factory=list, description="every message of every version, oldest first")
+
+
+class HeadUpdate(RequestModel):
+    message: int = Field(description="a message of the version to show: the head moves to the newest message below it")
 
 
 class MessageCreate(RequestModel):
@@ -161,10 +263,18 @@ class MessageCreate(RequestModel):
     model: str | None = Field(
         None, description="answer this one with another model (one of GET /chats/capabilities `models`), e.g. to retry"
     )
+    parent: int | None = Field(
+        None, description="the message to go on from (one of this conversation's, of any version); null: the conversation's `head`"
+    )
+    regenerate: int | None = Field(
+        None,
+        description="an answer's message id: write a new answer to its question, as another version beside it (`content` is "
+        "not needed; `model` picks another model)",
+    )
     edit: int | None = Field(
         None,
-        description="edit one of your earlier questions (its message id): it and everything after it are replaced by this "
-        "question and a new answer",
+        description="edit one of your earlier questions (its message id): this question becomes a new version beside it, and "
+        "is answered; the old one and what followed it stay as the other version",
     )
     browser: str | None = Field(
         None,
@@ -172,6 +282,52 @@ class MessageCreate(RequestModel):
         description="asked from a browser's Lens side panel: its session (POST /browser/sessions). While it's connected, the "
         "assistant can use that browser (docs/browser-assistant.md)",
     )
+    via: Literal["voice"] | None = Field(None, description="voice: said in a voice conversation (the question's record keeps it)")
+
+
+class ApprovalOrigin(ResponseModel):
+    automation: int | None = None
+    run: int | None = None
+    node: str | None = None
+
+
+class ApprovalIntent(ResponseModel):
+    """What an automation's action would do, as the inbox shows it (credential headers hidden)."""
+
+    action: str
+    params: dict[str, Any] = Field(default_factory=dict)
+    effect: str | None = None
+    risk: str | None = None
+    untrusted: bool | None = Field(default=None, description="its run read text from outside Lens")
+    node: str | None = None
+    status: str | None = None
+    spaces: list[int] | None = None
+
+
+class ApprovalWhy(ResponseModel):
+    """The activity that caused it, as it was when it asked."""
+
+    activity: str
+    kind: str | None = None
+    summary: str | None = None
+    published: str | None = None
+    url: str | None = None
+
+
+class ApprovalTold(ResponseModel):
+    channel: str
+    label: str | None = None
+    chat: str | None = None
+
+
+class ApprovalCan(ResponseModel):
+    """What you can do with it from where you asked: approving an automation's action is yours, signed in or in the
+    chat it told you in; an API key, an app or an agent can only decline it."""
+
+    approve: bool = False
+    decline: bool = False
+    edit: bool = False
+    always: bool = False
 
 
 class Approval(ResponseModel):
@@ -180,15 +336,40 @@ class Approval(ResponseModel):
     tool: str
     summary: str | None = None
     estimate: Any = None
-    status: str
+    status: str = Field(description="pending (waiting), running, done, failed, declined or expired")
     created_at: str | None = None
     result: Any = None
+    error: str | None = None
+    origin: ApprovalOrigin | None = Field(default=None, description="the automation run that asked, when one did")
+    intent: ApprovalIntent | None = Field(default=None, description="an automation's action: what it would do")
+    automation: str | None = Field(default=None, description="the automation's name")
+    space: int | None = None
+    why: ApprovalWhy | None = None
+    expires_at: str | None = Field(default=None, description="when it expires and nothing runs (automations only)")
+    decided_by: str | None = None
+    decided_at: str | None = None
+    told: list[ApprovalTold] = Field(default_factory=list, description="the chats you were told in")
+    can: ApprovalCan | None = None
+
+
+class ApprovalCount(ResponseModel):
+    waiting: int
+    automations: int = Field(description="of them, waiting for an automation")
 
 
 class ApprovalDecision(RequestModel):
-    decision: Literal["approve", "sample", "decline"] = "approve"
+    decision: Literal["approve", "sample", "decline", "edit", "always"] = Field(
+        "approve",
+        description="sample: a batch run on 3 assets first; edit: an automation's action with `params` changed, then "
+        "carried out; always: carried out, and that action node of the automation runs without asking from now on "
+        "(signed in only)",
+    )
+    params: dict[str, Any] | None = Field(default=None, description="edit: the params to change (null leaves one out)")
 
 
 class ApprovalOutcome(ResponseModel):
     status: str
     batch: int | None = Field(default=None, description="the batch run started, for run_template")
+    error: str | None = Field(default=None, description="why an automation's action failed")
+    result: Any = Field(default=None, description="what an automation's action gave back")
+    always: bool | None = Field(default=None, description="that node runs without asking from now on")

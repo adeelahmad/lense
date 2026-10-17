@@ -16,12 +16,14 @@ same note in the namespace it left (domain/moving.py).
 
 from __future__ import annotations
 
+import logging
 import pathlib
 import shutil
 
 from . import access as acc, files as filemod, notebook, render, store, video
 
 R = store.R
+log = logging.getLogger("lens")
 # rows that belong to the recording
 OWN = (
     "mentions",
@@ -149,7 +151,7 @@ def orphans(db, speakers, faces):
 def delete(db, cfg, rid, by=None):
     """Delete a recording (see the module docstring). Returns what the audit log keeps of it. Raises KeyError when there
     is no such recording and Running when a job is working on it."""
-    rec = db.one("SELECT title, space, path, fingerprint, remote FROM $r", r=R("recording", rid))
+    rec = db.one("SELECT title, space, path, fingerprint, remote, source, media FROM $r", r=R("recording", rid))
     if not rec:
         raise KeyError(rid)
     stop_jobs(db, rid)
@@ -187,6 +189,12 @@ def delete(db, cfg, rid, by=None):
     orphans(db, speakers, faces)
     if acc.published(a):
         acc.activity(db, rid, "Delete")  # harvesters drop it
+    try:
+        from . import events_content
+
+        events_content.deleted(db, rid, rec, by)  # asset.deleted, for automations and the timeline
+    except Exception:  # noqa: BLE001 - the asset is gone either way; a missed activity mustn't undo that
+        log.exception("couldn't log the deletion of recording %s", rid)
     return store.clean({"title": rec.get("title"), "namespace": ns, "path": rec.get("path"), "access": a["access"]})
 
 

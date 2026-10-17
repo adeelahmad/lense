@@ -50,6 +50,20 @@ class EntityDetail(ResponseModel):
     defined: bool = Field(False, description="on the fixed list people defined")
     builtin: str | None = Field(None, description="unknown or unlabeled: one of the two entities that are always there")
     collection: int | None = Field(None, description="a defined entity of one collection (and those inside it)")
+    page: str | None = Field(None, description="its page in the web app, by name: /wiki/<namespace>/<Name_As_Written>")
+
+
+class WikiPage(ResponseModel):
+    """What a wiki address names, and the address to show for it."""
+
+    kind: str = Field(description="entity")
+    id: int
+    namespace: str
+    title: str = Field(description="its name")
+    path: str = Field(description="its own address, like /wiki/work/Ada_Lovelace")
+    canonical: bool = Field(
+        description="false: the address asked for is another way to write it (any case, or a name it had before a rename or merge); show `path`"
+    )
 
 
 class MentionList(ResponseModel):
@@ -79,13 +93,13 @@ class EntityNotSame(RequestModel):
 class EntityRename(RequestModel):
     name: str | None = None
     keep_alias: bool = True
-    correct: bool = Field(False, description="also correct the transcript lines that say the old name")
+    correct: bool = Field(False, description="also correct the lines of text that have the old name")
     dry_run: bool = False
 
 
 class EntityUpdate(RequestModel):
     description: str | None = Field(None, description="what the entity is; empty clears it")
-    aliases: list[str] | None = Field(None, max_length=100, description="the other ways it's said (these replace the ones it has)")
+    aliases: list[str] | None = Field(None, max_length=100, description="the other ways it's written (these replace the ones it has)")
     defined: bool | None = Field(None, description="on the fixed list of entities (namespaces in the fixed mode map names onto it)")
 
 
@@ -93,7 +107,7 @@ class EntityDefine(RequestModel):
     name: str = Field(min_length=1, max_length=200)
     type: str = "TERM"
     description: str | None = Field(None, max_length=2000)
-    aliases: list[str] = Field(default_factory=list, max_length=100, description="other ways it's said")
+    aliases: list[str] = Field(default_factory=list, max_length=100, description="other ways it's written")
     collection: int | None = Field(None, description="for this collection (and those inside it) only; default: the namespace")
 
 

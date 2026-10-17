@@ -59,7 +59,7 @@ def own_batch(db: DB, bid: int, user: Principal) -> dict[str, Any]:
 
 @router.post("/estimate")
 def estimate_batch(body: BatchPlan, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> BatchEstimate:
-    """What a run would cost, before starting it. Only recordings you can change count; the rest are `skipped`."""
+    """What a run would cost, before starting it. Only assets you can change count; the rest are `skipped`."""
     steps, label, ids, skipped = _plan(db, acl, user, body)
     return BatchEstimate.model_validate({"label": label, "steps": steps, "skipped": skipped, **batches.estimate(db, cfg, ids, steps)})
 
@@ -101,7 +101,7 @@ def get_batch(bid: int, user: CurrentUser, db: Db) -> Batch:
 
 @router.post("/{bid}/combine")
 def combine_batch(bid: int, user: Writer, db: Db, cfg: Cfg, body: BatchCombine | None = None) -> BatchReport:
-    """One overview written by the model from every recording's result, citing each as [n]; saved on the batch."""
+    """One overview written by the model from every asset's result, citing each as [n]; saved on the batch."""
     own_batch(db, bid, user)
     body = body or BatchCombine()
     try:
@@ -112,7 +112,7 @@ def combine_batch(bid: int, user: Writer, db: Db, cfg: Cfg, body: BatchCombine |
 
 @router.post("/{bid}/{action}")
 def control_batch(bid: int, action: Action, user: Writer, db: Db) -> BatchActionResult:
-    """continue (after a sample), pause, resume, cancel, or retry the failed recordings."""
+    """continue (after a sample), pause, resume, cancel, or retry the failed assets."""
     own_batch(db, bid, user)
     fn = {
         "continue": lambda: batches.continue_run(db, bid, user.email),

@@ -4,7 +4,9 @@ import {
   ChartLine,
   ChartNoAxesColumn,
   HardDriveDownload,
+  History,
   House,
+  Inbox,
   LibraryBig,
   MessagesSquare,
   NotebookPen,
@@ -29,40 +31,57 @@ export type NavItem = {
   adminOnly?: boolean;
   /** Only shown to people who aren't administrators (admins have it under another item). */
   membersOnly?: boolean;
-  /** A count shown next to the label (library size, speakers to review in Settings). */
-  countKey?: "recordings" | "reviews";
-  /** Draw a divider after this item. */
-  divider?: boolean;
+  /** A count shown next to the label (library size, speakers to review in Settings, approvals waiting). */
+  countKey?: "recordings" | "reviews" | "approvals";
+  /** Shown only while its count is above zero, or while its page is open, so the nav of a Lens with nothing there
+   * stays as short as it was (on a phone, every item more pushes the ones below off the screen). */
+  whileCounted?: boolean;
+  /** The group it's in, named above its first item; the first group (what people use every day) has no name. */
+  group: NavGroup;
 };
 
-/** Primary navigation, in the design's order (Nav.dc.html). */
+export type NavGroup = "" | "Explore" | "Automate" | "Manage";
+
+/** Primary navigation, in the design's order (Nav.dc.html), in groups: what people use every day, what Lens found in
+ * it, what runs by itself, and running Lens. */
 export const NAV: NavItem[] = [
-  { label: "Home", href: "/", icon: House },
+  { label: "Home", href: "/", icon: House, group: "" },
   {
     label: "Library",
     href: "/library",
     icon: LibraryBig,
     countKey: "recordings",
+    group: "",
   },
-  { label: "Search", href: "/search", icon: Search },
-  { label: "Chat", href: "/chat", icon: MessagesSquare },
-  { label: "Notes", href: "/notes", icon: NotebookPen },
-  { label: "Entities", href: "/entities", icon: Shapes },
-  { label: "Topics", href: "/topics", icon: Tags },
-  { label: "Graph", href: "/graph", icon: Waypoints },
-  { label: "Podcasts", href: "/podcasts", icon: Podcast },
-  { label: "Reports", href: "/reports", icon: ChartNoAxesColumn },
-  { label: "Costs", href: "/costs", icon: Wallet, divider: true },
-  { label: "Pipelines", href: "/pipelines", icon: Workflow },
-  { label: "Routines", href: "/routines", icon: CalendarClock, adminOnly: true },
-  { label: "Extensions", href: "/extensions", icon: Blocks },
+  { label: "Search", href: "/search", icon: Search, group: "" },
+  { label: "Chat", href: "/chat", icon: MessagesSquare, group: "" },
+  { label: "Notes", href: "/notes", icon: NotebookPen, group: "" },
+  { label: "Timeline", href: "/timeline", icon: History, group: "Explore" },
+  { label: "Entities", href: "/entities", icon: Shapes, group: "Explore" },
+  { label: "Topics", href: "/topics", icon: Tags, group: "Explore" },
+  { label: "Graph", href: "/graph", icon: Waypoints, group: "Explore" },
+  { label: "Podcasts", href: "/podcasts", icon: Podcast, group: "Explore" },
+  { label: "Reports", href: "/reports", icon: ChartNoAxesColumn, group: "Explore" },
+  // what waits for your pick: in the nav while anything does; the top bar's badge and Home's row lead there too
+  {
+    label: "Approvals",
+    href: "/approvals",
+    icon: Inbox,
+    countKey: "approvals",
+    whileCounted: true,
+    group: "Automate",
+  },
+  { label: "Pipelines", href: "/pipelines", icon: Workflow, group: "Automate" },
+  { label: "Routines", href: "/routines", icon: CalendarClock, adminOnly: true, group: "Automate" },
+  { label: "Extensions", href: "/extensions", icon: Blocks, group: "Automate" },
   // Admins see every source as a sensor; members see the watched folders feeding their namespaces.
-  { label: "Sensors", href: "/sensors", icon: RadioTower, adminOnly: true },
-  { label: "Sources", href: "/sources", icon: HardDriveDownload, membersOnly: true },
-  { label: "Analytics", href: "/analytics", icon: ChartLine, adminOnly: true },
+  { label: "Sensors", href: "/sensors", icon: RadioTower, adminOnly: true, group: "Automate" },
+  { label: "Sources", href: "/sources", icon: HardDriveDownload, membersOnly: true, group: "Automate" },
+  { label: "Costs", href: "/costs", icon: Wallet, group: "Manage" },
+  { label: "Analytics", href: "/analytics", icon: ChartLine, adminOnly: true, group: "Manage" },
   // Everyone has Settings: members find Speakers there, admins the archive's settings too.
-  { label: "Settings", href: "/settings", icon: Settings, countKey: "reviews" },
-  { label: "Admin", href: "/admin", icon: Shield, adminOnly: true },
+  { label: "Settings", href: "/settings", icon: Settings, countKey: "reviews", group: "Manage" },
+  { label: "Admin", href: "/admin", icon: Shield, adminOnly: true, group: "Manage" },
 ];
 
 export function navFor(admin: boolean): NavItem[] {
@@ -88,6 +107,8 @@ export function isActive(pathname: string, href: string): boolean {
   if (href === "/sensors" && (pathname === "/sources" || pathname.startsWith("/sources/"))) return true;
   // Members opening /sensors see their Sources page.
   if (href === "/sources" && pathname === "/sensors") return true;
+  // An entity's page is under /wiki, by name.
+  if (href === "/entities" && pathname.startsWith("/wiki/")) return true;
   // Speakers live in Settings; a speaker's profile keeps its own address.
   if (href === "/settings" && (pathname === "/speakers" || pathname.startsWith("/speakers/"))) return true;
   return pathname === href || pathname.startsWith(`${href}/`);

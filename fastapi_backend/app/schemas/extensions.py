@@ -85,6 +85,42 @@ class ExtensionTestResult(ResponseModel):
     output: Any = None
 
 
+class McpConfigText(RequestModel):
+    text: str = Field(description="an MCP config from another app: Claude's .mcp.json or mcpServers, VS Code's servers, or one server")
+
+
+class McpServerFound(ResponseModel):
+    name: str = Field(description="a name for it, from the config or guessed from its package or address")
+    description: str | None = None
+    spec: dict[str, Any] = Field(description="{url, headers}, or {command, args, env} for one that runs as a program")
+    fill: list[str] = Field(default_factory=list, description="values written as ${NAME}, which its app filled in and Lens can't")
+
+
+class McpServerSkipped(ResponseModel):
+    name: str
+    why: str
+
+
+class McpConfig(ResponseModel):
+    servers: list[McpServerFound] = []
+    skipped: list[McpServerSkipped] = []
+
+
+class McpServerTry(RequestModel):
+    spec: dict[str, Any] = Field(description="{url, headers}, or {command, args, env} for one that runs as a program")
+    extension: int | None = Field(None, description="the MCP server whose saved secrets fill in values sent as ••••")
+
+
+class McpServerTools(ResponseModel):
+    tools: list[dict[str, Any]] = Field(description="its tools, as it lists them now: {name, description, schema, read_only}")
+
+
+class McpToolSwitch(RequestModel):
+    tool: str = Field(description="the tool's name, as the server lists it")
+    on: bool | None = Field(None, description="switch it on or off")
+    ask: bool | None = Field(None, description="whether it asks first (default: unless the server says it only reads)")
+
+
 class Marketplace(ResponseModel):
     id: int
     name: str = Field(description="the name its marketplace.json gives it")

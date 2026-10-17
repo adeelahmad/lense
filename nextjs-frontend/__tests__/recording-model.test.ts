@@ -187,7 +187,7 @@ describe("normalizePlayer", () => {
 
   it("never throws on missing or odd fields", () => {
     const m = normalizePlayer({ id: 5 } as Player);
-    expect(m.title).toBe("Untitled recording");
+    expect(m.title).toBe("Untitled asset");
     expect(m.segments).toEqual([]);
     expect(m.durationMs).toBe(0);
   });

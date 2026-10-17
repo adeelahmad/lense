@@ -6,9 +6,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { AccessRequests, Resources, Sources, Speakers, Tokens } from "@/app/openapi-client";
+import { useApprovalCount } from "@/components/approvals/use-approvals";
 import { buildAttention, greeting, type AttentionItem } from "@/components/home/attention";
 import { QuickImport } from "@/components/home/quick-import";
 import { rememberView, useRecentViews, type ViewedKind } from "@/components/home/recently-viewed";
+import { LatestCard } from "@/components/timeline/latest-card";
 import { useRecordingActions } from "@/components/library/actions";
 import { elapsed, isActiveJob, latestJobs, statusView, stepLabel, totalDuration } from "@/components/library/model";
 import { Badge } from "@/components/ui/badge";
@@ -123,6 +125,7 @@ export function HomeScreen({ switcher }: { switcher?: React.ReactNode } = {}) {
     queryFn: () => data(Tokens.listTokens({ client })),
     staleTime: 60_000,
   });
+  const approvals = useApprovalCount();
   const owns = namespaces.some((n) => can("owner", n.name));
   const requests = useQuery({
     queryKey: ["access-requests"],
@@ -161,6 +164,7 @@ export function HomeScreen({ switcher }: { switcher?: React.ReactNode } = {}) {
       })),
       requests: (requests.data ?? []).filter((r) => inScope(r.namespace)),
       tokens: tokens.data,
+      approvals: approvals.data,
     });
     // Only what this person can act on: failures in namespaces where they can't edit stay out of their way.
     return all.filter((it) => it.namespace === undefined || can("editor", it.namespace));
@@ -173,6 +177,7 @@ export function HomeScreen({ switcher }: { switcher?: React.ReactNode } = {}) {
     watches.data,
     requests.data,
     tokens.data,
+    approvals.data,
     namespace,
     reviewKey,
     can,
@@ -283,7 +288,7 @@ export function HomeScreen({ switcher }: { switcher?: React.ReactNode } = {}) {
                 <b className="text-[14px] font-semibold text-fg">Nothing needs you</b>
                 <span className="tabular text-[12.5px] text-fg-secondary">
                   {[
-                    plural(totals.recordings, "recording"),
+                    plural(totals.recordings, "asset"),
                     totals.ms ? totalDuration(totals.ms) : null,
                     `${count(totals.analyzed)} analyzed`,
                     running.length ? `${count(running.length)} processing` : null,
@@ -327,10 +332,10 @@ export function HomeScreen({ switcher }: { switcher?: React.ReactNode } = {}) {
               Nothing here yet.{" "}
               {can("editor", namespace) ? (
                 <Link href="/import" className="font-semibold text-fg-accent hover:underline">
-                  Import transcripts
+                  Import files
                 </Link>
               ) : (
-                "New recordings show up here as they arrive."
+                "New assets show up here as they arrive."
               )}
             </p>
           ) : (
@@ -359,7 +364,7 @@ export function HomeScreen({ switcher }: { switcher?: React.ReactNode } = {}) {
                       <span className="truncate text-[12px] leading-none text-fg-muted">
                         {[
                           r.namespace,
-                          r.media_kind === "transcript" ? "transcript" : r.media_kind,
+                          r.media_kind === "transcript" ? "text" : r.media_kind,
                           r.duration_ms ? tc(r.duration_ms) : null,
                         ]
                           .filter(Boolean)
@@ -388,6 +393,8 @@ export function HomeScreen({ switcher }: { switcher?: React.ReactNode } = {}) {
       <div className="flex min-w-0 flex-col gap-5">
         <QuickImport />
 
+        <LatestCard />
+
         <section aria-labelledby="processing" className="flex flex-col gap-2.5 rounded-lg border border-border p-4">
           <SectionLabel id="processing">Processing now{running.length ? ` · ${running.length}` : ""}</SectionLabel>
           {jobs.isLoading ? (
@@ -411,7 +418,7 @@ export function HomeScreen({ switcher }: { switcher?: React.ReactNode } = {}) {
                         href={j.recording ? `/resources/${j.recording}` : "/activity"}
                         className="truncate text-fg hover:underline"
                       >
-                        {(j.title || "Recording").replace(/\s+—.*$/, "")} · {stepLabel(j.next_step)}
+                        {(j.title || "Asset").replace(/\s+—.*$/, "")} · {stepLabel(j.next_step)}
                       </Link>
                       <span className="tabular shrink-0 font-medium text-fg-secondary">
                         {j.status === "queued"
@@ -464,7 +471,7 @@ export function HomeScreen({ switcher }: { switcher?: React.ReactNode } = {}) {
               })}
             </ul>
           ) : (
-            <p className="text-[13px] text-fg-muted">Recordings you open show up here, on this device.</p>
+            <p className="text-[13px] text-fg-muted">Assets you open show up here, on this device.</p>
           )}
         </section>
       </div>

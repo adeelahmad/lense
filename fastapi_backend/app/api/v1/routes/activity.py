@@ -48,6 +48,10 @@ def _may_see(db: Db, user: CurrentUser, acl: Acl, resource: str) -> None:
             return
         if table == "chat" and db.one("SELECT id FROM $r WHERE account = $a", r=activity.R("chat", int(key)), a=user.id):
             return
+        if table == "chat_message":  # a message in one of your conversations
+            m = db.one("SELECT chat FROM $r", r=activity.R("chat_message", int(key)))
+            if m and db.one("SELECT id FROM $r WHERE account = $a", r=activity.R("chat", m["chat"]), a=user.id):
+                return
     raise HTTPException(403, "only admins see this resource's activity")
 
 
@@ -63,7 +67,7 @@ def resource_history(
 ) -> list[ActivityEntry]:
     """A resource's history, newest first: API requests that changed it, calls made for it (models, embeddings, the
     decision model, webhooks, web tools) with tokens and cost, runs that ended, its audit log entries, and its graph
-    changes (an entity's, a namespace's, or what analysing a recording changed; docs/graph-history.md)."""
+    changes (an entity's, a namespace's, or what analysing an asset changed; docs/graph-history.md)."""
     _may_see(db, user, acl, resource)
     return activity.history(db, resource, limit, before, kind)
 

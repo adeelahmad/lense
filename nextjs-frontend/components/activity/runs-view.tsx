@@ -150,7 +150,7 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
           pause: "Batch paused",
           resume: "Batch resumed",
           continue: "Running the rest of the batch",
-          retry: "Retrying the failed recordings",
+          retry: "Retrying the failed assets",
         }[v.action],
       });
       void qc.invalidateQueries({ queryKey: ["batches"] });
@@ -476,7 +476,7 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
                     size="lg"
                     status={j.status}
                     href={`/activity/${j.id}`}
-                    title={`${j.title ?? `Recording ${j.recording}`}${cur && j.status !== "succeeded" ? ` · ${cur.label}` : ""}`}
+                    title={`${j.title ?? `Asset ${j.recording}`}${cur && j.status !== "succeeded" ? ` · ${cur.label}` : ""}`}
                     sub={phaseOf(j) + (j.worker && j.status === "running" ? ` · ${j.worker}` : "")}
                     progress={j.status === "running" ? (j.progress ?? 0) : null}
                     action={jobAction(j, true)}
@@ -533,7 +533,7 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
                                   type="button"
                                   onClick={() => toggle(b.id)}
                                   aria-expanded={expanded}
-                                  aria-label={`${expanded ? "Hide" : "Show"} the recordings in ${b.label}`}
+                                  aria-label={`${expanded ? "Hide" : "Show"} the assets in ${b.label}`}
                                   className="-ml-1 grid size-6 shrink-0 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral"
                                 >
                                   <ChevronRight
@@ -544,7 +544,7 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
                                 <div className="flex min-w-0 flex-col gap-1">
                                   <span className="truncate text-[13.5px] font-semibold text-fg">{b.label}</span>
                                   <span className="truncate text-[12px] text-fg-muted">
-                                    batch #{b.id} · {(b.progress?.total ?? 0) + (b.progress?.remaining ?? 0)} recordings
+                                    batch #{b.id} · {(b.progress?.total ?? 0) + (b.progress?.remaining ?? 0)} assets
                                   </span>
                                 </div>
                               </div>
@@ -582,7 +582,7 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
                                           href={`/activity/${j.id}`}
                                           className="min-w-0 flex-1 truncate font-semibold text-fg hover:underline"
                                         >
-                                          {j.title ?? `Recording ${j.recording}`}
+                                          {j.title ?? `Asset ${j.recording}`}
                                         </Link>
                                         <span
                                           className={cn(
@@ -597,7 +597,7 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
                                   </ul>
                                 ) : (
                                   <p className="pl-[58px] text-[13px] text-fg-secondary">
-                                    Recordings in this batch appear here as they start.
+                                    Assets in this batch appear here as they start.
                                   </p>
                                 )}
                               </td>
@@ -620,7 +620,7 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
                               href={`/activity/${j.id}`}
                               className="truncate text-[13.5px] font-semibold text-fg hover:underline"
                             >
-                              {j.title ?? `Recording ${j.recording}`}
+                              {j.title ?? `Asset ${j.recording}`}
                             </Link>
                             <span className="truncate text-[12px] text-fg-muted">
                               Run #{j.id} · {pipelineLabel(j.pipeline) ? `${pipelineLabel(j.pipeline)} · ` : ""}

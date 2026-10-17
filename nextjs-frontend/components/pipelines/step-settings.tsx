@@ -167,7 +167,7 @@ export function StepSettings({
                   options={[
                     {
                       value: "",
-                      label: kind === "report" ? "Built-in recording report" : "Choose a template…",
+                      label: kind === "report" ? "Built-in asset report" : "Choose a template…",
                     },
                     ...choices.map((t) => ({
                       value: String(t.id),
@@ -189,7 +189,7 @@ export function StepSettings({
         )}
         {step.type === "llm" && (
           <>
-            <Field label="Output name" hint="Saved on the recording as outputs.<name>; lowercase letters, digits and _">
+            <Field label="Output name" hint="Saved on the asset as outputs.<name>; lowercase letters, digits and _">
               {({ id, describedBy }) => (
                 <Input
                   id={id}
@@ -282,12 +282,14 @@ export function StepSettings({
             with a prompt template.
           </p>
         )}
-        {(step.type === "transcribe" || step.type === "diarize") && (
+        {(step.type === "transcribe" || step.type === "diarize" || step.type === "clean") && (
           <Checkbox
             label={
               step.type === "transcribe"
                 ? "Transcribe again even if the file came with a transcript"
-                : "Find speakers again even if the transcript labelled them"
+                : step.type === "diarize"
+                  ? "Find speakers again even if the transcript labelled them"
+                  : "Clean up even while Settings → Analysis has it off"
             }
             checked={Boolean(step.force)}
             onCheckedChange={(v) => set({ force: v || undefined })}
@@ -329,7 +331,7 @@ export function StepSettings({
                   options={[
                     { value: "", label: "Any" },
                     { value: "audio", label: "Audio or video" },
-                    { value: "transcript", label: "Imported transcript" },
+                    { value: "transcript", label: "Imported text" },
                   ]}
                 />
               )}

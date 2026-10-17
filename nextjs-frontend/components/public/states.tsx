@@ -19,7 +19,7 @@ export function Unavailable({ what, signedIn }: { what: "recording" | "collectio
     <Centered>
       <EmptyState
         icon={<FileQuestion />}
-        title={`This ${what} isn’t available`}
+        title={`This ${what === "recording" ? "asset" : what} isn’t available`}
         actions={
           <>
             {!signedIn && (

@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 import { findSettings, hitHref, SETTINGS_GROUPS } from "@/components/settings/find";
-import { SECTIONS } from "@/components/settings/model";
+import { fieldId, fieldsOf, SECTIONS } from "@/components/settings/model";
 import { SettingsShell } from "@/components/settings/settings-shell";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -50,7 +50,7 @@ describe("settings groups", () => {
     expect(screen.getByText("AI and search")).toBeInTheDocument();
     expect(screen.getByText("System")).toBeInTheDocument();
     const links = screen.getAllByRole("link").map((a) => a.textContent);
-    expect(links.indexOf("LLM provider")).toBe(links.indexOf("Speakers") + 1);
+    expect(links.indexOf("LLM provider")).toBe(links.indexOf("People") + 1);
     expect(links).toHaveLength(SECTIONS.length + 1);
   });
 });
@@ -74,7 +74,24 @@ describe("finding a setting", () => {
     expect(hits.some((h) => h.section === "transcription" && h.fields.some((f) => f.key === "engine"))).toBe(true);
   });
 
-  it("finds only Speakers for people who aren't admins", () => {
+  it("finds the stream automations follow in Automations, under System", () => {
+    const hits = findSettings("activities", true);
+    const auto = hits.find((h) => h.section === "automations")!;
+    expect(auto.group).toBe("System");
+    expect(fieldsOf("automations").map((f) => fieldId(f))).toEqual([
+      "automations.enabled",
+      "automations.max_depth",
+      "automations.max_runs_per_minute",
+      "automations.keep_runs_days",
+      "automations.catch_up",
+      "automations.approval_days",
+      "events.poll_seconds",
+      "events.keep_days",
+    ]);
+    expect(findSettings("missed", true).some((h) => h.section === "automations")).toBe(true);
+  });
+
+  it("finds only People for people who aren't admins", () => {
     expect(findSettings("speak", false).map((h) => h.section)).toEqual(["speakers"]);
     expect(findSettings("telegram", false)).toEqual([]);
   });

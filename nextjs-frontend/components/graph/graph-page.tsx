@@ -280,7 +280,7 @@ export function GraphPage() {
   // an earlier version is for looking: edits go to the graph as it is now
   const onEdit = asOf ? undefined : setEditing;
   return (
-    <div className="grid h-[calc(100dvh-4rem)] grid-cols-1 lg:grid-cols-[250px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)_320px]">
+    <div className="grid h-[calc(100dvh-4rem-var(--lens-banner,0px))] grid-cols-1 lg:grid-cols-[250px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)_320px]">
       <h1 className="sr-only">Graph</h1>
       <aside
         aria-label="Graph filters"
@@ -313,8 +313,8 @@ export function GraphPage() {
         </div>
         {missing && (
           <Banner tone="warning" className="m-3 mb-0" onDismiss={() => setMissing(null)}>
-            That {missing.startsWith("s") ? "speaker" : "entity"} isn’t in this graph. It may have too few links to
-            show, or be hidden.
+            That {missing.startsWith("s") ? "person" : "entity"} isn’t in this graph. It may have too few links to show,
+            or be hidden.
           </Banner>
         )}
         {(!loaded || graph.isLoading) && (
@@ -349,14 +349,14 @@ export function GraphPage() {
                 </Link>
               ) : (
                 <Link href="/import" className="text-[13px] font-bold text-fg-accent hover:underline">
-                  Import recordings or documents
+                  Import assets
                 </Link>
               )
             }
           >
             The graph is built by the Analyze step.
             {waiting > 0
-              ? ` ${plural(waiting, "recording")} ${waiting === 1 ? "is" : "are"} waiting for it`
+              ? ` ${plural(waiting, "asset")} ${waiting === 1 ? "is" : "are"} waiting for it`
               : " Nothing is waiting for it"}
             {analyzing > 0 ? ` — ${analyzing} ${analyzing === 1 ? "is" : "are"} being analyzed now.` : "."}
           </EmptyState>

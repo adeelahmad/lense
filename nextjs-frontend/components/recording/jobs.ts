@@ -295,6 +295,7 @@ export const STEP_ORDER = [
   "objects",
   "nsfw",
   "describe",
+  "clean",
   "analyze",
   "embed",
   "summarize",
@@ -311,15 +312,17 @@ export const STEP_HELP: Record<StepKey, string> = {
   objects: "Find objects (people, cars, animals …) on the sampled frames or pages",
   nsfw: "Flag NSFW pictures on the sampled frames or pages (where the namespace has it on)",
   describe: "Describe each shot or page with a model that can see images (needs one in Settings)",
-  analyze: "Entities, chapters, keywords, talk-time stats",
+  clean:
+    "Tidy the transcript first: fillers, repeated words, spacing and capitals (where it’s on in Settings → Analysis)",
+  analyze: "Entities, chapters, keywords and stats (talk time for audio)",
   embed: "Index passages for search by meaning (needs an embedding model in Settings → Search)",
   summarize: "Summary, topics and action items (needs an LLM)",
-  report: "Recording report",
+  report: "Asset report",
 };
 
 /** Ticking a step also ticks the later steps that use its output. */
 export const DEPENDENTS: Record<StepKey, StepKey[]> = {
-  transcribe: ["diarize", "analyze", "embed", "summarize", "report"],
+  transcribe: ["diarize", "clean", "analyze", "embed", "summarize", "report"],
   diarize: ["analyze", "summarize", "report"],
   shots: ["ocr", "faces", "objects", "nsfw", "describe"],
   ocr: [],
@@ -327,6 +330,7 @@ export const DEPENDENTS: Record<StepKey, StepKey[]> = {
   objects: [],
   nsfw: [],
   describe: ["embed"],
+  clean: ["analyze", "embed", "summarize", "report"],
   analyze: ["report"],
   embed: [],
   summarize: ["report"],
@@ -337,20 +341,20 @@ export type StepOption = { key: StepKey; disabled: string | null };
 
 /**
  * The steps offered for a recording: video steps only for videos (faces, objects, nsfw and describe also for a
- * document's or an image's pages); transcribe/diarize need audio.
+ * document's or an image's pages); transcribe/diarize need audio; clean is for speech, so not for pages.
  */
 export function reprocessOptions(opts: { video: boolean; hasAudio: boolean; paged?: boolean }): StepOption[] {
   const left = opts.video
     ? []
     : opts.paged
-      ? ["shots", "ocr"]
+      ? ["shots", "ocr", "clean"]
       : ["shots", "ocr", "faces", "objects", "nsfw", "describe"];
   return STEP_ORDER.filter((k) => !left.includes(k)).map((key) => {
     let disabled: string | null = null;
     if (!opts.hasAudio && key === "transcribe")
-      disabled = "This recording has no audio: its transcript was imported, so there's nothing to transcribe.";
+      disabled = "This asset has no audio: its text was imported, so there's nothing to transcribe.";
     else if (!opts.hasAudio && key === "diarize")
-      disabled = "Speakers come from the imported transcript; diarizing needs the audio.";
+      disabled = "Speakers come from the imported text's labels; diarizing needs the audio.";
     return { key, disabled };
   });
 }

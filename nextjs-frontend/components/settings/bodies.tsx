@@ -219,7 +219,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
               review={v("speakers.review_threshold") as number}
             />
             <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
-              When valid, the three zones read: <b>new speaker</b> below review · <b>◆ review queue</b> between ·{" "}
+              When valid, the three zones read: <b>new person</b> below review · <b>◆ review queue</b> between ·{" "}
               <b>✓ auto-match</b> at match and above.
             </p>
           </div>
@@ -242,6 +242,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
     case "analysis":
       return (
         <>
+          <F ctx={ctx} id="analysis.cleanup" />
+          {raw("analysis.cleanup") === true && <F ctx={ctx} id="analysis.cleanup_fillers" />}
           <F ctx={ctx} id="analysis.entities" />
           {raw("analysis.entities") === "spacy" && <F ctx={ctx} id="analysis.spacy_model" />}
           <F ctx={ctx} id="analysis.anytopdf" />
@@ -337,6 +339,47 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           </p>
         </>
       );
+    case "sandbox":
+      return (
+        <>
+          <F ctx={ctx} id="sandbox.enabled" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="sandbox.who" />
+            <F ctx={ctx} id="sandbox.network" />
+          </div>
+          <F ctx={ctx} id="sandbox.gateway" />
+          <More
+            ctx={ctx}
+            ids={[
+              "sandbox.image",
+              "sandbox.cpu",
+              "sandbox.memory",
+              "sandbox.seconds",
+              "sandbox.idle_minutes",
+              "sandbox.keep_hours",
+            ]}
+            title="Image, CPU and memory, run time, and how long sandboxes are kept"
+          >
+            <F ctx={ctx} id="sandbox.image" />
+            <div className="grid gap-3 sm:grid-cols-3">
+              <F ctx={ctx} id="sandbox.cpu" />
+              <F ctx={ctx} id="sandbox.memory" />
+              <F ctx={ctx} id="sandbox.seconds" />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <F ctx={ctx} id="sandbox.idle_minutes" />
+              <F ctx={ctx} id="sandbox.keep_hours" />
+            </div>
+          </More>
+          <p className="text-[12.5px] leading-[1.45] text-fg-muted">
+            Each conversation gets a sandbox of its own the first time the assistant runs code in it, and keeps its
+            files between runs. Nothing of Lens’s is inside: the assistant copies in files people attached when it needs
+            them, and a file it makes reaches a namespace only once the person approves. The sandbox runs on an NVIDIA
+            OpenShell gateway (Docker 28 or newer, and a Linux kernel with Landlock). Starting that gateway from here is
+            in progress; until then, point Lens at one you run.
+          </p>
+        </>
+      );
     case "nsfw":
       return (
         <>
@@ -427,8 +470,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
         <>
           <F ctx={ctx} id="auth.passwords" />
           <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
-            People add passkeys in their profile. Someone new, or who lost their passkey, gets a sign-in link from
-            People (or <code className="font-mono text-[12px]">lens users link their@email</code> on the server).
+            People add passkeys in their profile. Someone new, or who lost their passkey, gets a sign-in link from Admin
+            → Members (or <code className="font-mono text-[12px]">lens users link their@email</code> on the server).
           </p>
           <SignInProviders />
         </>
@@ -466,6 +509,28 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
             Each namespace’s owners choose its targets and events on the namespace’s page. Workers send them, so a
             target must be reachable from where the workers run.
+          </p>
+        </>
+      );
+    case "automations":
+      return (
+        <>
+          <F ctx={ctx} id="automations.enabled" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="automations.max_depth" />
+            <F ctx={ctx} id="automations.max_runs_per_minute" />
+            <F ctx={ctx} id="automations.keep_runs_days" />
+          </div>
+          <Sub>The stream of activities</Sub>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="events.poll_seconds" />
+            <F ctx={ctx} id="events.keep_days" />
+            <F ctx={ctx} id="automations.approval_days" />
+            <F ctx={ctx} id="automations.catch_up" />
+          </div>
+          <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+            Agents read the same stream with the timeline tool (MCP and the assistant) or GET /api/v1/activities, and
+            manage automations over /api/v1/automations.
           </p>
         </>
       );
@@ -522,7 +587,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           </More>
           <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
             Uploads arrive in pieces and carry on where they stopped if the connection drops. Finished files are kept in
-            the server’s data folder, under uploads. Transcript files have their own limit, under Access &amp;
+            the server’s data folder, under uploads. Text and document files have their own limit, under Access &amp;
             embedding; watched folders have no limit.
           </p>
         </>
@@ -800,8 +865,8 @@ function TelemetryBody({ ctx }: { ctx: BodyCtx }) {
       <F ctx={ctx} id="telemetry.prices" />
       <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
         What is sent: route templates (never paths or queries), job steps and how they ended, record ids, model names,
-        token counts, durations and estimated cost. Never transcript, prompt or answer text, file names, titles,
-        namespace names, people or addresses. Each worker follows these settings on its own.
+        token counts, durations and estimated cost. Never asset, prompt or answer text, file names, titles, namespace
+        names, people or addresses. Each worker follows these settings on its own.
       </p>
       <div className="flex flex-wrap items-center gap-2.5">
         <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending || !where}>
@@ -1066,8 +1131,8 @@ function EncryptionBody({ ctx }: { ctx: BodyCtx }) {
         </Banner>
       ) : (
         <Banner title={on ? "Files are encrypted on disk." : "Files are kept as they are."}>
-          Encrypted files still play, seek, download and are processed as before. Transcripts, search and the rest of
-          the database aren’t covered; put the data volume on an encrypted disk for those.
+          Encrypted files still play, seek, download and are processed as before. Their text, search and the rest of the
+          database aren’t covered; put the data volume on an encrypted disk for those.
         </Banner>
       )}
       <F ctx={ctx} id="encryption.files" />
@@ -1277,8 +1342,8 @@ function FedoraBody({ ctx }: { ctx: BodyCtx }) {
       </div>
       <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
         Each resource is described with Dublin Core and links back to its Lens address (owl:sameAs). Changes to a
-        recording’s metadata go within a minute; everything is compared on the schedule above, so what analysis changed,
-        new recordings and deletions follow. The workers send it.
+        asset’s metadata go within a minute; everything is compared on the schedule above, so what analysis changed, new
+        assets and deletions follow. The workers send it.
       </p>
       <div className="flex flex-wrap items-center gap-2.5">
         <Button size="sm" icon={<RefreshCw />} onClick={() => sync.mutate()} disabled={sync.isPending || !url}>
@@ -2567,6 +2632,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
           ))}
         </ul>
       </More>
+      <WebSearch ctx={ctx} />
       <More ctx={ctx} ids={LIMITS} title="Approvals, steps, prices and long conversations">
         <div className="grid gap-3 sm:grid-cols-2">
           <F ctx={ctx} id="ai.confirm_over_recordings" />
@@ -2646,6 +2712,69 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
         </div>
       </div>
     </>
+  );
+}
+
+/** Settings › AI assistant › Web search: off until an admin turns it on (DuckDuckGo in one click), then the provider,
+ * its key or address, and how much it reads. */
+function WebSearch({ ctx }: { ctx: BodyCtx }) {
+  const search = ctx.state("web.search");
+  const provider = String(ctx.form["web.search"] ?? "off");
+  const on = provider !== "off";
+  const keyed = provider === "brave" || provider === "tavily";
+  const web = ctx.view.web;
+  const toggle: FieldState = {
+    ...search,
+    value: on,
+    onChange: (v) => search.onChange(v ? "duckduckgo" : "off"),
+  };
+  return (
+    <div className="flex flex-col gap-3">
+      <span className="text-[13px] font-bold leading-tight text-fg-strong">Web search</span>
+      <SettingField
+        spec={{
+          section: "web",
+          key: "search",
+          label: "Let the assistant search the web and read pages",
+          kind: "switch",
+          hint: "For what Lens doesn’t hold; pages are cited like excerpts. Off: nothing leaves this server for it.",
+        }}
+        state={toggle}
+      />
+      {on && (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="web.search" options={ctx.spec("web.search").options?.filter((o) => o.value !== "off")} />
+            <F ctx={ctx} id="web.results" />
+            {provider === "searxng" && <F ctx={ctx} id="web.searxng_url" />}
+          </div>
+          {keyed && (
+            <SecretSetting
+              key={web?.updated_at ?? "none"}
+              label={`${provider === "brave" ? "Brave Search" : "Tavily"} API key`}
+              isSet={Boolean(((web?.values?.api_key ?? {}) as { set?: boolean }).set)}
+              updatedBy={web?.updated_by}
+              updatedAt={web?.updated_at}
+              value={ctx.state("web.api_key").value as string | undefined}
+              onChange={(x) => ctx.state("web.api_key").onChange(x)}
+              hint="Searches past the provider’s free allowance are charged by them; the activity log counts each one."
+            />
+          )}
+          <p className="text-[12.5px] leading-normal text-fg-secondary">
+            {provider === "duckduckgo"
+              ? "DuckDuckGo has no API: Lens reads its results page with ddgs, an unofficial client (about 30 MB, fetched now; Settings › Components shows it) that can stop working when the page changes. SearXNG or a keyed provider is steadier. "
+              : ""}
+            What it searches for goes to the provider, and the pages it reads come straight from their sites, public
+            addresses only. Each search and page is in the activity log. Once an answer has read text from outside Lens,
+            a search or a page you or a tool didn’t give it asks you first.
+          </p>
+          <More ctx={ctx} ids={["web.read_chars", "web.render"]} title="Reading pages">
+            <F ctx={ctx} id="web.read_chars" />
+            <F ctx={ctx} id="web.render" />
+          </More>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -2877,7 +3006,7 @@ function SearchBody({ ctx }: { ctx: BodyCtx }) {
               {!s.configured
                 ? "Search by meaning is off"
                 : s.current
-                  ? `${s.indexed} of ${s.recordings} recordings indexed with ${s.model}`
+                  ? `${s.indexed} of ${s.recordings} assets indexed with ${s.model}`
                   : s.indexed_model
                     ? `Indexed with ${s.indexed_model}; nothing yet with ${s.model}`
                     : `Nothing indexed with ${s.model} yet`}
@@ -2896,8 +3025,8 @@ function SearchBody({ ctx }: { ctx: BodyCtx }) {
           </div>
           <span className="text-[12px] leading-[1.4] text-fg-secondary">
             {s.configured
-              ? `${s.passages} passages${s.dimension ? ` of ${s.dimension} dimensions` : ""}. New recordings are indexed by their pipeline's Index for meaning step; the “${"Index for search by meaning"}” routine catches up every hour (Routines).`
-              : "Turn it on and name a model to start. Recordings are indexed by their pipelines and an hourly routine."}
+              ? `${s.passages} passages${s.dimension ? ` of ${s.dimension} dimensions` : ""}. New assets are indexed by their pipeline's Index for meaning step; the “${"Index for search by meaning"}” routine catches up every hour (Routines).`
+              : "Turn it on and name a model to start. Assets are indexed by their pipelines and an hourly routine."}
             {index.data &&
               ` Queued ${index.data.recordings}${index.data.remaining ? "; more are waiting for the next run" : ""}.`}
           </span>
@@ -3010,11 +3139,7 @@ function IiifBody({ ctx }: { ctx: BodyCtx }) {
           <F ctx={ctx} id="iiif.provider.homepage" label="Homepage" />
           <F ctx={ctx} id="iiif.provider.logo" label="Logo" />
         </div>
-        <F
-          ctx={ctx}
-          id="iiif.layers"
-          hint="Annotation layers are published only when a recording’s transcript is open."
-        />
+        <F ctx={ctx} id="iiif.layers" hint="Annotation layers are published only when an asset’s text is open." />
         <div className="flex flex-col gap-1.5">
           <span className="text-[13px] font-bold leading-tight text-fg-strong">
             External viewers <span className="font-normal text-fg-muted">· “Open in” buttons</span>
@@ -3050,7 +3175,7 @@ function IiifBody({ ctx }: { ctx: BodyCtx }) {
       <div className="flex flex-col gap-2">
         <span className="text-[13px] font-bold leading-tight text-fg-strong">Access per namespace</span>
         <p className="text-[12.5px] text-fg-muted">
-          The default for recordings that don’t set their own. Saved into each namespace’s metadata profile.
+          The default for assets that don’t set their own. Saved into each namespace’s metadata profile.
         </p>
         {!ready ? (
           <Skeleton className="h-24 w-full" />

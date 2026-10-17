@@ -2,10 +2,10 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:f430a4e9bedcf37ca6a5f5e2e782a3e72a9ac674b6dc78ebc91fc152af9e92a4"
+prose_version: "threat-model.md@sha256:45d097d8ee9f65b716fd67657f7b91d03578c3a3c5c8d64d267f0d1648f33bd6"
 model_status: under-review
 triage_policy: strict
-confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
+confidence: {documented: 202, maintainer: 46, inferred: 91, assumption: 8}
 
 generation:
   model: "Claude Opus 5.5 (claude-opus-5-5)"
@@ -47,7 +47,7 @@ components:
   - name: authz
     scope: in
     x-family: "Authorization & data API (AuthZ)"
-    reachability_precondition: "lets a principal read or change more than its role and the recording's access level allow, or open media without a link the server signed for it"
+    reachability_precondition: "lets a principal read or change more than its role and the asset's access level allow, or open media without a link the server signed for it"
     provenance: {kind: documented, source: 'SECURITY.md "What counts"'}
   - name: outbound
     scope: in
@@ -222,6 +222,15 @@ entry_points:
         obligation_id: admin-chooses-providers
         caller_must_enforce: "admin chooses providers"
         provenance: {kind: documented, source: 'docs/authentication.md "when the provider vouches for the email"'}
+  - id: "POST /sources/rclone-signin, /sources/rclone-signin/{id} (signing a source in through rclone)"
+    component: identity
+    parameters:
+      - name: "type, params, address (state, code, error), the token rclone prints"
+        attacker_controllable: true
+        x-condition: "admins start it; while it waits (ten minutes, one at a time) rclone listens on 127.0.0.1:53682 on the server, so anything running there can reach it, and the pasted address is passed on only to that port with only its state, code and error, when the state is this sign-in's"
+        control_kinds: [data, x-collaborator-data]
+        caller_must_enforce: "the person pastes only the address their own sign-in ended on; the host keeps 127.0.0.1:53682 to itself"
+        provenance: {kind: documented, source: 'docs/processing.md "Lens passes only that address''s state, code and"'}
   - id: "/mcp"
     component: identity
     parameters:
@@ -312,7 +321,7 @@ entry_points:
         control_kinds: [data, type-class, size]
         caller_must_enforce: "none — P-UPLOAD"
         provenance: {kind: documented, source: 'docs/configuration.md "Uploads accept only the types"'}
-  - id: "watched folders, storage sources, IMAP, iCal"
+  - id: "watched folders, storage sources, IMAP, Gmail, iCal"
     component: outbound
     parameters:
       - name: "remote file names, bytes, mail, events"
@@ -322,6 +331,26 @@ entry_points:
         obligation_id: admin-creates-sources
         caller_must_enforce: "admin creates sources"
         provenance: {kind: inferred, question_id: Q17}
+  - id: "Google Calendar sources"
+    component: outbound
+    parameters:
+      - name: "service account key file or connected account's refresh token, calendar ids, impersonate; the events Google returns"
+        attacker_controllable: true
+        x-condition: "key and token: admins only, sealed and write-only; events: anyone who can invite the account to an event or edit a calendar it reads"
+        control_kinds: [data, x-credential, x-prompt-injection, size]
+        obligation_id: admin-creates-sources
+        caller_must_enforce: "admin creates sources; read-only calendar.readonly scope; Google's own token endpoint and API address (a key file's token_uri is ignored); event text escaped into its .ics without control characters"
+        provenance: {kind: documented, source: 'docs/processing.md "The token endpoint is always Google''s own"'}
+  - id: "Connect with Google"
+    component: outbound
+    parameters:
+      - name: "OAuth client id and secret; on the way back state, code and the email in Google's id token"
+        attacker_controllable: true
+        x-condition: "client: admins only; state and code: anyone who can send the admin a link"
+        control_kinds: [data, x-credential, x-collaborator-data]
+        obligation_id: admin-creates-sources
+        caller_must_enforce: "admin only, from the web app (API tokens refused), still an admin on return; single-use hashed state bound to the starting browser (cookie), 10 minutes, PKCE S256; client secret sealed on the flow, refresh token on the source; kept only when the source's scope was granted (read only, but all of Gmail over IMAP, all of Drive for Drive set to full access); Drive keeps its client's secret sealed too; returns only to the starting web origin"
+        provenance: {kind: documented, source: 'docs/processing.md "the consent itself is a person''s"'}
   - id: "POST /imports/web, extension http tools, notification targets"
     component: outbound
     parameters:
@@ -331,7 +360,16 @@ entry_points:
         control_kinds: [resource-name, x-network-destination]
         caller_must_enforce: "none — P-SSRF-GUARD"
         provenance: {kind: maintainer, date: "2026-10"}
-  - id: "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, iCal, MQTT bridge, OIDC issuer)"
+  - id: "the assistant's web_search and web_read"
+    component: assistant
+    parameters:
+      - name: "a search query and a page address, both chosen by the model; the results and pages that come back"
+        attacker_controllable: true
+        x-condition: "off until an admin picks a provider (web.search); anyone who may use the assistant, and indirectly whatever it read, through the model; results and pages: whoever runs the site"
+        control_kinds: [resource-name, x-network-destination, x-prompt-injection, size]
+        caller_must_enforce: "none — queries go only to the admin's provider; pages are fetched through netguard like web import, 10 MB at most (P-SSRF-GUARD); once the answer has read outside text, a query or address neither the person nor a tool gave it asks first (P-INJECTION-EGRESS); results and pages reach the model marked as data; the ledger keeps the provider or host, never the query or page"
+        provenance: {kind: documented, source: 'docs/assistant.md "a search or a page read sends words out of Lens"'}
+  - id: "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer, web search)"
     component: outbound
     parameters:
       - name: "URL, credentials, api_key_env"
@@ -357,7 +395,7 @@ entry_points:
         attacker_controllable: true
         x-condition: "also indirectly through content"
         control_kinds: [data, x-prompt-injection]
-        caller_must_enforce: "none — P-RETRIEVAL"
+        caller_must_enforce: "none — P-RETRIEVAL; what people say to Lens reaches automations as outside text (chat.message, lens.untrusted)"
         provenance: {kind: documented, source: 'docs/assistant.md "limited to what the person can read"'}
   - id: "Lens extension side panel"
     component: assistant
@@ -378,6 +416,16 @@ entry_points:
         obligation_id: enable-only-trusted-extensions
         caller_must_enforce: "person enables only extensions they trust"
         provenance: {kind: documented, source: 'docs/assistant.md "other people''s run only when an admin shared them"'}
+  - id: "MCP servers: POST /extensions/mcp/read and /mcp/test, saving an extension of kind mcp, PATCH /extensions/{id}/tools"
+    component: assistant
+    parameters:
+      - name: "config text (JSON or YAML), a server's address and headers, or a command, its arguments and env; a tool name and its switches"
+        attacker_controllable: false
+        x-condition: "admins only, except reading a config, which any signed-in person may and which reaches nothing"
+        control_kinds: [data, x-network-destination, x-credential, callback-code]
+        obligation_id: admin-is-trusted
+        caller_must_enforce: "admin is trusted with the address and the command; reading a config parses text only; a command runs only in the MCP runner; credential values are sealed to the extension and where they go and shown as ••••; a tool switched off isn't offered, and every MCP tool asks first after outside text"
+        provenance: {kind: documented, source: 'docs/assistant.md "Adding an MCP server"'}
   - id: "Python code tools, shipped and admin-created templates, workflows, pipelines, routines"
     component: assistant
     parameters:
@@ -388,15 +436,35 @@ entry_points:
         obligation_id: admin-is-trusted
         caller_must_enforce: "admin is trusted"
         provenance: {kind: maintainer, date: "2026-10"}
+  - id: "POST /automations/hooks/{token} (an automation's webhook)"
+    component: optional
+    parameters:
+      - name: "body (JSON, a form's text fields or text), query, Standard Webhooks headers, token in the path"
+        attacker_controllable: true
+        x-condition: "anyone given the address, once an automation with a webhook trigger is saved"
+        control_kinds: [data, size, rate, x-credential, x-prompt-injection]
+        obligation_id: keep-hook-addresses-secret
+        caller_must_enforce: "the person keeps the address and secret to the services that call it; Lens keeps the token hashed, caps size and rate, checks signatures sent, and treats what was sent as outside text"
+        provenance: {kind: documented, source: 'docs/automations.md "No webhook exists until an automation with such a trigger is saved"'}
+  - id: "automations' params and prompts, POST /automations/preview and /automations/variables"
+    component: optional
+    parameters:
+      - name: "template text, a draft automation, an activity id"
+        attacker_controllable: true
+        x-condition: "anyone signed in (preview, the picker); the editors who manage an automation (its params)"
+        control_kinds: [callback-code, data, x-prompt-injection]
+        obligation_id: sandbox-automation-templates
+        caller_must_enforce: "Lens renders them in the Jinja sandbox (2 MB of output, guarded * and **; Q23); previews read only activities, namespaces and automations the person may see, and prompts mark outside text as data"
+        provenance: {kind: documented, source: 'docs/automations.md "The variable picker and preview"'}
   - id: "MQTT 1883, syslog 5514, POST /sensors/push/{token}/{stream}"
     component: optional
     parameters:
       - name: "payloads, hub logins, token in the path"
         attacker_controllable: true
         x-condition: "once enabled"
-        control_kinds: [data, size, rate, x-credential]
+        control_kinds: [data, size, rate, x-credential, x-prompt-injection]
         obligation_id: enable-and-firewall-sensors
-        caller_must_enforce: "admin enables; operator firewalls"
+        caller_must_enforce: "admin enables; operator firewalls; readings, alert patterns and new devices reach automations as outside text (lens.untrusted)"
         provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
   - id: "NFS share (port 12049 on the host, 2049 in the worker)"
     component: optional
@@ -474,6 +542,24 @@ entry_points:
         control_kinds: [data, x-prompt-injection]
         caller_must_enforce: "none — the curate permission in each namespace touched and a write-capable principal (the web app's own route functions); the assistant's changes wait for the person's approval; merges and deletes are kept to undo, and audited"
         provenance: {kind: documented, source: 'docs/mcp.md "curate entities and topics as an editor does"'}
+  - id: "automations"
+    component: assistant
+    parameters:
+      - name: "/api/v1/automations (save, try, run now, decide, draft from a sentence), the MCP and assistant automation tools: triggers, where and If match trees, the event workflow graph (action params are Jinja templates), policy, limits, an activity id; the text of the activities an automation runs on"
+        attacker_controllable: true
+        x-condition: "any editor, for automations in namespaces they edit; indirectly through activity text (mail, titles, chat) that reaches action params"
+        control_kinds: [callback/code, data, x-prompt-injection]
+        caller_must_enforce: "none — it runs as its maker with their permissions at run time (P-AUTOMATION-ACTOR); actions reaching outside Lens ask first; outside text marks intents untrusted and breaks up links (P-INJECTION-EGRESS); chains and bursts are bounded (P-AUTOMATION-LOOP)"
+        provenance: {kind: documented, source: 'docs/automations.md "Running automations"'}
+  - id: "code sandbox"
+    component: assistant
+    parameters:
+      - name: "assistant run_python, run_bash, sandbox_files and import_sandbox_file: code the model writes, attachment ids, a path in the sandbox; sandbox.* settings (admins)"
+        attacker_controllable: true
+        x-condition: "the people sandbox.who names (editors and admins by default); indirectly through content the model reads"
+        control_kinds: [callback/code, data, x-prompt-injection]
+        caller_must_enforce: "none — off by default; the code runs in the conversation's own OpenShell sandbox with none of Lens's data or keys and no network unless sandbox.network allows it (P-SANDBOX); with the network on, a run after outside text asks first (P-INJECTION-EGRESS); files in only from the person's attachments, out only through an approved import"
+        provenance: {kind: documented, source: 'docs/assistant.md "Code sandbox"'}
   - id: "microsandbox program requests"
     component: authz
     parameters:
@@ -535,7 +621,7 @@ contract_dimensions:
   - {component: authz, dimension: x-reference-lifecycle-share-report-links, status: unresolved, conditions: "share and report links after the creator loses a role; after a move", question_id: Q10, provenance: {kind: inferred, question_id: Q10}}
   - {component: authz, dimension: concurrency-reentrancy, status: unresolved, conditions: "roles load per request; caches key on the readable set", question_id: Q8, provenance: {kind: inferred, question_id: Q8}}
   - {component: authz, dimension: resource-complexity, status: disclaimed, property_id: N-VOLUME, conditions: "no rate limit on read APIs", provenance: {kind: documented, source: 'SECURITY.md "denial of service by sheer volume"'}}
-  - {component: authz, dimension: x-access-parts, status: claimed, property_id: P-ACCESS-PARTS, conditions: "access levels, open parts, description", x-routes-to: "P-ACCESS-PARTS, N-PUBLIC", provenance: {kind: documented, source: 'docs/access.md "the parts of a public recording anyone may use"'}}
+  - {component: authz, dimension: x-access-parts, status: claimed, property_id: P-ACCESS-PARTS, conditions: "access levels, open parts, description", x-routes-to: "P-ACCESS-PARTS, N-PUBLIC", provenance: {kind: documented, source: 'docs/access.md "the parts of a public asset anyone may use"'}}
   - {component: authz, dimension: x-client-address-compose, status: claimed, property_id: P-IPGROUP, conditions: "both compose files trust the web app container, so each visitor gets their own address", x-routes-to: "P-IPGROUP, P-THROTTLE", provenance: {kind: documented, source: 'docs/deployment.md "so each visitor gets their own"'}}
   - {component: authz, dimension: x-client-address-other-variants, status: unresolved, conditions: "web app alone, installers, NAS, Proxmox without a reverse proxy setting X-Forwarded-For", question_id: Q2, provenance: {kind: inferred, question_id: Q2}}
   - {component: authz, dimension: x-share-scope, status: unresolved, conditions: "?s= share tokens open the audio, video, frames and page API routes", question_id: Q7, provenance: {kind: inferred, question_id: Q7}}
@@ -543,7 +629,7 @@ contract_dimensions:
   - {component: outbound, dimension: numeric-domain, status: claimed, property_id: P-SSRF-GUARD, conditions: "web paths and iCal: ports 80 and 443", x-routes-to: "P-SSRF-GUARD, P-ADMIN-GUARD", provenance: {kind: documented, source: 'docs/api.md "Only public addresses are reached, on ports 80 and 443"'}}
   - {component: outbound, dimension: x-numeric-domain-notification-ports, status: unresolved, conditions: "notification targets may use any port; the guard checks addresses only", question_id: Q15, provenance: {kind: inferred, question_id: Q15}}
   - {component: outbound, dimension: failure-atomicity, status: claimed, property_id: P-NOTIFY, conditions: "each notification event claimed once across processes, then retried", provenance: {kind: documented, source: 'docs/notifications.md "claimed once"'}}
-  - {component: outbound, dimension: recursive-cyclic-topology, status: claimed, property_id: P-SSRF-GUARD, conditions: "redirects: http and https only, each hop re-checked; credentials never follow a redirect to another server; notifications follow none", x-routes-to: "P-SSRF-GUARD, P-SECRETS", provenance: {kind: documented, source: 'docs/processing.md "never sent on to another server"'}}
+  - {component: outbound, dimension: recursive-cyclic-topology, status: claimed, property_id: P-SSRF-GUARD, conditions: "redirects: http and https only, each hop re-checked; credentials never follow a redirect to another server; notifications and an automation's http_request follow none", x-routes-to: "P-SSRF-GUARD, P-SECRETS", provenance: {kind: documented, source: 'docs/processing.md "never sent on to another server"'}}
   - {component: outbound, dimension: callback-execution, status: disclaimed, property_id: N-CHROMIUM, conditions: "Chromium may lack its sandbox; the proxy is the barrier", provenance: {kind: documented, source: 'docs/deployment.md "what stops a page is Lens''s proxy"'}}
   - {component: outbound, dimension: serialization-reconstruction, status: claimed, property_id: P-SECRETS, conditions: "sealed secrets are write-only through the API", provenance: {kind: documented, source: 'docs/configuration.md "the API reports whether one is set, never its value"'}}
   - {component: outbound, dimension: x-admin-operand-guards, status: claimed, property_id: P-ADMIN-GUARD, conditions: "iCal public-address guard; telemetry endpoint without user:password or link-local address", provenance: {kind: documented, source: 'docs/processing.md "fetched the way web pages are captured"'}}
@@ -606,7 +692,7 @@ contract_dimensions:
 # ---------------------------------------------------------------- §1.8
 outputs:
   - component: authz
-    channel: "JSON API responses (titles, transcripts, notes, metadata)"
+    channel: "JSON API responses (titles, assets' text, notes, metadata)"
     taint: same-as-input
     x-taint-note: "as typed by people or produced by ASR/OCR; search snippet is HTML-escaped with <mark>"
     taint_provenance: {kind: documented, source: 'docs/api.md "an HTML-escaped `snippet`"'}
@@ -657,7 +743,7 @@ outputs:
   - component: authz
     channel: "Report pages (api/pages.py)"
     taint: same-as-input
-    x-taint-note: "links re-signed on read for every recording of the namespace in the page"
+    x-taint-note: "links re-signed on read for every asset of the namespace in the page"
     taint_provenance: {kind: inferred, question_id: Q10}
     invariants: []
     downstream_must_not_assume:
@@ -678,7 +764,7 @@ outputs:
     invariants:
       - {id: inv-mcp-person-reads, statement: "results contain only what the person can read", property_id: P-RETRIEVAL, provenance: {kind: documented, source: 'docs/mcp.md "sees exactly what that person sees"'}}
     downstream_must_not_assume:
-      - {id: dmna-mcp-text-as-instructions, statement: "that transcript text is safe to follow as instructions", provenance: {kind: documented, source: 'docs/mcp.md "sees exactly what that person sees"'}}
+      - {id: dmna-mcp-text-as-instructions, statement: "that an asset's text is safe to follow as instructions", provenance: {kind: documented, source: 'docs/mcp.md "sees exactly what that person sees"'}}
   - component: outbound
     channel: "Error text from remote servers (LLM, speech, rclone, IMAP callers)"
     taint: same-as-input
@@ -744,7 +830,7 @@ outputs:
     invariants:
       - {id: inv-share-uniform-410, statement: "a dead link answers the same 410 whatever went wrong", property_id: P-SHARE, provenance: {kind: documented, source: 'docs/authentication.md "the same whatever went wrong"'}}
     downstream_must_not_assume:
-      - {id: dmna-410-meaningful, statement: "that a 410 says anything about the recording", provenance: {kind: documented, source: 'docs/authentication.md "the same whatever went wrong"'}}
+      - {id: dmna-410-meaningful, statement: "that a 410 says anything about the asset", provenance: {kind: documented, source: 'docs/authentication.md "the same whatever went wrong"'}}
 
 # ---------------------------------------------------------------- §1.10
 adversaries:
@@ -1199,26 +1285,26 @@ properties_claimed:
     kind: confidentiality
     components: [authz]
     tier: security-critical
-    conditions: "a principal with no role in a namespace and no grant for a recording cannot read or change anything in it, except what the recording's access level opens to anyone (P-ACCESS-PARTS); the namespace and its recordings answer 404; grants for one recording open only that recording's visitor pages and IIIF"
+    conditions: "a principal with no role in a namespace and no grant for an asset cannot read or change anything in it, except what the asset's access level opens to anyone (P-ACCESS-PARTS); the namespace and its assets answer 404; grants for one asset open only that asset's visitor pages and IIIF"
     violation_symptoms: [info-leak, integrity-bypass]
-    x-voided-by: "admins own every namespace (domain/auth.py:356-357, api/deps.py:160); share or signed link grants viewer on one recording (api/deps.py:252); collection role adds to namespace role (api/deps.py:183); visitor-address trust (api/deps.py:339-346); checks are per handler, no central policy (Q8)"
+    x-voided-by: "admins own every namespace (domain/auth.py:356-357, api/deps.py:160); share or signed link grants viewer on one asset (api/deps.py:252); collection role adds to namespace role (api/deps.py:183); visitor-address trust (api/deps.py:339-346); checks are per handler, no central policy (Q8)"
     provenance: {kind: documented, source: 'SECURITY.md "reading or changing anything in a namespace you have no role in"'}
   - id: P-ACCESS-PARTS
     kind: confidentiality
     components: [authz]
     tier: security-critical
     x-tier-question: Q37
-    conditions: "a closed part of a public recording, and any restricted or private recording, opens only for a role, permission, IP group or link; a closed transcript's text stays out of search and downloads; only owners change access and open parts"
+    conditions: "a closed part of a public asset, and any restricted or private asset, opens only for a role, permission, IP group or link; a closed text part stays out of search and downloads; only owners change access and open parts"
     violation_symptoms: [info-leak]
-    x-voided-by: "an owner opening parts or making a recording public; a moved recording keeps its old access"
-    provenance: {kind: documented, source: 'docs/access.md "the parts of a public recording anyone may use"'}
+    x-voided-by: "an owner opening parts or making an asset public; a moved asset keeps its old access"
+    provenance: {kind: documented, source: 'docs/access.md "the parts of a public asset anyone may use"'}
   - id: P-ROLE
     kind: integrity
     components: [authz]
     tier: security-critical
-    conditions: "a principal does no more than its role allows; writes need a write-capable principal and a role with the permission the route names (or editor or owner where a route still asks for a rank); publishing and access changes need the publish permission, through every API path; a custom role counts as the largest built-in role it covers and never does more than its permissions"
+    conditions: "a principal does no more than its role allows; writes need a write-capable principal and a role with the permission the route names (or editor or owner where a route still asks for a rank); publishing and access changes need the publish permission, through every API path; a custom role counts as the largest built-in role it covers and never does more than its permissions; an API key made for one namespace authenticates only on that namespace's own MCP server and chat completions, with its maker's role there"
     violation_symptoms: [integrity-bypass]
-    x-voided-by: "session tokens can write; API and app tokens need write scope (api/deps.py:59-60); admins own everything (domain/auth.py:357); collection admin is owner of its recordings (api/deps.py:183); admin's app token keeps namespace roles (api/deps.py:96) but not admin routes (api/deps.py:124-125)"
+    x-voided-by: "session tokens can write; API and app tokens need write scope (api/deps.py:59-60); admins own everything (domain/auth.py:357); collection admin is owner of its assets (api/deps.py:183); admin's app token keeps namespace roles (api/deps.py:96) but not admin routes (api/deps.py:124-125)"
     provenance: {kind: documented, source: 'SECURITY.md "doing more than your role allows"'}
   - id: P-ROLE-GRANT
     kind: authorization
@@ -1242,16 +1328,16 @@ properties_claimed:
     tier: security-critical
     conditions: "media, frames, documents and reports open without a session only through a link the server signed for that path, or a live share link; text people or models write is never signed"
     violation_symptoms: [info-leak]
-    x-voided-by: "knowing ACCESS_SECRET_KEY signs any path (core/security.py:43); dev compose key (docker-compose.yml:24); lifetime MEDIA_URL_EXPIRE_SECONDS (config.py:30); report pages sign every recording of the namespace (api/pages.py:140-141); signing limited to allow-listed fields (api/media.py:25-30)"
+    x-voided-by: "knowing ACCESS_SECRET_KEY signs any path (core/security.py:43); dev compose key (docker-compose.yml:24); lifetime MEDIA_URL_EXPIRE_SECONDS (config.py:30); report pages sign every asset of the namespace (api/pages.py:140-141); signing limited to allow-listed fields (api/media.py:25-30)"
     provenance: {kind: documented, source: 'docs/architecture.md "is never signed"'}
   - id: P-SHARE
     kind: integrity
     components: [authz]
     tier: security-critical
-    conditions: "a share link opens one recording, read-only; it expires and can be revoked; only hashes are stored; a dead link answers the same 410 whatever went wrong"
+    conditions: "a share link opens one asset, read-only; it expires and can be revoked; only hashes are stored; a dead link answers the same 410 whatever went wrong"
     violation_symptoms: [integrity-bypass]
-    x-voided-by: "liveness plus recording match only (domain/auth.py:441-444); ?s= routes (api/deps.py:252, Q7)"
-    provenance: {kind: documented, source: 'docs/authentication.md "give read-only access to one recording''s player and embed"'}
+    x-voided-by: "liveness plus asset match only (domain/auth.py:441-444); ?s= routes (api/deps.py:252, Q7)"
+    provenance: {kind: documented, source: 'docs/authentication.md "give read-only access to one asset''s player and embed"'}
   - id: P-AUTH-REQ
     kind: authentication
     components: [web, identity]
@@ -1314,7 +1400,7 @@ properties_claimed:
     kind: authentication
     components: [identity]
     tier: security-critical
-    conditions: "PKCE (S256) required; redirects must match a registered URI; addresses with a user name or backslash refused; the consent page cannot be framed; app tokens act as the person and never administer; /mcp refuses a token issued for another server, caps bodies at 1 MB and batches at 20"
+    conditions: "PKCE (S256) required; redirects must match a registered URI; addresses with a user name or backslash refused; the consent page cannot be framed; app tokens act as the person and never administer; /mcp refuses a token issued for another server, caps bodies at 1 MB and batches at 20; a namespace's own MCP server (/mcp/<namespace>) sees that namespace alone, and a token issued for it opens nothing else"
     violation_symptoms: [integrity-bypass]
     x-voided-by: "tokens.oauth_enabled off (domain/oauth.py:54); loopback redirects may change the port (domain/oauth.py:114); tokens naming no server pass /mcp (api/mcp.py:228-229, Q13)"
     provenance: {kind: documented, source: 'docs/authentication.md "PKCE is required"'}
@@ -1372,15 +1458,15 @@ properties_claimed:
     kind: confidentiality
     components: [outbound]
     tier: security-critical
-    conditions: "stored secrets (source credentials, notification secrets, model API keys, iCal addresses) are encrypted and write-only; the API reports whether one is set, never its value; a key from the environment is never shown; they do not leak through the API, logs, exports, or a redirect to another server"
+    conditions: "stored secrets (source credentials, notification secrets, model API keys, iCal addresses, an automation's credential headers, sealed to that automation and the address they were saved for, an MCP server's credential headers and env values, sealed to its extension and the address or command they were saved for) are encrypted and write-only; the API reports whether one is set, never its value; a key from the environment is never shown; they do not leak through the API, logs, exports, or a redirect to another server"
     violation_symptoms: [info-leak]
-    x-voided-by: "secret.key or ARCHIVE_SECRET_KEY holders (domain/settings.py:196-199, Q14); an admin moving a model URL sends the key there (domain/llm.py:30-32, trusted); LLM errors name the URL as typed (domain/llm.py:41, Q18)"
+    x-voided-by: "secret.key or ARCHIVE_SECRET_KEY holders (domain/settings.py:196-199, Q14); an admin moving a model URL sends the key there (domain/llm.py:30-32, trusted); LLM errors name the URL as typed (domain/llm.py:41, Q18); an MCP server's values whose names don't say they carry a credential, and a secret written into its address or arguments, are kept as given (domain/mcp_servers.py)"
     provenance: {kind: documented, source: 'SECURITY.md "stored credentials for sources and model servers leaking"'}
   - id: P-SSRF-GUARD
     kind: confidentiality
     components: [outbound, assistant]
     tier: security-critical
-    conditions: "URLs a non-admin sets (web import and extension http tools by editors; notification targets by owners) reach public addresses only, or networks the operator listed; web paths use ports 80 and 443, follow redirects only to http and https, re-check every redirect and sub-request, and connect to the checked address"
+    conditions: "URLs a non-admin sets (web import and extension http tools by editors; notification targets by owners; an automation's http_request by its person, within the notification networks; the page addresses the assistant's web_read reads, which the model picks for whoever uses the assistant) reach public addresses only, or networks the operator listed; web paths use ports 80 and 443, follow redirects only to http and https, re-check every redirect and sub-request, and connect to the checked address; an automation's http_request follows no redirect, takes 10 seconds and reads 64 KB at most, asks first unless the person set its node to run on its own, and passes the answer on as outside text"
     violation_symptoms: [info-leak]
     x-voided-by: "operator networks (domain/store.py:475-476, domain/netguard.py:40-41); admin notification networks (domain/notify.py:286-288); Chromium without sandbox (domain/convert.py:273)"
     provenance: {kind: maintainer, date: "2026-10"}
@@ -1415,7 +1501,7 @@ properties_claimed:
     components: [assistant, authz]
     tier: security-critical
     x-tier-detail: "security-critical (scope); correctness-only (caps)"
-    conditions: "chat, assistant tools and MCP return only what the person can read, within the conversation's scope, and the tool loop stops at ai.max_steps and ai.max_transcript_reads"
+    conditions: "chat, assistant tools and MCP return only what the person can read, within the conversation's scope, and the tool loop stops at ai.max_steps and ai.max_transcript_reads; a namespace's chat completions answer from that namespace alone, with only the read tools its owners offered"
     violation_symptoms: [info-leak, hang]
     x-voided-by: "admins read everything; an admin setup conversation adds server tools and the act flag (domain/ai_tools.py:287-289); ai.extensions: false turns extensions off"
     provenance: {kind: documented, source: 'docs/assistant.md "limited to what the person can read"'}
@@ -1427,11 +1513,19 @@ properties_claimed:
     violation_symptoms: [integrity-bypass]
     x-voided-by: "admins read everything; an admin setup conversation adds server tools and the act flag (domain/ai_tools.py:287-289); ai.extensions: false turns extensions off"
     provenance: {kind: documented, source: 'docs/assistant.md "Approvals"'}
+  - id: P-AUTOMATION-APPROVAL
+    kind: integrity
+    components: [assistant]
+    tier: security-critical
+    conditions: "an automation's action that asks first waits as an approval of the automation's person and nothing runs until they pick; approving, editing or always need them signed in, or (approving an action inside Lens) a yes in the private chat they were told in, from someone the channel lets approve, while it is the only one waiting there or named by number (API keys, apps, MCP and the assistant only list and decline); a decision is claimed once; at most 100 wait per automation, each tells the person once, and undecided ones expire after automations.approval_days"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "the person setting a node to auto (always, or the builder's toggle); an admin raising automations.approval_days; the summary and the message told hold outside text, with links broken up (P-INJECTION-EGRESS)"
+    provenance: {kind: documented, source: 'docs/automations.md "Approvals"'}
   - id: P-INJECTION-EGRESS
     kind: confidentiality
     components: [assistant]
     tier: correctness-only
-    conditions: "Once an assistant answer has read text from outside Lens (a tool result other than Lens's own, the page it was asked from, a namespace assistant's memories, a message in a chat room with no bridge.users, or an earlier answer in the conversation that read any of these), tools that could carry it out of Lens (the person's own read web tools, other servers' MCP tools, Python tools with the network) and an admin setup conversation's own changes wait for the person's approval. A chat room's answer keeps a web address linkable only when the person, the archive, a tool or Lens wrote it. A bypass is VALID-HARDENING (Q26)."
+    conditions: "Once an assistant answer has read text from outside Lens (a tool result other than Lens's own, the page it was asked from, a namespace assistant's memories, a message in a chat room with no bridge.users, or an earlier answer in the conversation that read any of these), tools that could carry it out of Lens (the person's own read web tools, a web search or page read neither the person nor a tool gave it, other servers' MCP tools, Python tools with the network) and an admin setup conversation's own changes wait for the person's approval. A chat room's answer keeps a web address linkable only when the person, the archive, a tool or Lens wrote it. A bypass is VALID-HARDENING (Q26). An automation's model and agent actions (ask_model, call_tool, ask_agent) run with nobody reading along: the activity and earlier steps reach the model marked as data, every change they would make (notes included) is an approval of the automation's person, and anything that could carry data out of Lens asks first whatever the run read (docs/automations.md \"The model and the agent\"). A saved variable a run set from outside text stays marked as data in later runs' prompts, and an action whose params read it counts as reading outside text (docs/automations.md \"Saved variables\")."
     violation_symptoms: [info-leak]
     x-voided-by: "ai.untrusted_asks: false (domain/ai_tools.py:519); bridge.safe_links: false (domain/bridge.py:298); notes and memories are written at once; hooks run as their owners set them (P-EXT-SCOPE); an address the read text wrote itself stays linkable in a room; the person's browser asks first as P-BROWSER-GUARD says"
     provenance: {kind: documented, source: 'docs/assistant.md "it read out of Lens waits for your approval"'}
@@ -1598,6 +1692,22 @@ properties_claimed:
     violation_symptoms: [hang]
     x-voided-by: "none identified (not required for this symptom; no exhaustive search)"
     provenance: {kind: documented, source: 'domain/flow.py docstring "Graphs never loop back"'}
+  - id: P-AUTOMATION-ACTOR
+    kind: integrity
+    components: [assistant, authz]
+    tier: security-critical
+    conditions: "an automation acts only for its maker (run_as), with their permissions when it runs, in namespaces they edit, on activities they may see published after it was switched on; a maker who lost access fails its next run and switches it off; actions reaching outside Lens or other people ask first unless the person, signed in to the web app, set the node to auto (API keys, apps, agents and drafts cannot); the assistant saves automations switched off, and switching one on or running one waits for the person's approval"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "an admin manages every automation and can run one now on any activity in its namespaces its person may see (api/v1/routes/automations.py); a node set to auto acts on outside text without asking (P-INJECTION-EGRESS still applies)"
+    provenance: {kind: documented, source: 'docs/automations.md "Running automations"'}
+  - id: P-AUTOMATION-LOOP
+    kind: correctness
+    components: [assistant]
+    tier: correctness-only
+    conditions: "activities an automation made start another only with from_automations; a chain stops at automations.max_depth runs (3); each automation has a cooldown and a most runs an hour (60) under a most runs a minute for all (60); a run over a limit does nothing, is counted and logged at most hourly"
+    violation_symptoms: [x-cap-exceeded]
+    x-voided-by: "fixed hour and minute windows let up to twice a limit run across the turn of one; an admin can raise max_depth to 10 and max_runs_per_minute to 6000"
+    provenance: {kind: documented, source: 'docs/automations.md "Running automations"'}
   - id: P-BROWSER
     kind: integrity
     components: [assistant]
@@ -1614,6 +1724,14 @@ properties_claimed:
     violation_symptoms: [integrity-bypass]
     x-voided-by: "the consequential check is the model's flag plus a word list (extensions/browser/src/core/act.js): an unlabelled control a misled model doesn't mark runs without asking; removing a site keeps the browser's access for the clipper; Lens sends the ask (confirm) and an extension older than this doesn't honour it"
     provenance: {kind: documented, source: 'docs/browser-assistant.md "Letting it use your browser"'}
+  - id: P-SANDBOX
+    kind: integrity
+    components: [assistant]
+    tier: security-critical
+    conditions: "code the assistant runs (sandbox.enabled, off by default) runs only for people sandbox.who allows, in its conversation's own OpenShell sandbox, never in Lens's processes; the sandbox gets none of Lens's data, keys or database address, only the code and files the person attached to that conversation (25 MB each, 100 MB a run); egress: none (off), PyPI and npm on 443 (packages) or public addresses on 80 and 443 (web); a file leaves only as the person's held upload placed by an import_files approval; stopped after idle_minutes, deleted after keep_hours or with its conversation"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "isolation inside the sandbox is OpenShell's; landlock best_effort runs without Landlock where the kernel lacks it (domain/sandbox.py); whoever reaches the gateway can run sandboxes of their own; what the code prints is third-party text (N-PROMPT)"
+    provenance: {kind: documented, source: 'docs/assistant.md "Code sandbox"'}
   - id: MX-AUTHZ-LIST-CAPS
     kind: resource-bound
     components: [authz]
@@ -1634,14 +1752,14 @@ properties_claimed:
 # ---------------------------------------------------------------- §1.12
 properties_disclaimed:
   - {id: N-ADMIN, components: [outbound, ingest, assistant, optional], tier: security-critical, false_friend: false, conditions: "protection from the instance admin or host operator (admin-set URLs reaching internal hosts, admin code, templates, regexes, component installs, api_key_env). Covers only operands an admin or operator alone can set. Excludes the guards Lens documents on them (P-ADMIN-GUARD): an escape of one is VALID. Excludes saved telemetry headers when the endpoint moves host (unresolved, Q35 -> MODEL-GAP). A non-admin reaching any admin operand is in model.", provenance: {kind: maintainer, date: "2026-10"}}
-  - {id: N-EGRESS, components: [outbound], tier: security-critical, false_friend: true, conditions: "an egress firewall; netguard guards web import, iCal feeds, extension http tools, notifications and Chromium, nothing else; admin-set URLs other than iCal feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel) are unguarded", x-false-friend-note: "'public addresses only' reads as server-wide", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: N-EGRESS, components: [outbound], tier: security-critical, false_friend: true, conditions: "an egress firewall; netguard guards web import, iCal feeds, extension http tools, notifications, the assistant's web search and page reads, and Chromium, nothing else; admin-set URLs other than iCal feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded", x-false-friend-note: "'public addresses only' reads as server-wide", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: N-CODE-GUARD, components: [assistant], tier: security-critical, false_friend: true, conditions: "a sandbox for Python code tools; audit hooks, rlimits and an optional network namespace only raise the bar; admin-written code; runs as the Lens user", x-false-friend-note: "guard is not isolation", provenance: {kind: documented, source: 'domain/code_tools.py docstring "they aren''t a wall"'}}
   - {id: N-DOWNLOADS, components: [optional], tier: security-critical, false_friend: false, conditions: "integrity beyond HTTPS and the publisher for llama.cpp, cloudflared, pip installs and hf: models; catalog GGUF files are still checked (P-MODEL-CHECKSUM)", provenance: {kind: maintainer, date: "2026-10"}}
-  - {id: N-DB-PLAIN, components: [outbound], tier: security-critical, false_friend: true, conditions: "encryption of the SurrealDB content (transcripts, indexes), derived files, renditions, reports, exports and the storage-source cache; stated limit", x-false-friend-note: "vaults cover files only", provenance: {kind: documented, source: 'docs/encryption.md "the SurrealDB database itself"'}}
+  - {id: N-DB-PLAIN, components: [outbound], tier: security-critical, false_friend: true, conditions: "encryption of the SurrealDB content (assets' text, indexes), derived files, renditions, reports, exports and the storage-source cache; stated limit", x-false-friend-note: "vaults cover files only", provenance: {kind: documented, source: 'docs/encryption.md "the SurrealDB database itself"'}}
   - {id: N-KEY-WITH-DATA, components: [outbound], tier: security-critical, false_friend: true, conditions: "key separation; unless ARCHIVE_SECRET_KEY comes from outside, secret.key lives in data_dir next to the sealed rows and the backups; a copy of data_dir opens sealed secrets and server-wrapped file keys", x-false-friend-note: "'stored encrypted' reads as safe in a stolen backup", provenance: {kind: inferred, question_id: Q14}}
   - {id: N-SIGNED-BEARER, components: [authz], tier: security-critical, false_friend: true, conditions: "identity binding or early revocation for signed links; a link opens its path for whoever holds it until it expires (6 h; IIIF 1 h); path, expiry and full are bound, extra query parameters are not; which fields get signed is P-MEDIA-LINK", x-false-friend-note: "a signed link is a capability, not a login", provenance: {kind: documented, source: 'core/security.py sign_path docstring "grants read access to exactly this path until it expires"'}}
   - {id: N-LINK-AFTER-ROLE, components: [authz], tier: security-critical, false_friend: false, conditions: "re-checks of share links and report links against the creator's current role; share links last until expiry or revocation", provenance: {kind: inferred, question_id: Q10}}
-  - {id: N-IDS, components: [authz], tier: correctness-only, false_friend: true, conditions: "secret identifiers; recording and entity ids are sequential and authorization never relies on them; short share codes are about 58 bits; a route that relied on id secrecy breaks P-NS-ISOLATION instead", x-false-friend-note: "unguessable-looking ids are not authorization", provenance: {kind: inferred, question_id: Q6}}
+  - {id: N-IDS, components: [authz], tier: correctness-only, false_friend: true, conditions: "secret identifiers; asset and entity ids are sequential and authorization never relies on them; short share codes are about 58 bits; a route that relied on id secrecy breaks P-NS-ISOLATION instead", x-false-friend-note: "unguessable-looking ids are not authorization", provenance: {kind: inferred, question_id: Q6}}
   - {id: N-APP-LAYER, components: [authz], tier: security-critical, false_friend: true, conditions: "database-enforced tenant isolation; every namespace is rows in one SurrealDB database under one credential; anyone with the DB credential or a worker host sees all namespaces", x-false-friend-note: "namespaces are not DB namespaces", provenance: {kind: inferred, question_id: Q9}}
   - {id: N-XFF, components: [authz], tier: security-critical, false_friend: true, conditions: "trust in visitor addresses without a correct proxy chain; covers proxy chains the operator builds; the compose files' own chain is claimed (P-IPGROUP, P-THROTTLE); other shipped variants are Q2", x-false-friend-note: "IP groups are not authentication", provenance: {kind: documented, source: 'docs/configuration.md "Without it, a visitor can claim any address"'}}
   - {id: N-WEBGATE, components: [web], tier: correctness-only, false_friend: true, conditions: "authorization in the web app; proxy.ts redirects pages, the API decides; /api, /mcp, /iiif, /embed, /s bypass the page gate", provenance: {kind: inferred, question_id: Q8}}
@@ -1669,9 +1787,9 @@ properties_disclaimed:
   - {id: N-ENUM, components: [identity], tier: correctness-only, false_friend: false, conditions: "hiding account or object existence outside password sign-in and signed-in 404s: passkey 404, external messages, anonymous 401 vs 404", provenance: {kind: inferred, question_id: Q6}}
   - {id: N-AUDIT, components: [identity, authz], tier: correctness-only, false_friend: false, conditions: "tamper evidence or completeness of the audit and activity logs; sign-in requests are not logged there; operations record only; admins read it", provenance: {kind: documented, source: 'docs/activity.md "aren''t logged here"'}}
   - {id: N-MQTT-SUBSCRIBE, components: [optional], tier: security-critical, false_friend: true, conditions: "topic isolation on the MQTT hub: anything can subscribe to it, with + and #; signed-in or anonymous-when-enabled clients", x-false-friend-note: "a hub login is not per-stream access", provenance: {kind: documented, source: 'docs/sensors.md "anything can subscribe to it"'}}
-  - {id: N-BRIDGE, components: [outbound], tier: security-critical, false_friend: false, conditions: "per-person access in chat rooms; the bridge (Matterbridge, the Telegram bot or the assistant's mailbox) answers as one account, the turning-on admin by default; everyone in the room reads what that account reads (exposure posture: Q28); the mailbox answers only mailbox.users whose provider vouched for From", provenance: {kind: documented, source: 'docs/chat-rooms.md "answers as the admin who turned it on"'}}
-  - {id: N-PUBLIC, components: [authz], tier: correctness-only, false_friend: false, conditions: "privacy of a public recording's open parts: anyone may use them; open parts only; closed parts and restricted or private recordings are P-ACCESS-PARTS", provenance: {kind: documented, source: 'docs/access.md "the parts of a public recording anyone may use"'}}
-  - {id: N-DESCRIPTION, components: [authz], tier: correctness-only, false_friend: false, conditions: "hiding a recording's description when its parts are closed; anyone who may see the page", provenance: {kind: documented, source: 'docs/access.md "never a closed part"'}}
+  - {id: N-BRIDGE, components: [outbound], tier: security-critical, false_friend: false, conditions: "per-person access in chat rooms; the bridge (Matterbridge, the Telegram bot or the assistant's mailbox) answers as one account, the turning-on admin by default; everyone in the room reads what that account reads (exposure posture: Q28); the mailbox answers only mailbox.users whose provider vouched for From; an automation's message to its own person goes to the private chat a channel last had with someone on its users list, never to a room", provenance: {kind: documented, source: 'docs/chat-rooms.md "answers as the admin who turned it on"'}}
+  - {id: N-PUBLIC, components: [authz], tier: correctness-only, false_friend: false, conditions: "privacy of a public asset's open parts: anyone may use them; open parts only; closed parts and restricted or private assets are P-ACCESS-PARTS", provenance: {kind: documented, source: 'docs/access.md "the parts of a public asset anyone may use"'}}
+  - {id: N-DESCRIPTION, components: [authz], tier: correctness-only, false_friend: false, conditions: "hiding an asset's description when its parts are closed; anyone who may see the page", provenance: {kind: documented, source: 'docs/access.md "never a closed part"'}}
   - {id: N-NSFW, components: [web, authz], tier: correctness-only, false_friend: true, conditions: "access control from NSFW classification; blurring and hiding flagged resources are display preferences of the web app, and the score can be wrong; anyone who may read a resource still opens it, sees its pictures (sensitive=include, signed frame links, public pages, IIIF, embeds) and reads its classification", x-false-friend-note: "'hidden' reads as restricted", provenance: {kind: documented, source: 'docs/nsfw.md "display preferences, not access control"'}}
   - {id: N-RDF-XML, components: [query], tier: security-critical, false_friend: false, conditions: "XML parsing in RDF import; RDF/XML is refused, so XXE and billion-laughs do not apply there; RDF import only, not docx", provenance: {kind: documented, source: 'rdf_import.py docstring "RDF/XML isn''t read"'}}
 
@@ -1700,11 +1818,11 @@ downstream_responsibilities:
   - {id: dr-limit-smb-share, component: optional, statement: "When the SMB share is on, list only your own networks, keep its port off the internet, and revoke file access keys you no longer use", enforces: [P-SMB, enable-and-limit-smb], provenance: {kind: documented, source: 'docs/smb.md "What keeps it safe"'}}
   - {id: dr-bridge-own-account, component: outbound, statement: "Give the chat-room bridge its own low-role account", enforces: [N-BRIDGE], provenance: {kind: documented, source: 'docs/chat-rooms.md "it reads only what that account can read"'}}
   - {id: dr-trusted-worker-hosts, component: authz, statement: "Run workers only on trusted hosts; they hold the DB credential", enforces: [N-APP-LAYER, trusted-peer-hosts], provenance: {kind: inferred, question_id: Q9}}
-  - {id: dr-trusted-model-servers, component: assistant, statement: "Pick model and speech servers you trust with transcripts and audio", enforces: [], x-protects: "§1.8 prompts", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: dr-trusted-model-servers, component: assistant, statement: "Pick model and speech servers you trust with your assets' text and audio", enforces: [], x-protects: "§1.8 prompts", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: dr-chromium-sandbox, component: ingest, statement: "Run conversion where Chromium can keep its sandbox (non-root, user namespaces)", enforces: [N-CHROMIUM], provenance: {kind: documented, source: 'docs/configuration.md "runs with its sandbox where it can"'}}
   - {id: dr-trusted-extensions-only, component: assistant, statement: "Enable another person's extension only when you trust its author", enforces: [N-PROMPT, enable-only-trusted-extensions], x-protects: "N-PROMPT, §1.14", provenance: {kind: inferred, question_id: Q27}}
   - {id: dr-escape-exports, component: authz, statement: "Escape exported text, RDF, IIIF metadata and assistant output for your own sink", enforces: [dmna-export-escaping, dmna-api-text-safe-for-sinks, dmna-assistant-grounded], x-protects: "§1.8", provenance: {kind: inferred, question_id: Q24}}
-  - {id: dr-untrusted-prompt-input, component: assistant, statement: "Treat transcript text and MCP results as untrusted prompt input in your agents", enforces: [N-PROMPT, dmna-mcp-text-as-instructions], provenance: {kind: inferred, question_id: Q26}}
+  - {id: dr-untrusted-prompt-input, component: assistant, statement: "Treat asset text and MCP results as untrusted prompt input in your agents", enforces: [N-PROMPT, dmna-mcp-text-as-instructions], provenance: {kind: inferred, question_id: Q26}}
   - {id: dr-iiif-over-https, component: authz, statement: "Keep the IIIF cookie SameSite=None; Secure by serving IIIF over HTTPS", enforces: [], x-protects: "IIIF cookie", provenance: {kind: documented, source: 'docs/iiif.md "its cookie is `SameSite=None; Secure`"'}}
   - {id: dr-verify-webhook-signature, component: outbound, statement: "Verify webhook-signature on receipt; treat Slack and Discord target URLs as secrets", enforces: [dmna-chat-webhooks-signed], x-protects: "§1.8 webhook bodies", provenance: {kind: documented, source: 'domain/notify.py docstring "signed the Standard Webhooks way"'}}
   - {id: dr-limit-nfs-share, component: optional, statement: "When the NFS share is on, list only your own networks and pick an account that sees only what the share should show", enforces: [P-NFS, enable-and-limit-nfs], provenance: {kind: documented, source: 'docs/file-shares.md "NFS has no login"'}}
@@ -1725,7 +1843,7 @@ known_misuses:
   - {id: km-admin-for-python-tool, components: [assistant], pattern: "Making someone admin so they can write a Python tool", x-why-unsafe: "Admin equals host code execution", safer_alternative: "Use prompt, graph or http tools", x-provenance-basis: "§1.2 roles and trust; §1.13 'Make only fully trusted people admins'", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: km-wide-web-networks, components: [outbound], pattern: "Wide LENS_WEB_NETWORKS", x-why-unsafe: "Editors, and iCal feed redirects, can then reach those networks", safer_alternative: "List single hosts", x-provenance-basis: "§1.6 web_networks row; §1.13 private networks row", provenance: {kind: documented, source: 'docs/configuration.md "loopback and cloud metadata addresses stay out"'}}
   - {id: km-push-token-in-url, components: [optional], pattern: "Webhook push token in a URL that proxies log", x-why-unsafe: "The token is a credential in the path", safer_alternative: "Use the header form", x-provenance-basis: "§1.13 row 'Keep logs that record request paths private'", provenance: {kind: documented, source: 'docs/sensors.md "Ways in"'}}
-  - {id: km-hosted-model-sensitive, components: [assistant], pattern: "Pointing the assistant at a hosted model for sensitive archives", x-why-unsafe: "Transcripts leave the machine", safer_alternative: "Use a local model server", x-provenance-basis: "§1.13 row 'Pick model and speech servers you trust'", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: km-hosted-model-sensitive, components: [assistant], pattern: "Pointing the assistant at a hosted model for sensitive archives", x-why-unsafe: "Assets' text leaves the machine", safer_alternative: "Use a local model server", x-provenance-basis: "§1.13 row 'Pick model and speech servers you trust'", provenance: {kind: maintainer, date: "2026-10"}}
 
 # ---------------------------------------------------------------- §1.15
 known_non_findings:
@@ -1741,7 +1859,7 @@ known_non_findings:
     components: [authz]
     x-sink: "IIIF manifests, public pages"
     symptom: "info-leak of description"
-    tool_pattern: "A recording's description shows while its parts are closed"
+    tool_pattern: "An asset's description shows while its parts are closed"
     conditions: "The field is the description, shown to someone who may see the page"
     discharged_by: [N-DESCRIPTION]
     provenance: {kind: documented, source: 'docs/access.md "never a closed part"'}

@@ -17,10 +17,10 @@ export function LibraryEmpty({ namespace }: { namespace: string | null }) {
       <div className="flex max-w-[760px] flex-col items-center gap-6 text-center">
         <div className="flex flex-col items-center gap-2">
           <h2 className="text-[22px] font-bold leading-tight tracking-[-.01em] text-fg">
-            {namespace ? `Nothing in ${namespace} yet` : "No recordings yet"}
+            {namespace ? `Nothing in ${namespace} yet` : "No assets yet"}
           </h2>
           <p className="max-w-[520px] text-[15px] leading-[1.55] text-fg-secondary">
-            Watch a folder so new recordings arrive on their own, or bring in audio and transcripts you already have.
+            Watch a folder so new assets arrive on their own, or bring in files you already have.
           </p>
         </div>
         <div className="grid w-full gap-4 text-left sm:grid-cols-2">
@@ -59,7 +59,7 @@ export function LibraryEmpty({ namespace }: { namespace: string | null }) {
               <span className="text-[15px] font-bold text-fg">Drop files to import</span>
             </div>
             <p className="text-[13.5px] leading-normal text-fg-secondary">
-              Transcripts as txt, md, docx, pdf, srt, vtt or json. You’ll see a preview before anything is saved.
+              Text and documents as txt, md, docx, pdf, srt, vtt or json. You’ll see a preview before anything is saved.
             </p>
             <Button
               variant="secondary"

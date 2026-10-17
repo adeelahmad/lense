@@ -91,7 +91,7 @@ export function AdminFrame({
     ? [
         {
           value: "people",
-          label: "People",
+          label: "Members",
           count: people.data?.length,
           href: "/admin/people",
         },

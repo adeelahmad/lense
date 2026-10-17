@@ -507,7 +507,7 @@ export function useRecordingActions(id: number) {
       void qc.invalidateQueries({ queryKey: ["recordings"] });
       toast({ title: "Renamed", tone: "green" });
     },
-    onError: fail("Couldn't rename the recording"),
+    onError: fail("Couldn't rename the asset"),
   });
   const renameSpeaker = useMutation({
     mutationFn: (v: { sid: number; name: string }) =>
@@ -522,7 +522,7 @@ export function useRecordingActions(id: number) {
       void refresh();
       void qc.invalidateQueries({ queryKey: ["speakers"] });
     },
-    onError: fail("Couldn't rename the speaker"),
+    onError: fail("Couldn't rename the person"),
   });
   const mergeSpeaker = useMutation({
     mutationFn: (v: { sid: number; into: number }) =>
@@ -537,7 +537,7 @@ export function useRecordingActions(id: number) {
       void refresh();
       void qc.invalidateQueries({ queryKey: ["speakers"] });
       toast({
-        title: "Speakers merged",
+        title: "People merged",
         tone: "green",
         action: {
           label: "Undo",
@@ -551,7 +551,7 @@ export function useRecordingActions(id: number) {
         },
       });
     },
-    onError: fail("Couldn't merge the speakers"),
+    onError: fail("Couldn't merge the people"),
   });
   return {
     reprocess,

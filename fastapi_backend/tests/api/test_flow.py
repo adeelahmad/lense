@@ -205,9 +205,9 @@ def test_custom_nodes_are_shared_versioned_and_pinned(client, new_client, db, cf
     assert (got["inputs"], got["outputs"], got["scopes"], got["keeps"]) == (
         ["in"],
         ["match", "other"],
-        ["recording", "graph", "tool"],
+        ["recording", "graph", "tool", "event"],
         False,
-    )  # primitives only: tool graphs too
+    )  # primitives only: tool graphs and automations' too
     assert got["graph"]["nodes"][2]["config"]["value"] == {"$param": "word"} and got["editable"]
 
     # private: the owner and admins see it, nobody else
@@ -346,5 +346,5 @@ def test_catalog_lists_ports_and_primitives(client, db):
     h = login(client, "root@x.io", "root password 1")
     types = {n["type"]: n for n in client.get("/api/v1/workflows", headers=h).json()["node_types"]}
     assert types["switch"]["dynamic"] == "outputs" and types["switch"]["primitive"]
-    assert types["for_each"]["scopes"] == ["recording", "graph", "tool"] and types["output"]["keeps"]
+    assert types["for_each"]["scopes"] == ["recording", "graph", "tool", "event"] and types["output"]["keeps"]
     assert types["arg"]["inputs"] == 0 and types["return"]["outputs"] == [] and types["merge"]["inputs"] == -1

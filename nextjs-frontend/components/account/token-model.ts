@@ -38,9 +38,16 @@ export const SCOPE_LABEL: Record<string, string> = {
   write: "Read & write",
 };
 
-/** A name for a token nobody named, from its scope ("Read only token", then "Read only token 2"). */
-export function suggestedTokenName(scope: string, taken: Iterable<string>): string {
-  return uniqueName(`${SCOPE_LABEL[scope] ?? "API"} token`, taken);
+/** A name for a token nobody named, from its scope ("Read only token", then "Read only token 2"), or the one
+ * namespace it opens ("pods app key"). */
+export function suggestedTokenName(scope: string, taken: Iterable<string>, namespace?: string | null): string {
+  return uniqueName(namespace ? `${namespace} app key` : `${SCOPE_LABEL[scope] ?? "API"} token`, taken);
+}
+
+/** What a key opens, in words: everything its person can read, or one namespace's own servers. */
+export function opensLabel(namespace: string | null | undefined): string | null {
+  if (namespace == null) return null;
+  return namespace ? `${namespace} alone` : "a deleted namespace";
 }
 
 /** How long keys may last (GET /tokens/limits; admins set them). */

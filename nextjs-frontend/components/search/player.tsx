@@ -60,7 +60,7 @@ export function useInlinePlayer() {
           setNoAudio((s) => new Set(s).add(m.recordingId));
           toast({
             title: "No audio to play",
-            body: "This recording is a transcript only. Open it to read the moment.",
+            body: "This asset has text only. Open it to read the passage.",
             tone: "gate",
           });
           return;
@@ -125,7 +125,7 @@ export function InlinePlayerBar({ player, className }: { player: InlinePlayer; c
             </IconButton>
             <div className="min-w-0 flex-1">
               <div className="truncate text-[13.5px] font-bold text-fg">
-                {current.title ?? `Recording ${current.recordingId}`}
+                {current.title ?? `Asset ${current.recordingId}`}
               </div>
               <div className="tabular text-[12px] text-fg-secondary">
                 {tc(time * 1000)}

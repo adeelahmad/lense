@@ -64,7 +64,7 @@ export function RequestAccess({ rec, className }: { rec: PublicRecording; classN
         open={open}
         onOpenChange={setOpen}
         title="Ask for access"
-        description={`The owners of ${ns} get your request and decide. Approved, you see all of this recording.`}
+        description={`The owners of ${ns} get your request and decide. Approved, you see all of this asset.`}
         actions={
           <>
             <Button variant="ghost" onClick={() => setOpen(false)}>

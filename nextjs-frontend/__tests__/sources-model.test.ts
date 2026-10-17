@@ -3,9 +3,11 @@ import {
   confirms,
   emptyForm,
   fileKind,
+  gmailScope,
   healthOf,
   imapHost,
   nextScan,
+  parseGoogleAccount,
   parseRcloneToken,
   parseServiceAccountKey,
   pickupText,
@@ -119,7 +121,11 @@ describe("connections", () => {
     expect(validateForm("s3", S3, ok, false)).toEqual({});
     // Editing: a saved secret counts.
     expect(validateForm("s3", S3, { ...ok, secrets: {} }, true, (k) => k === "secret_access_key")).toEqual({});
-    expect(validateForm("dropbox", DROPBOX, emptyForm(DROPBOX), false)).toHaveProperty("token");
+    // Dropbox signs in through rclone on the server; a pasted token is checked
+    expect(validateForm("dropbox", DROPBOX, emptyForm(DROPBOX), false)).toEqual({});
+    expect(validateForm("dropbox", DROPBOX, { ...emptyForm(DROPBOX), signInWith: "paste" }, false)).toHaveProperty(
+      "token",
+    );
   });
   it("sends every parameter and only the secrets that change", () => {
     const f = {
@@ -149,12 +155,19 @@ describe("connections", () => {
     const key = JSON.stringify({
       type: "service_account",
       client_email: "lens@p.iam.gserviceaccount.com",
+      client_id: "1234567890",
       private_key: "K",
     });
-    expect(parseServiceAccountKey(key)).toEqual({ ok: true, email: "lens@p.iam.gserviceaccount.com" });
+    expect(parseServiceAccountKey(key)).toEqual({
+      ok: true,
+      email: "lens@p.iam.gserviceaccount.com",
+      clientId: "1234567890",
+    });
     expect(parseServiceAccountKey("nope").ok).toBe(false);
     expect(parseServiceAccountKey('{"access_token":"a"}').ok).toBe(false);
 
+    // a Google account signs in through rclone on the server: nothing to paste
+    expect(validateForm("drive", DRIVE, emptyForm(DRIVE), false)).toEqual({});
     const sa = { ...emptyForm(DRIVE), driveAuth: "service_account" as const };
     expect(Object.keys(validateForm("drive", DRIVE, sa, false))).toEqual(["service_account_credentials"]);
     const withKey = { ...sa, secrets: { service_account_credentials: key } };
@@ -205,6 +218,100 @@ describe("connections", () => {
     expect(buildPayload(ICAL, cal, "ical").secrets).toEqual({ url: "webcal://cal.example.org/team.ics" });
     expect(suggestName("ical", cal.params)).toBe("Calendar feed");
     expect([fileKind("Harbour report.eml"), fileKind("2026-10-02 Stand-up.ics")]).toEqual(["document", "transcript"]);
+  });
+  it("signs Google Calendar in as a Google account or a service account", () => {
+    const GCAL: BackendSpec = {
+      label: "Google Calendar",
+      fields: { calendars: "", impersonate: "", days_back: "365", account: "" },
+      secrets: ["token", "service_account_credentials"],
+    };
+    const account = '{"type":"authorized_user","client_id":"c","client_secret":"s","refresh_token":"r","quota":"x"}';
+    expect(parseGoogleAccount(account)).toEqual({
+      ok: true,
+      json: '{"client_id":"c","client_secret":"s","refresh_token":"r"}',
+    });
+    expect(parseGoogleAccount("").ok).toBe(null);
+    expect(parseGoogleAccount("{oops").ok).toBe(false);
+    expect(parseGoogleAccount('{"refresh_token":"r"}').ok).toBe(false);
+
+    const blank = emptyForm(GCAL);
+    expect(blank.driveAuth).toBe("token");
+    expect(Object.keys(validateForm("gcal", GCAL, blank, false))).toEqual(["token"]);
+    const connected = { ...blank, secrets: { token: account } };
+    expect(validateForm("gcal", GCAL, connected, false)).toEqual({});
+    expect(validateForm("gcal", GCAL, blank, true, (k) => k === "token")).toEqual({});
+    expect(
+      validateForm("gcal", GCAL, { ...connected, params: { ...blank.params, days_back: "a year" } }, false),
+    ).toHaveProperty("days_back");
+    // an account replaces a saved key, and a key file replaces a connected account
+    expect(buildPayload(GCAL, connected, "gcal")).toEqual({
+      params: { calendars: "", impersonate: "", days_back: "365", account: "" },
+      secrets: {
+        token: '{"client_id":"c","client_secret":"s","refresh_token":"r"}',
+        service_account_credentials: null,
+      },
+    });
+    const key = JSON.stringify({
+      type: "service_account",
+      client_email: "lens@p.iam.gserviceaccount.com",
+      private_key: "K",
+    });
+    const sa = { ...blank, driveAuth: "service_account" as const, secrets: { service_account_credentials: key } };
+    expect(validateForm("gcal", GCAL, sa, false)).toEqual({});
+    expect(buildPayload(GCAL, sa, "gcal").secrets).toEqual({ service_account_credentials: key, token: null });
+    // a key file also forgets which account was connected
+    const was = { ...sa, params: { ...sa.params, account: "mara@harbour.example" } };
+    expect(buildPayload(GCAL, was, "gcal").params.account).toBe("");
+    expect(buildPayload(GCAL, { ...was, driveAuth: "token" as const, secrets: {} }, "gcal").params.account).toBe(
+      "mara@harbour.example",
+    );
+
+    expect(sourceSubtitle({ type: "gcal", params: { calendars: "" } })).toBe("Google Calendar · every calendar");
+    expect(sourceSubtitle({ type: "gcal", params: { calendars: "a@x, b@x", impersonate: "mara@x.io" } })).toBe(
+      "Google Calendar · as mara@x.io · 2 calendars",
+    );
+    expect(sourceSubtitle({ type: "gcal", params: { calendars: "", account: "mara@x.io" } })).toBe(
+      "Google Calendar · as mara@x.io · every calendar",
+    );
+    expect(suggestName("gcal", blank.params)).toBe("Google Calendar");
+  });
+  it("signs Gmail in as a Google account or as a service account acting for one person", () => {
+    const GMAIL: BackendSpec = {
+      label: "Gmail or Google Workspace",
+      fields: { user: "", via: "api" },
+      secrets: ["token", "service_account_credentials"],
+    };
+    const blank = emptyForm(GMAIL);
+    expect(Object.keys(validateForm("gmail", GMAIL, blank, false))).toEqual(["token"]); // Connect with Google
+    expect(validateForm("gmail", GMAIL, blank, true, (k) => k === "token")).toEqual({});
+    const account = '{"client_id":"c","client_secret":"s","refresh_token":"r"}';
+    const pasted = { ...blank, params: { user: "mara@x.io", via: "imap" }, secrets: { token: account } };
+    expect(validateForm("gmail", GMAIL, pasted, false)).toEqual({});
+    expect(buildPayload(GMAIL, pasted, "gmail")).toEqual({
+      params: { user: "mara@x.io", via: "imap" },
+      secrets: { token: account, service_account_credentials: null },
+    });
+    const key = JSON.stringify({
+      type: "service_account",
+      client_email: "lens@p.iam.gserviceaccount.com",
+      private_key: "K",
+    });
+    const sa = { ...blank, driveAuth: "service_account" as const, secrets: { service_account_credentials: key } };
+    expect(Object.keys(validateForm("gmail", GMAIL, sa, false))).toEqual(["user"]);
+    const acting = { ...sa, params: { ...sa.params, user: "mara@x.io" } };
+    expect(validateForm("gmail", GMAIL, acting, false)).toEqual({});
+    expect(buildPayload(GMAIL, acting, "gmail")).toEqual({
+      params: { user: "mara@x.io", via: "api" },
+      secrets: { service_account_credentials: key, token: null },
+    });
+    expect(gmailScope("imap")).toBe("https://mail.google.com/");
+    expect(sourceSubtitle({ type: "gmail", params: { user: "mara@x.io", via: "api" } })).toBe(
+      "Gmail · mara@x.io · API",
+    );
+    expect([suggestName("gmail", blank.params), suggestName("gmail", acting.params)]).toEqual([
+      "Gmail",
+      "Gmail · mara@x.io",
+    ]);
   });
   it("confirms deletes by name, loosely", () => {
     expect(confirms(" dropbox ·  callrecorder", "Dropbox · CallRecorder")).toBe(true);
@@ -258,7 +365,7 @@ describe("watched folders", () => {
     // what each choice picks up; new folders take everything
     expect(WATCH_KINDS[0].value).toBe("all");
     expect(watchSummary({ namespace: "papers", kinds: "documents" })).toContain("documents and images only");
-    expect(watchSummary({ namespace: "papers", kinds: "both" })).toContain("audio and transcripts");
+    expect(watchSummary({ namespace: "papers", kinds: "both" })).toContain("audio and text");
     expect(watchSummary({ namespace: "papers" })).toContain("· everything ·");
   });
   it("says when the next scan is", () => {

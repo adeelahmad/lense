@@ -37,7 +37,7 @@ export const ACCESS: {
 
 export const PARTS: { value: AccessPart; label: string; hint: string }[] = [
   { value: "media", label: "Media", hint: "audio or video" },
-  { value: "transcript", label: "Transcript", hint: "the text, its search and downloads" },
+  { value: "transcript", label: "Text", hint: "the words, their search and downloads" },
   { value: "index", label: "Index", hint: "chapters" },
 ];
 
@@ -47,7 +47,7 @@ export function accessLabel(a: string | null | undefined): string {
   return ACCESS.find((x) => x.value === a)?.label ?? "Private";
 }
 
-/** "Media, transcript and index", "Transcript", "Nothing": the parts a public recording opens. */
+/** "Media, text and index", "Text", "Nothing": the parts a public recording opens. */
 export function partsText(open: readonly string[] | null | undefined): string {
   const names = PARTS.filter((p) => (open ?? []).includes(p.value)).map((p) => p.label.toLowerCase());
   if (!names.length) return "Nothing";
@@ -55,7 +55,7 @@ export function partsText(open: readonly string[] | null | undefined): string {
   return text[0].toUpperCase() + text.slice(1);
 }
 
-/** One line for a chip's tooltip: "Public · transcript and index open to everyone · featured". */
+/** One line for a chip's tooltip: "Public · text and index open to everyone · featured". */
 export function accessSummary(a: Partial<AccessValue> | null | undefined): string {
   const level = (a?.access ?? "private") as Access;
   const parts: string[] = [accessLabel(level)];
@@ -118,8 +118,8 @@ export function rangesText(ranges: readonly string[], max = 2): string {
 
 /** What an IP group opens: "Every recording in pods", "3 chosen recordings", or how to choose some. */
 export function ipGroupOpens(g: { everything: boolean; chosen?: number | null }, ns: string): string {
-  if (g.everything) return `Every recording in ${ns}`;
+  if (g.everything) return `Every asset in ${ns}`;
   const n = g.chosen ?? 0;
-  if (!n) return "No recordings yet: choose them in a recording’s Access dialog";
-  return `${n} chosen recording${n === 1 ? "" : "s"}`;
+  if (!n) return "No assets yet: choose them in an asset’s Access dialog";
+  return `${n} chosen asset${n === 1 ? "" : "s"}`;
 }

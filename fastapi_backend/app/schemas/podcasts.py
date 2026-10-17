@@ -13,7 +13,7 @@ Style = Literal["deep-dive", "recap", "debate", "beginner"]
 
 class PickedLine(RequestModel):
     recording: int
-    idx: int = Field(ge=0, description="the line (segment) number in the recording")
+    idx: int = Field(ge=0, description="the line (segment) number in the asset")
 
 
 class PodcastSelection(RequestModel):
@@ -36,7 +36,7 @@ class PodcastCreate(RequestModel):
 
 
 class PodcastStarted(ResponseModel):
-    episode: int = Field(description="the episode's recording id")
+    episode: int = Field(description="the episode's asset id")
     job: int
     namespace: str
     placed: Literal["podcasts", "sources"] = Field(description="podcasts: the podcasts namespace; sources: the sources' own")

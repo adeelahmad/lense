@@ -10,6 +10,9 @@ export type EditRecord = {
   at?: string | null;
 };
 
+/** Who the edit history says changed a line when the clean step tidied it (cleanup.py). */
+export const CLEANER = "text cleanup";
+
 const clip = (s: string, n = 28) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 /** The words that changed between two versions of a line: common leading and trailing words are dropped. */

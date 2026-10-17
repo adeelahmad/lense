@@ -115,7 +115,7 @@ const WRITE_LABELS: [RegExp, string][] = [
   [/\/import/, "the import"],
   [/\/jobs/, "queueing the work"],
   [/\/(chats|messages)/, "sending your message"],
-  [/\/speakers/, "the speaker change"],
+  [/\/speakers/, "the person change"],
   [/\/entities/, "the entity change"],
   [/\/collections/, "saving the collection"],
   [/\/share/, "the share link"],

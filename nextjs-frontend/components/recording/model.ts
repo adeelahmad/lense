@@ -242,7 +242,7 @@ export function normalizePlayer(raw: Player): PlayerModel {
   const mode = str(r.faces_mode) as FacesMode | null;
   return {
     id: num(r.id),
-    title: str(r.title) || "Untitled recording",
+    title: str(r.title) || "Untitled asset",
     namespace: str(r.namespace),
     recordedAt: str(r.recorded_at),
     durationMs: Math.max(num(r.duration_ms), lastEnd),

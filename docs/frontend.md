@@ -34,6 +34,14 @@ nextjs-frontend/
   app/openapi-client/       generated from the API's OpenAPI schema; never edit by hand
 ```
 
+## Navigation
+
+The nav rail (`components/app-shell/nav-config.ts`) is in four groups, each named above its first item (a line when
+the rail is collapsed to icons): what people use every day (Home, Library, Search, Chat, Notes), **Explore** what Lens
+found (Timeline, Entities, Topics, Graph, Podcasts, Reports), **Automate** what runs by itself (Pipelines, Routines,
+Extensions, Sensors, or Sources for people who aren't admins), and **Manage** Lens (Costs, Analytics, Settings,
+Admin). Every page stays one click from Home; ⌘K reaches every page, recording and setting by name.
+
 ## Design system
 
 Colour is semantic, never decorative: blue means working, selected or a link; green means ready or succeeded; red
@@ -46,7 +54,7 @@ four-colour loop (Transcribe blue, Diarize red, Analyze green, Summarize and Rep
 * **Tailwind 4** is configured in CSS: the `@theme` block in `app/globals.css` maps the tokens, and there is no
   `tailwind.config.js`. Its utilities stay outside cascade layers there, so a class still beats the notes editor's
   global element styles (BlockSuite adds rules such as `input { font-size: 12px }` to the page).
-* **Type:** DM Sans for the UI (13–14 px), Source Serif 4 for transcripts (`.transcript-text`, 17.5/1.6), JetBrains
+* **Type:** DM Sans for the UI (13–14 px), Source Serif 4 for an asset's text (`.transcript-text`, 17.5/1.6), JetBrains
   Mono for paths and code. All three are self-hosted in `public/fonts`.
 * **Primitives** (`components/ui`): Button (pill; `disabledReason` explains a disabled action), IconButton, Badge,
   StatusChip, RoleChip, SpeakerChip, EmotionChip, JobStepChip, Field/Input/Select/Switch/Checkbox, SecretField,
@@ -56,7 +64,13 @@ four-colour loop (Transcribe blue, Diarize red, Analyze green, Summarize and Rep
   namespace switcher sits at the top of the menu, Import is an icon in the top bar, settings sections open as a list
   from the current section's name, tabs wrap, and wide tables (sensors, connections) become cards. A form's main buttons
   take `phone-actions` (`app/globals.css`) to stay pinned at the bottom of the screen, clear of the floating Ask button;
-  a Dialog's actions stay in sight on their own. The [clicks
+  a Dialog's actions stay in sight on their own.
+* **The floating Ask button** (`components/page-chat/ask-place.ts`) finds what it would cover with the browser's own
+  hit testing, through a transparent probe just under it, and rises above any control there that scrolling can't
+  carry clear (one in a bar that's fixed or stuck to the bottom, or with the page at its end), or steps out of sight
+  when that would take it past the middle of the screen, so a new page needn't leave room for it (`phone-actions` and
+  the Settings save row still do, and it stays put there). The clicks survey fails a journey whose control it covers,
+  and checks every page with the page scrolled to its end. The [clicks
   survey](https://github.com/adeelahmad/lense/blob/main/ci/clicks/README.md) measures every journey on a phone too.
 * **The role rule:** actions a person can't take stay visible, disabled, with a tooltip saying who can
   (`needRole()`); namespaces they have no role in never appear. `useArchive()` gives `can(role, ns)` and the

@@ -203,7 +203,7 @@ export function IiifPanel({ recordingId }: { recordingId: number }) {
         </ul>
         <p className="text-[11.5px] leading-[1.4] text-fg-muted">
           Layers are chosen for the whole archive in Settings → IIIF &amp; metadata; annotations are published when the
-          transcript is open.
+          text is open.
         </p>
       </div>
 

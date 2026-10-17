@@ -2,12 +2,13 @@
 
 import * as D from "@radix-ui/react-dialog";
 import { useQuery } from "@tanstack/react-query";
-import { CornerDownLeft, FileAudio, Search, Settings, Zap } from "lucide-react";
+import { CornerDownLeft, FileAudio, FileText, Search, Settings, Sparkles, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { Resources } from "@/app/openapi-client";
+import { Notes, Resources } from "@/app/openapi-client";
 import { navFor } from "@/components/app-shell/nav-config";
+import { PLACES, pageOf } from "@/components/notes/links";
 import { findSettings, hitHref, settingHref } from "@/components/settings/find";
 import { data, useApiClient } from "@/lib/api/browser";
 import { tc } from "@/lib/format";
@@ -22,7 +23,7 @@ type Item = {
   icon: React.ReactNode;
 };
 
-/** ⌘K: jump to a recording, a page or a setting; ">" limits results to actions. */
+/** ⌘K: jump to a recording, a note, a page or a setting; ">" limits results to actions. */
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -56,6 +57,16 @@ export function CommandPalette() {
     staleTime: 60_000,
   });
 
+  // Notes by their title, summary or text, found by the server as they're typed
+  const words = q.trim();
+  const notes = useQuery({
+    queryKey: ["palette-notes", namespace, words],
+    queryFn: () => data(Notes.searchPages({ client, query: { q: words, ns: namespace, limit: 8 } })),
+    enabled: open && !!words && !words.startsWith(">"),
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
+  });
+
   const items = useMemo<Item[]>(() => {
     const term = q.trim().toLowerCase();
     const actionsOnly = term.startsWith(">");
@@ -66,8 +77,14 @@ export function CommandPalette() {
         ? [
             {
               group: "Actions",
-              label: "Import recordings or transcripts",
+              label: "Import assets",
               href: "/import",
+              icon: <Zap className="size-4" />,
+            },
+            {
+              group: "Actions",
+              label: "Today’s note",
+              href: "/notes/today",
               icon: <Zap className="size-4" />,
             },
           ]
@@ -99,12 +116,23 @@ export function CommandPalette() {
           .filter((r) => match(r.title ?? ""))
           .slice(0, 8)
           .map((r) => ({
-            group: "Recordings",
-            label: r.title ?? `Recording ${r.id}`,
+            group: "Assets",
+            label: r.title ?? `Asset ${r.id}`,
             meta: [r.namespace, r.duration_ms ? tc(r.duration_ms) : null].filter(Boolean).join(" · "),
             href: `/resources/${r.id}`,
             icon: <FileAudio className="size-4" />,
           }))
+      : [];
+    const found: Item[] = t
+      ? (notes.data?.pages ?? []).map((n) => ({
+          group: "Notes",
+          label: n.title,
+          meta: [PLACES.find((p) => p.value === n.place)?.label, namespace ? null : n.namespace]
+            .filter(Boolean)
+            .join(" · "),
+          href: n.about ? pageOf(n.about) : `/notes/${n.id}`,
+          icon: n.author === "assistant" ? <Sparkles className="size-4" /> : <FileText className="size-4" />,
+        }))
       : [];
     // Settings by name, or by a field in them (the LLM's timeout): a field opens its section on it
     const settings: Item[] = t
@@ -121,8 +149,8 @@ export function CommandPalette() {
           .slice(0, 6)
           .map((x) => ({ group: "Settings", icon: <Settings className="size-4" />, ...x }))
       : [];
-    return [...recordings, ...pages, ...settings, ...actions];
-  }, [q, recs.data, admin, can]);
+    return [...recordings, ...found, ...pages, ...settings, ...actions];
+  }, [q, recs.data, notes.data, namespace, admin, can]);
 
   useEffect(() => setSel(0), [q]);
   const go = (it: Item | undefined) => {
@@ -141,7 +169,7 @@ export function CommandPalette() {
         className="flex h-10 w-full max-w-[540px] items-center gap-2.5 rounded-sm bg-surface-neutral px-3.5 text-left text-[14px] text-fg-muted hover:bg-border/60"
       >
         <Search className="size-4 shrink-0" />
-        <span className="flex-1 truncate">Jump to a recording, speaker or page…</span>
+        <span className="flex-1 truncate">Jump to an asset, note or page…</span>
         <span className="hidden gap-1 sm:flex">
           <kbd className="grid h-5 min-w-5 place-items-center rounded-xs border border-border bg-background px-1 font-sans text-[11px]">
             ⌘
@@ -183,7 +211,7 @@ export function CommandPalette() {
                 aria-expanded
                 aria-controls="palette-list"
                 aria-activedescendant={items[sel] ? `palette-${sel}` : undefined}
-                placeholder="Search recordings, pages and settings, or > for actions"
+                placeholder="Search assets, notes, pages and settings, or > for actions"
                 className="h-14 flex-1 bg-transparent text-[16px] text-fg outline-hidden placeholder:text-fg-muted"
               />
               <kbd className="rounded-xs border border-border px-1.5 text-[11px] text-fg-muted">esc</kbd>
@@ -191,7 +219,7 @@ export function CommandPalette() {
             <ul id="palette-list" ref={listRef} role="listbox" className="max-h-[50vh] overflow-y-auto p-2">
               {items.length === 0 && (
                 <li className="px-3 py-6 text-center text-[13.5px] text-fg-secondary">
-                  {recs.isLoading ? "Searching…" : "No matches"}
+                  {recs.isLoading || notes.isFetching ? "Searching…" : "No matches"}
                 </li>
               )}
               {items.map((it, i) => {

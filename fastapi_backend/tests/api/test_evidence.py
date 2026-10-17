@@ -328,7 +328,7 @@ def test_too_many_or_none(here, client, env, db, cfg, monkeypatch):
     b = _upload(client, he, b"Two\n", "two.txt")
     r = client.post("/api/v1/collections", headers=he, json={"name": "Two", "recordings": [a["recording"], b["recording"]]})
     r = client.get(f"/api/v1/collections/{r.json()['id']}/evidence.pdf", headers=he)
-    assert r.status_code == 400 and "1 recordings at most" in r.json()["detail"]
+    assert r.status_code == 400 and "1 assets at most" in r.json()["detail"]
 
 
 def test_where_anytopdf_may_not_run(client, env, db, cfg, monkeypatch):

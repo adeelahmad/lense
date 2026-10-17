@@ -301,7 +301,7 @@ export function CustomNodeEditor({ id }: { id?: number }) {
           value={scope}
           onChange={(v) => setScope(v as Scope)}
           items={[
-            { value: "recording", label: "For recordings" },
+            { value: "recording", label: "For assets" },
             { value: "graph", label: "For the graph" },
           ]}
         />

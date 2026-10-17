@@ -1,10 +1,10 @@
 """Storage sources through rclone, and the folders on them that the archive watches.
 
 A source is one connection: S3 or S3-compatible, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV, or a folder on
-this machine (only inside sources.local_roots); or, without rclone, an email account (IMAP) or a calendar feed (iCal),
-whose messages and events are shown as files (feeds.py). A watch maps a folder on a source to a namespace: new audio, video,
-documents (PDFs) and images become resources queued for the whole pipeline, their files staying on the source; new
-transcripts are imported and queued for analysis. A watch on an email account can carry routing rules that send some
+this machine (only inside sources.local_roots); or, without rclone, an email account (IMAP, or Gmail and Google
+Workspace), a calendar feed (iCal) or Google Calendar, whose messages and events are shown as files (feeds.py). A watch
+maps a folder on a source to a namespace: new audio, video, documents (PDFs) and images become resources queued for
+the whole pipeline, their files staying on the source; new transcripts are imported and queued for analysis. A watch on an email account can carry routing rules that send some
 messages to other namespaces, or skip them (mail_routes.py). Credentials are stored encrypted and handed to rclone in a private
 temporary config file per call; OAuth tokens rclone refreshes are saved.
 """
@@ -22,7 +22,7 @@ import shutil
 import subprocess
 import tempfile
 
-from . import convert, deletion, feeds, ingest, jobs, mail_routes, settings, store
+from . import convert, deletion, feeds, google_auth, ingest, jobs, mail_routes, settings, store
 
 R = store.R
 BACKENDS = {
@@ -34,8 +34,10 @@ BACKENDS = {
     "dropbox": {"label": "Dropbox", "fields": {}, "secrets": ["token"], "oauth": "rclone authorize dropbox"},
     "drive": {
         "label": "Google Drive",
-        "fields": {"scope": "drive.readonly", "root_folder_id": "", "team_drive": "", "impersonate": ""},
-        "secrets": ["token", "service_account_credentials"],  # signs in with a token, or as a service account
+        # client_id and account: the Google OAuth client and account connected with Connect with Google (gdrive.py)
+        "fields": {"scope": "drive.readonly", "root_folder_id": "", "team_drive": "", "impersonate": "", "client_id": "", "account": ""},
+        # signs in with a token (renewed with client_secret when connected with Google), or as a service account
+        "secrets": ["token", "service_account_credentials", "client_secret"],
         "oauth": "rclone authorize drive",
     },
     "onedrive": {
@@ -51,7 +53,8 @@ BACKENDS = {
     **feeds.TYPES,
 }
 OBSCURED = {"pass"}  # rclone wants these obscured in its config file
-SKIPPED = "not audio, video, a document, an image or a transcript"
+NOT_RCLONE = {"account"}  # parameters Lens keeps for itself, not rclone options
+SKIPPED = "not audio, video, a document, an image or text"
 TRANSCRIPT_EXT = {".txt", ".text", ".md", ".markdown", ".mdx", ".docx", ".doc", ".pdf", ".srt", ".vtt", ".json", ".jsonl", ".eml", ".ics"}
 # what a watched folder picks up (its `kinds`): the first three are from before documents, and read PDFs as transcripts
 TAKES = {
@@ -124,7 +127,7 @@ def _config(cfg, src):
     name, spec = f"src{src['id']}", BACKENDS[src["type"]]
     lines = [f"[{name}]", f"type = {src['type']}"]
     for k, v in (src.get("params") or {}).items():
-        if k in spec["fields"] and v not in (None, ""):
+        if k in spec["fields"] and k not in NOT_RCLONE and v not in (None, ""):
             lines.append(f"{k} = {_one_line(v)}")
     for k, sealed in (src.get("sealed") or {}).items():
         if k in spec["secrets"]:
@@ -249,11 +252,12 @@ def browse(db, cfg, sid, path=""):
     return sorted(_entries(out, p.rstrip("/")), key=lambda e: (not e["dir"], e["name"].lower()))
 
 
-def list_files(db, cfg, src, path, cursor=None):
-    """Every file under `path`. A watch hands its `cursor` to sources that keep one (IMAP: only newer messages)."""
+def list_files(db, cfg, src, path, cursor=None, fresh=False, headers=True):
+    """Every file under `path`. A watch hands its `cursor` to sources that keep one (email: only newer messages), and
+    says when it's `fresh` (its first scan, leaving what's there); `headers` False is for counting files only."""
     p = check_path(cfg, src, path)
     if feeds.handles(src):
-        return feeds.list_files(cfg, src, p, cursor)
+        return feeds.list_files(cfg, src, p, cursor, fresh, headers)
     out = run(db, cfg, src, lambda n: ["lsjson", "-R", "--files-only", "--no-mimetype", f"{n}:{p}"], timeout=900)
     return _entries(out, p.rstrip("/"))
 
@@ -327,6 +331,30 @@ def cached_copy(db, cfg, sid, path, space=None):
 
 
 # ---------- managing sources ----------
+DRIVE_FOLDER = re.compile(r"/folders/([\w-]+)|[?&]id=([\w-]+)")
+
+
+def _drive_folder(k, v):
+    """A Drive folder's id from its link as the browser shows it (…/drive/u/0/folders/<id>?usp=sharing, open?id=<id>),
+    or the id as given."""
+    v = str(v or "").strip()
+    if "/" not in v and "?" not in v:
+        return v
+    if "/file/d/" in v or "/document/d/" in v or "/spreadsheets/d/" in v:
+        raise ValueError(f"{k}: that link is a file's; open the folder it's in and paste that link")
+    m = DRIVE_FOLDER.search(v)
+    if not m:
+        raise ValueError(f"{k}: paste the folder's link from Drive, or its id")
+    return m[1] or m[2]
+
+
+def tidy(typ, params):
+    """Options as people paste them, as rclone wants them: a Drive folder's or shared drive's link becomes its id."""
+    if typ != "drive" or not params:
+        return params
+    return {k: _drive_folder(k, v) if k in ("root_folder_id", "team_drive") and v else v for k, v in params.items()}
+
+
 def _check_params(typ, params, secret_values):
     spec = BACKENDS.get(typ)
     if not spec:
@@ -337,25 +365,24 @@ def _check_params(typ, params, secret_values):
     for k, v in (params or {}).items():
         if not isinstance(v, (str, int, float, bool)):
             raise ValueError(f"{k} must be a plain value")
+    feeds.check_params(typ, params)
     return spec
 
 
-def _secret(k, v):
-    """A secret as it's stored: a service account's key file is checked and kept on one line, as rclone reads it."""
+def _secret(typ, k, v):
+    """A secret as it's stored: a service account's key file is checked and kept on one line, as rclone reads it; a
+    Google source's connected account is checked too (google_auth.py)."""
+    if BACKENDS[typ].get("google"):
+        return google_auth.check_secret(k, v)
     if k != "service_account_credentials":
         return str(v)
-    try:
-        key = json.loads(v)
-    except ValueError:
-        raise ValueError("the service account key isn't JSON: upload the .json key file Google Cloud gave you") from None
-    if not isinstance(key, dict) or key.get("type") != "service_account" or not key.get("client_email") or not key.get("private_key"):
-        raise ValueError("that isn't a service account key: it needs type service_account, client_email and private_key")
-    return json.dumps(key, separators=(",", ":"))
+    return google_auth.service_key(v)
 
 
 def create(db, cfg, name, typ, params=None, secret_values=None, user=None):
     spec = _check_params(typ, params, secret_values)
-    plain = {k: _secret(k, v) for k, v in (secret_values or {}).items() if isinstance(v, str) and v}
+    params = tidy(typ, params)
+    plain = {k: _secret(typ, k, v) for k, v in (secret_values or {}).items() if isinstance(v, str) and v}
     sid = db.next_id("storage_source")
     sealed = {k: settings.seal(cfg, v, f"source:{sid}:{k}") for k, v in plain.items()}
     db.q(
@@ -378,18 +405,29 @@ def create(db, cfg, name, typ, params=None, secret_values=None, user=None):
 def update(db, cfg, sid, name=None, params=None, secret_values=None):
     src = get(db, sid)
     _check_params(src["type"], params, secret_values)
+    params = tidy(src["type"], params)
+    given = secret_values or {}
+    if "client_secret" in BACKENDS[src["type"]]["secrets"] and given.get("token") and not given.get("client_secret"):
+        # a token on its own is rclone's (pasted, or signed in through rclone): it renews with rclone's own client, so
+        # the client and account a Google connection left are dropped
+        secret_values = {**secret_values, "client_secret": None}
+        params = {**(params or {}), "client_id": "", "account": ""}
     sealed = dict(src.get("sealed") or {})
     for k, v in (secret_values or {}).items():
         if v is None or v == "":
             sealed.pop(k, None)
         elif isinstance(v, str):
-            sealed[k] = settings.seal(cfg, _secret(k, v), f"source:{sid}:{k}")
+            sealed[k] = settings.seal(cfg, _secret(src["type"], k, v), f"source:{sid}:{k}")
     db.q(
         "UPDATE $r MERGE $d",
         r=R("storage_source", sid),
         d=store.clean({"name": name, "params": {**(src.get("params") or {}), **(params or {})} if params else None}),
     )
     db.q("UPDATE $r SET sealed = $s", r=R("storage_source", sid), s=sealed)  # SET, not MERGE: a MERGE can't drop a removed secret
+    if params and "via" in params and str(params["via"]) != str((src.get("params") or {}).get("via")):
+        # read another way, which names mailboxes and messages differently: each watch starts again as new, taking
+        # what's there only if it backfills
+        db.q("UPDATE watch_path SET cursor = NONE, last_scan_at = NONE WHERE source = $s", s=sid)
 
 
 def remove(db, sid):
@@ -452,7 +490,7 @@ def _routes(db, src, opts):
     if "routes" not in opts:
         return {}
     routes = mail_routes.check(db, opts["routes"])
-    if routes and src["type"] != "imap":
+    if routes and not feeds.is_email(src):
         raise ValueError("routing rules are for watches on an email account")
     return {"routes": routes}
 
@@ -512,11 +550,11 @@ def preview_routes(db, cfg, sid, path, routes, home, limit=50):
     they're saved: one row per message, newest first, with the namespace (None: skipped) and the rule that decided.
     `home` is the name of the watch's namespace, which may not exist yet."""
     src = get(db, sid)
-    if src["type"] != "imap":
+    if not feeds.is_email(src):
         raise ValueError("routing rules are for watches on an email account")
     rules = _routes(db, src, {"routes": routes})["routes"]
     names = store.space_names(db)
-    files = sorted(list_files(db, cfg, src, path), key=lambda f: f.get("modified") or "", reverse=True)[:limit]
+    files = feeds.latest(cfg, src, check_path(cfg, src, path), limit)
     out = []
     for f in files:
         to, rule = mail_routes.route(rules, f.get("mail"), "", set(names))  # "": the watch's own namespace, `home`
@@ -554,14 +592,28 @@ def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None, collect
         ns = (db.one("SELECT name FROM $s", s=R("space", space)) or {})["name"]
         from . import keyring
 
+        old = None
         with keyring.plain_path(db, cfg, cached_copy(db, cfg, src["id"], f["path"], space)) as local:
             if feeds.handles(src) and not feeds.immutable(src):
-                _same_resource(db, space, src["id"], f["path"], ingest.fingerprint(local))
+                old = _same_resource(db, space, src["id"], f["path"], ingest.fingerprint(local))
             rid = ingest.import_transcript(db, cfg, ns, local, title=title, log=lambda *a: None, collection=collection)
+            event = _event_of(local, f, src)
+        if old and event and isinstance(old.get("event"), dict):
+            from . import events_content
+
+            events_content.calendar_moved(db, rid, space, src, title, old["event"], event)  # calendar_event.changed
         db.q(
             "UPDATE $r MERGE $d",
             r=R("recording", rid),
-            d=store.clean({"path": shown, "remote": {"source": src["id"], "path": f["path"]}, "recorded_at": f.get("when")}),
+            d=store.clean(
+                {
+                    "path": shown,
+                    "remote": {"source": src["id"], "path": f["path"]},
+                    "recorded_at": f.get("when"),
+                    "mail": _mail_of(f),
+                    "event": event,
+                }
+            ),
         )
         return rid, jobs.enqueue(db, rid, steps or None, by=by, pipeline=pipeline)
     if f.get("key"):  # the same message in two mailboxes (a Message-ID) is one resource
@@ -571,7 +623,7 @@ def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None, collect
     known = db.one("SELECT record::id(id) AS id FROM recording WHERE fp_key = $k", k=f"{space}:{fp}")
     if known:
         return known["id"], None
-    rid = db.next_id("recording")
+    rid, mail = db.next_id("recording"), _mail_of(f)
     db.q(
         "CREATE $r CONTENT $d",
         r=R("recording", rid),
@@ -589,22 +641,59 @@ def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None, collect
             "size": f["size"],
             "status": "new",
             "created_at": store.now(),
+            **({"mail": mail} if mail else {}),
         },
     )
     return rid, jobs.enqueue(db, rid, steps or None, by=by, pipeline=pipeline)
 
 
+def _mail_of(f):
+    """What a mailbox said of a message as it was listed (feeds._addressing: who sent it to whom, its subject, list
+    and mailbox, a snippet where the server gives one), kept small on its resource as `mail`, for automations and the
+    timeline (events_content.py) to read without opening the message. None for a file that isn't a message."""
+    m = f.get("mail")
+    if not isinstance(m, dict):
+        return None
+    box = m.get("mailbox")
+    out = {
+        "from": [str(a)[:200] for a in m.get("from") or []][:20],
+        "to": [str(a)[:200] for a in m.get("to") or []][:50],
+        "cc": [str(a)[:200] for a in m.get("cc") or []][:50],
+        "subject": str(m.get("subject") or "")[:300],
+        "list": str(m.get("list") or "")[:200],
+        "mailbox": [str(b)[:200] for b in box][:20] if isinstance(box, list) else str(box or "")[:200],
+        "date": f.get("when"),
+        "snippet": " ".join(str(m.get("snippet") or "").split())[:300],
+    }
+    return {k: v for k, v in out.items() if v} or None
+
+
+def _event_of(local, f, src):
+    """A calendar event's times, place and people (calendars.details), kept on its resource as `event`; None for a file
+    that isn't an event, or one that can't be read."""
+    if not str(f.get("path") or "").lower().endswith(".ics"):
+        return None
+    from . import calendars
+
+    try:
+        return calendars.details(pathlib.Path(local).read_text(encoding="utf-8-sig", errors="replace"), src.get("name"))
+    except (OSError, ValueError):
+        return None
+
+
 def _same_resource(db, space, sid, path, fp):
     """A calendar event that changed is read again into the resource it already is (found by where it came from), not
-    made a second one: that resource takes the new file's fingerprint, which the import then finds."""
+    made a second one: that resource takes the new file's fingerprint, which the import then finds. Returns that
+    resource as it was (its id, fingerprint and event), or None."""
     old = db.one(
-        "SELECT record::id(id) AS id, fingerprint FROM recording WHERE space = $sp AND remote.source = $s AND remote.path = $p LIMIT 1",
+        "SELECT record::id(id) AS id, fingerprint, event FROM recording WHERE space = $sp AND remote.source = $s AND remote.path = $p LIMIT 1",
         sp=space,
         s=sid,
         p=path,
     )
     if old and old.get("fingerprint") != fp:
         db.q("UPDATE $r SET fingerprint = $f, fp_key = $k", r=R("recording", old["id"]), f=fp, k=f"{space}:{fp}")
+    return old
 
 
 def file_kind(cfg, name, documents_as="document"):
@@ -656,7 +745,7 @@ def poll_watch(db, cfg, wid, log=print):
     spaces = set(store.space_names(db)) if routes else set()
     if routes:
         stats["routed"] = 0
-    files, held, limited = list_files(db, cfg, src, w["path"], w.get("cursor")), set(), None
+    files, held, limited = list_files(db, cfg, src, w["path"], w.get("cursor"), fresh=first and not w.get("backfill")), set(), None
     for f in files:
         kind = kind_of(cfg, w, f)
         if not kind:
@@ -675,7 +764,7 @@ def poll_watch(db, cfg, wid, log=print):
         if space is None or (first and not w.get("backfill")) or (src["id"], f["path"]) in gone[space]:
             db.q("UPSERT $k CONTENT $d", k=key, d={**row, "status": "skipped"})
             stats["skipped"] += 1
-        elif limited or (now - _when(f["modified"])).total_seconds() < (w.get("stable_seconds") or 0):
+        elif limited or (not f.get("settled") and (now - _when(f["modified"])).total_seconds() < (w.get("stable_seconds") or 0)):
             db.q("UPSERT $k CONTENT $d", k=key, d=store.clean({**row, "status": "waiting", "error": limited}))
             stats["waiting"] += 1
             held.add(f["path"])
@@ -704,8 +793,9 @@ def poll_watch(db, cfg, wid, log=print):
         n=nxt,
         s=stats,
     )
-    if any(f.get("cursor") for f in files):
-        db.q("UPDATE $r SET cursor = $c", r=R("watch_path", wid), c=feeds.advance(w.get("cursor"), files, held))
+    marks = getattr(files, "marks", [])
+    if marks or any(f.get("cursor") for f in files):
+        db.q("UPDATE $r SET cursor = $c", r=R("watch_path", wid), c=feeds.advance(w.get("cursor"), files, held, marks))
     return stats
 
 
@@ -740,7 +830,7 @@ def import_files(db, cfg, sid, paths, space, by, pipeline=None, collection=None,
     results = []
     for folder, wanted in folders.items():
         try:
-            listing = {e["path"]: e for e in browse(db, cfg, sid, folder)}
+            listing = feeds.find(cfg, src, folder, wanted) if feeds.handles(src) else {e["path"]: e for e in browse(db, cfg, sid, folder)}
         except (ValueError, RuntimeError) as e:
             results += [{"path": p, "status": "error", "detail": str(e)[:300]} for p in wanted]
             continue

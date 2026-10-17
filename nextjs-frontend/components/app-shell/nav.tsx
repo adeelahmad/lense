@@ -26,7 +26,7 @@ export function Nav({
   admin: boolean;
   collapsed: boolean;
   onToggle?: () => void;
-  counts: { recordings?: number; reviews?: number };
+  counts: { recordings?: number; reviews?: number; approvals?: number };
   onNavigate?: () => void;
   className?: string;
   top?: ReactNode;
@@ -45,51 +45,61 @@ export function Nav({
         <Brand collapsed={collapsed} />
       </div>
       {top}
-      {navFor(admin).map((it) => {
-        const on = isActive(pathname, it.href);
-        const n = it.countKey ? counts[it.countKey] : undefined;
-        const link = (
-          <Link
-            href={it.href}
-            onClick={onNavigate}
-            aria-current={on ? "page" : undefined}
-            className={cn(
-              "flex h-[34px] items-center gap-[11px] whitespace-nowrap rounded-sm px-2.5 text-[14px] transition-colors duration-fast",
-              on ? "bg-blue-surface font-bold text-fg-accent" : "font-medium text-fg-strong hover:bg-surface-neutral",
-              collapsed && "justify-center px-0",
-            )}
-          >
-            <it.icon className="size-[17px] shrink-0" strokeWidth={2} aria-hidden />
-            {collapsed ? (
-              <span className="sr-only">{it.label}</span>
-            ) : (
-              <>
-                <span className="flex-1">{it.label}</span>
-                {n ? <span className="tabular text-[11px] font-medium text-fg-muted">{count(n)}</span> : null}
-              </>
-            )}
-          </Link>
-        );
-        return (
-          <div key={it.href}>
-            {collapsed ? (
-              <Tooltip content={it.label} side="right">
-                {link}
-              </Tooltip>
-            ) : (
-              link
-            )}
-            {it.divider && <div className="mx-1.5 my-2 h-px bg-border" />}
-          </div>
-        );
-      })}
-      {collapsed ? (
-        <div className="flex-1" />
-      ) : (
-        <div className="flex min-h-0 flex-1 flex-col">
-          <NotesTree onNavigate={onNavigate} />
-        </div>
-      )}
+      {/* the links and the notes tree scroll together, so a long tree has the whole height; Collapse stays put */}
+      <div className="-mx-2.5 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2.5">
+        {navFor(admin)
+          .filter((it) => !it.whileCounted || (it.countKey && counts[it.countKey]) || isActive(pathname, it.href))
+          .map((it, i, all) => {
+            // a group's name goes above its first item; collapsed to icons, a line does
+            const opens = it.group && it.group !== all[i - 1]?.group;
+            const on = isActive(pathname, it.href);
+            const n = it.countKey ? counts[it.countKey] : undefined;
+            const link = (
+              <Link
+                href={it.href}
+                onClick={onNavigate}
+                aria-current={on ? "page" : undefined}
+                className={cn(
+                  "flex h-8 items-center gap-[11px] whitespace-nowrap rounded-sm px-2.5 text-[14px] transition-colors duration-fast",
+                  on
+                    ? "bg-blue-surface font-bold text-fg-accent"
+                    : "font-medium text-fg-strong hover:bg-surface-neutral",
+                  collapsed && "justify-center px-0",
+                )}
+              >
+                <it.icon className="size-[17px] shrink-0" strokeWidth={2} aria-hidden />
+                {collapsed ? (
+                  <span className="sr-only">{it.label}</span>
+                ) : (
+                  <>
+                    <span className="flex-1">{it.label}</span>
+                    {n ? <span className="tabular text-[11px] font-medium text-fg-muted">{count(n)}</span> : null}
+                  </>
+                )}
+              </Link>
+            );
+            return (
+              <div key={it.href}>
+                {opens &&
+                  (collapsed ? (
+                    <div className="mx-1.5 my-2 h-px bg-border" />
+                  ) : (
+                    <div className="px-2.5 pb-1 pt-2.5 text-[11px] font-bold uppercase leading-none tracking-wide text-fg-muted">
+                      {it.group}
+                    </div>
+                  ))}
+                {collapsed ? (
+                  <Tooltip content={it.label} side="right">
+                    {link}
+                  </Tooltip>
+                ) : (
+                  link
+                )}
+              </div>
+            );
+          })}
+        {!collapsed && <NotesTree onNavigate={onNavigate} />}
+      </div>
       {onToggle && (
         <button
           type="button"
