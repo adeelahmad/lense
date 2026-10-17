@@ -7,7 +7,7 @@ from collections import defaultdict
 from fastapi import APIRouter, HTTPException
 
 from app.api.deps import Acl, AdminReader, AdminWriter, Cfg, CurrentUser, Db, Writer, domain_errors
-from app.domain import auth, roles, store
+from app.domain import auth, roles, sandbox, store
 from app.schemas.common import Created, Ok
 from app.schemas.users import (
     Member,
@@ -84,10 +84,13 @@ def remove_user(uid: int, user: AdminWriter, db: Db, cfg: Cfg, lose_vaults: bool
         raise HTTPException(404, "not found")
     if ((cfg.get("bridge") or {}).get("account") or "").strip().lower() == u["email"]:
         raise HTTPException(409, "Matterbridge answers as this account: choose another one in Settings first")
+    chats = db.values("SELECT VALUE record::id(id) FROM chat WHERE account = $a", a=uid)
     try:
         auth.remove_account(db, uid, lose_vaults)
     except ValueError as e:
         raise HTTPException(409, str(e)) from None
+    for cid in chats:  # their conversations' code sandboxes, and the files those handed them
+        sandbox.forget(db, cfg, cid)
     auth.audit(db, user.as_audit(), "user.remove", f"account:{uid}", {"email": u["email"]})
     return Ok()
 

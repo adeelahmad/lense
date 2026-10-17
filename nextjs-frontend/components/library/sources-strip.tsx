@@ -10,6 +10,7 @@ import {
   ListOrdered,
   Mail,
   Network,
+  Rss,
   Server,
   type LucideIcon,
 } from "lucide-react";
@@ -33,6 +34,8 @@ const ICON: Record<string, LucideIcon> = {
   imap: Mail,
   gmail: Mail,
   ical: CalendarDays,
+  gcal: CalendarDays,
+  rss: Rss,
 };
 
 type ChipState = { meta: string; tone: "muted" | "red"; tip: string };

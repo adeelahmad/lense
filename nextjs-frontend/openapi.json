@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Lens",
-    "version": "0.13.0"
+    "version": "0.14.0"
   },
   "paths": {
     "/api/v1/auth/status": {
@@ -25919,6 +25919,54 @@
                   "$ref": "#/components/schemas/MessageDetail"
                 }
               }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chats/{cid}/files/{fid}": {
+      "get": {
+        "tags": [
+          "chats"
+        ],
+        "summary": "Download Chat File",
+        "description": "A file the code sandbox handed you in this conversation (share_sandbox_file, the download on its answer).",
+        "operationId": "download_chat_file",
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          },
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Fid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the file",
+            "content": {
+              "application/octet-stream": {}
             }
           },
           "422": {
@@ -59911,7 +59959,8 @@
                   "imap",
                   "gmail",
                   "ical",
-                  "gcal"
+                  "gcal",
+                  "rss"
                 ]
               },
               {
@@ -63346,6 +63395,31 @@
         "title": "S3Status",
         "description": "The S3 server (these fields), the WebDAV server, and your access keys (they sign in to both)."
       },
+      "SandboxFile": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "size"
+        ],
+        "title": "SandboxFile",
+        "description": "A file the code sandbox handed the person: GET /chats/{cid}/files/{id} downloads it."
+      },
       "SandboxGateway": {
         "properties": {
           "on": {
@@ -63483,6 +63557,46 @@
           "on"
         ],
         "title": "SandboxGatewayRequest"
+      },
+      "SandboxOutput": {
+        "properties": {
+          "stdout": {
+            "type": "string",
+            "title": "Stdout",
+            "default": ""
+          },
+          "stderr": {
+            "type": "string",
+            "title": "Stderr",
+            "default": ""
+          },
+          "exit_code": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exit Code"
+          },
+          "timed_out": {
+            "type": "boolean",
+            "title": "Timed Out",
+            "default": false
+          },
+          "cut": {
+            "type": "boolean",
+            "title": "Cut",
+            "description": "there was more than this",
+            "default": false
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "SandboxOutput",
+        "description": "What a code sandbox run printed, as its step shows it (the start of stdout, the end of stderr)."
       },
       "SavedSearch": {
         "properties": {
@@ -67064,7 +67178,8 @@
               "imap",
               "gmail",
               "ical",
-              "gcal"
+              "gcal",
+              "rss"
             ],
             "title": "Type"
           },
@@ -67161,7 +67276,8 @@
               "imap",
               "gmail",
               "ical",
-              "gcal"
+              "gcal",
+              "rss"
             ],
             "title": "Type"
           },
@@ -69960,6 +70076,28 @@
             "type": "string",
             "title": "Summary",
             "default": ""
+          },
+          "output": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SandboxOutput"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a code sandbox run's output"
+          },
+          "file": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SandboxFile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a file to download, from share_sandbox_file"
           },
           "ms": {
             "anyOf": [

@@ -11,6 +11,8 @@ export const SOURCE_TYPE_LABEL: Record<string, string> = {
   imap: "Email",
   gmail: "Gmail",
   ical: "Calendar",
+  gcal: "Google Calendar",
+  rss: "News feed",
 };
 
 export function sourceTypeLabel(type: string | null | undefined, fallback = "Source"): string {
