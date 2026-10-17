@@ -13,6 +13,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   `automation_actions`, `save_automation`, `test_automation` and `run_automation`, with problems in plain words. The
   assistant saves them switched off and asks before switching one on or running it
   ([Agents](docs/automations.md#agents)).
+- **Versions in conversations.** A conversation is now a tree: editing a question makes a new version beside it
+  instead of deleting what followed, regenerating an answer (`regenerate`, with the same model or another) writes one
+  beside it, and a question can go on from any message (`parent`). `GET /api/v1/chats/<id>` shows each message's
+  versions and every version's messages, and `PUT /api/v1/chats/<id>/head` switches between them; the model reads
+  only the version showing. The web app's switcher and Regenerate button are in progress. Existing conversations are
+  upgraded on the next start (`chat-tree`) ([Versions](docs/assistant.md)).
 - **Add an MCP server with a form, or paste its config.** Extensions → Add MCP server (admins) takes an address and
   its headers, or a command with its arguments and environment, or reads a config pasted from Claude (`.mcp.json`) or
   VS Code, one server or many; Test lists its tools before it's saved. Tokens and keys in headers and env are now

@@ -14,7 +14,7 @@ from app.domain.store import R
 
 # Every step that has shipped, in order. A database remembers steps by name, so these may never be renamed, reordered
 # or removed: add new steps to the end of migrations.steps() and here.
-SHIPPED = ["access-levels", "collection-homes", "tour-seen", "document-read-step", "mcp-sealed-secrets"]
+SHIPPED = ["access-levels", "collection-homes", "tour-seen", "document-read-step", "chat-tree", "mcp-sealed-secrets"]
 
 
 def test_steps_are_append_only():
@@ -269,3 +269,36 @@ def test_documents_waiting_to_be_transcribed_are_read_instead(db):
         assert [s["type"] for s in job[n]["steps"]] == ["read", "analyze", "report"]
         assert (job[n]["next_step"], job[n]["status"]) == ("read", "queued")
     assert job["song"]["next_step"] == "transcribe" and len(job["song"]["steps"]) == 4
+
+
+def test_conversations_from_before_versions_become_one_line(db):
+    from app.domain import chat
+
+    def older(n):
+        """A conversation as an older Lens saved it: messages with no parent, and no head."""
+        cid, ids = chat.create(db, 1), []
+        for i in range(n):
+            ids.append(db.next_id("chat_message"))
+            said = {"chat": cid, "role": "user" if i % 2 == 0 else "assistant", "content": f"m{i}"}
+            db.q("CREATE $r CONTENT $d", r=R("chat_message", ids[-1]), d=said)
+        return cid, ids
+
+    read, _ = older(3)
+    assert [m["content"] for m in chat.path(db, read)] == ["m0", "m1", "m2"]  # read right before the step runs, too
+    old, ids = older(5)
+    empty = chat.create(db, 1)
+    branched = chat.create(db, 1)  # a conversation with versions already is left alone
+    first = chat.add(db, branched, "user", "q")
+    chat.add(db, branched, "assistant", "a")
+    chat.add(db, branched, "user", "q, edited", parent=None)
+    before = db.rows("SELECT * FROM chat_message WHERE chat = $c ORDER BY id", c=branched)
+    dict(migrations.steps())["chat-tree"](db)
+    once = _everything(db)
+    dict(migrations.steps())["chat-tree"](db)  # safe to run twice
+    assert _everything(db) == once
+    assert [n.get("parent") for n in chat.tree(db, old)] == [None, *ids[:-1]] and chat.head(db, old) == ids[-1]
+    assert [m["content"] for m in chat.path(db, old)] == [f"m{i}" for i in range(5)]
+    assert chat.head(db, empty) is None
+    assert db.rows("SELECT * FROM chat_message WHERE chat = $c ORDER BY id", c=branched) == before
+    assert [m["content"] for m in chat.path(db, branched)] == ["q, edited"]
+    assert chat.versions(chat.tree(db, branched))[first]["count"] == 2
