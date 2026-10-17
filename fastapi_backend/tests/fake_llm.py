@@ -17,6 +17,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     decision = None  # the answer to a decision (decide.py) when no decision model is set up; else the first option
     cypher_script = []  # Cypher to answer graph questions with (graph_ask.py), in order
     podcast_script = None  # the lines a podcast script comes back with (podcasts.write), else a built-in one
+    spec = None  # a spec's answer (specs.write), else one quoting the transcript's lines in turn (see _spec)
     usage = None  # token counts to report with each answer (and as a streamed answer's last chunk), like OpenAI
 
     def _json(self, obj):
@@ -93,6 +94,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     "importance": 9,
                 }
             )
+        elif "rejected" in schema.get("properties", {}):
+            content = json.dumps(Handler.spec or _spec(body["messages"][-1]["content"]))
         elif "connections" in schema.get("properties", {}):
             # a podcast's outline (podcasts.plan): ideas from the first excerpt, a connection between the first and last
             nums = [int(n) for n in re.findall(r"^\[(\d+)\] ", body["messages"][-1]["content"], re.M)] or [1]
@@ -287,6 +290,26 @@ def embed(text):
             v[len(TOPICS) + zlib.crc32(w.encode()) % EXTRA] += 0.15
     n = math.sqrt(sum(x * x for x in v)) or 1.0
     return [x / n for x in v] if any(v) else [1.0 / math.sqrt(len(v))] * len(v)
+
+
+def _spec(prompt):
+    """A spec (specs.write) from the transcript's lines ([m:ss] Speaker: text), word for word: the first is a decision,
+    the second turned down, the third a constraint and the last left to decide; plus a quote the transcript doesn't hold,
+    a top heading, and links of the model's own making."""
+    said = re.findall(r"^\[(\d+(?::\d+)+)\] [^:\n]+: (.*)$", prompt, re.M) or [("0:00", "Nothing was said.")]
+    at = lambda i: said[min(i, len(said) - 1)]  # noqa: E731
+    return {
+        "title": "Job queue",
+        "summary": "Where background jobs wait, and what they run on.",
+        "spec": "# Goal\n\nA job queue for every install. See https://evil.example/x?d=secret and ![t](https://evil.example/p.png).",
+        "decisions": [{"decision": "Use SurrealDB for the queue", "quote": at(0)[1], "time": at(0)[0]}],
+        "rejected": [{"not": "Redis", "instead": "SurrealDB", "quote": at(1)[1], "time": at(1)[0]}],
+        "constraints": [
+            {"constraint": "Runs on a Raspberry Pi", "quote": at(2)[1], "time": at(2)[0]},
+            {"constraint": "Ships on Mars", "quote": "We will ship it on Mars.", "time": "9:99"},
+        ],
+        "gaps": [{"gap": "The retry policy", "quote": at(len(said) - 1)[1], "time": at(len(said) - 1)[0]}],
+    }
 
 
 def _picture(body):
