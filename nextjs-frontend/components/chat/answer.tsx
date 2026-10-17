@@ -157,6 +157,8 @@ export type AnswerProps = {
   onChecked?: (c: AnswerCheck) => void;
   /** What produced it (the answer's record); older answers have none. */
   meta?: MessageRecord | null;
+  /** More of what can be done with it, under it (a research report's: save as note, read aloud...). */
+  actions?: React.ReactNode;
 };
 
 /** One answer: where it comes from, the tools used, approvals, the text with citations, and its error states. */
@@ -365,6 +367,7 @@ export function Answer(p: AnswerProps) {
         </p>
       )}
       {result && <CheckResult result={result} cited={cites.length} />}
+      {!streaming && p.actions}
     </article>
   );
 }
