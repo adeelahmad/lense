@@ -4,6 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Published feeds.** A namespace publishes a private RSS feed, or a podcast feed with Apple Podcasts' tags, that any
+  feed reader or podcast app follows at its address: resources (with their audio as the enclosure), podcast episodes
+  once they're made (with the sources they cite), timeline activities and text. A feed holds only what everyone who
+  reads its namespace can already read, never a vault's; its token is all a reader needs, so it's kept sealed, a new
+  one stops the old address at once, and the feed asks directories and search engines not to list it. Editors make and
+  fill feeds with `POST /api/v1/feeds` and `POST /api/v1/feeds/{id}/items`; agents use the MCP tools `list_feeds`,
+  `create_feed` and `publish_to_feed` ([Published feeds](docs/feeds.md)).
 - **Specs from transcripts.** Turn a voice session or a meeting into a technical spec, saved as a note linked to it:
   the model writes the spec, then lists every named decision, every "no" and "not that, this", every constraint and
   every gap the speaker left to decide later, each with its quote and a link to the moment it was said; a quote the

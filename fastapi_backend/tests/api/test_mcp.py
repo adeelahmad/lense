@@ -83,6 +83,8 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "undo_topic_change",
         "write_note",
         "create_podcast",
+        "create_feed",
+        "publish_to_feed",
         "write_spec",
         "set_nsfw",
         "mark_nsfw",

@@ -31234,6 +31234,543 @@
         }
       }
     },
+    "/api/v1/feeds/public/{token}": {
+      "get": {
+        "tags": [
+          "feeds"
+        ],
+        "summary": "Read Feed",
+        "description": "A feed as RSS 2.0, with Apple Podcasts' tags for a podcast feed: what feed readers and podcast apps subscribe\nto. No session: the token in the address is the credential (404 for any other). Answers 304 to a reader whose\ncopy (If-None-Match) is current.",
+        "operationId": "read_feed",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/rss+xml": {}
+            }
+          },
+          "304": {
+            "description": "unchanged since the reader's copy"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feeds/public/{token}/items/{iid}/audio": {
+      "get": {
+        "tags": [
+          "feeds"
+        ],
+        "summary": "Read Feed Audio",
+        "description": "An item's audio (or video), with byte ranges, as podcast apps download it. The feed's token is the credential.",
+        "operationId": "read_feed_audio",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          },
+          {
+            "name": "iid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Iid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "audio/*": {}
+            }
+          },
+          "206": {
+            "description": "a byte range"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feeds": {
+      "get": {
+        "tags": [
+          "feeds"
+        ],
+        "summary": "List Feeds",
+        "description": "Feeds in the namespaces you can read (or one of them), each with its private address.",
+        "operationId": "list_feeds",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Namespace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Feed"
+                  },
+                  "title": "Response Feeds-List Feeds"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "feeds"
+        ],
+        "summary": "Create Feed",
+        "description": "A new feed in a namespace you edit, with its private address. Audited as `feed.create`.",
+        "operationId": "create_feed",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Feed"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feeds/{fid}": {
+      "get": {
+        "tags": [
+          "feeds"
+        ],
+        "summary": "Get Feed",
+        "operationId": "get_feed",
+        "parameters": [
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Feed"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "feeds"
+        ],
+        "summary": "Update Feed",
+        "description": "Change a feed's settings (editors of its namespace). Fields left out stay as they are.",
+        "operationId": "update_feed",
+        "parameters": [
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedSettings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Feed"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "feeds"
+        ],
+        "summary": "Delete Feed",
+        "description": "Delete a feed and its items (editors): its address stops working at once. What the items were about stays.\nAudited as `feed.delete`.",
+        "operationId": "delete_feed",
+        "parameters": [
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feeds/{fid}/token": {
+      "post": {
+        "tags": [
+          "feeds"
+        ],
+        "summary": "Rotate Feed Token",
+        "description": "A new private address for a feed (editors): the old one stops working at once, so readers subscribed to it\nneed the new one. Audited as `feed.token`.",
+        "operationId": "rotate_feed_token",
+        "parameters": [
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Feed"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feeds/{fid}/items": {
+      "get": {
+        "tags": [
+          "feeds"
+        ],
+        "summary": "List Feed Items",
+        "description": "A feed's items, newest first.",
+        "operationId": "list_feed_items",
+        "parameters": [
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FeedItem"
+                  },
+                  "title": "Response Feeds-List Feed Items"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "feeds"
+        ],
+        "summary": "Publish To Feed",
+        "description": "Add resources (podcast episodes too), timeline activities and text items to a feed (editors of its namespace).\nWhat's already in it isn't added twice; what may not show there (it's in a namespace not everyone who reads the\nfeed can read) is refused, with why. Audited as `feed.publish`.",
+        "operationId": "publish_to_feed",
+        "parameters": [
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedPublish"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedPublished"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feeds/{fid}/items/{iid}": {
+      "delete": {
+        "tags": [
+          "feeds"
+        ],
+        "summary": "Remove Feed Item",
+        "description": "Take an item out of a feed (editors). A routine may add it again; what it was about stays.",
+        "operationId": "remove_feed_item",
+        "parameters": [
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          },
+          {
+            "name": "iid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Iid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/resources/{rid}/spec": {
       "post": {
         "tags": [
@@ -44160,6 +44697,728 @@
           "errors"
         ],
         "title": "FedoraSyncResult"
+      },
+      "Feed": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "space": {
+            "type": "integer",
+            "title": "Space"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "rss",
+              "podcast"
+            ],
+            "title": "Kind"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "explicit": {
+            "type": "boolean",
+            "title": "Explicit",
+            "default": false
+          },
+          "image": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image"
+          },
+          "max_items": {
+            "type": "integer",
+            "title": "Max Items"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "the feed's private address: anyone with it can read the feed, so share it like a password"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "the address without the server"
+          },
+          "page": {
+            "type": "string",
+            "title": "Page",
+            "description": "the feed's page in the web app"
+          },
+          "items": {
+            "type": "integer",
+            "title": "Items",
+            "description": "how many items it holds"
+          },
+          "last_item_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Item At"
+          },
+          "fetched_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fetched At",
+            "description": "when a feed reader or podcast app last read it"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "space",
+          "kind",
+          "title",
+          "max_items",
+          "url",
+          "path",
+          "page",
+          "items"
+        ],
+        "title": "Feed"
+      },
+      "FeedCreate": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author",
+            "description": "who a podcast app shows it's by (default Lens)"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "a language tag, like en or en-GB (default en)"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category",
+            "description": "an Apple Podcasts category (podcast feeds; default Education)"
+          },
+          "explicit": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explicit"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image",
+            "description": "artwork: an https:// address of a square picture"
+          },
+          "max_items": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 500.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Items",
+            "description": "how many items the feed lists, newest first (default 50)"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "rss",
+              "podcast"
+            ],
+            "title": "Kind",
+            "default": "rss"
+          },
+          "namespace": {
+            "type": "string",
+            "title": "Namespace",
+            "description": "the namespace the feed belongs to: its editors manage it, its readers see it"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title",
+          "namespace"
+        ],
+        "title": "FeedCreate"
+      },
+      "FeedItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "feed": {
+            "type": "integer",
+            "title": "Feed"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "asset",
+              "episode",
+              "activity",
+              "text"
+            ],
+            "title": "Kind"
+          },
+          "guid": {
+            "type": "string",
+            "title": "Guid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link"
+          },
+          "published_at": {
+            "type": "string",
+            "title": "Published At"
+          },
+          "recording": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording"
+          },
+          "activity": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity"
+          },
+          "categories": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categories"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin",
+            "description": "the routine run and workflow node that added it"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "feed",
+          "kind",
+          "guid",
+          "published_at"
+        ],
+        "title": "FeedItem"
+      },
+      "FeedPublish": {
+        "properties": {
+          "recordings": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Recordings",
+            "description": "resources (and podcast episodes) to list"
+          },
+          "activities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Activities",
+            "description": "timeline activities to list, by id"
+          },
+          "texts": {
+            "items": {
+              "$ref": "#/components/schemas/FeedText"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Texts",
+            "description": "text items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FeedPublish"
+      },
+      "FeedPublished": {
+        "properties": {
+          "added": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Added",
+            "description": "the new items' ids"
+          },
+          "already": {
+            "type": "integer",
+            "title": "Already",
+            "description": "how many were in the feed already"
+          },
+          "refused": {
+            "items": {
+              "$ref": "#/components/schemas/FeedRefused"
+            },
+            "type": "array",
+            "title": "Refused",
+            "description": "what can't go in this feed, and why"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "added",
+          "already",
+          "refused"
+        ],
+        "title": "FeedPublished"
+      },
+      "FeedRefused": {
+        "properties": {
+          "what": {
+            "type": "string",
+            "title": "What"
+          },
+          "why": {
+            "type": "string",
+            "title": "Why"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "what",
+          "why"
+        ],
+        "title": "FeedRefused"
+      },
+      "FeedSettings": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author",
+            "description": "who a podcast app shows it's by (default Lens)"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "a language tag, like en or en-GB (default en)"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category",
+            "description": "an Apple Podcasts category (podcast feeds; default Education)"
+          },
+          "explicit": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explicit"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image",
+            "description": "artwork: an https:// address of a square picture"
+          },
+          "max_items": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 500.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Items",
+            "description": "how many items the feed lists, newest first (default 50)"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "rss",
+                  "podcast"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind",
+            "description": "rss lists anything; podcast lists items with audio, with Apple Podcasts' tags"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FeedSettings"
+      },
+      "FeedText": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary",
+            "description": "the item's text"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link",
+            "description": "an http or https address"
+          },
+          "guid": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guid",
+            "description": "what the item is about, so the same item isn't added twice"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FeedText"
       },
       "FieldCreate": {
         "properties": {

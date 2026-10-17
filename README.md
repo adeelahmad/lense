@@ -139,8 +139,11 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   are your own) and each note shows the notes it's inside and the ones inside it, with today's note one click away,
   templates to start from, a search by their words, a download as Markdown, and Undo and Recently deleted instead of a
   confirm. Export an asset or a collection as an evidence PDF with everything Lens found about it, or the parts you
-  pick. ([Podcasts](docs/podcasts.md), [specs from transcripts](docs/notes.md#specs-from-transcripts),
-  [notes](docs/notes.md), [evidence PDFs](docs/api.md#evidence-pdfs); [checks](docs/requirements.md#learn-from-it))
+  pick. Publish a namespace's resources, episodes, timeline activities or text as a private RSS feed or a podcast
+  feed that any feed reader or podcast app follows. ([Podcasts](docs/podcasts.md),
+  [specs from transcripts](docs/notes.md#specs-from-transcripts), [notes](docs/notes.md),
+  [evidence PDFs](docs/api.md#evidence-pdfs), [published feeds](docs/feeds.md);
+  [checks](docs/requirements.md#learn-from-it))
 - **Automate it.** Pipelines and workflows on a canvas, routines on a schedule, batch runs over a collection, and
   notifications to webhooks, Slack, Discord and Matterbridge. Everything that happens in Lens (new assets, emails,
   calendar events, files, what people say to Lens, sensor readings, notes, graph changes, runs, budget warnings) is kept
