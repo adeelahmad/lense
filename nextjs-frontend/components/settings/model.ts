@@ -67,6 +67,7 @@ export type SectionId =
   | "llm"
   | "local-model"
   | "ai"
+  | "sandbox"
   | "search"
   | "reports"
   | "video"
@@ -172,6 +173,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["ai", "web", "decisions", "voice"],
     description:
       "What the chat assistant may do with tools, whether it searches the web, which routine choices it makes for you, and when a batch run needs a typed confirmation.",
+  },
+  {
+    id: "sandbox",
+    label: "Code sandbox",
+    backend: ["sandbox"],
+    description:
+      "Off unless you turn it on. The assistant runs Python and bash for people in a sandbox of each conversation’s own, on an NVIDIA OpenShell gateway: no Lens data or keys inside, and no network unless you allow it.",
   },
   {
     id: "search",
@@ -749,6 +757,19 @@ export const FIELDS: FieldSpec[] = [
     label: "Find places and dates with anytopdf",
     kind: "switch",
     hint: "Offline: places a text names, dates it gives and where a photo was taken become hints for the entities found",
+  },
+  {
+    section: "analysis",
+    key: "cleanup",
+    label: "Clean up transcripts before analysis",
+    kind: "switch",
+    hint: "Repeated words, spacing and capitals tidied by rules before entities are found; every change is in Change history, with Revert",
+  },
+  {
+    section: "analysis",
+    key: "cleanup_fillers",
+    label: "Take out “um” and “uh”",
+    kind: "switch",
   },
   {
     section: "analysis",
@@ -2247,6 +2268,89 @@ export const FIELDS: FieldSpec[] = [
     max: 0.95,
     hint: "Objects the detector is less sure of are left out",
   },
+  // Code sandbox (opt-in)
+  {
+    section: "sandbox",
+    key: "enabled",
+    label: "Let the assistant run Python and bash",
+    kind: "switch",
+    hint: "In a sandbox of each conversation’s own on the OpenShell gateway below; its client (about 10 MB) is fetched the first time",
+  },
+  {
+    section: "sandbox",
+    key: "who",
+    label: "Who may use it",
+    kind: "select",
+    options: [
+      { value: "editors", label: "People who can edit a namespace, and admins" },
+      { value: "admins", label: "Admins only" },
+    ],
+  },
+  {
+    section: "sandbox",
+    key: "network",
+    label: "Its network",
+    kind: "select",
+    options: [
+      { value: "off", label: "None: nothing goes in or out" },
+      { value: "packages", label: "Python and npm package registries only" },
+      { value: "web", label: "Public web addresses (asks first after reading outside text)" },
+    ],
+  },
+  {
+    section: "sandbox",
+    key: "gateway",
+    label: "OpenShell gateway",
+    kind: "text",
+    mono: true,
+    placeholder: "openshell-gateway:8080",
+    hint: "host:port of its gRPC service, on a network only Lens reaches",
+  },
+  {
+    section: "sandbox",
+    key: "image",
+    label: "Image",
+    kind: "text",
+    mono: true,
+    placeholder: "python:3.12-slim",
+    hint: "A container image with python3 and bash; new sandboxes use it",
+  },
+  {
+    section: "sandbox",
+    key: "cpu",
+    label: "CPU per sandbox",
+    kind: "text",
+    mono: true,
+    hint: "Cores, like 1, 0.5 or 500m",
+  },
+  {
+    section: "sandbox",
+    key: "memory",
+    label: "Memory per sandbox",
+    kind: "text",
+    mono: true,
+    hint: "Like 512Mi or 2Gi",
+  },
+  { section: "sandbox", key: "seconds", label: "Longest run", kind: "int", min: 1, max: 600, unit: "seconds" },
+  {
+    section: "sandbox",
+    key: "idle_minutes",
+    label: "Stop an idle sandbox after",
+    kind: "int",
+    min: 1,
+    max: 1440,
+    unit: "minutes",
+  },
+  {
+    section: "sandbox",
+    key: "keep_hours",
+    label: "Delete an unused sandbox after",
+    kind: "int",
+    min: 1,
+    max: 720,
+    unit: "hours",
+    hint: "With its files. Deleting the conversation deletes it at once",
+  },
   // NSFW
   {
     section: "nsfw",
@@ -3707,6 +3811,15 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   const badNNet = nNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badNNet) e["nfs.allowed_networks"] = `“${badNNet}” isn’t a network like 192.168.1.0/24`;
   else if (nNets && nNets.length === 0) e["nfs.allowed_networks"] = "List at least one network";
+  const cpu = values["sandbox.cpu"] as string | undefined;
+  if (cpu !== undefined && !/^(\d+(\.\d+)?|\d+m)$/.test(String(cpu).trim()))
+    e["sandbox.cpu"] = "Cores, like 1, 0.5 or 500m";
+  const mem = values["sandbox.memory"] as string | undefined;
+  if (mem !== undefined && !/^\d+(Ki|Mi|Gi|K|M|G)?$/.test(String(mem).trim()))
+    e["sandbox.memory"] = "Like 512Mi or 2Gi";
+  const gw = values["sandbox.gateway"] as string | undefined;
+  if (gw !== undefined && !/^(\[[0-9a-f:]+\]|[a-z0-9][a-z0-9.-]*):\d{1,5}$/i.test(String(gw).trim()))
+    e["sandbox.gateway"] = "host:port, like openshell-gateway:8080";
   const mNets = values["smb.allowed_networks"] as string[] | undefined;
   const badMNet = mNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badMNet) e["smb.allowed_networks"] = `“${badMNet}” isn’t a network like 192.168.1.0/24`;

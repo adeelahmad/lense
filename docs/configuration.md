@@ -107,9 +107,9 @@ Start from `fastapi_backend/archive.example.yaml`, which documents every key. Th
 ## Settings in the app
 
 Admins can change, in Settings: transcription, speaker separation, speech providers, voice IDs, analysis, the LLM
-provider and key, a local model, the AI assistant, search (word search and search by meaning), reports and graph,
-video, OCR, faces and objects, [NSFW classification](nsfw.md), [enhancing images](enhance.md), workers, sign-in, components (and the edition, full or
-lean), access and embedding (whether other devices on the network reach Lens, embed frame ancestors, text and transcript
+provider and key, a local model, the AI assistant, the [code sandbox](assistant.md#code-sandbox), search (word
+search and search by meaning), reports and graph, video, OCR, faces and objects, [NSFW classification](nsfw.md),
+[enhancing images](enhance.md), workers, sign-in, components (and the edition, full or lean), access and embedding (whether other devices on the network reach Lens, embed frame ancestors, text and transcript
 upload limit, allowed hosts, trusted proxies, session length), remote access, email, chat rooms, notifications,
 automations, telemetry, the Fedora repository, sensors, file shares, uploads, storage, documents, API keys, and IIIF and metadata. The API
 refuses an allowed-host list that leaves out the address you are using.
@@ -491,6 +491,24 @@ follow ([Automations](automations.md#contract)), their timers, and how long thei
 | `automations.approval_days` | 7 | how long an automation's action waits for your pick before it expires and nothing runs, 1–365 days |
 | `events.poll_seconds` | 5 | how often followers look for new activities when nothing wakes them, 1–3600 |
 | `events.keep_days` | 30 | how long activities with no row of their own (the event log) are kept, 1–3650 days |
+
+## Code sandbox
+
+Where the assistant runs Python and bash ([Code sandbox](assistant.md#code-sandbox)). Settings → Code sandbox; the
+image, CPU, memory, run time and how long sandboxes are kept are under its fold:
+
+| Setting | Default | |
+|---|---|---|
+| `sandbox.enabled` | false | on: the assistant gets `run_python`, `run_bash`, `sandbox_files` and `import_sandbox_file` |
+| `sandbox.who` | `editors` | who may use it: `editors` (people who can edit a namespace, and admins) or `admins` |
+| `sandbox.network` | `off` | `off` (no traffic), `packages` (the Python and npm registries) or `web` (public addresses on ports 80 and 443) |
+| `sandbox.gateway` | `openshell-gateway:8080` | the OpenShell gateway's gRPC address, `host:port` |
+| `sandbox.image` | `python:3.12-slim` | the container image sandboxes are made from; it needs `python3` and `bash` |
+| `sandbox.cpu` | `1` | cores a sandbox may use, like `1`, `0.5` or `500m` (0.1–64) |
+| `sandbox.memory` | `512Mi` | memory a sandbox may use, like `512Mi` or `2Gi` (64Mi–64Gi) |
+| `sandbox.seconds` | 60 | the longest one run may take, 1–600 seconds |
+| `sandbox.idle_minutes` | 15 | a sandbox nobody ran code in for this long is stopped (its files stay), 1–1440 |
+| `sandbox.keep_hours` | 24 | one unused for this long is deleted with its files, 1–720 |
 
 ## Trusted proxies
 

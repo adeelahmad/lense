@@ -2,10 +2,10 @@
 one, recordings get the standard pipeline. Steps: enhance (an enhanced copy of a low quality image, enhance.py, which
 the steps after it read), transcribe (speech to text), read (a document's or an
 image's pages and their text), diarize, shots, ocr, faces, objects, nsfw (NSFW classification, nsfw.py), describe,
-analyze, embed (passages for search by meaning, semantic.py), summarize, llm (a prompt template whose structured
-result is saved as a named output), report (built in, or from a report template) and export (a template rendered to
-a file, optionally copied to a storage source) and workflow (a workflow graph, workflows.py, that turns what the steps
-made into metadata). Any step can carry a condition.
+clean (a transcript tidied before analysis, cleanup.py), analyze, embed (passages for search by meaning, semantic.py),
+summarize, llm (a prompt template whose structured result is saved as a named output), report (built in, or from a
+report template) and export (a template rendered to a file, optionally copied to a storage source) and workflow (a
+workflow graph, workflows.py, that turns what the steps made into metadata). Any step can carry a condition.
 
 Which pipeline a recording gets also depends on its content type (content_types.py): the one chosen for the run, else
 the namespace's override for the recording's subtype, else the subtype's own pipeline, else the namespace's default,
@@ -25,22 +25,12 @@ from . import keyring, llm, render, sources, store, templates
 
 R = store.R
 STANDARD = [
-    "enhance",
-    "transcribe",
-    "diarize",
-    "shots",
-    "ocr",
-    "faces",
-    "objects",
-    "nsfw",
-    "describe",
-    "analyze",
-    "embed",
-    "summarize",
+    "enhance", "transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "clean", "analyze", "embed", "summarize",
     "report",
-]
+]  # fmt: skip
 TYPES = {
-    "enhance", "transcribe", "read", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "analyze", "embed", "summarize", "llm",
+    "enhance", "transcribe", "read", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "clean", "analyze", "embed",
+    "summarize", "llm",
     "report",
     "export",
     "workflow",

@@ -14,7 +14,7 @@ import {
 
 /** The archive's settings sections (admins), in groups, most used first in each. Every section is in one group. */
 export const SETTINGS_GROUPS: { label: string; sections: SectionId[] }[] = [
-  { label: "AI and search", sections: ["llm", "local-model", "ai", "search", "analysis"] },
+  { label: "AI and search", sections: ["llm", "local-model", "ai", "sandbox", "search", "analysis"] },
   { label: "Speech and voices", sections: ["transcription", "speaker-separation", "voice-ids", "speech-providers"] },
   { label: "Media and documents", sections: ["uploads", "documents", "video", "nsfw", "enhance", "reports", "iiif"] },
   { label: "Chat and email", sections: ["telegram", "slack", "bridge", "mailbox", "mail", "notifications"] },

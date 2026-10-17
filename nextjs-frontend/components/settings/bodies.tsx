@@ -242,6 +242,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
     case "analysis":
       return (
         <>
+          <F ctx={ctx} id="analysis.cleanup" />
+          {raw("analysis.cleanup") === true && <F ctx={ctx} id="analysis.cleanup_fillers" />}
           <F ctx={ctx} id="analysis.entities" />
           {raw("analysis.entities") === "spacy" && <F ctx={ctx} id="analysis.spacy_model" />}
           <F ctx={ctx} id="analysis.anytopdf" />
@@ -334,6 +336,47 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <p className="text-[12.5px] text-fg-muted">
             Whether a namespace detects or recognises faces is set by its owner. How long face data is kept isn’t
             configurable yet.
+          </p>
+        </>
+      );
+    case "sandbox":
+      return (
+        <>
+          <F ctx={ctx} id="sandbox.enabled" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="sandbox.who" />
+            <F ctx={ctx} id="sandbox.network" />
+          </div>
+          <F ctx={ctx} id="sandbox.gateway" />
+          <More
+            ctx={ctx}
+            ids={[
+              "sandbox.image",
+              "sandbox.cpu",
+              "sandbox.memory",
+              "sandbox.seconds",
+              "sandbox.idle_minutes",
+              "sandbox.keep_hours",
+            ]}
+            title="Image, CPU and memory, run time, and how long sandboxes are kept"
+          >
+            <F ctx={ctx} id="sandbox.image" />
+            <div className="grid gap-3 sm:grid-cols-3">
+              <F ctx={ctx} id="sandbox.cpu" />
+              <F ctx={ctx} id="sandbox.memory" />
+              <F ctx={ctx} id="sandbox.seconds" />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <F ctx={ctx} id="sandbox.idle_minutes" />
+              <F ctx={ctx} id="sandbox.keep_hours" />
+            </div>
+          </More>
+          <p className="text-[12.5px] leading-[1.45] text-fg-muted">
+            Each conversation gets a sandbox of its own the first time the assistant runs code in it, and keeps its
+            files between runs. Nothing of Lens’s is inside: the assistant copies in files people attached when it needs
+            them, and a file it makes reaches a namespace only once the person approves. The sandbox runs on an NVIDIA
+            OpenShell gateway (Docker 28 or newer, and a Linux kernel with Landlock). Starting that gateway from here is
+            in progress; until then, point Lens at one you run.
           </p>
         </>
       );
