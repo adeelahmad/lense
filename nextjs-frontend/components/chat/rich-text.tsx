@@ -1,20 +1,30 @@
 import { Fragment, type ReactNode } from "react";
 
 import { normClaim } from "@/components/chat/cite";
+import { CopyCode } from "@/components/chat/copy";
 import { cn } from "@/lib/utils";
 
 /**
  * Model-written text (chat answers, combined reports) rendered safely as React nodes: paragraphs, headings,
- * bullet and numbered lists, **bold** and `code`, with [n] citations handed to `renderCite`. Nothing is parsed as HTML.
+ * bullet and numbered lists, fenced code blocks (with a copy button), **bold** and `code`, with [n] citations handed
+ * to `renderCite`. Nothing is parsed as HTML.
  */
 
 export type Block =
-  { type: "p"; text: string } | { type: "h"; level: 1 | 2 | 3; text: string } | { type: "ul" | "ol"; items: string[] };
+  | { type: "p"; text: string }
+  | { type: "h"; level: 1 | 2 | 3; text: string }
+  | { type: "ul" | "ol"; items: string[] }
+  | { type: "code"; lang: string; text: string };
+
+const FENCE = /^\s*(```|~~~)\s*([\w+#.-]*)/;
 
 export function parseBlocks(text: string): Block[] {
   const out: Block[] = [];
   let para: string[] = [];
   let list: { type: "ul" | "ol"; items: string[] } | null = null;
+  // a fenced code block being read: its fence, language and lines, kept as written (one still being streamed ends
+  // with the text)
+  let code: { fence: string; lang: string; lines: string[] } | null = null;
   const flushPara = () => {
     if (para.length) out.push({ type: "p", text: para.join(" ").trim() });
     para = [];
@@ -24,6 +34,20 @@ export function parseBlocks(text: string): Block[] {
     list = null;
   };
   for (const raw of text.replace(/\r\n?/g, "\n").split("\n")) {
+    if (code) {
+      if (raw.trim() === code.fence) {
+        out.push({ type: "code", lang: code.lang, text: code.lines.join("\n") });
+        code = null;
+      } else code.lines.push(raw);
+      continue;
+    }
+    const fence = FENCE.exec(raw);
+    if (fence) {
+      flushPara();
+      flushList();
+      code = { fence: fence[1], lang: fence[2], lines: [] };
+      continue;
+    }
     const line = raw.trim();
     const h = /^(#{1,3})\s+(.*)$/.exec(line);
     const ul = /^[-*•]\s+(.*)$/.exec(line);
@@ -52,6 +76,7 @@ export function parseBlocks(text: string): Block[] {
   }
   flushPara();
   flushList();
+  if (code) out.push({ type: "code", lang: code.lang, text: code.lines.join("\n") });
   return out;
 }
 
@@ -127,6 +152,18 @@ export function RichText({
     <div className={cn("flex flex-col gap-3", className)}>
       {parseBlocks(text).map((b, i) => {
         const key = `b${i}`;
+        if (b.type === "code")
+          return (
+            <div key={key} className="relative font-sans">
+              <pre
+                aria-label={b.lang ? `${b.lang} code` : "Code"}
+                className="m-0 overflow-x-auto rounded-sm border border-border bg-surface px-3.5 py-3 pr-11 font-mono text-[13px] leading-normal text-fg-strong"
+              >
+                <code>{b.text}</code>
+              </pre>
+              <CopyCode text={b.text} className="absolute right-1.5 top-1.5" />
+            </div>
+          );
         if (b.type === "h")
           return (
             <h3 key={key} className={cn("font-sans text-[15px] font-bold leading-snug text-fg", headingClassName)}>

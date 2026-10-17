@@ -27,6 +27,7 @@ from . import (
     graph_model,
     entity_setup,
     graph_history,
+    llm,
     notebook,
     ns_assistant,
     ops_tools,
@@ -38,6 +39,7 @@ from . import (
     browser as browsermod,
     similar,
     speakers as spk,
+    specs,
     store,
     templates,
     topics,
@@ -371,6 +373,16 @@ TOOLS = [
         True,
     ),
     (
+        "write_spec",
+        "Write a technical spec from an asset's transcript (a voice session, a meeting, a memo) as a note linked to it: "
+        'every named decision, every no and every "not that, this", every constraint the speaker stated, in their own '
+        "words with when they said them, and the gaps they left to decide later, flagged. It runs in the background with "
+        "the Spec from transcript template; writing it again updates the same note. Needs the person's approval.",
+        {"recording_id": _I},
+        ["recording_id"],
+        True,
+    ),
+    (
         "entity_setup",
         "How a namespace organises its entities: its mode (self-organising, a fixed list, or hybrid: the list first, then new entities), the types it keeps, what it's "
         "about, its own entity types, and its defined entities.",
@@ -604,7 +616,7 @@ GROUPS = {
         ],
     },
     "web": {"label": "The web", "tools": [t[0] for t in webmod.TOOLS]},
-    "notes": {"label": "Notes", "tools": ["find_notes", "read_note", "write_note", "update_note"]},
+    "notes": {"label": "Notes", "tools": ["find_notes", "read_note", "write_note", "update_note", "write_spec"]},
     "memory": {"label": "Namespace memory", "tools": [t[0] for t in MEMORY_TOOLS]},
     "activity": {
         "label": "Timeline and automations",
@@ -1937,6 +1949,16 @@ class Toolbox(ops_tools.OpsTools):
         est = batches.estimate(self.db, self.cfg, ids, steps)
         return self._approval("run_template", {"template_id": t["id"], "recordings": ids}, f"Run {label} on {len(ids)} asset(s)", est)
 
+    def t_write_spec(self, recording_id):
+        row = self._ok(recording_id)
+        if row["space"] not in self.editable:
+            raise ValueError(f"asset {recording_id} isn't yours to write a spec for")
+        if not llm.configured(self.cfg):
+            raise ValueError("no language model is configured (Settings → LLM provider)")
+        est = batches.estimate(self.db, self.cfg, [int(recording_id)], [{"type": "spec"}])
+        title = row.get("title") or f"asset {recording_id}"
+        return self._approval("write_spec", {"recording_id": int(recording_id)}, f"Write a spec from {title}", est)
+
     # ---- notes (notebook.py): the assistant reads and writes them at once; they're its notebook ----
     def _note(self, note_id, edit=False):
         try:
@@ -2245,6 +2267,14 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
             raise PermissionError("you can't change what that namespace's assistant remembers")
         ns_assistant.forget(db, sid, args["memory_id"])
         result = {"forgot": args["memory_id"]}
+    elif a["tool"] == "write_spec":
+        rid = int(args["recording_id"])
+        if (db.one("SELECT space FROM $r", r=R("recording", rid)) or {}).get("space") not in editable:
+            raise PermissionError("you can't write a spec for that asset")
+        try:
+            result = {"job": specs.queue(db, cfg, rid, by=user["email"])}
+        except specs.Problem as e:
+            raise ValueError(str(e)) from None
     elif a["tool"] == "run_template":
         steps, label = batches.steps_for(db, {"template": args["template_id"]})
         ids = [i for i in args["recordings"] if (db.one("SELECT space FROM $r", r=R("recording", i)) or {}).get("space") in editable]

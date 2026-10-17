@@ -2,9 +2,10 @@
 one, recordings get the standard pipeline. Steps: transcribe (speech to text), read (a document's or an
 image's pages and their text), diarize, shots, ocr, faces, objects, nsfw (NSFW classification, nsfw.py), describe,
 clean (a transcript tidied before analysis, cleanup.py), analyze, embed (passages for search by meaning, semantic.py),
-summarize, llm (a prompt template whose structured result is saved as a named output), report (built in, or from a
-report template) and export (a template rendered to a file, optionally copied to a storage source) and workflow (a
-workflow graph, workflows.py, that turns what the steps made into metadata). Any step can carry a condition.
+summarize, llm (a prompt template whose structured result is saved as a named output), spec (a technical spec from the
+transcript, written to a note linked to the recording, specs.py), report (built in, or from a report template) and
+export (a template rendered to a file, optionally copied to a storage source) and workflow (a workflow graph,
+workflows.py, that turns what the steps made into metadata). Any step can carry a condition.
 
 Which pipeline a recording gets also depends on its content type (content_types.py): the one chosen for the run, else
 the namespace's override for the recording's subtype, else the subtype's own pipeline, else the namespace's default,
@@ -29,6 +30,7 @@ STANDARD = [
 TYPES = {
     "transcribe", "read", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "clean", "analyze", "embed", "summarize",
     "llm",
+    "spec",
     "report",
     "export",
     "workflow",
@@ -62,8 +64,8 @@ def validate_steps(db, steps):
                 raise ValueError("workflow step: choose a workflow") from None
             if w["scope"] != "recording":
                 raise ValueError(f"workflow step: {w['name']} {workflows.RUN_BY.get(w['scope'], 'runs elsewhere')}")
-        need = {"llm": "prompt", "export": "export", "report": "report"}.get(t)
-        if need and (s.get("template") or t != "report"):
+        need = {"llm": "prompt", "spec": "prompt", "export": "export", "report": "report"}.get(t)
+        if need and (s.get("template") or t not in ("report", "spec")):  # a report or a spec has a built-in one
             try:
                 tpl = templates.get(db, int(s.get("template") or 0), s.get("version"))
             except (KeyError, TypeError, ValueError):

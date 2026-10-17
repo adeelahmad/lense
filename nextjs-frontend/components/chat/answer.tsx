@@ -18,6 +18,7 @@ import {
 } from "@/components/chat/cite";
 import { CitationChip } from "@/components/chat/citation";
 import { AnswerDetails } from "@/components/chat/details";
+import { AnswerMenu, type ExportFormat } from "@/components/chat/export";
 import { keywords } from "@/components/chat/keywords";
 import { RichText } from "@/components/chat/rich-text";
 import { scopeWords, type Scope } from "@/components/chat/scope";
@@ -158,6 +159,8 @@ export type AnswerProps = {
   onChecked?: (c: AnswerCheck) => void;
   /** What produced it (the answer's record); older answers have none. */
   meta?: MessageRecord | null;
+  /** Export this answer, with its question (a saved answer's copy menu). */
+  onExport?: (fmt: ExportFormat) => void;
 };
 
 /** One answer: where it comes from, the tools used, approvals, the text with citations, and its error states. */
@@ -312,7 +315,7 @@ export function Answer(p: AnswerProps) {
         </p>
       )}
 
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5 print:hidden">
         {streaming && p.onStop && (
           <Button
             size="sm"
@@ -361,6 +364,7 @@ export function Answer(p: AnswerProps) {
             {check.isPending ? "Checking sources…" : "Check sources"}
           </Button>
         )}
+        {!streaming && !blank && !noModel && <AnswerMenu text={p.text} passages={p.passages} onExport={p.onExport} />}
       </div>
       {check.isError && (
         <p role="alert" className="m-0 text-[13px] text-red-dark">
