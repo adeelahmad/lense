@@ -206,8 +206,7 @@ These are open pull requests, not yet part of Lens:
 - **Notes:** download a note, or all of a namespace's notes, as Markdown
   ([#419](https://github.com/adeelahmad/lense/pull/419)).
 - **Sources:** RSS and Atom news feeds ([#453](https://github.com/adeelahmad/lense/pull/453)).
-- **Pictures:** described on this machine with Florence-2 ([#477](https://github.com/adeelahmad/lense/pull/477)), and
-  low-quality images enhanced before they're read ([#479](https://github.com/adeelahmad/lense/pull/479)).
+- **Pictures:** described on this machine with Florence-2 ([#477](https://github.com/adeelahmad/lense/pull/477)).
 - **Entities:** names given their real types instead of Term ([#395](https://github.com/adeelahmad/lense/pull/395)).
 - **Web clipper:** signing in, or using your API token, not only an import webhook's
   ([#406](https://github.com/adeelahmad/lense/pull/406)).
