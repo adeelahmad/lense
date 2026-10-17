@@ -79,9 +79,14 @@ describe("merging into an entity", () => {
     const box = screen.getByRole("combobox", { name: "Entity to merge into Northwind Labs" });
     expect(box).toHaveFocus();
     fireEvent.change(box, { target: { value: "north" } });
+    // the list before the typing settles shows the same options, then empties while "north" is looked up: wait for
+    // that lookup, so a slow runner doesn't check the options in between
+    await waitFor(() => expect(m(Entities.listEntities).mock.calls.some(([o]) => o.query?.q === "north")).toBe(true));
     // itself and the entities that are always there can't be merged
-    await waitFor(() => expect(screen.getAllByRole("option")).toHaveLength(1));
-    expect(screen.getByRole("option")).toHaveTextContent("North Wind Labs");
+    await waitFor(() => {
+      expect(screen.getAllByRole("option")).toHaveLength(1);
+      expect(screen.getByRole("option")).toHaveTextContent("North Wind Labs");
+    });
     fireEvent.keyDown(box, { key: "Enter" });
     await waitFor(() => expect(Entities.mergeEntities).toHaveBeenCalled());
     expect(m(Entities.mergeEntities).mock.calls[0][0].body).toEqual({ keep: 1, others: [2] });
