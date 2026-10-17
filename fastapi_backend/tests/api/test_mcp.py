@@ -89,6 +89,7 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "set_file_storage",
         "set_monitoring",
         "set_service",
+        "set_sandbox_gateway",
         "set_install_settings",
         "mark_activities",
         "decline_approval",

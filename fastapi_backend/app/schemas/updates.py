@@ -162,3 +162,21 @@ class Services(ResponseModel):
 
 class ServiceRequest(RequestModel):
     on: bool = Field(description="start (true) or stop (false) the profile's containers")
+
+
+class SandboxGateway(ResponseModel):
+    on: bool = Field(description="the sandbox profile (the code sandbox's OpenShell gateway) as last asked")
+    state: Literal["queued", "running", "done", "failed"] | None = Field(None, description="how the machine's last change went")
+    error: str | None = None
+    asked_at: str | None = None
+    finished_at: str | None = None
+    agent: str | None = Field(None, description="what changes it on this machine (systemd, launchd); none: run `manual` there")
+    manual: str = Field(description="the line that starts it by hand, on the machine Lens runs on")
+    preflight: list[str] = Field(description="what stands in the way of running it on this machine, a sentence each")
+    address: str = Field(description="where Lens reaches the gateway (sandbox.gateway)")
+    reachable: bool | None = Field(None, description="whether the gateway answered and let Lens in; null: not checked")
+    problem: str | None = Field(None, description="why it didn't, when it didn't")
+
+
+class SandboxGatewayRequest(RequestModel):
+    on: bool = Field(description="start (true) or stop (false) the code sandbox's gateway; stopping deletes its sandboxes")

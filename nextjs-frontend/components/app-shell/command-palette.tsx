@@ -87,6 +87,12 @@ export function CommandPalette() {
               href: "/notes/today",
               icon: <Zap className="size-4" />,
             },
+            {
+              group: "Actions",
+              label: "New note from a template",
+              href: "/notes?template",
+              icon: <Zap className="size-4" />,
+            },
           ]
         : []),
       {
