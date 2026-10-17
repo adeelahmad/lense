@@ -107,12 +107,13 @@ Start from `fastapi_backend/archive.example.yaml`, which documents every key. Th
 ## Settings in the app
 
 Admins can change, in Settings: transcription, speaker separation, speech providers, voice IDs, analysis, the LLM
-provider and key, a local model, the AI assistant, the [code sandbox](assistant.md#code-sandbox), search (word
-search and search by meaning), reports and graph, video, OCR, faces and objects, [NSFW classification](nsfw.md),
-[enhancing images](enhance.md), workers, sign-in, components (and the edition, full or lean), access and embedding (whether other devices on the network reach Lens, embed frame ancestors, text and transcript
-upload limit, allowed hosts, trusted proxies, session length), remote access, email, chat rooms, notifications,
-automations, telemetry, the Fedora repository, sensors, file shares, uploads, storage, documents, API keys, and IIIF and metadata. The API
-refuses an allowed-host list that leaves out the address you are using.
+provider and key, a local model, the AI assistant, the [code sandbox](assistant.md#code-sandbox), search (word search
+and search by meaning), reports and graph, video, OCR, faces and objects, [NSFW classification](nsfw.md), [enhancing
+images](enhance.md), workers, sign-in, components (and the edition, full or lean), access and embedding (whether other
+devices on the network reach Lens, embed frame ancestors, text and transcript upload limit, allowed hosts, trusted
+proxies, session length), remote access, email, chat rooms, notifications, automations, telemetry, the Fedora
+repository, sensors, file shares, uploads, storage, documents, API keys, and IIIF and metadata. The API refuses an
+allowed-host list that leaves out the address you are using.
 
 The sections are in groups: AI and search, Speech and voices, Media and documents, Chat and email, Security and
 access, Files and devices, and System. **Find a setting** at the top of the list (or `/`) finds a section by its name
