@@ -1,0 +1,68 @@
+name: Upgrade
+
+# An install of the last release, holding data, upgraded to this code (ci/upgrade/upgrade.sh): its backend seeded
+# through the API, then this code's backend started on the same database and data folder. It fails when anything the
+# API showed reads differently, a record is gone, a pending upgrade step didn't run exactly once (after a backup), or
+# running the steps again changes anything.
+#
+# The Release workflow runs it before it cuts a version, and a version is cut only when it passes. It runs on pull
+# requests that change the backend too, and by hand from the Actions tab, from any version (a tag or a commit).
+on:
+  pull_request:
+    # closed: a pull request that's merged or closed cancels its runs that are still waiting or going (the job skips)
+    types: [opened, synchronize, reopened, closed]
+    paths:
+      - fastapi_backend/app/**
+      - fastapi_backend/pyproject.toml
+      - fastapi_backend/uv.lock
+      - docker-compose.prod.yml
+      - ci/upgrade/**
+      - .github/workflows/upgrade.yml
+  workflow_call:
+    inputs:
+      from:
+        description: "the version to upgrade from (a tag or commit); empty: the last release"
+        type: string
+        default: ""
+  workflow_dispatch:
+    inputs:
+      from:
+        description: "the version to upgrade from (a tag or commit); empty: the last release"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  upgrade:
+    name: Upgrade from ${{ inputs.from || 'the last release' }}
+    if: github.event.action != 'closed'
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
+    # a group of its own (in the Release workflow too, which calls it): a newer push to a pull request cancels this
+    concurrency:
+      group: upgrade-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    # under a minute of checks; most of it installs both versions' packages
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the tags, to find the last release
+      - uses: astral-sh/setup-uv@v7
+        with:
+          cache-local-path: ${{ runner.environment == 'self-hosted' && format('{0}/uv-cache', runner.tool_cache) || '' }}
+          python-version: "3.12"
+      - name: Upgrade and check
+        env:
+          FROM: ${{ inputs.from }}
+          LENS_UPGRADE_OUT: ${{ runner.temp }}/upgrade-check
+        run: ci/upgrade/upgrade.sh ${FROM:+"$FROM"}
+      # the logs, the seeded facts and the database before and after, to see what changed
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: upgrade-check
+          path: ${{ runner.temp }}/upgrade-check
+          if-no-files-found: ignore
+          retention-days: 7

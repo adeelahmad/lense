@@ -25,6 +25,21 @@ from a LanguageTool server, spaCy fetched for named entities, and dates found an
 
 Refine later: revert a whole cleanup at once; cleanup rules for other languages' fillers; per-namespace switch.
 
+## 2026-10-15 · Entity types beyond Term
+
+Adeel: "every entity comes as term? why!!". The default rules extractor typed a capitalised name PERSON only after a
+title, ORG only before Inc/Corp-like words and PRODUCT with a digit; everything else (people, places, most
+organisations) was TERM. `name_types.py` now types names from built-in lists (given names, places, well-known
+organisations and products, holidays), the words a name starts or ends with, roles and "called" phrases before it,
+verbs of saying after it and the namespace's named speakers; a recording gives each name one type. Upgrade step
+`entity-types` retypes old analysis-made Terms, skipping types people or agents set (graph history and audit log).
+
+Refine later: the decision model (Jev or Laya) for the names the rules leave as Terms, in analysis and as an action
+on existing Terms (next PR); place, name and brand lists for more languages and regions (Custom vocabulary in
+Settings covers one install's own names); type existing entities again when a later recording gives better evidence
+(needs a marker for types people set, kept out of the versioned rows); "Google Cloud"-like names (a known company,
+then a word) as products.
+
 ## 2026-10-15 · The assistant knows Lens itself
 
 Adeel: the assistant had no clue about the platform, its capabilities or general asks like "what is the MCP
