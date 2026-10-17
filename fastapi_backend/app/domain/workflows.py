@@ -267,7 +267,8 @@ def extract_rules(db, cfg, rid, c):
         list(c.get("terms") or []) + (list(cfg["analysis"].get("gazetteer") or []) if c.get("builtin", True) else [])
     )
     pats = [(re.compile(p["pattern"]), p["type"]) for p in c.get("patterns") or []]
-    find = analyze.entity_finder(cfg, gaz) if c.get("builtin", True) else None
+    nid = db.one("SELECT VALUE space FROM $r", r=R("recording", rid))
+    find = analyze.entity_finder(cfg, gaz, analyze.people_of(db, nid)) if c.get("builtin", True) else None
     types = set(c.get("types") or [])
     out = []
     for k, s in enumerate(_segments(db, rid)):

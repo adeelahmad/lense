@@ -817,6 +817,8 @@ deleted.
 GET    /api/v1/notes
 POST   /api/v1/notes
 POST   /api/v1/notes/today
+GET    /api/v1/notes/templates
+POST   /api/v1/notes/templates
 GET    /api/v1/notes/search
 GET    /api/v1/notes/export
 GET    /api/v1/notes/deleted
@@ -826,6 +828,7 @@ GET    /api/v1/notes/{pid}
 PATCH  /api/v1/notes/{pid}
 DELETE /api/v1/notes/{pid}
 POST   /api/v1/notes/{pid}/move
+POST   /api/v1/notes/{pid}/copy
 PUT    /api/v1/notes/{pid}/pin
 DELETE /api/v1/notes/{pid}/pin
 GET    /api/v1/notes/{pid}/markdown
@@ -840,7 +843,9 @@ DELETE /api/v1/notes/{pid}/files
 
 Note pages ([Notes](notes.md)), apart from the notes on an asset above. `GET /notes?ns=` is a namespace's page tree
 (`all=true` adds the pages of things). `today` gives the namespace's note for `date`, made the first time it's asked
-for ([Today's note](notes.md#todays-note)). `search?q=` finds pages by the words in their title, summary or text, title
+for ([Today's note](notes.md#todays-note)). `templates` lists the notes inside the namespace's Templates note, and
+`POST /notes/templates` makes that note the first time; `copy` makes a new note from a page, with its text, drawings,
+files and filing ([Templates](notes.md#templates)). `search?q=` finds pages by the words in their title, summary or text, title
 matches first, each with the words around the match ([Finding notes](notes.md#finding-notes)). `DELETE /notes/{pid}`
 moves a page to recently deleted for 30 days: `deleted` lists them, `restore` puts one back where it was and
 `DELETE /notes/deleted/{pid}` deletes one for good ([Deleting](notes.md#deleting-and-putting-back)). `move` puts a
@@ -1033,6 +1038,7 @@ POST   /api/v1/namespaces/{name}/import-hooks
 PATCH  /api/v1/namespaces/{name}/import-hooks/{hid}
 POST   /api/v1/namespaces/{name}/import-hooks/{hid}/token
 DELETE /api/v1/namespaces/{name}/import-hooks/{hid}
+GET    /api/v1/hooks/import
 POST   /api/v1/hooks/import
 POST   /api/v1/hooks/import/{token}
 ```
@@ -1053,14 +1059,28 @@ a URL; the address form ends up in proxy logs, so prefer the header). Three ways
 - **JSON** `{url?, text?, title?}`: a web page or PDF kept as a document, as [web pages](#web-pages) are (a page needs
   Chromium on the server; a link to a PDF doesn't), and text imported as pasted text is.
 
-The answer (202) is `{namespace, items: [{kind, name, recording, job, duplicate}]}`. 401 for a token that isn't a hook's,
-403 while the hook is paused, 413 over `uploads.max_mb`, 507 when the disk can't hold the file. Each item is audited as
-`import.hook`, by `import_hook:<id>` rather than a person.
+The answer (202) is `{namespace, items: [{kind, name, recording, job, duplicate}]}`. 401 for a token Lens doesn't know,
+saying which kind it took it for (a hook's, an API token, a sign-in), 403 while the hook is paused, 413 over
+`uploads.max_mb`, 507 when the disk can't hold the file. Each item is audited as `import.hook`, by `import_hook:<id>`
+rather than a person.
+
+**Your own token works there too**, for the [web clipper](web-clipper.md), an agent or a script acting as you: an API
+token with write access (`la_...`), an app's token (`lo_...`, with the write scope) or the web app's own, with
+`?namespace=` naming one you can import into (the import permission; editors have it). Without `?namespace=`, it's
+the only namespace you can import into, else 400 listing them. A read-only token gets 403. What you push this way is
+yours, audited as `import.push`, and isn't counted on any hook. Your own token only goes in the `Authorization`
+header: the address form takes hook tokens only.
+
+`GET /api/v1/hooks/import` says where a token's pushes go without importing anything:
+`{kind: "hook" | "person", hook, email, namespace, namespaces, write}`. For a hook's token, `namespace` is the hook's;
+for yours, `namespaces` lists every namespace you can import into and `namespace` is the one used without
+`?namespace=` (null when there's a choice), and `write` is false for a read-only key.
 
 ```
 curl -H "Authorization: Bearer $TOKEN" --data-binary @minutes.pdf "https://lens.example/api/v1/hooks/import?filename=minutes.pdf"
 curl -H "Authorization: Bearer $TOKEN" -F file=@call.m4a -F title="Call with Sam" https://lens.example/api/v1/hooks/import
 curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"url": "https://example.org/report.pdf"}' https://lens.example/api/v1/hooks/import
+curl -H "Authorization: Bearer $LENS_API_TOKEN" -H "Content-Type: application/json" -d '{"text": "Notes", "title": "Notes"}' "https://lens.example/api/v1/hooks/import?namespace=pods"
 ```
 
 ### Uploads

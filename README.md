@@ -117,7 +117,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   server (off by default, per namespace), entities and topics in a knowledge graph you can explore, query with Cypher or
   SPARQL, and see as it was at any version. Every entity has its own page at a wiki address
   (`/wiki/<namespace>/<Name>`), and entities, topics and people are edited and merged from their lists, the graph or an
-  asset, with Undo instead of a confirm. Find what is most like a passage, an asset, a topic or an entity, in a Similar
+  asset, with Undo instead of a confirm. Names get their real types (people, places, organisations, events, works) by
+  rules, without a model. Find what is most like a passage, an asset, a topic or an entity, in a Similar
   tab on every asset or by selecting text anywhere, and, with anytopdf, photos by what they show.
   ([Graph](docs/graph.md), [entity pages](docs/notes.md#entity-pages),
   [similar content](docs/processing.md#similar-content), [graph history](docs/graph-history.md),
@@ -125,9 +126,10 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [long recordings](docs/speech-providers.md#long-recordings); [checks](docs/requirements.md#understand-it))
 - **Learn from it.** Make a two-host podcast episode about what you pick, every claim cited and checked against its
   source, read aloud in two voices. Keep notes beside every asset, entity and topic, written by you or the assistant, in
-  a tree where notes are renamed, moved and pinned (pins are your own), with today's note one click away, a search by
-  their words, and Undo and Recently deleted instead of a confirm. Export an asset or a collection as an evidence PDF
-  with everything Lens found about it, or the parts you pick. ([Podcasts](docs/podcasts.md), [notes](docs/notes.md),
+  a tree where notes are renamed, moved, copied and pinned (pins are your own), with today's note one click away,
+  templates to start from, a search by their words, a download as Markdown, and Undo and Recently deleted instead of a
+  confirm. Export an asset or a collection as an evidence PDF with everything Lens found about it, or the parts you
+  pick. ([Podcasts](docs/podcasts.md), [notes](docs/notes.md),
   [evidence PDFs](docs/api.md#evidence-pdfs); [checks](docs/requirements.md#learn-from-it))
 - **Automate it.** Pipelines and workflows on a canvas, routines on a schedule, batch runs over a collection, and
   notifications to webhooks, Slack, Discord and Matterbridge. Everything that happens in Lens (new assets, emails,
@@ -155,8 +157,10 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   showing each step, and rolls back when the new version doesn't start; nothing installs unless an admin says so. The
   same agent changes whether other devices reach Lens and which edition runs, from Settings. Settings › Backups takes,
   lists, downloads and restores backups of the database and Lens's files (a file that hasn't changed takes no new room),
-  takes them on any schedule, and can copy each one, encrypted, to a storage connection.
-  ([Updates and backups](docs/updates.md), [backups](docs/database.md#backups);
+  takes them on any schedule, and can copy each one, encrypted, to a storage connection. Before a version is released,
+  CI upgrades the one before it, holding data, to it, and releases nothing when any of that data is lost.
+  ([Updates and backups](docs/updates.md), [backups](docs/database.md#backups),
+  [the upgrade check](docs/database.md#checked-before-every-release);
   [checks](docs/requirements.md#keep-it-up-to-date-and-backed-up))
 - **Watch it run.** Structured logs from every process, read in Settings › Logs and optionally sent to a syslog
   server. OpenTelemetry traces and metrics, and a Prometheus `/metrics` endpoint, both off until you turn them on, and
@@ -203,12 +207,9 @@ These are open pull requests, not yet part of Lens:
 - **The assistant** answering questions about Lens itself, from its docs and this server
   ([#400](https://github.com/adeelahmad/lense/pull/400)).
 - **Chat:** a conversation exported as Markdown, PDF or JSON ([#474](https://github.com/adeelahmad/lense/pull/474)).
-- **Notes:** download a note, or all of a namespace's notes, as Markdown
-  ([#419](https://github.com/adeelahmad/lense/pull/419)).
 - **Sources:** RSS and Atom news feeds ([#453](https://github.com/adeelahmad/lense/pull/453)).
 - **Pictures:** described on this machine with Florence-2 ([#477](https://github.com/adeelahmad/lense/pull/477)), and
   low-quality images enhanced before they're read ([#479](https://github.com/adeelahmad/lense/pull/479)).
-- **Entities:** names given their real types instead of Term ([#395](https://github.com/adeelahmad/lense/pull/395)).
 - **Web clipper:** signing in, or using your API token, not only an import webhook's
   ([#406](https://github.com/adeelahmad/lense/pull/406)).
 - **Automations:** more operators for conditions ([#434](https://github.com/adeelahmad/lense/pull/434)).
