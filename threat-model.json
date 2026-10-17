@@ -566,6 +566,15 @@
       "source": "docs/smb.md \"What keeps it safe\""
     },
     {
+      "entry_point": "web app /s3 and /dav (file shares relayed by lens-relay.js, ahead of Next)",
+      "parameter": "any method, path, Host and body, passed to the share servers with X-Forwarded-Prefix and X-Forwarded-For",
+      "attacker_controllable": "yes",
+      "component": "optional",
+      "caller_must_enforce": "admin enables shares.enabled and shares.remote; per-person access keys, read-only; failed WebDAV sign-ins throttled per visitor from X-Forwarded-For as trusted proxies report it",
+      "provenance": "documented",
+      "source": "docs/file-tree.md \"At the web app's address\""
+    },
+    {
       "entry_point": ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY",
       "parameter": "process configuration",
       "attacker_controllable": "no",
@@ -800,6 +809,14 @@
       "discouraged": false,
       "provenance": "documented",
       "source": "docs/sensors.md \"Sensors are off until an admin turns them on\""
+    },
+    {
+      "name": "shares.enabled, shares.remote",
+      "default": "off (bind 0.0.0.0); off",
+      "effect": "narrows P-SHARES",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "docs/file-tree.md \"At the web app's address\""
     },
     {
       "name": "tunnel.mode, local_llm.enabled, telemetry",
@@ -1226,7 +1243,7 @@
       "property": "P-SHARES",
       "violation_symptom": "info-leak, integrity-bypass",
       "severity_tier": "security",
-      "conditions": "the file shares (S3, WebDAV) are off until an admin enables them; every request carries a person's own access key (SigV4 or Basic), reads as them and never writes",
+      "conditions": "the file shares (S3, WebDAV) are off until an admin enables them, and reach the web app's address (/s3, /dav) only with shares.remote too; every request carries a person's own access key (SigV4 or Basic), reads as them and never writes",
       "provenance": "documented",
       "source": "docs/file-tree.md \"Off until an admin turns it on\""
     },

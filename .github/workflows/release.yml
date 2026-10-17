@@ -8,6 +8,9 @@ name: Release
 # section as its notes (.github/scripts/release.py). Pushing a vX.Y.Z tag yourself publishes that tag the same way,
 # without the commit.
 #
+# Before it cuts anything, the last release, holding data, is upgraded to the code being released and checked
+# (upgrade.yml): when anything is lost or an upgrade step misbehaves, nothing is cut. A pushed tag isn't checked again.
+#
 # Publishing starts the package workflows (cloudron.yml, qnap.yml, synology.yml, launchers.yml, browser-extension.yml,
 # safari-clipper.yml, browser-extension-firefox.yml, desktop.yml). A release published with the workflow's own token
 # doesn't trigger `release: published` in other workflows, so this one starts them itself, for the tag (`gh workflow run
@@ -30,8 +33,16 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  upgrade:
+    name: Upgrade from the last release
+    if: github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/upgrade.yml
+    permissions:
+      contents: read
+
   cut:
     name: Cut the version
+    needs: upgrade
     if: github.event_name == 'workflow_dispatch'
     runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
     permissions:
@@ -69,6 +80,11 @@ jobs:
             echo "tag=$tag" >> "$GITHUB_OUTPUT"
             echo "resume=true" >> "$GITHUB_OUTPUT"
             exit 0
+          fi
+          # the backend released is the one the upgrade check ran on: main may have moved since the run started
+          if ! git diff --quiet "$GITHUB_SHA" HEAD -- fastapi_backend docker-compose.prod.yml; then
+            echo "::error::The backend changed on $GITHUB_REF_NAME after the upgrade check ran on ${GITHUB_SHA:0:12}; run Release again"
+            exit 1
           fi
           version=$(python3 .github/scripts/release.py cut "$BUMP")
           git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null \

@@ -362,7 +362,9 @@ does), the topic is suggested for it, waiting for someone to accept it (one it a
 from stays as it is), or the label given is added as a tag (at most 40 characters). `applied` says which, and it is
 in the audit log. The MCP and assistant tools never apply; the assistant can then suggest the topic (`suggest_topic`).
 
-Planned, not built yet: a classify step in workflows, classifying many assets at once, and labels with examples.
+Workflows classify too, with a Classify node ([Workflows and the canvas](#workflows-and-the-canvas)), so a pipeline
+can classify every asset it runs on. Planned, not built yet: classifying many assets at once from the API, and labels
+with examples.
 
 ## Background work
 
@@ -626,11 +628,14 @@ node passes what it makes along its connections.
   regular expressions (`TYPE: pattern`); Extract entities (LLM) asks the model for structured entities and keeps,
   corrects or adds to any passed in; Merge joins lists; Save entities makes them the asset's entities (people's
   corrections kept) and redoes keywords and chapters.
-- **AI and logic:** LLM prompt (a prompt template, with what came in as `{{ input }}`), Pick (a path like
-  `action_items.0.text`), Condition (yes and no branches; one test, or a [match tree](automations.md#match-trees) of
-  several) and Merge.
-- **Keeping results:** Save output (`outputs.<name>`), Set field (a custom field, kept in the metadata history) and
-  Save entities.
+- **AI and logic:** LLM prompt (a prompt template, with what came in as `{{ input }}`), Classify (which of your
+  labels, the content types or the namespace's topics fits the asset, or what came in as text; it passes on `choice`,
+  `confidence`, `sure` and `ranked`, so a Condition or Switch can branch on them; [classifying](#classifying)), Pick
+  (a path like `action_items.0.text`), Condition (yes and no branches; one test, or a
+  [match tree](automations.md#match-trees) of several) and Merge.
+- **Keeping results:** Save output (`outputs.<name>`), Set field (a custom field, kept in the metadata history), Save
+  entities, and a Classify node set to act on a sure answer (it sets the content type, suggests the topic or adds the
+  tag; a try on the canvas only says what it would do).
 
 A pipeline runs a workflow as a Workflow step, pinned to the workflow's published version when the run is queued
 (`POST /api/v1/workflows/{id}/run` runs one on an asset). Pipelines can be drawn on the canvas too: a connection

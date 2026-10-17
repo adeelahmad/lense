@@ -23,6 +23,10 @@ let pathname = "/notes";
 jest.mock("next/navigation", () => ({ usePathname: () => pathname, useRouter: () => ({ push }) }));
 const toast = jest.fn();
 jest.mock("@/components/ui/toast", () => ({ useToast: () => toast }));
+const download = jest.fn<Promise<void>, [string, string | undefined, string]>(() => Promise.resolve());
+jest.mock("@/components/library/actions", () => ({
+  downloadWithToken: (url: string, token: string | undefined, name: string) => download(url, token, name),
+}));
 let editor = true;
 jest.mock("@/lib/hooks/session", () => ({
   useArchive: () => ({ namespaces: [{ name: "home" }], namespace: "home", can: () => editor }),
@@ -138,12 +142,12 @@ describe("the notes tree", () => {
     expect(m(Notes.unpinPage).mock.calls[0][0].path).toEqual({ pid: 4 });
   });
 
-  it("lets someone who can only read pin, and nothing else", async () => {
+  it("lets someone who can only read pin and download, and nothing else", async () => {
     editor = false;
     show();
     fireEvent.keyDown(await screen.findByRole("button", { name: "More for Trips" }), { key: "Enter" });
     const items = await screen.findAllByRole("menuitem");
-    expect(items.map((i) => i.textContent)).toEqual(["Pin"]);
+    expect(items.map((i) => i.textContent)).toEqual(["Pin", "Download as Markdown"]);
     expect(screen.queryByRole("button", { name: "New note inside Trips" })).not.toBeInTheDocument();
   });
 
@@ -156,5 +160,11 @@ describe("the notes tree", () => {
     await waitFor(() => expect(toast).toHaveBeenCalled());
     expect(toast.mock.calls[0][0].title).toBe("Couldn’t pin it");
     expect(screen.queryByRole("group", { name: "Pinned notes" })).not.toBeInTheDocument();
+  });
+
+  it("downloads a note as Markdown", async () => {
+    show();
+    await choose("Trips", "Download as Markdown");
+    await waitFor(() => expect(download).toHaveBeenCalledWith("/api/v1/notes/4/markdown", "t", "Trips.md"));
   });
 });

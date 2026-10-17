@@ -58,7 +58,9 @@ run; on `main`, **Backend coverage** adds them up into the `backend-coverage` ar
 Merging or closing a pull request cancels its CI, `pre-commit` and `Install` runs that are still waiting or going, and
 a newer push or title cancels the older ones, so a runner never works on something that no longer counts.
 `pre-commit`, `PR title`, `Install`, `threat model`, the clipper's browser workflows (which also keep the zips with the
-run) and the packaging workflows otherwise run as before.
+run) and the packaging workflows otherwise run as before. `Upgrade` runs on pull requests that change the backend: it
+upgrades the last release, holding data, to the change
+([Checked before every release](database.md#checked-before-every-release)).
 
 To add a project (the desktop app, say), give its folder a `project.json` with a `name` and any of the `lint`,
 `typecheck`, `test` and `build` targets (`nx:run-commands`, with `cwd: "{projectRoot}"`); a target that needs its
@@ -133,6 +135,9 @@ so a PR needs no `CHANGELOG.md` edit. When a change deserves more than its title
 upgrading), write it under `## Unreleased`; that text goes at the top of the next version's section.
 
 To release, run the Release workflow on `main` (Actions > Release > Run workflow, or `gh workflow run release.yml`).
+It first upgrades the last release, holding data, to `main` and checks that nothing was lost
+([Checked before every release](database.md#checked-before-every-release)); when that fails, or `main`'s backend
+changed after it ran, nothing is cut.
 With `auto` it picks the version from the PR titles merged since the last release: a breaking change bumps major
 (minor before 1.0), a `feat` minor, anything else patch; give `patch`, `minor`, `major` or an exact version to
 override. It writes the new section (the Unreleased text, then the changes grouped into features, fixes,
