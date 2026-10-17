@@ -29,7 +29,7 @@ requirements and this file as you learn. Loosening a requirement, a test or a ru
 3. Deliver it small and proven, to the principles below and the Done questions.
 4. Write lessons where the next agent will look. A repeated mistake becomes a rule here, a broken rule becomes a test,
    and a gap you hit becomes a GitHub issue (search before filing). Back gains with before-and-after numbers or "not
-   measured"; never win by weakening a test or a baseline.
+   measured" (`make scorecard`); never win by weakening a test or a baseline.
 5. Shipping brings users, whose issues and feedback feed step 2.
 
 ## Principles
