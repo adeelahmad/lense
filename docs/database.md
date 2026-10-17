@@ -115,6 +115,8 @@ The steps so far, in the order they run:
   (`chat_message`) gets the one before it as its `parent`, and the conversation (`chat`) its last message as its
   `head`. Only conversations without a `head` are touched, so it's safe to run twice; until it has run, a conversation
   without a `head` is read as one line, and saved as one before anything is added to it.
+* `mcp-sealed-secrets`: the tokens and keys MCP servers kept in plain text in their headers and env are sealed,
+  in every version ([Adding an MCP server](assistant.md#adding-an-mcp-server)); sealed ones are left as they are.
 
 To add a step:
 
