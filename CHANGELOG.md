@@ -4,10 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
-- **News feeds.** Subscribe to a blog's or a news site's RSS or Atom feed: add it on the Sources page (its address,
-  or just the site's) and watch it, and each new post comes into a namespace as text, with its link, author and date,
-  so answers cite it. Feeds are asked for again only when they've changed, and a private feed's address is kept like a
-  password ([News feeds](docs/processing.md#news-feeds-rss-and-atom)).
+- **Punctuation put back in transcripts.** With transcripts cleaned up, Settings → Analysis → Put punctuation back
+  adds full stops, commas and question marks with a local model (kredor/punctuate-all, MIT, 12 languages), to
+  transcripts that have hardly any (imported captions) or to every one, keeping the marks they have. The model and
+  PyTorch (about 2 GB) are fetched the first time it's needed; off by default
+  ([Cleaning up transcripts](docs/processing.md#cleaning-up-transcripts)).
 - **Clean up transcripts before analysis.** With Settings → Analysis → Clean up transcripts before analysis on (off
   by default), a new Clean up step runs before Analyze: a word said three times in a row is kept once ("I I I looked"
   → "I looked"), doubled pronouns and articles once, "um" and "uh" go, and spacing, "i" and sentence capitals are
@@ -56,6 +57,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   registries or the public web. Files attached to the conversation go in; a file it makes reaches a namespace once the
   person approves. Off by default; starting the gateway from Settings is in progress
   ([Code sandbox](docs/assistant.md#code-sandbox)).
+- **News feeds.** Subscribe to a blog's or a news site's RSS or Atom feed: add it on the Sources page (its address,
+  or just the site's) and watch it, and each new post comes into a namespace as text, with its link, author and date,
+  so answers cite it. Feeds are asked for again only when they've changed, and a private feed's address is kept like a
+  password ([News feeds](docs/processing.md#news-feeds-rss-and-atom)).
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 

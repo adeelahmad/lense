@@ -7,18 +7,18 @@ readme = "README.md"
 license = "MIT"
 dependencies = [
     "fastapi[standard]>=0.142.2,<0.143",
-    "starlette>=1.3.1", # security floor (Dependabot); fastapi itself allows older
+    "starlette>=1.8.0", # security floor (Dependabot); fastapi itself allows older
     "pydantic-settings>=2.5.2,<3",
     "pyjwt>=2.9,<3",
     "fastapi-mail>=1.4.1,<2",
     "surrealdb>=2.0,<3",
-    "numpy>=1.26",
+    "numpy>=2.5.4",
     "scipy>=1.11",
     "pyyaml>=6",
     "jinja2>=3.1",
-    "pypdf>=4",
+    "pypdf>=6.20.1",
     "pillow>=10",
-    "markdown>=3.5",
+    "markdown>=3.11.1",
     "cryptography>=50",
     "rdflib>=7.1,<8",  # the archive as RDF (Dublin Core): export, import, SPARQL
     "opentelemetry-api>=1.45.1,<2",
@@ -34,7 +34,7 @@ sensevoice = ["funasr", "modelscope", "torch", "torchaudio"]
 whisper = ["faster-whisper"]
 mlx = ["mlx-whisper"]
 # Laya typed decision models on MLX (Apple Silicon only): a local decision engine beside Jev
-laya = ["laya-mlx>=0.3"]
+laya = ["laya-mlx>=0.4.0"]
 voices = ["speechbrain", "torch", "torchaudio"]
 pyannote = ["pyannote.audio"]
 # Video: faces and alternative OCR engines (Tesseract is used through its binary)
@@ -46,6 +46,8 @@ insightface = ["insightface", "onnxruntime"]
 # Objects: YOLOX on ONNX Runtime (Apache-2.0; the model is a YOLOX .onnx file). Ultralytics YOLO also works if
 # installed by hand (pip install ultralytics): it's AGPL-3.0, so it isn't an extra here.
 objects = ["onnxruntime"]
+# Punctuation put back in transcripts (analysis.cleanup_punctuation): kredor/punctuate-all on Transformers and PyTorch
+punctuation = ["transformers", "torch"]
 # A local prompt-injection classifier (ai.injection_check "classifier"): ProtectAI's DeBERTa model on ONNX Runtime
 injection = ["onnxruntime", "tokenizers"]
 # Checking IIIF manifests against the official schema
@@ -67,8 +69,8 @@ lens = "app.cli:main"
 
 [dependency-groups]
 dev = [
-    "pre-commit>=4.6.2,<5",
-    "ruff>=0.16.9,<0.17",
+    "pre-commit>=4.7.0,<5",
+    "ruff>=0.17.0,<0.18",
     "watchdog>=6.0.0,<7",
     "python-dotenv>=1.2.4,<2",
     "pytest>=9.0.3,<10",
@@ -83,13 +85,13 @@ dev = [
     "coveralls>=4.0.1,<5",
     "mkdocs-material>=9.6.9",
     "mkdocs-material[imaging]>=9.7.7",
-    "onnxruntime>=1.18",  # the objects tests run a small YOLOX-shaped model
+    "onnxruntime>=1.31.0",  # the objects tests run a small YOLOX-shaped model
     "onnx>=1.23.2",  # ... which they build
-    "tokenizers>=0.20",  # the injection classifier tests run a tiny model and tokenizer
+    "tokenizers>=0.23.3",  # the injection classifier tests run a tiny model and tokenizer
     "mcp>=2.3.0",  # the official MCP client, to test the MCP server with
     "impacket>=0.13",  # the SMB share's server, and the SMB client its tests sign in with
     "openshell>=0.1.4,<0.2",  # the code sandbox's client, tested against a fake OpenShell gateway
-    "botocore>=1.43.111",
+    "botocore>=1.43.113",
 ]
 
 [tool.hatch.build.targets.wheel]
