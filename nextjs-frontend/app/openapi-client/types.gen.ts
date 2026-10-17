@@ -12833,6 +12833,25 @@ export type NoteCreate = {
 };
 
 /**
+ * NoteCrumb
+ */
+export type NoteCrumb = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * NoteDeleted
  */
 export type NoteDeleted = {
@@ -13196,6 +13215,18 @@ export type NotePage = {
    * Backlinks
    */
   backlinks?: Array<NoteBacklink>;
+  /**
+   * Path
+   *
+   * the notes it's inside, from the top of the tree down to its parent
+   */
+  path?: Array<NoteCrumb>;
+  /**
+   * Children
+   *
+   * the notes inside it, in the tree's order
+   */
+  children?: Array<NoteCrumb>;
   /**
    * Can Edit
    */
