@@ -64,6 +64,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   registries or the public web. Files attached to the conversation go in; a file it makes reaches a namespace once the
   person approves. Off by default; starting the gateway from Settings is in progress
   ([Code sandbox](docs/assistant.md#code-sandbox)).
+- **Find anything by who, what and when.** Agents and the API can find assets by the faces seen in them, the people
+  heard, the entities they mention, the topics they're about, their kind and content type, when they were made (a
+  day, a month or a year), tags, language, objects seen, emotions heard, length and words in them, together or alone,
+  naming people and things instead of looking up ids. Each result says why it matched, with moments to cite
+  (`POST /find`, the MCP tool `find`, the assistant's `find_resources`; [Finding by any
+  attribute](docs/processing.md#finding-by-any-attribute)). The Library list takes faces, entities, topics, content
+  types and emotions as filters too.
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 

@@ -13,7 +13,8 @@ can be compared (AGENTS.md, Goal: back gains with before-and-after numbers).
 - CI: the share of pull requests whose first push had a failing check, failed runs on main, the median time from ask
   to merge and the median workflow minutes per merged pull request, over the last --days.
 - Outside interest: stars, forks, and issues and pull requests from people who aren't collaborators.
-- Install to first answer, and idle RAM and disk on arm64 (as on a Raspberry Pi): not measured yet.
+- Install: the time from the install line to Lens answering, and the RAM and disk it takes idle, on arm64 (as a
+  Raspberry Pi is), from the Install workflow's timed install on main.
 
 Usage:
   ci/scorecard/scorecard.py                  print the line
@@ -464,24 +465,44 @@ def newest_from_main(gh: GitHub, name: str) -> dict | None:
     return max(found, key=lambda a: a.get("created_at") or "") if found else None
 
 
+class Unavailable(Exception):
+    """Why a number can't be measured."""
+
+
+def read_artifact(gh: GitHub, name: str, member: str) -> tuple[str, dict]:
+    """A file from the newest artifact of that name from main, and the artifact."""
+    artifact = newest_from_main(gh, name)
+    if artifact is None:
+        raise Unavailable(f"no {name} artifact from main (CI keeps them for 90 days)")
+    if not gh.token:
+        raise Unavailable(
+            "downloading CI artifacts needs a GitHub token (GITHUB_TOKEN)"
+        )
+    try:
+        data = gh.request(artifact["archive_download_url"], accept="*/*")
+        text = zipfile.ZipFile(io.BytesIO(data)).read(member).decode("utf-8", "replace")
+    except (urllib.error.URLError, KeyError, zipfile.BadZipFile) as e:
+        raise Unavailable(f"couldn't read the {name} artifact: {e}") from e
+    return text, artifact
+
+
+def made_at(artifact: dict) -> dict:
+    run = artifact.get("workflow_run") or {}
+    return {
+        "commit": (run.get("head_sha") or "")[:12],
+        "created": artifact.get("created_at"),
+    }
+
+
 def coverage(gh: GitHub, name: str, member: str, parse) -> dict:
     cmd = f"GET /repos/{gh.repo}/actions/artifacts?name={name}, the newest from main, {member}"
     try:
-        artifact = newest_from_main(gh, name)
-        if artifact is None:
-            return not_measured(
-                f"no {name} artifact from main (CI keeps them for a while)", cmd
-            )
-        if not gh.token:
-            return not_measured(
-                "downloading CI artifacts needs a GitHub token (GITHUB_TOKEN)", cmd
-            )
-        z = zipfile.ZipFile(
-            io.BytesIO(gh.request(artifact["archive_download_url"], accept="*/*"))
-        )
-        covered, lines = parse(z.read(member).decode("utf-8", errors="replace"))
-    except (urllib.error.URLError, KeyError, ValueError, zipfile.BadZipFile) as e:
-        return not_measured(f"couldn't read the {name} artifact: {e}", cmd)
+        text, artifact = read_artifact(gh, name, member)
+        covered, lines = parse(text)
+    except Unavailable as e:
+        return not_measured(str(e), cmd)
+    except ValueError as e:
+        return not_measured(f"couldn't read {member}: {e}", cmd)
     return measured(
         round(100 * covered / lines, 2),
         "% of lines",
@@ -489,9 +510,60 @@ def coverage(gh: GitHub, name: str, member: str, parse) -> dict:
         better="up",
         lines=lines,
         covered=covered,
-        commit=(artifact.get("workflow_run") or {}).get("head_sha", "")[:12],
-        created=artifact.get("created_at"),
+        **made_at(artifact),
     )
+
+
+INSTALL = ["install_to_first_answer_s", "idle_ram_mb", "disk_mb"]
+
+
+def install_metrics(gh: GitHub) -> dict:
+    """From the Install workflow's timed one-line install on arm64 (ci/scorecard/measure_install.py)."""
+    cmd = (
+        f"GET /repos/{gh.repo}/actions/artifacts?name=install-scorecard, the newest from main: the Install "
+        "workflow's arm64 job, ci/scorecard/measure_install.py"
+    )
+    try:
+        text, artifact = read_artifact(
+            gh, "install-scorecard", "install-scorecard.json"
+        )
+        data = json.loads(text)
+        on = {
+            k: data.get(k) for k in ("machine", "arch", "cores", "memory_gb", "target")
+        }
+        on.update(made_at(artifact))
+        return {
+            "install_to_first_answer_s": measured(
+                data["install_to_first_answer_s"],
+                "seconds",
+                cmd + " (from the install line to the setup page answering)",
+                better="down",
+                **on,
+            ),
+            "idle_ram_mb": measured(
+                data["idle_ram_mb"],
+                "MB",
+                cmd + " (docker stats of its containers, idle)",
+                better="down",
+                containers=data.get("containers_mb"),
+                **on,
+            ),
+            "disk_mb": measured(
+                data["disk_mb"],
+                "MB",
+                cmd + " (images, containers and volumes, and the install folder)",
+                better="down",
+                build_cache_mb=data.get("build_cache_mb"),
+                **on,
+            ),
+        }
+    except Unavailable as e:
+        return {k: not_measured(str(e), cmd) for k in INSTALL}
+    except (ValueError, KeyError) as e:
+        return {
+            k: not_measured(f"couldn't read install-scorecard.json: {e}", cmd)
+            for k in INSTALL
+        }
 
 
 def community(gh: GitHub) -> dict:
@@ -540,6 +612,7 @@ def github_metrics(gh: GitHub, since: datetime, until: datetime) -> dict:
             )
         },
         lambda: community(gh),
+        lambda: install_metrics(gh),
     ]
     names = [
         ["red_check_rate", "ask_to_merge_hours", "ci_minutes_per_merged_pr"],
@@ -553,6 +626,7 @@ def github_metrics(gh: GitHub, since: datetime, until: datetime) -> dict:
             "outside_pull_requests",
             "open_user_reported_issues",
         ],
+        INSTALL,
     ]
     out = {}
     for part, keys in zip(parts, names):
@@ -576,20 +650,9 @@ def offline_github(why: str) -> dict:
         "outside_issues",
         "outside_pull_requests",
         "open_user_reported_issues",
+        *INSTALL,
     ]
     return {k: not_measured(why) for k in keys}
-
-
-# --- Install and the Pi ---
-
-
-def install_metrics() -> dict:
-    why = "no timed install on an arm64 runner yet (#481)"
-    return {
-        "install_to_first_answer_s": not_measured(why),
-        "idle_ram_mb": not_measured(why),
-        "disk_mb": not_measured(why),
-    }
 
 
 # --- The line and the comparison ---
@@ -615,7 +678,6 @@ def scorecard(args, now: datetime | None = None) -> dict:
     else:
         gh = GitHub(repo, os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN"))
         metrics.update(github_metrics(gh, since, now))
-    metrics.update(install_metrics())
     return {
         "at": iso(now),
         "repo": repo,

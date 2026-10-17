@@ -602,6 +602,11 @@ repeat a parameter that takes several values (`?status=new&status=error`) to mat
 | `origin` | where they came from: `source:<id>` (a connected source), `upload`, `paste`, `iiif`, `folder` (the archive's own folders) or `file` (another file imported by path) |
 | `language` | language codes, ignoring case; `none` for assets whose language isn't known |
 | `object` | kinds of object seen in them (`person`, `car` …; [Objects](#objects)), ignoring case |
+| `face` | face identity ids: the assets they're seen in ([Video](video.md)) |
+| `entity` | entity ids: the assets that mention them |
+| `topic` | topic ids: the assets accepted as about them (not their narrower topics; `POST /find` brings those) |
+| `content_type` | content type keys (`podcast`, `scan`, `email` …; [content types](#content-types-and-custom-nodes)) |
+| `emotion` | emotions heard in them, ignoring case |
 | `edited_by` | `me`: assets you edited (corrected a line of the text, changed the catalogue record, or renamed) |
 | `sensitive` | where [NSFW classification](nsfw.md) is on: `only` the ones flagged NSFW, `exclude` them, or `include` them. Without it, flagged ones are left out where their namespace hides them (`display: hide`) |
 | `sort` | `date`, `title`, `duration`, `speakers`, `status` or `importance`; `-` in front for descending (default `-date`). Assets without the value come last either way |
@@ -1107,6 +1112,7 @@ asset later leaves its uploaded file in place, like any other media file.
 ```
 GET    /api/v1/search
 GET    /api/v1/search/terms
+POST   /api/v1/find
 GET    /api/v1/similar
 GET    /api/v1/graph
 GET    /api/v1/mentions
@@ -1146,6 +1152,20 @@ page through them. Each item says why it's alike in `match` (`meaning`, `words`,
 key words marked), the key `words` it says, and the `topics` and `entities` in common. The reply's `mode` is `meaning`
 when an embedding model compared them too, else `words`; `terms` are the key words looked for and `meaning` says why
 it wasn't by meaning when search by meaning is set up. An asset is never listed as like itself.
+
+`POST /find` finds the assets you can read by any attribute ([finding by any attribute](processing.md#finding-by-any-attribute)).
+The body takes `faces`, `speakers`, `entities` and `topics` (ids or names), `types`, `content_types` (keys or labels),
+`date_from` and `date_to` (`2026-09-30`, `2026-09` or `2026`), `min_duration` and `max_duration` (seconds), `tags`,
+`languages`, `objects`, `emotions`, `status`, `origins`, `collection`, `sensitive`, `title` (words in the title, the
+namespace or a person's name), `text` (words said or written, as `GET /search` takes them) and `namespace`; `sort`
+(`relevance`, the default with `text`, else `-date`; or `date`, `title`, `duration`, `-` for descending), `limit`
+(default 20, at most 100) and `offset`. Filters combine with AND, the values of one with OR. The reply has `total`,
+the page's `items` (rows as `GET /resources` lists them, each with `why`: `[{by, name, moments, count}]`, `by` being
+`words`, `face`, `voice`, `entity`, `topic`, `content_type`, `object` or `emotion`, and each moment a `t0` and `t1` in
+ms or a `page` from 0, with its `text` when it has words), `resolved` (what each name matched: `[{id, name, namespace}]`
+per filter, and `narrower_topics`) and `text` (how the words were matched, as `GET /search` says, and whether the
+moments looked through were `capped`). A name that matches nothing in the namespaces you can read is a 400 that names
+the closest ones; an unknown field is a 422.
 
 Search has no prefix search (`interp*` looks for the word "interp"). `GET /search/terms?prefix=interp` lists whole
 words found in the namespaces you can read (`ns` for one) that start with it, the most frequent first, with how often and

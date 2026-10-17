@@ -68,6 +68,7 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 |---|---|
 | `search` | moments where words appear (written, spoken or shown on screen), best first: the asset, person, time, the matching text (matches in **bold**) and a link to that moment. Words, `"phrases"`, `OR`; by namespace, person or asset |
 | `find_similar` | the assets (recordings, documents and images) most like a text, an asset, a topic or an entity: why each is alike (meaning, key words, topics, entities in common) and the moments that show it, with links |
+| `find` | assets by any attribute: faces seen, people heard, entities, topics, kind, content type, dates (a day, month or year), tags, language, objects, emotions, length, collection and words in them; ids or names. Each says why it matched, with moments and links to cite ([Finding by any attribute](processing.md#finding-by-any-attribute)) |
 | `list_namespaces` | the namespaces you can read, with their assets, hours, people and your role |
 | `list_recordings` | assets, newest first, by namespace, title words, dates, person, tag or kind, and whether they're flagged NSFW (`sensitive`) |
 | `list_speakers` | the people of your namespaces, the ones with the most talk time first |

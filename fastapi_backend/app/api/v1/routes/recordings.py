@@ -145,6 +145,15 @@ def list_recordings(
         description="where NSFW classification is on (docs/nsfw.md): only those flagged NSFW, exclude them, or include them. "
         "Without it, flagged ones are left out where their namespace hides them (display hide)",
     ),
+    face: list[int] | None = Query(None, description="face identity ids: the assets they're seen in; repeat for several"),
+    entity: list[int] | None = Query(None, description="entity ids: the assets mentioning them; repeat for several"),
+    topic: list[int] | None = Query(
+        None, description="topic ids: the assets accepted as about them (not their narrower topics); repeat for several"
+    ),
+    content_type: list[str] | None = Query(
+        None, description="content type keys (podcast, scan, email …; GET /content-types): their assets; repeat for several"
+    ),
+    emotion: list[str] | None = Query(None, description="emotions heard in them (ignoring case); repeat for several"),
     collection: int | None = Query(None, description="a collection: the assets in it and in the collections inside it"),
     field: int | None = Query(None, description="a custom field (of resources): the assets with a value for it, or with `value`"),
     value: str | None = Query(
@@ -207,6 +216,11 @@ def list_recordings(
             field=by_field,
             objects=object,
             sensitive=sensitive,
+            faces=face,
+            entities=entity,
+            topics=topic,
+            content_types=content_type,
+            emotions=emotion,
         )
     response.headers["X-Total-Count"] = str(total)
     for r in rows:
