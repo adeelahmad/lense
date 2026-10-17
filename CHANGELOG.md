@@ -4,6 +4,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
+
 - **Dates read as days, for agents.** With Settings → Analysis → Read dates on (off by default), analysis reads the
   dates each line gives as days on the calendar: "next Tuesday" in a recording made on a Wednesday is the Tuesday
   after, "last week" Monday to Sunday before, "March 2024" all of March, worked out from the asset's own date. Agents
@@ -143,6 +145,27 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   for the asset (or for what came in) and passes on the choice, how sure and every label ranked, for a Condition
   or Switch to branch on; set to act, a sure answer sets the content type, suggests the topic or adds the tag
   ([Workflows and the canvas](docs/processing.md#workflows-and-the-canvas)).
+
+### Features
+
+- **automations:** the variable picker's catalog and a template's preview for a draft automation ([#461](https://github.com/adeelahmad/lense/pull/461))
+- **automations:** the Approvals page, its badge, and Home's row ([#459](https://github.com/adeelahmad/lense/pull/459))
+- **automations:** save automations for their maker, with checks and an API ([#451](https://github.com/adeelahmad/lense/pull/451))
+
+### Fixes
+
+- **assistant:** let the assistant's tools be imported first ([#466](https://github.com/adeelahmad/lense/pull/466))
+- **files:** let the metadata module be imported first ([#475](https://github.com/adeelahmad/lense/pull/475))
+- **worker:** log the database upgrade a worker runs as it starts ([#496](https://github.com/adeelahmad/lense/pull/496))
+- **ci:** the upgrade check counts entities of every type ([#512](https://github.com/adeelahmad/lense/pull/512))
+
+### Dependencies
+
+- Bump the python-minor group across 1 directory with 11 updates ([#478](https://github.com/adeelahmad/lense/pull/478))
+- bump the javascript-minor group across 1 directory with 16 updates ([#381](https://github.com/adeelahmad/lense/pull/381))
+- update fastapi[standard] requirement in /fastapi_backend ([#367](https://github.com/adeelahmad/lense/pull/367))
+- bump the javascript-minor group ([#500](https://github.com/adeelahmad/lense/pull/500))
+- bump transformers ([#503](https://github.com/adeelahmad/lense/pull/503))
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 
