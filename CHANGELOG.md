@@ -69,6 +69,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   (`POST /find`, the MCP tool `find`, the assistant's `find_resources`; [Finding by any
   attribute](docs/processing.md#finding-by-any-attribute)). The Library list takes faces, entities, topics, content
   types and emotions as filters too.
+- **Classify an asset or a text.** Agents and the API can ask which of some labels fits, how sure that is and every
+  label ranked: labels they give, Lens's content types or a namespace's topics. The decision model answers, else the
+  language model, logged in the activity ledger; with `apply`, an editor's sure answer sets the content type, suggests
+  the topic or adds the tag (`POST /classify`, the MCP and assistant tool `classify`;
+  [Classifying](docs/processing.md#classifying)).
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 
