@@ -26,10 +26,7 @@ def _post(cfg, payload):
     l = cfg["llm"]
     if not configured(cfg):
         raise LLMError("no language model is configured (Settings → LLM provider)")
-    headers = {"Content-Type": "application/json"}
-    key = l.get("api_key") or (os.environ.get(l["api_key_env"]) if l.get("api_key_env") else None)
-    if key:
-        headers["Authorization"] = f"Bearer {key}"
+    headers = {"Content-Type": "application/json", **_headers(cfg)}
     req = urllib.request.Request(
         l["base_url"].rstrip("/") + "/chat/completions", data=json.dumps(payload).encode(), headers=headers, method="POST"
     )
@@ -41,29 +38,90 @@ def _post(cfg, payload):
         raise LLMError(f"can't reach the LLM server at {l['base_url']}: {e}") from None
 
 
-_MODELS = {}  # base_url -> (when, names): the server's list, kept a minute
+_MODELS = {}  # base_url -> (when, {name: what the server says of it}): the server's list, kept a minute
+_WINDOWS = {}  # (base_url, model) -> (when, tokens or None): each model's context window, kept ten minutes
 
 
-def list_models(cfg, ttl=60):
-    """The models the server offers (GET /models), kept for `ttl` seconds."""
+def _headers(cfg):
     l = cfg["llm"]
-    if not configured(cfg):
-        return []
+    key = l.get("api_key") or (os.environ.get(l["api_key_env"]) if l.get("api_key_env") else None)
+    return {"Authorization": f"Bearer {key}"} if key else {}
+
+
+def _listing(cfg, ttl=60):
+    """The models the server offers (GET /models), each name with what the server says of it, kept for `ttl` seconds."""
+    l = cfg["llm"]
     url = l["base_url"].rstrip("/")
     hit = _MODELS.get(url)
     if hit and time.monotonic() - hit[0] < ttl:
         return hit[1]
-    headers = {}
-    key = l.get("api_key") or (os.environ.get(l["api_key_env"]) if l.get("api_key_env") else None)
-    if key:
-        headers["Authorization"] = f"Bearer {key}"
     try:
-        with urllib.request.urlopen(urllib.request.Request(url + "/models", headers=headers), timeout=10) as r:
-            names = sorted({str(m["id"]) for m in json.load(r).get("data") or [] if isinstance(m, dict) and m.get("id")})
+        with urllib.request.urlopen(urllib.request.Request(url + "/models", headers=_headers(cfg)), timeout=10) as r:
+            listed = {str(m["id"]): m for m in json.load(r).get("data") or [] if isinstance(m, dict) and m.get("id")}
     except (urllib.error.URLError, TimeoutError, OSError, ValueError, AttributeError) as e:
         raise LLMError(f"can't list the models at {l['base_url']}: {e}") from None
-    _MODELS[url] = (time.monotonic(), names)
-    return names
+    _MODELS[url] = (time.monotonic(), listed)
+    return listed
+
+
+def list_models(cfg, ttl=60):
+    """The models the server offers (GET /models), kept for `ttl` seconds."""
+    return sorted(_listing(cfg, ttl)) if configured(cfg) else []
+
+
+# what a GET /models entry calls the model's context window: LM Studio's loaded context first (what it runs with), then
+# OpenRouter's, Together's and others' context_length, vLLM's max_model_len, Mistral's max_context_length, Groq's
+# context_window and max_input_tokens
+WINDOW_KEYS = ("loaded_context_length", "context_length", "max_model_len", "max_context_length", "context_window", "max_input_tokens")
+
+
+def _tokens(v):
+    if isinstance(v, str) and v.strip().isdigit():
+        v = int(v)
+    return int(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 256 else None
+
+
+def _window_of(entry):
+    for k in WINDOW_KEYS:
+        if n := _tokens(entry.get(k)):
+            return n
+    return _tokens((entry.get("top_provider") or {}).get("context_length")) if isinstance(entry.get("top_provider"), dict) else None
+
+
+def _llamacpp_window(cfg):
+    """The context llama.cpp's server runs each request with (GET /props at its root), which its model list doesn't
+    give (only the context the model was trained for)."""
+    root = re.sub(r"/v1/?$", "", cfg["llm"]["base_url"].rstrip("/"))
+    try:
+        with urllib.request.urlopen(urllib.request.Request(root + "/props", headers=_headers(cfg)), timeout=10) as r:
+            j = json.load(r)
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as e:
+        raise LLMError(f"can't ask llama.cpp's server for its context: {e}") from None
+    if not isinstance(j, dict):
+        return None
+    gen = j.get("default_generation_settings")
+    return _tokens(gen.get("n_ctx")) if isinstance(gen, dict) else _tokens(j.get("n_ctx"))
+
+
+def context_window(cfg, model=None, ttl=600):
+    """The model's context window in tokens as its server says: its GET /models entry (WINDOW_KEYS; a server listing
+    one model speaks for whichever is asked for), or llama.cpp's /props. None when the server doesn't say or can't be
+    asked. Kept `ttl` seconds, a miss too, so a server that doesn't say isn't asked before every answer."""
+    if not configured(cfg):
+        return None
+    model = model or cfg["llm"]["model"]
+    key = (cfg["llm"]["base_url"].rstrip("/"), model)
+    hit = _WINDOWS.get(key)
+    if hit and time.monotonic() - hit[0] < ttl:
+        return hit[1]
+    try:
+        listed = _listing(cfg)
+        entry = listed.get(model) or (next(iter(listed.values())) if len(listed) == 1 else {})
+        n = _window_of(entry) or (_llamacpp_window(cfg) if entry.get("owned_by") == "llamacpp" else None)
+    except LLMError:
+        n = None
+    _WINDOWS[key] = (time.monotonic(), n)
+    return n
 
 
 def _load(r):
