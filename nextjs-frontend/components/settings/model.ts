@@ -838,7 +838,10 @@ export const FIELDS: FieldSpec[] = [
     label: "Moondream model",
     kind: "select",
     options: [
-      { value: "moondream3-preview", label: "Moondream 3 Preview (about 19 GB, needs a GPU; BSL 1.1, not open source)" },
+      {
+        value: "moondream3-preview",
+        label: "Moondream 3 Preview (about 19 GB, needs a GPU; BSL 1.1, not open source)",
+      },
       { value: "moondream2", label: "Moondream 2 (about 3.7 GB, runs on the CPU, slowly; Apache-2.0)" },
     ],
   },

@@ -692,7 +692,13 @@ function LlmBody({ ctx }: { ctx: BodyCtx }) {
       </More>
       <More
         ctx={ctx}
-        ids={["llm.describe_engine", "llm.vision_model", "llm.florence_model", "llm.moondream_model", "llm.describe_max"]}
+        ids={[
+          "llm.describe_engine",
+          "llm.vision_model",
+          "llm.florence_model",
+          "llm.moondream_model",
+          "llm.describe_max",
+        ]}
         title="Describing pictures"
       >
         <F ctx={ctx} id="llm.describe_engine" />
