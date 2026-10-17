@@ -875,6 +875,9 @@ import type {
   ListCustomNodesData,
   ListCustomNodesErrors,
   ListCustomNodesResponses,
+  ListDatesData,
+  ListDatesErrors,
+  ListDatesResponses,
   ListEntitiesData,
   ListEntitiesErrors,
   ListEntitiesResponses,
@@ -7819,6 +7822,24 @@ export class Entities {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+}
+
+export class Dates {
+  /**
+   * List Dates
+   *
+   * The dates the assets you can read give that fall between `start` and `end` (a date that spans days counts when
+   * any of its days does), the earliest first, each with its line. Analysis reads them while Settings → Analysis → Read
+   * dates is on.
+   */
+  public static listDates<ThrowOnError extends boolean = false>(
+    options?: Options<ListDatesData, ThrowOnError>,
+  ): RequestResult<ListDatesResponses, ListDatesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListDatesResponses, ListDatesErrors, ThrowOnError>({
+      url: "/api/v1/dates",
+      ...options,
     });
   }
 }

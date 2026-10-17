@@ -222,6 +222,25 @@ retype, describe, merge and hide it.
 - **Merge suggestions:** same letters (ignoring case, spaces and punctuation), acronyms, one name containing the other,
   close spellings, and names that sound alike (likely transcription errors).
 
+### Dates
+
+With `analysis.dates` on (Settings → Analysis → Read dates; off by default), analysis reads each line for the dates it
+gives and keeps them as days on the calendar, so agents and the API can ask what was said about a day, a month or a
+range: `GET /api/v1/dates?start=2026-10&end=2026-10`, the MCP tool `list_dates`, the assistant's `find_dates`. Each
+date keeps the words said, its first and last day and how long it is (a day, a weekend, a week, a month or a year), and
+its line, linked to that moment.
+
+- **Said relative to the day:** "yesterday", "tomorrow", "in three days", "two weeks ago", "next month", "this
+  weekend" are worked out from the asset's own date (its `recorded_at`), and marked `relative`. "this Friday" is the
+  coming one, "next Friday" the Friday of the week after, "last Friday" the one before. "last week" is Monday to Sunday.
+- **Written out:** "3 March 2024", "March 3rd", "March 2024" (the whole month), "2026-10-20", "20/10/2026", and a year
+  after a word that makes it one ("in 2024", "since 1998"). A day without its year takes the asset's year.
+- **Left out rather than guessed:** a weekday on its own ("on Friday": the one before or after?), a date that reads two
+  ways ("10/11/2026"), "may" and short month names in small letters ("I may", "to mar"), and a bare number like "2000
+  people". Without an asset date, only dates that give their year are kept.
+- The rules read English. Nothing is sent anywhere and no model is called. Turning it on reads dates as assets are
+  analysed; Reprocess (Analyze) reads them for assets already there.
+
 ### Entity setup
 
 Each namespace has an entity setup (Entities → Setup, `GET`/`PUT /api/v1/namespaces/{name}/entity-setup`): the types
