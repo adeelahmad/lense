@@ -817,6 +817,8 @@ deleted.
 GET    /api/v1/notes
 POST   /api/v1/notes
 POST   /api/v1/notes/today
+GET    /api/v1/notes/templates
+POST   /api/v1/notes/templates
 GET    /api/v1/notes/search
 GET    /api/v1/notes/export
 GET    /api/v1/notes/deleted
@@ -826,6 +828,7 @@ GET    /api/v1/notes/{pid}
 PATCH  /api/v1/notes/{pid}
 DELETE /api/v1/notes/{pid}
 POST   /api/v1/notes/{pid}/move
+POST   /api/v1/notes/{pid}/copy
 PUT    /api/v1/notes/{pid}/pin
 DELETE /api/v1/notes/{pid}/pin
 GET    /api/v1/notes/{pid}/markdown
@@ -839,8 +842,12 @@ DELETE /api/v1/notes/{pid}/files
 ```
 
 Note pages ([Notes](notes.md)), apart from the notes on an asset above. `GET /notes?ns=` is a namespace's page tree
-(`all=true` adds the pages of things). `today` gives the namespace's note for `date`, made the first time it's asked
-for ([Today's note](notes.md#todays-note)). `search?q=` finds pages by the words in their title, summary or text, title
+(`all=true` adds the pages of things). `GET /notes/{pid}` gives a page with its text, links, backlinks, `path` (the
+notes it's inside, from the top) and `children` (the notes inside it) ([On a note](notes.md#on-a-note)). `today` gives
+the namespace's note for `date`, made the first time it's asked for ([Today's note](notes.md#todays-note)).
+`templates` lists the notes inside the namespace's Templates note, and `POST /notes/templates` makes that note the first
+time; `copy` makes a new note from a page, with its text, drawings, files and filing ([Templates](notes.md#templates)).
+`search?q=` finds pages by the words in their title, summary or text, title
 matches first, each with the words around the match ([Finding notes](notes.md#finding-notes)). `DELETE /notes/{pid}`
 moves a page to recently deleted for 30 days: `deleted` lists them, `restore` puts one back where it was and
 `DELETE /notes/deleted/{pid}` deletes one for good ([Deleting](notes.md#deleting-and-putting-back)). `move` puts a
@@ -1033,6 +1040,7 @@ POST   /api/v1/namespaces/{name}/import-hooks
 PATCH  /api/v1/namespaces/{name}/import-hooks/{hid}
 POST   /api/v1/namespaces/{name}/import-hooks/{hid}/token
 DELETE /api/v1/namespaces/{name}/import-hooks/{hid}
+GET    /api/v1/hooks/import
 POST   /api/v1/hooks/import
 POST   /api/v1/hooks/import/{token}
 ```
@@ -1053,14 +1061,28 @@ a URL; the address form ends up in proxy logs, so prefer the header). Three ways
 - **JSON** `{url?, text?, title?}`: a web page or PDF kept as a document, as [web pages](#web-pages) are (a page needs
   Chromium on the server; a link to a PDF doesn't), and text imported as pasted text is.
 
-The answer (202) is `{namespace, items: [{kind, name, recording, job, duplicate}]}`. 401 for a token that isn't a hook's,
-403 while the hook is paused, 413 over `uploads.max_mb`, 507 when the disk can't hold the file. Each item is audited as
-`import.hook`, by `import_hook:<id>` rather than a person.
+The answer (202) is `{namespace, items: [{kind, name, recording, job, duplicate}]}`. 401 for a token Lens doesn't know,
+saying which kind it took it for (a hook's, an API token, a sign-in), 403 while the hook is paused, 413 over
+`uploads.max_mb`, 507 when the disk can't hold the file. Each item is audited as `import.hook`, by `import_hook:<id>`
+rather than a person.
+
+**Your own token works there too**, for the [web clipper](web-clipper.md), an agent or a script acting as you: an API
+token with write access (`la_...`), an app's token (`lo_...`, with the write scope) or the web app's own, with
+`?namespace=` naming one you can import into (the import permission; editors have it). Without `?namespace=`, it's
+the only namespace you can import into, else 400 listing them. A read-only token gets 403. What you push this way is
+yours, audited as `import.push`, and isn't counted on any hook. Your own token only goes in the `Authorization`
+header: the address form takes hook tokens only.
+
+`GET /api/v1/hooks/import` says where a token's pushes go without importing anything:
+`{kind: "hook" | "person", hook, email, namespace, namespaces, write}`. For a hook's token, `namespace` is the hook's;
+for yours, `namespaces` lists every namespace you can import into and `namespace` is the one used without
+`?namespace=` (null when there's a choice), and `write` is false for a read-only key.
 
 ```
 curl -H "Authorization: Bearer $TOKEN" --data-binary @minutes.pdf "https://lens.example/api/v1/hooks/import?filename=minutes.pdf"
 curl -H "Authorization: Bearer $TOKEN" -F file=@call.m4a -F title="Call with Sam" https://lens.example/api/v1/hooks/import
 curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"url": "https://example.org/report.pdf"}' https://lens.example/api/v1/hooks/import
+curl -H "Authorization: Bearer $LENS_API_TOKEN" -H "Content-Type: application/json" -d '{"text": "Notes", "title": "Notes"}' "https://lens.example/api/v1/hooks/import?namespace=pods"
 ```
 
 ### Uploads
@@ -1344,14 +1366,16 @@ photo search results carry `nsfw: true` for the ones the web app blurs.
 
 ### Descriptions
 
-The `describe` step has a model that can see images, the one an admin chose as `llm.vision_model`, say in a few
-sentences what each page of a document or an image shows, and each shot of a video (from its keyframe): the setting,
-the people (by what they do and wear, never who they might be), the things and any text in it. It comes after
-`nsfw` in the standard pipeline, and describes at most `llm.describe_max` pages or shots of a resource. Without an
-LLM, or with no `llm.vision_model`, it's skipped, saying why; a model that can't see makes it fail with what the server
-said ([Configuration](configuration.md#descriptions)). The player's `descriptions` lists them in order:
+The `describe` step has a model that can see images say in a few sentences what each page of a document or an image
+shows, and each shot of a video (from its keyframe): the setting, the people (by what they do and wear, never who they
+might be), the things and any text in it. The model is the one an admin chose as `llm.vision_model` on the LLM
+provider, or, with `llm.describe_engine` `florence-2`, Florence-2 on the server itself, which needs no provider. It
+comes after `nsfw` in the standard pipeline, and describes at most `llm.describe_max` pages or shots of a resource.
+Without an LLM, with no `llm.vision_model`, or before Florence-2 is fetched, it's skipped, saying why; a model that
+can't see makes it fail with what the server said ([Configuration](configuration.md#descriptions)). The player's `descriptions` lists them in order:
 `{idx, t0, t1, text, model, frame, paged}`: the shot or page, where it starts and ends (ms; on pages, the page from 0
-and the next), what the model said, which model, and a signed link to the picture it was shown. Search finds them
+and the next), what the model said, which model (such as `Florence-2-base`), and a signed link to the picture it was
+shown. Search finds them
 (`source: described`, [search](#search)). Moving or deleting a resource moves or deletes them; the step run again
 replaces them.
 
@@ -1478,6 +1502,7 @@ version.
 ```
 GET    /api/v1/chats
 GET    /api/v1/chats/capabilities
+GET    /api/v1/chats/tools
 POST   /api/v1/chats
 GET    /api/v1/chats/{cid}
 PATCH  /api/v1/chats/{cid}
@@ -1501,7 +1526,7 @@ that node runs without asking from now on). Approving, editing and `always` on a
 session (403 for an API key or an app); each approval's `can` says what you may do with it.
 
 `GET /chats/capabilities` tells anyone signed in whether a language model is set up (`configured`), which (`model`),
-whether it uses tools (`tools`, `max_steps`), whether answers can be checked (`check`) and the `models` people may pick
+whether it uses tools (`tools`, `max_steps`, `max_tool_calls`), whether answers can be checked (`check`) and the `models` people may pick
 (the configured one first; `llm.chat_models`, else the server's list); never the model server's address or key. A
 conversation's `model` (`POST /chats`, `PATCH /chats/{cid}`; null for the configured one) answers in it, and a
 question can name another (`POST /chats/{cid}/messages {content, model}`, e.g. to retry); a model that isn't offered is
@@ -1513,6 +1538,13 @@ step it's on: the stream sends `stopped`, then `done` with the saved message, wh
 `POST /chats/{cid}/messages {content, edit}` edits one of your earlier questions (`edit` is its message id): it and
 everything after it are replaced by this question and its new answer; 404 when `edit` isn't a question in that
 conversation. A conversation titled after the first question is retitled when that question is edited.
+
+`GET /chats/tools` lists the tool groups and tools you have, each tool's `effect` (`read`, `asks` or `out`), why a
+group isn't available and the setting that switches it on, the most tool calls a question may ask for
+(`max_tool_calls`) and your latest choice (`remembered`); `chat_id` reads it for that conversation's scope. A
+conversation's `tools` and `max_tool_calls` (`POST /chats`, `PATCH /chats/{cid}`; null for Auto) are what its answers
+may use, and a question can set its own, with a `scope` for that answer alone (`POST /chats/{cid}/messages {content,
+tools, max_tool_calls, scope}`) ([Choosing tools, namespaces and a limit](assistant.md#choosing-tools-namespaces-and-a-limit)).
 
 A conversation's `scope` narrows what it draws on: `namespaces`, `recordings`, `collections`, `speakers`, `from` and
 `to`; every key narrows it further, and an empty scope is everything you can read. `collections` are ids of

@@ -44,6 +44,18 @@ command (the long string after `--token`).
 - The tunnel's address counts as one Lens is served at: passkeys and sign-in redirects use `https://<that host>`,
   and email links use the fixed hostname unless Settings › Notifications sets another address.
 
+## What it reaches
+
+The tunnel serves the web app and what the web app serves at its own address:
+
+| | Through the tunnel |
+| --- | --- |
+| The web app, the API (`/api/v1`) and sign-in | Yes |
+| The MCP server (`/mcp`, with OAuth) | Yes ([MCP server](mcp.md)) |
+| Sensors that push over HTTP (`/api/v1/sensors/push/…`) | Yes ([Sensors](sensors.md)) |
+| The file shares: S3 at `/s3` and WebDAV at `/dav` | Once an admin turns on **At the web app's address too** in Settings › File shares ([The graph as files](file-tree.md#at-the-web-apps-address)) |
+| MQTT, syslog, SMB and NFS | No: they aren't HTTP, so they stay on their own ports, for the local network |
+
 ## Where it sends visitors
 
 cloudflared reaches the web app at, in order: the **web app address** in Settings › Remote access, the

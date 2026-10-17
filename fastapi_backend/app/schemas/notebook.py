@@ -52,6 +52,12 @@ class NoteBacklink(ResponseModel):
     updated_at: str | None = None
 
 
+class NoteCrumb(ResponseModel):
+    id: int
+    title: str
+    updated_at: str | None = None
+
+
 class NoteVersionItem(ResponseModel):
     id: int
     at: str = Field(description="when the page changed from this")
@@ -79,6 +85,8 @@ class NotePage(NotePageItem):
     created_by: str | None = Field(None, description="its writer's email")
     links: list[NoteLink] = []
     backlinks: list[NoteBacklink] = []
+    path: list[NoteCrumb] = Field([], description="the notes it's inside, from the top of the tree down to its parent")
+    children: list[NoteCrumb] = Field([], description="the notes inside it, in the tree's order")
     can_edit: bool = False
 
 
@@ -152,6 +160,27 @@ class NotePageUpdate(RequestModel):
 class NoteToday(RequestModel):
     ns: str = Field(description="the namespace whose daily note it is")
     date: str | None = Field(None, description="YYYY-MM-DD, your today (default: the server's)")
+
+
+class NoteTemplate(ResponseModel):
+    id: int
+    title: str
+    summary: str | None = None
+
+
+class NoteTemplates(ResponseModel):
+    namespace: str
+    root: int | None = Field(None, description='the "Templates" note: each note inside it is a template; null until made')
+    templates: list[NoteTemplate]
+
+
+class NoteTemplatesCreate(RequestModel):
+    ns: str = Field(description="the namespace whose Templates note to make")
+
+
+class NoteCopy(RequestModel):
+    title: str | None = Field(None, min_length=1, max_length=200, description="its title (default: the page's)")
+    parent: int | None = Field(None, description="put it inside this page (default: the top)")
 
 
 class NotePageMove(RequestModel):

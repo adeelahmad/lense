@@ -4328,6 +4328,68 @@
         }
       }
     },
+    "/api/v1/admin/sandbox": {
+      "get": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Get Sandbox Gateway",
+        "description": "Whether the code sandbox's OpenShell gateway runs next to Lens (the sandbox profile), how the machine's last\nchange went, what stands in the way here, and whether Lens reaches the gateway at sandbox.gateway.",
+        "operationId": "get_sandbox_gateway",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SandboxGateway"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Set Sandbox Gateway",
+        "description": "Have this machine start or stop the code sandbox's gateway. On also turns the sandbox on, at that gateway; off\ndeletes the conversations' sandboxes first and turns the sandbox off. GET /admin/sandbox follows along.",
+        "operationId": "set_sandbox_gateway",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SandboxGatewayRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SandboxGateway"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/backups": {
       "get": {
         "tags": [
@@ -11688,6 +11750,89 @@
         }
       }
     },
+    "/api/v1/notes/templates": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "List Templates",
+        "description": "The namespace's templates: the notes inside its \"Templates\" note, in the tree's order. Start a note from one\nwith `POST /notes/{pid}/copy`.",
+        "operationId": "list_templates",
+        "parameters": [
+          {
+            "name": "ns",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ns"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteTemplates"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Templates Note",
+        "description": "The namespace's \"Templates\" note, made the first time it's asked for: each note put inside it is a template.\nNeeds editor access.",
+        "operationId": "templates_note",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteTemplatesCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotePage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/notes/targets": {
       "get": {
         "tags": [
@@ -12573,6 +12718,59 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/NotePageMove"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotePage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notes/{pid}/copy": {
+      "post": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Copy Page",
+        "description": "A new free note with this page's text, drawings, files, filing and view: a note started from a template, or a\ncopy. Titled `title` (default the page's), inside `parent` (default the top). Needs editor access.",
+        "operationId": "copy_page",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteCopy"
               }
             }
           }
@@ -25158,6 +25356,7 @@
           "chats"
         ],
         "summary": "Create Chat",
+        "description": "A conversation. Its answers may use what `tools` and `max_tool_calls` say, which become your latest choice;\nleft out, your latest choice (here or PATCH /chats/{cid}), else Auto: everything you may use, limited by the rounds\nalone.",
         "operationId": "create_chat",
         "requestBody": {
           "content": {
@@ -25222,6 +25421,56 @@
         }
       }
     },
+    "/api/v1/chats/tools": {
+      "get": {
+        "tags": [
+          "chats"
+        ],
+        "summary": "Chat Tools",
+        "description": "The tool groups and tools an answer can be given (`tools` on a question or a conversation), as you have them: each\ntool with what it does (read, asks: it waits for your yes, out: it sends what it's given to another host) and\nwhether you have it now, each group with why you don't when you have none of it, and the setting that changes it.\nBuilt-in groups first, then your extensions' (mcp:<server>, ext:<extension>). With `chat_id`, as in that\nconversation's scope (a namespace's own memory is there only in a conversation about that namespace). Also: the most\ntool calls an answer may be given, and your latest choice, which new conversations start with.",
+        "operationId": "chat_tools",
+        "parameters": [
+          {
+            "name": "chat_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chat Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatTools"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chats/{cid}": {
       "get": {
         "tags": [
@@ -25269,7 +25518,7 @@
           "chats"
         ],
         "summary": "Update Chat",
-        "description": "Rename a conversation, change what it draws on, or the model that answers in it (null: the configured one).",
+        "description": "Rename a conversation, change what it draws on, the model that answers in it (null: the configured one), or\nwhat its answers may use (`tools`, null: Auto) and at most how many tool calls each makes (`max_tool_calls`, null:\nno limit but the rounds). The choice of tools and limit is also what your new conversations start with.",
         "operationId": "update_chat",
         "parameters": [
           {
@@ -25569,7 +25818,7 @@
           "chats"
         ],
         "summary": "Send Message",
-        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), meta (the answer's record, kept with it: what produced\nit), done (the saved message id).\n\nA conversation is a tree of versions (GET /chats/{cid}: `tree`, and each message's `versions`); the question goes\non from `parent` when given (any message of the conversation), else from the version showing (`head`). With\n`regenerate` (an answer's id) its question is answered again, as a new version beside that answer (`content` isn't\nneeded; `model` may pick another). With `edit`, one of your earlier questions is edited: this question becomes a new\nversion beside it and is answered, and the old one stays with what followed it (404 if it isn't a question in this\nconversation). Either keeps the page the question was asked from (where, and the highlighted text; not the page's\ntext, which isn't kept) unless `context` is given, and streams `branch` first ({message, parent, versions}: the\nnew version, the message it follows and its versions); so does a question beside others under `parent`.\n\n`/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the\nconversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.\n\nWith `browser` (the session of a browser's Lens side panel, POST /browser/sessions), the assistant can use that\nbrowser while the side panel is connected: open pages, read them, click, type and download files into the\nconversation (docs/browser-assistant.md).",
+        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), meta (the answer's record, kept with it: what produced\nit), done (the saved message id).\n\nA conversation is a tree of versions (GET /chats/{cid}: `tree`, and each message's `versions`); the question goes\non from `parent` when given (any message of the conversation), else from the version showing (`head`). With\n`regenerate` (an answer's id) its question is answered again, as a new version beside that answer (`content` isn't\nneeded; `model` may pick another). With `edit`, one of your earlier questions is edited: this question becomes a new\nversion beside it and is answered, and the old one stays with what followed it (404 if it isn't a question in this\nconversation). Either keeps the page the question was asked from (where, and the highlighted text; not the page's\ntext, which isn't kept) unless `context` is given, and streams `branch` first ({message, parent, versions}: the\nnew version, the message it follows and its versions); so does a question beside others under `parent`.\n\nWhat the answer may use: `tools` (tool groups and tools, GET /chats/tools; [] for none, when it answers from a\nsearch) and `max_tool_calls` (at most that many tool calls, in as many rounds as it takes), else the conversation's\nchoice (PATCH /chats/{cid}); and `scope`, what this answer alone draws on (the conversation keeps its own). Its\nrecord keeps what it was given and used.\n\n`/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the\nconversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.\n\nWith `browser` (the session of a browser's Lens side panel, POST /browser/sessions), the assistant can use that\nbrowser while the side panel is connected: open pages, read them, click, type and download files into the\nconversation (docs/browser-assistant.md).",
         "operationId": "send_message",
         "parameters": [
           {
@@ -29307,7 +29556,7 @@
           "shares"
         ],
         "summary": "S3 Status",
-        "description": "Whether the S3 server is on and on which port, what the worker running it says, the same for WebDAV, and your\naccess keys.",
+        "description": "Whether the S3 server is on and on which port, what the worker running it says, the same for WebDAV, whether\nboth are open at the web app's address too (/s3, /dav), and your access keys.",
         "operationId": "s3_status",
         "responses": {
           "200": {
@@ -29695,12 +29944,32 @@
       }
     },
     "/api/v1/hooks/import": {
+      "get": {
+        "tags": [
+          "import hooks"
+        ],
+        "summary": "Import Target",
+        "description": "Where pushes with this bearer token go, without importing anything: an import webhook's token goes into its\nnamespace; a person's own token (an API token, an app's, or the web app's) into any namespace they can import into,\nnamed with `?namespace=`. 401 for a token Lens doesn't know, saying which kind it is; 403 while a hook is paused.",
+        "operationId": "import_target",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportTarget"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "import hooks"
         ],
         "summary": "Push To Import Hook",
-        "description": "Push something into an import webhook's namespace, with its token as a bearer token. Three ways:\n\n- a file as the raw body, named by `?filename=`, Content-Disposition or X-Filename: audio, video, documents and\n  images become assets and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as\n  transcripts;\n- multipart form files (field `file`, up to 20), with optional `title`, `url` and `text` fields;\n- JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as text), with an optional\n  `title`.\n\nEach runs the hook's pipeline, or the namespace's. 401 for an unknown token, 403 while the hook is paused, 413 over\nuploads.max_mb. Audited as `import.hook`.",
+        "description": "Push something into an import webhook's namespace, with its token as a bearer token, or into one of your own\nnamespaces with your own token (an API token with write access, an app's, or the web app's) and `?namespace=`.\nThree ways:\n\n- a file as the raw body, named by `?filename=`, Content-Disposition or X-Filename: audio, video, documents and\n  images become assets and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as\n  transcripts;\n- multipart form files (field `file`, up to 20), with optional `title`, `url` and `text` fields;\n- JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as text), with an optional\n  `title`.\n\nEach runs the hook's pipeline, or the namespace's. 401 for an unknown token, saying which kind it is; 403 while the\nhook is paused, for a read-only token, or without the import permission; 413 over uploads.max_mb. Audited as\n`import.hook` (by the hook) or `import.push` (by the person).",
         "operationId": "push_to_import_hook",
         "parameters": [
           {
@@ -29740,6 +30009,25 @@
               "title": "Title"
             },
             "description": "its title (default: the file's name, or the page's)"
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "with your own token: the namespace it goes into (default: the only one you can import into)",
+              "title": "Namespace"
+            },
+            "description": "with your own token: the namespace it goes into (default: the only one you can import into)"
           }
         ],
         "responses": {
@@ -29855,7 +30143,7 @@
           "import hooks"
         ],
         "summary": "Push To Import Hook Token",
-        "description": "The same, with the token in the address, for services that can only be given a URL. Prefer the bearer token:\naddresses end up in logs.",
+        "description": "The same, with an import webhook's token in the address, for services that can only be given a URL. Prefer the\nbearer token: addresses end up in logs. A person's own token is never taken here.",
         "operationId": "push_to_import_hook_token",
         "parameters": [
           {
@@ -36598,6 +36886,33 @@
             "title": "Model",
             "description": "the model chosen for this conversation; null: the configured one"
           },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools",
+            "description": "the tool groups and tools its answers may use; null: Auto"
+          },
+          "max_tool_calls": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Tool Calls",
+            "description": "at most this many tool calls in each answer; null: no limit but the rounds"
+          },
           "created_at": {
             "anyOf": [
               {
@@ -36689,7 +37004,13 @@
           "max_steps": {
             "type": "integer",
             "title": "Max Steps",
-            "description": "the most tool calls it makes for one answer"
+            "description": "the most rounds of tool calls it makes for one answer (a round makes one call or more)"
+          },
+          "max_tool_calls": {
+            "type": "integer",
+            "title": "Max Tool Calls",
+            "description": "the most tool calls a question may give one answer (`max_tool_calls`)",
+            "default": 50
           },
           "check": {
             "type": "boolean",
@@ -36886,6 +37207,35 @@
             ],
             "title": "Model",
             "description": "the model that answers in it (one of GET /chats/capabilities `models`); null: the configured one"
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools",
+            "description": "what its answers may use: tool groups and tools (GET /chats/tools); [] for none; left out: your latest choice (PATCH /chats/{cid}), else Auto"
+          },
+          "max_tool_calls": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Tool Calls",
+            "description": "at most this many tool calls in each answer (1 to ai.max_tool_calls); left out: your latest choice"
           }
         },
         "additionalProperties": false,
@@ -37233,6 +37583,33 @@
             "title": "Model",
             "description": "the model chosen for this conversation; null: the configured one"
           },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools",
+            "description": "the tool groups and tools its answers may use; null: Auto"
+          },
+          "max_tool_calls": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Tool Calls",
+            "description": "at most this many tool calls in each answer; null: no limit but the rounds"
+          },
           "created_at": {
             "anyOf": [
               {
@@ -37263,6 +37640,41 @@
           "title"
         ],
         "title": "ChatSummary"
+      },
+      "ChatTools": {
+        "properties": {
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/ToolGroup"
+            },
+            "type": "array",
+            "title": "Groups",
+            "description": "the built-in groups, then your extensions' (mcp:<server>, ext:<extension>)"
+          },
+          "max_tool_calls": {
+            "type": "integer",
+            "title": "Max Tool Calls",
+            "description": "the most tool calls one answer may be given (ai.max_tool_calls)"
+          },
+          "remembered": {
+            "$ref": "#/components/schemas/ToolChoice",
+            "description": "your latest choice, which new conversations start with"
+          },
+          "namespaces_note": {
+            "type": "string",
+            "title": "Namespaces Note",
+            "description": "what the choice of namespaces doesn't narrow",
+            "default": "Web and MCP tools reach beyond your namespaces: the namespaces you pick narrow the archive's tools only."
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "groups",
+          "max_tool_calls",
+          "remembered"
+        ],
+        "title": "ChatTools"
       },
       "ChatUpdate": {
         "properties": {
@@ -37298,6 +37710,35 @@
             ],
             "title": "Model",
             "description": "the model that answers in it (one of GET /chats/capabilities `models`); null: the configured one"
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools",
+            "description": "what its answers may use: tool groups and tools (GET /chats/tools); [] for none; null: Auto (everything you may use). Your new conversations start with it too"
+          },
+          "max_tool_calls": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Tool Calls",
+            "description": "at most this many tool calls in each answer (1 to ai.max_tool_calls); null: no limit but the rounds"
           }
         },
         "additionalProperties": false,
@@ -47217,6 +47658,76 @@
         ],
         "title": "ImportResult"
       },
+      "ImportTarget": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "hook",
+              "person"
+            ],
+            "title": "Kind",
+            "description": "an import webhook's token, or a person's own"
+          },
+          "hook": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hook",
+            "description": "the hook's name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email",
+            "description": "whom a person's own token acts as"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "where a push goes without ?namespace=; null when there's a choice"
+          },
+          "namespaces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Namespaces",
+            "description": "every namespace this token can push into"
+          },
+          "write": {
+            "type": "boolean",
+            "title": "Write",
+            "description": "false for a read-only API token, which can't push"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "kind",
+          "write"
+        ],
+        "title": "ImportTarget",
+        "description": "Where pushes with a token go (GET /hooks/import)."
+      },
       "ImportedAs": {
         "properties": {
           "recording": {
@@ -50511,6 +51022,46 @@
             ],
             "title": "Via",
             "description": "voice: said in a voice conversation (the question's record keeps it)"
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools",
+            "description": "what this answer may use: tool groups (archive, notes, mcp:tracker) and tools, as GET /chats/tools lists them; [] for none (it answers from a search); null: the conversation's choice, else Auto (everything you may use). An admin's switch still wins"
+          },
+          "max_tool_calls": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Tool Calls",
+            "description": "at most this many tool calls in this answer (1 to ai.max_tool_calls); null: the conversation's"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChatScope"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "what this answer draws on, instead of the conversation's scope (which stays as it is); {} for everything you can read"
           }
         },
         "additionalProperties": false,
@@ -52513,6 +53064,39 @@
         ],
         "title": "NoteBacklink"
       },
+      "NoteCopy": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "its title (default: the page's)"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "put it inside this page (default: the top)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "NoteCopy"
+      },
       "NoteCreate": {
         "properties": {
           "text": {
@@ -52573,6 +53157,36 @@
           "text"
         ],
         "title": "NoteCreate"
+      },
+      "NoteCrumb": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "NoteCrumb"
       },
       "NoteDeleted": {
         "properties": {
@@ -53224,6 +53838,24 @@
             "title": "Backlinks",
             "default": []
           },
+          "path": {
+            "items": {
+              "$ref": "#/components/schemas/NoteCrumb"
+            },
+            "type": "array",
+            "title": "Path",
+            "description": "the notes it's inside, from the top of the tree down to its parent",
+            "default": []
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/NoteCrumb"
+            },
+            "type": "array",
+            "title": "Children",
+            "description": "the notes inside it, in the tree's order",
+            "default": []
+          },
           "can_edit": {
             "type": "boolean",
             "title": "Can Edit",
@@ -53757,6 +54389,85 @@
           "pages"
         ],
         "title": "NoteSearch"
+      },
+      "NoteTemplate": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "NoteTemplate"
+      },
+      "NoteTemplates": {
+        "properties": {
+          "namespace": {
+            "type": "string",
+            "title": "Namespace"
+          },
+          "root": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Root",
+            "description": "the \"Templates\" note: each note inside it is a template; null until made"
+          },
+          "templates": {
+            "items": {
+              "$ref": "#/components/schemas/NoteTemplate"
+            },
+            "type": "array",
+            "title": "Templates"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "namespace",
+          "templates"
+        ],
+        "title": "NoteTemplates"
+      },
+      "NoteTemplatesCreate": {
+        "properties": {
+          "ns": {
+            "type": "string",
+            "title": "Ns",
+            "description": "the namespace whose Templates note to make"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ns"
+        ],
+        "title": "NoteTemplatesCreate"
       },
       "NoteToday": {
         "properties": {
@@ -62237,6 +62948,12 @@
           "webdav": {
             "$ref": "#/components/schemas/ShareServer"
           },
+          "remote": {
+            "type": "boolean",
+            "title": "Remote",
+            "description": "whether an admin opened both at the web app's address too, /s3 and /dav (shares.remote), so remote access reaches them",
+            "default": false
+          },
           "keys": {
             "items": {
               "$ref": "#/components/schemas/S3Key"
@@ -62256,6 +62973,144 @@
         ],
         "title": "S3Status",
         "description": "The S3 server (these fields), the WebDAV server, and your access keys (they sign in to both)."
+      },
+      "SandboxGateway": {
+        "properties": {
+          "on": {
+            "type": "boolean",
+            "title": "On",
+            "description": "the sandbox profile (the code sandbox's OpenShell gateway) as last asked"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "queued",
+                  "running",
+                  "done",
+                  "failed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State",
+            "description": "how the machine's last change went"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "asked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asked At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent",
+            "description": "what changes it on this machine (systemd, launchd); none: run `manual` there"
+          },
+          "manual": {
+            "type": "string",
+            "title": "Manual",
+            "description": "the line that starts it by hand, on the machine Lens runs on"
+          },
+          "preflight": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Preflight",
+            "description": "what stands in the way of running it on this machine, a sentence each"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address",
+            "description": "where Lens reaches the gateway (sandbox.gateway)"
+          },
+          "reachable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reachable",
+            "description": "whether the gateway answered and let Lens in; null: not checked"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Problem",
+            "description": "why it didn't, when it didn't"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "on",
+          "manual",
+          "preflight",
+          "address"
+        ],
+        "title": "SandboxGateway"
+      },
+      "SandboxGatewayRequest": {
+        "properties": {
+          "on": {
+            "type": "boolean",
+            "title": "On",
+            "description": "start (true) or stop (false) the code sandbox's gateway; stopping deletes its sandboxes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "on"
+        ],
+        "title": "SandboxGatewayRequest"
       },
       "SavedSearch": {
         "properties": {
@@ -68427,6 +69282,145 @@
           "user"
         ],
         "title": "TokenPair"
+      },
+      "ToolChoice": {
+        "properties": {
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools"
+          },
+          "max_tool_calls": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Tool Calls"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "ToolChoice"
+      },
+      "ToolGroup": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "what `tools` names it by: a built-in group, mcp:<server> or ext:<extension>"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/ToolInfo"
+            },
+            "type": "array",
+            "title": "Tools"
+          },
+          "asks": {
+            "type": "boolean",
+            "title": "Asks",
+            "description": "one of its tools waits for your yes"
+          },
+          "out": {
+            "type": "boolean",
+            "title": "Out",
+            "description": "one of its tools sends data to another host"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available",
+            "description": "you have one of its tools now"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why",
+            "description": "why you don't, when you have none"
+          },
+          "setting": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Setting",
+            "description": "the setting that would change that (section.key), for admins"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "tools",
+          "asks",
+          "out",
+          "available"
+        ],
+        "title": "ToolGroup"
+      },
+      "ToolInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "effect": {
+            "type": "string",
+            "enum": [
+              "read",
+              "asks",
+              "out"
+            ],
+            "title": "Effect",
+            "description": "read: it looks things up; asks: it waits for your yes; out: it sends what it's given to another host"
+          },
+          "out": {
+            "type": "boolean",
+            "title": "Out",
+            "description": "it sends what it's given to another host (and asks first after outside text)",
+            "default": false
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available",
+            "description": "you have it now"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "effect",
+          "available"
+        ],
+        "title": "ToolInfo"
       },
       "ToolStep": {
         "properties": {

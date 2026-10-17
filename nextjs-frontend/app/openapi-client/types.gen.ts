@@ -3384,6 +3384,18 @@ export type Chat = {
    */
   model?: string | null;
   /**
+   * Tools
+   *
+   * the tool groups and tools its answers may use; null: Auto
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in each answer; null: no limit but the rounds
+   */
+  max_tool_calls?: number | null;
+  /**
    * Created At
    */
   created_at?: string | null;
@@ -3441,9 +3453,15 @@ export type ChatCapabilities = {
   /**
    * Max Steps
    *
-   * the most tool calls it makes for one answer
+   * the most rounds of tool calls it makes for one answer (a round makes one call or more)
    */
   max_steps: number;
+  /**
+   * Max Tool Calls
+   *
+   * the most tool calls a question may give one answer (`max_tool_calls`)
+   */
+  max_tool_calls?: number;
   /**
    * Check
    *
@@ -3562,6 +3580,18 @@ export type ChatCreate = {
    * the model that answers in it (one of GET /chats/capabilities `models`); null: the configured one
    */
   model?: string | null;
+  /**
+   * Tools
+   *
+   * what its answers may use: tool groups and tools (GET /chats/tools); [] for none; left out: your latest choice (PATCH /chats/{cid}), else Auto
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in each answer (1 to ai.max_tool_calls); left out: your latest choice
+   */
+  max_tool_calls?: number | null;
 };
 
 /**
@@ -3743,6 +3773,18 @@ export type ChatSummary = {
    */
   model?: string | null;
   /**
+   * Tools
+   *
+   * the tool groups and tools its answers may use; null: Auto
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in each answer; null: no limit but the rounds
+   */
+  max_tool_calls?: number | null;
+  /**
    * Created At
    */
   created_at?: string | null;
@@ -3750,6 +3792,35 @@ export type ChatSummary = {
    * Updated At
    */
   updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ChatTools
+ */
+export type ChatTools = {
+  /**
+   * Groups
+   *
+   * the built-in groups, then your extensions' (mcp:<server>, ext:<extension>)
+   */
+  groups: Array<ToolGroup>;
+  /**
+   * Max Tool Calls
+   *
+   * the most tool calls one answer may be given (ai.max_tool_calls)
+   */
+  max_tool_calls: number;
+  /**
+   * your latest choice, which new conversations start with
+   */
+  remembered: ToolChoice;
+  /**
+   * Namespaces Note
+   *
+   * what the choice of namespaces doesn't narrow
+   */
+  namespaces_note?: string;
   [key: string]: unknown;
 };
 
@@ -3768,6 +3839,18 @@ export type ChatUpdate = {
    * the model that answers in it (one of GET /chats/capabilities `models`); null: the configured one
    */
   model?: string | null;
+  /**
+   * Tools
+   *
+   * what its answers may use: tool groups and tools (GET /chats/tools); [] for none; null: Auto (everything you may use). Your new conversations start with it too
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in each answer (1 to ai.max_tool_calls); null: no limit but the rounds
+   */
+  max_tool_calls?: number | null;
 };
 
 /**
@@ -9489,6 +9572,51 @@ export type ImportResult = {
 };
 
 /**
+ * ImportTarget
+ *
+ * Where pushes with a token go (GET /hooks/import).
+ */
+export type ImportTarget = {
+  /**
+   * Kind
+   *
+   * an import webhook's token, or a person's own
+   */
+  kind: "hook" | "person";
+  /**
+   * Hook
+   *
+   * the hook's name
+   */
+  hook?: string | null;
+  /**
+   * Email
+   *
+   * whom a person's own token acts as
+   */
+  email?: string | null;
+  /**
+   * Namespace
+   *
+   * where a push goes without ?namespace=; null when there's a choice
+   */
+  namespace?: string | null;
+  /**
+   * Namespaces
+   *
+   * every namespace this token can push into
+   */
+  namespaces?: Array<string>;
+  /**
+   * Write
+   *
+   * false for a read-only API token, which can't push
+   */
+  write: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * ImportedAs
  */
 export type ImportedAs = {
@@ -11443,6 +11571,22 @@ export type MessageCreate = {
    * voice: said in a voice conversation (the question's record keeps it)
    */
   via?: "voice" | null;
+  /**
+   * Tools
+   *
+   * what this answer may use: tool groups (archive, notes, mcp:tracker) and tools, as GET /chats/tools lists them; [] for none (it answers from a search); null: the conversation's choice, else Auto (everything you may use). An admin's switch still wins
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in this answer (1 to ai.max_tool_calls); null: the conversation's
+   */
+  max_tool_calls?: number | null;
+  /**
+   * what this answer draws on, instead of the conversation's scope (which stays as it is); {} for everything you can read
+   */
+  scope?: ChatScope | null;
 };
 
 /**
@@ -12619,6 +12763,24 @@ export type NoteBacklink = {
 };
 
 /**
+ * NoteCopy
+ */
+export type NoteCopy = {
+  /**
+   * Title
+   *
+   * its title (default: the page's)
+   */
+  title?: string | null;
+  /**
+   * Parent
+   *
+   * put it inside this page (default: the top)
+   */
+  parent?: number | null;
+};
+
+/**
  * NoteCreate
  */
 export type NoteCreate = {
@@ -12650,6 +12812,25 @@ export type NoteCreate = {
    * share it with everyone who can read the asset (needs editor access)
    */
   shared?: boolean;
+};
+
+/**
+ * NoteCrumb
+ */
+export type NoteCrumb = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -13017,6 +13198,18 @@ export type NotePage = {
    */
   backlinks?: Array<NoteBacklink>;
   /**
+   * Path
+   *
+   * the notes it's inside, from the top of the tree down to its parent
+   */
+  path?: Array<NoteCrumb>;
+  /**
+   * Children
+   *
+   * the notes inside it, in the tree's order
+   */
+  children?: Array<NoteCrumb>;
+  /**
    * Can Edit
    */
   can_edit?: boolean;
@@ -13280,6 +13473,58 @@ export type NoteSearch = {
    */
   pages: Array<NoteHit>;
   [key: string]: unknown;
+};
+
+/**
+ * NoteTemplate
+ */
+export type NoteTemplate = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Summary
+   */
+  summary?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * NoteTemplates
+ */
+export type NoteTemplates = {
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Root
+   *
+   * the "Templates" note: each note inside it is a template; null until made
+   */
+  root?: number | null;
+  /**
+   * Templates
+   */
+  templates: Array<NoteTemplate>;
+  [key: string]: unknown;
+};
+
+/**
+ * NoteTemplatesCreate
+ */
+export type NoteTemplatesCreate = {
+  /**
+   * Ns
+   *
+   * the namespace whose Templates note to make
+   */
+  ns: string;
 };
 
 /**
@@ -18249,12 +18494,97 @@ export type S3Status = {
   service?: S3Service | null;
   webdav: ShareServer;
   /**
+   * Remote
+   *
+   * whether an admin opened both at the web app's address too, /s3 and /dav (shares.remote), so remote access reaches them
+   */
+  remote?: boolean;
+  /**
    * Keys
    *
    * your access keys
    */
   keys: Array<S3Key>;
   [key: string]: unknown;
+};
+
+/**
+ * SandboxGateway
+ */
+export type SandboxGateway = {
+  /**
+   * On
+   *
+   * the sandbox profile (the code sandbox's OpenShell gateway) as last asked
+   */
+  on: boolean;
+  /**
+   * State
+   *
+   * how the machine's last change went
+   */
+  state?: "queued" | "running" | "done" | "failed" | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Asked At
+   */
+  asked_at?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Agent
+   *
+   * what changes it on this machine (systemd, launchd); none: run `manual` there
+   */
+  agent?: string | null;
+  /**
+   * Manual
+   *
+   * the line that starts it by hand, on the machine Lens runs on
+   */
+  manual: string;
+  /**
+   * Preflight
+   *
+   * what stands in the way of running it on this machine, a sentence each
+   */
+  preflight: Array<string>;
+  /**
+   * Address
+   *
+   * where Lens reaches the gateway (sandbox.gateway)
+   */
+  address: string;
+  /**
+   * Reachable
+   *
+   * whether the gateway answered and let Lens in; null: not checked
+   */
+  reachable?: boolean | null;
+  /**
+   * Problem
+   *
+   * why it didn't, when it didn't
+   */
+  problem?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SandboxGatewayRequest
+ */
+export type SandboxGatewayRequest = {
+  /**
+   * On
+   *
+   * start (true) or stop (false) the code sandbox's gateway; stopping deletes its sandboxes
+   */
+  on: boolean;
 };
 
 /**
@@ -21828,6 +22158,101 @@ export type TokenPair = {
    */
   expires_in: number;
   user: UserPublic;
+  [key: string]: unknown;
+};
+
+/**
+ * ToolChoice
+ */
+export type ToolChoice = {
+  /**
+   * Tools
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   */
+  max_tool_calls?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ToolGroup
+ */
+export type ToolGroup = {
+  /**
+   * Name
+   *
+   * what `tools` names it by: a built-in group, mcp:<server> or ext:<extension>
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Tools
+   */
+  tools: Array<ToolInfo>;
+  /**
+   * Asks
+   *
+   * one of its tools waits for your yes
+   */
+  asks: boolean;
+  /**
+   * Out
+   *
+   * one of its tools sends data to another host
+   */
+  out: boolean;
+  /**
+   * Available
+   *
+   * you have one of its tools now
+   */
+  available: boolean;
+  /**
+   * Why
+   *
+   * why you don't, when you have none
+   */
+  why?: string | null;
+  /**
+   * Setting
+   *
+   * the setting that would change that (section.key), for admins
+   */
+  setting?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ToolInfo
+ */
+export type ToolInfo = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Effect
+   *
+   * read: it looks things up; asks: it waits for your yes; out: it sends what it's given to another host
+   */
+  effect: "read" | "asks" | "out";
+  /**
+   * Out
+   *
+   * it sends what it's given to another host (and asks first after outside text)
+   */
+  out?: boolean;
+  /**
+   * Available
+   *
+   * you have it now
+   */
+  available: boolean;
   [key: string]: unknown;
 };
 
@@ -26983,6 +27408,47 @@ export type SetMonitoringResponses = {
 
 export type SetMonitoringResponse = SetMonitoringResponses[keyof SetMonitoringResponses];
 
+export type GetSandboxGatewayData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/sandbox";
+};
+
+export type GetSandboxGatewayResponses = {
+  /**
+   * Successful Response
+   */
+  200: SandboxGateway;
+};
+
+export type GetSandboxGatewayResponse = GetSandboxGatewayResponses[keyof GetSandboxGatewayResponses];
+
+export type SetSandboxGatewayData = {
+  body: SandboxGatewayRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/sandbox";
+};
+
+export type SetSandboxGatewayErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetSandboxGatewayError = SetSandboxGatewayErrors[keyof SetSandboxGatewayErrors];
+
+export type SetSandboxGatewayResponses = {
+  /**
+   * Successful Response
+   */
+  202: SandboxGateway;
+};
+
+export type SetSandboxGatewayResponse = SetSandboxGatewayResponses[keyof SetSandboxGatewayResponses];
+
 export type ListBackupsData = {
   body?: never;
   path?: never;
@@ -31359,6 +31825,61 @@ export type TodayPageResponses = {
 
 export type TodayPageResponse = TodayPageResponses[keyof TodayPageResponses];
 
+export type ListTemplatesData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Ns
+     */
+    ns: string;
+  };
+  url: "/api/v1/notes/templates";
+};
+
+export type ListTemplatesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListTemplatesError = ListTemplatesErrors[keyof ListTemplatesErrors];
+
+export type ListTemplatesResponses = {
+  /**
+   * Successful Response
+   */
+  200: NoteTemplates;
+};
+
+export type ListTemplatesResponse = ListTemplatesResponses[keyof ListTemplatesResponses];
+
+export type TemplatesNoteData = {
+  body: NoteTemplatesCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/notes/templates";
+};
+
+export type TemplatesNoteErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TemplatesNoteError = TemplatesNoteErrors[keyof TemplatesNoteErrors];
+
+export type TemplatesNoteResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type TemplatesNoteResponse = TemplatesNoteResponses[keyof TemplatesNoteResponses];
+
 export type LinkTargetsData = {
   body?: never;
   path?: never;
@@ -31931,6 +32452,36 @@ export type MovePageResponses = {
 };
 
 export type MovePageResponse = MovePageResponses[keyof MovePageResponses];
+
+export type CopyPageData = {
+  body: NoteCopy;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/copy";
+};
+
+export type CopyPageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CopyPageError = CopyPageErrors[keyof CopyPageErrors];
+
+export type CopyPageResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type CopyPageResponse = CopyPageResponses[keyof CopyPageResponses];
 
 export type UnpinPageData = {
   body?: never;
@@ -38020,14 +38571,14 @@ export type ScanWatchResponses = {
 
 export type ScanWatchResponse = ScanWatchResponses[keyof ScanWatchResponses];
 
-export type ListTemplatesData = {
+export type ListTemplates2Data = {
   body?: never;
   path?: never;
   query?: never;
   url: "/api/v1/templates";
 };
 
-export type ListTemplatesResponses = {
+export type ListTemplates2Responses = {
   /**
    * Response Templates-List Templates
    *
@@ -38036,7 +38587,7 @@ export type ListTemplatesResponses = {
   200: Array<TemplateSummary>;
 };
 
-export type ListTemplatesResponse = ListTemplatesResponses[keyof ListTemplatesResponses];
+export type ListTemplates2Response = ListTemplates2Responses[keyof ListTemplates2Responses];
 
 export type CreateTemplateData = {
   body: TemplateCreate;
@@ -39591,6 +40142,36 @@ export type ChatCapabilitiesResponses = {
 };
 
 export type ChatCapabilitiesResponse = ChatCapabilitiesResponses[keyof ChatCapabilitiesResponses];
+
+export type ChatToolsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Chat Id
+     */
+    chat_id?: number | null;
+  };
+  url: "/api/v1/chats/tools";
+};
+
+export type ChatToolsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ChatToolsError = ChatToolsErrors[keyof ChatToolsErrors];
+
+export type ChatToolsResponses = {
+  /**
+   * Successful Response
+   */
+  200: ChatTools;
+};
+
+export type ChatToolsResponse = ChatToolsResponses[keyof ChatToolsResponses];
 
 export type DeleteChatData = {
   body?: never;
@@ -42366,6 +42947,22 @@ export type NewImportHookTokenResponses = {
 
 export type NewImportHookTokenResponse = NewImportHookTokenResponses[keyof NewImportHookTokenResponses];
 
+export type ImportTargetData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/hooks/import";
+};
+
+export type ImportTargetResponses = {
+  /**
+   * Successful Response
+   */
+  200: ImportTarget;
+};
+
+export type ImportTargetResponse = ImportTargetResponses[keyof ImportTargetResponses];
+
 export type PushToImportHookData = {
   /**
    * HookPush
@@ -42404,6 +43001,12 @@ export type PushToImportHookData = {
      * its title (default: the file's name, or the page's)
      */
     title?: string | null;
+    /**
+     * Namespace
+     *
+     * with your own token: the namespace it goes into (default: the only one you can import into)
+     */
+    namespace?: string | null;
   };
   url: "/api/v1/hooks/import";
 };

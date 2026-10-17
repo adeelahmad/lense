@@ -30,6 +30,8 @@ import hashlib
 import json
 import os
 import re
+import shutil
+import tempfile
 import zipfile
 
 from . import activity, store
@@ -170,6 +172,29 @@ def _check_parent(db, sid, pid, parent):
             raise ValueError(f"Pages go up to {DEPTH_MAX} levels deep.")
         at = row.get("parent")
     return int(parent)
+
+
+def path(db, p):
+    """The notes p is inside, from the top of the tree down to its parent: [{id, title}], for breadcrumbs."""
+    out, at = [], p.get("parent")
+    while at is not None and len(out) <= DEPTH_MAX:
+        row = db.one("SELECT record::id(id) AS id, title, parent FROM $r", r=R("note_page", int(at)))
+        if not row:
+            break
+        out.append({"id": row["id"], "title": row["title"]})
+        at = row.get("parent")
+    return out[::-1]
+
+
+def children(db, p):
+    """The notes inside p, in the tree's order: [{id, title, updated_at}]."""
+    rows = db.rows(
+        "SELECT record::id(id) AS id, title, position, updated_at FROM note_page WHERE space = $s AND parent = $p AND about = NONE",
+        s=p["space"],
+        p=int(p["id"]),
+    )
+    rows.sort(key=lambda r: (r.get("position") or 0, r["id"]))
+    return [{"id": r["id"], "title": r["title"], "updated_at": r.get("updated_at")} for r in rows]
 
 
 def _last_position(db, sid, parent):
@@ -433,6 +458,63 @@ def today(db, sid, account, date=None):
     pid = create(db, sid, account, day, date=day, parent=root)
     db.q("UPDATE $r SET daily = $d", r=R("note_page", pid), d=day)
     return pid
+
+
+TEMPLATES_ROOT = "Templates"
+
+
+def templates_root(db, sid, account=None):
+    """The id of the namespace's "Templates" note, whose notes are its templates; made when `account` is given and
+    there's none yet. None otherwise."""
+    root = db.one("SELECT VALUE record::id(id) FROM note_page WHERE space = $s AND templates_root = true LIMIT 1", s=sid)
+    if root or account is None:
+        return int(root) if root else None
+    root = create(
+        db, sid, account, TEMPLATES_ROOT, "Each note inside this one is a template for new notes.", summary="Notes to start new notes from"
+    )
+    db.q("UPDATE $r SET templates_root = true", r=R("note_page", root))
+    return root
+
+
+def templates(db, sid):
+    """The namespace's templates, the notes inside its "Templates" note, in the tree's order: [{id, title, summary}]."""
+    root = templates_root(db, sid)
+    if root is None:
+        return []
+    rows = db.rows(
+        "SELECT record::id(id) AS id, title, summary, position FROM note_page WHERE space = $s AND parent = $p AND about = NONE",
+        s=sid,
+        p=root,
+    )
+    rows.sort(key=lambda r: (r.get("position") or 0, r["id"]))
+    return [{"id": r["id"], "title": r["title"], "summary": r.get("summary")} for r in rows]
+
+
+def copy(db, cfg, pid, account, title=None, parent=None):
+    """A new free note with page pid's text, drawings, files, filing and view: to start a note from a template, or
+    to make a copy. Titled `title` (default the page's), inside `parent` (default the top), dated today. Its id."""
+    p = get(db, pid)
+    new = create(
+        db,
+        p["space"],
+        account,
+        title or p["title"],
+        p.get("body") or "",
+        place=p.get("place"),
+        parent=parent,
+        doc=p.get("doc"),
+        view=p.get("view"),
+    )
+    # the editor's images and attachments, under the same keys, so the copied drawings and pictures find them
+    to = get(db, new)
+    for f in files(db, pid):
+        _, opened = open_file(db, cfg, pid, f["key"])
+        with opened as src, tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "file")
+            with open(path, "wb") as out:
+                shutil.copyfileobj(src, out)
+            add_file(db, cfg, to, f["key"], path, f.get("name"), f.get("type"), account)
+    return new
 
 
 PINS_MAX = 50  # a person's pinned notes, per namespace

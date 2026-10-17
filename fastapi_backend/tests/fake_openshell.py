@@ -29,6 +29,7 @@ class Gateway(openshell_pb2_grpc.OpenShellServicer):
         self.execs: list[tuple[str, list[str]]] = []  # (sandbox, command)
         self.lock = threading.Lock()
         self.n = 0
+        self.refuse = False  # True: calls that need a signed-in caller are refused
 
     def _box(self, name, context):
         b = self.boxes.get(name)
@@ -69,6 +70,13 @@ class Gateway(openshell_pb2_grpc.OpenShellServicer):
     def GetSandbox(self, request, context):
         self._box(request.name, context)
         return self._view(request.name)
+
+    def ListSandboxes(self, request, context):
+        if self.refuse:  # as a real gateway answers a caller without its client certificate
+            context.abort(grpc.StatusCode.UNAUTHENTICATED, "missing authorization header")
+        want = dict(x.split("=", 1) for x in request.label_selector.split(",") if "=" in x)
+        names = [n for n, b in self.boxes.items() if all(b["labels"].get(k) == v for k, v in want.items())]
+        return openshell_pb2.ListSandboxesResponse(sandboxes=[self._view(n).sandbox for n in names])
 
     def StartSandbox(self, request, context):
         self.calls.append(("start", request.name))

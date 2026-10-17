@@ -10,6 +10,8 @@
       #selectionTemplate { height: 120px; }
       .dest { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 8px 0; }
       .dest .row { flex-wrap: wrap; }
+      .dest select { width: auto; }
+      [hidden] { display: none !important; }
       .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0 16px; }
       code { font-size: 12px; }
       dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; font-size: 12px; color: var(--muted); }
@@ -22,19 +24,24 @@
 
     <h2>Your Lens</h2>
     <p class="hint">
-      In Lens, open a namespace's admin page and make an <strong>import webhook</strong>; paste its address and token here. Clips go into that
-      namespace. Add one per namespace you clip into.
+      Enter your Lens address and sign in: Lens asks you to allow the clipper, and clips go into the namespace you pick. Signing in here
+      signs the assistant's side panel in too.
     </p>
     <div id="destinations"></div>
-    <div class="dest">
-      <div class="row">
-        <div class="grow"><label for="newName">Name</label><input id="newName" type="text" placeholder="Personal" /></div>
-        <div class="grow"><label for="newServer">Lens address</label><input id="newServer" type="url" placeholder="https://lens.example.com" /></div>
+    <form id="addForm" class="dest">
+      <label for="newServer">Lens address</label>
+      <input id="newServer" type="url" placeholder="https://lens.example.com" autocomplete="url" />
+      <div id="tokenRow" hidden>
+        <label for="newToken">Or a token <span class="hint">an API token with write access (Lens: Settings → API keys), or a namespace's import
+          webhook token</span></label>
+        <input id="newToken" type="password" placeholder="la_… or lih_…" autocomplete="off" />
       </div>
-      <label for="newToken">Import webhook token</label>
-      <input id="newToken" type="password" placeholder="lih_…" autocomplete="off" />
-      <p class="row"><button id="add" class="primary">Add and check</button><span id="addStatus" class="status"></span></p>
-    </div>
+      <p class="row">
+        <button id="add" type="submit" class="primary">Sign in</button>
+        <button id="useToken" type="button">Use a token instead</button>
+        <span id="addStatus" class="status grow" role="status"></span>
+      </p>
+    </form>
 
     <h2>Template</h2>
     <p class="hint">Variables in braces, with filters after a bar: <code>{title|kebab}</code>, dates with a format: <code>{date:YYYY-MM-DD}</code>.</p>

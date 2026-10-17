@@ -84,6 +84,26 @@ def test_tree(client, env):
     assert sorted((p["title"], p["parent"]) for p in tree) == [("Budget", None), ("Hiring", None)]
 
 
+def test_path_and_children(client, env):
+    """A note says which notes it's inside, from the top down, and lists the notes inside it in the tree's order."""
+    he, hv = env["he"], env["hv"]
+    top = _new(client, he, title="Home lab")
+    mid = _new(client, he, title="Pi 5", parent=top["id"])
+    leaf = _new(client, he, title="Shopping list", parent=mid["id"])
+    second = _new(client, he, title="Cases", parent=mid["id"])
+    client.post(f"/api/v1/notes/{second['id']}/move", headers=he, json={"parent": mid["id"], "before": leaf["id"]})
+    got = client.get(f"/api/v1/notes/{leaf['id']}", headers=hv).json()
+    assert [(c["id"], c["title"]) for c in got["path"]] == [(top["id"], "Home lab"), (mid["id"], "Pi 5")]
+    assert got["children"] == []
+    got = client.get(f"/api/v1/notes/{mid['id']}", headers=hv).json()
+    assert [c["title"] for c in got["path"]] == ["Home lab"]
+    assert [c["title"] for c in got["children"]] == ["Cases", "Shopping list"]
+    assert client.get(f"/api/v1/notes/{top['id']}", headers=hv).json()["path"] == []
+    # a thing's page isn't in the tree, so nothing is inside it
+    page = _new(client, he, title="About the call", about=f"recording:{env['a']}")
+    assert (page["path"], page["children"]) == ([], [])
+
+
 def test_links_and_backlinks(client, env, db):
     he, a = env["he"], env["a"]
     term, person = _entity(db, "Capsids", "TERM"), _entity(db, "Ada Lovelace", "PERSON")
@@ -278,6 +298,10 @@ def test_assistant_keeps_notes(client, env, db, cfg):
     got = call("read_note", note_id=w["note_id"])
     assert got["body"].endswith("Alice sends them.") and got["summary"] == "When the samples ship"
     assert got["links"] == [{"sign": "@", "target": f"recording:{env['a']}", "label": "ep1"}]
+    assert "path" not in got and "notes_inside" not in got  # at the top, with nothing inside
+    kid = call("write_note", namespace="pods", title="Samples", body="Two boxes.", parent_id=w["note_id"])["note_id"]
+    assert call("read_note", note_id=w["note_id"])["notes_inside"] == [{"id": kid, "title": "Samples"}]
+    assert call("read_note", note_id=kid)["path"] == [{"id": w["note_id"], "title": "Shipping"}]
     assert call("read_note", about=f"recording:{env['a']}")["note"] is None
     assert [n["id"] for n in call("find_notes", query="alice")["notes"]] == [w["note_id"]]
     assert call("find_notes", place="area")["notes"] == []
@@ -591,6 +615,46 @@ def test_daily_notes(client, env, db):
     assert client.delete(f"/api/v1/notes/{root['id']}", headers=he).status_code == 200
     again = client.post("/api/v1/notes/today", headers=he, json={"ns": "pods", "date": "2020-02-29"}).json()
     assert again["parent"] not in (None, root["id"])
+
+
+def test_templates_and_copies(client, env, db, cfg, folder):
+    """Notes inside the Templates note are templates; a copy of one, or of any note, has its text, files and filing."""
+    he, hv = env["he"], env["hv"]
+    assert client.get("/api/v1/notes/templates?ns=pods", headers=hv).json() == {"namespace": "pods", "root": None, "templates": []}
+    assert client.post("/api/v1/notes/templates", headers=hv, json={"ns": "pods"}).status_code == 403
+    root = client.post("/api/v1/notes/templates", headers=he, json={"ns": "pods"}).json()
+    assert (root["title"], root["parent"]) == ("Templates", None)
+    assert client.post("/api/v1/notes/templates", headers=he, json={"ns": "pods"}).json()["id"] == root["id"]  # one
+    body = f"## Agenda\n\n- [ ] \n\nSee @[the call](recording:{env['a']})."
+    meeting = _new(client, he, title="Meeting", body=body, summary="For weekly calls", place="area", parent=root["id"])
+    _new(client, he, title="Trip", parent=root["id"])
+    got = client.get("/api/v1/notes/templates?ns=pods", headers=hv).json()
+    assert got["root"] == root["id"]
+    assert [(t["title"], t["summary"]) for t in got["templates"]] == [("Meeting", "For weekly calls"), ("Trip", None)]
+    # an image in the template comes with it, under the same key
+    png = b"\x89PNG\r\n\x1a\n" + b"pixels" * 50
+    key = base64.urlsafe_b64encode(hashlib.sha256(png).digest()).decode()
+    r = client.put(
+        f"/api/v1/notes/{meeting['id']}/blobs",
+        params={"key": key, "name": "logo.png"},
+        content=png,
+        headers={**he, "Content-Type": "image/png"},
+    )
+    assert r.status_code == 200, r.text
+    r = client.post(f"/api/v1/notes/{meeting['id']}/copy", headers=he, json={})
+    assert r.status_code == 200, r.text
+    new = r.json()
+    assert new["id"] != meeting["id"] and (new["title"], new["body"], new["place"], new["parent"]) == ("Meeting", body, "area", None)
+    assert new["summary"] is None and new["author"] == "person"
+    assert [x["target"] for x in new["links"]] == [f"recording:{env['a']}"]
+    assert client.get(f"/api/v1/notes/{new['id']}/blobs", params={"key": key}, headers=hv).content == png
+    # a copy of any note, titled and placed
+    inside = client.post(f"/api/v1/notes/{new['id']}/copy", headers=he, json={"title": "Copy", "parent": new["id"]}).json()
+    assert (inside["title"], inside["parent"]) == ("Copy", new["id"])
+    # editors only; other namespaces' notes can't be a parent
+    assert client.post(f"/api/v1/notes/{meeting['id']}/copy", headers=hv, json={}).status_code == 403
+    other = notebook.create(db, store.ns_id(db, "calls"), None, "Elsewhere")
+    assert client.post(f"/api/v1/notes/{meeting['id']}/copy", headers=he, json={"parent": other}).status_code == 400
 
 
 def test_markdown_export(client, env, db):

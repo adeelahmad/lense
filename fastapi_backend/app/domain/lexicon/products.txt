@@ -1,0 +1,108 @@
+# Well-known products, tools and models, one per line: names analysis types as PRODUCT wherever they're said
+# (name_types.py). Written by hand for Lens (MIT).
+ChatGPT
+GPT
+Claude
+Gemini
+Copilot
+Llama
+Grok
+Siri
+Alexa
+Cortana
+Bard
+Midjourney
+DALL-E
+Stable Diffusion
+Whisper
+iPhone
+iPad
+iPod
+MacBook
+iMac
+Mac
+macOS
+iOS
+iPadOS
+watchOS
+Android
+Windows
+Linux
+Ubuntu
+Debian
+Fedora
+Chrome
+Chromium
+Firefox
+Safari
+Gmail
+Outlook
+Excel
+PowerPoint
+Teams
+OneDrive
+SharePoint
+Google Drive
+Google Docs
+Google Sheets
+YouTube
+Kubernetes
+Terraform
+Ansible
+Jenkins
+Postgres
+PostgreSQL
+MySQL
+SQLite
+Redis
+Kafka
+Elasticsearch
+OpenSearch
+SurrealDB
+Python
+JavaScript
+TypeScript
+Rust
+Golang
+Java
+Kotlin
+Swift
+React
+Next.js
+Vue
+Angular
+Node.js
+Django
+FastAPI
+Flask
+PyTorch
+TensorFlow
+Jupyter
+VS Code
+Xcode
+Jira
+Confluence
+Trello
+Asana
+Salesforce CRM
+Photoshop
+Illustrator
+Premiere
+Lightroom
+Kindle
+PlayStation
+Xbox
+Nintendo Switch
+Raspberry Pi
+Arduino
+Tesla Model 3
+Model S
+Model Y
+Starlink
+Bitcoin
+Ethereum
+Matterbridge
+Tailscale
+WireGuard
+Nginx
+Caddy
