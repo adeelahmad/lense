@@ -818,6 +818,7 @@ GET    /api/v1/notes
 POST   /api/v1/notes
 POST   /api/v1/notes/today
 GET    /api/v1/notes/search
+GET    /api/v1/notes/export
 GET    /api/v1/notes/deleted
 POST   /api/v1/notes/deleted/{pid}/restore
 DELETE /api/v1/notes/deleted/{pid}
@@ -827,6 +828,7 @@ DELETE /api/v1/notes/{pid}
 POST   /api/v1/notes/{pid}/move
 PUT    /api/v1/notes/{pid}/pin
 DELETE /api/v1/notes/{pid}/pin
+GET    /api/v1/notes/{pid}/markdown
 GET    /api/v1/notes/{pid}/history
 GET    /api/v1/notes/{pid}/history/{vid}
 POST   /api/v1/notes/{pid}/history/{vid}/restore
@@ -843,7 +845,8 @@ matches first, each with the words around the match ([Finding notes](notes.md#fi
 moves a page to recently deleted for 30 days: `deleted` lists them, `restore` puts one back where it was and
 `DELETE /notes/deleted/{pid}` deletes one for good ([Deleting](notes.md#deleting-and-putting-back)). `move` puts a
 free note inside `parent` before `before`. `PUT …/pin` pins a page for you (`pinned` on each page says whether you
-did) and `DELETE …/pin` unpins it ([Pinned notes](notes.md#pinned-notes)). `history` lists what the page was before
+did) and `DELETE …/pin` unpins it ([Pinned notes](notes.md#pinned-notes)). `markdown` gives a page as a Markdown file and
+`export?ns=` every page of a namespace as a zip of them ([Downloading](notes.md#downloading-as-markdown)). `history` lists what the page was before
 each change, and `restore` puts an earlier version back (what it was becomes a version too). `files`
 lists the files and images attached to a page; `blobs` uploads (in chunks) and reads them, and `DELETE …/files?key=`
 removes one.
@@ -1111,6 +1114,7 @@ asset later leaves its uploaded file in place, like any other media file.
 GET    /api/v1/search
 GET    /api/v1/search/terms
 POST   /api/v1/find
+POST   /api/v1/classify
 GET    /api/v1/similar
 GET    /api/v1/graph
 GET    /api/v1/mentions
@@ -1164,6 +1168,16 @@ ms or a `page` from 0, with its `text` when it has words), `resolved` (what each
 per filter, and `narrower_topics`) and `text` (how the words were matched, as `GET /search` says, and whether the
 moments looked through were `capped`). A name that matches nothing in the namespaces you can read is a 400 that names
 the closest ones; an unknown field is a 422.
+
+`POST /classify` says which label fits an asset or a text best ([classifying](processing.md#classifying)). The
+body takes `recording` (an asset you can read) or `text` (at most 20,000 characters), and `labels` (a list, with
+`label: what it means` items, or `{label: what it means}`) or `vocabulary` (`content_type` or `topic`; a text's topics
+need `namespace`); `question` (at most 500 characters) asks it your way, and `apply` acts on a sure answer (an editor
+of the asset). The reply has `choice`, `confidence` (0 to 1), `sure`, `ranked` (`[{label, p}]`, best first, with
+the content type's `key` or the topic's `id`), `by` (`jev`, `laya`, `llm`, or `only option` when there is one), `vocabulary`, `question` and `applied`
+(`content_type`, `topic_suggested`, `tag`, or null when nothing changed), plus the chosen content type's `key` or
+topic's `id`. Bad labels or a missing choice are a 400, an asset you can't read a 404, `apply` without editing a 403,
+and no model set up to answer a 409.
 
 Search has no prefix search (`interp*` looks for the word "interp"). `GET /search/terms?prefix=interp` lists whole
 words found in the namespaces you can read (`ns` for one) that start with it, the most frequent first, with how often and

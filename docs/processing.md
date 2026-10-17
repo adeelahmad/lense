@@ -337,6 +337,33 @@ narrower topics), `content_type` and `emotion`, besides its other filters ([API]
 Planned, not built yet: these filters in the Library's filter bar and in saved collections, finding by what a photo
 shows (`GET /search/photos`) inside the same filter, and ranking by more than the best matching moment.
 
+### Classifying
+
+The API (`POST /classify`), the assistant (`classify`) and the MCP server (`classify`) say which of some labels fits an
+asset, or a piece of text, how sure that is, and every label ranked. The labels are:
+
+* given, as a list (`["science", "sport: games and teams"]`, what a label means after `: `) or as
+  `{label: what it means}`, two to 60 of them;
+* or a vocabulary Lens keeps: `content_type`, the [content types](#content-types) of the asset's base type (all of
+  them for text), or `topic`, its namespace's topics with their definitions and other labels (a text names the
+  namespace), the most used first.
+
+The decision model answers when it is set up (Settings → AI assistant: Jev, typesafe.ai's System One, or Laya on
+the machine), else the language model, asked for JSON; `by` says which, and the call is in the
+[activity ledger](activity.md), counted for the asset and its namespace. The model reads the asset's kind, file
+name, length, language, tags and accepted topics, and its title, summary, the entities it mentions most and the start
+of its text, marked as data so instructions in it aren't followed
+([prompt injection](assistant.md#third-party-content-and-prompt-injection)). `question`
+asks something of your own ("Which desk should this go to?").
+
+An answer is `sure` at `decisions.act_above` confidence or more (0.8 by default). Nothing changes unless `apply` is
+set, by an editor, and the answer is sure: then the asset's content type is set (as choosing it in its Details tab
+does), the topic is suggested for it, waiting for someone to accept it (one it already has, waits for or was dismissed
+from stays as it is), or the label given is added as a tag (at most 40 characters). `applied` says which, and it is
+in the audit log. The MCP and assistant tools never apply; the assistant can then suggest the topic (`suggest_topic`).
+
+Planned, not built yet: a classify step in workflows, classifying many assets at once, and labels with examples.
+
 ## Background work
 
 Imports, pipeline runs and folder scans return at once and run as jobs stored in SurrealDB. The server runs
