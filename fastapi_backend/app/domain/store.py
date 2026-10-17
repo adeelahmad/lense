@@ -298,6 +298,11 @@ DEFAULTS = {
         "price_in": None,
         "price_out": None,
     },
+    # the assistant's web search and page reading (web.py, docs/assistant.md#web-search): off until an admin picks a
+    # provider. duckduckgo needs no key (the ddgs package, fetched when it's picked); searxng asks the instance at
+    # searxng_url; brave and tavily need api_key. results: per search; read_chars: of a page's text the model reads;
+    # render: a page that comes back nearly empty is loaded with Chromium (scripts run), when Chromium is installed
+    "web": {"search": "off", "searxng_url": None, "api_key": None, "results": 5, "read_chars": 20000, "render": False},
     # talking to Lens (voice.py): input auto uses the server's speech-to-text engine when it has one, else the
     # browser's; spoken answers come from tts_model (an OpenAI-compatible /audio/speech), else the browser reads them
     # stt: the engine that hears voice chat ("same": the transcription engine); tts_provider: who reads answers aloud

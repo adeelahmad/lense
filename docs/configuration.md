@@ -201,6 +201,20 @@ People can choose the model a conversation uses, and ask a question again with a
 offered and stays the default. Left empty, they may pick whatever the model server lists (`GET /models`, kept for a
 minute); on providers that list many models, or charge by model, list the ones you want offered.
 
+## Web search
+
+Whether the assistant searches the web and reads pages ([Web search and reading pages](assistant.md#web-search-and-reading-pages)).
+Settings → AI assistant → Web search; the setup chat always asks before it changes these:
+
+| Setting | Default | |
+|---|---|---|
+| `web.search` | `off` | the search provider: `off`, `duckduckgo` (no key; fetches the ddgs client, about 30 MB, when picked), `searxng` (your own instance), `brave` or `tavily` (an API key) |
+| `web.searxng_url` | null | your SearXNG instance's address, such as `http://searxng:8080`, with its JSON output on; asked directly, so it may be on your network |
+| `web.api_key` | none | the Brave Search or Tavily API key, stored encrypted |
+| `web.results` | 5 | results per search when the model doesn't say, 1–20 |
+| `web.read_chars` | 20000 | the most of a page's text the model reads at once, 1,000–200,000 characters |
+| `web.render` | false | load a page that comes back nearly empty in Chromium, scripts run, and read it again (needs Chromium: the full edition) |
+
 ## Descriptions
 
 The describe step ([API](api.md#descriptions)) sends each page of a document or an image, and each shot's keyframe of
