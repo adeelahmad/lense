@@ -160,7 +160,7 @@ line carries the commit, `git describe` tag and release it was taken at.
 | Red-check rate, ask to merge, CI minutes per merged pull request | Pull requests opened in the last `--days` (7), bots left out: the share whose first push had a failing workflow run (a re-run counts its first attempt), the median hours from the earliest of the pull request and the issues it closes to its merge, and the median wall time of its workflow runs |
 | Failed runs on `main` | Workflow runs on pushes to `main` in the same window that failed or timed out |
 | Stars, forks, and issues and pull requests from outside | The repository, and issues and pull requests whose authors aren't its owner, members or collaborators |
-| Install to first answer, and idle RAM and disk on arm64 (as on a Raspberry Pi) | Not measured yet: there's no timed install on an arm64 runner |
+| Install to first answer, and idle RAM and disk on arm64 (as a Raspberry Pi is) | The newest `install-scorecard` artifact from main: the Install workflow's arm64 job times the one-line install until the setup page answers, waits two minutes, then adds up its containers' memory (`docker stats`) and Docker's images, containers and volumes plus the install folder (`ci/scorecard/measure_install.py`). It runs weekly and when the install changes. GitHub's arm64 runner is faster than a Pi, so the time is a floor |
 
 ```bash
 make scorecard                                       # print the line
