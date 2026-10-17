@@ -25837,6 +25837,107 @@
         }
       }
     },
+    "/api/v1/chats/{cid}/export.{fmt}": {
+      "get": {
+        "tags": [
+          "chats"
+        ],
+        "summary": "Export Chat",
+        "description": "A conversation as a download: Markdown (citations as footnotes linking back to Lens), PDF (that Markdown\nprinted: by Chromium, else anytopdf, else LibreOffice; 409 with the reason when none can run here) or JSON\n(OpenAI chat messages in a tree, with Dublin Core terms; docs/schemas/chat-export.schema.json). Citations follow\nyour current access, as in GET /chats/{cid}.",
+        "operationId": "export_chat",
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          },
+          {
+            "name": "fmt",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "md",
+                "json",
+                "pdf"
+              ],
+              "type": "string",
+              "title": "Fmt"
+            }
+          },
+          {
+            "name": "message",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "one message (an answer comes with the question it answers); else the version showing",
+              "title": "Message"
+            },
+            "description": "one message (an answer comes with the question it answers); else the version showing"
+          },
+          {
+            "name": "all",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "JSON: every version of the conversation, not only the one showing",
+              "default": false,
+              "title": "All"
+            },
+            "description": "JSON: every version of the conversation, not only the one showing"
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "tree",
+                "messages"
+              ],
+              "type": "string",
+              "description": "JSON: messages gives the version showing as one {\"messages\": [...]} line",
+              "default": "tree",
+              "title": "Format"
+            },
+            "description": "JSON: messages gives the version showing as one {\"messages\": [...]} line"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/markdown": {},
+              "application/json": {},
+              "application/pdf": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chats/{cid}/files/{fid}": {
       "get": {
         "tags": [

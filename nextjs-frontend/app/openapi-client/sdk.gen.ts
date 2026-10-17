@@ -460,6 +460,9 @@ import type {
   ExportBatchResultsData,
   ExportBatchResultsErrors,
   ExportBatchResultsResponses,
+  ExportChatData,
+  ExportChatErrors,
+  ExportChatResponses,
   ExportNotesData,
   ExportNotesErrors,
   ExportNotesResponses,
@@ -10325,6 +10328,23 @@ export class Chats {
   ): RequestResult<GetMessageResponses, GetMessageErrors, ThrowOnError> {
     return (options.client ?? client).get<GetMessageResponses, GetMessageErrors, ThrowOnError>({
       url: "/api/v1/chats/{cid}/messages/{mid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Export Chat
+   *
+   * A conversation as a download: Markdown (citations as footnotes linking back to Lens), PDF (that Markdown
+   * printed: by Chromium, else anytopdf, else LibreOffice; 409 with the reason when none can run here) or JSON
+   * (OpenAI chat messages in a tree, with Dublin Core terms; docs/schemas/chat-export.schema.json). Citations follow
+   * your current access, as in GET /chats/{cid}.
+   */
+  public static exportChat<ThrowOnError extends boolean = false>(
+    options: Options<ExportChatData, ThrowOnError>,
+  ): RequestResult<ExportChatResponses, ExportChatErrors, ThrowOnError> {
+    return (options.client ?? client).get<ExportChatResponses, ExportChatErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/export.{fmt}",
       ...options,
     });
   }
