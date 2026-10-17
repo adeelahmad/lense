@@ -3384,6 +3384,18 @@ export type Chat = {
    */
   model?: string | null;
   /**
+   * Tools
+   *
+   * the tool groups and tools its answers may use; null: Auto
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in each answer; null: no limit but the rounds
+   */
+  max_tool_calls?: number | null;
+  /**
    * Created At
    */
   created_at?: string | null;
@@ -3441,9 +3453,15 @@ export type ChatCapabilities = {
   /**
    * Max Steps
    *
-   * the most tool calls it makes for one answer
+   * the most rounds of tool calls it makes for one answer (a round makes one call or more)
    */
   max_steps: number;
+  /**
+   * Max Tool Calls
+   *
+   * the most tool calls a question may give one answer (`max_tool_calls`)
+   */
+  max_tool_calls?: number;
   /**
    * Check
    *
@@ -3562,6 +3580,18 @@ export type ChatCreate = {
    * the model that answers in it (one of GET /chats/capabilities `models`); null: the configured one
    */
   model?: string | null;
+  /**
+   * Tools
+   *
+   * what its answers may use: tool groups and tools (GET /chats/tools); [] for none; left out: your latest choice (PATCH /chats/{cid}), else Auto
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in each answer (1 to ai.max_tool_calls); left out: your latest choice
+   */
+  max_tool_calls?: number | null;
 };
 
 /**
@@ -3743,6 +3773,18 @@ export type ChatSummary = {
    */
   model?: string | null;
   /**
+   * Tools
+   *
+   * the tool groups and tools its answers may use; null: Auto
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in each answer; null: no limit but the rounds
+   */
+  max_tool_calls?: number | null;
+  /**
    * Created At
    */
   created_at?: string | null;
@@ -3750,6 +3792,35 @@ export type ChatSummary = {
    * Updated At
    */
   updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ChatTools
+ */
+export type ChatTools = {
+  /**
+   * Groups
+   *
+   * the built-in groups, then your extensions' (mcp:<server>, ext:<extension>)
+   */
+  groups: Array<ToolGroup>;
+  /**
+   * Max Tool Calls
+   *
+   * the most tool calls one answer may be given (ai.max_tool_calls)
+   */
+  max_tool_calls: number;
+  /**
+   * your latest choice, which new conversations start with
+   */
+  remembered: ToolChoice;
+  /**
+   * Namespaces Note
+   *
+   * what the choice of namespaces doesn't narrow
+   */
+  namespaces_note?: string;
   [key: string]: unknown;
 };
 
@@ -3768,6 +3839,18 @@ export type ChatUpdate = {
    * the model that answers in it (one of GET /chats/capabilities `models`); null: the configured one
    */
   model?: string | null;
+  /**
+   * Tools
+   *
+   * what its answers may use: tool groups and tools (GET /chats/tools); [] for none; null: Auto (everything you may use). Your new conversations start with it too
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in each answer (1 to ai.max_tool_calls); null: no limit but the rounds
+   */
+  max_tool_calls?: number | null;
 };
 
 /**
@@ -11544,6 +11627,22 @@ export type MessageCreate = {
    * voice: said in a voice conversation (the question's record keeps it)
    */
   via?: "voice" | null;
+  /**
+   * Tools
+   *
+   * what this answer may use: tool groups (archive, notes, mcp:tracker) and tools, as GET /chats/tools lists them; [] for none (it answers from a search); null: the conversation's choice, else Auto (everything you may use). An admin's switch still wins
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in this answer (1 to ai.max_tool_calls); null: the conversation's
+   */
+  max_tool_calls?: number | null;
+  /**
+   * what this answer draws on, instead of the conversation's scope (which stays as it is); {} for everything you can read
+   */
+  scope?: ChatScope | null;
 };
 
 /**
@@ -22170,6 +22269,101 @@ export type TokenPair = {
    */
   expires_in: number;
   user: UserPublic;
+  [key: string]: unknown;
+};
+
+/**
+ * ToolChoice
+ */
+export type ToolChoice = {
+  /**
+   * Tools
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   */
+  max_tool_calls?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ToolGroup
+ */
+export type ToolGroup = {
+  /**
+   * Name
+   *
+   * what `tools` names it by: a built-in group, mcp:<server> or ext:<extension>
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Tools
+   */
+  tools: Array<ToolInfo>;
+  /**
+   * Asks
+   *
+   * one of its tools waits for your yes
+   */
+  asks: boolean;
+  /**
+   * Out
+   *
+   * one of its tools sends data to another host
+   */
+  out: boolean;
+  /**
+   * Available
+   *
+   * you have one of its tools now
+   */
+  available: boolean;
+  /**
+   * Why
+   *
+   * why you don't, when you have none
+   */
+  why?: string | null;
+  /**
+   * Setting
+   *
+   * the setting that would change that (section.key), for admins
+   */
+  setting?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ToolInfo
+ */
+export type ToolInfo = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Effect
+   *
+   * read: it looks things up; asks: it waits for your yes; out: it sends what it's given to another host
+   */
+  effect: "read" | "asks" | "out";
+  /**
+   * Out
+   *
+   * it sends what it's given to another host (and asks first after outside text)
+   */
+  out?: boolean;
+  /**
+   * Available
+   *
+   * you have it now
+   */
+  available: boolean;
   [key: string]: unknown;
 };
 
@@ -40121,6 +40315,36 @@ export type ChatCapabilitiesResponses = {
 };
 
 export type ChatCapabilitiesResponse = ChatCapabilitiesResponses[keyof ChatCapabilitiesResponses];
+
+export type ChatToolsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Chat Id
+     */
+    chat_id?: number | null;
+  };
+  url: "/api/v1/chats/tools";
+};
+
+export type ChatToolsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ChatToolsError = ChatToolsErrors[keyof ChatToolsErrors];
+
+export type ChatToolsResponses = {
+  /**
+   * Successful Response
+   */
+  200: ChatTools;
+};
+
+export type ChatToolsResponse = ChatToolsResponses[keyof ChatToolsResponses];
 
 export type DeleteChatData = {
   body?: never;
