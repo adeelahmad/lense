@@ -14,7 +14,7 @@ from app.domain.store import R
 
 # Every step that has shipped, in order. A database remembers steps by name, so these may never be renamed, reordered
 # or removed: add new steps to the end of migrations.steps() and here.
-SHIPPED = ["access-levels", "collection-homes", "tour-seen", "document-read-step", "chat-tree"]
+SHIPPED = ["access-levels", "collection-homes", "tour-seen", "document-read-step", "chat-tree", "mcp-sealed-secrets"]
 
 
 def test_steps_are_append_only():
@@ -33,10 +33,14 @@ def test_a_fresh_database_has_run_every_step(db):
 
 
 def _old_shape(db):
-    """Data as an older Lens left it: an IIIF-only access level and a recording without a collection."""
+    """Data as an older Lens left it: an IIIF-only access level, a recording without a collection, an MCP token in plain text."""
     sid = store.ns_id(db, "pods")
     rid = db.next_id("recording")
     db.q("CREATE $r CONTENT $d", r=R("recording", rid), d={"space": sid, "title": "old", "meta_json": json.dumps({"access": "signed-in"})})
+    eid = db.next_id("extension")  # an MCP server with its token in plain text
+    db.q("CREATE $r CONTENT $d", r=R("extension", eid), d={"name": "tracker", "kind": "mcp", "current": 1, "enabled": True})
+    spec = {"url": "https://mcp.example.com/mcp", "headers": {"Authorization": "Bearer t0ken"}, "tools": []}
+    db.q("CREATE $r CONTENT $d", r=R("extension_version", f"{eid}-1"), d={"extension": eid, "version": 1, "spec": spec})
     return rid
 
 
@@ -62,8 +66,8 @@ def test_steps_an_older_lens_counted_are_not_run_again(db):
     db.q("DELETE migration")
     db.q("UPSERT $r SET n = 1", r=R("seq", "migrations"))
     rid = _old_shape(db)
-    assert migrations.pending(db) == ["collection-homes", "tour-seen", "document-read-step", "chat-tree"]
-    assert store.migrate(db) == ["collection-homes", "tour-seen", "document-read-step", "chat-tree"]
+    assert migrations.pending(db) == SHIPPED[1:]
+    assert store.migrate(db) == SHIPPED[1:]
     row = db.one("SELECT meta_json, collection FROM $r", r=R("recording", rid))
     assert json.loads(row["meta_json"]) == {"access": "signed-in"}  # access-levels was counted as done, so not rerun
     assert row["collection"] == store.default_collection(db, store.ns_id(db, "pods"))
@@ -139,7 +143,7 @@ def test_lens_migrations_lists_and_runs(tmp_path, monkeypatch, capsys):
     assert "pending  access-levels" in out and "pending  collection-homes" in out
     cli.main(["--config", str(cfg_path), "migrations", "--run"])
     out = capsys.readouterr().out
-    assert "ran 5 upgrade(s): access-levels, collection-homes, tour-seen, document-read-step, chat-tree" in out
+    assert f"ran {len(SHIPPED)} upgrade(s): {', '.join(SHIPPED)}" in out
     assert "done     access-levels" in out
 
 
