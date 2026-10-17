@@ -15,6 +15,7 @@ jest.mock("@/app/openapi-client", () => ({
     restoreDeleted: jest.fn(),
     pinPage: jest.fn(),
     unpinPage: jest.fn(),
+    copyPage: jest.fn(),
   },
 }));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
@@ -116,6 +117,18 @@ describe("the notes tree", () => {
     await choose("Trips", "Add a note inside");
     await waitFor(() => expect(push).toHaveBeenCalledWith("/notes/9?new=1"));
     expect(m(Notes.createPage).mock.calls[0][0].body).toMatchObject({ ns: "home", parent: 4 });
+  });
+
+  it("makes a copy beside the note and opens it", async () => {
+    m(Notes.copyPage).mockImplementation(() => ok({ id: 10, title: "Copy of Pi 5 shopping list" }));
+    localStorage.setItem("lens.notes.open", "[1]");
+    show();
+    await choose("Pi 5 shopping list", "Make a copy");
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/notes/10?new=1"));
+    expect(m(Notes.copyPage).mock.calls[0][0]).toMatchObject({
+      path: { pid: 2 },
+      body: { title: "Copy of Pi 5 shopping list", parent: 1 },
+    });
   });
 
   it("deletes a note with Undo on the notice, and leaves it when it was open", async () => {

@@ -128,7 +128,8 @@ Free notes sit in a tree in the left navigation, under the main links. The links
 long tree has the whole height. A row opens its note, its arrow shows the notes inside it (the tree remembers which are
 open) and **+** adds a note inside. Each row's **⋯** menu, which always shows on a touch screen, adds a note inside,
 renames the note in place (Enter saves, Escape leaves it as it was), moves it (**Move to…** finds the note to put it in
-by name, Enter picks the first; **Move to the top**), pins it ([below](#pinned-notes)), downloads it as Markdown and
+by name, Enter picks the first; **Move to the top**), makes a copy beside it ("Copy of …", with its text, drawings
+and files), pins it ([below](#pinned-notes)), downloads it as Markdown and
 deletes it with Undo. Dragging a note onto another puts it inside, and onto the Notes heading moves it to the top. The
 pages of recordings and entities aren't in the tree: they open from those things.
 
@@ -142,6 +143,17 @@ day in the namespace in view, made the first time it's asked for: titled with th
 **Daily notes** note, made too when there's none. It's the day where you are, and one note a day per namespace that
 everyone there shares; rename or move it like any note. `POST /api/v1/notes/today` with `{ns, date}` (editors) gives
 the same note to agents.
+
+## Templates
+
+Each note inside a namespace's **Templates** note is a template. **New note from a template…** in the Notes page's
+**⋯** menu, or the same action in Jump to (⌘K), lists them: type to find one, Enter takes the first. The new note has the
+template's title (selected, to type over), text, drawings, files, filing and view, and goes at the top of the tree.
+With no templates yet, the same place makes the Templates note.
+
+`GET /api/v1/notes/templates?ns=` lists a namespace's templates; `POST /api/v1/notes/templates` with `{ns}` gives its
+Templates note, made the first time; `POST /api/v1/notes/{pid}/copy` with optional `{title, parent}` makes a new note
+from any page (editors).
 
 ## Pinned notes
 

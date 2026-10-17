@@ -46,6 +46,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Download notes as Markdown.** A note's ⋯ menu in the tree downloads it as a Markdown file, and the Notes page's ⋯
   menu downloads all of a namespace's notes as a zip in folders that follow the tree, for Obsidian and other notes apps
   ([Downloading as Markdown](docs/notes.md#downloading-as-markdown)).
+- **Templates.** Notes inside a namespace's Templates note are templates: **New note from a template…** on the Notes
+  page and in Jump to starts a note from one, with its text, drawings, files and filing. Any note's menu in the tree can
+  also **Make a copy** ([Templates](docs/notes.md#templates)).
 - **Automations for agents.** Agents list, save, try and run automations through the MCP tools `automations`,
   `automation_actions`, `save_automation`, `test_automation` and `run_automation`, with problems in plain words. The
   assistant saves them switched off and asks before switching one on or running it
