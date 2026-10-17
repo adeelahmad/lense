@@ -4,7 +4,10 @@
 The prose (threat-model.md) is canonical; the YAML and JSON are derived from it. This script is the repo's own
 stand-in for the threat-model plugin's validator, which lives outside the repo and so can't run in CI. It checks:
 
-- the YAML's prose_version is the sha256 of threat-model.md;
+- with --base REF, a change to threat-model.md since REF also changes threat-model.yaml or threat-model.json, so the
+  companions are regenerated with the prose (this replaced a sha256 of the prose kept in the YAML, which every pair of
+  pull requests touching the prose conflicted on, #507);
+- the YAML's prose_version names the prose in the same commit;
 - both companions parse and carry their required top-level keys;
 - the YAML and JSON name the same repository, commit and date;
 - the claimed (P-), disclaimed (N-) and known-non-finding (KNF-) ids are the same set in all three files, and the
@@ -12,18 +15,25 @@ stand-in for the threat-model plugin's validator, which lives outside the repo a
 - every P-, N-, KNF- or MX- id mentioned anywhere is one of those defined ids;
 - the open questions are numbered Q1..Qn in the JSON, and every Qn cited anywhere is one of them.
 
-Usage: python ci/validate_threat_model.py [repo_root]. Exits 1 and lists every problem when anything disagrees.
+Usage: python ci/validate_threat_model.py [--base REF] [repo_root]. CI passes --base HEAD^1; locally, use
+--base origin/main. Exits 1 and lists every problem when anything disagrees.
 """
 
 from __future__ import annotations
 
-import hashlib
+import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
 import yaml
+
+PROSE = "threat-model.md"
+COMPANIONS = ("threat-model.yaml", "threat-model.json")
+# The prose in the same commit. Not a hash: a hash of the whole prose is one line every prose change edits (#507).
+PROSE_VERSION = "threat-model.md@same-commit"
 
 ID_RE = re.compile(
     r"(?<![A-Za-z0-9_-])(P|N|KNF|MX)-[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*(?![A-Za-z0-9_-])"
@@ -50,8 +60,7 @@ def by_kind(ids: set[str]) -> dict[str, set[str]]:
 
 def validate(root: Path) -> list[str]:
     errors: list[str] = []
-    prose_raw = (root / "threat-model.md").read_bytes()
-    prose = prose_raw.decode()
+    prose = (root / "threat-model.md").read_text()
     yaml_text = (root / "threat-model.yaml").read_text()
     json_text = (root / "threat-model.json").read_text()
     try:
@@ -63,11 +72,10 @@ def validate(root: Path) -> list[str]:
     except json.JSONDecodeError as e:
         return [f"threat-model.json does not parse: {e}"]
 
-    # Prose hash.
-    want = "threat-model.md@sha256:" + hashlib.sha256(prose_raw).hexdigest()
-    if y.get("prose_version") != want:
+    if y.get("prose_version") != PROSE_VERSION:
         errors.append(
-            f"threat-model.yaml prose_version is {y.get('prose_version')!r}; the prose hashes to {want!r}"
+            f"threat-model.yaml prose_version is {y.get('prose_version')!r}, expected {PROSE_VERSION!r} "
+            "(the prose in the same commit; ci/validate_threat_model.py --base checks the companions changed with it)"
         )
 
     # Shape.
@@ -170,11 +178,43 @@ def validate(root: Path) -> list[str]:
     return errors
 
 
-def main() -> int:
-    root = Path(
-        sys.argv[1] if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent
+def changed_since(root: Path, base: str) -> list[str]:
+    """Problems with a change since base: the prose changed but neither companion did."""
+    git = ["git", "-C", str(root)]
+    since = subprocess.run(
+        [*git, "merge-base", base, "HEAD"], capture_output=True, text=True
     )
-    errors = validate(root)
+    if since.returncode:
+        return [f"can't compare with {base!r}: {since.stderr.strip()}"]
+    # Against the working tree, so uncommitted edits count too.
+    changed = subprocess.run(
+        [*git, "diff", "--name-only", since.stdout.strip(), "--", PROSE, *COMPANIONS],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.split()
+    if PROSE in changed and not any(c in changed for c in COMPANIONS):
+        return [
+            f"{PROSE} changed since {base} but neither {' nor '.join(COMPANIONS)} did: regenerate them from the prose"
+        ]
+    return []
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Check that threat-model.md, .yaml and .json agree."
+    )
+    parser.add_argument(
+        "--base",
+        help="also check that a change to the prose since this ref changes a companion",
+    )
+    parser.add_argument(
+        "root", nargs="?", default=Path(__file__).resolve().parent.parent, type=Path
+    )
+    args = parser.parse_args()
+    errors = validate(args.root)
+    if args.base:
+        errors += changed_since(args.root, args.base)
     for e in errors:
         print(f"error: {e}")
     if errors:
