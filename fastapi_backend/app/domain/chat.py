@@ -12,8 +12,9 @@ import json
 import re
 import time
 from collections import Counter, defaultdict
+from urllib.parse import urlsplit
 
-from . import llm, recsets, render, semantic, store, textindex, untrusted
+from . import __version__, activity, llm, recsets, render, semantic, store, textindex, untrusted
 
 R = store.R
 STOP = set(
@@ -352,7 +353,7 @@ def history(db, cid, ids=None):
     """A conversation's messages, oldest first: every version's, or only those with `ids` (a path)."""
     return db.rows(
         "SELECT record::id(id) AS id, role, content, passages, created_at, stopped ?? false AS stopped, steps ?? [] AS steps, "
-        "attachments ?? [] AS attachments, notice, error, check, model, context, parent FROM chat_message WHERE chat = $c"
+        "attachments ?? [] AS attachments, notice, error, check, model, context, parent, meta FROM chat_message WHERE chat = $c"
         + (" AND id IN $ids" if ids is not None else "")
         + " ORDER BY id",
         c=cid,
@@ -486,12 +487,14 @@ def add(
     origin=None,
     parent=HEAD,
     mid=None,
+    meta=None,
 ):
     """Save a message under `parent` (by default the head; None: a first message) and make it the head; an answer
     keeps the tool steps it took, any notice (e.g. the model can't use tools) and error; a question asked from a page
     keeps what it shared of it (shared_context). A question an automation asked keeps its `origin` ({automation, run,
     node}), so it isn't taken for a person's message (`chat.message`). `mid`: an id taken earlier with
-    db.next_id("chat_message"), after the parent was saved."""
+    db.next_id("chat_message"), after the parent was saved (an answer's, so the ledger rows of the calls made for it
+    name it). `meta` is its record (Record; a question's: how it was sent)."""
     parent = head(db, cid) if parent == HEAD else parent
     mid = mid or db.next_id("chat_message")
     db.q(
@@ -513,6 +516,7 @@ def add(
                 "context": context,
                 "origin": origin or None,
                 "parent": parent,
+                "meta": meta or None,
             }
         ),
     )
@@ -718,6 +722,61 @@ def request_stop(db, cid):
     return bool(db.rows("UPDATE $r SET stop_requested = true WHERE answering = true RETURN id", r=R("chat", cid)))
 
 
+def provider(cfg):
+    """The model server's host name, never its address's path or a key: where an answer's model ran."""
+    return (urlsplit(cfg["llm"].get("base_url") or "").hostname or None) if llm.configured(cfg) else None
+
+
+class Record:
+    """What produced an answer, kept on it as `meta` (docs/assistant.md, "What each answer records"): the model and the
+    host it ran on, the tools it was offered and the ones asked for, the scope it answered in, its limits and what it
+    used, how it ended, the tools whose results read like instructions to an AI, how long it took, and its tokens and
+    cost, from the ledger rows that name it (the answer runs in activity.scope(db, "chat_message:<mid>")). Made as the
+    answer starts, which it times from; tool_answer fills in the tools and counts."""
+
+    def __init__(self, cfg, model=None, scope=None, picked=None, tool_calls=None, research=None):
+        self.cfg, self.t0 = cfg, time.monotonic()
+        self.model = (model or cfg["llm"].get("model")) if llm.configured(cfg) else None
+        self.scope, self.picked, self.research = scope or {}, picked, research
+        self.limits = {"rounds": None, "tool_calls": tool_calls}
+        self.used = {"rounds": 0, "tool_calls": 0}
+        self.offered, self.box, self.limited = [], None, False
+
+    def offer(self, toolbox, specs, rounds):
+        self.box, self.offered, self.limits["rounds"] = toolbox, [s["function"]["name"] for s in specs], rounds
+
+    def meta(self, db, outcome, resource=None):
+        """The record, once the answer ended with `outcome` (answered, direct, fallback, stopped or error; an answer
+        given because the rounds ran out is `limit`), with the tokens and cost of the ledger rows that name `resource`
+        (none without one)."""
+        if outcome in ("answered", "direct") and self.limited:
+            outcome = "limit"
+        out = {
+            "model": self.model,
+            "provider": provider(self.cfg),
+            "tools": {"picked": self.picked, "offered": self.offered},
+            "scope": self.scope,
+            "limits": dict(self.limits),
+            "used": dict(self.used),
+            "outcome": outcome,
+            "ms": int((time.monotonic() - self.t0) * 1000),
+            "flagged": list(dict.fromkeys(getattr(self.box, "flagged", None) or [])),
+            "research": self.research,
+            "version": __version__,
+        }
+        if resource:
+            spent = activity.totals(db, resource)
+            out["tokens"] = {"in": spent["tokens_in"], "out": spent["tokens_out"]}
+            out["cost_usd"], out["cost_estimated"] = spent["cost_usd"], spent["estimate"]
+        return out
+
+
+def question_record(via, **options):
+    """A question's record: how it was sent (web, api, room, voice, automation or completions) and the options it was
+    asked with."""
+    return {"via": via, "options": store.clean(options)}
+
+
 TOOL_SYSTEM = (
     SYSTEM + " You can call tools to look things up in the archive. Cite moments with the [n] numbers the tools return, and "
     "only those. Tools that run work or change data need the person's approval: say what you proposed and that it's waiting for them. "
@@ -812,11 +871,12 @@ def _finish(cfg, msgs, tools, model):
     return text
 
 
-def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, setup=False, summary=None):
+def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, setup=False, summary=None, record=None):
     """The tool loop: yields ("step", {...}) for each tool call, then ("answer", text), or ("direct", text) when the model
     answered without looking anything up (it never saw the archive, so the caller can answer from a search instead).
     Every turn ends in an answer: when the steps run out, or the model replies with nothing, it's asked to answer from
-    what it found, with the tools off. Raises llm.ToolsUnsupported."""
+    what it found, with the tools off. Raises llm.ToolsUnsupported. `record` (a Record) learns the tools offered and
+    counts the rounds and tool calls."""
     system = TOOL_SYSTEM + untrusted.rules(cfg) + ("\n\n" + SETUP_SYSTEM if setup else "")
     note = getattr(toolbox, "system_note", None)  # skills, and context from hooks (extensions.py)
     system += note() if note else ""
@@ -828,6 +888,8 @@ def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, set
     msgs = [{"role": "system", "content": system}] + past_turns(history, summary=summary, cfg=cfg)
     msgs.append({"role": "user", "content": question})
     tools, looked, made = toolbox.specs(), False, set()
+    record = record or Record(cfg)
+    record.offer(toolbox, tools, max_steps)
     for _ in range(max_steps):
         msg = llm.chat_message(cfg, msgs, tools=tools, model=model)
         if not msg["tool_calls"]:
@@ -836,6 +898,8 @@ def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, set
                 return
             break  # a reply with nothing in it
         looked = True
+        record.used["rounds"] += 1
+        record.used["tool_calls"] += len(msg["tool_calls"])
         msgs.append({"role": "assistant", "content": msg["content"], "tool_calls": msg["tool_calls"]})
         for c in msg["tool_calls"]:
             fn = c.get("function") or {}
@@ -855,9 +919,13 @@ def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, set
             # anything that may change what a read returns (a note written, a setting changed) makes every read new again
             made = made | {key} if name in SAME_AGAIN else set()
             # as the model reads it: what the tool read from the archive, the web or another server marked as data
+            t0 = time.monotonic()
             result, summary = toolbox.call(name, args, model=True)
-            yield "step", {"tool": name, "args": args, "summary": summary}
+            step = {"tool": name, "args": args, "summary": summary, "ms": int((time.monotonic() - t0) * 1000)}
+            yield "step", {**step, "failed": True} if getattr(toolbox, "failed", False) else step
             msgs.append({"role": "tool", "tool_call_id": c.get("id"), "content": result})
+    else:  # the rounds ran out
+        record.limited = True
     text = _finish(cfg, msgs, tools, model) or "I couldn't put an answer together from what I found. Try again, or ask something narrower."
     yield ("answer" if looked else "direct"), text
 

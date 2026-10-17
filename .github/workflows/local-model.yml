@@ -40,7 +40,7 @@ jobs:
           - { arch: x64, runner: ubuntu-latest }
           - { arch: arm64, runner: ubuntu-24.04-arm }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build the backend image
         run: docker build --target lean -t lens-backend:ci fastapi_backend

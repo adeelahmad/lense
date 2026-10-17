@@ -577,6 +577,9 @@ import type {
   GetMediaData,
   GetMediaErrors,
   GetMediaResponses,
+  GetMessageData,
+  GetMessageErrors,
+  GetMessageResponses,
   GetMonitoringData,
   GetMonitoringResponses,
   GetNamespaceAssistantData,
@@ -10102,11 +10105,28 @@ export class Chats {
   }
 
   /**
+   * Get Message
+   *
+   * One message of any version, with its record (`meta`: for an answer, the model and the host it ran on, the tools
+   * offered and used, the scope, limits and use, tokens, cost, time and how it ended) and its rows in the activity ledger
+   * (`ledger`: the calls made for it, newest first). Citations follow your current access, as in GET /chats/{cid}.
+   */
+  public static getMessage<ThrowOnError extends boolean = false>(
+    options: Options<GetMessageData, ThrowOnError>,
+  ): RequestResult<GetMessageResponses, GetMessageErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetMessageResponses, GetMessageErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/messages/{mid}",
+      ...options,
+    });
+  }
+
+  /**
    * Send Message
    *
    * Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model
    * reads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
-   * /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).
+   * /chats/{cid}/stop: what came before is saved, marked stopped), meta (the answer's record, kept with it: what produced
+   * it), done (the saved message id).
    *
    * A conversation is a tree of versions (GET /chats/{cid}: `tree`, and each message's `versions`); the question goes
    * on from `parent` when given (any message of the conversation), else from the version showing (`head`). With

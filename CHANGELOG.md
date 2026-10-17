@@ -4,11 +4,27 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Punctuation put back in transcripts.** With transcripts cleaned up, Settings → Analysis → Put punctuation back
+  adds full stops, commas and question marks with a local model (kredor/punctuate-all, MIT, 12 languages), to
+  transcripts that have hardly any (imported captions) or to every one, keeping the marks they have. The model and
+  PyTorch (about 2 GB) are fetched the first time it's needed; off by default
+  ([Cleaning up transcripts](docs/processing.md#cleaning-up-transcripts)).
+- **Clean up transcripts before analysis.** With Settings → Analysis → Clean up transcripts before analysis on (off
+  by default), a new Clean up step runs before Analyze: a word said three times in a row is kept once ("I I I looked"
+  → "I looked"), doubled pronouns and articles once, "um" and "uh" go, and spacing, "i" and sentence capitals are
+  fixed, by rules, on English lines. Every changed line is in Change history with Revert, and lines someone corrected
+  are left alone. Reprocess, pipelines, `POST /api/v1/recordings/<id>/reprocess` and `lens clean` run it
+  ([Cleaning up transcripts](docs/processing.md#cleaning-up-transcripts)).
 - **Automations run.** An automation saved over the API (`/api/v1/automations`) now reacts to new assets in its
   namespaces: when its If passes, it runs its workflow as the person who made it, within its limits and budgets, and
   each run shows what its actions did. Try one on an activity without keeping or sending anything, or run it now;
   Settings → Automations switches them all off and sets how far they may go
   ([Running automations](docs/automations.md#running-automations)).
+- **Each answer says what produced it.** The *i* in an answer's header shows the model and the host it ran on, the
+  tools it was offered and used, the scope, its limits and what it used, tokens, cost (an estimate from your prices),
+  how long it took, how it ended and which tool results read like instructions to an AI, with the calls made for it.
+  Agents read the same record over the API (`GET /api/v1/chats/<id>/messages/<mid>`), and each tool step shows how long
+  it took. Answers from before have no record ([What each answer records](docs/assistant.md#what-each-answer-records)).
 - **Automations for agents.** Agents list, save, try and run automations through the MCP tools `automations`,
   `automation_actions`, `save_automation`, `test_automation` and `run_automation`, with problems in plain words. The
   assistant saves them switched off and asks before switching one on or running it
