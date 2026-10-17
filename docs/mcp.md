@@ -6,8 +6,9 @@ and sees exactly what that person sees: their namespaces, the collections they w
 those open. Its tools read, except the few listed under [Tools](#tools) that suggest or write, which need a
 write-scope token and editor access.
 
-It works the other way too: Lens's own assistant calls the tools of MCP servers an admin adds, as extensions
-([Extending the assistant](assistant.md#extending-the-assistant-tools-skills-hooks-and-plugins)).
+It works the other way too: Lens's own assistant calls the tools of MCP servers an admin adds, as extensions, by a
+short form or a config pasted from another app, with their tokens sealed
+([Adding an MCP server](assistant.md#adding-an-mcp-server)).
 
 ## Connecting
 

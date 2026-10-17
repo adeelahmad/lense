@@ -117,6 +117,7 @@
       "entry_points": [
         "chat, /graph/ask, MCP tools",
         "extensions (prompt, graph and http tools, hooks), custom nodes including template nodes",
+        "MCP servers: POST /extensions/mcp/read and /mcp/test, saving an extension of kind mcp, PATCH /extensions/{id}/tools",
         "Python code tools, shipped and admin-created templates, workflows, pipelines, routines",
         "Lens extension side panel",
         "automations",
@@ -490,6 +491,15 @@
       "caller_must_enforce": "person enables only extensions they trust",
       "provenance": "documented",
       "source": "docs/assistant.md \"other people's run only when an admin shared them\""
+    },
+    {
+      "entry_point": "MCP servers: POST /extensions/mcp/read and /mcp/test, saving an extension of kind mcp, PATCH /extensions/{id}/tools",
+      "parameter": "config text (JSON or YAML), a server's address and headers, or a command, its arguments and env; a tool name and its switches",
+      "attacker_controllable": "no",
+      "component": "assistant",
+      "caller_must_enforce": "admin is trusted with the address and the command; reading a config parses text only; a command runs only in the MCP runner; credential values are sealed to the extension and where they go and shown as ••••; a tool switched off isn't offered, and every MCP tool asks first after outside text",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"Adding an MCP server\""
     },
     {
       "entry_point": "Python code tools, shipped and admin-created templates, workflows, pipelines, routines",
@@ -1013,7 +1023,7 @@
       "property": "P-SECRETS",
       "violation_symptom": "info-leak",
       "severity_tier": "security",
-      "conditions": "stored secrets (source credentials, notification secrets, model API keys, iCal addresses, an automation's credential headers, sealed to that automation and the address they were saved for) are encrypted and write-only; the API reports whether one is set, never its value; a key from the environment is never shown; they do not leak through the API, logs, exports, or a redirect to another server",
+      "conditions": "stored secrets (source credentials, notification secrets, model API keys, iCal addresses, an automation's credential headers, sealed to that automation and the address they were saved for, an MCP server's credential headers and env values, sealed to its extension and the address or command they were saved for) are encrypted and write-only; the API reports whether one is set, never its value; a key from the environment is never shown; they do not leak through the API, logs, exports, or a redirect to another server",
       "provenance": "documented",
       "source": "SECURITY.md \"stored credentials for sources and model servers leaking\""
     },
