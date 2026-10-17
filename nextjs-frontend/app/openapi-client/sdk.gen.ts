@@ -9929,6 +9929,8 @@ export class Chats {
 
   /**
    * Delete Chat
+   *
+   * Delete a conversation, with its code sandbox and the files in it.
    */
   public static deleteChat<ThrowOnError extends boolean = false>(
     options: Options<DeleteChatData, ThrowOnError>,

@@ -524,6 +524,22 @@ DEFAULTS = {
         "port": int(os.environ.get("LENS_SMB_LISTEN_PORT") or 4445),
         "allowed_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "100.64.0.0/10", "fc00::/7", "::1/128"],
     },
+    # the assistant's code sandbox (sandbox.py, docs/assistant.md#code-sandbox): off until an admin turns it on. Then
+    # each conversation's Python and bash run in a sandbox of its own on the OpenShell gateway at `gateway`, made from
+    # `image` with `cpu` and `memory`, stopped after idle_minutes and deleted keep_hours after its last run. network:
+    # off (none), packages (PyPI and npm) or web (public addresses). who: editors (and admins), or admins only.
+    "sandbox": {
+        "enabled": False,
+        "gateway": "openshell-gateway:8080",
+        "image": "python:3.12-slim",
+        "network": "off",
+        "who": "editors",
+        "cpu": "1",
+        "memory": "512Mi",
+        "seconds": 60,
+        "idle_minutes": 15,
+        "keep_hours": 24,
+    },
     # sensors (sensors.py, docs/sensors.md): off until an admin turns them on. Then the MQTT hub and the syslog listener
     # run in the process that runs routines (`lens worker`), on these ports; syslog is taken only from syslog_networks.
     # store, raw_days, rollup_days, important_days and max_per_minute are what a stream sensor gets unless it has its own.
@@ -1419,6 +1435,8 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS browser_session_account ON browser_session FIELDS account",
     "DEFINE TABLE IF NOT EXISTS browser_action SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS browser_action_session ON browser_action FIELDS session, state",
+    # each conversation's code sandbox on the OpenShell gateway (sandbox.py): its name, settings and last use
+    "DEFINE TABLE IF NOT EXISTS code_sandbox SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS segment_edit SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS segment_edit_rec ON segment_edit FIELDS recording",
     # descriptive metadata history, IIIF change discovery and IIIF authorization

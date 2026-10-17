@@ -23,6 +23,7 @@ never fetch a speech or voice model.
 | Prompt-injection classifier | `ai.injection_check` is `classifier` | ProtectAI's deberta-v3-base-prompt-injection-v2 (Apache-2.0, about 740 MB), the tokenizers library and ONNX Runtime ([third-party content](assistant.md#third-party-content-and-prompt-injection)) |
 | yt-dlp | `documents.video_urls` is on | the yt-dlp program, release 2026.08.19 (Unlicense), to download videos and podcasts imported by address |
 | Chat model, embedding model | the LLM provider or embeddings server is Ollama | pulled on that server (`/api/pull`) |
+| Code sandbox client | the [code sandbox](assistant.md#code-sandbox) is on (`sandbox.enabled`) | OpenShell's Python SDK (Apache-2.0) and gRPC, about 10 MB, to reach its gateway |
 | Outlook .msg emails | listed in `components.also` | extract-msg (GPL-3.0, so only when asked for) |
 
 - Python packages go into `data_dir/python`, at the versions in `uv.lock`. Packages the image already has win.

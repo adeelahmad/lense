@@ -590,6 +590,15 @@
       "source": "docs/automations.md \"Running automations\""
     },
     {
+      "entry_point": "code sandbox",
+      "parameter": "assistant run_python, run_bash, sandbox_files and import_sandbox_file: code the model writes, attachment ids, a path in the sandbox; sandbox.* settings (admins)",
+      "attacker_controllable": "yes",
+      "component": "assistant",
+      "caller_must_enforce": "none — off by default; the code runs in the conversation's own OpenShell sandbox with none of Lens's data or keys and no network unless sandbox.network allows it (P-SANDBOX); with the network on, a run after outside text asks first (P-INJECTION-EGRESS); files in only from the person's attachments, out only through an approved import",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"Code sandbox\""
+    },
+    {
       "entry_point": "microsandbox program requests",
       "parameter": "ask/NAME.want in /data/.lens/programs: a program's name",
       "attacker_controllable": "yes",
@@ -1262,6 +1271,14 @@
       "conditions": "the side panel reads and acts only on sites the person allowed, opens addresses only there, asks before a consequential click, submit or Enter (model flag, the control's words, a posting form), and, once the answer read outside text (ai.untrusted_asks), before opening or downloading an address or typing text the person's message doesn't contain; it never types into or reports password, card or file fields, and shows each action",
       "provenance": "documented",
       "source": "docs/browser-assistant.md \"Letting it use your browser\""
+    },
+    {
+      "property": "P-SANDBOX",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "code the assistant runs (sandbox.enabled, off by default) runs only for people sandbox.who allows, in its conversation's own OpenShell sandbox, never in Lens's processes; the sandbox gets none of Lens's data, keys or database address, only the code and files the person attached to that conversation; egress: none (off), PyPI and npm on 443 (packages) or public addresses on 80 and 443 (web); a file leaves only as the person's held upload placed by an import_files approval; stopped when idle, deleted when unused or with its conversation",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"Code sandbox\""
     },
     {
       "property": "MX-AUTHZ-LIST-CAPS",

@@ -16,6 +16,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Describe an automation in words.** `POST /api/v1/automations/draft` asks the model once to turn a sentence into
   a draft automation to try and save, and says what didn't fit and what it couldn't express
   ([Describe it in words](docs/automations.md#describe-it-in-words)).
+- **The assistant runs Python and bash.** Turn on Settings → Code sandbox and point Lens at an NVIDIA OpenShell
+  gateway, and the assistant gets `run_python`, `run_bash`, `sandbox_files` and `import_sandbox_file`: code runs in a
+  sandbox of the conversation's own, with none of Lens's data or keys and no network unless you allow the package
+  registries or the public web. Files attached to the conversation go in; a file it makes reaches a namespace once the
+  person approves. Off by default; starting the gateway from Settings is in progress
+  ([Code sandbox](docs/assistant.md#code-sandbox)).
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 
