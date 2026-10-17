@@ -117,7 +117,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   server (off by default, per namespace), entities and topics in a knowledge graph you can explore, query with Cypher or
   SPARQL, and see as it was at any version. Every entity has its own page at a wiki address
   (`/wiki/<namespace>/<Name>`), and entities, topics and people are edited and merged from their lists, the graph or an
-  asset, with Undo instead of a confirm. Find what is most like a passage, an asset, a topic or an entity, in a Similar
+  asset, with Undo instead of a confirm. Names get their real types (people, places, organisations, events, works) by
+  rules, without a model. Find what is most like a passage, an asset, a topic or an entity, in a Similar
   tab on every asset or by selecting text anywhere, and, with anytopdf, photos by what they show.
   ([Graph](docs/graph.md), [entity pages](docs/notes.md#entity-pages),
   [similar content](docs/processing.md#similar-content), [graph history](docs/graph-history.md),
@@ -209,7 +210,6 @@ These are open pull requests, not yet part of Lens:
 - **Sources:** RSS and Atom news feeds ([#453](https://github.com/adeelahmad/lense/pull/453)).
 - **Pictures:** described on this machine with Florence-2 ([#477](https://github.com/adeelahmad/lense/pull/477)), and
   low-quality images enhanced before they're read ([#479](https://github.com/adeelahmad/lense/pull/479)).
-- **Entities:** names given their real types instead of Term ([#395](https://github.com/adeelahmad/lense/pull/395)).
 - **Web clipper:** signing in, or using your API token, not only an import webhook's
   ([#406](https://github.com/adeelahmad/lense/pull/406)).
 - **Automations:** more operators for conditions ([#434](https://github.com/adeelahmad/lense/pull/434)).

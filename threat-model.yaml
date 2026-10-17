@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:9783f17fad1fba176e4efaefd40a4efd7bced9345ea4921360198a68db01c046"
+prose_version: "threat-model.md@sha256:5460d2b8e0a43286fbe5ef8bc5d3bdd52db0bc28dd7b23350227b6925bce7e82"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 204, maintainer: 46, inferred: 91, assumption: 8}
@@ -321,6 +321,15 @@ entry_points:
         control_kinds: [data, type-class, size]
         caller_must_enforce: "none — P-UPLOAD"
         provenance: {kind: documented, source: 'docs/configuration.md "Uploads accept only the types"'}
+  - id: "POST /hooks/import"
+    component: ingest
+    parameters:
+      - name: "bearer (a hook's lih_ token, or a person's la_, lo_ or web token with ?namespace=), file bytes, URL, text"
+        attacker_controllable: true
+        x-condition: "anyone holding a hook's token, for its namespace; a person's token, for namespaces where its person has the import permission and only with write scope"
+        control_kinds: [data, resource-name, size]
+        caller_must_enforce: "none — P-UPLOAD; the address form /hooks/import/{token} takes hook tokens only, so a person's token never sits in a logged path"
+        provenance: {kind: documented, source: 'docs/api.md "the address form takes hook tokens only"'}
   - id: "watched folders, storage sources, IMAP, Gmail, iCal"
     component: outbound
     parameters:

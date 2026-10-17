@@ -4,14 +4,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
-- **Describe pictures on this machine with Florence-2.** Settings → LLM provider → Describing pictures can now have
-  Microsoft's Florence-2 (MIT) describe each page and shot instead of the provider's model that can see images
-  (`llm.describe_engine` `florence-2`). It runs on the CPU through ONNX Runtime, so no picture leaves the machine and
-  no provider is needed; its 8-bit export is fetched the first time a job waits to describe something, pinned and
-  checked against its SHA-256: base (about 280 MB, `llm.florence_model`) or large (about 830 MB). Each picture is a
-  `model.describe` row in the activity ledger. Agents read and change it with the MCP tools `picture_descriptions` and
-  `set_picture_descriptions`. The default stays the provider's model ([Descriptions](docs/configuration.md#descriptions)).
-
+- **Names get their real types, not Term.** The built-in extractor now tells people, places, organisations, events,
+  works and dates apart without a model: by a title or role before a name, a given name, the word a name ends or
+  starts with (Corp, University of, Summit, Act, River), lists of countries, regions and large cities and of
+  well-known companies and products, what a name is called ("a company called Lumen") and the namespace's named
+  speakers. Only names nothing tells stay Terms, and "and"
+  no longer joins two names into one. Existing entities analysis left as Terms are typed once on upgrade, keeping
+  every type people set; the change is in the graph's history to roll back
+  ([How a name gets its type](docs/processing.md#entities-and-the-graph-explorer)).
 - **Entities found by spaCy, fetched when picked.** Settings → Analysis → Entity extraction → spaCy now fetches spaCy
   (MIT) and its small model the first time an asset needs it (about 60 MB): English, German, or one for many
   languages. The defined entities still come first, a lone word like "Okay" isn't taken for a name, and until spaCy is
@@ -28,6 +28,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   fixed, by rules, on English lines. Every changed line is in Change history with Revert, and lines someone corrected
   are left alone. Reprocess, pipelines, `POST /api/v1/recordings/<id>/reprocess` and `lens clean` run it
   ([Cleaning up transcripts](docs/processing.md#cleaning-up-transcripts)).
+- **Describe pictures on this machine with Florence-2.** Settings → LLM provider → Describing pictures can now have
+  Microsoft's Florence-2 (MIT) describe each page and shot instead of the provider's model that can see images
+  (`llm.describe_engine` `florence-2`). It runs on the CPU through ONNX Runtime, so no picture leaves the machine and
+  no provider is needed; its 8-bit export is fetched the first time a job waits to describe something, pinned and
+  checked against its SHA-256: base (about 280 MB, `llm.florence_model`) or large (about 830 MB). Each picture is a
+  `model.describe` row in the activity ledger. Agents read and change it with the MCP tools `picture_descriptions` and
+  `set_picture_descriptions`. The default stays the provider's model ([Descriptions](docs/configuration.md#descriptions)).
 - **Automations run.** An automation saved over the API (`/api/v1/automations`) now reacts to new assets in its
   namespaces: when its If passes, it runs its workflow as the person who made it, within its limits and budgets, and
   each run shows what its actions did. Try one on an activity without keeping or sending anything, or run it now;
@@ -51,6 +58,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   shares; then a new access key's dialog gives those addresses. Signing in is the same: a person's own access key,
   read-only. MQTT, syslog, SMB and NFS aren't HTTP and stay on their own ports
   ([The graph as files](docs/file-tree.md#at-the-web-apps-address), [Remote access](docs/remote-access.md#what-it-reaches)).
+- **The web clipper takes your API token, or just signs in.** It used to take only an import webhook's token, so an API
+  token was refused with "Lens didn't recognise this token: make a new import webhook and paste its token". Now its
+  options have **Sign in**: Lens asks you to allow the clipper, nothing to copy, and clips go into the namespace you
+  pick (the popup offers each one you can add to). **Use a token instead** takes an API token with write access or a
+  hook's token, and when Lens refuses one the clipper says why: unknown, revoked, read-only, or a Lens too old for
+  API tokens. Anything acting as you (an agent, a script) can push to `POST /api/v1/hooks/import?namespace=` with
+  your own token too, and `GET` there says where a token's pushes go ([Web clipper](docs/web-clipper.md#setting-it-up),
+  [API](docs/api.md#import-webhooks)).
 - **Versions in conversations.** A conversation is now a tree: editing a question makes a new version beside it
   instead of deleting what followed, regenerating an answer (`regenerate`, with the same model or another) writes one
   beside it, and a question can go on from any message (`parent`). `GET /api/v1/chats/<id>` shows each message's
