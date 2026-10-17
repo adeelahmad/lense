@@ -20,7 +20,7 @@ from starlette.concurrency import run_in_threadpool
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer
 from app.api.media import sign_urls
 from app.api.v1.routes.collections import own_collection
-from app.domain import activity, ai_tools, approvals, auth, auto_scope, browser, chat, llm, store, uploads
+from app.domain import activity, ai_tools, approvals, auth, auto_scope, browser, chat, llm, sandbox, store, uploads
 from app.domain.store import DB
 from app.schemas.chats import (
     AnswerCheck,
@@ -253,9 +253,11 @@ def update_chat(cid: int, body: ChatUpdate, user: Writer, acl: Acl, db: Db, cfg:
 
 
 @router.delete("/chats/{cid}")
-def delete_chat(cid: int, user: Writer, db: Db) -> Ok:
+def delete_chat(cid: int, user: Writer, db: Db, cfg: Cfg) -> Ok:
+    """Delete a conversation, with its code sandbox and the files in it."""
     _own_chat(db, cid, user)
     db.run(["DELETE chat_message WHERE chat = $c", "DELETE $r"], c=cid, r=R("chat", cid))
+    sandbox.forget(db, cfg, cid)
     return Ok()
 
 

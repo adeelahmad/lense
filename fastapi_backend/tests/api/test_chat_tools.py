@@ -78,6 +78,9 @@ def test_the_catalog_says_what_each_person_has(app, db, cfg, folder, new_client)
     # the web is there once an admin sets a search up; its tools send what they're given out
     assert (groups["web"]["available"], groups["web"]["why"], groups["web"]["setting"]) == (False, "no web search is set up", "web.search")
     assert tools["web_search"]["effect"] == "out" and groups["web"]["out"]
+    # and the code sandbox once an admin turns it on; copying a file out of it waits for a yes
+    assert (groups["code"]["available"], groups["code"]["setting"]) == (False, "sandbox.enabled")
+    assert tools["import_sandbox_file"]["effect"] == "asks"
 
     ca, ha = s.cl["admin"]
     groups = {g["name"]: g for g in ca.get("/api/v1/chats/tools", headers=ha).json()["groups"]}

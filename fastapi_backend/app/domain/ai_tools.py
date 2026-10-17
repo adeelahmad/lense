@@ -28,6 +28,7 @@ from . import (
     ops_tools,
     recsets,
     render,
+    sandbox as sandboxmod,
     search as searchmod,
     browser as browsermod,
     similar,
@@ -459,7 +460,16 @@ MEMORY_TOOLS = [
 
 def builtin_names():
     """The assistant's own tool names, which extensions can't take."""
-    every = TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS + AUTOMATION_TOOLS + browsermod.TOOLS
+    every = (
+        TOOLS
+        + ops_tools.ADMIN_TOOLS
+        + ops_tools.FILE_TOOLS
+        + AUTHOR_TOOLS
+        + MEMORY_TOOLS
+        + AUTOMATION_TOOLS
+        + browsermod.TOOLS
+        + sandboxmod.TOOLS
+    )
     return {t[0] for t in every + webmod.TOOLS} | {"use_skill"}
 
 
@@ -480,7 +490,11 @@ OWN_RESULTS = {
     "use_skill",
     "mark_activities",
     "decline_approval",
-} | {t[0] for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS + AUTOMATION_TOOLS if t[4]}
+} | {
+    t[0]
+    for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS + AUTOMATION_TOOLS + sandboxmod.TOOLS
+    if t[4]
+}
 
 # The side panel's browser tools have their own guard (browser.py): the ones that act on a web site are labelled as
 # sending data out (BROWSER_OUT) in the tool picker, and ask as browser.py says.
@@ -523,6 +537,7 @@ GROUPS = {
         "tools": ["suggest_topic", "propose_entity_change", "propose_topic_change", "entity_setup", "run_template"],
     },
     "files": {"label": "Importing files", "tools": [t[0] for t in ops_tools.FILE_TOOLS]},
+    "code": {"label": "Code sandbox", "tools": [t[0] for t in sandboxmod.TOOLS]},
     "extensions": {"label": "Extensions and skills", "tools": [t[0] for t in AUTHOR_TOOLS] + ["use_skill"]},
     "server": {"label": "The server", "tools": [t[0] for t in ops_tools.ADMIN_TOOLS]},
     "browser": {"label": "Your browser", "tools": [t[0] for t in browsermod.TOOLS]},
@@ -543,6 +558,10 @@ def _why_missing(group, cfg):
         return "switched off by an admin", "ai.browser"
     if group == "web" and not webmod.enabled(cfg):
         return "no web search is set up", "web.search"
+    if group == "code" and not sandboxmod.enabled(cfg):
+        return "the code sandbox is off", "sandbox.enabled"
+    if group == "code" and sandboxmod.settings(cfg)["who"] == "admins":
+        return "for admins", "sandbox.who"
     if group == "extensions" and not cfg["ai"].get("extensions", True):
         return "switched off by an admin", "ai.extensions"
     if all(t in off for t in GROUPS[group]["tools"]):
@@ -577,12 +596,26 @@ def catalog(box):
     off = set(box.cfg["ai"].get("disabled_tools") or [])
     if browsermod.enabled(box.cfg):
         offered |= {t for t in GROUPS["browser"]["tools"] if t not in off}
-    built = {t[0]: t[4] for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS + AUTOMATION_TOOLS}
+    if sandboxmod.offered(box.cfg, box.admin, bool(box.editable)):  # every conversation of theirs has its sandbox
+        offered |= {t for t in GROUPS["code"]["tools"] if t not in off}
+    # code that can reach another host can carry out what it's given
+    runs_out = {"run_python", "run_bash"} if sandboxmod.sends_out(box.cfg) else set()
+    built = {
+        t[0]: t[4]
+        for t in TOOLS
+        + ops_tools.ADMIN_TOOLS
+        + ops_tools.FILE_TOOLS
+        + AUTHOR_TOOLS
+        + MEMORY_TOOLS
+        + AUTOMATION_TOOLS
+        + sandboxmod.TOOLS
+        + webmod.TOOLS
+    }
     out = []
     for name, g in GROUPS.items():
         tools = []
         for t in g["tools"]:
-            sends = t in SENDS_OUT or t in BROWSER_OUT
+            sends = t in SENDS_OUT or t in BROWSER_OUT or t in runs_out
             tools.append({"name": t, "effect": _effect(built.get(t, False), sends), "out": sends, "available": t in offered})
         out.append(_group(name, g["label"], tools, *(() if any(t["available"] for t in tools) else _why_missing(name, box.cfg))))
     for name, g in box.ext.groups.items() if box.ext else ():
@@ -613,7 +646,8 @@ class Toolbox(ops_tools.OpsTools):
     """`admin` adds the server tools (ops_tools.py), with `base` (archive.yaml's config) to save settings over; `act`
     makes their changes at once instead of asking for approval, `act_on` only those of these tools (a chat channel's:
     channels.Channel.acts). `browser`: the person's connected side panel (browser.py), whose browser the assistant can
-    then use. `account`: the person an automation acts for, when `user` is the automation itself (automation:<id>,
+    then use. The conversation's code sandbox (sandbox.py) is there when an admin turned it on and the person may use it.
+    `account`: the person an automation acts for, when `user` is the automation itself (automation:<id>,
     the by of what it writes): their approvals, extensions, view of the timeline and marks on it; `origin` ({automation, run,
     node}) is kept on the approvals it asks for. `only`: the groups (GROUPS, an extension's mcp:<name> or ext:<name>)
     and tools the question was given (None: every tool this person may use; an admin's switch still wins)."""
@@ -666,12 +700,16 @@ class Toolbox(ops_tools.OpsTools):
         # the browser the person is talking from, while its side panel is connected (and an admin hasn't turned it off)
         on = browser and browsermod.enabled(cfg) and browsermod.live(db, browser, user["id"])
         self.browser = str(browser) if on else None
+        # Python and bash in the conversation's own sandbox, once an admin turned it on (sandbox.enabled, sandbox.who)
+        self.sandbox = chat_id is not None and sandboxmod.offered(cfg, admin, bool(self.editable))
         self.web = webmod.enabled(cfg)  # web search and page reading, once an admin picked a provider (web.py)
 
     def system_note(self):
         """What the model is told besides its usual instructions: the skills it can follow, and context that hooks add
         for this question."""
         out = self._home_note() + (browsermod.NOTE if self.browser else "")
+        if self.sandbox:
+            out += sandboxmod.NOTE.format(network=sandboxmod.NETWORK_NOTE[sandboxmod.settings(self.cfg)["network"]])
         if self.web and webmod.NAMES & {s["function"]["name"] for s in self.specs()}:
             out += webmod.NOTE
         if not self.ext:
@@ -745,6 +783,8 @@ class Toolbox(ops_tools.OpsTools):
             tools += [t for t in MEMORY_TOOLS if self.home[0] in self.editable or not t[4]]
         if self.browser:
             tools += browsermod.TOOLS
+        if self.sandbox:
+            tools += sandboxmod.TOOLS
         if self.web:
             tools += webmod.TOOLS
         if self.ext:
@@ -962,6 +1002,43 @@ class Toolbox(ops_tools.OpsTools):
             raise ValueError("the browser didn't attach the file")
         attached = {"upload_id": uid, "filename": up["filename"], "size": up["size"], "next": "import_files puts it in a namespace"}
         return attached, f"Attached {up['filename']} from the browser"
+
+    # ---- the conversation's code sandbox (sandbox.py): Python and bash on the OpenShell gateway ----
+    def _sandbox(self, fn, *args):
+        try:
+            return fn(self.db, self.cfg, self.chat, *args)
+        except sandboxmod.SandboxError as e:
+            raise ValueError(str(e)) from None
+
+    def _sandbox_run(self, kind, source, files):
+        source = str(source or "")
+        files = [str(f) for f in ([files] if isinstance(files, str) else files or [])]
+        if sandboxmod.sends_out(self.cfg) and self.wary():
+            # code that reaches another host can carry out what the answer read: after text from outside Lens, which
+            # may have put it there, a run asks first
+            first = next((x.strip() for x in source.splitlines() if x.strip()), "")[:80]
+            args = store.clean({"code" if kind == "python" else "command": source, "files": files or None})
+            lang = "Python" if kind == "python" else "bash"
+            where = "the package registries" if sandboxmod.settings(self.cfg)["network"] == "packages" else "the web"
+            return self._approval(f"run_{kind}", args, f"Run {lang} in the code sandbox, which can reach {where}: {first}" + self.why())
+        out = self._sandbox(sandboxmod.run, self.account, kind, source, files)
+        return out, sandboxmod.summary(kind, source, out)
+
+    def t_run_python(self, code, files=None):
+        return self._sandbox_run("python", code, files)
+
+    def t_run_bash(self, command, files=None):
+        return self._sandbox_run("bash", command, files)
+
+    def t_sandbox_files(self):
+        out = self._sandbox(sandboxmod.listing, self.account)
+        n = len(out.get("files") or []) + int(out.get("more") or 0)
+        return out, f"Looked at the sandbox's files ({n})"
+
+    def t_import_sandbox_file(self, path, namespace=None):
+        # out of the sandbox as one of the person's held uploads, then imported as a file they attached would be
+        up = self._sandbox(sandboxmod.hold, self.user, path)
+        return self.t_import_files([up["id"]], namespace)
 
     # ---- the web (web.py): searching it and reading pages, once an admin picked a search provider ----
     def _web(self, tool, args, what, own):
@@ -1924,6 +2001,15 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
         result = author_extension(db, a["tool"], args, user, admin, readable if readable is not None else editable, editable)
     elif a["tool"] in ("switch_automation", "run_automation"):
         result = _automation_approved(db, cfg, a["tool"], args, user, admin)
+    elif a["tool"] in ("run_python", "run_bash"):  # a run that can reach another host, asked first (Toolbox._sandbox_run)
+        if a.get("chat") is None or not sandboxmod.offered(cfg, admin, bool(editable)):
+            raise PermissionError("the code sandbox is off, or not yours to use")
+        kind = a["tool"].removeprefix("run_")
+        source = args.get("code") if kind == "python" else args.get("command")
+        try:
+            result = {"result": sandboxmod.run(db, cfg, a["chat"], a.get("account") or user["id"], kind, source, args.get("files") or [])}
+        except sandboxmod.SandboxError as e:
+            raise ValueError(str(e)) from None
     elif a["tool"] in ("change_settings", "create_namespace", "import_files", "import_urls", "invite_person", "change_person"):
         result = ops_tools.apply(db, cfg, base or cfg, a["tool"], args, user, editable, admin)
     elif a["tool"] == "decline_approval":  # the person's yes to declining another of their approvals

@@ -41,6 +41,11 @@ describe("pipeline order", () => {
     expect(orderProblem([{ type: "analyze" }, { type: "summarize" }, { type: "report" }])).toBeNull();
     expect(orderProblem([{ type: "summarize" }, { type: "analyze" }])).toMatch(/Summarize needs Analyze/);
   });
+  it("keeps the transcript's cleanup before analysis", () => {
+    expect(orderProblem([{ type: "transcribe" }, { type: "clean" }, { type: "analyze" }])).toBeNull();
+    expect(orderProblem([{ type: "analyze" }, { type: "clean" }])).toMatch(/Analyze needs Clean up’s output/);
+    expect(orderProblem([{ type: "clean" }, { type: "transcribe" }])).toMatch(/Clean up needs Transcribe/);
+  });
 });
 
 describe("navigation", () => {

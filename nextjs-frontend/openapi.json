@@ -25104,6 +25104,7 @@
           "chats"
         ],
         "summary": "Delete Chat",
+        "description": "Delete a conversation, with its code sandbox and the files in it.",
         "operationId": "delete_chat",
         "parameters": [
           {

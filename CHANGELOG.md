@@ -11,6 +11,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   out) and why a group is missing. An admin's switches still win, and new conversations start with the person's last
   choice. The web app's Tools chip is in progress
   ([Choosing tools, namespaces and a limit](docs/assistant.md#choosing-tools-namespaces-and-a-limit)).
+- **Clean up transcripts before analysis.** With Settings → Analysis → Clean up transcripts before analysis on (off
+  by default), a new Clean up step runs before Analyze: a word said three times in a row is kept once ("I I I looked"
+  → "I looked"), doubled pronouns and articles once, "um" and "uh" go, and spacing, "i" and sentence capitals are
+  fixed, by rules, on English lines. Every changed line is in Change history with Revert, and lines someone corrected
+  are left alone. Reprocess, pipelines, `POST /api/v1/recordings/<id>/reprocess` and `lens clean` run it
+  ([Cleaning up transcripts](docs/processing.md#cleaning-up-transcripts)).
 - **Automations run.** An automation saved over the API (`/api/v1/automations`) now reacts to new assets in its
   namespaces: when its If passes, it runs its workflow as the person who made it, within its limits and budgets, and
   each run shows what its actions did. Try one on an activity without keeping or sending anything, or run it now;
@@ -47,6 +53,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Describe an automation in words.** `POST /api/v1/automations/draft` asks the model once to turn a sentence into
   a draft automation to try and save, and says what didn't fit and what it couldn't express
   ([Describe it in words](docs/automations.md#describe-it-in-words)).
+- **The assistant runs Python and bash.** Turn on Settings → Code sandbox and point Lens at an NVIDIA OpenShell
+  gateway, and the assistant gets `run_python`, `run_bash`, `sandbox_files` and `import_sandbox_file`: code runs in a
+  sandbox of the conversation's own, with none of Lens's data or keys and no network unless you allow the package
+  registries or the public web. Files attached to the conversation go in; a file it makes reaches a namespace once the
+  person approves. Off by default; starting the gateway from Settings is in progress
+  ([Code sandbox](docs/assistant.md#code-sandbox)).
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 
