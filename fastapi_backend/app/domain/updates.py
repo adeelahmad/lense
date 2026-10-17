@@ -450,6 +450,12 @@ def announce(db, cfg, log_fn=None):
         notify.release(db, cfg, rel, current())
     except Exception:  # noqa: BLE001 - the email still goes
         log.exception("couldn't queue the release notifications")
+    try:  # for automations: lens.release (events_streams.py)
+        from . import events_streams
+
+        events_streams.lens_release(db, rel, current())
+    except Exception:  # noqa: BLE001 - the email still goes
+        log.exception("couldn't log the release for automations")
     if cfg["updates"].get("email", True):
         admins = db.values("SELECT VALUE email FROM account WHERE admin = true AND disabled != true")
         try:

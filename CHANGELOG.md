@@ -4,6 +4,96 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Clean up transcripts before analysis.** With Settings → Analysis → Clean up transcripts before analysis on (off
+  by default), a new Clean up step runs before Analyze: a word said three times in a row is kept once ("I I I looked"
+  → "I looked"), doubled pronouns and articles once, "um" and "uh" go, and spacing, "i" and sentence capitals are
+  fixed, by rules, on English lines. Every changed line is in Change history with Revert, and lines someone corrected
+  are left alone. Reprocess, pipelines, `POST /api/v1/recordings/<id>/reprocess` and `lens clean` run it
+  ([Cleaning up transcripts](docs/processing.md#cleaning-up-transcripts)).
+- **Automations run.** An automation saved over the API (`/api/v1/automations`) now reacts to new assets in its
+  namespaces: when its If passes, it runs its workflow as the person who made it, within its limits and budgets, and
+  each run shows what its actions did. Try one on an activity without keeping or sending anything, or run it now;
+  Settings → Automations switches them all off and sets how far they may go
+  ([Running automations](docs/automations.md#running-automations)).
+- **Each answer says what produced it.** The *i* in an answer's header shows the model and the host it ran on, the
+  tools it was offered and used, the scope, its limits and what it used, tokens, cost (an estimate from your prices),
+  how long it took, how it ended and which tool results read like instructions to an AI, with the calls made for it.
+  Agents read the same record over the API (`GET /api/v1/chats/<id>/messages/<mid>`), and each tool step shows how long
+  it took. Answers from before have no record ([What each answer records](docs/assistant.md#what-each-answer-records)).
+- **Automations for agents.** Agents list, save, try and run automations through the MCP tools `automations`,
+  `automation_actions`, `save_automation`, `test_automation` and `run_automation`, with problems in plain words. The
+  assistant saves them switched off and asks before switching one on or running it
+  ([Agents](docs/automations.md#agents)).
+- **Versions in conversations.** A conversation is now a tree: editing a question makes a new version beside it
+  instead of deleting what followed, regenerating an answer (`regenerate`, with the same model or another) writes one
+  beside it, and a question can go on from any message (`parent`). `GET /api/v1/chats/<id>` shows each message's
+  versions and every version's messages, and `PUT /api/v1/chats/<id>/head` switches between them; the model reads
+  only the version showing. In the web app, Regenerate (and Regenerate with… another model) replaces Try another
+  model, and `‹ 2 / 3 ›` under a question or an answer moves between its versions. Existing conversations are upgraded
+  on the next start (`chat-tree`) ([Versions](docs/assistant.md)).
+- **The assistant searches the web.** With web search on (off by default; Settings → AI assistant → Web search), the
+  assistant gets `web_search` and `web_read`: it searches with DuckDuckGo (no key), your own SearXNG, Brave Search or
+  Tavily, and reads pages and online PDFs, public addresses only, through the same guard as captured pages. Pages are
+  cited [n] like excerpts, with their site, and open in a new tab; each search and read is in the activity ledger, and
+  once an answer has read outside text, one it chose itself asks first
+  ([Web search and reading pages](docs/assistant.md#web-search-and-reading-pages)).
+- **Add an MCP server with a form, or paste its config.** Extensions → Add MCP server (admins) takes an address and
+  its headers, or a command with its arguments and environment, or reads a config pasted from Claude (`.mcp.json`) or
+  VS Code, one server or many; Test lists its tools before it's saved. Tokens and keys in headers and env are now
+  sealed and never shown again (manifests say `••••`), and an upgrade step seals the ones saved before. Each server's
+  tools have a switch and "Asks first", kept in its manifest
+  ([Adding an MCP server](docs/assistant.md#adding-an-mcp-server)).
+- **Describe an automation in words.** `POST /api/v1/automations/draft` asks the model once to turn a sentence into
+  a draft automation to try and save, and says what didn't fit and what it couldn't express
+  ([Describe it in words](docs/automations.md#describe-it-in-words)).
+- **The assistant runs Python and bash.** Turn on Settings → Code sandbox and point Lens at an NVIDIA OpenShell
+  gateway, and the assistant gets `run_python`, `run_bash`, `sandbox_files` and `import_sandbox_file`: code runs in a
+  sandbox of the conversation's own, with none of Lens's data or keys and no network unless you allow the package
+  registries or the public web. Files attached to the conversation go in; a file it makes reaches a namespace once the
+  person approves. Off by default; starting the gateway from Settings is in progress
+  ([Code sandbox](docs/assistant.md#code-sandbox)).
+
+## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
+
+- **Updating Lens in a microsandbox on a Mac gets past "Building Lens".** An update after a build that stopped
+  partway stopped there with `rm: cannot remove ... Directory not empty`, then `tar: /data/.lens/backend: Cannot open`:
+  the Mac's file sharing can list a folder as empty while a file is still in it, so removing the earlier build's
+  `node_modules` didn't always get through. The sandbox now tries again and moves what's left aside, and builds the
+  web app on its own disk instead of in the volume. Run the install line again to update
+  ([microsandbox](docs/microsandbox.md#day-to-day)).
+
+### Features
+
+- **automations:** match trees for conditions ([#425](https://github.com/adeelahmad/lense/pull/425))
+- **automations:** stream of activities with kinds, an event log and following ([#426](https://github.com/adeelahmad/lense/pull/426))
+- **automations:** checks for automation shapes and an action registry ([#427](https://github.com/adeelahmad/lense/pull/427))
+- **automations:** read the stream of activities over the API, MCP and the assistant ([#428](https://github.com/adeelahmad/lense/pull/428))
+- **settings:** an Automations section for the stream of activities ([#429](https://github.com/adeelahmad/lense/pull/429))
+- **timeline:** mark activities reviewed, important or hidden ([#432](https://github.com/adeelahmad/lense/pull/432))
+- **automations:** tell a person in their own chat app, the notify action ([#433](https://github.com/adeelahmad/lense/pull/433))
+- **automations:** ask the model, use an assistant tool, ask the agent ([#438](https://github.com/adeelahmad/lense/pull/438))
+- **automations:** new assets as emails, calendar events, files, uploads, web pages and imports ([#435](https://github.com/adeelahmad/lense/pull/435))
+- **timeline:** a Timeline page to review what came in, and Latest on Home ([#437](https://github.com/adeelahmad/lense/pull/437))
+- **automations:** call a web address, with credentials sealed in headers ([#439](https://github.com/adeelahmad/lense/pull/439))
+- **automations:** finished runs, deletions and calendar moves as activities ([#440](https://github.com/adeelahmad/lense/pull/440))
+- **automations:** run a workflow, a pipeline or a routine ([#441](https://github.com/adeelahmad/lense/pull/441))
+- **automations:** comments, notes and graph changes as activities ([#443](https://github.com/adeelahmad/lense/pull/443))
+- **automations:** set a field, move to a collection, write a note ([#444](https://github.com/adeelahmad/lense/pull/444))
+- **automations:** a webhook address per automation trigger ([#442](https://github.com/adeelahmad/lense/pull/442))
+- **automations:** sensor readings, alert patterns and new devices as activities ([#445](https://github.com/adeelahmad/lense/pull/445))
+- **automations:** timers that outlast a restart and fire once ([#446](https://github.com/adeelahmad/lense/pull/446))
+- **automations:** what people say to Lens as chat.message activities ([#448](https://github.com/adeelahmad/lense/pull/448))
+- **workflows:** an event scope for automations, with action and decide nodes ([#436](https://github.com/adeelahmad/lense/pull/436))
+- **automations:** routine runs, budget warnings, backups and releases as activities ([#449](https://github.com/adeelahmad/lense/pull/449))
+- **automations:** schedule, at and relative triggers as timers ([#450](https://github.com/adeelahmad/lense/pull/450))
+- **automations:** actions that wait, carried out at their time ([#452](https://github.com/adeelahmad/lense/pull/452))
+- **automations:** an automation's action that asks first waits as an approval ([#447](https://github.com/adeelahmad/lense/pull/447))
+- **automations:** decide an automation's approval with a yes in your chat app ([#455](https://github.com/adeelahmad/lense/pull/455))
+- **automations:** approvals as activities and an approval.waiting notification ([#457](https://github.com/adeelahmad/lense/pull/457))
+- **automations:** agents read and decline approvals, and never approve ([#458](https://github.com/adeelahmad/lense/pull/458))
+- **automations:** templates in params and prompts, with outside text kept marked ([#454](https://github.com/adeelahmad/lense/pull/454))
+- **automations:** saved variables, kept between runs and set by the set_variable action ([#460](https://github.com/adeelahmad/lense/pull/460))
+
 ## 0.12.0 <small>October 15, 2026</small> {id="0.12.0"}
 
 - **microsandbox runs on Debian 13 too.** Its sandbox now starts from `python:3.12-slim-trixie`, like the backend

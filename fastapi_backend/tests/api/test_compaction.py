@@ -52,8 +52,18 @@ def test_older_messages_are_folded_into_a_summary(db, cfg, llm):
     assert chat.compact(db, cfg, cid)["upto"] == chat.history(db, cid)[-chat.RECENT - 1]["id"]
     assert "Summary so far:\nOK" in summaries(llm.seen)[1]["messages"][1]["content"]
 
-    # editing a question the summary covers drops the summary; it's made again from what's left
-    chat.rewind(db, cid, ids[2])
+    # on a version beside a question the summary covers, it isn't used; it's made again from that version's messages
+    last = chat.head(db, cid)
+    chat.add(db, cid, "user", "message 2, edited", parent=ids[1])
+    assert chat.memory(db, cfg, cid) == {"text": "", "upto": 0}
+    llm.seen.clear()
+    talk(db, cid, chat.RECENT + chat.COMPACT_AFTER - 3)  # with the 3 messages of this version, enough to fold in
+    again = chat.compact(db, cfg, cid)
+    asked = summaries(llm.seen)[0]["messages"][1]["content"]
+    assert "Summary so far:\n(none yet)" in asked and "Person: message 2, edited" in asked and "message 3\n" not in asked
+    assert again["upto"] == chat.path(db, cid)[-chat.RECENT - 1]["id"]
+    # switching back to the first version: the summary is now the other's, so its messages are read until it's made again
+    assert chat.switch(db, cid, ids[2]) == last == chat.head(db, cid)
     assert chat.memory(db, cfg, cid) == {"text": "", "upto": 0}
 
 

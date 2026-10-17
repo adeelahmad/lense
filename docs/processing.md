@@ -14,12 +14,39 @@ How assets move through Lens: where they come from, what each step does, and how
   ([Documents and images](configuration.md#documents-and-images)).
 - `diarize` splits genuinely two-channel files by channel, otherwise clusters voice embeddings (or uses pyannote), then
   matches voiceprints against the namespace's people.
+- `clean` (off until Settings → Analysis → Clean up transcripts before analysis is on) tidies a transcript before
+  analysis reads it: [Cleaning up transcripts](#cleaning-up-transcripts).
 - `analyze` finds entities, chapters, keywords and talk statistics; `summarize` (optional) calls any OpenAI-compatible
   server for a summary, key points, action items (with who will do them), topics, people, tone and importance, each
   key point and action item with the time of the line it comes from; `report` writes static HTML per asset and
   per namespace, with word clouds.
 
 Every step takes `--ns`, `--limit` and `--force`; `run` does them all, and a lock stops two runs overlapping.
+
+### Cleaning up transcripts
+
+Speech comes out of transcription as it was said, and the extractor, chapters, keywords and search all read it. With
+`analysis.cleanup` on (Settings → Analysis → Clean up transcripts before analysis; off by default), the `clean` step,
+which the standard pipeline runs just before `analyze`, tidies each line of a transcript with rules. It needs no model,
+fetches nothing and sends nothing out:
+
+- a word said three times or more in a row is kept once ("I I I looked" → "I looked"), and a doubled pronoun, article
+  or conjunction ("the the", "I, I") once; "had had", "that that" and "very very" stay;
+- "um", "uh", "erm" and "hmm" go, with the comma after them (`analysis.cleanup_fillers`, Take out "um" and "uh"; on);
+- one space between words, none before a comma or a full stop, one after a comma;
+- "i" becomes "I", and each sentence starts with a capital. A line that carries on the one before (same speaker, no
+  full stop) keeps its lower case.
+
+These are English rules ("um" is a word in German and Portuguese), so they apply to English lines: the line's or the
+asset's language when transcription gave one, else when the text reads as English. In other languages only a word
+said three times in a row is kept once, and sentences start with a capital. Documents and images keep their text as
+it was read.
+
+Every line it changes is in the asset's Change history (by "text cleanup"), with Revert. A line someone corrected,
+or reverted, is never cleaned again, and running the step again on cleaned text changes nothing. Turn it on for a
+custom pipeline by adding the Clean up step before Analyze (with Force it runs even while the setting is off); run it
+on an asset with Reprocess → Clean up, `POST /api/v1/recordings/{id}/reprocess` with `{"steps": ["clean", "analyze"]}`,
+or `lens clean`. Workers whose `workers.steps` list has `analyze` run it too.
 
 ## Importing text and transcripts {#importing-transcripts}
 
@@ -457,7 +484,8 @@ A pipeline is a named, versioned list of steps; each namespace can choose its de
 analyze, summarize, report). Imports, watched folders and reprocessing use the namespace's pipeline; steps that need
 audio skip themselves for imported text. Steps:
 
-- `transcribe`, `diarize`, `analyze`, `summarize`, and `report` (the built-in report).
+- `transcribe`, `diarize`, `clean` ([Cleaning up transcripts](#cleaning-up-transcripts)), `analyze`, `summarize`, and
+  `report` (the built-in report).
 - `llm`: renders a prompt template, sends it to the configured model, checks the reply against the template's JSON
   Schema and saves it as a named output (e.g. `meeting_notes`).
 - `report` with a template: renders an HTML page into the namespace's reports. These pages may not run scripts.
@@ -538,7 +566,8 @@ log.
 
 ### Organising the graph
 
-A workflow's scope is either assets (above) or the graph. Graph workflows have their own nodes:
+A workflow's scope is assets (above), the graph, or an event: an automation's workflow, run by its automation
+([The event workflow scope](automations.md#the-event-workflow-scope)). Graph workflows have their own nodes:
 
 - **Candidates** finds pairs of entities that may be one thing, by the same rules as the merge suggestions (same
   letters, acronym, spelling, sounds alike, one name inside the other): inside each namespace (merge) or across

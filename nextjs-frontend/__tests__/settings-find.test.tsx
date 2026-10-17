@@ -78,7 +78,17 @@ describe("finding a setting", () => {
     const hits = findSettings("activities", true);
     const auto = hits.find((h) => h.section === "automations")!;
     expect(auto.group).toBe("System");
-    expect(fieldsOf("automations").map((f) => fieldId(f))).toEqual(["events.poll_seconds", "events.keep_days"]);
+    expect(fieldsOf("automations").map((f) => fieldId(f))).toEqual([
+      "automations.enabled",
+      "automations.max_depth",
+      "automations.max_runs_per_minute",
+      "automations.keep_runs_days",
+      "automations.catch_up",
+      "automations.approval_days",
+      "events.poll_seconds",
+      "events.keep_days",
+    ]);
+    expect(findSettings("missed", true).some((h) => h.section === "automations")).toBe(true);
   });
 
   it("finds only People for people who aren't admins", () => {

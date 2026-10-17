@@ -587,7 +587,7 @@ def test_daily_notes(client, env, db):
     # editors only, and a date that is one
     assert client.post("/api/v1/notes/today", headers=hv, json={"ns": "pods"}).status_code == 403
     assert client.post("/api/v1/notes/today", headers=he, json={"ns": "pods", "date": "soon"}).status_code == 400
-    # the daily notes' note, when deleted, is made again the next time
+    # the daily notes' note, when deleted, is made again the next time (for a day no earlier call made: not today)
     assert client.delete(f"/api/v1/notes/{root['id']}", headers=he).status_code == 200
-    again = client.post("/api/v1/notes/today", headers=he, json={"ns": "pods", "date": "2026-10-17"}).json()
+    again = client.post("/api/v1/notes/today", headers=he, json={"ns": "pods", "date": "2020-02-29"}).json()
     assert again["parent"] not in (None, root["id"])

@@ -10,8 +10,12 @@ An action's effect says how far it reaches, and so whether it may run without as
 
 When an action node runs, it renders its params and makes an intent (automation_spec.check_intent); `perform` carries
 an intent out, or with `dry` says what it would do and changes nothing. An action acts for the automation's person
-(`person`), with their permissions as they are when it runs. `log_line` ships here; the other actions are registered by
-a module per group, loaded with this one: actions_messages.py (notify).
+(`person`), with their permissions as they are when it runs (`reach`), and what it writes is by the automation itself
+(`actor`). Params marked `"format": "prompt"` are prompts: the engine renders them with `render_prompt`, which wraps
+what the run read from outside Lens as data; such a param may name a saved prompt template ({"template": 5}) instead.
+`log_line` ships here; the other actions are registered by a module per group, loaded with this one: actions_messages.py (notify), actions_ai.py (ask_model, call_tool, ask_agent),
+actions_web.py (http_request), actions_run.py (run_workflow, run_pipeline, run_routine), actions_lens.py (set_field, add_to_collection,
+write_note), variables.py (set_variable).
 """
 
 from __future__ import annotations
@@ -21,13 +25,14 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from . import auth
+from . import auth, store, templates
 from . import automation_spec as spec_
 
 NAME_RX = re.compile(r"^[a-z][a-z0-9_]{0,40}$")
 GROUPS = ("Messages", "Lens", "Assets", "Web", "AI", "Run")
 TYPES = {"string": str, "integer": int, "number": (int, float), "boolean": bool, "array": list, "object": dict}
 TEMPLATE = "{{"
+PROMPT = "prompt"  # the JSON Schema format of a param that is a prompt (render_prompt)
 log = logging.getLogger("lens.automations")
 
 
@@ -125,7 +130,12 @@ def check_params(spec, params):
             if k in spec.required:
                 raise ValueError(f"{spec.name} needs {p.get('title') or k} ({k})")
             continue
-        if not _templated(v):
+        if p.get("format") == PROMPT and isinstance(v, dict):
+            try:
+                templates.reference(v)  # a saved prompt template in place of the text
+            except templates.TemplateProblem as e:
+                raise ValueError(f"{spec.name}: {k}: {e}") from None
+        elif not _templated(v):
             want = TYPES.get(p.get("type"))
             if want and (not isinstance(v, want) or (isinstance(v, bool) and p.get("type") in ("integer", "number"))):
                 raise ValueError(f"{spec.name}: {k} is {'an' if p.get('type')[0] in 'aeiou' else 'a'} {p.get('type')}")
@@ -215,6 +225,95 @@ def person(db, intent, user=None):
     return {"id": a["id"], "email": a["email"], "name": a.get("name") or a["email"], "admin": bool(a.get("admin"))}
 
 
+def actor(db, intent):
+    """Who an intent's changes are by: the automation itself, {id: automation:<id>, email: "automation: <name>",
+    name}, as import hooks act as import_hook:<id>; a draft's dry run is automation:draft."""
+    aid = intent.get("automation")
+    if aid is None:
+        return {"id": "automation:draft", "email": "automation: draft", "name": "Draft"}
+    try:
+        name = (db.one("SELECT name FROM $r", r=store.R("automation", int(aid))) or {}).get("name")
+    except Exception:  # noqa: BLE001 - automations aren't stored yet, or the row is gone: named by its id
+        name = None
+    name = name or f"Automation {aid}"
+    return {"id": f"automation:{aid}", "email": f"automation: {name}", "name": name}
+
+
+def reach(db, intent, account):
+    """(readable, editable): the namespaces an intent may read and change, the person's roles now within the
+    automation's namespaces (all of the person's when it names none)."""
+    roles = auth.roles(db, account)
+    spaces = set(intent.get("spaces") or [])
+    readable = {s for s in roles if not spaces or s in spaces}
+    return readable, {s for s in readable if auth.allows(roles, s, "editor")}
+
+
+def allowed(db, account, space, perm):
+    """Whether the person's role in a namespace now has a permission (roles.py: edit, process, …)."""
+    return perm in auth.permissions(db, account).get(space, ())
+
+
+# ---------- the asset an action is about ----------
+EVENT_OBJECT = "{{ event.object.id }}"
+ASSET_RX = re.compile(r"^(?:lens:recording/)?(\d{1,12})$")
+
+
+def asset_id(v):
+    """An asset's id from a param: an id, or an activity's object id (lens:recording/<id>). ValueError otherwise."""
+    m = ASSET_RX.match(str("" if v is None else v).strip())
+    if not m:
+        raise ValueError(f"{v} isn't an asset: give an asset id, or run it on an activity about an asset")
+    return int(m.group(1))
+
+
+def asset_subject(p, key="asset"):
+    """The object an action on an asset changes, as activities name it, for resolve_risk; None when it can't tell."""
+    try:
+        return f"lens:recording/{asset_id(p.get(key))}"
+    except ValueError:
+        return None
+
+
+def asset_param(title="Asset"):
+    return {"title": title, "default": EVENT_OBJECT, "description": "an asset id, or the activity's object (lens:recording/<id>)"}
+
+
+def on_asset(p, key="asset"):
+    """The asset an action names, in words."""
+    a = p.get(key)
+    return "the asset it's about" if a in (None, EVENT_OBJECT) else f"asset {a}"
+
+
+def asset_for(db, intent, account, rid, perm):
+    """The asset {id, space, title, collection}, when it is in one of the automation's namespaces and the person's
+    role there now has `perm`. ValueError naming the problem."""
+    rec = db.one("SELECT space, title, collection FROM $r", r=store.R("recording", int(rid)))
+    if not rec:
+        raise ValueError(f"there's no asset {rid}")
+    if intent["spaces"] and rec["space"] not in intent["spaces"]:
+        raise ValueError(f"asset {rid} isn't in this automation's namespaces")
+    if not allowed(db, account, rec["space"], perm):
+        raise ValueError(f"{account['name']} can't {perm} assets in that namespace")
+    return {"id": int(rid), **rec}
+
+
+# ---------- prompts ----------
+def prompt_params(spec):
+    """The names of an action's params that are prompts (format "prompt")."""
+    return [k for k, p in (spec.params.get("properties") or {}).items() if p.get("format") == PROMPT]
+
+
+def render_prompt(text, ctx, cfg=None, db=None):
+    """A prompt param rendered against the run context (variables.prompt), with what the run read from outside Lens
+    marked as data first (untrusted.wrap): each activity's `lens.untrusted` paths, everything earlier steps passed on
+    (a model's reply, a web page) and saved variables. The person's own words stay as written. `text` may name a saved
+    prompt template ({"template": 5, "version": 2}), read with `db`. ValueError naming the problem."""
+    try:
+        return variables.prompt(text, ctx, None, cfg, db)["text"]
+    except ValueError as e:
+        raise ValueError(f"the prompt: {e}") from None
+
+
 def describe(name, params):
     """What an action would do, in words."""
     spec = get(name)
@@ -257,4 +356,4 @@ register(
 )
 
 
-from . import actions_messages  # noqa: E402, F401 - registers notify; loaded with the catalog
+from . import actions_ai, actions_lens, actions_messages, actions_run, actions_web, variables  # noqa: E402, F401 - they register their actions; loaded with the catalog

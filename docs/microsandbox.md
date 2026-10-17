@@ -41,7 +41,7 @@ do:
    first time Lens needs one (see [LibreOffice and Chromium](#libreoffice-and-chromium)).
 2. Fetches SurrealDB 3.2.4, rclone, Node 22 and uv.
 3. Builds the backend and the web app from the code, read-only at `/lens`. It builds again only when the code
-   changes.
+   changes. The web app is built on the sandbox's own disk, and only what it builds is kept in the volume.
 4. Runs SurrealDB, the API, a job worker and the web app, and restarts any of them that stops.
 
 The database, the archive, the builds and the downloaded packages are in the named volume `lens-data`, which outlives
@@ -115,6 +115,12 @@ shows the steps the sandbox logs (installing packages, building, starting the da
 fails, a part of Lens keeps stopping (run.sh starts it again three times), or the web app doesn't answer within 30
 minutes (`LENS_WAIT`, in seconds), it stops waiting and shows the last lines the sandbox logged and why, for example a
 port that another program holds. The web installer shows those lines under the reason.
+
+An update after one that stopped partway, say while it was building, builds again. On a Mac the volume is a folder on
+the Mac that the sandbox reads through virtio-fs, which can briefly list a folder as empty while the Mac still has a
+file in it, so one `rm -rf` of an earlier build doesn't always get through (`Directory not empty`). The sandbox tries
+again for a few seconds, then moves what is left to `/data/.lens/trash` and goes on; the next build removes it
+([`microsandbox/wipe.sh`](https://github.com/adeelahmad/lense/blob/main/microsandbox/wipe.sh)).
 
 ## Not yet
 

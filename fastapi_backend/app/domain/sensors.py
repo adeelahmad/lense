@@ -61,6 +61,7 @@ STREAM_TYPES = {
     },
 }
 STATUSES = ("new", "active", "paused", "ignored")
+ALERT_LABELS = ("alert", "notable")  # a log pattern labelled so raises sensor.alert (events_streams.py)
 STORE_MODES = ("all", "changes", "summary", "none")
 HANDLING = ("store", "raw_days", "rollup_days", "important_days", "max_per_minute", "triage", "digest")
 KINDS = ("number", "boolean", "json", "text", "log")
@@ -672,6 +673,9 @@ class Intake:
         self.rollups: dict = {}
         self.patterns: dict = {}
         self.dropping: set = set()  # patterns whose lines are counted but not kept
+        self.alerting: dict = {}  # patterns labelled alert or notable: {pattern: label}
+        self.alerts: dict = {}  # alerting patterns seen since the last write: {pattern: (label, the sensor's name and space)}
+        self.alerted: set = set()  # (pattern, hour) this process raised sensor.alert for
         self.known: dict = {}  # stream -> the patterns it has
         self.stats: dict = {}
         self.seen: dict = {}
@@ -703,6 +707,11 @@ class Intake:
             rows = self.db.rows("SELECT key, params FROM storage_source WHERE type = 'mqtt'")
             self.prefixes = sorted(((r["params"] or {}).get("prefix") or "" for r in rows), key=len, reverse=True)
             self.dropping = set(self.db.values("SELECT VALUE record::id(id) FROM sensor_pattern WHERE action = 'drop'"))
+            self.alerting = {
+                pid: label
+                for label in ALERT_LABELS
+                for pid in self.db.values("SELECT VALUE record::id(id) FROM sensor_pattern WHERE label = $l AND sure != false", l=label)
+            }
             self.known.clear()  # retention may have removed some
 
     def sensor(self, typ, key, name, device, params, space=None):
@@ -779,6 +788,8 @@ class Intake:
                 )
                 pt["n"] += 1
                 pt["last"] = when
+                if pid in self.alerting and (sensor.get("status") or "active") not in ("paused", "ignored"):
+                    self.alerts[pid] = (self.alerting[pid], {"name": sensor.get("name"), "space": sensor.get("space")})
             st = self.stats.setdefault(
                 k, {"sensor": sid, "name": stream, "count": 0, "stored": 0, "dropped": 0, "fields": set(), "first": when}
             )
@@ -844,6 +855,7 @@ class Intake:
             rows, self.rows = self.rows, []
             rollups, self.rollups = self.rollups, {}
             patterns, self.patterns = self.patterns, {}
+            alerts, self.alerts = self.alerts, {}
             stats, self.stats = self.stats, {}
             seen, self.seen = self.seen, {}
         db = self.db
@@ -883,7 +895,29 @@ class Intake:
                 db.q("UPDATE $r SET last_seen_at = $t", r=R("storage_source", sid), t=when)
         except Exception as e:  # noqa: BLE001 - lose this batch rather than stop taking readings
             self.log(f"sensors: couldn't save {len(rows)} readings: {type(e).__name__}: {e}")
+        if alerts:
+            self._alert(patterns, alerts)
         return len(rows)
+
+    def _alert(self, patterns, alerts):
+        """sensor.alert for the alert and notable patterns new lines fit: once per pattern per hour (the event log's
+        key makes it once across processes too)."""
+        from . import events_streams  # events_streams reads sensors
+
+        for pid, (label, sensor) in alerts.items():
+            pt = patterns.get(pid)
+            hour = str((pt or {}).get("first") or "")[:13]
+            if not pt or (pid, hour) in self.alerted:
+                continue
+            try:
+                count = self.db.values("SELECT VALUE count FROM $r", r=R("sensor_pattern", pid))
+                events_streams.alert(self.db, pid, {**pt, "label": label}, sensor, count[0] if count else None)
+            except Exception as e:  # noqa: BLE001 - an alert that couldn't be logged never stops the readings
+                self.log(f"sensors: couldn't log an alert for {pid}: {type(e).__name__}: {e}")
+                continue
+            if len(self.alerted) > 10000:
+                self.alerted.clear()
+            self.alerted.add((pid, hour))
 
 
 _INTAKES: dict = {}

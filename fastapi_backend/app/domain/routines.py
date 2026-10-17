@@ -41,6 +41,7 @@ from . import (
     sources,
     store,
     telemetry,
+    timers,
     workflows,
 )
 
@@ -156,6 +157,8 @@ def _check_action(db, k, a):
             w = workflows.get(db, int(a.get("workflow") or 0), a.get("version"))
         except (KeyError, TypeError, ValueError):
             raise ValueError(f"action {k}: choose a workflow") from None
+        if w["scope"] == "event":
+            raise ValueError(f"action {k}: {w['name']} {workflows.RUN_BY['event']}")
         if a.get("propose_only") and w["scope"] != "graph":
             raise ValueError(f"action {k}: propose_only is for workflows that organise the graph")
     return store.clean(a)
@@ -612,6 +615,18 @@ def run_due(db, cfg, log=print, now=None):
         if log:
             log(f"events: {type(e).__name__}: {e}")
     try:
+        timers.tidy(db, cfg)  # timers that ended more than timers.KEEP_DAYS ago, once an hour
+    except Exception as e:  # noqa: BLE001 - the schedule carries on
+        if log:
+            log(f"timers: {type(e).__name__}: {e}")
+    try:
+        from . import approvals  # it loads the actions, and an action runs routines
+
+        approvals.sweep(db, cfg)  # automations' approvals past automations.approval_days expire, once an hour
+    except Exception as e:  # noqa: BLE001 - the schedule carries on
+        if log:
+            log(f"approvals: {type(e).__name__}: {e}")
+    try:
         analytics.tick(db, cfg, now)  # once a day, while Google Analytics is on (docs/analytics.md)
     except Exception as e:  # noqa: BLE001 - the schedule carries on
         if log:
@@ -621,6 +636,13 @@ def run_due(db, cfg, log=print, now=None):
     except Exception as e:  # noqa: BLE001 - the schedule carries on
         if log:
             log(f"budgets: {type(e).__name__}: {e}")
+    try:
+        from . import sandbox
+
+        sandbox.sweep(db, cfg)  # code sandboxes idle for sandbox.idle_minutes stopped, unused for keep_hours deleted
+    except Exception as e:  # noqa: BLE001 - the schedule carries on
+        if log:
+            log(f"sandbox: {type(e).__name__}: {e}")
     due = db.rows(
         "SELECT record::id(id) AS id, schedule, timezone, next_run_at, run_now, namespaces, actions FROM routine "
         "WHERE run_now != NONE OR (enabled = true AND next_run_at != NONE AND next_run_at <= $n)",
@@ -653,8 +675,9 @@ def run_due(db, cfg, log=print, now=None):
 
 def start(db, cfg_fn, stop, log=None):
     """The scheduling threads, until `stop` is set: watched folders scanned when due (every sources.check_seconds),
-    routines run when due (every CHECK_SECONDS) and the scheduled backup taken when due. The API runs them with its background work; `lens worker` runs them too,
-    since Docker and the packages run the API without it."""
+    routines run when due (every CHECK_SECONDS), the scheduled backup taken when due, and automations' timers fired
+    when due (timers.py). The API runs them with its background work; `lens worker` runs them too, since Docker and
+    the packages run the API without it."""
 
     def every(seconds, fn, what):
         def loop():
@@ -675,6 +698,7 @@ def start(db, cfg_fn, stop, log=None):
         every(lambda: cfg_fn()["fedora"]["sync_seconds"], fedora.sync_due, "fedora"),
         every(lambda: notebook.QUIET_SECONDS / 2, notebook.organise_due, "notes"),
         every(lambda: CHECK_SECONDS, backups.run_due, "backups"),
+        timers.start(db, cfg_fn, stop, log=log),
     ]
 
 

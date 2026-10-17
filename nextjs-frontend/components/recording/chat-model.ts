@@ -5,7 +5,12 @@
 
 export type Passage = {
   n: number;
-  recording_id: number;
+  /** The asset it's from; none for a web page. */
+  recording_id?: number | null;
+  /** "web" for a web page the assistant searched for or read, with its `url` and `site`. */
+  source?: string | null;
+  url?: string | null;
+  site?: string | null;
   t0?: number | null;
   /** When it was said ("12:34"), or for a document its page ("p. 3"). */
   time?: string | null;

@@ -33,7 +33,10 @@ class WorkflowSummary(ResponseModel):
     id: int
     name: str
     description: str | None = None
-    scope: str = Field("recording", description="recording (run by pipelines) or graph (run over namespaces by routines)")
+    scope: str = Field(
+        "recording",
+        description="recording (run by pipelines), graph (run over namespaces by routines) or event (what an automation does)",
+    )
     current: int
     updated_at: str | None = None
     pipelines: list[str] = Field(default_factory=list, description="pipelines whose current version runs it")
@@ -43,7 +46,7 @@ class WorkflowCatalog(ResponseModel):
     node_types: list[NodeType]
     operators: list[str] = Field(description="what a condition node can test")
     entity_types: list[str]
-    scopes: list[str] = Field(default_factory=lambda: ["recording", "graph"])
+    scopes: list[str] = Field(default_factory=lambda: ["recording", "graph", "event"])
     workflows: list[WorkflowSummary]
     custom_nodes: list[dict[str, Any]] = Field(default_factory=list, description="the custom nodes you can use")
 
@@ -74,7 +77,7 @@ class WorkflowCreate(RequestModel):
     name: str
     graph: WorkflowGraph
     description: str | None = None
-    scope: Literal["recording", "graph"] = "recording"
+    scope: Literal["recording", "graph", "event"] = "recording"
 
 
 class WorkflowVersionCreate(RequestModel):
@@ -95,9 +98,13 @@ class WorkflowRunRequest(RequestModel):
 
 class WorkflowTryRequest(RequestModel):
     graph: WorkflowGraph
-    scope: Literal["recording", "graph"] = "recording"
+    scope: Literal["recording", "graph", "event"] = "recording"
     recording: int | None = Field(None, description="the asset to try a recording workflow on")
-    namespaces: list[str] = Field(default_factory=list, description="the namespaces to try a graph workflow over (default: all)")
+    namespaces: list[str] = Field(
+        default_factory=list, description="the namespaces to try a graph workflow over, or an automation's workflow in (default: all)"
+    )
+    activity: str | None = Field(None, description="an automation's workflow: the activity to try it on, by its id")
+    kind: str | None = Field(None, description="an automation's workflow: try it on this kind of activity's sample")
 
 
 class NodeTrace(ResponseModel):
@@ -113,3 +120,8 @@ class WorkflowTry(ResponseModel):
     log: list[str]
     error: str | None = None
     steps: int
+    intents: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="an automation's workflow: what its action nodes would do (status done: at once; waiting: asks you first; "
+        "scheduled: waits for its time; failed), with each one's params, effect, risk and what it would give back (result)",
+    )

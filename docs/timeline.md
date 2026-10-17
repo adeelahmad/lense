@@ -10,8 +10,8 @@ Status: in progress. The studio's timeline is built in steps; only what is merge
 | --- | --- |
 | The timeline API (`GET /api/v1/activities`), the MCP tool `timeline` and the assistant's `timeline` | built |
 | Review marks: reviewed, important and hidden, per person; the filters on them; `mark_activities` for agents | built |
-| The Timeline page under Explore: filters, grouping, review with keys, new items as they come | planned |
-| A Latest card on Home with the newest unreviewed items | planned |
+| The Timeline page under Explore: filters, grouping, review with keys, new items as they come | built |
+| A Latest card on Home with the newest unreviewed items | built |
 | What each item caused (automation runs, approvals), and Approve and Decline on waiting approvals | planned |
 
 ## What shows
@@ -20,6 +20,42 @@ Every activity of the namespaces you can read, newest first, from every source t
 more kinds as the [automations](automations.md#kinds) modules add them). Activities meant for one person (their own
 web-app chat) show to them alone, and those for admins to admins. Noisy kinds, like sensor readings, are left out
 unless you ask for them by kind.
+
+## The page
+
+**Timeline** under Explore in the navigation, for everyone (members see their namespaces).
+
+- Newest first. **Older** reads the next page. While the tab is visible the page looks for new items every 15
+  seconds; when there are some, a **3 new** pill at the top brings them in, so the list never jumps under you.
+- A run of the same source or person and the same kind, each within 30 minutes of the one before, is one line
+  ("Work Gmail received 37 emails"), so a first mailbox sync reads as one line. A click opens it to its items.
+- Each line has an icon by kind, the summary (a link to what it is about), who did it, the namespace, the kind and
+  how long ago. Opened, an item shows its object's fields, the automation run that caused it if one did, **Open** and
+  **Hide**.
+- Filters: words in the summary (Enter applies), **Unreviewed only**, **Important**, kinds by family (Email,
+  Calendar, Files, Notes, Sensors, Chat, Automations, System; noisy kinds like sensor readings only when picked),
+  source or person (from those on the timeline), namespace, entity (as activities tag it), a date range, and an
+  automation (what it did or caused). Filters live in the address, so a view can be linked, and the last set you used
+  comes back the next time you open the page in this browser. **Clear** drops them all.
+- On a phone the list is one column and the filters open in a sheet from **Filters**.
+
+### Reviewing
+
+| Key | Does |
+| --- | --- |
+| `j` / `k` | move to the next or previous line |
+| `Enter` | open or close the line |
+| `r` | mark it reviewed, or not |
+| `i` | mark it important, or not |
+
+Hovering or focusing a line shows its **Important** (star) and **Reviewed** (circle) toggles; once set they stay in
+sight. On a line of several items they mark every item. **Mark all shown as reviewed** marks everything on the page
+you haven't reviewed, with **Undo** in the message rather than a confirm; **Hide** works the same way.
+
+### Home
+
+The overview on Home has a **Latest** card with the five newest activities you haven't reviewed and a link to the
+timeline with **Unreviewed only** on.
 
 ## Review marks
 
