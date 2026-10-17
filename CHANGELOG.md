@@ -32,6 +32,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   only the version showing. In the web app, Regenerate (and Regenerate with… another model) replaces Try another
   model, and `‹ 2 / 3 ›` under a question or an answer moves between its versions. Existing conversations are upgraded
   on the next start (`chat-tree`) ([Versions](docs/assistant.md)).
+- **The assistant searches the web.** With web search on (off by default; Settings → AI assistant → Web search), the
+  assistant gets `web_search` and `web_read`: it searches with DuckDuckGo (no key), your own SearXNG, Brave Search or
+  Tavily, and reads pages and online PDFs, public addresses only, through the same guard as captured pages. Pages are
+  cited [n] like excerpts, with their site, and open in a new tab; each search and read is in the activity ledger, and
+  once an answer has read outside text, one it chose itself asks first
+  ([Web search and reading pages](docs/assistant.md#web-search-and-reading-pages)).
 - **Add an MCP server with a form, or paste its config.** Extensions → Add MCP server (admins) takes an address and
   its headers, or a command with its arguments and environment, or reads a config pasted from Claude (`.mcp.json`) or
   VS Code, one server or many; Test lists its tools before it's saved. Tokens and keys in headers and env are now

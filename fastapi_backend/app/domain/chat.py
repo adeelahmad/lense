@@ -282,13 +282,17 @@ def past_turns(history, n=6, summary=None, cfg=None):
 
 
 def excerpts(passages, cfg=None):
-    """The numbered excerpts as the model reads them, each marked as data from the archive (untrusted.py)."""
-    return "\n\n".join(
-        untrusted.wrap(
-            f"[{p['n']}] {p.get('title') or ''} · {(p.get('recorded_at') or '')[:10]} · {p.get('time') or ''}\n{p['text']}", "archive", cfg
-        )
-        for p in passages
-    )
+    """The numbered excerpts as the model reads them, each marked as data from the archive, or the web (untrusted.py)."""
+
+    def one(p):
+        if p.get("source") == "web":
+            return untrusted.wrap(
+                f"[{p['n']}] {p.get('title') or ''} · {p.get('site') or ''} · {p.get('url') or ''}\n{p['text']}", "web", cfg
+            )
+        head = f"[{p['n']}] {p.get('title') or ''} · {(p.get('recorded_at') or '')[:10]} · {p.get('time') or ''}"
+        return untrusted.wrap(f"{head}\n{p['text']}", "archive", cfg)
+
+    return "\n\n".join(one(p) for p in passages)
 
 
 def messages_for(question, passages, history=(), summary=None, cfg=None):

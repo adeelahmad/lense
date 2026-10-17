@@ -75,6 +75,9 @@ def test_the_catalog_says_what_each_person_has(app, db, cfg, folder, new_client)
     # the browser's tools are there while the side panel is allowed; the ones that act on a site send data out
     assert groups["browser"]["available"] and groups["browser"]["out"] and tools["browser_type"]["effect"] == "out"
     assert tools["browser_read"]["effect"] == "read"
+    # the web is there once an admin sets a search up; its tools send what they're given out
+    assert (groups["web"]["available"], groups["web"]["why"], groups["web"]["setting"]) == (False, "no web search is set up", "web.search")
+    assert tools["web_search"]["effect"] == "out" and groups["web"]["out"]
 
     ca, ha = s.cl["admin"]
     groups = {g["name"]: g for g in ca.get("/api/v1/chats/tools", headers=ha).json()["groups"]}

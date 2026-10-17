@@ -77,8 +77,16 @@ class ChatSummary(ResponseModel):
 
 
 class Passage(ResponseModel):
+    """A numbered excerpt an answer can cite: a moment of an asset, or a web page (`source` "web", with its `url`)."""
+
     n: int
-    recording_id: int
+    recording_id: int | None = Field(None, description="the asset it's from; none for a web page")
+    source: str | None = Field(
+        None, description="what it is: said (speech), page (a document's), screen (text shown in a video), memory, or web"
+    )
+    url: str | None = Field(None, description="a web page's address (source web): the citation opens it")
+    site: str | None = Field(None, description="a web page's site, like example.com")
+    fetched_at: str | None = Field(None, description="when the web page or search result was read")
     title: str | None = None
     namespace: str | None = None
     recorded_at: str | None = None

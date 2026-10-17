@@ -35,6 +35,7 @@ EDITABLE = {
     "workers": None,
     "iiif": None,
     "ai": None,
+    "web": None,
     "decisions": None,
     "components": None,
     "voice": None,
@@ -147,6 +148,7 @@ SECRETS = {
     "https": ("dns_credentials", "eab_hmac_key"),
     "documents": ("anytopdf_token",),
     "components": ("hf_token",),
+    "web": ("api_key",),
 }
 ENUMS = {
     ("transcribe", "engine"): {"sensevoice", "whisper", "mlx-whisper", "openai", "elevenlabs", "assemblyai", "deepgram"},
@@ -176,6 +178,7 @@ ENUMS = {
     ("mailbox", "check"): {"authenticated", "off"},
     ("mailbox", "imports"): {"auto", "ask"},
     ("ai", "injection_check"): {"patterns", "classifier", "model", "off"},
+    ("web", "search"): {"off", "duckduckgo", "searxng", "brave", "tavily"},
     ("slack", "answer"): {"mention", "all"},
     ("slack", "approve"): {"off", "low_risk"},
     ("tunnel", "mode"): {"off", "quick", "token", "managed"},
@@ -498,6 +501,8 @@ def _check(section, key, value, default):
         return _nfs_setting(key, value)
     if section == "smb":
         return _smb_setting(key, value)
+    if section == "web" and key != "search":
+        return _web_setting(key, value)
     if section == "components":
         return _component_setting(key, value)
     if section == "nsfw":
@@ -1308,6 +1313,27 @@ def _smb_setting(key, value):
         except ValueError:
             raise ValueError(f"smb.allowed_networks: {v} isn't a network like 192.168.1.0/24") from None
     return list(dict.fromkeys(out))
+
+
+WEB_RANGES = {"results": (1, 20), "read_chars": (1000, 200_000)}
+
+
+def _web_setting(key, value):
+    if key == "render":
+        if not isinstance(value, bool):
+            raise ValueError("web.render is true or false")
+        return value
+    if key == "searxng_url":
+        if value in (None, ""):
+            return None
+        u = urllib.parse.urlsplit(value.strip()) if isinstance(value, str) else None
+        if not (u and VIEWER_URL.match(value.strip()) and u.hostname and u.username is None and u.password is None):
+            raise ValueError("web.searxng_url is a SearXNG instance's http(s) address with no password in it, such as http://searxng:8080")
+        return value.strip().rstrip("/")
+    lo, hi = WEB_RANGES[key]
+    if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+        raise ValueError(f"web.{key} is a whole number from {lo} to {hi}")
+    return value
 
 
 def _share_setting(key, value):
