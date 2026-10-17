@@ -1,8 +1,11 @@
 # threat-model.yaml — derived index; the prose threat model (threat-model.md) is canonical.
-# Authority order: prose > yaml > json. Regenerate whenever the prose changes.
+# Authority order: prose > yaml > json. Regenerate whenever the prose changes: CI fails a change to the prose that
+# changes neither this file nor threat-model.json (ci/validate_threat_model.py --base).
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:b0363980eeb748023c358b1702de7379390f663482ff46e3da5d995b06456eaf"
+# The prose in the same commit, not a hash of it: a hash is one line every change to the prose edits, so any two pull
+# requests touching the prose conflicted on it (#507). `git hash-object threat-model.md` names the exact prose.
+prose_version: "threat-model.md@same-commit"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 205, maintainer: 46, inferred: 91, assumption: 8}
@@ -113,7 +116,7 @@ host_side_effects:
   - effect: network-sockets
     stance: conditional
     components: [web, outbound, optional]
-    conditions: "API and web app listen; a netguard proxy on loopback during captures; MQTT 1883 and syslog 5514 on sensors.bind (default 0.0.0.0) when sensors are on, and MQTT over WebSockets on 9883 with sensors.mqtt_web; llama-server on its port (0.0.0.0 in containers, with its own API key)"
+    conditions: "API and web app listen; a netguard proxy on loopback during captures; MQTT 1883 and syslog 5514 on sensors.bind (default 0.0.0.0) when sensors are on; llama-server on its port (0.0.0.0 in containers, with its own API key)"
     provenance: {kind: assumption, question_id: Q19}
   - effect: x-log-credentials
     stance: present
@@ -505,15 +508,6 @@ entry_points:
         obligation_id: enable-and-limit-smb
         caller_must_enforce: "admin enables; operator firewalls"
         provenance: {kind: documented, source: 'docs/smb.md "What keeps it safe"'}
-  - id: "web app /mqtt and port 9883 (MQTT over WebSockets, relayed by lens-relay.js ahead of Next)"
-    component: optional
-    parameters:
-      - name: "the WebSocket handshake, MQTT packets in binary messages, hub logins"
-        attacker_controllable: true
-        x-condition: "once sensors.enabled, sensors.mqtt and sensors.mqtt_web; from the internet through the tunnel or HTTPS"
-        control_kinds: [data, size, rate, x-credential, x-network-source]
-        caller_must_enforce: "admin enables; a hub login on every connection (never anonymous); failed logins throttled per visitor from X-Forwarded-For as trusted proxies report it; no cookie, so no cross-site WebSocket hijacking"
-        provenance: {kind: documented, source: 'docs/sensors.md "At the web app''s address"'}
   - id: "web app /s3 and /dav (file shares relayed by lens-relay.js, ahead of Next)"
     component: optional
     parameters:
@@ -1251,14 +1245,6 @@ build_flags:
     affects_properties:
       - {property_id: P-SENSORS, effect: narrows}
     provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
-  - name: "sensors.mqtt_web"
-    default: "off"
-    security_relevant: true
-    maintainer_stance: supported
-    x-scope: "the broker also takes MQTT over WebSockets on sensors.mqtt_web_port (9883), which the web app relays at /mqtt, so the tunnel and HTTPS reach it; hub logins only there, failed ones throttled per visitor"
-    affects_properties:
-      - {property_id: P-SENSORS, effect: narrows}
-    provenance: {kind: documented, source: 'docs/sensors.md "At the web app''s address"'}
   - name: "shares.enabled"
     default: "off"
     security_relevant: true
@@ -1703,9 +1689,9 @@ properties_claimed:
     kind: authentication
     components: [optional]
     tier: security-critical
-    conditions: "sensors are off until an admin enables them; MQTT needs a hub login unless mqtt_anonymous is on, and always over WebSockets (/mqtt, sensors.mqtt_web); syslog hears only listed networks"
+    conditions: "sensors are off until an admin enables them; MQTT needs a hub login unless mqtt_anonymous is on; syslog hears only listed networks"
     violation_symptoms: [integrity-bypass]
-    x-voided-by: "sensors.mqtt_anonymous (domain/sensors.py:984); sensors.syslog_networks, sensors.bind; sensors.mqtt_web with the web app on plain HTTP (hub passwords in clear)"
+    x-voided-by: "sensors.mqtt_anonymous (domain/sensors.py:984); sensors.syslog_networks, sensors.bind"
     provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
   - id: P-NFS
     kind: confidentiality
