@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Entities found by spaCy, fetched when picked.** Settings → Analysis → Entity extraction → spaCy now fetches spaCy
+  (MIT) and its small model the first time an asset needs it (about 60 MB): English, German, or one for many
+  languages. The defined entities still come first, a lone word like "Okay" isn't taken for a name, and until spaCy is
+  there the rules find them and the job log says so. Workflows' Extract entities (rules) node uses it too
+  ([Entities and the graph explorer](docs/processing.md#entities-and-the-graph-explorer)).
 - **Punctuation put back in transcripts.** With transcripts cleaned up, Settings → Analysis → Put punctuation back
   adds full stops, commas and question marks with a local model (kredor/punctuate-all, MIT, 12 languages), to
   transcripts that have hardly any (imported captions) or to every one, keeping the marks they have. The model and
