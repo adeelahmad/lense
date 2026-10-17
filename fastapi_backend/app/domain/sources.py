@@ -618,6 +618,7 @@ def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None, collect
                     "recorded_at": f.get("when"),
                     "mail": _mail_of(f),
                     "event": event,
+                    "post": _post_of(f),
                 }
             ),
         )
@@ -671,6 +672,18 @@ def _mail_of(f):
         "date": f.get("when"),
         "snippet": " ".join(str(m.get("snippet") or "").split())[:300],
     }
+    return {k: v for k, v in out.items() if v} or None
+
+
+def _post_of(f):
+    """What a news feed said of a post as it was listed (rss._listed: its address, feed, site, author, date and
+    categories), kept small on its resource as `post` for automations and the timeline (events_content.py). None for
+    a file that isn't a feed's post."""
+    p = f.get("post")
+    if not isinstance(p, dict):
+        return None
+    out = {k: str(p.get(k) or "")[: 2000 if k == "href" else 300] for k in ("href", "feed", "site", "author", "published")}
+    out["categories"] = [str(c)[:100] for c in p.get("categories") or []][:10]
     return {k: v for k, v in out.items() if v} or None
 
 
