@@ -6,7 +6,7 @@ requires-python = ">=3.12,<3.14"
 readme = "README.md"
 license = "MIT"
 dependencies = [
-    "fastapi[standard]>=0.142.2,<0.143",
+    "fastapi[standard]>=0.143.0,<0.144",
     "starlette>=1.8.0", # security floor (Dependabot); fastapi itself allows older
     "pydantic-settings>=2.5.2,<3",
     "pyjwt>=2.9,<3",
