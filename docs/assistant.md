@@ -27,14 +27,17 @@ then.
   others in its place, oldest first), every version's messages as `tree`, and `head`, the last message showing. `PUT
   /api/v1/chats/<id>/head` with `{"message": <id>}` shows the version that message is in, to its newest message. A
   new version streams `branch` first (`message`, `parent`, `versions`). Chat rooms ([Chat rooms](chat-rooms.md)) and
-  automations go on from the version showing. In the web app, Edit makes a version; switching between versions and
-  Regenerate are in progress.
+  automations go on from the version showing. In the web app, Edit on a question and Regenerate on an answer (its menu:
+  Regenerate with… another model) make a version, which streams in place; `‹ 2 / 3 ›` under a question or an answer
+  with versions moves between them (the arrow keys too, while it has focus), showing what followed each, and the next
+  question goes on from the version showing. Approvals proposed in one version show in that version.
 - **Long conversations:** the model reads the latest six messages word for word. Once eight more have built up
   behind them, they're folded into a running summary kept on the conversation (one model call, after an answer), and
   every answer gets that summary plus the messages it doesn't cover yet. Room conversations (chat-rooms.md) go on for
   good, so they rely on it most. A summary covers the version it was written on: on a version that leaves what it
-  covers, the model reads that version's messages, and the next summary is made from them. A conversation that fills half of the model's context window (**Chat model's context**, `ai.context_tokens`,
-  16000 when empty; about four characters a token) is folded in early, before the next answer, whatever the count.
+  covers, the model reads that version's messages, and the next summary is made from them. A conversation that fills
+  half of the model's context window (**Chat model's context**, `ai.context_tokens`, 16000 when empty; about four
+  characters a token) is folded in early, before the next answer, whatever the count.
   **Model for summaries** (`ai.compact_model`) writes them with a smaller, cheaper model on the same provider; empty,
   the chat's model does. Settings › AI assistant › Summarise long conversations (`ai.compact`, on) turns it off; off,
   or with no model, only the last six messages are read.
@@ -45,8 +48,8 @@ then.
   reply, is read by the model afterwards.
 - **Changed access:** old citations are filtered by the person's current access when a conversation is reopened.
 - **Choosing the model:** a conversation can use any model an admin offers (`llm.chat_models`, else whatever the model
-  server lists); Try another model asks a question again with a different one. Each answer records the model that
-  wrote it.
+  server lists); Regenerate with… writes a new answer with a different one, beside the old. Each answer records the
+  model that wrote it.
 - **Chat on any page:** every page except Chat itself has an Ask button that opens a chat panel beside the page (full
   screen on phones). Its conversation follows you between pages, and across visits in the same browser, until New
   chat; it is an ordinary conversation, also listed in Chat. Each question can share the page's text (the page chip,
