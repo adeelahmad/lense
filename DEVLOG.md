@@ -2,6 +2,17 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-17 · Dates read as days
+
+Adeel: dates extraction. `dates.py` reads the dates each line gives (written out, numeric, and relative to the day)
+into `date_said` as first and last days, worked out from the asset's `recorded_at`, when Settings → Analysis → Read
+dates is on. `GET /api/v1/dates`, MCP `list_dates` and the assistant's `find_dates` find them by day or range with
+their lines. English rules in Lens's own code rather than dateparser: dateparser couldn't read "next Tuesday" or "this
+Friday", and its own search over a line finds dates in ordinary words.
+
+Refine later: DATE entities named by their day, so "next Tuesday" and "20 October" in two assets meet in the graph;
+other languages' month and day names; a Dates view in the web app (a calendar of what was said); times of day.
+
 ## 2026-10-17 · Entities found by spaCy
 
 Adeel: NLP libraries for named entities. Settings → Analysis → Entity extraction → spaCy existed but needed spaCy
