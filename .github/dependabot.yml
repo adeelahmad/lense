@@ -27,6 +27,10 @@ updates:
       # BlockSuite after 0.19 is published as raw TypeScript (exports point at src/*.ts) and drops the editor
       # presets, so it only builds inside AFFiNE's own repo. The notes editor stays on 0.19.5 until that changes.
       - dependency-name: "@blocksuite/*"
+      # Node's types follow the Node line the web app runs (22, as the docker ignore below explains), so they move
+      # with the runtime, not on their own.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm # pnpm: Nx, the root's only dependency
     directory: /

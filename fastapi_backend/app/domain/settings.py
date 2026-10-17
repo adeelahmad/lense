@@ -86,7 +86,7 @@ EDITABLE = {
         "triage",
     ),
     # bind is a startup setting only
-    "shares": ("enabled", "s3", "s3_port", "webdav", "webdav_port"),
+    "shares": ("enabled", "s3", "s3_port", "webdav", "webdav_port", "remote"),
     "video": (
         "sample_seconds",
         "scene_threshold",
@@ -1419,7 +1419,7 @@ def _web_setting(key, value):
 
 
 def _share_setting(key, value):
-    if key in ("enabled", "s3", "webdav"):
+    if key in ("enabled", "s3", "webdav", "remote"):
         if not isinstance(value, bool):
             raise ValueError(f"shares.{key} is true or false")
         return value

@@ -112,9 +112,12 @@ import type {
   CheckMessageResponses,
   CheckUpdatesData,
   CheckUpdatesResponses,
+  ClassifyData,
+  ClassifyErrors,
   ClassifyNamespaceNsfwData,
   ClassifyNamespaceNsfwErrors,
   ClassifyNamespaceNsfwResponses,
+  ClassifyResponses,
   ClearEntitySetupData,
   ClearEntitySetupErrors,
   ClearEntitySetupResponses,
@@ -448,6 +451,9 @@ import type {
   ExportBatchResultsData,
   ExportBatchResultsErrors,
   ExportBatchResultsResponses,
+  ExportNotesData,
+  ExportNotesErrors,
+  ExportNotesResponses,
   ExportRecordingData,
   ExportRecordingErrors,
   ExportRecordingResponses,
@@ -1123,6 +1129,9 @@ import type {
   PageHistoryData,
   PageHistoryErrors,
   PageHistoryResponses,
+  PageMarkdownData,
+  PageMarkdownErrors,
+  PageMarkdownResponses,
   PageVersionData,
   PageVersionErrors,
   PageVersionResponses,
@@ -5940,6 +5949,21 @@ export class Notes {
   }
 
   /**
+   * Export Notes
+   *
+   * Every page of the namespace as Markdown files in a zip, for other notes apps (Obsidian and the like): free notes
+   * in folders that follow the tree, the pages of things under "Pages of things".
+   */
+  public static exportNotes<ThrowOnError extends boolean = false>(
+    options: Options<ExportNotesData, ThrowOnError>,
+  ): RequestResult<ExportNotesResponses, ExportNotesErrors, ThrowOnError> {
+    return (options.client ?? client).get<ExportNotesResponses, ExportNotesErrors, ThrowOnError>({
+      url: "/api/v1/notes/export",
+      ...options,
+    });
+  }
+
+  /**
    * Deleted Pages
    *
    * Pages deleted in the last 30 days, the latest first: each can be put back until then.
@@ -6069,6 +6093,21 @@ export class Notes {
   ): RequestResult<HomeSuggestionsResponses, HomeSuggestionsErrors, ThrowOnError> {
     return (options.client ?? client).get<HomeSuggestionsResponses, HomeSuggestionsErrors, ThrowOnError>({
       url: "/api/v1/notes/{pid}/homes",
+      ...options,
+    });
+  }
+
+  /**
+   * Page Markdown
+   *
+   * The page as a Markdown file of its own: front matter with its title, date, filing and summary, then its text,
+   * with links to other pages as [[Title]] wiki links.
+   */
+  public static pageMarkdown<ThrowOnError extends boolean = false>(
+    options: Options<PageMarkdownData, ThrowOnError>,
+  ): RequestResult<PageMarkdownResponses, PageMarkdownErrors, ThrowOnError> {
+    return (options.client ?? client).get<PageMarkdownResponses, PageMarkdownErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/markdown",
       ...options,
     });
   }
@@ -7018,6 +7057,28 @@ export class Search {
   ): RequestResult<FindResourcesResponses, FindResourcesErrors, ThrowOnError> {
     return (options.client ?? client).post<FindResourcesResponses, FindResourcesErrors, ThrowOnError>({
       url: "/api/v1/find",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Classify
+   *
+   * Which label fits an asset (or a text) best, how sure that is, and every label ranked: the labels given, Lens's
+   * content types (of the asset's kind) or the namespace's topics. The decision model answers when it's set up
+   * (Settings → AI assistant), else the language model; the call is in the activity ledger. With `apply` (editors), a
+   * sure answer is acted on: the content type is set, the topic is suggested for someone to accept, or the label is
+   * added as a tag; one that isn't sure changes nothing. 409 when no model is set up to answer.
+   */
+  public static classify<ThrowOnError extends boolean = false>(
+    options: Options<ClassifyData, ThrowOnError>,
+  ): RequestResult<ClassifyResponses, ClassifyErrors, ThrowOnError> {
+    return (options.client ?? client).post<ClassifyResponses, ClassifyErrors, ThrowOnError>({
+      url: "/api/v1/classify",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -11360,8 +11421,8 @@ export class Shares {
   /**
    * S3 Status
    *
-   * Whether the S3 server is on and on which port, what the worker running it says, the same for WebDAV, and your
-   * access keys.
+   * Whether the S3 server is on and on which port, what the worker running it says, the same for WebDAV, whether
+   * both are open at the web app's address too (/s3, /dav), and your access keys.
    */
   public static s3Status<ThrowOnError extends boolean = false>(
     options?: Options<S3StatusData, ThrowOnError>,

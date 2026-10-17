@@ -143,7 +143,9 @@ When the configured model supports function calling, chat becomes an agent.
   [stream of activities](automations.md#timeline-reads); `unreviewed` for what the person hasn't marked reviewed),
   and assets by any attribute: faces seen, people heard, entities, topics, kind, content type, dates and the rest,
   each with the moments that show why it matched (`find_resources`,
-  [Finding by any attribute](processing.md#finding-by-any-attribute)).
+  [Finding by any attribute](processing.md#finding-by-any-attribute)). It can also ask which of some labels, content
+  types or topics fits an asset or a text, and how sure that is (`classify`, [Classifying](processing.md#classifying));
+  it changes nothing.
 - **The person's review marks:** `mark_activities` marks activities of the timeline reviewed, important or hidden for
   the person ([Timeline](timeline.md#review-marks)). After it has read text from outside Lens, hiding or marking
   reviewed waits for their yes; marking important or bringing things back acts at once.

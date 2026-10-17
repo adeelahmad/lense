@@ -82,10 +82,14 @@ if [ ! -f "$stamp" ]; then
 fi
 
 # --- Tools: SurrealDB, rclone, Node, uv, pinned like the Docker images -------------------------------------------
-fetch() { curl -fsSL --retry 5 --retry-delay 3 "$@"; }
+# Archives are downloaded whole before they're unpacked: curl can't try again once it has written to a pipe, so a
+# connection cut partway would hand tar half an archive
+fetch() { curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors "$@"; }
 if [ ! -x "$OPT/bin/surreal" ] || ! "$OPT/bin/surreal" version 2>/dev/null | grep -q "${SURREAL_VERSION#v}"; then
   log "Getting SurrealDB $SURREAL_VERSION..."
-  fetch "https://download.surrealdb.com/$SURREAL_VERSION/surreal-$SURREAL_VERSION.linux-$arch.tgz" | tar -xz -C "$OPT/bin"
+  fetch -o /tmp/lens/surreal.tgz "https://download.surrealdb.com/$SURREAL_VERSION/surreal-$SURREAL_VERSION.linux-$arch.tgz"
+  tar -xzf /tmp/lens/surreal.tgz -C "$OPT/bin"
+  rm /tmp/lens/surreal.tgz
 fi
 if [ ! -x "$OPT/bin/rclone" ]; then
   log "Getting rclone $RCLONE_VERSION..."
@@ -95,10 +99,14 @@ fi
 if [ ! -x "$OPT/node/bin/node" ]; then
   log "Getting Node $NODE_MAJOR..."
   base="https://nodejs.org/dist/latest-v$NODE_MAJOR.x"
-  file="$(fetch "$base/SHASUMS256.txt" | awk "/linux-$node_arch.tar.xz\$/ {print \$2}")"
+  sums="$(fetch "$base/SHASUMS256.txt")"
+  file="$(printf '%s\n' "$sums" | awk "/linux-$node_arch.tar.xz\$/ {print \$2}")"
+  fetch -o "/tmp/lens/$file" "$base/$file"
+  (cd /tmp/lens && printf '%s\n' "$sums" | grep " $file\$" | sha256sum -c --quiet -)
   wipe "$OPT/node"
   mkdir -p "$OPT/node"
-  fetch "$base/$file" | tar -xJ -C "$OPT/node" --strip-components 1
+  tar -xJf "/tmp/lens/$file" -C "$OPT/node" --strip-components 1
+  rm "/tmp/lens/$file"
 fi
 if [ ! -x "$OPT/bin/uv" ]; then
   log "Getting uv..."
@@ -140,7 +148,7 @@ if [ "$(cat "$OPT/build-id" 2>/dev/null)" != "$build_id" ]; then
   mkdir -p "$OPT/web/.next"
   cp -a "$WEB_SRC/.next/standalone/." "$OPT/web/"
   cp -a "$WEB_SRC/.next/static" "$OPT/web/.next/static"
-  cp -a "$WEB_SRC/public" "$WEB_SRC/lens-server.js" "$OPT/web/"
+  cp -a "$WEB_SRC/public" "$WEB_SRC/lens-server.js" "$WEB_SRC/lens-relay.js" "$OPT/web/"
   wipe "$WEB_SRC" || true # the disk is replaced with the sandbox anyway
   chown -R lens:lens "$OPT/web"
   echo "$build_id" >"$OPT/build-id"
