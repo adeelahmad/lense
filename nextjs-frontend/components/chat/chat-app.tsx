@@ -17,6 +17,7 @@ import { ConversationList } from "@/components/chat/conversations";
 import { useApprovals, useChat, useChats, useLlmStatus, useStopAnswer } from "@/components/chat/data";
 import { EmptyChat } from "@/components/chat/empty";
 import { NamespaceOffer, spokenPick } from "@/components/chat/namespace-offer";
+import { ReportActions, ResearchCard } from "@/components/chat/research";
 import { fromApiScope, scopeFromParams, toApiScope, type Scope } from "@/components/chat/scope";
 import { CitationSheet, SourcesPanel, SourcesSheet } from "@/components/chat/sources";
 import {
@@ -44,10 +45,11 @@ import { useVoice, VoiceError } from "@/lib/voice";
 type Sent = { id: string; filename: string; size: number };
 /** An answer being written; `beside`: the message it makes a version of (an edited question, a regenerated answer). */
 type Live = { chatId: number; turn: TurnState; files: Sent[]; beside?: number };
-type Queued = { key: number; text: string; files: Sent[] };
+type Queued = { key: number; text: string; files: Sent[]; research?: boolean };
 
-/** /clear and /compact, which the model doesn't answer, so there's nothing to regenerate. */
-const COMMAND = /^\s*\/(clear|compact)(\s|$)/i;
+/** /clear and /compact, which the model doesn't answer, and /research, answered with a plan to approve: there's nothing
+ * to regenerate. */
+const COMMAND = /^\s*\/(clear|compact|research)(\s|$)/i;
 
 /** What a message with only files says (the server says the same when it gets none). */
 type Extra = { steps: ToolStep[]; notice: string | null; error: string | null };
@@ -241,6 +243,7 @@ export function ChatApp() {
       attached: Sent[] = [],
       edit?: number,
       regenerate?: number,
+      research?: boolean,
     ): Promise<TurnState> => {
       // a new question goes on from the version showing; an edit or a regenerate is a version beside its message
       const shown = qc.getQueryData<Chat>(["chat", cid])?.messages ?? [];
@@ -265,6 +268,7 @@ export function ChatApp() {
                   edit,
                   parent,
                   via: spoken.current,
+                  research: research || undefined,
                 },
           accessToken: session?.accessToken,
           signal: ac.signal,
@@ -274,6 +278,8 @@ export function ChatApp() {
           show(turn);
           if (turn.scoped && !was) narrowed(cid, turn.scoped);
           if (msg.event === "suggested" && turn.suggested?.length) setOffer({ cid, items: turn.suggested });
+          // the plan's card reads the research from here on
+          if (msg.event === "research" && turn.research) qc.setQueryData(["research", turn.research.id], turn.research);
         }
         if (turn.status === "streaming")
           turn = {
@@ -313,6 +319,7 @@ export function ChatApp() {
       attached: Sent[] = [],
       kind: "chat" | "setup" = "chat",
       edit?: number,
+      research?: boolean,
     ): Promise<TurnState | null> => {
       let cid = kind === "setup" ? null : activeId;
       if (cid == null) {
@@ -337,10 +344,13 @@ export function ChatApp() {
           return null;
         }
       }
-      return run(cid, question, model, attached, edit);
+      return run(cid, question, model, attached, edit, undefined, research);
     },
     [activeId, client, draftScope, draftModel, qc, router, run, toast],
   );
+
+  // The Deep research switch: what's typed next is a research goal, answered with a plan to approve.
+  const [researchOn, setResearchOn] = useState(false);
 
   // What you send while an answer is being written waits its turn, so you never have to wait to type.
   const send = useCallback(
@@ -349,20 +359,22 @@ export function ChatApp() {
         text == null ? files.take().map((x) => ({ id: x.upload!.id, filename: x.file.name, size: x.file.size })) : [];
       const question = (text ?? draft).trim() || (attached.length ? onlyFiles(attached.length) : "");
       if (!question) return;
+      const research = text == null && researchOn && !attached.length;
       if (text == null) setDraft("");
+      if (research) setResearchOn(false);
       if (live) {
-        setQueue((q) => [...q, { key: Date.now() + q.length, text: question, files: attached }]);
+        setQueue((q) => [...q, { key: Date.now() + q.length, text: question, files: attached, research }]);
         return;
       }
-      void dispatch(question, model, attached);
+      void dispatch(question, model, attached, "chat", undefined, research);
     },
-    [dispatch, draft, files, live],
+    [dispatch, draft, files, live, researchOn],
   );
   useEffect(() => {
     if (live || !queue.length) return;
     const [next, ...rest] = queue;
     setQueue(rest);
-    void dispatch(next.text, undefined, next.files);
+    void dispatch(next.text, undefined, next.files, "chat", undefined, next.research);
   }, [live, queue, dispatch]);
 
   // Regenerating writes a new answer to the same question, as a version beside the old one, streaming in its place.
@@ -728,7 +740,9 @@ export function ChatApp() {
                       />
                     </div>
                   )}
-                  {it.a ? (
+                  {it.a?.kind === "research_plan" && it.a.meta?.research != null ? (
+                    <ResearchCard id={it.a.meta.research} chatId={activeId} text={it.a.content} />
+                  ) : it.a ? (
                     <Answer
                       chatId={activeId}
                       messageId={it.a.id}
@@ -740,7 +754,7 @@ export function ChatApp() {
                       notice={ex?.notice ?? it.a.notice}
                       steps={ex?.steps ?? savedSteps(it.a.steps)}
                       approvals={(approvalsFor.get(it.a.id) ?? [])
-                        .filter((a) => !liveApprovalIds.has(a.id))
+                        .filter((a) => !liveApprovalIds.has(a.id) && a.tool !== "research")
                         .map((a) => ({
                           ...a,
                           estimate: a.estimate as Estimate | null,
@@ -748,11 +762,15 @@ export function ChatApp() {
                       scope={scope}
                       model={it.a.model ?? model}
                       onRetry={
-                        it.q && !live && !COMMAND.test(it.q.content) ? () => regenerate(it.q!, it.a!) : undefined
+                        it.q && !live && !it.a.kind && !COMMAND.test(it.q.content)
+                          ? () => regenerate(it.q!, it.a!)
+                          : undefined
                       }
                       models={llm.models}
                       onRegenerate={
-                        it.q && !live && !COMMAND.test(it.q.content) ? (m) => regenerate(it.q!, it.a!, m) : undefined
+                        it.q && !live && !it.a.kind && !COMMAND.test(it.q.content)
+                          ? (m) => regenerate(it.q!, it.a!, m)
+                          : undefined
                       }
                       versions={
                         <VersionSwitch
@@ -765,6 +783,11 @@ export function ChatApp() {
                       check={checks[it.a.id] ?? it.a.check}
                       meta={it.a.meta}
                       onChecked={(c) => setChecks((x) => ({ ...x, [it.a!.id]: c }))}
+                      actions={
+                        it.a.kind === "research" && it.a.meta?.research != null ? (
+                          <ReportActions id={it.a.meta.research} text={it.a.content} passages={it.a.passages ?? []} />
+                        ) : undefined
+                      }
                       {...answerHandlers(aKey)}
                     />
                   ) : partial ? (
@@ -798,26 +821,30 @@ export function ChatApp() {
             {liveHere && (
               <div className="flex flex-col gap-5">
                 <UserBubble text={liveHere.question} files={live?.files ?? []} />
-                <Answer
-                  chatId={activeId}
-                  messageId={liveHere.messageId}
-                  question={liveHere.question}
-                  text={liveHere.text}
-                  passages={liveHere.passages}
-                  status={liveHere.status}
-                  error={liveHere.error}
-                  notice={liveHere.notice}
-                  steps={liveHere.steps}
-                  approvals={liveHere.approvals}
-                  scope={scope}
-                  model={model}
-                  meta={liveHere.meta}
-                  onStop={stop}
-                  stopping={stopping != null && stopping === live?.chatId}
-                  onRetry={() => send(liveHere.question)}
-                  onAddScope={addScope}
-                  {...answerHandlers("live")}
-                />
+                {liveHere.research ? (
+                  <ResearchCard id={liveHere.research.id} chatId={activeId ?? live?.chatId ?? null} />
+                ) : (
+                  <Answer
+                    chatId={activeId}
+                    messageId={liveHere.messageId}
+                    question={liveHere.question}
+                    text={liveHere.text}
+                    passages={liveHere.passages}
+                    status={liveHere.status}
+                    error={liveHere.error}
+                    notice={liveHere.notice}
+                    steps={liveHere.steps}
+                    approvals={liveHere.approvals.filter((a) => a.tool !== "research")}
+                    scope={scope}
+                    model={model}
+                    meta={liveHere.meta}
+                    onStop={stop}
+                    stopping={stopping != null && stopping === live?.chatId}
+                    onRetry={() => send(liveHere.question)}
+                    onAddScope={addScope}
+                    {...answerHandlers("live")}
+                  />
+                )}
               </div>
             )}
           </div>
@@ -884,15 +911,31 @@ export function ChatApp() {
               // a new conversation (nothing open, or one asked for): typing goes straight into it
               autoFocus={composing || !showThread}
               placeholder={
-                voice.listening
-                  ? "Listening…"
-                  : voice.speaking
-                    ? "Reading the answer aloud…"
-                    : msgs.length || liveHere
-                      ? "Ask a follow-up…"
-                      : "Ask across your archive…"
+                researchOn
+                  ? "What should it research?"
+                  : voice.listening
+                    ? "Listening…"
+                    : voice.speaking
+                      ? "Reading the answer aloud…"
+                      : msgs.length || liveHere
+                        ? "Ask a follow-up…"
+                        : "Ask across your archive…"
               }
               voice={voice.supported ? { on: voiceOn, onToggle: () => setVoiceOn((v) => !v) } : undefined}
+              research={
+                setupChat
+                  ? undefined
+                  : {
+                      on: researchOn,
+                      onToggle: () => setResearchOn((v) => !v),
+                      off:
+                        llm.known && (!llm.configured || !llm.tools)
+                          ? "Deep research needs a language model that uses tools (Settings › AI assistant)"
+                          : files.items.length
+                            ? "Deep research takes a goal, not files"
+                            : null,
+                    }
+              }
             />
           </div>
         </div>

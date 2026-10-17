@@ -35,7 +35,7 @@ export type EditorBlobs = {
   set: (key: string, blob: Blob) => Promise<void>;
 };
 
-const LENS_LINK = /^(recording|entity|collection|speaker|page):\d+$/;
+const LENS_LINK = /^(recording|entity|collection|speaker|page|chat):\d+$/;
 const WEB_LINK = /^(https?:|mailto:)/i;
 
 function toBase64(bytes: Uint8Array): string {
