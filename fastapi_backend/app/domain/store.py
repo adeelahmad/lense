@@ -153,8 +153,18 @@ DEFAULTS = {
         "sample_seconds": 60,
         "cross_namespace": "suggest",
     },
-    # anytopdf: the places and dates anytopdf (run here) finds, as hints for the extractor (enrich.py)
-    "analysis": {"entities": "rules", "spacy_model": "en_core_web_sm", "gazetteer": [], "anytopdf": False},
+    # anytopdf: the places and dates anytopdf (run here) finds, as hints for the extractor (enrich.py); cleanup: the
+    # clean step tidies transcripts before analysis (cleanup.py), cleanup_fillers taking out "um" and "uh" too, and
+    # cleanup_punctuation (off, missing, always) putting marks back with a local model
+    "analysis": {
+        "entities": "rules",
+        "spacy_model": "en_core_web_sm",
+        "gazetteer": [],
+        "anytopdf": False,
+        "cleanup": False,
+        "cleanup_fillers": True,
+        "cleanup_punctuation": "off",
+    },
     # chat_models: the models people may pick in Chat; empty: whatever the model server lists (docs/configuration.md)
     "llm": {
         "base_url": None,
@@ -264,6 +274,7 @@ DEFAULTS = {
             "objects",
             "nsfw",
             "describe",
+            "clean",
             "analyze",
             "embed",
             "summarize",

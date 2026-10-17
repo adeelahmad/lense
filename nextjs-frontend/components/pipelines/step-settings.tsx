@@ -282,12 +282,14 @@ export function StepSettings({
             with a prompt template.
           </p>
         )}
-        {(step.type === "transcribe" || step.type === "diarize") && (
+        {(step.type === "transcribe" || step.type === "diarize" || step.type === "clean") && (
           <Checkbox
             label={
               step.type === "transcribe"
                 ? "Transcribe again even if the file came with a transcript"
-                : "Find speakers again even if the transcript labelled them"
+                : step.type === "diarize"
+                  ? "Find speakers again even if the transcript labelled them"
+                  : "Clean up even while Settings → Analysis has it off"
             }
             checked={Boolean(step.force)}
             onCheckedChange={(v) => set({ force: v || undefined })}

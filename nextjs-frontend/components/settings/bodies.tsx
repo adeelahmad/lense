@@ -242,6 +242,13 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
     case "analysis":
       return (
         <>
+          <F ctx={ctx} id="analysis.cleanup" />
+          {raw("analysis.cleanup") === true && (
+            <div className="grid gap-3.5 sm:grid-cols-2">
+              <F ctx={ctx} id="analysis.cleanup_fillers" />
+              <F ctx={ctx} id="analysis.cleanup_punctuation" />
+            </div>
+          )}
           <F ctx={ctx} id="analysis.entities" />
           {raw("analysis.entities") === "spacy" && <F ctx={ctx} id="analysis.spacy_model" />}
           <F ctx={ctx} id="analysis.anytopdf" />

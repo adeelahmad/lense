@@ -9129,6 +9129,111 @@
             "description": "where NSFW classification is on (docs/nsfw.md): only those flagged NSFW, exclude them, or include them. Without it, flagged ones are left out where their namespace hides them (display hide)"
           },
           {
+            "name": "face",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "face identity ids: the assets they're seen in; repeat for several",
+              "title": "Face"
+            },
+            "description": "face identity ids: the assets they're seen in; repeat for several"
+          },
+          {
+            "name": "entity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "entity ids: the assets mentioning them; repeat for several",
+              "title": "Entity"
+            },
+            "description": "entity ids: the assets mentioning them; repeat for several"
+          },
+          {
+            "name": "topic",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "topic ids: the assets accepted as about them (not their narrower topics); repeat for several",
+              "title": "Topic"
+            },
+            "description": "topic ids: the assets accepted as about them (not their narrower topics); repeat for several"
+          },
+          {
+            "name": "content_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "content type keys (podcast, scan, email \u2026; GET /content-types): their assets; repeat for several",
+              "title": "Content Type"
+            },
+            "description": "content type keys (podcast, scan, email \u2026; GET /content-types): their assets; repeat for several"
+          },
+          {
+            "name": "emotion",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "emotions heard in them (ignoring case); repeat for several",
+              "title": "Emotion"
+            },
+            "description": "emotions heard in them (ignoring case); repeat for several"
+          },
+          {
             "name": "collection",
             "in": "query",
             "required": false,
@@ -15368,6 +15473,48 @@
                     "$ref": "#/components/schemas/Mention"
                   },
                   "title": "Response Search-List Mentions"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/find": {
+      "post": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Find Resources",
+        "description": "Assets you can read that match every filter given: the people seen in them (faces) and heard (speakers), the\nentities they mention, the topics they're about, their kind and content type, when they were made, their tags,\nlanguage, objects seen, emotions heard, length, status, collection and origin, and words said or written in them.\nFaces, people heard, entities and topics can be named instead of numbered; `resolved` says what each name matched, and\na name that matches nothing is a 400 naming the closest ones. Each asset says `why` it matched, with up to three\nmoments per reason to cite (a time, or a page). With `text`, the best matching come first.",
+        "operationId": "find_resources",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FindQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindResults"
                 }
               }
             }
@@ -25240,13 +25387,65 @@
         }
       }
     },
+    "/api/v1/chats/{cid}/messages/{mid}": {
+      "get": {
+        "tags": [
+          "chats"
+        ],
+        "summary": "Get Message",
+        "description": "One message of any version, with its record (`meta`: for an answer, the model and the host it ran on, the tools\noffered and used, the scope, limits and use, tokens, cost, time and how it ended) and its rows in the activity ledger\n(`ledger`: the calls made for it, newest first). Citations follow your current access, as in GET /chats/{cid}.",
+        "operationId": "get_message",
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          },
+          {
+            "name": "mid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chats/{cid}/messages": {
       "post": {
         "tags": [
           "chats"
         ],
         "summary": "Send Message",
-        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).\n\nA conversation is a tree of versions (GET /chats/{cid}: `tree`, and each message's `versions`); the question goes\non from `parent` when given (any message of the conversation), else from the version showing (`head`). With\n`regenerate` (an answer's id) its question is answered again, as a new version beside that answer (`content` isn't\nneeded; `model` may pick another). With `edit`, one of your earlier questions is edited: this question becomes a new\nversion beside it and is answered, and the old one stays with what followed it (404 if it isn't a question in this\nconversation). Either keeps the page the question was asked from (where, and the highlighted text; not the page's\ntext, which isn't kept) unless `context` is given, and streams `branch` first ({message, parent, versions}: the\nnew version, the message it follows and its versions); so does a question beside others under `parent`.\n\n`/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the\nconversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.\n\nWith `browser` (the session of a browser's Lens side panel, POST /browser/sessions), the assistant can use that\nbrowser while the side panel is connected: open pages, read them, click, type and download files into the\nconversation (docs/browser-assistant.md).",
+        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), meta (the answer's record, kept with it: what produced\nit), done (the saved message id).\n\nA conversation is a tree of versions (GET /chats/{cid}: `tree`, and each message's `versions`); the question goes\non from `parent` when given (any message of the conversation), else from the version showing (`head`). With\n`regenerate` (an answer's id) its question is answered again, as a new version beside that answer (`content` isn't\nneeded; `model` may pick another). With `edit`, one of your earlier questions is edited: this question becomes a new\nversion beside it and is answered, and the old one stays with what followed it (404 if it isn't a question in this\nconversation). Either keeps the page the question was asked from (where, and the highlighted text; not the page's\ntext, which isn't kept) unless `context` is given, and streams `branch` first ({message, parent, versions}: the\nnew version, the message it follows and its versions); so does a question beside others under `parent`.\n\n`/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the\nconversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.\n\nWith `browser` (the session of a browser's Lens side panel, POST /browser/sessions), the assistant can use that\nbrowser while the side panel is connected: open pages, read them, click, type and download files into the\nconversation (docs/browser-assistant.md).",
         "operationId": "send_message",
         "parameters": [
           {
@@ -36714,6 +36913,17 @@
               }
             ],
             "description": "it and the others said in its place, from regenerating or editing"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MessageRecord"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "what produced it; none on messages from before it was recorded"
           }
         },
         "additionalProperties": true,
@@ -43374,6 +43584,974 @@
         "type": "object",
         "title": "FileUpdate"
       },
+      "FindItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "space": {
+            "type": "integer",
+            "title": "Space"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "the collection it lives in"
+          },
+          "collection_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Name"
+          },
+          "media_kind": {
+            "type": "string",
+            "title": "Media Kind",
+            "description": "audio, video, transcript (text without media), document or image"
+          },
+          "pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pages",
+            "description": "a document's or an image's pages"
+          },
+          "poster": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poster",
+            "description": "signed link to a video's first frame, or a document's or image's first page"
+          },
+          "emotions": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Emotions"
+          },
+          "words": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Words"
+          },
+          "importance": {
+            "title": "Importance"
+          },
+          "sentiment": {
+            "title": "Sentiment"
+          },
+          "speakers": {
+            "type": "string",
+            "title": "Speakers",
+            "description": "names of the people in it, comma separated",
+            "default": ""
+          },
+          "access": {
+            "type": "string",
+            "enum": [
+              "public",
+              "restricted",
+              "private"
+            ],
+            "title": "Access",
+            "description": "its own access, or its namespace's default",
+            "default": "private"
+          },
+          "open": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "media",
+                "transcript",
+                "index"
+              ]
+            },
+            "type": "array",
+            "title": "Open",
+            "description": "the parts anyone may use when it is public"
+          },
+          "featured": {
+            "type": "boolean",
+            "title": "Featured",
+            "default": false
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "its language code, when known"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin",
+            "description": "where it came from: source:<id> (a connected source), upload, paste, iiif, folder or file"
+          },
+          "origin_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Name",
+            "description": "what to call its origin: the source's name, or e.g. Uploaded"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "viewer",
+                  "editor",
+                  "owner"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role",
+            "description": "your role on it: through its namespace or its collection (an admin of the collection is an owner)"
+          },
+          "nsfw": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NsfwState"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "NSFW classification, where it's on in its namespace and it was classified"
+          },
+          "why": {
+            "items": {
+              "$ref": "#/components/schemas/FindReason"
+            },
+            "type": "array",
+            "title": "Why",
+            "description": "why it matched"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "space",
+          "media_kind"
+        ],
+        "title": "FindItem"
+      },
+      "FindMoment": {
+        "properties": {
+          "t0": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T0",
+            "description": "ms from the start, on a timeline"
+          },
+          "t1": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T1",
+            "description": "ms, where it ends"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page",
+            "description": "in a document or an image: the page (from 0)"
+          },
+          "last_page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Page",
+            "description": "a face over several pages: the last of them"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "the words there, when it has any"
+          },
+          "speaker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "words: said, screen, file, page, object or described (as search has it)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "FindMoment"
+      },
+      "FindNamed": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "FindNamed"
+      },
+      "FindQuery": {
+        "properties": {
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "one namespace (default: every namespace you can read)"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "words said or written in them, as search takes them (words, \"phrases\", OR); by meaning too when that is set up"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "words that must all appear in the title, the namespace or a person's name"
+          },
+          "faces": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Faces",
+            "description": "people seen in them: face identities, by id or name"
+          },
+          "speakers": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speakers",
+            "description": "people heard in them: speakers, by id or name"
+          },
+          "entities": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entities",
+            "description": "entities they mention, by id or name"
+          },
+          "topics": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topics",
+            "description": "topics they were accepted as about, by id or label; a topic's narrower topics count too"
+          },
+          "types": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "audio",
+                    "video",
+                    "transcript",
+                    "document",
+                    "image"
+                  ]
+                },
+                "type": "array",
+                "maxItems": 5
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Types",
+            "description": "their kind: audio, video, transcript, document or image"
+          },
+          "content_types": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Types",
+            "description": "content types (podcast, interview, scan, photo, email \u2026, GET /content-types), by key or label"
+          },
+          "date_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date From",
+            "description": "made on or after this day, month or year (2026-09-30, 2026-09, 2026)"
+          },
+          "date_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date To",
+            "description": "made on or before this day, month or year"
+          },
+          "min_duration": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Duration",
+            "description": "at least this many seconds long"
+          },
+          "max_duration": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Duration",
+            "description": "shorter than this many seconds"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags",
+            "description": "tags (ignoring case)"
+          },
+          "languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Languages",
+            "description": "language codes; none for those whose language isn't known"
+          },
+          "objects": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Objects",
+            "description": "kinds of object seen in them (person, car, dog \u2026)"
+          },
+          "emotions": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emotions",
+            "description": "emotions heard in them (ignoring case)"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "new",
+                    "transcribed",
+                    "diarized",
+                    "analyzed",
+                    "error",
+                    "processing",
+                    "failed"
+                  ]
+                },
+                "type": "array",
+                "maxItems": 10
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status",
+            "description": "statuses, or processing and failed"
+          },
+          "origins": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origins",
+            "description": "where they came from: source:<id>, upload, paste, iiif, folder or file"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "a collection: what's in it and in the collections inside it"
+          },
+          "sensitive": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "include",
+                  "only",
+                  "exclude"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sensitive",
+            "description": "where NSFW classification is on: only those flagged, exclude them, or include them"
+          },
+          "sort": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "relevance",
+                  "-date",
+                  "date",
+                  "-title",
+                  "title",
+                  "-duration",
+                  "duration"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort",
+            "description": "relevance (the default with text: best matching words first), else newest first"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "default": 20
+          },
+          "offset": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Offset",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FindQuery",
+        "description": "Filters combine with AND, the values of one filter with OR. Faces, speakers, entities and topics are ids or names\n(ignoring case; an entity's other names count, and any of a topic's labels)."
+      },
+      "FindReason": {
+        "properties": {
+          "by": {
+            "type": "string",
+            "enum": [
+              "words",
+              "face",
+              "voice",
+              "entity",
+              "topic",
+              "content_type",
+              "object",
+              "emotion"
+            ],
+            "title": "By"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "what matched: the words, the person's or the entity's name, the topic's label \u2026"
+          },
+          "moments": {
+            "items": {
+              "$ref": "#/components/schemas/FindMoment"
+            },
+            "type": "array",
+            "title": "Moments",
+            "description": "up to 3 moments that show it, to cite"
+          },
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count",
+            "description": "emotion: how many lines have it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "by"
+        ],
+        "title": "FindReason"
+      },
+      "FindResults": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "how many assets match, on all pages"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FindItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "resolved": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/components/schemas/FindNamed"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Resolved",
+            "description": "what the names given matched, by filter (and how many narrower topics came with them)"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FindText"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "total",
+          "items"
+        ],
+        "title": "FindResults"
+      },
+      "FindText": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "title": "Mode",
+            "description": "how the words were matched: keyword, semantic or hybrid"
+          },
+          "meaning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meaning",
+            "description": "why not by meaning, when it was asked and couldn't be"
+          },
+          "moments": {
+            "type": "integer",
+            "title": "Moments",
+            "description": "moments the words were found in"
+          },
+          "capped": {
+            "type": "boolean",
+            "title": "Capped",
+            "description": "more moments matched than were looked through, so some assets may be missing"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "mode",
+          "moments",
+          "capped"
+        ],
+        "title": "FindText"
+      },
       "ForgotPasswordRequest": {
         "properties": {
           "email": {
@@ -49076,11 +50254,411 @@
             ],
             "title": "Browser",
             "description": "asked from a browser's Lens side panel: its session (POST /browser/sessions). While it's connected, the assistant can use that browser (docs/browser-assistant.md)"
+          },
+          "via": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "voice"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Via",
+            "description": "voice: said in a voice conversation (the question's record keeps it)"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "MessageCreate"
+      },
+      "MessageDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SharedContext"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a question asked from a page: the page, and any highlighted text"
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/Attachment"
+            },
+            "type": "array",
+            "title": "Attachments",
+            "description": "files sent with it (POST /uploads with hold)"
+          },
+          "passages": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Passage"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passages"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "stopped": {
+            "type": "boolean",
+            "title": "Stopped",
+            "description": "the answer was stopped (POST /chats/{cid}/stop): `content` is what came before",
+            "default": false
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/ToolStep"
+            },
+            "type": "array",
+            "title": "Steps",
+            "description": "the tools the assistant used for this answer, in order"
+          },
+          "notice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notice",
+            "description": "e.g. the model can't use tools, so the answer came from a search"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why there's no answer"
+          },
+          "check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnswerCheck"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "its latest source check (POST .../messages/{mid}/check)"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "the model that wrote the answer"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "the message it follows; null for a first question"
+          },
+          "versions": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Versions"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "it and the others said in its place, from regenerating or editing"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MessageRecord"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "what produced it; none on messages from before it was recorded"
+          },
+          "ledger": {
+            "items": {
+              "$ref": "#/components/schemas/ActivityEntry"
+            },
+            "type": "array",
+            "title": "Ledger",
+            "description": "its rows in the activity ledger: the model and tool calls made for it, newest first"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "content"
+        ],
+        "title": "MessageDetail"
+      },
+      "MessageRecord": {
+        "properties": {
+          "via": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "web",
+                  "api",
+                  "room",
+                  "voice",
+                  "automation",
+                  "completions"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Via",
+            "description": "a question: how it was sent"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecordOptions"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a question: the options it was asked with"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "the model that wrote the answer"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider",
+            "description": "the host name of the model server it ran on (never its address or key)"
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecordTools"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope",
+            "description": "the scope it answered in, after a conversation over everything was narrowed"
+          },
+          "limits": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecordLimits"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "used": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecordUse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "answered",
+                  "direct",
+                  "limit",
+                  "fallback",
+                  "stopped",
+                  "error"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome",
+            "description": "answered (after looking things up), direct (without looking anything up), limit (its rounds ran out, so it answered from what it found), fallback (from a search: the model can't use tools, or none is set up), stopped, or error"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecordTokens"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the tokens of the model calls made for it (the activity ledger)"
+          },
+          "cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Usd",
+            "description": "what those calls cost, from the prices in Settings"
+          },
+          "cost_estimated": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Estimated",
+            "description": "some calls had a price but no token counts: the cost is at least this"
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ms",
+            "description": "how long it took to write, from the question"
+          },
+          "flagged": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flagged",
+            "description": "tools whose results read like instructions to an AI"
+          },
+          "research": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Research",
+            "description": "the research it belongs to"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "the version of Lens that wrote it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "MessageRecord",
+        "description": "What produced a message, recorded as it was written (docs/assistant.md, \"What each answer records\"). A question's\nhas `via` and `options`; an answer's the rest. Messages from before it was recorded have none."
       },
       "MetadataBulk": {
         "properties": {
@@ -57266,6 +58844,168 @@
           "at"
         ],
         "title": "Reading"
+      },
+      "RecordLimits": {
+        "properties": {
+          "rounds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rounds",
+            "description": "rounds of tool calls it had (calls in one round run together)"
+          },
+          "tool_calls": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Calls",
+            "description": "tool calls it had; null: only the rounds limit them"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "RecordLimits"
+      },
+      "RecordOptions": {
+        "properties": {
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools"
+          },
+          "max_tool_calls": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Tool Calls"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope"
+          },
+          "research": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Research"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "RecordOptions",
+        "description": "What a question was asked with (only what it set)."
+      },
+      "RecordTokens": {
+        "properties": {
+          "in": {
+            "type": "integer",
+            "title": "In",
+            "default": 0
+          },
+          "out": {
+            "type": "integer",
+            "title": "Out",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "RecordTokens"
+      },
+      "RecordTools": {
+        "properties": {
+          "picked": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Picked",
+            "description": "the tools or groups the question asked for; null: Auto"
+          },
+          "offered": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Offered",
+            "description": "every tool the model was offered"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "RecordTools"
+      },
+      "RecordUse": {
+        "properties": {
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds",
+            "default": 0
+          },
+          "tool_calls": {
+            "type": "integer",
+            "title": "Tool Calls",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "RecordUse"
       },
       "Recording": {
         "properties": {
@@ -66560,6 +68300,30 @@
             "type": "string",
             "title": "Summary",
             "default": ""
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ms",
+            "description": "how long the tool took"
+          },
+          "failed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failed",
+            "description": "the tool failed (or was unknown or blocked); its summary says why"
           }
         },
         "additionalProperties": true,

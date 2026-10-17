@@ -5,6 +5,7 @@ import {
   AudioLines,
   Captions,
   Clapperboard,
+  Eraser,
   Eye,
   EyeOff,
   FileOutput,
@@ -61,6 +62,7 @@ const ICON: Record<string, LucideIcon> = {
   objects: Shapes,
   nsfw: EyeOff,
   describe: Eye,
+  clean: Eraser,
   analyze: TextSearch,
   embed: ScanSearch,
   summarize: Sparkles,
@@ -71,7 +73,7 @@ const ICON: Record<string, LucideIcon> = {
 };
 const TONE = { intent: "blue", red: "red", green: "green", gate: "gold", neutral: "neutral" } as const;
 const ASSETS = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe"];
-const METADATA = ["analyze", "embed", "summarize", "llm", "report", "export"];
+const METADATA = ["clean", "analyze", "embed", "summarize", "llm", "report", "export"];
 
 /** A pipeline drawn as a graph: asset steps, metadata steps and workflows, an edge saying what runs after what. */
 export function PipelineCanvas({ id }: { id: number }) {

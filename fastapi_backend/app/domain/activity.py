@@ -47,6 +47,7 @@ TABLES = {  # the API's path segments, and the table a number after one names
     "workflows": "workflow",
     "custom-nodes": "custom_node",
     "chats": "chat",
+    "messages": "chat_message",  # a conversation's messages/{mid}
     "jobs": "job",
     "namespaces": "space",
     "spaces": "space",
@@ -111,6 +112,26 @@ def scope(db, *refs, cfg=None):
         yield
     finally:
         _scope.reset(token)
+
+
+def scoped(items, db, *refs, cfg=None):
+    """`items` (a generator) with each of its steps run inside scope(db, *refs). A `with scope(...)` inside a generator
+    doesn't hold across its yields when a streamed response iterates it from the threadpool: each step runs in a fresh
+    copy of the request's context."""
+    it = iter(items)
+    try:
+        while True:
+            with scope(db, *refs, cfg=cfg):
+                try:
+                    item = next(it)
+                except StopIteration:
+                    return
+            yield item
+    finally:
+        close = getattr(it, "close", None)
+        if close:
+            with scope(db, *refs, cfg=cfg):
+                close()
 
 
 def current():

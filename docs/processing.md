@@ -14,12 +14,47 @@ How assets move through Lens: where they come from, what each step does, and how
   ([Documents and images](configuration.md#documents-and-images)).
 - `diarize` splits genuinely two-channel files by channel, otherwise clusters voice embeddings (or uses pyannote), then
   matches voiceprints against the namespace's people.
+- `clean` (off until Settings → Analysis → Clean up transcripts before analysis is on) tidies a transcript before
+  analysis reads it: [Cleaning up transcripts](#cleaning-up-transcripts).
 - `analyze` finds entities, chapters, keywords and talk statistics; `summarize` (optional) calls any OpenAI-compatible
   server for a summary, key points, action items (with who will do them), topics, people, tone and importance, each
   key point and action item with the time of the line it comes from; `report` writes static HTML per asset and
   per namespace, with word clouds.
 
 Every step takes `--ns`, `--limit` and `--force`; `run` does them all, and a lock stops two runs overlapping.
+
+### Cleaning up transcripts
+
+Speech comes out of transcription as it was said, and the extractor, chapters, keywords and search all read it. With
+`analysis.cleanup` on (Settings → Analysis → Clean up transcripts before analysis; off by default), the `clean` step,
+which the standard pipeline runs just before `analyze`, tidies each line of a transcript with rules. It needs no model,
+fetches nothing and sends nothing out:
+
+- a word said three times or more in a row is kept once ("I I I looked" → "I looked"), and a doubled pronoun, article
+  or conjunction ("the the", "I, I") once; "had had", "that that" and "very very" stay;
+- "um", "uh", "erm" and "hmm" go, with the comma after them (`analysis.cleanup_fillers`, Take out "um" and "uh"; on);
+- one space between words, none before a comma or a full stop, one after a comma;
+- "i" becomes "I", and each sentence starts with a capital. A line that carries on the one before (same speaker, no
+  full stop) keeps its lower case.
+- punctuation (`analysis.cleanup_punctuation`, Put punctuation back; off): a local model, kredor/punctuate-all (MIT;
+  English, German, French, Spanish, Italian, Dutch, Portuguese, Polish, Czech, Slovak, Slovenian and Bulgarian), adds
+  full stops, commas and question marks after words that have none, where it is at least 70% sure. "Where a
+  transcript has none" (`missing`) does it only for a transcript with fewer than one full stop in 40 words, such as
+  imported captions; "In every transcript" (`always`) for every one. It keeps the marks a transcript has, and gives
+  each line marks once. The model, Transformers and PyTorch (about 2 GB) are fetched the first time a clean step
+  needs them ([Components](components.md)); until then, and in other languages, the rules run alone and the job's
+  log says why.
+
+These are English rules ("um" is a word in German and Portuguese), so they apply to English lines: the line's or the
+asset's language when transcription gave one, else when the text reads as English. In other languages only a word
+said three times in a row is kept once, and sentences start with a capital. Documents and images keep their text as
+it was read.
+
+Every line it changes is in the asset's Change history (by "text cleanup"), with Revert. A line someone corrected,
+or reverted, is never cleaned again, and running the step again on cleaned text changes nothing. Turn it on for a
+custom pipeline by adding the Clean up step before Analyze (with Force it runs even while the setting is off); run it
+on an asset with Reprocess → Clean up, `POST /api/v1/recordings/{id}/reprocess` with `{"steps": ["clean", "analyze"]}`,
+or `lens clean`. Workers whose `workers.steps` list has `analyze` run it too.
 
 ## Importing text and transcripts {#importing-transcripts}
 
@@ -260,6 +295,38 @@ In the web app:
 * a topic's and an entity's drawer, and a resource, topic or entity selected on the graph canvas, list similar
   content too.
 
+### Finding by any attribute
+
+The API (`POST /find`), the assistant (`find_resources`) and the MCP server (`find`) find assets by what is known
+about them, one filter for all three:
+
+* who is **seen** in them (`faces`: face identities, [Video](video.md)) and **heard** (`speakers`: people, by voice);
+* the **entities** they mention and the **topics** they were accepted as about (a topic brings its narrower topics);
+* their **kind** (`types`: audio, video, transcript, document, image) and **content type** (`content_types`: podcast,
+  interview, scan, photo, email … [Content types](#content-types));
+* **when** they were made (`date_from`, `date_to`: a day, a month or a year, so `2025` is the whole year) and how
+  long they are;
+* their tags, language, the kinds of object seen in them, the emotions heard, their status, collection and where they
+  came from;
+* and words said or written in them (`text`, matched as a search is, by meaning too when that is set up).
+
+Filters combine with AND, the values of one filter with OR. Faces, people heard, entities and topics take an id or a
+name: a name matches every face, person, entity (or one of the other ways it's said) or topic label called that in the
+namespaces you can read, ignoring case, and `resolved` says what it matched. A name that matches nothing is an error
+that lists the closest names, so an agent can correct itself.
+
+Each asset found says **why** it matched, with up to three moments per reason to cite: where the words are, when the
+face is on screen (or the pages it's on), the person's first lines, the lines that mention the entity, and the topics,
+content type, kinds of object and emotions that matched. With `text`, the asset whose moment matches best comes
+first; otherwise the newest. Nothing here calls a model, apart from `text` searching by meaning when it is set up
+(one embedding request, logged in the activity ledger).
+
+The Library list (`GET /resources`) takes the same attributes as ids: `face`, `entity`, `topic` (as it is, without its
+narrower topics), `content_type` and `emotion`, besides its other filters ([API](api.md#resources)).
+
+Planned, not built yet: these filters in the Library's filter bar and in saved collections, finding by what a photo
+shows (`GET /search/photos`) inside the same filter, and ranking by more than the best matching moment.
+
 ## Background work
 
 Imports, pipeline runs and folder scans return at once and run as jobs stored in SurrealDB. The server runs
@@ -457,7 +524,8 @@ A pipeline is a named, versioned list of steps; each namespace can choose its de
 analyze, summarize, report). Imports, watched folders and reprocessing use the namespace's pipeline; steps that need
 audio skip themselves for imported text. Steps:
 
-- `transcribe`, `diarize`, `analyze`, `summarize`, and `report` (the built-in report).
+- `transcribe`, `diarize`, `clean` ([Cleaning up transcripts](#cleaning-up-transcripts)), `analyze`, `summarize`, and
+  `report` (the built-in report).
 - `llm`: renders a prompt template, sends it to the configured model, checks the reply against the template's JSON
   Schema and saves it as a named output (e.g. `meeting_notes`).
 - `report` with a template: renders an HTML page into the namespace's reports. These pages may not run scripts.

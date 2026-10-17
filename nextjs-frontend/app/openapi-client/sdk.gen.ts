@@ -465,6 +465,9 @@ import type {
   FindGraphPathData,
   FindGraphPathErrors,
   FindGraphPathResponses,
+  FindResourcesData,
+  FindResourcesErrors,
+  FindResourcesResponses,
   FindSimilarData,
   FindSimilarErrors,
   FindSimilarResponses,
@@ -577,6 +580,9 @@ import type {
   GetMediaData,
   GetMediaErrors,
   GetMediaResponses,
+  GetMessageData,
+  GetMessageErrors,
+  GetMessageResponses,
   GetMonitoringData,
   GetMonitoringResponses,
   GetNamespaceAssistantData,
@@ -6999,6 +7005,29 @@ export class Search {
       ...options,
     });
   }
+
+  /**
+   * Find Resources
+   *
+   * Assets you can read that match every filter given: the people seen in them (faces) and heard (speakers), the
+   * entities they mention, the topics they're about, their kind and content type, when they were made, their tags,
+   * language, objects seen, emotions heard, length, status, collection and origin, and words said or written in them.
+   * Faces, people heard, entities and topics can be named instead of numbered; `resolved` says what each name matched, and
+   * a name that matches nothing is a 400 naming the closest ones. Each asset says `why` it matched, with up to three
+   * moments per reason to cite (a time, or a page). With `text`, the best matching come first.
+   */
+  public static findResources<ThrowOnError extends boolean = false>(
+    options: Options<FindResourcesData, ThrowOnError>,
+  ): RequestResult<FindResourcesResponses, FindResourcesErrors, ThrowOnError> {
+    return (options.client ?? client).post<FindResourcesResponses, FindResourcesErrors, ThrowOnError>({
+      url: "/api/v1/find",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
 }
 
 export class Searches {
@@ -10120,11 +10149,28 @@ export class Chats {
   }
 
   /**
+   * Get Message
+   *
+   * One message of any version, with its record (`meta`: for an answer, the model and the host it ran on, the tools
+   * offered and used, the scope, limits and use, tokens, cost, time and how it ended) and its rows in the activity ledger
+   * (`ledger`: the calls made for it, newest first). Citations follow your current access, as in GET /chats/{cid}.
+   */
+  public static getMessage<ThrowOnError extends boolean = false>(
+    options: Options<GetMessageData, ThrowOnError>,
+  ): RequestResult<GetMessageResponses, GetMessageErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetMessageResponses, GetMessageErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/messages/{mid}",
+      ...options,
+    });
+  }
+
+  /**
    * Send Message
    *
    * Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model
    * reads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
-   * /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).
+   * /chats/{cid}/stop: what came before is saved, marked stopped), meta (the answer's record, kept with it: what produced
+   * it), done (the saved message id).
    *
    * A conversation is a tree of versions (GET /chats/{cid}: `tree`, and each message's `versions`); the question goes
    * on from `parent` when given (any message of the conversation), else from the version showing (`head`). With

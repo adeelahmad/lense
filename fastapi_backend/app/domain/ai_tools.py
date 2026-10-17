@@ -19,6 +19,7 @@ from . import (
     extensions,
     entity_map,
     events,
+    find as findmod,
     graph_ask,
     graph_model,
     entity_setup,
@@ -47,6 +48,7 @@ R = store.R
 log = logging.getLogger("lens")
 _I = {"type": "integer"}
 _S = {"type": "string"}
+_LIST = {"type": "array", "items": {"type": ["string", "integer"]}}
 TOOLS = [
     (
         "search_transcripts",
@@ -68,6 +70,35 @@ TOOLS = [
         "list_recordings",
         "List assets (recordings, documents, images and text) in scope, newest first, optionally by namespace, dates (YYYY-MM-DD), person, entity or media.",
         {"namespace": _S, "from": _S, "to": _S, "speaker_id": _I, "entity_id": _I, "media": _S, "limit": _I},
+        [],
+        False,
+    ),
+    (
+        "find_resources",
+        "Find assets (recordings, videos, documents and images) in scope by any attribute: who is seen in them (faces) or heard "
+        "(speakers), entities they mention, topics they're about, their type (audio, video, transcript, document, image), "
+        "content type (podcast, interview, scan, photo, email …), dates (a day, month or year), tags, language, objects "
+        "seen, emotions heard, length, and words said in them (text). Faces, speakers, entities and topics take ids or "
+        "names. Each result says why it matched, with numbered moments to cite.",
+        {
+            "text": _S,
+            "faces": _LIST,
+            "speakers": _LIST,
+            "entities": _LIST,
+            "topics": _LIST,
+            "types": _LIST,
+            "content_types": _LIST,
+            "date_from": _S,
+            "date_to": _S,
+            "min_duration": {"type": "number"},
+            "max_duration": {"type": "number"},
+            "tags": _LIST,
+            "languages": _LIST,
+            "objects": _LIST,
+            "emotions": _LIST,
+            "namespace": _S,
+            "limit": _I,
+        },
         [],
         False,
     ),
@@ -554,6 +585,7 @@ class Toolbox(ops_tools.OpsTools):
             self.readable = {s for s in self.readable if names.get(s) in self.scope["namespaces"]}
         self.allowed = recsets.within(db, self.readable, self.scope.get("recordings"), self.scope.get("collections"))
         self.refs, self.reads, self.approvals = [], 0, []
+        self.flagged, self.failed = [], False  # tools whose results read like instructions to an AI; the last call failed
         # the extensions this person switched on or was given (extensions.py); hooks don't run inside hooks
         roles = {s: "editor" if s in self.editable else "viewer" for s in self.readable}
         self.me = extensions.who(self.account, user.get("email"), admin, roles)
@@ -721,6 +753,7 @@ class Toolbox(ops_tools.OpsTools):
         """A tool's result (JSON) and the step's summary. `model`: the result as the model reads it, third-party text
         marked as data (untrusted), with what hooks add after it, unmarked."""
         offered = {s["function"]["name"] for s in self.specs()}
+        self.failed = True  # until it runs: a tool that's unknown or blocked failed
         try:
             if name not in offered:
                 raise AttributeError(name)
@@ -736,6 +769,7 @@ class Toolbox(ops_tools.OpsTools):
                 extra += self._hook(h, {"said": self.said, "tool": name})
         asked = len(self.approvals)
         result, summary = self._run(name, fn, args)
+        self.failed = result.startswith('{"error"')
         self.links |= untrusted.links(result)
         if self.untrusted(name) and len(self.approvals) == asked:  # it read something, rather than asking for a yes
             self.read_outside(f"tool {name}")
@@ -747,6 +781,7 @@ class Toolbox(ops_tools.OpsTools):
                 why = untrusted.flags(result, self.cfg, model=True)
                 if why:  # the person sees it on the step, the model on the marker, admins in the audit log
                     summary = f"{summary} (reads like instructions to an AI: {'; '.join(why)})"
+                    self.flagged.append(name)
                     auth.audit(self.db, self.user, "assistant.injection_flagged", f"chat:{self.chat}", {"tool": name, "why": why})
                 result = untrusted.wrap(result, f"tool {name}", self.cfg, why=why)
             return result + (f"\n\n{extra.strip()}" if extra else ""), summary
@@ -1337,6 +1372,41 @@ class Toolbox(ops_tools.OpsTools):
             raise ValueError(f"there's no activity {activity} you can see")
         on = f" on {activity}" if activity else ""
         return self._approval("run_automation", {"automation_id": row["id"], "activity": activity}, f"Run automation {row['name']} now{on}")
+
+    def t_find_resources(self, namespace=None, limit=10, **spec):
+        spaces = sorted(self.readable)
+        if namespace:
+            spaces = [s for s in spaces if store.space_names(self.db).get(s) == namespace]
+            if not spaces:
+                raise ValueError(f"namespace {namespace} isn't available in this conversation")
+        res = findmod.find(self.db, self.cfg, spaces, None, spec, limit=min(int(limit or 10), 25), ids=self.allowed)
+        out = []
+        for x in res["items"]:
+            why = []
+            for w in x["why"]:
+                moments = []
+                for m in w.get("moments") or []:
+                    text = m.get("text") or f"{w['name']} ({w['by']})"
+                    n = self.ref(
+                        x["id"], m.get("t0") or 0, text, m.get("speaker"), x.get("title"), m.get("source") or "said", m.get("page")
+                    )
+                    where = {"page": m["page"] + 1} if m.get("page") is not None else {"time": store.tc(m.get("t0"))}
+                    moments.append(store.clean({"ref": n, **where, "text": m.get("text")}))
+                why.append(store.clean({"by": w["by"], "name": w.get("name"), "count": w.get("count"), "moments": moments or None}))
+            out.append(
+                store.clean(
+                    {
+                        "recording_id": x["id"],
+                        "title": x.get("title"),
+                        "date": (x.get("recorded_at") or "")[:10] or None,
+                        "type": x.get("media_kind"),
+                        "namespace": x.get("namespace"),
+                        "speakers": x.get("speakers") or None,
+                        "why": why,
+                    }
+                )
+            )
+        return {"total": res["total"], "resolved": res["resolved"] or None, "results": out}, f"Found {res['total']} asset(s)"
 
     def t_read_transcript(self, recording_id, start_seconds=0, end_seconds=None, max_lines=60):
         cap = self.cfg["ai"].get("max_transcript_reads") or 20
