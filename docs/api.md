@@ -477,7 +477,8 @@ read there:
 What it cites comes back three ways, so any app can show it: `[n]` in the text with a **Sources** list of links after
 it (left out when the request has a `response_format`), `citations` (the link for `[n]` is the n-th), and
 `lens.sources` (`n`, `recording_id`, `title`, `time`, `speaker`, `url`, `cited`). `lens.steps` lists the tools the
-model used. With `"stream": true` the answer comes as OpenAI's `chat.completion.chunk` events, ending with
+model used, and `lens.record` what produced the answer, as a chat answer's record
+([What each answer records](assistant.md#what-each-answer-records)) without tokens and cost. With `"stream": true` the answer comes as OpenAI's `chat.completion.chunk` events, ending with
 `data: [DONE]`; the last chunk before it carries `finish_reason: "stop"`, `citations` and `lens`. While the tools run,
 the stream sends SSE comments, so nothing in between closes it.
 
@@ -1461,6 +1462,7 @@ GET    /api/v1/chats/{cid}
 PATCH  /api/v1/chats/{cid}
 DELETE /api/v1/chats/{cid}
 POST   /api/v1/chats/{cid}/messages
+GET    /api/v1/chats/{cid}/messages/{mid}
 POST   /api/v1/chats/{cid}/stop
 POST   /api/v1/chats/{cid}/messages/{mid}/check
 GET    /api/v1/approvals
@@ -1482,7 +1484,9 @@ whether it uses tools (`tools`, `max_steps`), whether answers can be checked (`c
 (the configured one first; `llm.chat_models`, else the server's list); never the model server's address or key. A
 conversation's `model` (`POST /chats`, `PATCH /chats/{cid}`; null for the configured one) answers in it, and a
 question can name another (`POST /chats/{cid}/messages {content, model}`, e.g. to retry); a model that isn't offered is
-a 400. Each answer records the `model` that wrote it. `POST /chats/{cid}/stop` stops the answer being written in your conversation after the piece or tool
+a 400. Each answer records the `model` that wrote it, and its `meta` what produced it; `GET
+/chats/{cid}/messages/{mid}` gives one message with its record and its rows in the activity ledger
+([What each answer records](assistant.md#what-each-answer-records)). `POST /chats/{cid}/stop` stops the answer being written in your conversation after the piece or tool
 step it's on: the stream sends `stopped`, then `done` with the saved message, whose `stopped` is true and whose
 `content` is what came before (`(stopped)` when nothing had). `{stopping: false}` when nothing was being written.
 `POST /chats/{cid}/messages {content, edit}` edits one of your earlier questions (`edit` is its message id): it and

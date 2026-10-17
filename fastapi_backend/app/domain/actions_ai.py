@@ -257,7 +257,10 @@ def _ask_agent(db, cfg, intent, user, dry):
     if about:
         url = (about.get("object") or {}).get("url") if isinstance(about.get("object"), dict) else None
         page = {"url": str(url or f"/timeline?activity={about.get('id') or ''}"), "title": _short(happened, 300)}
-    chat.add(db, cid, "user", instructions, context=page, origin=box.origin)
+    chat.add(db, cid, "user", instructions, context=page, origin=box.origin, meta=chat.question_record("automation", tools=tools or None))
+    # the answer's id up front: every call made for it names it in the ledger, and its record sums them
+    mid = db.next_id("chat_message")
+    record, spent = chat.Record(cfg, scope=box.scope, picked=tools or None), f"chat_message:{mid}"
     # reading the activity counts as reading outside text for this conversation from now on (ai_tools.read_before)
     steps = (
         [{"tool": "automation_event", "args": {"id": about.get("id")}, "summary": f"Read what happened: {_short(happened, 200)}"}]
@@ -265,21 +268,28 @@ def _ask_agent(db, cfg, intent, user, dry):
         else []
     )
     question = instructions + (_context(about, cfg) if about else "")
-    text = None
+    text, how = None, "answered"
+
+    def said(words, cited, outcome, **kw):
+        """The answer, saved with its record."""
+        chat.add(db, cid, "assistant", words or "(no answer)", cited, steps=steps, mid=mid, meta=record.meta(db, outcome, spent), **kw)
+
     try:
-        for kind, data in chat.tool_answer(cfg, box, question, (), steps_max):
-            if kind == "step":
-                steps.append(data)
-            else:
-                text = data
+        with activity.scope(db, f"chat:{cid}", spent, cfg=cfg):
+            for kind, data in chat.tool_answer(cfg, box, question, (), steps_max, record=record):
+                if kind == "step":
+                    steps.append(data)
+                else:
+                    text, how = data, "direct" if kind == "direct" else "answered"
     except llm.ToolsUnsupported:
-        chat.add(db, cid, "assistant", "(no answer)", [], steps=steps, error="this model can't use tools")
+        said("", [], "error", error="this model can't use tools")
         raise ValueError("this model can't use tools, so the agent can't act: pick one that can in Settings › Model") from None
     except (llm.LLMError, activity.OverBudget) as e:
-        chat.add(db, cid, "assistant", "(no answer)", [], steps=steps, error=str(e))
+        said("", [], "error", error=str(e))
         raise ValueError(f"the agent couldn't answer: {e}") from None
-    box.after_answer(text or "")
-    chat.add(db, cid, "assistant", text or "(no answer)", box.cited(text), steps=steps, model=cfg["llm"].get("model"))
+    with activity.scope(db, f"chat:{cid}", spent, cfg=cfg):
+        box.after_answer(text or "")
+    said(text, box.cited(text), how, model=cfg["llm"].get("model"))
     return {
         "answer": text or "",
         "chat": cid,

@@ -25235,13 +25235,65 @@
         }
       }
     },
+    "/api/v1/chats/{cid}/messages/{mid}": {
+      "get": {
+        "tags": [
+          "chats"
+        ],
+        "summary": "Get Message",
+        "description": "One message of any version, with its record (`meta`: for an answer, the model and the host it ran on, the tools\noffered and used, the scope, limits and use, tokens, cost, time and how it ended) and its rows in the activity ledger\n(`ledger`: the calls made for it, newest first). Citations follow your current access, as in GET /chats/{cid}.",
+        "operationId": "get_message",
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          },
+          {
+            "name": "mid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chats/{cid}/messages": {
       "post": {
         "tags": [
           "chats"
         ],
         "summary": "Send Message",
-        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).\n\nA conversation is a tree of versions (GET /chats/{cid}: `tree`, and each message's `versions`); the question goes\non from `parent` when given (any message of the conversation), else from the version showing (`head`). With\n`regenerate` (an answer's id) its question is answered again, as a new version beside that answer (`content` isn't\nneeded; `model` may pick another). With `edit`, one of your earlier questions is edited: this question becomes a new\nversion beside it and is answered, and the old one stays with what followed it (404 if it isn't a question in this\nconversation). Either keeps the page the question was asked from (where, and the highlighted text; not the page's\ntext, which isn't kept) unless `context` is given, and streams `branch` first ({message, parent, versions}: the\nnew version, the message it follows and its versions); so does a question beside others under `parent`.\n\n`/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the\nconversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.\n\nWith `browser` (the session of a browser's Lens side panel, POST /browser/sessions), the assistant can use that\nbrowser while the side panel is connected: open pages, read them, click, type and download files into the\nconversation (docs/browser-assistant.md).",
+        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), meta (the answer's record, kept with it: what produced\nit), done (the saved message id).\n\nA conversation is a tree of versions (GET /chats/{cid}: `tree`, and each message's `versions`); the question goes\non from `parent` when given (any message of the conversation), else from the version showing (`head`). With\n`regenerate` (an answer's id) its question is answered again, as a new version beside that answer (`content` isn't\nneeded; `model` may pick another). With `edit`, one of your earlier questions is edited: this question becomes a new\nversion beside it and is answered, and the old one stays with what followed it (404 if it isn't a question in this\nconversation). Either keeps the page the question was asked from (where, and the highlighted text; not the page's\ntext, which isn't kept) unless `context` is given, and streams `branch` first ({message, parent, versions}: the\nnew version, the message it follows and its versions); so does a question beside others under `parent`.\n\n`/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the\nconversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.\n\nWith `browser` (the session of a browser's Lens side panel, POST /browser/sessions), the assistant can use that\nbrowser while the side panel is connected: open pages, read them, click, type and download files into the\nconversation (docs/browser-assistant.md).",
         "operationId": "send_message",
         "parameters": [
           {
@@ -36709,6 +36761,17 @@
               }
             ],
             "description": "it and the others said in its place, from regenerating or editing"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MessageRecord"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "what produced it; none on messages from before it was recorded"
           }
         },
         "additionalProperties": true,
@@ -49182,11 +49245,411 @@
             ],
             "title": "Browser",
             "description": "asked from a browser's Lens side panel: its session (POST /browser/sessions). While it's connected, the assistant can use that browser (docs/browser-assistant.md)"
+          },
+          "via": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "voice"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Via",
+            "description": "voice: said in a voice conversation (the question's record keeps it)"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "MessageCreate"
+      },
+      "MessageDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SharedContext"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a question asked from a page: the page, and any highlighted text"
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/Attachment"
+            },
+            "type": "array",
+            "title": "Attachments",
+            "description": "files sent with it (POST /uploads with hold)"
+          },
+          "passages": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Passage"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passages"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "stopped": {
+            "type": "boolean",
+            "title": "Stopped",
+            "description": "the answer was stopped (POST /chats/{cid}/stop): `content` is what came before",
+            "default": false
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/ToolStep"
+            },
+            "type": "array",
+            "title": "Steps",
+            "description": "the tools the assistant used for this answer, in order"
+          },
+          "notice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notice",
+            "description": "e.g. the model can't use tools, so the answer came from a search"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why there's no answer"
+          },
+          "check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnswerCheck"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "its latest source check (POST .../messages/{mid}/check)"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "the model that wrote the answer"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "the message it follows; null for a first question"
+          },
+          "versions": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Versions"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "it and the others said in its place, from regenerating or editing"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MessageRecord"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "what produced it; none on messages from before it was recorded"
+          },
+          "ledger": {
+            "items": {
+              "$ref": "#/components/schemas/ActivityEntry"
+            },
+            "type": "array",
+            "title": "Ledger",
+            "description": "its rows in the activity ledger: the model and tool calls made for it, newest first"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "content"
+        ],
+        "title": "MessageDetail"
+      },
+      "MessageRecord": {
+        "properties": {
+          "via": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "web",
+                  "api",
+                  "room",
+                  "voice",
+                  "automation",
+                  "completions"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Via",
+            "description": "a question: how it was sent"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecordOptions"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a question: the options it was asked with"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "the model that wrote the answer"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider",
+            "description": "the host name of the model server it ran on (never its address or key)"
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecordTools"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope",
+            "description": "the scope it answered in, after a conversation over everything was narrowed"
+          },
+          "limits": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecordLimits"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "used": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecordUse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "answered",
+                  "direct",
+                  "limit",
+                  "fallback",
+                  "stopped",
+                  "error"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome",
+            "description": "answered (after looking things up), direct (without looking anything up), limit (its rounds ran out, so it answered from what it found), fallback (from a search: the model can't use tools, or none is set up), stopped, or error"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecordTokens"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the tokens of the model calls made for it (the activity ledger)"
+          },
+          "cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Usd",
+            "description": "what those calls cost, from the prices in Settings"
+          },
+          "cost_estimated": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Estimated",
+            "description": "some calls had a price but no token counts: the cost is at least this"
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ms",
+            "description": "how long it took to write, from the question"
+          },
+          "flagged": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flagged",
+            "description": "tools whose results read like instructions to an AI"
+          },
+          "research": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Research",
+            "description": "the research it belongs to"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "the version of Lens that wrote it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "MessageRecord",
+        "description": "What produced a message, recorded as it was written (docs/assistant.md, \"What each answer records\"). A question's\nhas `via` and `options`; an answer's the rest. Messages from before it was recorded have none."
       },
       "MetadataBulk": {
         "properties": {
@@ -57372,6 +57835,168 @@
           "at"
         ],
         "title": "Reading"
+      },
+      "RecordLimits": {
+        "properties": {
+          "rounds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rounds",
+            "description": "rounds of tool calls it had (calls in one round run together)"
+          },
+          "tool_calls": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Calls",
+            "description": "tool calls it had; null: only the rounds limit them"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "RecordLimits"
+      },
+      "RecordOptions": {
+        "properties": {
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools"
+          },
+          "max_tool_calls": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Tool Calls"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope"
+          },
+          "research": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Research"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "RecordOptions",
+        "description": "What a question was asked with (only what it set)."
+      },
+      "RecordTokens": {
+        "properties": {
+          "in": {
+            "type": "integer",
+            "title": "In",
+            "default": 0
+          },
+          "out": {
+            "type": "integer",
+            "title": "Out",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "RecordTokens"
+      },
+      "RecordTools": {
+        "properties": {
+          "picked": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Picked",
+            "description": "the tools or groups the question asked for; null: Auto"
+          },
+          "offered": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Offered",
+            "description": "every tool the model was offered"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "RecordTools"
+      },
+      "RecordUse": {
+        "properties": {
+          "rounds": {
+            "type": "integer",
+            "title": "Rounds",
+            "default": 0
+          },
+          "tool_calls": {
+            "type": "integer",
+            "title": "Tool Calls",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "RecordUse"
       },
       "Recording": {
         "properties": {
@@ -66533,6 +67158,30 @@
             "type": "string",
             "title": "Summary",
             "default": ""
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ms",
+            "description": "how long the tool took"
+          },
+          "failed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failed",
+            "description": "the tool failed (or was unknown or blocked); its summary says why"
           }
         },
         "additionalProperties": true,
