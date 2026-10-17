@@ -25,9 +25,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **The assistant runs Python and bash.** Turn on Settings → Code sandbox and point Lens at an NVIDIA OpenShell
   gateway, and the assistant gets `run_python`, `run_bash`, `sandbox_files` and `import_sandbox_file`: code runs in a
   sandbox of the conversation's own, with none of Lens's data or keys and no network unless you allow the package
-  registries or the public web. Files attached to the conversation go in; a file it makes reaches a namespace once the
-  person approves. Off by default; starting the gateway from Settings is in progress
-  ([Code sandbox](docs/assistant.md#code-sandbox)).
+  registries, or those and hosts you list. Files attached to the conversation go in; a file it makes reaches a
+  namespace once the person approves. Off by default ([Code sandbox](docs/assistant.md#code-sandbox)).
+- **Start the code sandbox's gateway from Settings.** Settings → Code sandbox → Run the gateway on this machine has
+  the upgrade agent start NVIDIA OpenShell's gateway next to Lens (the Compose profile `sandbox`) and turns the sandbox
+  on; Lens signs in to it over mutual TLS. First it checks the machine can run it (the Docker Compose install, a
+  64-bit machine, Landlock in its Linux kernel) and says why not. Off deletes every sandbox and stops it. The same
+  over `PUT /api/v1/admin/sandbox` and the MCP tools `sandbox_gateway` and `set_sandbox_gateway`
+  ([The gateway](docs/assistant.md#the-gateway)).
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 

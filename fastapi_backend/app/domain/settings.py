@@ -1315,11 +1315,38 @@ SANDBOX_GATEWAY = re.compile(r"^(\[[0-9A-Fa-f:]+\]|[A-Za-z0-9][A-Za-z0-9.-]{0,25
 SANDBOX_IMAGE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/:@+-]{0,254}$")
 SANDBOX_RANGES = {"seconds": (1, 600), "idle_minutes": (1, 1440), "keep_hours": (1, 720)}
 _BYTES = {"": 1, "K": 1000, "M": 1000**2, "G": 1000**3, "Ki": 1024, "Mi": 1024**2, "Gi": 1024**3}
+_LABEL = re.compile(r"^(?!-)[a-z0-9-]{1,63}(?<!-)$")
+
+
+def _sandbox_hosts(value, most):
+    """sandbox.hosts: names the code sandbox may reach with sandbox.network hosts, as OpenShell's policy takes them:
+    api.example.com, or a wildcard first label with at least three labels in all (*.example.com, **.example.com). No
+    addresses: a name is held to public addresses anyway, and an address would skip that."""
+    raw = value.replace(",", " ").split() if isinstance(value, str) else value
+    if not isinstance(raw, list) or len(raw) > most:
+        raise ValueError(f"sandbox.hosts is a list of up to {most} host names, like api.example.com or *.example.com")
+    out = []
+    for v in raw:
+        h = str(v).strip().lower().rstrip(".")
+        labels = h.split(".")
+        first, rest = labels[0], labels[1:]
+        wild = first in ("*", "**")
+        ok = (
+            len(h) <= 253
+            and len(labels) >= (3 if wild else 2)
+            and (wild or _LABEL.match(first))
+            and all(_LABEL.match(x) for x in rest)
+            and not rest[-1].isdigit()
+        )
+        if not ok:
+            raise ValueError(f"sandbox.hosts: {v} isn't a host name like api.example.com or *.example.com")
+        out.append(h)
+    return list(dict.fromkeys(out))
 
 
 def _sandbox_setting(key, value):
     """The code sandbox (sandbox.py): cpu like 1, 0.5 or 500m (up to 64 cores); memory like 512Mi or 2Gi (64Mi to
-    64Gi); the gateway as host:port; the image as an OCI image reference."""
+    64Gi); the gateway as host:port; the image as an OCI image reference; hosts as host names (_sandbox_hosts)."""
     from . import sandbox
 
     if key == "enabled":
@@ -1328,8 +1355,10 @@ def _sandbox_setting(key, value):
         return value
     if key == "network":
         if value not in sandbox.NETWORKS:
-            raise ValueError("sandbox.network is off, packages (PyPI and npm only) or web (public addresses)")
+            raise ValueError("sandbox.network is off, packages (PyPI and npm only) or hosts (those and sandbox.hosts)")
         return value
+    if key == "hosts":
+        return _sandbox_hosts(value, sandbox.HOSTS_MAX)
     if key == "who":
         if value not in sandbox.WHO:
             raise ValueError("sandbox.who is editors (people who can edit a namespace, and admins) or admins")
@@ -1353,7 +1382,7 @@ def _sandbox_setting(key, value):
         return text
     if key == "gateway":
         if not SANDBOX_GATEWAY.match(text) or not 0 < int(text.rsplit(":", 1)[1]) < 65536:
-            raise ValueError("sandbox.gateway is the OpenShell gateway's host:port, like openshell-gateway:8080")
+            raise ValueError("sandbox.gateway is the OpenShell gateway's host:port, like openshell-gateway:17670")
         return text
     if key == "image":
         if not SANDBOX_IMAGE.match(text):

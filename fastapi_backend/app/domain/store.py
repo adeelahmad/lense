@@ -527,12 +527,14 @@ DEFAULTS = {
     # the assistant's code sandbox (sandbox.py, docs/assistant.md#code-sandbox): off until an admin turns it on. Then
     # each conversation's Python and bash run in a sandbox of its own on the OpenShell gateway at `gateway`, made from
     # `image` with `cpu` and `memory`, stopped after idle_minutes and deleted keep_hours after its last run. network:
-    # off (none), packages (PyPI and npm) or web (public addresses). who: editors (and admins), or admins only.
+    # off (none), packages (PyPI and npm) or hosts (those and `hosts`). who: editors (and admins), or admins only. The
+    # gateway's address is the one the Compose profile `sandbox` runs.
     "sandbox": {
         "enabled": False,
-        "gateway": "openshell-gateway:8080",
+        "gateway": "openshell-gateway:17670",
         "image": "python:3.12-slim",
         "network": "off",
+        "hosts": [],
         "who": "editors",
         "cpu": "1",
         "memory": "512Mi",

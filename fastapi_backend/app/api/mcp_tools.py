@@ -62,6 +62,7 @@ from app.domain import (
     variables,
 )
 from app.domain import entities as ents
+from app.domain import sandbox as sandboxmod
 from app.domain import speakers as spk
 from app.domain import topics as topicmod
 from app.domain.store import DB
@@ -2004,6 +2005,44 @@ def set_monitoring(ctx: Context, on: bool) -> dict[str, Any]:
     except monitoring.MonitoringError as e:
         raise ToolError(str(e)) from None
     auth.audit(ctx.db, ctx.user.as_audit(), "lens.monitoring", None, {"on": bool(on), "via": "mcp"})
+    return got
+
+
+# ---------- the code sandbox's OpenShell gateway next to Lens (admins) ----------
+@tool(
+    "sandbox_gateway",
+    "Code sandbox gateway",
+    "Whether the code sandbox's OpenShell gateway runs next to Lens (the Compose profile sandbox), how the machine's "
+    "last change went, what stands in the way of running it here (preflight), and whether Lens reaches it at "
+    "sandbox.gateway (reachable, problem). Admins only.",
+    admin=True,
+)
+def sandbox_gateway(ctx: Context) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins see or change the code sandbox's gateway")
+    return sandboxmod.gateway_view(ctx.db, ctx.cfg) | {"settings": f"{ctx.web}/settings/sandbox"}
+
+
+@tool(
+    "set_sandbox_gateway",
+    "Start or stop the code sandbox's gateway",
+    "Have this machine start (on true) or stop the code sandbox's OpenShell gateway. On also turns the sandbox on, at "
+    "that gateway; off deletes every conversation's sandbox, files and all, and turns the sandbox off. The machine's "
+    "upgrade agent does it; sandbox_gateway follows along. Admins only, with a token that has the write scope.",
+    Arg("on", "boolean", "start (true) or stop (false)", required=True),
+    writes=True,
+    admin=True,
+)
+def set_sandbox_gateway(ctx: Context, on: bool) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins see or change the code sandbox's gateway")
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to change the gateway")
+    try:
+        got = sandboxmod.turn(ctx.db, ctx.request.app.state.archive.base, ctx.cfg, bool(on), by=ctx.user.email)
+    except sandboxmod.GatewayError as e:
+        raise ToolError(str(e)) from None
+    auth.audit(ctx.db, ctx.user.as_audit(), "lens.sandbox", None, {"on": bool(on), "via": "mcp"})
     return got
 
 

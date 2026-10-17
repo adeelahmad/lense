@@ -24,6 +24,7 @@ import {
   useModelProviders,
   type ModelProvider,
 } from "@/components/settings/model-providers";
+import { SandboxGatewaySwitch } from "@/components/settings/sandbox-gateway";
 import { SignInProviders } from "@/components/settings/sign-in-providers";
 import { UpdatesPanel } from "@/components/settings/updates-panel";
 import { VoicePicker } from "@/components/settings/voice-picker";
@@ -340,11 +341,13 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
     case "sandbox":
       return (
         <>
+          <SandboxGatewaySwitch />
           <F ctx={ctx} id="sandbox.enabled" />
           <div className="grid gap-3 sm:grid-cols-2">
             <F ctx={ctx} id="sandbox.who" />
             <F ctx={ctx} id="sandbox.network" />
           </div>
+          {ctx.values["sandbox.network"] === "hosts" && <F ctx={ctx} id="sandbox.hosts" />}
           <F ctx={ctx} id="sandbox.gateway" />
           <More
             ctx={ctx}
@@ -373,8 +376,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             Each conversation gets a sandbox of its own the first time the assistant runs code in it, and keeps its
             files between runs. Nothing of Lens’s is inside: the assistant copies in files people attached when it needs
             them, and a file it makes reaches a namespace only once the person approves. The sandbox runs on an NVIDIA
-            OpenShell gateway (Docker 28 or newer, and a Linux kernel with Landlock). Starting that gateway from here is
-            in progress; until then, point Lens at one you run.
+            OpenShell gateway: Lens runs one next to itself on a Linux machine with Docker 28 or newer and a kernel with
+            Landlock (6.2 or newer), or point it at one you run elsewhere.
           </p>
         </>
       );

@@ -1,0 +1,34 @@
+# The NVIDIA OpenShell gateway the assistant's code sandbox runs on (docs/assistant.md#code-sandbox): the Compose
+# profile `sandbox` (docker-compose.yml, docker-compose.prod.yml) mounts it read-only. OpenShell's own reference:
+# https://docs.nvidia.com/openshell/ (How it works › Gateways › Configuration).
+[openshell]
+version = 2
+
+[openshell.gateway]
+log_level = "info"
+# each sandbox is a container of this machine's Docker, made through the socket the gateway's container mounts
+compute_driver = "docker"
+
+# what the gateway signs its sandboxes' supervisors in with; openshell-init makes these keys once, with the TLS ones
+[openshell.gateway.gateway_jwt]
+signing_key_path = "/var/lib/openshell/tls/jwt/signing.pem"
+public_key_path = "/var/lib/openshell/tls/jwt/public.pem"
+kid_path = "/var/lib/openshell/tls/jwt/kid"
+gateway_id = "lens"
+
+[openshell.drivers.docker]
+# Lens names the image of each sandbox it makes (sandbox.image); this is only for one made without
+default_image = "python:3.12-slim"
+# the same release as the gateway's image, so an upgrade of Lens changes all three together
+sandbox_runtime_image = "ghcr.io/nvidia/openshell/sandbox:0.1.4"
+supervisor_image = "ghcr.io/nvidia/openshell/supervisor:0.1.4"
+image_pull_policy = "if_not_present"
+# the openshell.sandbox_namespace label on the sandboxes' containers
+sandbox_label = "lens"
+# OpenShell's supervisor-compatible default; its supervisor applies Landlock and seccomp itself. RuntimeDefault
+# needs a Docker that reports AppArmor support
+app_armor_profile = "Unconfined"
+# never: a host folder mounted in a sandbox would get past its filesystem controls
+enable_bind_mounts = false
+# processes a sandbox may run (OpenShell's default is 2048)
+sandbox_pids_limit = 256

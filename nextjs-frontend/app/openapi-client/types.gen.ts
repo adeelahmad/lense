@@ -17208,6 +17208,85 @@ export type S3Status = {
 };
 
 /**
+ * SandboxGateway
+ */
+export type SandboxGateway = {
+  /**
+   * On
+   *
+   * the sandbox profile (the code sandbox's OpenShell gateway) as last asked
+   */
+  on: boolean;
+  /**
+   * State
+   *
+   * how the machine's last change went
+   */
+  state?: "queued" | "running" | "done" | "failed" | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Asked At
+   */
+  asked_at?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Agent
+   *
+   * what changes it on this machine (systemd, launchd); none: run `manual` there
+   */
+  agent?: string | null;
+  /**
+   * Manual
+   *
+   * the line that starts it by hand, on the machine Lens runs on
+   */
+  manual: string;
+  /**
+   * Preflight
+   *
+   * what stands in the way of running it on this machine, a sentence each
+   */
+  preflight: Array<string>;
+  /**
+   * Address
+   *
+   * where Lens reaches the gateway (sandbox.gateway)
+   */
+  address: string;
+  /**
+   * Reachable
+   *
+   * whether the gateway answered and let Lens in; null: not checked
+   */
+  reachable?: boolean | null;
+  /**
+   * Problem
+   *
+   * why it didn't, when it didn't
+   */
+  problem?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SandboxGatewayRequest
+ */
+export type SandboxGatewayRequest = {
+  /**
+   * On
+   *
+   * start (true) or stop (false) the code sandbox's gateway; stopping deletes its sandboxes
+   */
+  on: boolean;
+};
+
+/**
  * SavedSearch
  */
 export type SavedSearch = {
@@ -25920,6 +25999,47 @@ export type SetMonitoringResponses = {
 };
 
 export type SetMonitoringResponse = SetMonitoringResponses[keyof SetMonitoringResponses];
+
+export type GetSandboxGatewayData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/sandbox";
+};
+
+export type GetSandboxGatewayResponses = {
+  /**
+   * Successful Response
+   */
+  200: SandboxGateway;
+};
+
+export type GetSandboxGatewayResponse = GetSandboxGatewayResponses[keyof GetSandboxGatewayResponses];
+
+export type SetSandboxGatewayData = {
+  body: SandboxGatewayRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/sandbox";
+};
+
+export type SetSandboxGatewayErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetSandboxGatewayError = SetSandboxGatewayErrors[keyof SetSandboxGatewayErrors];
+
+export type SetSandboxGatewayResponses = {
+  /**
+   * Successful Response
+   */
+  202: SandboxGateway;
+};
+
+export type SetSandboxGatewayResponse = SetSandboxGatewayResponses[keyof SetSandboxGatewayResponses];
 
 export type ListBackupsData = {
   body?: never;

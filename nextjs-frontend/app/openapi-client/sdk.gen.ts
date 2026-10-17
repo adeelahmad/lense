@@ -665,6 +665,8 @@ import type {
   GetRunData,
   GetRunErrors,
   GetRunResponses,
+  GetSandboxGatewayData,
+  GetSandboxGatewayResponses,
   GetSensorData,
   GetSensorErrors,
   GetSensorResponses,
@@ -1435,6 +1437,9 @@ import type {
   SetRecordingContentTypeData,
   SetRecordingContentTypeErrors,
   SetRecordingContentTypeResponses,
+  SetSandboxGatewayData,
+  SetSandboxGatewayErrors,
+  SetSandboxGatewayResponses,
   SetupData,
   SetupErrors,
   SetupResponses,
@@ -3656,6 +3661,40 @@ export class Updates {
   ): RequestResult<SetMonitoringResponses, SetMonitoringErrors, ThrowOnError> {
     return (options.client ?? client).put<SetMonitoringResponses, SetMonitoringErrors, ThrowOnError>({
       url: "/api/v1/admin/monitoring",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Sandbox Gateway
+   *
+   * Whether the code sandbox's OpenShell gateway runs next to Lens (the sandbox profile), how the machine's last
+   * change went, what stands in the way here, and whether Lens reaches the gateway at sandbox.gateway.
+   */
+  public static getSandboxGateway<ThrowOnError extends boolean = false>(
+    options?: Options<GetSandboxGatewayData, ThrowOnError>,
+  ): RequestResult<GetSandboxGatewayResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetSandboxGatewayResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/sandbox",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Sandbox Gateway
+   *
+   * Have this machine start or stop the code sandbox's gateway. On also turns the sandbox on, at that gateway; off
+   * deletes the conversations' sandboxes first and turns the sandbox off. GET /admin/sandbox follows along.
+   */
+  public static setSandboxGateway<ThrowOnError extends boolean = false>(
+    options: Options<SetSandboxGatewayData, ThrowOnError>,
+  ): RequestResult<SetSandboxGatewayResponses, SetSandboxGatewayErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetSandboxGatewayResponses, SetSandboxGatewayErrors, ThrowOnError>({
+      url: "/api/v1/admin/sandbox",
       ...options,
       headers: {
         "Content-Type": "application/json",
