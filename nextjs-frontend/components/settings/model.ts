@@ -813,6 +813,27 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "llm",
+    key: "describe_engine",
+    label: "Describe pictures with",
+    kind: "select",
+    options: [
+      { value: "llm", label: "The provider’s model that can see images" },
+      { value: "florence-2", label: "Florence-2 on this server (MIT, runs on the CPU)" },
+    ],
+    hint: "The Describe step says what each page and shot shows. Florence-2 sends no picture anywhere and is fetched the first time it’s needed",
+  },
+  {
+    section: "llm",
+    key: "florence_model",
+    label: "Florence-2 size",
+    kind: "select",
+    options: [
+      { value: "base", label: "Base (about 280 MB, for small machines)" },
+      { value: "large", label: "Large (about 830 MB, more detail, slower)" },
+    ],
+  },
+  {
+    section: "llm",
     key: "vision_model",
     label: "Model that can see images",
     kind: "text",
@@ -828,7 +849,7 @@ export const FIELDS: FieldSpec[] = [
     kind: "int",
     min: 1,
     max: 1000,
-    hint: "Of a resource, in order: each is a request to the model",
+    hint: "Of a resource, in order: each is one call to the model",
   },
   { section: "llm", key: "api_key", label: "API key", kind: "secret" },
   {
@@ -942,6 +963,15 @@ export const FIELDS: FieldSpec[] = [
     hint: "Rounds of tool calls the assistant makes for one question. When they run out, it answers from what it found.",
     min: 1,
     max: 50,
+  },
+  {
+    section: "ai",
+    key: "max_tool_calls",
+    label: "Most tool calls a question may ask for",
+    kind: "int",
+    hint: "The highest limit a question or a conversation can set on the tool calls of one answer.",
+    min: 1,
+    max: 500,
   },
   {
     section: "ai",
@@ -2300,8 +2330,16 @@ export const FIELDS: FieldSpec[] = [
     options: [
       { value: "off", label: "None: nothing goes in or out" },
       { value: "packages", label: "Python and npm package registries only" },
-      { value: "web", label: "Public web addresses (asks first after reading outside text)" },
+      { value: "hosts", label: "Those and the hosts below (asks first after reading outside text)" },
     ],
+  },
+  {
+    section: "sandbox",
+    key: "hosts",
+    label: "Hosts it may reach",
+    kind: "lines",
+    mono: true,
+    hint: "With the network on hosts: one per line, like api.github.com or *.wikipedia.org, on ports 80 and 443. Private addresses are refused whatever name they have",
   },
   {
     section: "sandbox",
@@ -2309,8 +2347,8 @@ export const FIELDS: FieldSpec[] = [
     label: "OpenShell gateway",
     kind: "text",
     mono: true,
-    placeholder: "openshell-gateway:8080",
-    hint: "host:port of its gRPC service, on a network only Lens reaches",
+    placeholder: "openshell-gateway:17670",
+    hint: "host:port of its gRPC service, on a network only Lens reaches. Running the gateway on this machine sets it",
   },
   {
     section: "sandbox",
@@ -3694,6 +3732,22 @@ export function gazetteerErrors(lines: string[]): string | null {
   return null;
 }
 
+/** A host the code sandbox may reach (sandbox.hosts), as the backend takes it: api.example.com, or a wildcard first
+ *  label with at least three labels in all (*.example.com, **.example.com); never an address. */
+export function sandboxHost(raw: string): boolean {
+  const h = raw.trim().toLowerCase().replace(/\.$/, "");
+  const labels = h.split(".");
+  const wild = labels[0] === "*" || labels[0] === "**";
+  const label = /^(?!-)[a-z0-9-]{1,63}(?<!-)$/;
+  return (
+    h.length <= 253 &&
+    labels.length >= (wild ? 3 : 2) &&
+    (wild || label.test(labels[0])) &&
+    labels.slice(1).every((x) => label.test(x)) &&
+    !/^\d+$/.test(labels[labels.length - 1])
+  );
+}
+
 /** Checks across fields and the backend's own rules. Values are the parsed values of the whole section group. */
 export function crossErrors(values: Record<string, unknown>): Record<string, string> {
   const e: Record<string, string> = {};
@@ -3770,7 +3824,11 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
     e["sandbox.memory"] = "Like 512Mi or 2Gi";
   const gw = values["sandbox.gateway"] as string | undefined;
   if (gw !== undefined && !/^(\[[0-9a-f:]+\]|[a-z0-9][a-z0-9.-]*):\d{1,5}$/i.test(String(gw).trim()))
-    e["sandbox.gateway"] = "host:port, like openshell-gateway:8080";
+    e["sandbox.gateway"] = "host:port, like openshell-gateway:17670";
+  const sHosts = values["sandbox.hosts"] as string[] | undefined;
+  const badHost = sHosts?.find((x) => !sandboxHost(x));
+  if (badHost) e["sandbox.hosts"] = `“${badHost}” isn’t a host name like api.github.com or *.wikipedia.org`;
+  else if (sHosts && sHosts.length > 50) e["sandbox.hosts"] = "50 hosts at most";
   const mNets = values["smb.allowed_networks"] as string[] | undefined;
   const badMNet = mNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badMNet) e["smb.allowed_networks"] = `“${badMNet}” isn’t a network like 192.168.1.0/24`;

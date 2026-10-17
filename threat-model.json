@@ -6,7 +6,7 @@
   "scope_subpath": null,
   "description": "Lens is a self-hosted archive for documents, recordings, photos and messages: it reads, transcribes, indexes and publishes them, and people search and chat over them. One operator (the instance admin) runs an instance for their own people: a FastAPI API, a Next.js web app that proxies the API and holds the sign-in session, and background workers, around one SurrealDB database, with content split into namespaces and per-namespace roles. Exposing an instance to the internet behind HTTPS (reverse proxy or Cloudflare tunnel) is supported. Only the instance admin (equivalent to host code execution) and the host operator are trusted; everyone else is trusted only as far as their role.",
   "confidence": {
-    "documented": 249,
+    "documented": 250,
     "inferred": 99
   },
   "components": [
@@ -628,6 +628,15 @@
       "caller_must_enforce": "none — it runs as its maker with their permissions at run time (P-AUTOMATION-ACTOR); actions reaching outside Lens ask first; outside text marks intents untrusted and breaks up links (P-INJECTION-EGRESS); chains and bursts are bounded (P-AUTOMATION-LOOP)",
       "provenance": "documented",
       "source": "docs/automations.md \"Running automations\""
+    },
+    {
+      "entry_point": "admin sandbox gateway",
+      "parameter": "PUT /api/v1/admin/sandbox {on}, MCP set_sandbox_gateway",
+      "attacker_controllable": "no",
+      "component": "authz",
+      "caller_must_enforce": "admin is trusted; audited (lens.sandbox); refused when preflight finds the machine can't run the gateway; reaches the machine only as an inbox request (action=services, profile=sandbox) the agent checks again; off deletes every sandbox first",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"The gateway\""
     },
     {
       "entry_point": "code sandbox",
@@ -1333,7 +1342,7 @@
       "property": "P-SANDBOX",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",
-      "conditions": "code the assistant runs (sandbox.enabled, off by default) runs only for people sandbox.who allows, in its conversation's own OpenShell sandbox, never in Lens's processes; the sandbox gets none of Lens's data, keys or database address, only the code and files the person attached to that conversation; egress: none (off), PyPI and npm on 443 (packages) or public addresses on 80 and 443 (web); a file leaves only as the person's held upload placed by an import_files approval; stopped when idle, deleted when unused or with its conversation",
+      "conditions": "code the assistant runs (sandbox.enabled, off by default) runs only for people sandbox.who allows, in its conversation's own OpenShell sandbox, never in Lens's processes; the sandbox gets none of Lens's data, keys or database address, only the code and files the person attached to that conversation; egress: none (off), PyPI and npm on 443 (packages), or those and the names in sandbox.hosts on 80 and 443 (hosts), every endpoint held to public addresses; a file leaves only as the person's held upload placed by an import_files approval; stopped when idle, deleted when unused or with its conversation",
       "provenance": "documented",
       "source": "docs/assistant.md \"Code sandbox\""
     },

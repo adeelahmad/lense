@@ -34,6 +34,7 @@ from app.schemas.chats import (
     ChatCreate,
     ChatScope,
     ChatSummary,
+    ChatTools,
     ChatUpdate,
     HeadUpdate,
     MessageCreate,
@@ -77,8 +78,8 @@ def _own_chat(db: DB, cid: int, user: Principal) -> dict[str, Any]:
 def list_chats(user: CurrentUser, db: Db) -> list[ChatSummary]:
     """Your conversations, most recent first."""
     return db.rows(
-        "SELECT record::id(id) AS id, title, scope, model, kind ?? 'chat' AS kind, created_at, updated_at FROM chat WHERE account = $a "
-        "ORDER BY updated_at DESC LIMIT 200",
+        "SELECT record::id(id) AS id, title, scope, model, kind ?? 'chat' AS kind, tools, max_tool_calls, created_at, updated_at "
+        "FROM chat WHERE account = $a ORDER BY updated_at DESC LIMIT 200",
         a=user.id,
     )
 
@@ -94,8 +95,33 @@ def chat_capabilities(user: CurrentUser, cfg: Cfg) -> ChatCapabilities:
         model=cfg["llm"].get("model") if on else None,
         tools=on and bool(cfg["ai"].get("tools")),
         max_steps=int(cfg["ai"].get("max_steps") or 6),
+        max_tool_calls=int(cfg["ai"].get("max_tool_calls") or 50),
         check=on,
         models=chat.model_choices(cfg),
+    )
+
+
+def _box(db: DB, cfg: dict[str, Any], user: Principal, acl: Access, scope: dict[str, Any] | None, request: Request) -> ai_tools.Toolbox:
+    """The assistant's tools as this person has them, in `scope`, before anything is asked."""
+    return ai_tools.Toolbox(
+        db, cfg, user.as_audit(), set(acl.roles), set(acl.editable()), scope, None, request.app.state.archive.base, user.admin
+    )
+
+
+@router.get("/chats/tools")
+def chat_tools(user: CurrentUser, acl: Acl, db: Db, cfg: Cfg, request: Request, chat_id: int | None = None) -> ChatTools:
+    """The tool groups and tools an answer can be given (`tools` on a question or a conversation), as you have them: each
+    tool with what it does (read, asks: it waits for your yes, out: it sends what it's given to another host) and
+    whether you have it now, each group with why you don't when you have none of it, and the setting that changes it.
+    Built-in groups first, then your extensions' (mcp:<server>, ext:<extension>). With `chat_id`, as in that
+    conversation's scope (a namespace's own memory is there only in a conversation about that namespace). Also: the most
+    tool calls an answer may be given, and your latest choice, which new conversations start with."""
+    scope = _own_chat(db, chat_id, user).get("scope") if chat_id is not None else None
+    box = _box(db, cfg, user, acl, scope, request)
+    return ChatTools(
+        groups=ai_tools.catalog(box),
+        max_tool_calls=int(cfg["ai"].get("max_tool_calls") or 50),
+        remembered=chat.remembered_tools(db, user.id),
     )
 
 
@@ -106,12 +132,44 @@ def _model(cfg: dict[str, Any], model: str | None) -> str | None:
         raise HTTPException(400, str(e)) from None
 
 
+def _tools(box: ai_tools.Toolbox, tools: list[str] | None) -> list[str] | None:
+    """A choice of tools, each a group or tool this person has (400 otherwise)."""
+    if tools is None:
+        return None
+    bad = box.unknown(tools)
+    if bad:
+        raise HTTPException(400, f"no tool or tool group {bad[0]!r} (GET /chats/tools lists them)")
+    return list(dict.fromkeys(tools))
+
+
+def _limit(cfg: dict[str, Any], n: int | None) -> int | None:
+    try:
+        return chat.tool_calls_allowed(cfg, n)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+
+
 @router.post("/chats")
-def create_chat(user: Writer, acl: Acl, db: Db, cfg: Cfg, body: ChatCreate | None = None) -> Created:
+def create_chat(user: Writer, acl: Acl, db: Db, cfg: Cfg, request: Request, body: ChatCreate | None = None) -> Created:
+    """A conversation. Its answers may use what `tools` and `max_tool_calls` say, which become your latest choice;
+    left out, your latest choice (here or PATCH /chats/{cid}), else Auto: everything you may use, limited by the rounds
+    alone."""
     body = body or ChatCreate()
     if body.kind == "setup" and not user.admin:
         raise HTTPException(403, "only admins set up the server")
-    return Created(id=chat.create(db, user.id, body.title, _scope(acl, db, body.scope), _model(cfg, body.model), body.kind))
+    # setting the server up keeps every tool: your latest choice is for conversations about the archive
+    last = chat.remembered_tools(db, user.id) if body.kind == "chat" else {"tools": None, "max_tool_calls": None}
+    tools = _tools(_box(db, cfg, user, acl, None, request), body.tools) if "tools" in body.model_fields_set else last["tools"]
+    limit = _limit(cfg, body.max_tool_calls) if "max_tool_calls" in body.model_fields_set else _most(cfg, last["max_tool_calls"])
+    cid = chat.create(db, user.id, body.title, _scope(acl, db, body.scope), _model(cfg, body.model), body.kind, tools, limit)
+    if body.kind == "chat" and {"tools", "max_tool_calls"} & body.model_fields_set:
+        chat.remember_tools(db, user.id, tools, limit)
+    return Created(id=cid)
+
+
+def _most(cfg: dict[str, Any], n: int | None) -> int | None:
+    """A limit kept from before, within ai.max_tool_calls as it is now."""
+    return None if n is None else max(1, min(int(n), int(cfg["ai"].get("max_tool_calls") or 50)))
 
 
 @router.get("/chats/{cid}")
@@ -175,15 +233,24 @@ def get_message(cid: int, mid: int, user: CurrentUser, acl: Acl, db: Db) -> Mess
 
 
 @router.patch("/chats/{cid}")
-def update_chat(cid: int, body: ChatUpdate, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> Ok:
-    """Rename a conversation, change what it draws on, or the model that answers in it (null: the configured one)."""
-    _own_chat(db, cid, user)
+def update_chat(cid: int, body: ChatUpdate, user: Writer, acl: Acl, db: Db, cfg: Cfg, request: Request) -> Ok:
+    """Rename a conversation, change what it draws on, the model that answers in it (null: the configured one), or
+    what its answers may use (`tools`, null: Auto) and at most how many tool calls each makes (`max_tool_calls`, null:
+    no limit but the rounds). The choice of tools and limit is also what your new conversations start with."""
+    c = _own_chat(db, cid, user)
     if "model" in body.model_fields_set:
         db.q("UPDATE $r SET model = $m", r=R("chat", cid), m=_model(cfg, body.model))
     if body.title:
         db.q("UPDATE $r SET title = $t", r=R("chat", cid), t=body.title[:120])
     if "scope" in body.model_fields_set:  # replaces the scope as a whole, so narrowing can also be removed
         db.q("UPDATE $r SET scope = $s", r=R("chat", cid), s=_scope(acl, db, body.scope))
+    chose = {"tools", "max_tool_calls"} & body.model_fields_set
+    if chose:
+        tools = _tools(_box(db, cfg, user, acl, c.get("scope"), request), body.tools) if "tools" in chose else c.get("tools")
+        limit = _limit(cfg, body.max_tool_calls) if "max_tool_calls" in chose else c.get("max_tool_calls")
+        db.q("UPDATE $r SET tools = $t, max_tool_calls = $n", r=R("chat", cid), t=tools, n=limit)
+        if c.get("kind") == "chat":
+            chat.remember_tools(db, user.id, tools, limit)
     return Ok()
 
 
@@ -236,6 +303,11 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
     text, which isn't kept) unless `context` is given, and streams `branch` first ({message, parent, versions}: the
     new version, the message it follows and its versions); so does a question beside others under `parent`.
 
+    What the answer may use: `tools` (tool groups and tools, GET /chats/tools; [] for none, when it answers from a
+    search) and `max_tool_calls` (at most that many tool calls, in as many rounds as it takes), else the conversation's
+    choice (PATCH /chats/{cid}); and `scope`, what this answer alone draws on (the conversation keeps its own). Its
+    record keeps what it was given and used.
+
     `/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the
     conversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.
 
@@ -284,7 +356,15 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
     model = await run_in_threadpool(_model, cfg, body.model) if body.model else c.get("model")
     if model and not body.model and model not in await run_in_threadpool(chat.model_choices, cfg):
         model = None
-    record = chat.Record(cfg, model)  # what produced the answer, kept with it (from here: it times the answer)
+    # what this answer may use: its tools and at most how many calls (the conversation's, unless the question says), and
+    # what it draws on, when the question gives it a scope of its own (the conversation keeps its scope)
+    if body.tools is not None:
+        tools = await run_in_threadpool(lambda: _tools(_box(db, cfg, user, acl, c.get("scope"), request), body.tools))
+    else:
+        tools = c.get("tools")
+    limit = _limit(cfg, body.max_tool_calls) if body.max_tool_calls is not None else _most(cfg, c.get("max_tool_calls"))
+    own_scope = await run_in_threadpool(_scope, acl, db, body.scope) if body.scope is not None else None
+    record = chat.Record(cfg, model, picked=tools, tool_calls=limit)  # what produced the answer (from here: it times it)
     title = c["title"]
     page = body.context.model_dump() if body.context else None
     kept = chat.shared_context(page)  # what the question keeps of the page
@@ -321,7 +401,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         summary = chat.memory(db, cfg, cid, past)
         if again is None:
             via = "voice" if body.via == "voice" else "web" if user.via == "access" else "api"
-            meta = chat.question_record(via, model=body.model)
+            meta = chat.question_record(via, model=body.model, tools=tools, max_tool_calls=limit, scope=own_scope)
             question = chat.add(db, cid, "user", q, attachments=files, context=kept, parent=under, meta=meta)
         answer_id = db.next_id("chat_message")
         if again is not None:
@@ -336,6 +416,8 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
     def draw_on(past: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], Any]:
         if not past and again is None and title == "New conversation":
             db.q("UPDATE $r SET title = $t", r=R("chat", cid), t=q[:80])
+        if own_scope is not None:  # this answer's own scope, as asked: nothing is narrowed for it
+            return past, chat.retrieve(db, q, readable, own_scope, cfg=cfg), None
         # A conversation over everything gets the namespace its first question is about, when that's clear.
         if past or c.get("kind") == "setup" or c.get("scope"):
             return past, chat.retrieve(db, q, readable, c.get("scope"), cfg=cfg), None
@@ -348,7 +430,8 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         return past, chat.retrieve(db, q, readable, c["scope"], cfg=cfg), placed
 
     past, passages, placed = await run_in_threadpool(prepare)
-    record.scope = c.get("scope") or {}  # after a conversation over everything was narrowed to what it's about
+    scope = own_scope if own_scope is not None else c.get("scope")  # after one over everything was narrowed to what it's about
+    record.scope = scope or {}
     picked = placed[1] if placed and placed[0] == "scoped" else None
     suggested = placed[1] if placed and placed[0] == "suggest" else None
 
@@ -379,7 +462,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
 
     def answer(on: chat.Answering) -> Iterator[str]:
         nonlocal notice
-        if llm.configured(cfg) and cfg["ai"].get("tools"):
+        if llm.configured(cfg) and cfg["ai"].get("tools") and tools != []:  # given no tools, it answers from a search
             setup = c.get("kind") == "setup"
             box = ai_tools.Toolbox(
                 db,
@@ -387,7 +470,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                 user.as_audit(),
                 readable,
                 set(acl.editable()),
-                c.get("scope"),
+                scope,
                 cid,
                 request.app.state.archive.base,
                 user.admin,
@@ -396,13 +479,17 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                 # what it read before any tool ran: the page it was asked from, and earlier answers' excerpts and tools
                 outside=(["page"] if page else []) + ai_tools.read_before(past, summary),
                 browser=body.browser,
+                only=tools,
                 web_app=web_app_base(request),  # the address the person uses, for lens_help's MCP and API addresses
             )
             try:
                 answer, how = "", "answered"
                 # setting the server up, or working in the person's browser, takes more steps than looking things up
                 steps_max = max(cfg["ai"].get("max_steps") or 6, 12 if setup else 0, browser.steps(cfg) if box.browser else 0)
-                for kind, data in chat.tool_answer(cfg, box, asked, past, steps_max, model, setup=setup, summary=summary, record=record):
+                answering = chat.tool_answer(
+                    cfg, box, asked, past, steps_max, model, setup=setup, summary=summary, record=record, max_tool_calls=limit
+                )
+                for kind, data in answering:
                     if kind == "step":
                         steps.append(data)
                         yield _ev("step", data)

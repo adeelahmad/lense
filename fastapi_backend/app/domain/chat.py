@@ -316,8 +316,10 @@ def cited(text, passages):
 
 
 # ---------- conversations ----------
-def create(db, account, title=None, scope=None, model=None, kind="chat"):
-    """A conversation. A `setup` one (admins) is the assistant setting the server up: it acts instead of asking."""
+def create(db, account, title=None, scope=None, model=None, kind="chat", tools=None, max_tool_calls=None):
+    """A conversation. A `setup` one (admins) is the assistant setting the server up: it acts instead of asking.
+    `tools` and `max_tool_calls`: what its answers may use (None: Auto, everything the person may use) and at most how
+    many tool calls each makes (None: the rounds limit them)."""
     cid = db.next_id("chat")
     db.q(
         "CREATE $r CONTENT $d",
@@ -329,6 +331,8 @@ def create(db, account, title=None, scope=None, model=None, kind="chat"):
                 "kind": kind if kind != "chat" else None,
                 "scope": scope or {},
                 "model": model,
+                "tools": tools,
+                "max_tool_calls": max_tool_calls,
                 "created_at": store.now(),
                 "updated_at": store.now(),
             }
@@ -337,9 +341,21 @@ def create(db, account, title=None, scope=None, model=None, kind="chat"):
     return cid
 
 
+def remember_tools(db, account, tools, max_tool_calls):
+    """Someone's latest choice of tools and tool-call limit, which their new conversations start with."""
+    db.q("UPDATE $r SET chat_tools = $t", r=R("account", account), t={"tools": tools, "max_tool_calls": max_tool_calls})
+
+
+def remembered_tools(db, account):
+    """{tools, max_tool_calls}: the choice someone's new conversations start with (both None: Auto, no limit)."""
+    got = (db.one("SELECT chat_tools FROM $r", r=R("account", account)) or {}).get("chat_tools") or {}
+    return {"tools": got.get("tools"), "max_tool_calls": got.get("max_tool_calls")}
+
+
 def get(db, cid, account):
     c = db.one(
-        "SELECT record::id(id) AS id, account, title, scope, model, kind ?? 'chat' AS kind, head, created_at, updated_at FROM $r",
+        "SELECT record::id(id) AS id, account, title, scope, model, kind ?? 'chat' AS kind, head, tools, max_tool_calls, created_at, "
+        "updated_at FROM $r",
         r=R("chat", cid),
     )
     if not c or c["account"] != account:
@@ -837,6 +853,18 @@ FINISH = (
     "Don't call any more tools now: answer the question from what you found above, citing it, and say in a sentence "
     "what you didn't get to check."
 )
+SPENT = "This answer's tool calls are used up, so this one wasn't made."
+
+
+def tool_calls_allowed(cfg, asked):
+    """At most how many tool calls one answer makes when `asked` (None: no limit but the rounds), never past
+    ai.max_tool_calls. ValueError for one that isn't a whole number from 1 to that."""
+    if asked is None:
+        return None
+    most = int(cfg["ai"].get("max_tool_calls") or 50)
+    if isinstance(asked, bool) or not isinstance(asked, int) or not 1 <= asked <= most:
+        raise ValueError(f"max_tool_calls is a whole number from 1 to {most} (ai.max_tool_calls)")
+    return asked
 
 
 def _plain(msgs):
@@ -874,20 +902,30 @@ def _finish(cfg, msgs, tools, model):
     return text
 
 
-def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, setup=False, summary=None, record=None):
+def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, setup=False, summary=None, record=None, max_tool_calls=None):
     """The tool loop: yields ("step", {...}) for each tool call, then ("answer", text), or ("direct", text) when the model
     answered without looking anything up (it never saw the archive, so the caller can answer from a search instead).
     Every turn ends in an answer: when the steps run out, or the model replies with nothing, it's asked to answer from
     what it found, with the tools off. Raises llm.ToolsUnsupported. `record` (a Record) learns the tools offered and
-    counts the rounds and tool calls."""
+    counts the rounds and tool calls. `max_tool_calls` (tool_calls_allowed): at most that many calls, in as many rounds
+    as it takes (a round makes one call or more), instead of `max_steps` rounds; a round that asks for more makes the
+    first of them, and the answer is written from what they found (its record's outcome is limit)."""
+    limit = tool_calls_allowed(cfg, max_tool_calls)
+    max_steps = limit or max_steps
     system = TOOL_SYSTEM + untrusted.rules(cfg) + ("\n\n" + SETUP_SYSTEM if setup else "")
     note = getattr(toolbox, "system_note", None)  # skills, and context from hooks (extensions.py)
     system += note() if note else ""
     system += summary_note(summary)
-    system += (
-        f"\n\nYou have up to {max_steps} rounds of tool calls for this question (make calls that don't depend on each other "
-        "in the same round), then you answer. Answer as soon as you have enough."
-    )
+    if limit:
+        system += (
+            f"\n\nYou have up to {limit} tool call{'s' if limit > 1 else ''} for this question in all (make calls that don't depend "
+            "on each other in the same round), then you answer. Answer as soon as you have enough."
+        )
+    else:
+        system += (
+            f"\n\nYou have up to {max_steps} rounds of tool calls for this question (make calls that don't depend on each other "
+            "in the same round), then you answer. Answer as soon as you have enough."
+        )
     msgs = [{"role": "system", "content": system}] + past_turns(history, summary=summary, cfg=cfg)
     msgs.append({"role": "user", "content": question})
     tools, looked, made = toolbox.specs(), False, set()
@@ -901,10 +939,14 @@ def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, set
                 return
             break  # a reply with nothing in it
         looked = True
+        left = len(msg["tool_calls"]) if limit is None else limit - record.used["tool_calls"]
         record.used["rounds"] += 1
-        record.used["tool_calls"] += len(msg["tool_calls"])
+        record.used["tool_calls"] += min(len(msg["tool_calls"]), left)
         msgs.append({"role": "assistant", "content": msg["content"], "tool_calls": msg["tool_calls"]})
-        for c in msg["tool_calls"]:
+        for i, c in enumerate(msg["tool_calls"]):
+            if i >= left:  # past the limit: every call still gets a reply, as the model's API expects
+                msgs.append({"role": "tool", "tool_call_id": c.get("id"), "content": json.dumps({"note": SPENT})})
+                continue
             fn = c.get("function") or {}
             args = fn.get("arguments") or {}
             if isinstance(args, str):  # a JSON string, as OpenAI sends it; some servers send the object itself
@@ -927,6 +969,9 @@ def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, set
             step = {"tool": name, "args": args, "summary": summary, "ms": int((time.monotonic() - t0) * 1000)}
             yield "step", {**step, "failed": True} if getattr(toolbox, "failed", False) else step
             msgs.append({"role": "tool", "tool_call_id": c.get("id"), "content": result})
+        if limit is not None and record.used["tool_calls"] >= limit:  # the calls are used up: it answers from what they found
+            record.limited = True
+            break
     else:  # the rounds ran out
         record.limited = True
     text = _finish(cfg, msgs, tools, model) or "I couldn't put an answer together from what I found. Try again, or ask something narrower."

@@ -25,6 +25,24 @@ from a LanguageTool server, spaCy fetched for named entities, and dates found an
 
 Refine later: revert a whole cleanup at once; cleanup rules for other languages' fillers; per-namespace switch.
 
+## 2026-10-17 · Describing pictures with Florence-2 on this machine
+
+Adeel: use Moondream 3 and/or Microsoft Florence for visual descriptions. Florence-2 (MIT) is now a describe engine
+(`llm.describe_engine` `florence-2`): its 8-bit ONNX export runs on ONNX Runtime on the CPU, fetched on first use,
+pinned and hashed, base or large. It runs a Raspberry Pi's way (no PyTorch, about 280 MB for base) and needs no model
+provider. Checked on two photos here: base takes about 3 s a picture on four CPU cores, large about 9 s, and both say
+plainly what each shows.
+
+Moondream 3 comes next as an opt-in engine. Its licences aren't open: Moondream 3 Preview's weights are BSL 1.1 (with
+a production use grant; Apache-2.0 two years after release) and Moondream 3.1's are the Moondream Model License; 3.1
+runs only on Photon, whose kernels (`kestrel-kernels`) are proprietary and licensed only under a separate agreement, so
+Lens won't install Photon. Moondream 3 Preview runs through Hugging Face transformers (permissive) on an NVIDIA GPU or
+a Mac with enough memory (about 19 GB of weights): not on a Pi.
+
+Refine later: beam search (the model's own default is three beams; greedy with no repeated trigrams matches it on the
+photos tried); Florence-2's OCR task beside the OCR step; a GPU (CUDA or CoreML execution provider) when there is one;
+the Q4 exports for a smaller download; describing only the pictures NSFW classification didn't flag.
+
 ## 2026-10-15 · Entity types beyond Term
 
 Adeel: "every entity comes as term? why!!". The default rules extractor typed a capitalised name PERSON only after a
