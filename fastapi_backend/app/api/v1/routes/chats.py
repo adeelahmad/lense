@@ -200,7 +200,7 @@ def _chat_view(db: DB, acl: Access, c: dict[str, Any]) -> Chat:
 
 
 def _readable_citations(db: DB, acl: Access, msgs: list[dict[str, Any]]) -> None:
-    """Leave out the citations the asker can no longer read (web pages stay: anyone could read them)."""
+    """Leave out the citations the asker can no longer read (web pages stay)."""
     ok = set(acl.roles)
     ids = {p["recording_id"] for m in msgs for p in m.get("passages") or [] if p.get("recording_id") is not None}
     visible = (

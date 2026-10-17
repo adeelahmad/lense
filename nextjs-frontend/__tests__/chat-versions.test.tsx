@@ -13,15 +13,6 @@ jest.mock("@/lib/hooks/session", () => ({
   useArchive: () => ({ can: () => true, namespaces: [], roleIn: () => "editor" }),
 }));
 
-beforeAll(() => {
-  // an answer's Details opens as a popover or, on a phone, a sheet
-  window.matchMedia = ((q: string) => ({
-    matches: !q.includes("max-width"),
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  })) as unknown as typeof window.matchMedia;
-});
-
 // q1 → a1 → q2 → a2, a1 regenerated as b1 (→ q3 → a3), and q1 edited as e1 (→ f1)
 const node = (id: number, parent: number | null, role: "user" | "assistant"): ChatNode => ({ id, parent, role });
 const TREE = [
