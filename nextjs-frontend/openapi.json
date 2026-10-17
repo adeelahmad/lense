@@ -24891,7 +24891,7 @@
           "chats"
         ],
         "summary": "Create Chat",
-        "description": "A conversation. Its answers may use what `tools` and `max_tool_calls` say; left out, your latest choice (PATCH\n/chats/{cid}), else Auto: everything you may use, limited by the rounds alone.",
+        "description": "A conversation. Its answers may use what `tools` and `max_tool_calls` say, which become your latest choice;\nleft out, your latest choice (here or PATCH /chats/{cid}), else Auto: everything you may use, limited by the rounds\nalone.",
         "operationId": "create_chat",
         "requestBody": {
           "content": {

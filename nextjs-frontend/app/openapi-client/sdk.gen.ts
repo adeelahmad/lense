@@ -9972,8 +9972,9 @@ export class Chats {
   /**
    * Create Chat
    *
-   * A conversation. Its answers may use what `tools` and `max_tool_calls` say; left out, your latest choice (PATCH
-   * /chats/{cid}), else Auto: everything you may use, limited by the rounds alone.
+   * A conversation. Its answers may use what `tools` and `max_tool_calls` say, which become your latest choice;
+   * left out, your latest choice (here or PATCH /chats/{cid}), else Auto: everything you may use, limited by the rounds
+   * alone.
    */
   public static createChat<ThrowOnError extends boolean = false>(
     options?: Options<CreateChatData, ThrowOnError>,

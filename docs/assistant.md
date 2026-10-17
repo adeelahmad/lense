@@ -221,8 +221,9 @@ tools it may use, how many tool calls it may make, and which namespaces it reads
   [namespace picker](#picking-the-namespace-for-a-conversation-over-everything).
 - **Remembered.** Each answer records what it was offered and its limits (`tools`, `limits`, `scope`), and each
   question records the options it was asked with ([What each answer records](#what-each-answer-records)). A
-  conversation keeps its `tools` and `max_tool_calls`. The person's latest choice is kept on their account, so a new
-  conversation starts with it (`remembered` in `GET /chats/tools`) unless `POST /chats` says otherwise.
+  conversation keeps its `tools` and `max_tool_calls`. The person's latest choice (the last `POST /chats` or `PATCH
+  /chats/<id>` that set them) is kept on their account, so a new conversation starts with it (`remembered` in `GET
+  /chats/tools`) unless `POST /chats` says otherwise.
 - **Web and MCP tools reach beyond your namespaces.** The namespaces picked narrow the archive's tools only. A web
   search, an MCP server or the browser reads and sends wherever it reaches.
 

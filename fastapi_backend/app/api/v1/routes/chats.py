@@ -149,8 +149,9 @@ def _limit(cfg: dict[str, Any], n: int | None) -> int | None:
 
 @router.post("/chats")
 def create_chat(user: Writer, acl: Acl, db: Db, cfg: Cfg, request: Request, body: ChatCreate | None = None) -> Created:
-    """A conversation. Its answers may use what `tools` and `max_tool_calls` say; left out, your latest choice (PATCH
-    /chats/{cid}), else Auto: everything you may use, limited by the rounds alone."""
+    """A conversation. Its answers may use what `tools` and `max_tool_calls` say, which become your latest choice;
+    left out, your latest choice (here or PATCH /chats/{cid}), else Auto: everything you may use, limited by the rounds
+    alone."""
     body = body or ChatCreate()
     if body.kind == "setup" and not user.admin:
         raise HTTPException(403, "only admins set up the server")
@@ -158,6 +159,8 @@ def create_chat(user: Writer, acl: Acl, db: Db, cfg: Cfg, request: Request, body
     tools = _tools(_box(db, cfg, user, acl, None, request), body.tools) if "tools" in body.model_fields_set else last["tools"]
     limit = _limit(cfg, body.max_tool_calls) if "max_tool_calls" in body.model_fields_set else _most(cfg, last["max_tool_calls"])
     cid = chat.create(db, user.id, body.title, _scope(acl, db, body.scope), _model(cfg, body.model), body.kind, tools, limit)
+    if body.kind == "chat" and {"tools", "max_tool_calls"} & body.model_fields_set:
+        chat.remember_tools(db, user.id, tools, limit)
     return Created(id=cid)
 
 

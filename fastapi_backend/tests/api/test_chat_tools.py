@@ -215,6 +215,9 @@ def test_a_conversation_keeps_its_choice_and_new_ones_start_with_it(app, db, cfg
     new = c.post("/api/v1/chats", headers=h, json={"tools": None, "max_tool_calls": None}).json()["id"]
     got = c.get(f"/api/v1/chats/{new}", headers=h).json()
     assert (got["tools"], got["max_tool_calls"]) == (None, None)
+    # a choice made as one starts is the latest choice too
+    c.post("/api/v1/chats", headers=h, json={"tools": ["notes"], "max_tool_calls": 4})
+    assert c.get("/api/v1/chats/tools", headers=h).json()["remembered"] == {"tools": ["notes"], "max_tool_calls": 4}
     c.patch(f"/api/v1/chats/{cid}", headers=h, json={"tools": None, "max_tool_calls": None})
     assert c.get("/api/v1/chats/tools", headers=h).json()["remembered"] == {"tools": None, "max_tool_calls": None}
     # someone else's
