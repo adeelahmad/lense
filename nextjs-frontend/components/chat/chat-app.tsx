@@ -29,6 +29,7 @@ import {
   type TurnState,
 } from "@/components/chat/stream";
 import { onlyFiles, UserBubble } from "@/components/chat/user-bubble";
+import { switched, VersionSwitch } from "@/components/chat/versions";
 import { SharedFrom } from "@/components/page-chat/page-chat";
 import { useRecordingIndex, useSpeakerDirectory } from "@/components/search/data";
 import { Banner } from "@/components/ui/banner";
@@ -42,8 +43,12 @@ import { cn } from "@/lib/utils";
 import { useVoice, VoiceError } from "@/lib/voice";
 
 type Sent = { id: string; filename: string; size: number };
-type Live = { chatId: number; turn: TurnState; files: Sent[] };
+/** An answer being written; `beside`: the message it makes a version of (an edited question, a regenerated answer). */
+type Live = { chatId: number; turn: TurnState; files: Sent[]; beside?: number };
 type Queued = { key: number; text: string; files: Sent[] };
+
+/** /clear and /compact, which the model doesn't answer, so there's nothing to regenerate. */
+const COMMAND = /^\s*\/(clear|compact)(\s|$)/i;
 
 /** What a message with only files says (the server says the same when it gets none). */
 type Extra = { steps: ToolStep[]; notice: string | null; error: string | null };
@@ -241,21 +246,31 @@ export function ChatApp() {
   );
 
   const run = useCallback(
-    async (cid: number, question: string, model?: string, attached: Sent[] = [], edit?: number): Promise<TurnState> => {
-      if (edit != null)
-        qc.setQueryData<Chat>(["chat", cid], (c) =>
-          c ? { ...c, messages: (c.messages ?? []).filter((m) => m.id < edit) } : c,
-        );
+    async (
+      cid: number,
+      question: string,
+      model?: string,
+      attached: Sent[] = [],
+      edit?: number,
+      regenerate?: number,
+    ): Promise<TurnState> => {
+      // a new question goes on from the version showing; an edit or a regenerate is a version beside its message
+      const shown = qc.getQueryData<Chat>(["chat", cid])?.messages ?? [];
+      const parent = edit == null && regenerate == null ? shown[shown.length - 1]?.id : undefined;
+      const beside = edit ?? regenerate;
       const ac = new AbortController();
       abortRef.current = ac;
       let turn = newTurn(question);
-      const show = (t: TurnState) => setLive({ chatId: cid, turn: t, files: attached });
+      const show = (t: TurnState) => setLive({ chatId: cid, turn: t, files: attached, beside });
       show(turn);
       setFocusKey("live");
       try {
         for await (const msg of streamSSE(`/api/v1/chats/${cid}/messages`, {
           method: "POST",
-          body: { content: question, model, attachments: attached.map((f) => f.id), edit, via: spoken.current },
+          body:
+            regenerate != null
+              ? { regenerate, model }
+              : { content: question, model, attachments: attached.map((f) => f.id), edit, parent, via: spoken.current },
           accessToken: session?.accessToken,
           signal: ac.signal,
         })) {
@@ -355,7 +370,43 @@ export function ChatApp() {
     void dispatch(next.text, undefined, next.files);
   }, [live, queue, dispatch]);
 
-  // Editing a question asks it again (with the files it had): it and everything after it are replaced.
+  // Regenerating writes a new answer to the same question, as a version beside the old one, streaming in its place.
+  const regenerate = useCallback(
+    (q: ChatMessage, a: ChatMessage, model?: string) => {
+      if (live || activeId == null) return;
+      const attached: Sent[] = (q.attachments ?? []).map(({ id, filename, size }) => ({ id, filename, size }));
+      void run(activeId, q.content, model, attached, undefined, a.id);
+    },
+    [activeId, live, run],
+  );
+
+  // Every message seen (ids are unique across conversations), of any version, so switching back to a version already
+  // seen shows it at once.
+  const seen = useRef(new Map<number, ChatMessage>());
+  useEffect(() => {
+    for (const m of chat.data?.messages ?? []) seen.current.set(m.id, m);
+  }, [chat.data]);
+  const switchTo = useCallback(
+    async (id: number) => {
+      if (activeId == null || live) return;
+      const key = ["chat", activeId];
+      const was = qc.getQueryData<Chat>(key);
+      const shown = was ? switched(was, id, seen.current) : null;
+      if (shown) qc.setQueryData(key, shown);
+      try {
+        qc.setQueryData(
+          key,
+          await data(Chats.switchVersion({ client, path: { cid: activeId }, body: { message: id } })),
+        );
+      } catch (e) {
+        if (was) qc.setQueryData(key, was);
+        toast({ title: "Couldn’t show that version", body: e instanceof Error ? e.message : undefined, tone: "red" });
+      }
+    },
+    [activeId, client, live, qc, toast],
+  );
+
+  // Editing a question asks it again (with the files it had), as a new version beside it.
   const editQuestion = useCallback(
     (q: ChatMessage, text: string) => {
       const attached: Sent[] = (q.attachments ?? []).map(({ id, filename, size }) => ({ id, filename, size }));
@@ -480,8 +531,11 @@ export function ChatApp() {
 
   const msgs = chat.data?.messages ?? [];
   const items = useMemo(() => {
-    const out = pairs(msgs);
-    if (live && live.chatId === activeId) {
+    const here = live && live.chatId === activeId;
+    // a version being written streams in place of the one beside it (what came before it has smaller ids)
+    const beside = here ? live.beside : undefined;
+    const out = pairs(beside != null ? msgs.filter((m) => m.id < beside) : msgs);
+    if (here) {
       const last = out[out.length - 1];
       if (last && !last.a && last.q?.content.trim() === live.turn.question.trim()) out.pop();
     }
@@ -493,19 +547,22 @@ export function ChatApp() {
       ? live.turn
       : null;
 
-  // Approvals saved on the server sit before the first answer written after them.
+  // Approvals saved on the server sit before the first answer written after them, in whichever version that is (so one
+  // proposed in another version shows there).
   const liveApprovalIds = new Set(liveHere?.approvals.map((a) => a.id) ?? []);
+  const tree = chat.data?.tree;
   const approvalsFor = useMemo(() => {
     const map = new Map<number, Approval[]>();
-    const answers = msgs.filter((m) => m.role === "assistant");
+    const answers = (tree?.length ? tree : msgs).filter((m) => m.role === "assistant");
+    const lastShown = msgs.filter((m) => m.role === "assistant").pop();
     for (const a of approvals.data ?? []) {
       const at = a.created_at ?? "";
-      const target = answers.find((m) => (m.created_at ?? "") >= at) ?? answers[answers.length - 1];
+      const target = answers.find((m) => (m.created_at ?? "") >= at) ?? lastShown;
       if (!target) continue;
       map.set(target.id, [...(map.get(target.id) ?? []), a]);
     }
     return map;
-  }, [approvals.data, msgs]);
+  }, [approvals.data, msgs, tree]);
 
   const lastAnswer = [...msgs].reverse().find((m) => m.role === "assistant");
   const focus =
@@ -689,6 +746,15 @@ export function ChatApp() {
                         text={it.q.content}
                         files={it.q.attachments ?? []}
                         onEdit={activeId != null && !live ? (t) => editQuestion(it.q!, t) : undefined}
+                        versions={
+                          (it.q.versions?.count ?? 1) > 1 && (
+                            <VersionSwitch
+                              versions={it.q.versions}
+                              what="question"
+                              onPick={live ? undefined : (id) => void switchTo(id)}
+                            />
+                          )
+                        }
                       />
                     </div>
                   )}
@@ -711,9 +777,20 @@ export function ChatApp() {
                         }))}
                       scope={scope}
                       model={it.a.model ?? model}
-                      onRetry={it.q ? () => send(it.q!.content) : undefined}
+                      onRetry={
+                        it.q && !live && !COMMAND.test(it.q.content) ? () => regenerate(it.q!, it.a!) : undefined
+                      }
                       models={llm.models}
-                      onRetryWith={it.q ? (m) => send(it.q!.content, m) : undefined}
+                      onRegenerate={
+                        it.q && !live && !COMMAND.test(it.q.content) ? (m) => regenerate(it.q!, it.a!, m) : undefined
+                      }
+                      versions={
+                        <VersionSwitch
+                          versions={it.a.versions}
+                          what="answer"
+                          onPick={live ? undefined : (id) => void switchTo(id)}
+                        />
+                      }
                       onAddScope={addScope}
                       check={checks[it.a.id] ?? it.a.check}
                       meta={it.a.meta}
@@ -735,7 +812,7 @@ export function ChatApp() {
                       model={model}
                       onRetry={() => send(partial.question)}
                       models={llm.models}
-                      onRetryWith={(m) => send(partial.question, m)}
+                      onRegenerate={(m) => send(partial.question, m)}
                       {...answerHandlers(aKey)}
                     />
                   ) : (

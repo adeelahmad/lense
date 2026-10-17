@@ -14,16 +14,19 @@ export const onlyFiles = (n: number) => (n === 1 ? "I attached this file." : "I 
 /** A question's buttons show on hover or focus (always on touch screens). */
 const REVEAL = "mt-1.5 opacity-0 focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100";
 
-/** A question you asked, with the files sent with it. With `onEdit` (not while an answer is being written) it can be edited, which asks it again:
- * the answers and questions after it are replaced. */
+/** A question you asked, with the files sent with it. With `onEdit` (not while an answer is being written) it can be
+ * edited, which asks it again as a new version beside this one; this one keeps what followed it. `versions`: the switch
+ * between its versions (VersionSwitch). */
 export function UserBubble({
   text,
   files = [],
   onEdit,
+  versions,
 }: {
   text: string;
   files?: { filename: string; size: number }[];
   onEdit?: (text: string) => void;
+  versions?: React.ReactNode;
 }) {
   const [editing, setEditing] = useState<string | null>(null);
   const filesOnly = files.length > 0 && text === onlyFiles(files.length);
@@ -54,7 +57,9 @@ export function UserBubble({
             aria-label="Edit your question"
             className="w-full resize-none bg-transparent text-[15px] leading-normal text-fg outline-hidden"
           />
-          <p className="m-0 text-[12.5px] text-fg-muted">Sending it replaces this answer and everything after it.</p>
+          <p className="m-0 text-[12.5px] text-fg-muted">
+            Sending it makes a new version; this one stays, with what followed it.
+          </p>
           <div className="flex justify-end gap-1.5">
             <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>
               Cancel
@@ -83,6 +88,7 @@ export function UserBubble({
       <div className="flex flex-col gap-1.5">
         <SentFiles files={files} />
         {!filesOnly && <div className={cn(bubble, "whitespace-pre-wrap")}>{text}</div>}
+        {versions && <div className="flex justify-end">{versions}</div>}
       </div>
     </div>
   );
