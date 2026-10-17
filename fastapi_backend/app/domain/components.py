@@ -546,6 +546,36 @@ class InjectionModel(Component):
             fetch_file(cfg, n, say)
 
 
+class Punctuation(Component):
+    """PyTorch, Transformers and the punctuation model (cleanup.py), when Settings → Analysis cleans up transcripts and
+    restores their punctuation."""
+
+    kind = "model"
+
+    def needed(self, cfg, m):
+        a = cfg.get("analysis") or {}
+        return bool(a.get("cleanup")) and (a.get("cleanup_punctuation") or "off") != "off"
+
+    def present(self, cfg):
+        from . import cleanup
+
+        return importable("transformers", "torch") and cleanup.punctuation_ready()
+
+    def fetch(self, cfg, m, say):
+        if not importable("transformers", "torch"):
+            pip_install(cfg, "punctuation", say)
+        from . import cleanup
+
+        if say:
+            say(f"downloading the punctuation model {cleanup.PUNCTUATION_MODEL[0]}")
+        cleanup.fetch_punctuation()
+
+    def detail(self, cfg):
+        from . import cleanup
+
+        return cleanup.PUNCTUATION_MODEL[0]
+
+
 class Anytopdf(Component):
     """The anytopdf program (anytopdf.py), fetched when Settings → Documents asks for it to run here, or Settings →
     Analysis asks it for places and dates (enrich.py), or Settings → Video for objects (objects.py) or faces."""
@@ -829,6 +859,14 @@ COMPONENTS = [
         license="MIT",
     ),
     LAYA,
+    Punctuation(
+        "punctuation",
+        "Punctuation model",
+        "puts full stops, commas and question marks back in transcripts that lack them (analysis.cleanup_punctuation)",
+        steps={"clean"},
+        size_mb=1300,
+        license="MIT",
+    ),
     InjectionModel(
         "injection-model",
         "Prompt-injection classifier",
