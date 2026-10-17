@@ -61,14 +61,16 @@ Everything below is built and merged, and each item links to the checks that pro
 measured numbers ([requirements and their checks](docs/requirements.md)). Work that is still in a pull request is
 listed under [In progress](#in-progress), and what comes next under [Planned](#planned).
 
-- **Connect your agents.** Lens is an MCP server (`/mcp`): agents search, read assets' text and notes, cite exact
-  moments, find similar content, explore the graph with Cypher or SPARQL or browse it as folders and files, suggest
-  topics and graph changes, edit and merge entities and topics (with undo), write notes and make podcasts. They sign in
-  with OAuth and see only what their person may read; the account menu copies the MCP address in one click. A namespace
-  can also have an MCP server of its own (`/mcp/<namespace>`) and answer OpenAI's chat completions API for any app,
-  cited from that namespace alone, each off until its owner turns it on, with API keys that open that one namespace and
-  nothing else. The same folders and files can be mounted read-only over S3, WebDAV, NFS or SMB, so file managers and
-  scripts read Lens too. The web app runs on the same REST API, so an agent can do what a person can.
+- **Connect your agents.** Lens is an MCP server (`/mcp`): agents search, find assets by face, voice, entity, topic,
+  type, content type or date in one call, classify an asset or a text with the decision model, read assets' text and
+  notes, cite exact moments, find similar content, explore the graph with Cypher or SPARQL or browse it as folders and
+  files, suggest topics and graph changes, edit and merge entities and topics (with undo), write notes and make
+  podcasts. They sign in with OAuth and see only what their person may read; the account menu copies the MCP address in
+  one click. A namespace can also have an MCP server of its own (`/mcp/<namespace>`) and answer OpenAI's chat
+  completions API for any app, cited from that namespace alone, each off until its owner turns it on, with API keys that
+  open that one namespace and nothing else. The same folders and files can be mounted read-only over S3, WebDAV, NFS or
+  SMB, so file managers and scripts read Lens too. The web app runs on the same REST API, so an agent can do what a
+  person can.
   ([MCP](docs/mcp.md), [one namespace's MCP server](docs/mcp.md#one-namespaces-mcp-server),
   [chat completions](docs/api.md#chat-completions-for-any-app), [API](docs/api.md),
   [the graph as files](docs/file-tree.md), [authentication](docs/authentication.md);
@@ -134,7 +136,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   people review on the Timeline page (and Latest on Home), marking what they've seen. Automations act on that stream, on
   a schedule, at a time or when their own webhook is called: they test conditions, then tell you in your own chat app,
   ask the model or the agent, use a tool, call a web address (its credentials kept sealed), run a workflow, pipeline or
-  routine, or change assets and notes. Anything that reaches outside Lens or changes more than what set it off asks
+  routine, or change assets and notes. A Classify node in a workflow sorts an asset into labels, content types or
+  topics, acting only on a sure answer. Anything that reaches outside Lens or changes more than what set it off asks
   first, until you let it run on its own: on the Approvals page or, for a change inside Lens, with a yes in the chat it
   told you in; agents can decline an approval but never give one. Each automation has limits and budgets, and agents
   make, try and run them over MCP and in the assistant, or draft one from a sentence; the studio to draw them in the web
@@ -196,8 +199,6 @@ options most people leave as they are stay folded. ([Components](docs/components
 
 These are open pull requests, not yet part of Lens:
 
-- **Finding:** resources found by face, voice, entity, topic, type, content type and date
-  ([#398](https://github.com/adeelahmad/lense/pull/398)).
 - **The assistant** answering questions about Lens itself, from its docs and this server
   ([#400](https://github.com/adeelahmad/lense/pull/400)).
 - **Chat:** a conversation exported as Markdown, PDF or JSON ([#474](https://github.com/adeelahmad/lense/pull/474)).
