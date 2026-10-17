@@ -14,7 +14,7 @@ from botocore.config import Config
 from botocore.exceptions import ClientError
 
 from app.domain import hierarchy, http_body, s3, share_import, shares, store
-from tests.helpers import login, make_user, seed, text_pdf
+from tests.helpers import login, make_user, seed, text_pdf, web_relay
 
 PDF = text_pdf([["Harbour minutes", "The lamp was lit at dusk."]])
 
@@ -38,11 +38,11 @@ def env(client, db, cfg, folder):
     server.stop()
 
 
-def _s3(env, who="ed", **cfg):
+def _s3(env, who="ed", endpoint=None, **cfg):
     kid, secret = env["keys"][who]
     return botocore.session.get_session().create_client(
         "s3",
-        endpoint_url=f"http://127.0.0.1:{env['port']}",
+        endpoint_url=endpoint or f"http://127.0.0.1:{env['port']}",
         region_name="us-east-1",
         aws_access_key_id=kid,
         aws_secret_access_key=secret,
@@ -101,6 +101,18 @@ def test_folders_become_collections(db, env):
     assert _recording(db, "minutes 2")["collection"] == store.default_collection(db, env["pods"])
     assert _code(lambda: c.put_object(Bucket="pods", Key="Nowhere/x.pdf", Body=PDF))[0] == "AccessDenied"
     assert _code(lambda: c.put_object(Bucket="pods", Key="Topics/Made up/", Body=b""))[0] == "AccessDenied"
+
+
+def test_files_added_at_the_web_apps_address(db, cfg, env):
+    """Through the web app's relay (/s3, docs/file-tree.md#at-the-web-apps-address) files are added as at the port,
+    once an admin opens it there (shares.remote): the client signs the path with /s3 in it."""
+    with web_relay(env["port"], "/s3") as port:
+        c = _s3(env, endpoint=f"http://127.0.0.1:{port}/s3")
+        assert _code(lambda: c.put_object(Bucket="pods", Key="Collections/Talks/far.pdf", Body=PDF))[0] == "AccessDenied"
+        env["conf"]["cfg"] = {**cfg, "shares": {**(cfg.get("shares") or {}), "remote": True}}
+        c.put_object(Bucket="pods", Key="Collections/Talks/far.pdf", Body=PDF)
+        assert c.head_object(Bucket="pods", Key="Collections/Talks/far.pdf")["ContentLength"] == len(PDF)
+    assert _recording(db, "far")["collection"] == env["talks"]
 
 
 def test_what_may_not_be_added_is_refused(db, cfg, env):

@@ -13,6 +13,9 @@ GetBucketLocation, ListObjects (v1 and v2, with a delimiter or recursive), HeadO
 aws-chunked with signed chunks), multipart uploads, a folder marker (a key ending in /) under Collections makes a
 collection, and DeleteObject(s) removes only what share_import.py keeps aside. Anything else that writes answers
 AccessDenied or NotImplemented.
+
+With `shares.remote` on, the web app relays it at its own address too (https://<web app>/s3/<bucket>/<key>), path and
+all: clients sign that path, and the bucket and key come after /s3 (shares.web_path()).
 """
 
 from __future__ import annotations
@@ -445,14 +448,22 @@ class Handler(http_body.Lingering):
             self.end_headers()
 
     def _write(self):
+        from . import shares
+
         raw, _, query = self.path.partition("?")
         headers = {k.lower(): v for k, v in self.headers.items()}
         self._read = False
         try:
             pairs = urllib.parse.parse_qsl(query, keep_blank_values=True)
             db, cfg = self.server.db, self.server.cfg_fn()
+            prefix = shares.web_path(headers, "s3")
+            if prefix and not shares.remote(cfg):
+                raise S3Error(
+                    403, "AccessDenied", "S3 isn't open at the web app's address: an admin turns that on in Settings, File shares"
+                )
             chunks: dict[str, Any] = {}
             acct = verify(db, cfg, self.command, raw, pairs, headers, chunks=chunks)
+            raw = shares.share_path(raw, prefix)
             if not share_import.accepting(cfg, "s3"):
                 raise S3Error(403, "AccessDenied", "the file tree is read-only")
             adder = share_import.Adder(db, cfg, acct, "s3")
@@ -499,12 +510,20 @@ class Handler(http_body.Lingering):
     do_PUT = do_POST = do_DELETE = _write  # noqa: N815 - http.server's names
 
     def _handle(self, head):
+        from . import shares
+
         raw, _, query = self.path.partition("?")
         try:
             pairs = urllib.parse.parse_qsl(query, keep_blank_values=True)
             headers = {k.lower(): v for k, v in self.headers.items()}
             db, cfg = self.server.db, self.server.cfg_fn()
+            prefix = shares.web_path(headers, "s3")
+            if prefix and not shares.remote(cfg):
+                raise S3Error(
+                    403, "AccessDenied", "S3 isn't open at the web app's address: an admin turns that on in Settings, File shares"
+                )
             acct = verify(db, cfg, self.command, raw, pairs, headers)
+            raw = shares.share_path(raw, prefix)
             tree = filetree.Tree(db, cfg, filetree.Viewer.of(db, acct))
             path = urllib.parse.unquote(raw)
             bucket, _, key = path.lstrip("/").partition("/")

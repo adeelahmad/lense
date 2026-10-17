@@ -8,6 +8,9 @@ or 1), GET and HEAD (with Range). While `shares.add_files` is on, a file put int
 share_import.py keeps aside (an app's own files, or a file uploaded under a temporary name and then renamed), and
 LOCK, UNLOCK and PROPPATCH answer as clients expect (class 2: Finder and Windows mount a class 1 server read-only)
 without storing anything. Anything else that writes answers 403. Run by shares.py.
+
+With `shares.remote` on, the web app relays it at its own address too (https://<web app>/dav/), and links in listings
+start with /dav (shares.web_path()).
 """
 
 from __future__ import annotations
@@ -45,11 +48,11 @@ def _http_date(s):
     return email.utils.format_datetime((t if t.tzinfo else t.replace(tzinfo=dt.timezone.utc)).astimezone(dt.timezone.utc), usegmt=True)
 
 
-def href(parts, folder):
-    return "/" + "/".join(urllib.parse.quote(p, safe="") for p in parts) + ("/" if folder and parts else "")
+def href(parts, folder, prefix=""):
+    return prefix + "/" + "/".join(urllib.parse.quote(p, safe="") for p in parts) + ("/" if folder and parts else "")
 
 
-def _response(parts, e):
+def _response(parts, e, prefix=""):
     props = [f"<D:displayname>{escape(e.name)}</D:displayname>", f"<D:getlastmodified>{_http_date(e.modified)}</D:getlastmodified>"]
     if e.folder:
         props.append("<D:resourcetype><D:collection/></D:resourcetype>")
@@ -61,17 +64,17 @@ def _response(parts, e):
             f'<D:getetag>"{e.version}"</D:getetag>',
         ]
     return (
-        f"<D:response><D:href>{escape(href(parts, e.folder))}</D:href><D:propstat><D:prop>{''.join(props)}</D:prop>"
+        f"<D:response><D:href>{escape(href(parts, e.folder, prefix))}</D:href><D:propstat><D:prop>{''.join(props)}</D:prop>"
         "<D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response>"
     )
 
 
-def multistatus(tree, parts, depth):
-    """The PROPFIND answer for a path: itself, and with depth 1 what's in it."""
+def multistatus(tree, parts, depth, prefix=""):
+    """The PROPFIND answer for a path: itself, and with depth 1 what's in it. `prefix`: the path the share is at."""
     e = tree.stat("/".join(parts))
-    out = [_response(parts, e)]
+    out = [_response(parts, e, prefix)]
     if depth != "0" and e.folder:
-        out += [_response([*parts, k.name], k) for k in tree.list("/".join(parts))]
+        out += [_response([*parts, k.name], k, prefix) for k in tree.list("/".join(parts))]
     return ('<?xml version="1.0" encoding="utf-8"?>\n<D:multistatus xmlns:D="DAV:">' + "".join(out) + "</D:multistatus>").encode()
 
 
@@ -104,9 +107,27 @@ class Handler(http_body.Lingering):
             return
         self.rfile.read(n)
 
+    def _prefix(self):
+        from . import shares
+
+        return shares.web_path(self.headers, "webdav")
+
+    def _closed(self):
+        """True (and turned away) when the request came through the web app while that's not allowed."""
+        from . import shares
+
+        if self._prefix() and not shares.remote(self.server.cfg_fn()):
+            self._send(403, b"WebDAV isn't open at the web app's address: an admin turns that on in Settings, File shares\n")
+            return True
+        return False
+
     def _account(self):
         """The account the request signs in as, or None (an answer was sent)."""
-        ip = self.client_address[0]
+        from . import shares
+
+        if self._closed():
+            return None
+        ip = shares.visitor(self, self.server.cfg_fn())
         if auth.throttled(f"webdav:{ip}"):
             self._send(429, b"too many failed sign-ins: try again later\n")
             return None
@@ -125,16 +146,20 @@ class Handler(http_body.Lingering):
         return acct
 
     def _parts(self):
-        raw = self.path.partition("?")[0]
+        from . import shares
+
+        raw = shares.share_path(self.path.partition("?")[0], self._prefix())
         return [urllib.parse.unquote(p) for p in raw.split("/") if p]
 
     def do_OPTIONS(self):  # noqa: N802 - http.server's names
         self._drain()
-        self._send(200, headers={"Allow": ALLOW_ADD if self._adds() else ALLOW, "MS-Author-Via": "DAV"})
+        if not self._closed():
+            self._send(200, headers={"Allow": ALLOW_ADD if self._adds() else ALLOW, "MS-Author-Via": "DAV"})
 
     def _write(self):
         self._drain()
-        self._send(403, b"the file tree is read-only\n", headers={"Allow": ALLOW})
+        if not self._closed():
+            self._send(403, b"the file tree is read-only\n", headers={"Allow": ALLOW})
 
     do_POST = do_COPY = _write  # noqa: N815
 
@@ -252,12 +277,14 @@ class Handler(http_body.Lingering):
         self._send(204)
 
     def do_MOVE(self):  # noqa: N802
+        from . import shares
+
         got = self._adding()
         if got is None:
             return
         self._drain()
         _, adder = got
-        dest = urllib.parse.urlsplit(self.headers.get("destination", "")).path
+        dest = shares.share_path(urllib.parse.urlsplit(self.headers.get("destination", "")).path, self._prefix())
         to = "/".join(urllib.parse.unquote(p) for p in dest.split("/") if p)
         if not to:
             return self._send(400, b"say where to move it (Destination)\n")
@@ -302,7 +329,7 @@ class Handler(http_body.Lingering):
             "<D:locktype><D:write/></D:locktype><D:lockscope><D:exclusive/></D:lockscope>"
             f"<D:depth>{depth}</D:depth><D:owner>{escape(str(got[0].get('email') or ''))}</D:owner>"
             f"<D:timeout>Second-{LOCK_SECONDS}</D:timeout><D:locktoken><D:href>{token}</D:href></D:locktoken>"
-            f"<D:lockroot><D:href>{escape(href(self._parts(), False))}</D:href></D:lockroot>"
+            f"<D:lockroot><D:href>{escape(href(self._parts(), False, self._prefix()))}</D:href></D:lockroot>"
             "</D:activelock></D:lockdiscovery></D:prop>"
         ).encode()
         self._send(status, body, "application/xml; charset=utf-8", headers={"Lock-Token": f"<{token}>"})
@@ -333,7 +360,7 @@ class Handler(http_body.Lingering):
         props = "".join(f'<x:{t.split("}")[-1]} xmlns:x="{_attr(t[1:].split("}")[0] if "}" in t else "")}"/>' for t in names)
         body = (
             f'<?xml version="1.0" encoding="utf-8"?>\n<D:multistatus xmlns:D="DAV:"><D:response>'
-            f"<D:href>{escape(href(self._parts(), False))}</D:href><D:propstat><D:prop>{props}</D:prop>"
+            f"<D:href>{escape(href(self._parts(), False, self._prefix()))}</D:href><D:propstat><D:prop>{props}</D:prop>"
             "<D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response></D:multistatus>"
         ).encode()
         self._send(207, body, "application/xml; charset=utf-8")
@@ -351,7 +378,7 @@ class Handler(http_body.Lingering):
         if depth not in ("0", "1"):
             return self._send(403, b"PROPFIND with Depth: infinity isn't supported; ask for depth 1\n")
         try:
-            body = multistatus(self._tree(acct), self._parts(), depth)
+            body = multistatus(self._tree(acct), self._parts(), depth, self._prefix())
         except filetree.NotFound:
             return self._send(404, b"not found\n")
         self._send(207, body, "application/xml; charset=utf-8")

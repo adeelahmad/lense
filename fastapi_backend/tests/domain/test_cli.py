@@ -45,6 +45,34 @@ def test_import_file_and_stdin_then_run(tmp_path, monkeypatch, capsys):
     assert (tmp_path / "data" / "reports" / "pods" / "index.html").exists()
 
 
+def test_a_worker_logs_the_upgrade_it_runs_as_it_starts(tmp_path, monkeypatch, capsys):
+    """The API and the worker start together and either may upgrade the database (docs/database.md, Upgrades), so
+    the worker's log says what it ran too."""
+    import logging
+
+    from app.domain import logs
+
+    monkeypatch.delenv("SURREAL_URL", raising=False)
+    (tmp_path / "archive.yaml").write_text("data_dir: ./data\n")
+    root, console, level = logging.getLogger(), logs._state["console"], logging.getLogger().level
+    logs.shutdown()  # as in a new process: no settings read, nothing logs to the console yet
+    if console is not None:
+        root.removeHandler(console)
+    logs._state["console"] = None
+    root.setLevel(logging.WARNING)
+    try:
+        cli.main(["--config", str(tmp_path / "archive.yaml"), "worker", "--once"])  # a new database runs every step
+    finally:
+        if logs._state["console"] is not None:
+            root.removeHandler(logs._state["console"])
+        logs._state["console"] = console
+        if console is not None:
+            root.addHandler(console)
+        root.setLevel(level)
+        logs.shutdown()
+    assert "upgrading the database: access-levels" in capsys.readouterr().err
+
+
 def test_term_stops_a_worker_like_ctrl_c():
     import os
     import signal

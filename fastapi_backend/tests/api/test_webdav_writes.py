@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 import pytest
 
 from app.domain import auth, hierarchy, share_import, shares, store, webdav
-from tests.helpers import login, make_user, seed, text_pdf
+from tests.helpers import login, make_user, seed, text_pdf, web_relay
 
 D = "{DAV:}"
 PDF = text_pdf([["Harbour minutes", "The lamp was lit at dusk."]])
@@ -35,8 +35,8 @@ def env(client, db, cfg, folder):
     server.stop()
 
 
-def _call(env, method, path, headers=None, body=None, who="ed", chunked=False):
-    c = http.client.HTTPConnection("127.0.0.1", env["port"], timeout=10)
+def _call(env, method, path, headers=None, body=None, who="ed", chunked=False, port=None):
+    c = http.client.HTTPConnection("127.0.0.1", port or env["port"], timeout=10)
     h = {"Authorization": env["keys"][who], **(headers or {})}
     if chunked:
         c.putrequest(method, path)
@@ -123,6 +123,23 @@ def test_an_upload_under_a_temporary_name_is_imported_when_renamed(db, env):
     assert "talk.pdf.filepart" not in _names(env, "/pods/Collections/Talks/")
     status, _, _ = _call(env, "MOVE", "/pods/Collections/General/ep1%20%5B1%5D.txt", {"Destination": "/pods/Collections/Talks/ep1.txt"})
     assert status == 403  # Lens's own files stay where they are
+
+
+def test_files_added_at_the_web_apps_address(db, cfg, env):
+    """Through the web app's relay (/dav, docs/file-tree.md#at-the-web-apps-address) files are added as at the port,
+    once an admin opens it there (shares.remote); paths and links carry the /dav the client sees."""
+    with web_relay(env["port"], "/dav") as port:
+        assert _call(env, "PUT", "/dav/pods/Collections/Talks/far.pdf", body=PDF, port=port)[0] == 403
+        env["conf"]["cfg"] = {**cfg, "shares": {**cfg["shares"], "remote": True}}
+        assert _call(env, "PUT", "/dav/pods/Collections/Talks/far.pdf.part", body=PDF, port=port)[0] == 201
+        status, _, _ = _call(env, "MOVE", "/dav/pods/Collections/Talks/far.pdf.part",
+                             {"Destination": f"http://127.0.0.1:{port}/dav/pods/Collections/Talks/far.pdf"}, port=port)  # fmt: skip
+        assert status == 201
+        status, _, body = _call(
+            env, "LOCK", "/dav/pods/Collections/Talks/near.pdf", body=b'<?xml version="1.0"?><D:lockinfo xmlns:D="DAV:"/>', port=port
+        )
+        assert status == 201 and b"<D:href>/dav/pods/Collections/Talks/near.pdf</D:href>" in body
+    assert _recording(db, "far")["collection"] == env["talks"]
 
 
 def test_what_may_not_be_added_is_refused(db, cfg, env):

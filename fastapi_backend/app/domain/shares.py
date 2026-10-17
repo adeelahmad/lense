@@ -5,6 +5,10 @@ people's own access keys (s3.py): S3 (s3.py) and WebDAV (webdav.py). Files peopl
 Off until an admin turns them on (`shares.enabled`, then `s3` and `webdav`); the process that runs routines (`lens
 worker`) follows the settings as they change, as the sensor hub does, and says what each server is doing in
 `app_service:share-<protocol>`.
+
+The web app also relays them at its own address, /s3 and /dav (nextjs-frontend/lens-relay.js), so they can be reached
+wherever the web app is, Settings › Remote access included. Those requests keep their path and carry X-Forwarded-Prefix,
+and the servers turn them away until an admin turns on `shares.remote`.
 """
 
 from __future__ import annotations
@@ -16,7 +20,7 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from . import s3, store, webdav
+from . import ipgroups, s3, store, webdav
 
 R = store.R
 CHECK_SECONDS = 5
@@ -26,6 +30,11 @@ PROTOCOLS: dict[str, tuple[type[http.server.BaseHTTPRequestHandler], str]] = {
     "s3": (s3.Handler, "s3_port"),
     "webdav": (webdav.Handler, "webdav_port"),
 }
+
+
+# protocol -> the path the web app relays it at (nextjs-frontend/lens-relay.js)
+WEB_PATHS = {"s3": "/s3", "webdav": "/dav"}
+LOOPBACK = ("127.0.0.0/8", "::1/128")
 
 
 def _row(proto):
@@ -54,6 +63,36 @@ class Server(http.server.ThreadingHTTPServer):
 
 def settings_of(cfg):
     return {**store.DEFAULTS["shares"], **(cfg.get("shares") or {})}
+
+
+def web_path(headers, proto):
+    """The path the web app relays this protocol at, when the request came that way (its X-Forwarded-Prefix), else "".
+    Anyone on the network could send the header too; it only gets their request turned away, or signed and linked
+    under that path."""
+    prefix = (headers.get("x-forwarded-prefix") or "").strip()
+    return prefix if prefix == WEB_PATHS[proto] else ""
+
+
+def share_path(path, prefix):
+    """The path a request asks for within the share: without the web app's prefix (the web app relays the path as the
+    client sent it, which is also the path S3 clients sign)."""
+    if prefix and (path == prefix or path.startswith(prefix + "/")):
+        return path[len(prefix) :] or "/"
+    return path
+
+
+def remote(cfg):
+    """Whether the shares may be reached at the web app's address (shares.remote)."""
+    return bool(settings_of(cfg).get("remote"))
+
+
+def visitor(handler, cfg):
+    """The address a request comes from, for throttles: what the web app (and proxies it trusts: server.trusted_proxies,
+    LENS_TRUSTED_PROXY_HOSTS, this machine) report in X-Forwarded-For, else the connection's peer."""
+    peer, port = handler.client_address[0], handler.client_address[1]
+    trusted = tuple((cfg.get("server") or {}).get("trusted_proxies") or ()) + ipgroups.proxy_hosts() + LOOPBACK
+    addr = ipgroups.client_address(peer, port or 1, handler.headers.get("x-forwarded-for", ""), trusted)
+    return str(addr) if addr else peer
 
 
 def wanted(cfg):
