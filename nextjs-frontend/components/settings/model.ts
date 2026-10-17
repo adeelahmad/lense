@@ -751,6 +751,31 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "analysis",
+    key: "cleanup",
+    label: "Clean up transcripts before analysis",
+    kind: "switch",
+    hint: "Repeated words, spacing and capitals tidied by rules before entities are found; every change is in Change history, with Revert",
+  },
+  {
+    section: "analysis",
+    key: "cleanup_fillers",
+    label: "Take out “um” and “uh”",
+    kind: "switch",
+  },
+  {
+    section: "analysis",
+    key: "cleanup_punctuation",
+    label: "Put punctuation back",
+    kind: "select",
+    options: [
+      { value: "off", label: "Off" },
+      { value: "missing", label: "Where a transcript has none" },
+      { value: "always", label: "In every transcript" },
+    ],
+    hint: "A local model adds full stops, commas and question marks, keeping the ones there; about 2 GB, fetched the first time it’s needed",
+  },
+  {
+    section: "analysis",
     key: "gazetteer",
     label: "Custom vocabulary",
     kind: "lines",

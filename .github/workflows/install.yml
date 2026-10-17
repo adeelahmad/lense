@@ -59,7 +59,7 @@ jobs:
           - { os: windows-latest, python: "3.12" }
           - { os: macos-latest, python: "3.12" }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
@@ -83,7 +83,7 @@ jobs:
       LENS_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
       LENS_DIR: /tmp/lens-web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The runner comes with Docker; a new computer doesn't, so the installer has to install it (install.sh: from
       # get.docker.com) and use it as administrator for this run, as the person isn't in the docker group yet
@@ -170,7 +170,7 @@ jobs:
       LENS_DIR: /tmp/lens-install
       LENS_NO_OPEN: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install (as a user would, piped into sh)
         run: |
@@ -244,7 +244,7 @@ jobs:
       LENS_BACKEND: microsandbox
       LENS_TARGET: lean
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # As on a new computer, KVM is there but this user may not use it yet (it's root's and the kvm group's): install.sh
       # gives them access itself

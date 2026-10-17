@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 
 import { Chats, Search } from "@/app/openapi-client";
-import type { AnswerCheck, Passage } from "@/app/openapi-client/types.gen";
+import type { AnswerCheck, MessageRecord, Passage } from "@/app/openapi-client/types.gen";
 import { ApprovalCard, type ApprovalView } from "@/components/chat/approval";
 import {
   citedNumbers,
@@ -17,6 +17,7 @@ import {
   saysNotCovered,
 } from "@/components/chat/cite";
 import { CitationChip } from "@/components/chat/citation";
+import { AnswerDetails } from "@/components/chat/details";
 import { keywords } from "@/components/chat/keywords";
 import { RichText } from "@/components/chat/rich-text";
 import { scopeWords, type Scope } from "@/components/chat/scope";
@@ -155,6 +156,8 @@ export type AnswerProps = {
   active?: boolean;
   check?: AnswerCheck | null;
   onChecked?: (c: AnswerCheck) => void;
+  /** What produced it (the answer's record); older answers have none. */
+  meta?: MessageRecord | null;
 };
 
 /** One answer: where it comes from, the tools used, approvals, the text with citations, and its error states. */
@@ -202,6 +205,9 @@ export function Answer(p: AnswerProps) {
             ? `From ${from}`
             : "Answer"}
         {p.model ? ` · ${p.model}` : ""}
+        {!streaming && p.messageId != null && (
+          <AnswerDetails meta={p.meta} steps={p.steps ?? []} chatId={p.chatId} messageId={p.messageId} />
+        )}
         {p.onShowSources && p.passages && p.passages.length > 0 && (
           <button
             type="button"

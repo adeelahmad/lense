@@ -1,10 +1,10 @@
-import type { Estimate, Passage, SandboxFile, SandboxOutput } from "@/app/openapi-client/types.gen";
+import type { Estimate, MessageRecord, Passage, SandboxFile, SandboxOutput } from "@/app/openapi-client/types.gen";
 
 /**
  * One question's answer as it streams from POST /chats/{id}/messages. The backend sends server-sent events:
  * `scoped` (a conversation over everything narrowed to the namespace it's about), `suggested` (namespaces to offer when that isn't clear), `step` (a tool the assistant used), `approval` (work waiting for the person), `notice`, `passages` (the numbered
- * excerpts), `token` (answer text), `error`, `stopped` (Stop was pressed: what came is saved, marked stopped) and
- * `done` (the saved message id).
+ * excerpts), `token` (answer text), `error`, `stopped` (Stop was pressed: what came is saved, marked stopped), `meta`
+ * (the answer's record: what produced it) and `done` (the saved message id).
  */
 
 export type ToolStep = {
@@ -15,6 +15,10 @@ export type ToolStep = {
   output?: SandboxOutput | null;
   /** A file the code sandbox handed the person, to download from the answer. */
   file?: SandboxFile | null;
+  /** How long the tool took. */
+  ms?: number | null;
+  /** It failed (or was unknown or blocked); the summary says why. */
+  failed?: boolean | null;
 };
 export type PendingApproval = {
   id: number;
@@ -41,6 +45,8 @@ export type TurnState = {
   text: string;
   error: string | null;
   messageId: number | null;
+  /** What produced the answer, once it's saved. */
+  meta: MessageRecord | null;
 };
 
 export function newTurn(question: string): TurnState {
@@ -56,6 +62,7 @@ export function newTurn(question: string): TurnState {
     text: "",
     error: null,
     messageId: null,
+    meta: null,
   };
 }
 
@@ -85,6 +92,8 @@ export function applyEvent(s: TurnState, ev: { event: string; data: string }): T
             summary: str(o.summary),
             output: sandboxOutput(o.output),
             file: sandboxFile(o.file),
+            ms: typeof o.ms === "number" ? o.ms : null,
+            failed: o.failed === true || null,
           },
         ],
       };
@@ -127,6 +136,8 @@ export function applyEvent(s: TurnState, ev: { event: string; data: string }): T
       };
     case "stopped":
       return { ...s, status: "stopped" };
+    case "meta":
+      return { ...s, meta: d && !Array.isArray(d) ? (o as MessageRecord) : null };
     case "done":
       return {
         ...s,
@@ -165,6 +176,8 @@ export function savedSteps(
         tool: string;
         args?: Record<string, unknown>;
         summary?: string;
+        ms?: number | null;
+        failed?: boolean | null;
         output?: SandboxOutput | null;
         file?: SandboxFile | null;
       }[]
@@ -175,6 +188,8 @@ export function savedSteps(
     tool: s.tool,
     args: s.args ?? {},
     summary: s.summary ?? "",
+    ...(s.ms != null ? { ms: s.ms } : {}),
+    ...(s.failed ? { failed: true } : {}),
     output: sandboxOutput(s.output),
     file: sandboxFile(s.file),
   }));

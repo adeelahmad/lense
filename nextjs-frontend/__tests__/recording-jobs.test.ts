@@ -273,7 +273,15 @@ describe("reprocess picker (R9)", () => {
   const audio = reprocessOptions({ video: false, hasAudio: true });
   const transcript = reprocessOptions({ video: false, hasAudio: false });
   it("offers the backend's steps; video steps only for videos", () => {
-    expect(audio.map((o) => o.key)).toEqual(["transcribe", "diarize", "analyze", "embed", "summarize", "report"]);
+    expect(audio.map((o) => o.key)).toEqual([
+      "transcribe",
+      "diarize",
+      "clean",
+      "analyze",
+      "embed",
+      "summarize",
+      "report",
+    ]);
     expect(reprocessOptions({ video: true, hasAudio: true }).map((o) => o.key)).toEqual([
       "transcribe",
       "diarize",
@@ -283,12 +291,14 @@ describe("reprocess picker (R9)", () => {
       "objects",
       "nsfw",
       "describe",
+      "clean",
       "analyze",
       "embed",
       "summarize",
       "report",
     ]);
-    // a document's or an image's pages: faces, objects, NSFW and descriptions, not shots or text on screen
+    // a document's or an image's pages: faces, objects, NSFW and descriptions, not shots, text on screen or cleaning
+    // up speech
     expect(reprocessOptions({ video: false, hasAudio: false, paged: true }).map((o) => o.key)).toEqual([
       "transcribe",
       "diarize",
@@ -311,6 +321,16 @@ describe("reprocess picker (R9)", () => {
     s = toggleStep(s, "report", false, audio);
     expect(orderedSteps(s)).toEqual(["diarize", "analyze", "summarize"]);
     expect(orderedSteps(toggleStep(new Set<StepKey>(), "transcribe", true, transcript))).toEqual([]);
+    // a new transcript is cleaned up (where that's on) before it's analysed again
+    expect(orderedSteps(toggleStep(new Set<StepKey>(), "transcribe", true, audio))).toEqual([
+      "transcribe",
+      "diarize",
+      "clean",
+      "analyze",
+      "embed",
+      "summarize",
+      "report",
+    ]);
   });
 });
 

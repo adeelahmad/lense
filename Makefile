@@ -67,6 +67,11 @@ clicks: env ## Count the clicks, keys and taps each journey takes on a fresh Len
 	ci/clicks/run.sh --compare ci/clicks/baseline.json
 	ci/clicks/run.sh --device phone --compare ci/clicks/baseline-phone.json
 
+.PHONY: scorecard
+SCORECARD ?=
+scorecard: ## The numbers that say whether Lens meets its goals, as one JSON line (SCORECARD=file.jsonl compares and appends)
+	python3 ci/scorecard/scorecard.py $(if $(SCORECARD),--log $(SCORECARD))
+
 .PHONY: run dev stop setup-code logs
 
 run: .env ## Build once and run the whole stack, no hot reload (the fast way to use it): http://localhost:3000

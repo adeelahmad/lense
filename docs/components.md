@@ -21,6 +21,7 @@ never fetch a speech or voice model.
 | Object model | `video.object_engine` is `yolox` (the default) or `anytopdf` | YOLOX-s, and ONNX Runtime for `yolox` |
 | NSFW model | [NSFW classification](nsfw.md) is on for the archive or a namespace (off by default) | the 8-bit ONNX export of AdamCodd/vit-base-nsfw-detector (Apache-2.0, 88 MB), and ONNX Runtime |
 | Prompt-injection classifier | `ai.injection_check` is `classifier` | ProtectAI's deberta-v3-base-prompt-injection-v2 (Apache-2.0, about 740 MB), the tokenizers library and ONNX Runtime ([third-party content](assistant.md#third-party-content-and-prompt-injection)) |
+| Punctuation model | `analysis.cleanup` is on and `analysis.cleanup_punctuation` isn't `off` ([Cleaning up transcripts](processing.md#cleaning-up-transcripts)) | kredor/punctuate-all at a pinned revision (MIT, about 1.1 GB), with Transformers and PyTorch's CPU build |
 | DuckDuckGo search | `web.search` is `duckduckgo` | ddgs (MIT, about 30 MB with lxml and primp), the client the assistant's [web search](assistant.md#web-search-and-reading-pages) reads DuckDuckGo's results with |
 | yt-dlp | `documents.video_urls` is on | the yt-dlp program, release 2026.08.19 (Unlicense), to download videos and podcasts imported by address |
 | Chat model, embedding model | the LLM provider or embeddings server is Ollama | pulled on that server (`/api/pull`) |
