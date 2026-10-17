@@ -53,6 +53,9 @@ spacy = ["spacy>=3.8,<3.9"]
 injection = ["onnxruntime", "tokenizers"]
 # Florence-2 (MIT) describing pictures on this machine (llm.describe_engine "florence-2"): its ONNX export on ONNX Runtime
 florence = ["onnxruntime", "tokenizers"]
+# Moondream describing pictures on this machine (llm.describe_engine "moondream"): its own code on transformers and
+# PyTorch. Moondream 3 Preview's weights are BSL 1.1 (not open source), Moondream 2's Apache-2.0; fetched only when picked
+moondream = ["torch", "transformers"]
 # Checking IIIF manifests against the official schema
 validate = ["jsonschema"]
 # the SMB share of the file tree (smb_share.py): impacket's SMB server (a modified Apache 1.1 license); fetched when
