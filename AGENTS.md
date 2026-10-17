@@ -81,6 +81,9 @@ requirements and this file as you learn. Loosening a requirement, a test or a ru
 - **Generated files come from tooling** (`make openapi`), never from hand-merging.
 - **Docs move with the code.** Update `docs/` when behaviour or configuration changes; `mkdocs build --strict` stays
   clean.
+- **Requirements move with the code.** A pull request that builds something adds it to the README's built list with
+  its checks in [docs/requirements.md](docs/requirements.md), and takes its own line out of In progress. `make
+  requirements` (also a pre-commit hook) fails when a named check is gone.
 - **Debug from evidence.** Read the logs (`docker compose logs`), reproduce, then fix.
 - **Quality over cost.** Don't cut work short to save tokens.
 

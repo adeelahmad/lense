@@ -117,6 +117,14 @@ pnpm test && pnpm lint && pnpm tsc && pnpm build
 The docs are these Markdown files, built with mkdocs-material: `make docs` serves them, and `make docs-build` builds
 the site the way CI does, failing on broken links.
 
+## Requirements
+
+The README lists what Lens does (built), what is in a pull request (In progress) and what comes next (Planned), and
+[Requirements and checks](requirements.md) backs each built item with the tests, clicks journeys and measured numbers
+that fail when it stops being true. A pull request that builds something adds it to the README and a row there, and
+takes its own line out of In progress. `make requirements` (also a pre-commit hook, so CI runs it on every pull
+request) fails when a check a row names is gone or a measured number is no longer met.
+
 ## Release
 
 The backend and frontend share a [semantic version](https://semver.org/). The changelog is written from the PR titles,
