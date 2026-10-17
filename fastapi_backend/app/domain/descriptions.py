@@ -1,7 +1,8 @@
-"""Descriptions of what's seen (docs/api.md#descriptions): a model that can see images, the one an admin chose as
-llm.vision_model, says in a few sentences what each of a document's or an image's pages shows, and each of a video's
-shots (from its keyframe), so that they can be searched and read by people who can't see them. Without such a model
-the describe step is skipped, saying why."""
+"""Descriptions of what's seen (docs/api.md#descriptions): a model that can see images says in a few sentences what
+each of a document's or an image's pages shows, and each of a video's shots (from its keyframe), so that they can be
+searched and read by people who can't see them. Which model is llm.describe_engine: "llm", the LLM provider's model an
+admin chose as llm.vision_model (the default), or "florence-2", Florence-2 on this machine (florence.py), which needs
+no provider and sends no picture anywhere. Without one the describe step is skipped, saying why."""
 
 from __future__ import annotations
 
@@ -20,6 +21,18 @@ PROMPT = (
 )
 LONGEST = 1024  # pixels on a picture's longest side, as it's sent
 MAX_CHARS = 1500  # of a description kept
+
+
+# what can describe pictures (llm.describe_engine), as agents are told
+ENGINES = {
+    "llm": "the LLM provider's model that can see images (llm.vision_model): each picture is a request to it",
+    "florence-2": "Florence-2 (MIT) on this server's CPU: no picture leaves it and no provider is called; base is about "
+    "280 MB, large about 830 MB, fetched the first time a job needs it",
+}
+
+
+class Failed(RuntimeError):
+    """A model on this machine couldn't describe a picture."""
 
 
 def model_why(cfg):
@@ -47,8 +60,59 @@ def picture(path, longest=LONGEST):
 def describe(cfg, model, path, about):
     """What the model says the picture at `path` shows; `about` says what it is (page 3 of …)."""
     content = [{"type": "text", "text": about}, {"type": "image_url", "image_url": {"url": picture(path)}}]
-    text = llm.chat(cfg, [{"role": "system", "content": PROMPT}, {"role": "user", "content": content}], model=model)
+    return llm.chat(cfg, [{"role": "system", "content": PROMPT}, {"role": "user", "content": content}], model=model)
+
+
+def _tidy(text):
+    """A description as it's kept: its spaces made single, at most MAX_CHARS."""
     return re.sub(r"\s+", " ", text or "").strip()[:MAX_CHARS]
+
+
+class Provider:
+    """The LLM provider's model that can see images (llm.vision_model)."""
+
+    def __init__(self, cfg, model):
+        self.cfg, self.name = cfg, model
+
+    def describe(self, path, about):
+        return describe(self.cfg, self.name, path, about)
+
+
+def engine(cfg):
+    """(what describes pictures, None), or (None, why there's none): its `name` and `describe(path, about)`."""
+    if (cfg["llm"].get("describe_engine") or "llm") == "florence-2":
+        from . import florence
+
+        try:
+            return florence.Florence(cfg), None
+        except RuntimeError as e:
+            return None, str(e)
+    model, why = model_why(cfg)
+    return (Provider(cfg, model), None) if model else (None, why)
+
+
+def status(cfg):
+    """What describes pictures: the engine and its model, whether it's ready (and why not), the settings, and the
+    engines there are. Nothing is loaded to say so."""
+    from . import florence
+
+    l = cfg["llm"]
+    which = l.get("describe_engine") or "llm"
+    if which == "florence-2":
+        model = florence.name(florence.size(cfg))
+        why = None if florence.ready(cfg) else "it isn't here yet: it's fetched the first time a job waits to describe something"
+    else:
+        model, why = model_why(cfg)
+    return {
+        "engine": which,
+        "model": model,
+        "ready": why is None,
+        "why_not": why,
+        "vision_model": l.get("vision_model"),
+        "florence_model": florence.size(cfg),
+        "describe_max": int(l.get("describe_max") or 50),
+        "engines": ENGINES,
+    }
 
 
 def _clock(ms):
@@ -75,9 +139,10 @@ def step_describe(db, cfg, rid, say):
         items = [{"idx": s["idx"], "t0": s["t0"], "t1": s["t1"], "frame": s["frame"]} for s in shots if s.get("frame")]
         if not items:
             raise jobs.Skip("it has no shots yet (the shots step finds them)")
-    model, why = model_why(cfg)
-    if not model:
+    eye, why = engine(cfg)
+    if not eye:
         raise jobs.Skip(why)
+    model = eye.name
     most = int(cfg["llm"].get("describe_max") or 50)
     title, d, rows, failed = rec.get("title") or "untitled", video.frames_dir(cfg, rid), [], []
     for it in items[:most]:
@@ -89,14 +154,15 @@ def step_describe(db, cfg, rid, say):
             about = f"The first frame of a shot in the video “{title}”, at {_clock(it['t0'])}."
         try:
             with keyring.plain_picture(db, cfg, d / it["frame"]) as pic:
-                text = describe(cfg, model, pic, about)
-        except (llm.LLMError, OSError) as e:
+                text = _tidy(eye.describe(pic, about))
+        except (llm.LLMError, OSError, Failed) as e:
             failed.append(str(e))
             continue
         if text:
             rows.append(store.clean({"recording": rid, "space": rec["space"], **it, "paged": paged or None, "text": text, "model": model}))
     if failed and not rows:
-        raise llm.LLMError(f"{model} couldn't describe its {'pages' if paged else 'shots'}: {failed[0]}")
+        why = f"{model} couldn't describe its {'pages' if paged else 'shots'}: {failed[0]}"
+        raise llm.LLMError(why) if isinstance(eye, Provider) else Failed(why)
     db.run(["DELETE description WHERE recording = $r", *(["INSERT INTO description $rows"] if rows else [])], r=rid, rows=rows)
     what = "page(s)" if paged else "shot(s)"
     note = f"{len(rows)} {what} described ({model})"
