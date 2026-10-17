@@ -1,6 +1,6 @@
 {
-  "surveyed": "2026-10-15T00:52:08.738Z",
-  "commit": "93bbfbe6f96099678673e62cb5897db1901ff413",
+  "surveyed": "2026-10-17T09:32:32.561Z",
+  "commit": "",
   "viewport": "Pixel 7, 412x839, touch",
   "device": "phone",
   "journeys": [
@@ -47,7 +47,7 @@
         }
       ],
       "id": "install",
-      "ms": 1590,
+      "ms": 2971,
       "ok": true
     },
     {
@@ -85,7 +85,7 @@
         }
       ],
       "id": "first-admin",
-      "ms": 470,
+      "ms": 696,
       "ok": true
     },
     {
@@ -107,7 +107,7 @@
         }
       ],
       "id": "setup-wizard",
-      "ms": 410,
+      "ms": 590,
       "ok": true
     },
     {
@@ -137,7 +137,7 @@
         }
       ],
       "id": "first-question",
-      "ms": 1089,
+      "ms": 2416,
       "ok": true
     },
     {
@@ -184,7 +184,7 @@
         }
       ],
       "id": "import-paste",
-      "ms": 4392,
+      "ms": 4293,
       "ok": true
     },
     {
@@ -222,7 +222,7 @@
         }
       ],
       "id": "library-open",
-      "ms": 3028,
+      "ms": 3480,
       "ok": true
     },
     {
@@ -268,7 +268,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 3605,
+      "ms": 4181,
       "ok": true
     },
     {
@@ -306,7 +306,7 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2365,
+      "ms": 2668,
       "ok": true
     },
     {
@@ -360,7 +360,7 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 6073,
+      "ms": 6570,
       "ok": true
     },
     {
@@ -422,7 +422,7 @@
         }
       ],
       "id": "note-create",
-      "ms": 3403,
+      "ms": 3936,
       "ok": true
     },
     {
@@ -476,7 +476,7 @@
         }
       ],
       "id": "topic-add",
-      "ms": 3606,
+      "ms": 3763,
       "ok": true
     },
     {
@@ -522,7 +522,7 @@
         }
       ],
       "id": "pipeline-create",
-      "ms": 2909,
+      "ms": 2982,
       "ok": true
     },
     {
@@ -568,7 +568,7 @@
         }
       ],
       "id": "routine-create",
-      "ms": 2958,
+      "ms": 3029,
       "ok": true
     },
     {
@@ -614,7 +614,7 @@
         }
       ],
       "id": "extension-add",
-      "ms": 3082,
+      "ms": 3144,
       "ok": true
     },
     {
@@ -660,7 +660,7 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 3020,
+      "ms": 3122,
       "ok": true
     },
     {
@@ -723,7 +723,7 @@
         }
       ],
       "id": "settings-change",
-      "ms": 4214,
+      "ms": 4385,
       "ok": true
     },
     {
@@ -793,7 +793,7 @@
         }
       ],
       "id": "person-add",
-      "ms": 3601,
+      "ms": 3669,
       "ok": true
     },
     {
@@ -831,7 +831,7 @@
         }
       ],
       "id": "api-token",
-      "ms": 3232,
+      "ms": 3331,
       "ok": true
     },
     {
@@ -869,7 +869,7 @@
         }
       ],
       "id": "namespace-switch",
-      "ms": 2754,
+      "ms": 2836,
       "ok": true
     },
     {
@@ -915,7 +915,7 @@
         }
       ],
       "id": "agent-connect",
-      "ms": 3109,
+      "ms": 3219,
       "ok": true
     },
     {
@@ -953,7 +953,7 @@
         }
       ],
       "id": "import-file",
-      "ms": 3730,
+      "ms": 3925,
       "ok": true
     },
     {
@@ -1007,13 +1007,13 @@
         }
       ],
       "id": "source-folder",
-      "ms": 4469,
+      "ms": 4297,
       "ok": true
     },
     {
       "module": "Entities",
       "feature": "Find an entity and see where it was mentioned",
-      "note": "",
+      "note": "Its name opens its own page, /wiki/<namespace>/Raspberry_Pi, with its notes and every line that says it.",
       "clicks": 4,
       "keys": 4,
       "prompts": 0,
@@ -1053,7 +1053,7 @@
         }
       ],
       "id": "entity-find",
-      "ms": 11839,
+      "ms": 11995,
       "ok": true
     },
     {
@@ -1107,7 +1107,7 @@
         }
       ],
       "id": "graph-find",
-      "ms": 4686,
+      "ms": 5031,
       "ok": true
     },
     {
@@ -1169,7 +1169,7 @@
         }
       ],
       "id": "podcast-create",
-      "ms": 3951,
+      "ms": 4426,
       "ok": true
     },
     {
@@ -1223,7 +1223,7 @@
         }
       ],
       "id": "report-pdf",
-      "ms": 3869,
+      "ms": 4139,
       "ok": true
     },
     {
@@ -1277,7 +1277,7 @@
         }
       ],
       "id": "workflow-create",
-      "ms": 3548,
+      "ms": 3838,
       "ok": true
     },
     {
@@ -1331,7 +1331,7 @@
         }
       ],
       "id": "template-create",
-      "ms": 3483,
+      "ms": 3839,
       "ok": true
     },
     {
@@ -1393,7 +1393,7 @@
         }
       ],
       "id": "namespace-create",
-      "ms": 3333,
+      "ms": 3623,
       "ok": true
     },
     {
@@ -1455,7 +1455,307 @@
         }
       ],
       "id": "speaker-rename",
-      "ms": 4242,
+      "ms": 4559,
+      "ok": true
+    },
+    {
+      "module": "Entities",
+      "feature": "Merge two entities into one, then undo it",
+      "note": "The merge happens at once and the notice has Undo, so nothing asks to confirm; Undo puts both back.",
+      "clicks": 6,
+      "keys": 0,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Entities",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/entities",
+          "kind": "tap",
+          "what": "tick Lens",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/entities",
+          "kind": "tap",
+          "what": "tick Raspberry Pi",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/entities",
+          "kind": "tap",
+          "what": "Merge into the one it keeps",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/entities",
+          "kind": "tap",
+          "what": "Undo on the notice",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "entity-merge",
+      "ms": 6866,
+      "ok": true
+    },
+    {
+      "module": "Graph",
+      "feature": "Merge an entity into another from the graph, then undo it",
+      "note": "Find the node, Merge in its panel, type the other's name and Enter; the notice has Undo, so nothing asks to confirm.",
+      "clicks": 5,
+      "keys": 10,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Graph",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/graph",
+          "kind": "tap",
+          "what": "Filters",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/graph",
+          "kind": "type",
+          "what": "part of the name",
+          "clicks": 0,
+          "keys": 4,
+          "prompts": 0
+        },
+        {
+          "page": "/graph",
+          "kind": "key",
+          "what": "Enter to pick it",
+          "clicks": 0,
+          "keys": 1,
+          "prompts": 0
+        },
+        {
+          "page": "/graph",
+          "kind": "tap",
+          "what": "Merge in its panel",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/graph",
+          "kind": "type",
+          "what": "the other's name",
+          "clicks": 0,
+          "keys": 4,
+          "prompts": 0
+        },
+        {
+          "page": "/graph",
+          "kind": "key",
+          "what": "Enter to merge it",
+          "clicks": 0,
+          "keys": 1,
+          "prompts": 0
+        },
+        {
+          "page": "/graph",
+          "kind": "tap",
+          "what": "Undo on the notice",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "graph-merge",
+      "ms": 8282,
+      "ok": true
+    },
+    {
+      "module": "Chat",
+      "feature": "Regenerate an answer, then switch back to the first version",
+      "note": "In the conversation chat-ask started: Regenerate writes another answer beside it (2 / 2), and the arrow before the count shows the first again.",
+      "clicks": 5,
+      "keys": 0,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Chat",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/chat",
+          "kind": "tap",
+          "what": "the conversation",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/chat/:id",
+          "kind": "tap",
+          "what": "Regenerate",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/chat/:id",
+          "kind": "tap",
+          "what": "Previous version (‹)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "chat-regenerate",
+      "ms": 4165,
+      "ok": true
+    },
+    {
+      "module": "Chat",
+      "feature": "Copy an answer",
+      "note": "Continues chat-regenerate, in its conversation. Copy copies it as Markdown, its citations as footnotes; the arrow beside it has Copy text and Export.",
+      "clicks": 1,
+      "keys": 0,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/chat/:id",
+          "kind": "tap",
+          "what": "Copy",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "chat-copy",
+      "ms": 265,
+      "ok": true
+    },
+    {
+      "module": "Chat",
+      "feature": "Export a conversation as a PDF",
+      "note": "Continues chat-copy. The download icon in the conversation's header, then PDF. Where the server can make the PDF (Chromium, anytopdf or LibreOffice) the browser saves it; where it can't, the browser's print dialog opens on the conversation and does the saving (one click there, counted).",
+      "clicks": 2,
+      "keys": 0,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/chat/:id",
+          "kind": "tap",
+          "what": "Export conversation (the header's download icon)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/chat/:id",
+          "kind": "tap",
+          "what": "PDF",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "chat-export-pdf",
+      "ms": 5022,
+      "ok": true
+    },
+    {
+      "module": "Chat",
+      "feature": "Pick the tools and a tool-call limit for a conversation",
+      "note": "Continues chat-export-pdf. The Tools chip beside the scope: switching one group off keeps the others (Auto goes off), and the limit starts at 10 calls. Each change is saved to the conversation as it's made, and new conversations start with it.",
+      "clicks": 4,
+      "keys": 0,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/chat/:id",
+          "kind": "tap",
+          "what": "the Tools chip (Tools: Auto)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/chat/:id",
+          "kind": "tap",
+          "what": "switch off The server",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/chat/:id",
+          "kind": "tap",
+          "what": "Limit tool calls per answer (10)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/chat/:id",
+          "kind": "tap",
+          "what": "Done",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "chat-tools",
+      "ms": 1132,
       "ok": true
     },
     {
@@ -1525,7 +1825,7 @@
         }
       ],
       "id": "cloud-model",
-      "ms": 3735,
+      "ms": 3952,
       "ok": true
     }
   ],
@@ -1534,415 +1834,526 @@
       "page": "/",
       "label": "Home",
       "reach": 2,
-      "controls": 4
+      "controls": 4,
+      "askCovers": []
     },
     {
       "page": "/library",
       "label": "Library",
       "reach": 2,
-      "controls": 17
+      "controls": 17,
+      "askCovers": []
     },
     {
       "page": "/search",
       "label": "Search",
       "reach": 2,
-      "controls": 11
+      "controls": 11,
+      "askCovers": []
     },
     {
       "page": "/chat",
       "label": "Chat",
       "reach": 2,
-      "controls": 0
+      "controls": 0,
+      "askCovers": []
     },
     {
       "page": "/notes",
       "label": "Notes",
       "reach": 2,
-      "controls": 2
+      "controls": 10,
+      "askCovers": []
+    },
+    {
+      "page": "/timeline",
+      "label": "Timeline",
+      "reach": 2,
+      "controls": 51,
+      "askCovers": []
     },
     {
       "page": "/entities",
       "label": "Entities",
       "reach": 2,
-      "controls": 10
+      "controls": 10,
+      "askCovers": []
     },
     {
       "page": "/topics",
       "label": "Topics",
       "reach": 2,
-      "controls": 4
+      "controls": 4,
+      "askCovers": []
     },
     {
       "page": "/graph",
       "label": "Graph",
       "reach": 2,
-      "controls": 14
+      "controls": 14,
+      "askCovers": []
     },
     {
       "page": "/podcasts",
       "label": "Podcasts",
       "reach": 2,
-      "controls": 1
+      "controls": 1,
+      "askCovers": []
     },
     {
       "page": "/reports",
       "label": "Reports",
       "reach": 2,
-      "controls": 7
-    },
-    {
-      "page": "/costs",
-      "label": "Costs",
-      "reach": 2,
-      "controls": 12
+      "controls": 7,
+      "askCovers": []
     },
     {
       "page": "/pipelines",
       "label": "Pipelines",
       "reach": 2,
-      "controls": 20
+      "controls": 20,
+      "askCovers": []
     },
     {
       "page": "/workflows",
       "label": "Pipelines › Workflows",
       "reach": 3,
-      "controls": 8
+      "controls": 8,
+      "askCovers": []
     },
     {
       "page": "/workflows/nodes",
       "label": "Pipelines › Custom nodes",
       "reach": 3,
-      "controls": 6
+      "controls": 6,
+      "askCovers": []
     },
     {
       "page": "/content-types",
       "label": "Pipelines › Content types",
       "reach": 3,
-      "controls": 66
+      "controls": 69,
+      "askCovers": []
     },
     {
       "page": "/templates",
       "label": "Pipelines › Templates",
       "reach": 3,
-      "controls": 11
+      "controls": 12,
+      "askCovers": []
     },
     {
       "page": "/routines",
       "label": "Routines",
       "reach": 2,
-      "controls": 20
+      "controls": 20,
+      "askCovers": []
     },
     {
       "page": "/routines/changes",
       "label": "Routines › Proposed changes",
       "reach": 3,
-      "controls": 5
+      "controls": 5,
+      "askCovers": []
     },
     {
       "page": "/routines/history",
       "label": "Routines › History",
       "reach": 3,
-      "controls": 9
+      "controls": 21,
+      "askCovers": []
     },
     {
       "page": "/extensions",
       "label": "Extensions",
       "reach": 2,
-      "controls": 7
+      "controls": 8,
+      "askCovers": []
     },
     {
       "page": "/sensors",
       "label": "Sensors",
       "reach": 2,
-      "controls": 9
+      "controls": 9,
+      "askCovers": []
     },
     {
       "page": "/sources",
       "label": "Sensors › Files, email and calendars",
       "reach": 3,
-      "controls": 9
+      "controls": 9,
+      "askCovers": []
     },
     {
       "page": "/sensors/logins",
       "label": "Sensors › Hub logins",
       "reach": 3,
-      "controls": 5
+      "controls": 5,
+      "askCovers": []
+    },
+    {
+      "page": "/costs",
+      "label": "Costs",
+      "reach": 2,
+      "controls": 12,
+      "askCovers": []
+    },
+    {
+      "page": "/analytics",
+      "label": "Analytics",
+      "reach": 2,
+      "controls": 5,
+      "askCovers": []
     },
     {
       "page": "/settings/speakers",
       "label": "Settings",
       "reach": 2,
-      "controls": 5
-    },
-    {
-      "page": "/settings/transcription",
-      "label": "Settings › Transcription",
-      "reach": 3,
-      "controls": 4
-    },
-    {
-      "page": "/settings/speaker-separation",
-      "label": "Settings › Speaker separation",
-      "reach": 3,
-      "controls": 9
-    },
-    {
-      "page": "/settings/speech-providers",
-      "label": "Settings › Speech providers",
-      "reach": 3,
-      "controls": 30
-    },
-    {
-      "page": "/settings/voice-ids",
-      "label": "Settings › Voice IDs",
-      "reach": 3,
-      "controls": 6
-    },
-    {
-      "page": "/settings/analysis",
-      "label": "Settings › Analysis",
-      "reach": 3,
-      "controls": 3
+      "controls": 5,
+      "askCovers": []
     },
     {
       "page": "/settings/llm",
       "label": "Settings › LLM provider",
       "reach": 3,
-      "controls": 20
+      "controls": 16,
+      "askCovers": []
     },
     {
       "page": "/settings/local-model",
       "label": "Settings › Local model",
       "reach": 3,
-      "controls": 25
+      "controls": 20,
+      "askCovers": []
     },
     {
       "page": "/settings/ai",
       "label": "Settings › AI assistant",
       "reach": 3,
-      "controls": 57
+      "controls": 18,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/sandbox",
+      "label": "Settings › Code sandbox",
+      "reach": 3,
+      "controls": 5,
+      "askCovers": []
     },
     {
       "page": "/settings/search",
       "label": "Settings › Search",
       "reach": 3,
-      "controls": 17
+      "controls": 9,
+      "askCovers": []
     },
     {
-      "page": "/settings/reports",
-      "label": "Settings › Reports and graph",
+      "page": "/settings/analysis",
+      "label": "Settings › Analysis",
       "reach": 3,
-      "controls": 5
+      "controls": 5,
+      "askCovers": []
     },
     {
-      "page": "/settings/video",
-      "label": "Settings › Video, OCR, faces and objects",
+      "page": "/settings/transcription",
+      "label": "Settings › Transcription",
       "reach": 3,
-      "controls": 19
+      "controls": 4,
+      "askCovers": []
     },
     {
-      "page": "/settings/nsfw",
-      "label": "Settings › NSFW",
+      "page": "/settings/speaker-separation",
+      "label": "Settings › Speaker separation",
       "reach": 3,
-      "controls": 5
+      "controls": 9,
+      "askCovers": []
     },
     {
-      "page": "/settings/workers",
-      "label": "Settings › Workers",
+      "page": "/settings/voice-ids",
+      "label": "Settings › Voice IDs",
       "reach": 3,
-      "controls": 19
+      "controls": 4,
+      "askCovers": []
     },
     {
-      "page": "/settings/sign-in",
-      "label": "Settings › Sign-in",
+      "page": "/settings/speech-providers",
+      "label": "Settings › Speech providers",
       "reach": 3,
-      "controls": 2
-    },
-    {
-      "page": "/settings/encryption",
-      "label": "Settings › Encryption",
-      "reach": 3,
-      "controls": 3
-    },
-    {
-      "page": "/settings/components",
-      "label": "Settings › Components",
-      "reach": 3,
-      "controls": 3
-    },
-    {
-      "page": "/settings/access",
-      "label": "Settings › Access & embedding",
-      "reach": 3,
-      "controls": 6
-    },
-    {
-      "page": "/settings/remote-access",
-      "label": "Settings › Remote access",
-      "reach": 3,
-      "controls": 4
-    },
-    {
-      "page": "/settings/https",
-      "label": "Settings › HTTPS",
-      "reach": 3,
-      "controls": 18
-    },
-    {
-      "page": "/settings/mail",
-      "label": "Settings › Email",
-      "reach": 3,
-      "controls": 8
-    },
-    {
-      "page": "/settings/bridge",
-      "label": "Settings › Chat rooms",
-      "reach": 3,
-      "controls": 14
-    },
-    {
-      "page": "/settings/telegram",
-      "label": "Settings › Telegram",
-      "reach": 3,
-      "controls": 2
-    },
-    {
-      "page": "/settings/slack",
-      "label": "Settings › Slack",
-      "reach": 3,
-      "controls": 2
-    },
-    {
-      "page": "/settings/mailbox",
-      "label": "Settings › Assistant email",
-      "reach": 3,
-      "controls": 2
-    },
-    {
-      "page": "/settings/notifications",
-      "label": "Settings › Notifications",
-      "reach": 3,
-      "controls": 5
-    },
-    {
-      "page": "/settings/telemetry",
-      "label": "Settings › Telemetry",
-      "reach": 3,
-      "controls": 14
-    },
-    {
-      "page": "/settings/logs",
-      "label": "Settings › Logs",
-      "reach": 3,
-      "controls": 223
-    },
-    {
-      "page": "/settings/fedora",
-      "label": "Settings › Fedora repository",
-      "reach": 3,
-      "controls": 10
-    },
-    {
-      "page": "/settings/sensors",
-      "label": "Settings › Sensors",
-      "reach": 3,
-      "controls": 15
-    },
-    {
-      "page": "/settings/nfs",
-      "label": "Settings › NFS share",
-      "reach": 3,
-      "controls": 4
-    },
-    {
-      "page": "/settings/smb",
-      "label": "Settings › SMB share",
-      "reach": 3,
-      "controls": 2
-    },
-    {
-      "page": "/settings/shares",
-      "label": "Settings › File shares",
-      "reach": 3,
-      "controls": 6
+      "controls": 2,
+      "askCovers": []
     },
     {
       "page": "/settings/uploads",
       "label": "Settings › Uploads",
       "reach": 3,
-      "controls": 23
-    },
-    {
-      "page": "/settings/backups",
-      "label": "Settings › Backups",
-      "reach": 3,
-      "controls": 9
-    },
-    {
-      "page": "/settings/storage",
-      "label": "Settings › Storage",
-      "reach": 3,
-      "controls": 3
+      "controls": 1,
+      "askCovers": []
     },
     {
       "page": "/settings/documents",
       "label": "Settings › Documents",
       "reach": 3,
-      "controls": 12
+      "controls": 8,
+      "askCovers": []
     },
     {
-      "page": "/settings/tokens",
-      "label": "Settings › API keys",
+      "page": "/settings/video",
+      "label": "Settings › Video, OCR, faces and objects",
       "reach": 3,
-      "controls": 7
+      "controls": 10,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/nsfw",
+      "label": "Settings › NSFW",
+      "reach": 3,
+      "controls": 5,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/reports",
+      "label": "Settings › Reports and graph",
+      "reach": 3,
+      "controls": 5,
+      "askCovers": []
     },
     {
       "page": "/settings/iiif",
       "label": "Settings › IIIF & metadata",
       "reach": 3,
-      "controls": 21
+      "controls": 7,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/telegram",
+      "label": "Settings › Telegram",
+      "reach": 3,
+      "controls": 2,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/slack",
+      "label": "Settings › Slack",
+      "reach": 3,
+      "controls": 2,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/bridge",
+      "label": "Settings › Chat rooms",
+      "reach": 3,
+      "controls": 14,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/mailbox",
+      "label": "Settings › Assistant email",
+      "reach": 3,
+      "controls": 2,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/mail",
+      "label": "Settings › Email",
+      "reach": 3,
+      "controls": 8,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/notifications",
+      "label": "Settings › Notifications",
+      "reach": 3,
+      "controls": 5,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/sign-in",
+      "label": "Settings › Sign-in",
+      "reach": 3,
+      "controls": 2,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/tokens",
+      "label": "Settings › API keys",
+      "reach": 3,
+      "controls": 7,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/encryption",
+      "label": "Settings › Encryption",
+      "reach": 3,
+      "controls": 3,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/access",
+      "label": "Settings › Access & embedding",
+      "reach": 3,
+      "controls": 7,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/remote-access",
+      "label": "Settings › Remote access",
+      "reach": 3,
+      "controls": 4,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/https",
+      "label": "Settings › HTTPS",
+      "reach": 3,
+      "controls": 9,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/storage",
+      "label": "Settings › Storage",
+      "reach": 3,
+      "controls": 3,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/shares",
+      "label": "Settings › File shares",
+      "reach": 3,
+      "controls": 7,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/smb",
+      "label": "Settings › SMB share",
+      "reach": 3,
+      "controls": 2,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/nfs",
+      "label": "Settings › NFS share",
+      "reach": 3,
+      "controls": 4,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/fedora",
+      "label": "Settings › Fedora repository",
+      "reach": 3,
+      "controls": 10,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/sensors",
+      "label": "Settings › Sensors",
+      "reach": 3,
+      "controls": 15,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/updates",
+      "label": "Settings › Updates",
+      "reach": 3,
+      "controls": 6,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/backups",
+      "label": "Settings › Backups",
+      "reach": 3,
+      "controls": 9,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/components",
+      "label": "Settings › Components",
+      "reach": 3,
+      "controls": 6,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/workers",
+      "label": "Settings › Workers",
+      "reach": 3,
+      "controls": 2,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/automations",
+      "label": "Settings › Automations",
+      "reach": 3,
+      "controls": 8,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/logs",
+      "label": "Settings › Logs",
+      "reach": 3,
+      "controls": 223,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/telemetry",
+      "label": "Settings › Telemetry",
+      "reach": 3,
+      "controls": 14,
+      "askCovers": []
+    },
+    {
+      "page": "/settings/analytics",
+      "label": "Settings › Usage analytics",
+      "reach": 3,
+      "controls": 14,
+      "askCovers": []
     },
     {
       "page": "/settings/startup",
       "label": "Settings › Set at startup",
       "reach": 3,
-      "controls": 0
+      "controls": 0,
+      "askCovers": []
     },
     {
       "page": "/admin/people",
       "label": "Admin",
       "reach": 2,
-      "controls": 13
+      "controls": 13,
+      "askCovers": []
     },
     {
       "page": "/admin/roles",
       "label": "Admin › Roles",
       "reach": 3,
-      "controls": 6
+      "controls": 6,
+      "askCovers": []
     },
     {
       "page": "/admin/namespaces",
       "label": "Admin › Namespaces",
       "reach": 3,
-      "controls": 9
+      "controls": 9,
+      "askCovers": []
     },
     {
       "page": "/admin/audit",
       "label": "Admin › Audit log",
       "reach": 3,
-      "controls": 36
+      "controls": 36,
+      "askCovers": []
     },
     {
       "page": "/admin/health",
       "label": "Admin › System health",
       "reach": 3,
-      "controls": 12
+      "controls": 12,
+      "askCovers": []
     },
     {
       "page": "/notes/:id",
       "label": "Untitled",
       "reach": 2,
-      "controls": 9
+      "controls": 8,
+      "askCovers": []
     }
   ]
 }

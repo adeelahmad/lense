@@ -702,6 +702,95 @@ export const JOURNEYS = [
       await page.getByText("Merge undone").first().waitFor();
     },
   },
+  // --- Chat: versions, copying, exporting and tools. The new journeys go here, before cloud-model, which has to stay
+  // last: these need the stand-in model to answer ---------------------------------------------------------------------
+  {
+    id: "chat-regenerate",
+    ns: "",
+    module: "Chat",
+    feature: "Regenerate an answer, then switch back to the first version",
+    note: "In the conversation chat-ask started: Regenerate writes another answer beside it (2 / 2), and the arrow before the count shows the first again.",
+    from: "/",
+    async run(ctx) {
+      const { page, meter } = ctx;
+      await go(ctx, "Chat");
+      await page.waitForURL(/\/chat$/);
+      // a computer's Chat lists the conversations beside a new one; a phone's opens on the list
+      const conversation = page
+        .getByRole("navigation", { name: "Conversations" })
+        .getByRole("link", { name: /Who said what about Raspberry Pi/ })
+        .first();
+      await meter.click(conversation, "the conversation");
+      await page.waitForURL(/\/chat\/\d+/);
+      const answer = page.getByRole("article", { name: "Answer" }).last();
+      await answer.getByText(ANSWER).waitFor();
+      await meter.click(answer.getByRole("button", { name: "Regenerate", exact: true }), "Regenerate");
+      // the stand-in model says which version it's writing (fake-model.mjs)
+      await page.getByRole("article", { name: "Answer" }).last().getByText(/answering, version 2/).waitFor({ timeout: 60000 });
+      const versions = page.getByRole("group", { name: "Versions of this answer" }).last();
+      await versions.getByText("2 / 2").waitFor();
+      await meter.click(versions.getByRole("button", { name: "Previous version of this answer" }), "Previous version (‹)");
+      await versions.getByText("1 / 2").waitFor();
+      await page.getByRole("article", { name: "Answer" }).last().getByText(/answering, version 2/).waitFor({ state: "hidden" });
+    },
+  },
+  {
+    id: "chat-copy",
+    module: "Chat",
+    feature: "Copy an answer",
+    note: "Continues chat-regenerate, in its conversation. Copy copies it as Markdown, its citations as footnotes; the arrow beside it has Copy text and Export.",
+    async run(ctx) {
+      const { page, meter, base } = ctx;
+      await page.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin: base });
+      await page.evaluate(() => navigator.clipboard.writeText(""));
+      const answer = page.getByRole("article", { name: "Answer" }).last();
+      await meter.click(answer.getByRole("button", { name: "Copy", exact: true }), "Copy");
+      await page.getByText("Copied as Markdown").first().waitFor();
+      const copied = await page.evaluate(() => navigator.clipboard.readText());
+      if (!ANSWER.test(copied)) throw new Error(`copied ${JSON.stringify(copied.slice(0, 80))}, not the answer`);
+    },
+  },
+  {
+    id: "chat-export-pdf",
+    module: "Chat",
+    feature: "Export a conversation as a PDF",
+    note: "Continues chat-copy. The download icon in the conversation's header, then PDF. Where the server can make the PDF (Chromium, anytopdf or LibreOffice) the browser saves it; where it can't, the browser's print dialog opens on the conversation and does the saving (one click there, counted).",
+    async run(ctx) {
+      const { page, meter } = ctx;
+      await page.evaluate(() => {
+        window.__printed = false;
+        window.print = () => (window.__printed = true);
+      });
+      // anytopdf is fetched the first time a PDF is made, so the first can take a while
+      const wait = 180000;
+      const saved = page.waitForEvent("download", { timeout: wait }).then((d) => d, () => null);
+      await meter.click(page.getByRole("button", { name: "Export conversation" }), "Export conversation (the header's download icon)");
+      await meter.click(page.getByRole("menuitem", { name: "PDF" }), "PDF");
+      const printed = page.waitForFunction(() => window.__printed, null, { timeout: wait }).then(() => "printed", () => null);
+      const got = await Promise.race([saved, printed]);
+      if (got === "printed") {
+        await page.getByText("Printing it instead").first().waitFor();
+        meter.record("outside", "the print dialog: Save", 1, 0);
+      } else if (got) {
+        if (!got.suggestedFilename().endsWith(".pdf")) throw new Error(`downloaded ${got.suggestedFilename()}, not a PDF`);
+      } else throw new Error("neither a PDF nor the print dialog came");
+    },
+  },
+  {
+    id: "chat-tools",
+    module: "Chat",
+    feature: "Pick the tools and a tool-call limit for a conversation",
+    note: "Continues chat-export-pdf. The Tools chip beside the scope: switching one group off keeps the others (Auto goes off), and the limit starts at 10 calls. Each change is saved to the conversation as it's made, and new conversations start with it.",
+    async run(ctx) {
+      const { page, meter } = ctx;
+      await meter.click(page.getByRole("button", { name: /^Tools: Auto\. Choose the tools/ }), "the Tools chip (Tools: Auto)");
+      const picker = page.getByRole("dialog").filter({ has: page.getByRole("list", { name: "Tool groups" }) });
+      await meter.click(picker.getByRole("switch", { name: "The server", exact: true }), "switch off The server");
+      await meter.click(picker.getByRole("switch", { name: "Limit tool calls per answer" }), "Limit tool calls per answer (10)");
+      await meter.click(picker.getByRole("button", { name: "Done" }), "Done");
+      await page.getByRole("button", { name: /^Tools: \d+ picked · 10 calls\. / }).waitFor();
+    },
+  },
   {
     // Last: it points Lens at a cloud model, which the stand-in model behind the journeys above isn't
     id: "cloud-model",
