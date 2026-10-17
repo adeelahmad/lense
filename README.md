@@ -64,8 +64,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
 - **Connect your agents.** Lens is an MCP server (`/mcp`): agents search, find assets by face, voice, entity, topic,
   type, content type or date in one call, classify an asset or a text with the decision model, read assets' text and
   notes, cite exact moments, find similar content, explore the graph with Cypher or SPARQL or browse it as folders and
-  files, suggest topics and graph changes, edit and merge entities and topics (with undo), write notes and make
-  podcasts. They sign in with OAuth and see only what their person may read; the account menu copies the MCP address in
+  files, suggest topics and graph changes, edit and merge entities and topics (with undo), write notes and specs, and
+  make podcasts. They sign in with OAuth and see only what their person may read; the account menu copies the MCP address in
   one click. A namespace can also have an MCP server of its own (`/mcp/<namespace>`) and answer OpenAI's chat
   completions API for any app, cited from that namespace alone, each off until its owner turns it on, with API keys that
   open that one namespace and nothing else. The same folders and files can be mounted read-only over S3, WebDAV, NFS or
@@ -126,12 +126,14 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [topics](docs/topics.md), [video](docs/video.md), [NSFW classification](docs/nsfw.md),
   [long recordings](docs/speech-providers.md#long-recordings); [checks](docs/requirements.md#understand-it))
 - **Learn from it.** Make a two-host podcast episode about what you pick, every claim cited and checked against its
-  source, read aloud in two voices. Keep notes beside every asset, entity and topic, written by you or the assistant, in
+  source, read aloud in two voices. Turn a voice session or a meeting into a technical spec, in a note linked to it,
+  that keeps every decision, every no and every constraint in the speaker's own words, linked to when they said them,
+  flags what was left to decide later and marks any quote the transcript doesn't hold. Keep notes beside every asset, entity and topic, written by you or the assistant, in
   a tree where notes are renamed, moved, copied and pinned (pins are your own) and each note shows the notes it's
   inside and the ones inside it, with today's note one click away, templates to start from, a search by their words, a
   download as Markdown, and Undo and Recently deleted instead of a confirm. Export an asset or a collection as an
   evidence PDF with everything Lens found about it, or the parts you pick. ([Podcasts](docs/podcasts.md),
-  [notes](docs/notes.md), [evidence PDFs](docs/api.md#evidence-pdfs); [checks](docs/requirements.md#learn-from-it))
+  [specs from transcripts](docs/notes.md#specs-from-transcripts), [notes](docs/notes.md), [evidence PDFs](docs/api.md#evidence-pdfs); [checks](docs/requirements.md#learn-from-it))
 - **Automate it.** Pipelines and workflows on a canvas, routines on a schedule, batch runs over a collection, and
   notifications to webhooks, Slack, Discord and Matterbridge. Everything that happens in Lens (new assets, emails,
   calendar events, files, what people say to Lens, sensor readings, notes, graph changes, runs, budget warnings) is kept

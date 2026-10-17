@@ -10,7 +10,7 @@ import io
 import json
 import re
 
-from . import jobs, llm, pipelines, recsets, store, templates
+from . import jobs, llm, pipelines, recsets, specs, store, templates
 
 R = store.R
 SECONDS = {"transcribe": 0.12, "diarize": 0.05, "shots": 0.03}  # per second of media
@@ -23,8 +23,9 @@ def steps_for(db, run):
     if run.get("template"):
         t = templates.get(db, int(run["template"]))
         key = run.get("key") or re.sub(r"\W+", "_", t["name"].lower()).strip("_")[:40] or "output"
+        role = (db.one("SELECT role FROM $t", t=R("template", t["id"])) or {}).get("role")
         step = {
-            "prompt": {"type": "llm", "template": t["id"], "key": key},
+            "prompt": {"type": "spec", "template": t["id"]} if role == specs.ROLE else {"type": "llm", "template": t["id"], "key": key},
             "report": {"type": "report", "template": t["id"]},
             "export": {"type": "export", "template": t["id"], "filename": run.get("filename") or "{{ recording.title }}.md"},
         }[t["kind"]]
@@ -88,10 +89,10 @@ def estimate(db, cfg, ids, steps):
                 secs += SECONDS[t] * dur
             elif t in PER_FRAME and kind == "video":
                 secs += PER_FRAME[t] * dur / every
-            elif t in ("llm", "summarize"):
+            elif t in ("llm", "summarize", "spec"):
                 calls += 1
                 tin += int(chars / 4) + 400
-                tout += 600
+                tout += 2000 if t == "spec" else 600  # a spec writes out a document and its quotes
             else:
                 secs += PER_RECORDING.get(t, 0.5)
     secs += tout / 40  # ~40 tokens a second from a local model

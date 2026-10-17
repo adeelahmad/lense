@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:b41fc97af52afeb4402f75c826637ee297dee746ce119b8d5e8e009632f55775"
+prose_version: "threat-model.md@sha256:7b6c3ec209fac472dd543495e835988c1452dbee815fab35d8b6b8a603d3443b"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 204, maintainer: 46, inferred: 91, assumption: 8}

@@ -169,7 +169,8 @@ When the configured model supports function calling, chat becomes an agent.
   arguments) isn't run again: the model is pointed at the result it already has.
 - **Citations:** every moment a tool returns is numbered, so answers cite [n] across everything the assistant read.
 - **Visible steps:** each tool call streams as a step, for example 'Searched for "refund": 42 matches'.
-- **Approvals:** running a template on assets, changing entities (merging, renaming, retyping, describing one
+- **Approvals:** running a template on assets, writing a [spec](notes.md#specs-from-transcripts) from an asset's
+  transcript (`write_spec`), changing entities (merging, renaming, retyping, describing one
   and its other names, hiding one, or adding one to a namespace's fixed list) and changing topics (merging,
   renaming, describing or deleting one; [Topics](topics.md)) don't happen directly.
   They become approval cards (with the batch estimate) that the person approves, approves on a sample, or declines
