@@ -237,19 +237,18 @@ def extract_rules(db, cfg, rid, c):
         list(c.get("terms") or []) + (list(cfg["analysis"].get("gazetteer") or []) if c.get("builtin", True) else [])
     )
     pats = [(re.compile(p["pattern"]), p["type"]) for p in c.get("patterns") or []]
-    spacy = c.get("builtin", True) and cfg["analysis"]["entities"] == "spacy"
+    nid = db.one("SELECT VALUE space FROM $r", r=R("recording", rid))
+    find = analyze.entity_finder(cfg, gaz, analyze.people_of(db, nid)) if c.get("builtin", True) else None
     types = set(c.get("types") or [])
     out = []
     for k, s in enumerate(_segments(db, rid)):
         text, found = s["text"] or "", []
         for rx, typ in pats:
             found += [(m.group(0), typ) for m in rx.finditer(text) if m.group(0).strip()]
-        if c.get("builtin", True) and not spacy:
-            found += analyze.extract_entities(text, gaz)  # as analyze finds them, your terms included
+        if find:
+            found += find(text)  # as analyze finds them (the rules, or spaCy), your terms included
         else:
             found += [(m.group(0), typ) for _, typ, rx in gaz for m in rx.finditer(text)]
-            if spacy:
-                found += analyze.spacy_entities(text, cfg["analysis"]["spacy_model"])
         out += [{"name": n.strip(), "type": t, "seg": k} for n, t in found if not types or t in types]
     return merge([out])
 

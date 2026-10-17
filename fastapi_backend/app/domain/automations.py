@@ -41,9 +41,16 @@ from . import (
     workflows,
 )
 from . import activity as activity_mod
-from .automation_nodes import provided
 
 R = store.R
+
+
+def provided(module, name):
+    """automation_nodes.provided, looked up when it's called: automation_nodes imports this module (through actions),
+    so its names aren't there yet while either is being imported."""
+    return automation_nodes.provided(module, name)
+
+
 FIELDS = (
     "record::id(id) AS id, name, description, enabled, enabled_at, spaces, run_as, triggers, join, condition, workflow, "
     "version, policy, limits, created_by, created_at, updated_at, last_run_at, last_status, last_run, counters, removed_at"
