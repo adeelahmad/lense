@@ -11880,6 +11880,45 @@
         }
       }
     },
+    "/api/v1/notes/export": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Export Notes",
+        "description": "Every page of the namespace as Markdown files in a zip, for other notes apps (Obsidian and the like): free notes\nin folders that follow the tree, the pages of things under \"Pages of things\".",
+        "operationId": "export_notes",
+        "parameters": [
+          {
+            "name": "ns",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ns"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "a zip of Markdown files",
+            "content": {
+              "application/zip": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/notes/deleted": {
       "get": {
         "tags": [
@@ -12296,6 +12335,45 @@
                   "title": "Response Notes-Home Suggestions"
                 }
               }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notes/{pid}/markdown": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Page Markdown",
+        "description": "The page as a Markdown file of its own: front matter with its title, date, filing and summary, then its text,\nwith links to other pages as [[Title]] wiki links.",
+        "operationId": "page_markdown",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the page as a Markdown file",
+            "content": {
+              "text/markdown": {}
             }
           },
           "422": {
@@ -29128,7 +29206,7 @@
           "shares"
         ],
         "summary": "S3 Status",
-        "description": "Whether the S3 server is on and on which port, what the worker running it says, the same for WebDAV, and your\naccess keys.",
+        "description": "Whether the S3 server is on and on which port, what the worker running it says, the same for WebDAV, whether\nboth are open at the web app's address too (/s3, /dav), and your access keys.",
         "operationId": "s3_status",
         "responses": {
           "200": {
@@ -62057,6 +62135,12 @@
           },
           "webdav": {
             "$ref": "#/components/schemas/ShareServer"
+          },
+          "remote": {
+            "type": "boolean",
+            "title": "Remote",
+            "description": "whether an admin opened both at the web app's address too, /s3 and /dav (shares.remote), so remote access reaches them",
+            "default": false
           },
           "keys": {
             "items": {

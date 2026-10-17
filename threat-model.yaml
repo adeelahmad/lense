@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:7d99cfe677e6ea5a92ce27e6680ead1b3d864831477b9968456a3dc39e235126"
+prose_version: "threat-model.md@sha256:5569a5db24f7b32dec6c77b19ce21b6239db021dfadfea23d8f4c83688ea831d"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 204, maintainer: 46, inferred: 91, assumption: 8}
@@ -486,6 +486,15 @@ entry_points:
         obligation_id: enable-and-limit-smb
         caller_must_enforce: "admin enables; operator firewalls"
         provenance: {kind: documented, source: 'docs/smb.md "What keeps it safe"'}
+  - id: "web app /s3 and /dav (file shares relayed by lens-relay.js, ahead of Next)"
+    component: optional
+    parameters:
+      - name: "any method, path, Host and body, passed to the share servers with X-Forwarded-Prefix and X-Forwarded-For"
+        attacker_controllable: true
+        x-condition: "once shares.enabled and shares.remote; from the internet through the tunnel or HTTPS"
+        control_kinds: [x-credential, resource-name, x-network-source]
+        caller_must_enforce: "admin enables both; per-person access keys, read-only; failed WebDAV sign-ins throttled per visitor from X-Forwarded-For as trusted proxies report it"
+        provenance: {kind: documented, source: 'docs/file-tree.md "At the web app''s address"'}
   - id: ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY"
     component: outbound
     parameters:
@@ -1212,6 +1221,14 @@ build_flags:
     affects_properties:
       - {property_id: P-SHARES, effect: narrows}
     provenance: {kind: documented, source: 'docs/file-tree.md "Off until an admin turns it on"'}
+  - name: "shares.remote"
+    default: "off"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "the web app relays the file shares at its own address (/s3, /dav; nextjs-frontend/lens-relay.js), so the tunnel and HTTPS reach them; until on, the share servers refuse requests carrying X-Forwarded-Prefix before any sign-in"
+    affects_properties:
+      - {property_id: P-SHARES, effect: narrows}
+    provenance: {kind: documented, source: 'docs/file-tree.md "At the web app''s address"'}
   - name: "https.enabled"
     default: "off"
     security_relevant: true
@@ -1655,9 +1672,9 @@ properties_claimed:
     kind: authentication
     components: [optional]
     tier: security-critical
-    conditions: "the file shares (S3, WebDAV) are off until an admin enables them; every request carries a person's own access key (SigV4 or Basic), reads as them and never writes"
+    conditions: "the file shares (S3, WebDAV) are off until an admin enables them, and reach the web app's address (/s3, /dav) only with shares.remote too; every request carries a person's own access key (SigV4 or Basic), reads as them and never writes"
     violation_symptoms: [info-leak, integrity-bypass]
-    x-voided-by: "plain HTTP on the network with LENS_BIND=0.0.0.0 (WebDAV's Basic secret in clear); secrets sealed with the server key, not hashed (domain/s3.py)"
+    x-voided-by: "plain HTTP on the network with LENS_BIND=0.0.0.0, or shares.remote with the web app itself on plain HTTP (WebDAV's Basic secret in clear); secrets sealed with the server key, not hashed (domain/s3.py)"
     provenance: {kind: documented, source: 'docs/file-tree.md "Off until an admin turns it on"'}
   - id: P-CHILD-SECRETS
     kind: confidentiality
