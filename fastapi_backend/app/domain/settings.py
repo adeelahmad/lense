@@ -158,6 +158,7 @@ ENUMS = {
     ("speakers", "embedder"): {"speechbrain", "none"},
     ("speakers", "cross_namespace"): {"suggest", "off"},
     ("analysis", "entities"): {"rules", "spacy"},
+    ("analysis", "cleanup_punctuation"): {"off", "missing", "always"},
     ("search", "stemming"): {"english", "none"},
     ("search", "engine"): set(store.SEARCH_ENGINES),
     ("reports", "audio"): {"link", "embed", "none"},

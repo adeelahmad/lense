@@ -36,6 +36,14 @@ fetches nothing and sends nothing out:
 - one space between words, none before a comma or a full stop, one after a comma;
 - "i" becomes "I", and each sentence starts with a capital. A line that carries on the one before (same speaker, no
   full stop) keeps its lower case.
+- punctuation (`analysis.cleanup_punctuation`, Put punctuation back; off): a local model, kredor/punctuate-all (MIT;
+  English, German, French, Spanish, Italian, Dutch, Portuguese, Polish, Czech, Slovak, Slovenian and Bulgarian), adds
+  full stops, commas and question marks after words that have none, where it is at least 70% sure. "Where a
+  transcript has none" (`missing`) does it only for a transcript with fewer than one full stop in 40 words, such as
+  imported captions; "In every transcript" (`always`) for every one. It keeps the marks a transcript has, and gives
+  each line marks once. The model, Transformers and PyTorch (about 2 GB) are fetched the first time a clean step
+  needs them ([Components](components.md)); until then, and in other languages, the rules run alone and the job's
+  log says why.
 
 These are English rules ("um" is a word in German and Portuguese), so they apply to English lines: the line's or the
 asset's language when transcription gave one, else when the text reads as English. In other languages only a word

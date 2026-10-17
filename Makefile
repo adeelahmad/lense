@@ -57,6 +57,11 @@ docs-build: node_modules/.bin/nx ## Build the documentation site, failing on bro
 affected: node_modules/.bin/nx ## Lint, type check, test and build only the projects your changes affect, against main
 	$(NX) affected -t lint typecheck test build
 
+.PHONY: requirements
+requirements: ## Check that every built requirement in the README names checks that exist (docs/requirements.md)
+	python3 ci/check_requirements.py
+	python3 ci/test_check_requirements.py
+
 # Run it (Docker)
 PROD_COMPOSE=$(DOCKER_COMPOSE) -f docker-compose.prod.yml
 .PHONY: clicks
@@ -66,6 +71,11 @@ clicks: env ## Count the clicks, keys and taps each journey takes on a fresh Len
 	cd ci/clicks && npm ci
 	ci/clicks/run.sh --compare ci/clicks/baseline.json
 	ci/clicks/run.sh --device phone --compare ci/clicks/baseline-phone.json
+
+.PHONY: scorecard
+SCORECARD ?=
+scorecard: ## The numbers that say whether Lens meets its goals, as one JSON line (SCORECARD=file.jsonl compares and appends)
+	python3 ci/scorecard/scorecard.py $(if $(SCORECARD),--log $(SCORECARD))
 
 .PHONY: run dev stop setup-code logs
 
