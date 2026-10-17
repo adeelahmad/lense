@@ -606,6 +606,19 @@ class SandboxClient(Component):
         pip_install(cfg, "sandbox", say)
 
 
+class WebSearch(Component):
+    """ddgs, for the assistant's web search through DuckDuckGo (web.py): fetched when an admin picks DuckDuckGo."""
+
+    def needed(self, cfg, m):
+        return (cfg.get("web") or {}).get("search") == "duckduckgo"
+
+    def present(self, cfg):
+        return importable("ddgs")
+
+    def fetch(self, cfg, m, say):
+        pip_install(cfg, "web", say)
+
+
 class Laya(Component):
     """laya-mlx and the chosen Laya model, for local decisions (decide.py) on Apple Silicon."""
 
@@ -774,6 +787,9 @@ COMPONENTS = [
         "reaches the OpenShell gateway the assistant's code sandbox runs on (sandbox.enabled; openshell)",
         size_mb=10,
         license="Apache-2.0",
+    ),
+    WebSearch(
+        "web-search", "DuckDuckGo search", "the assistant's web search through DuckDuckGo (web.search; ddgs)", size_mb=30, license="MIT"
     ),
     Msg("msg", "Outlook .msg emails", "reads Outlook .msg files (extract-msg)", optional=True, license="GPL-3.0", size_mb=5),
 ]

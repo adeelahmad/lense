@@ -116,7 +116,8 @@ def create_chat(user: Writer, acl: Acl, db: Db, cfg: Cfg, body: ChatCreate | Non
 @router.get("/chats/{cid}")
 def get_chat(cid: int, user: CurrentUser, acl: Acl, db: Db) -> Chat:
     """A conversation with the version showing (`messages`, each with its `versions`) and every version's messages
-    (`tree`). Citations follow your current access: ones you can no longer read are left out."""
+    (`tree`). Citations follow your current access: ones you can no longer read are left out (web pages it cited stay:
+    they aren't the archive's)."""
     return _chat_view(db, acl, _own_chat(db, cid, user))
 
 
@@ -137,7 +138,7 @@ def _chat_view(db: DB, acl: Access, c: dict[str, Any]) -> Chat:
     msgs, ok, versions = chat.path(db, c["id"], c.get("head"), nodes), set(acl.roles), chat.versions(nodes)
     for m in msgs:
         m["versions"] = versions.get(m["id"])
-    ids = {p["recording_id"] for m in msgs for p in m.get("passages") or []}
+    ids = {p["recording_id"] for m in msgs for p in m.get("passages") or [] if p.get("recording_id") is not None}
     visible = (
         {
             r["id"]
@@ -148,7 +149,7 @@ def _chat_view(db: DB, acl: Access, c: dict[str, Any]) -> Chat:
         else set()
     )
     for m in msgs:
-        m["passages"] = [p for p in m.get("passages") or [] if p["recording_id"] in visible]
+        m["passages"] = [p for p in m.get("passages") or [] if p.get("source") == "web" or p.get("recording_id") in visible]
     return Chat.model_validate(sign_urls({**c, "messages": msgs, "tree": nodes}, full=True))
 
 
