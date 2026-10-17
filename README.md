@@ -77,13 +77,15 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   meaning, once turned on), reads it, cites it and acts on it with tools: changes wait for your approval. Once an admin
   turns them on, it also searches the web and reads pages, cited like the archive, and runs Python and bash in a sandbox
   of each conversation's own. Regenerating an answer or editing a question makes a new version beside the old one, and
-  nothing is lost. It reads answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine (opt-in), and
-  `/clear` and `/compact` keep long conversations short. Each namespace can have its own assistant with its own name,
-  instructions and memory, answering in Telegram and Slack (built in, with voice notes and files), in Discord, Matrix,
-  WhatsApp and other chat rooms through Matterbridge, and by email at an address of its own that you email or forward
-  things to. ([Chat](docs/assistant.md), [web search](docs/assistant.md#web-search-and-reading-pages),
-  [code sandbox](docs/assistant.md#code-sandbox), [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md),
-  [speech providers](docs/speech-providers.md); [checks](docs/requirements.md#ask-and-get-cited-answers))
+  nothing is lost. Each answer keeps a record of what produced it (the model, its tools, how long it took and what it
+  cost), opened from its header. It reads answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine
+  (opt-in), and `/clear` and `/compact` keep long conversations short. Each namespace can have its own assistant with
+  its own name, instructions and memory, answering in Telegram and Slack (built in, with voice notes and files), in
+  Discord, Matrix, WhatsApp and other chat rooms through Matterbridge, and by email at an address of its own that you
+  email or forward things to. ([Chat](docs/assistant.md), [web search](docs/assistant.md#web-search-and-reading-pages),
+  [code sandbox](docs/assistant.md#code-sandbox), [answer records](docs/assistant.md#what-each-answer-records),
+  [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md), [speech providers](docs/speech-providers.md);
+  [checks](docs/requirements.md#ask-and-get-cited-answers))
 - **Extend the assistant.** Add tools (a prompt, a web request, a graph drawn on the canvas, or sandboxed Python),
   skills, hooks and MCP servers, by code, on the canvas or just by asking. Remote MCP servers connect by address, and
   ones that run as a program (`npx`, `uvx`) run in a sandboxed container of their own, off until you turn it on. Add
@@ -198,8 +200,7 @@ These are open pull requests, not yet part of Lens:
   ([#398](https://github.com/adeelahmad/lense/pull/398)).
 - **The assistant** answering questions about Lens itself, from its docs and this server
   ([#400](https://github.com/adeelahmad/lense/pull/400)).
-- **Chat:** each answer recording what produced it ([#469](https://github.com/adeelahmad/lense/pull/469)), and a
-  conversation exported as Markdown, PDF or JSON ([#474](https://github.com/adeelahmad/lense/pull/474)).
+- **Chat:** a conversation exported as Markdown, PDF or JSON ([#474](https://github.com/adeelahmad/lense/pull/474)).
 - **Notes:** download a note, or all of a namespace's notes, as Markdown
   ([#419](https://github.com/adeelahmad/lense/pull/419)).
 - **Sources:** RSS and Atom news feeds ([#453](https://github.com/adeelahmad/lense/pull/453)).
@@ -229,9 +230,9 @@ Next, and not in a pull request yet; each links to where it is tracked:
   ([storage](docs/storage.md)).
 - **Logging:** sending straight to Loki or another HTTP endpoint, and client certificates for TLS
   ([logging](docs/logging.md)).
-- **Proof:** a scorecard of measured numbers per release ([#481](https://github.com/adeelahmad/lense/issues/481)), and
-  each release tested by upgrading an install of the last one, holding data
-  ([#482](https://github.com/adeelahmad/lense/issues/482)).
+- **Proof:** each release tested by upgrading an install of the last one, holding data
+  ([#482](https://github.com/adeelahmad/lense/issues/482)), and the scorecard's install-to-first-answer and Raspberry Pi
+  numbers, not measured yet ([#481](https://github.com/adeelahmad/lense/issues/481)).
 
 ## Stack
 
