@@ -320,6 +320,28 @@ def kind(name, *, label, source, as_type, object_type, parent=None, fields=None,
     return _KINDS[name]
 
 
+def _s(title, typ="string", **more):
+    """A field of a kind's JSON Schema."""
+    return {"type": typ, "title": title, **more}
+
+
+def _sample(aid, kind, typ, source, pos, actor, obj, summary, untrusted, tag=()):
+    """A realistic activity of a kind, as kind(sample=) takes it."""
+    return {
+        "id": aid,
+        "type": typ,
+        "kind": kind,
+        "published": "2026-10-15T16:24:10.000Z",
+        "actor": actor,
+        "object": obj,
+        "target": None,
+        "tag": list(tag),
+        "summary": summary,
+        "space": 3,
+        "lens": {"source": source, "pos": pos, "untrusted": list(untrusted), "cause": None},
+    }
+
+
 def kinds():
     """Every kind, as the API and agents list them."""
     return [k.info() for k in _KINDS.values()]

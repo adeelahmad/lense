@@ -40800,6 +40800,57 @@ export type GetMessageResponses = {
 
 export type GetMessageResponse = GetMessageResponses[keyof GetMessageResponses];
 
+export type ExportChatData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+    /**
+     * Fmt
+     */
+    fmt: "md" | "json" | "pdf";
+  };
+  query?: {
+    /**
+     * Message
+     *
+     * one message (an answer comes with the question it answers); else the version showing
+     */
+    message?: number | null;
+    /**
+     * All
+     *
+     * JSON: every version of the conversation, not only the one showing
+     */
+    all?: boolean;
+    /**
+     * Format
+     *
+     * JSON: messages gives the version showing as one {"messages": [...]} line
+     */
+    format?: "tree" | "messages";
+  };
+  url: "/api/v1/chats/{cid}/export.{fmt}";
+};
+
+export type ExportChatErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ExportChatError = ExportChatErrors[keyof ExportChatErrors];
+
+export type ExportChatResponses = {
+  /**
+   * Successful Response
+   */
+  200: unknown;
+};
+
 export type DownloadChatFileData = {
   body?: never;
   path: {

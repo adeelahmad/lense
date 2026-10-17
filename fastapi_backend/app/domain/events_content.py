@@ -31,6 +31,7 @@ import urllib.parse
 import weakref
 
 from . import events, store
+from .events import _s, _sample
 
 R = store.R
 FIELDS = (
@@ -518,10 +519,6 @@ events.register_source(RecordingsSource())
 
 
 # ---------- the kinds ----------
-def _s(title, typ="string", **more):
-    return {"type": typ, "title": title, **more}
-
-
 def _addrs(title, item="Address"):
     return {"type": "array", "title": title, "items": {"type": "string", "title": item}}
 
@@ -882,22 +879,6 @@ _ASSET = {
     "media": _s("Media", enum=["audio", "video", "image", "document", "transcript"]),
     "content_type": _s("Content type"),
 }
-
-
-def _sample(aid, kind, typ, source, pos, actor, obj, summary, untrusted, tag=()):
-    return {
-        "id": aid,
-        "type": typ,
-        "kind": kind,
-        "published": "2026-10-15T16:24:10.000Z",
-        "actor": actor,
-        "object": obj,
-        "target": None,
-        "tag": list(tag),
-        "summary": summary,
-        "space": 3,
-        "lens": {"source": source, "pos": pos, "untrusted": list(untrusted), "cause": None},
-    }
 
 
 WORK_GMAIL = {"type": "Service", "id": "lens:source/12", "name": "Work Gmail"}

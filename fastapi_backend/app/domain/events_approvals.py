@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import re
 
-from . import events
-from .events_content import _num, _paging, _s, _sample, _text, actors
+from . import events, events_content
+from .events import _s, _sample
 from .store import R
 
 FIELDS = (
@@ -23,7 +23,7 @@ OUT = {"done": "approved", "failed": "approved, but it failed", "declined": "dec
 
 def _depths(db, rows):
     """The run's own depth of cause plus one, for each run an approval came from (1 while runs aren't stored)."""
-    runs = sorted({o["run"] for o in (r.get("origin") or {} for r in rows) if _num(o.get("run")) is not None})
+    runs = sorted({o["run"] for o in (r.get("origin") or {} for r in rows) if events_content._num(o.get("run")) is not None})
     got = {}
     if runs:
         try:
@@ -46,20 +46,20 @@ def _object(r):
         for k, v in {
             "type": "Question",
             "id": f"lens:approval/{r['id']}",
-            "name": _text(r.get("summary"), 500) or "An approval",
+            "name": events_content._text(r.get("summary"), 500) or "An approval",
             "url": f"/approvals?id={r['id']}",
             "status": r.get("status"),
             "tool": r.get("tool"),
             "action": r.get("action"),
             "effect": r.get("effect"),
-            "automation": _num(o.get("automation")),
+            "automation": events_content._num(o.get("automation")),
             "automation_name": r.get("automation"),
-            "run": _num(o.get("run")),
+            "run": events_content._num(o.get("run")),
             "node": o.get("node"),
-            "chat": _num(r.get("chat")),
+            "chat": events_content._num(r.get("chat")),
             "about": r.get("about"),
             "expires_at": r.get("expires_at"),
-            "error": _text(r.get("error"), 500),
+            "error": events_content._text(r.get("error"), 500),
         }.items()
         if v is not None
     }
@@ -67,21 +67,21 @@ def _object(r):
 
 def _cause(r, depths):
     o = r.get("origin") or {}
-    if _num(o.get("automation")) is None or _num(o.get("run")) is None:
+    if events_content._num(o.get("automation")) is None or events_content._num(o.get("run")) is None:
         return None
     return {"automation": o["automation"], "run": o["run"], "depth": depths.get(o["run"], 1)}
 
 
 def _asker(r):
     o = r.get("origin") or {}
-    return f"automation:{o['automation']}" if _num(o.get("automation")) is not None else "assistant"
+    return f"automation:{o['automation']}" if events_content._num(o.get("automation")) is not None else "assistant"
 
 
 def _waiting(db, rows):
     rows = [r for r in rows if r and r.get("created_at")]
     if not rows:
         return []
-    who = actors(db, [(_asker(r), r.get("space")) for r in rows])
+    who = events_content.actors(db, [(_asker(r), r.get("space")) for r in rows])
     depths = _depths(db, rows)
     out = []
     for r in rows:
@@ -115,7 +115,7 @@ def _decided(db, rows):
     if not rows:
         return []
     label = {r["id"]: None if r["status"] == "expired" else r.get("decided_by") for r in rows}
-    who = actors(db, [(label[r["id"]], r.get("space")) for r in rows])
+    who = events_content.actors(db, [(label[r["id"]], r.get("space")) for r in rows])
     depths = _depths(db, rows)
     out = []
     for r in rows:
@@ -163,7 +163,7 @@ class _ApprovalSource(events.Source):
         if who.get("account") is None:
             return []
         p: dict = {"me": who["account"]}
-        where = _paging(self.col, "approval", before, {**who, "admin": True}, flt, p) + ["account = $me"]
+        where = events_content._paging(self.col, "approval", before, {**who, "admin": True}, flt, p) + ["account = $me"]
         rows = db.rows(
             f"SELECT {FIELDS} FROM approval WHERE {' AND '.join(where)}{self.more} ORDER BY {self.col} DESC, rid DESC LIMIT {int(limit)}",
             **p,
