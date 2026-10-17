@@ -4328,6 +4328,68 @@
         }
       }
     },
+    "/api/v1/admin/sandbox": {
+      "get": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Get Sandbox Gateway",
+        "description": "Whether the code sandbox's OpenShell gateway runs next to Lens (the sandbox profile), how the machine's last\nchange went, what stands in the way here, and whether Lens reaches the gateway at sandbox.gateway.",
+        "operationId": "get_sandbox_gateway",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SandboxGateway"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Set Sandbox Gateway",
+        "description": "Have this machine start or stop the code sandbox's gateway. On also turns the sandbox on, at that gateway; off\ndeletes the conversations' sandboxes first and turns the sandbox off. GET /admin/sandbox follows along.",
+        "operationId": "set_sandbox_gateway",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SandboxGatewayRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SandboxGateway"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/backups": {
       "get": {
         "tags": [
@@ -62518,6 +62580,144 @@
         ],
         "title": "S3Status",
         "description": "The S3 server (these fields), the WebDAV server, and your access keys (they sign in to both)."
+      },
+      "SandboxGateway": {
+        "properties": {
+          "on": {
+            "type": "boolean",
+            "title": "On",
+            "description": "the sandbox profile (the code sandbox's OpenShell gateway) as last asked"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "queued",
+                  "running",
+                  "done",
+                  "failed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State",
+            "description": "how the machine's last change went"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "asked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asked At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent",
+            "description": "what changes it on this machine (systemd, launchd); none: run `manual` there"
+          },
+          "manual": {
+            "type": "string",
+            "title": "Manual",
+            "description": "the line that starts it by hand, on the machine Lens runs on"
+          },
+          "preflight": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Preflight",
+            "description": "what stands in the way of running it on this machine, a sentence each"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address",
+            "description": "where Lens reaches the gateway (sandbox.gateway)"
+          },
+          "reachable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reachable",
+            "description": "whether the gateway answered and let Lens in; null: not checked"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Problem",
+            "description": "why it didn't, when it didn't"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "on",
+          "manual",
+          "preflight",
+          "address"
+        ],
+        "title": "SandboxGateway"
+      },
+      "SandboxGatewayRequest": {
+        "properties": {
+          "on": {
+            "type": "boolean",
+            "title": "On",
+            "description": "start (true) or stop (false) the code sandbox's gateway; stopping deletes its sandboxes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "on"
+        ],
+        "title": "SandboxGatewayRequest"
       },
       "SavedSearch": {
         "properties": {
