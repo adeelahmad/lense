@@ -15,6 +15,7 @@ import {
   ScanFace,
   ScanSearch,
   ScanText,
+  ScrollText,
   Shapes,
   Sparkles,
   TextSearch,
@@ -67,13 +68,14 @@ const ICON: Record<string, LucideIcon> = {
   embed: ScanSearch,
   summarize: Sparkles,
   llm: Sparkles,
+  spec: ScrollText,
   report: FileText,
   export: FileOutput,
   workflow: Workflow,
 };
 const TONE = { intent: "blue", red: "red", green: "green", gate: "gold", neutral: "neutral" } as const;
 const ASSETS = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe"];
-const METADATA = ["clean", "analyze", "embed", "summarize", "llm", "report", "export"];
+const METADATA = ["clean", "analyze", "embed", "summarize", "llm", "spec", "report", "export"];
 
 /** A pipeline drawn as a graph: asset steps, metadata steps and workflows, an edge saying what runs after what. */
 export function PipelineCanvas({ id }: { id: number }) {
