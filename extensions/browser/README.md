@@ -1,7 +1,8 @@
 # Lens web clipper
 
 A browser extension that clips pages, selections or any part of a page into Lens as Markdown, with the page's
-metadata and images, through a namespace's import webhook. See [docs/web-clipper.md](../../docs/web-clipper.md).
+metadata and images, signed in as you (or with your API token, or a namespace's import webhook token). See
+[docs/web-clipper.md](../../docs/web-clipper.md).
 
 ```sh
 npm ci && npm test && npm run build   # then Load unpacked: dist/chrome

@@ -46,11 +46,11 @@ async function destinations() {
   const s = await settingsStore.load();
   const sel = $("destination");
   sel.replaceChildren(
-    ...s.destinations.map((d) => {
+    ...settingsStore.choices(s).map((c) => {
       const o = document.createElement("option");
-      o.value = d.id;
-      o.textContent = d.name || d.server;
-      o.selected = d.id === s.defaultDestination;
+      o.value = c.value;
+      o.textContent = c.label;
+      o.selected = c.selected;
       return o;
     }),
   );
@@ -67,7 +67,8 @@ $("send").addEventListener("click", async () => {
   if (!clip) return;
   $("send").disabled = true;
   status("Sending…");
-  const answer = await ext.runtime.sendMessage({ type: "send", clip: current(), destination: $("destination").value });
+  const [destination, into] = JSON.parse($("destination").value);
+  const answer = await ext.runtime.sendMessage({ type: "send", clip: current(), destination, namespace: into || undefined });
   $("send").disabled = false;
   if (!answer?.ok) return status(answer?.error ?? "Couldn't send it", "bad");
   const { server, namespace, items } = answer.answer;

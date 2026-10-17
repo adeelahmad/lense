@@ -145,6 +145,9 @@ import type {
   ControlWorkerData,
   ControlWorkerErrors,
   ControlWorkerResponses,
+  CopyPageData,
+  CopyPageErrors,
+  CopyPageResponses,
   CountApprovalsData,
   CountApprovalsResponses,
   CreateAutomationData,
@@ -677,6 +680,8 @@ import type {
   GetRunData,
   GetRunErrors,
   GetRunResponses,
+  GetSandboxGatewayData,
+  GetSandboxGatewayResponses,
   GetSensorData,
   GetSensorErrors,
   GetSensorResponses,
@@ -777,6 +782,8 @@ import type {
   ImportNamespaceRdfData,
   ImportNamespaceRdfErrors,
   ImportNamespaceRdfResponses,
+  ImportTargetData,
+  ImportTargetResponses,
   ImportTranscriptData,
   ImportTranscriptErrors,
   ImportTranscriptResponses,
@@ -1014,7 +1021,10 @@ import type {
   ListTagsData,
   ListTagsErrors,
   ListTagsResponses,
+  ListTemplates2Data,
+  ListTemplates2Responses,
   ListTemplatesData,
+  ListTemplatesErrors,
   ListTemplatesResponses,
   ListTokensData,
   ListTokensResponses,
@@ -1453,6 +1463,9 @@ import type {
   SetRecordingContentTypeData,
   SetRecordingContentTypeErrors,
   SetRecordingContentTypeResponses,
+  SetSandboxGatewayData,
+  SetSandboxGatewayErrors,
+  SetSandboxGatewayResponses,
   SetupData,
   SetupErrors,
   SetupResponses,
@@ -1523,6 +1536,9 @@ import type {
   TelegramStatusResponses,
   TelemetryStatusData,
   TelemetryStatusResponses,
+  TemplatesNoteData,
+  TemplatesNoteErrors,
+  TemplatesNoteResponses,
   TestAnalyticsData,
   TestAnalyticsResponses,
   TestAutomationData,
@@ -3680,6 +3696,40 @@ export class Updates {
   ): RequestResult<SetMonitoringResponses, SetMonitoringErrors, ThrowOnError> {
     return (options.client ?? client).put<SetMonitoringResponses, SetMonitoringErrors, ThrowOnError>({
       url: "/api/v1/admin/monitoring",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Sandbox Gateway
+   *
+   * Whether the code sandbox's OpenShell gateway runs next to Lens (the sandbox profile), how the machine's last
+   * change went, what stands in the way here, and whether Lens reaches the gateway at sandbox.gateway.
+   */
+  public static getSandboxGateway<ThrowOnError extends boolean = false>(
+    options?: Options<GetSandboxGatewayData, ThrowOnError>,
+  ): RequestResult<GetSandboxGatewayResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetSandboxGatewayResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/sandbox",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Sandbox Gateway
+   *
+   * Have this machine start or stop the code sandbox's gateway. On also turns the sandbox on, at that gateway; off
+   * deletes the conversations' sandboxes first and turns the sandbox off. GET /admin/sandbox follows along.
+   */
+  public static setSandboxGateway<ThrowOnError extends boolean = false>(
+    options: Options<SetSandboxGatewayData, ThrowOnError>,
+  ): RequestResult<SetSandboxGatewayResponses, SetSandboxGatewayErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetSandboxGatewayResponses, SetSandboxGatewayErrors, ThrowOnError>({
+      url: "/api/v1/admin/sandbox",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -5880,6 +5930,40 @@ export class Notes {
   }
 
   /**
+   * List Templates
+   *
+   * The namespace's templates: the notes inside its "Templates" note, in the tree's order. Start a note from one
+   * with `POST /notes/{pid}/copy`.
+   */
+  public static listTemplates<ThrowOnError extends boolean = false>(
+    options: Options<ListTemplatesData, ThrowOnError>,
+  ): RequestResult<ListTemplatesResponses, ListTemplatesErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListTemplatesResponses, ListTemplatesErrors, ThrowOnError>({
+      url: "/api/v1/notes/templates",
+      ...options,
+    });
+  }
+
+  /**
+   * Templates Note
+   *
+   * The namespace's "Templates" note, made the first time it's asked for: each note put inside it is a template.
+   * Needs editor access.
+   */
+  public static templatesNote<ThrowOnError extends boolean = false>(
+    options: Options<TemplatesNoteData, ThrowOnError>,
+  ): RequestResult<TemplatesNoteResponses, TemplatesNoteErrors, ThrowOnError> {
+    return (options.client ?? client).post<TemplatesNoteResponses, TemplatesNoteErrors, ThrowOnError>({
+      url: "/api/v1/notes/templates",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Link Targets
    *
    * What a mention can link to, best matches first: `#` for topics; `@` for pages, assets, named people and other
@@ -6125,6 +6209,25 @@ export class Notes {
   ): RequestResult<MovePageResponses, MovePageErrors, ThrowOnError> {
     return (options.client ?? client).post<MovePageResponses, MovePageErrors, ThrowOnError>({
       url: "/api/v1/notes/{pid}/move",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Copy Page
+   *
+   * A new free note with this page's text, drawings, files, filing and view: a note started from a template, or a
+   * copy. Titled `title` (default the page's), inside `parent` (default the top). Needs editor access.
+   */
+  public static copyPage<ThrowOnError extends boolean = false>(
+    options: Options<CopyPageData, ThrowOnError>,
+  ): RequestResult<CopyPageResponses, CopyPageErrors, ThrowOnError> {
+    return (options.client ?? client).post<CopyPageResponses, CopyPageErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/copy",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -9181,9 +9284,9 @@ export class Templates {
    * List Templates
    */
   public static listTemplates<ThrowOnError extends boolean = false>(
-    options?: Options<ListTemplatesData, ThrowOnError>,
-  ): RequestResult<ListTemplatesResponses, unknown, ThrowOnError> {
-    return (options?.client ?? client).get<ListTemplatesResponses, unknown, ThrowOnError>({
+    options?: Options<ListTemplates2Data, ThrowOnError>,
+  ): RequestResult<ListTemplates2Responses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListTemplates2Responses, unknown, ThrowOnError>({
       url: "/api/v1/templates",
       ...options,
     });
@@ -11524,9 +11627,27 @@ export class ImportHooks {
   }
 
   /**
+   * Import Target
+   *
+   * Where pushes with this bearer token go, without importing anything: an import webhook's token goes into its
+   * namespace; a person's own token (an API token, an app's, or the web app's) into any namespace they can import into,
+   * named with `?namespace=`. 401 for a token Lens doesn't know, saying which kind it is; 403 while a hook is paused.
+   */
+  public static importTarget<ThrowOnError extends boolean = false>(
+    options?: Options<ImportTargetData, ThrowOnError>,
+  ): RequestResult<ImportTargetResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ImportTargetResponses, unknown, ThrowOnError>({
+      url: "/api/v1/hooks/import",
+      ...options,
+    });
+  }
+
+  /**
    * Push To Import Hook
    *
-   * Push something into an import webhook's namespace, with its token as a bearer token. Three ways:
+   * Push something into an import webhook's namespace, with its token as a bearer token, or into one of your own
+   * namespaces with your own token (an API token with write access, an app's, or the web app's) and `?namespace=`.
+   * Three ways:
    *
    * - a file as the raw body, named by `?filename=`, Content-Disposition or X-Filename: audio, video, documents and
    * images become assets and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as
@@ -11535,8 +11656,9 @@ export class ImportHooks {
    * - JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as text), with an optional
    * `title`.
    *
-   * Each runs the hook's pipeline, or the namespace's. 401 for an unknown token, 403 while the hook is paused, 413 over
-   * uploads.max_mb. Audited as `import.hook`.
+   * Each runs the hook's pipeline, or the namespace's. 401 for an unknown token, saying which kind it is; 403 while the
+   * hook is paused, for a read-only token, or without the import permission; 413 over uploads.max_mb. Audited as
+   * `import.hook` (by the hook) or `import.push` (by the person).
    */
   public static pushToImportHook<ThrowOnError extends boolean = false>(
     options?: Options<PushToImportHookData, ThrowOnError>,
@@ -11554,8 +11676,8 @@ export class ImportHooks {
   /**
    * Push To Import Hook Token
    *
-   * The same, with the token in the address, for services that can only be given a URL. Prefer the bearer token:
-   * addresses end up in logs.
+   * The same, with an import webhook's token in the address, for services that can only be given a URL. Prefer the
+   * bearer token: addresses end up in logs. A person's own token is never taken here.
    */
   public static pushToImportHookToken<ThrowOnError extends boolean = false>(
     options: Options<PushToImportHookTokenData, ThrowOnError>,

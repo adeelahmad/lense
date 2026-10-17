@@ -23,6 +23,7 @@ from app.domain import files as resource_files
 from app.domain.store import DB
 from app.schemas.common import Ok
 from app.schemas.notebook import (
+    NoteCopy,
     NoteDeleted,
     NoteFile,
     NoteHistory,
@@ -37,6 +38,9 @@ from app.schemas.notebook import (
     NotePageMove,
     NotePageUpdate,
     NoteSearch,
+    NoteTemplate,
+    NoteTemplates,
+    NoteTemplatesCreate,
     NoteToday,
     NoteTree,
     NoteVersion,
@@ -125,6 +129,26 @@ def today_page(body: NoteToday, user: Writer, acl: Acl, db: Db) -> NotePage:
     sid = acl.namespace(body.ns, "editor")
     with domain_errors():
         pid = notebook.today(db, sid, user.id, body.date)
+    return _out(acl, db, notebook.get(db, pid), user)
+
+
+@router.get("/templates")
+def list_templates(ns: str, user: CurrentUser, acl: Acl, db: Db) -> NoteTemplates:
+    """The namespace's templates: the notes inside its "Templates" note, in the tree's order. Start a note from one
+    with `POST /notes/{pid}/copy`."""
+    sid = acl.namespace(ns)
+    return NoteTemplates(
+        namespace=ns, root=notebook.templates_root(db, sid), templates=[NoteTemplate(**t) for t in notebook.templates(db, sid)]
+    )
+
+
+@router.post("/templates")
+def templates_note(body: NoteTemplatesCreate, user: Writer, acl: Acl, db: Db) -> NotePage:
+    """The namespace's "Templates" note, made the first time it's asked for: each note put inside it is a template.
+    Needs editor access."""
+    sid = acl.namespace(body.ns, "editor")
+    with domain_errors():
+        pid = notebook.templates_root(db, sid, user.id)
     return _out(acl, db, notebook.get(db, pid), user)
 
 
@@ -361,6 +385,16 @@ def move_page(pid: int, body: NotePageMove, user: Writer, acl: Acl, db: Db) -> N
     with domain_errors():
         notebook.move(db, pid, body.parent, body.before)
     return _out(acl, db, notebook.get(db, pid), user)
+
+
+@router.post("/{pid}/copy")
+def copy_page(pid: int, body: NoteCopy, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> NotePage:
+    """A new free note with this page's text, drawings, files, filing and view: a note started from a template, or a
+    copy. Titled `title` (default the page's), inside `parent` (default the top). Needs editor access."""
+    _page(acl, db, pid, "editor")
+    with domain_errors(), _vault():
+        new = notebook.copy(db, cfg, pid, user.id, body.title, body.parent)
+    return _out(acl, db, notebook.get(db, new), user)
 
 
 @router.put("/{pid}/pin")

@@ -192,7 +192,10 @@ def facts(api, token):
             c["text"] for c in api.get(f"/resources/{rid}/comments")
         )
     entities = api.get("/entities", namespaces=NS, limit=200)["items"]
-    out["entities"] = sorted(e["name"] for e in entities)
+    # every entity by name, whatever its type: an upgrade step may type a Term (Monday becomes a Date, which the list
+    # leaves out unless asked for), but none may go
+    quiet = api.get("/entities", namespaces=NS, limit=200, types="DATE,NUMBER")["items"]
+    out["entities"] = sorted(e["name"] for e in entities + quiet)
     for e in entities:
         if e["name"] == ENTITY["name"]:
             out[f"entity {e['name']}"] = {
