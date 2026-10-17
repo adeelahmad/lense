@@ -120,6 +120,10 @@ services:
       AUTH_TRUST_HOST: "true"
       # no AUTH_URL: sign-in follows the address the browser is on (its LAN name, https:// address or Cloudflare tunnel)
       OPENAPI_OUTPUT_FILE: ./shared-data/openapi.json
+      # the file shares at the web app's address, /s3 and /dav, once allowed in Settings › File shares (lens-relay.js)
+      NODE_OPTIONS: --require /app/lens-relay.js
+      LENS_S3_URL: http://worker:9555
+      LENS_WEBDAV_URL: http://worker:9556
     volumes:
       - ./nextjs-frontend:/app
       - /app/node_modules       # the image's, renewed with it (see the backend's /opt/venv)

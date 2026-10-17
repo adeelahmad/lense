@@ -734,6 +734,7 @@ export const FIELDS: FieldSpec[] = [
       { value: "rules", label: "Rules" },
       { value: "spacy", label: "spaCy" },
     ],
+    hint: "spaCy finds people, organisations, places and dates with a small language model, fetched the first time it's needed (about 60 MB). Defined entities still come first",
   },
   {
     section: "analysis",
@@ -741,6 +742,7 @@ export const FIELDS: FieldSpec[] = [
     label: "spaCy model",
     kind: "text",
     mono: true,
+    hint: "Lens fetches en_core_web_sm (English), de_core_news_sm (German) and xx_ent_wiki_sm (many languages); another spaCy model you install works too",
   },
   {
     section: "analysis",
@@ -2629,6 +2631,13 @@ export const FIELDS: FieldSpec[] = [
     hint: "Read-only; mount it as a drive in Finder, Windows Explorer or a file manager",
   },
   { section: "shares", key: "webdav_port", label: "WebDAV port", kind: "int", min: 1, max: 65535 },
+  {
+    section: "shares",
+    key: "remote",
+    label: "At the web app’s address too",
+    kind: "switch",
+    hint: "S3 at /s3 and WebDAV at /dav wherever the web app opens, Remote access and HTTPS included. Off: only on their ports",
+  },
   // Sensors (opt-in)
   {
     section: "sensors",
