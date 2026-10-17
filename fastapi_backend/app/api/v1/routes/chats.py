@@ -11,11 +11,12 @@ from __future__ import annotations
 import json
 import logging
 import urllib.error
+import urllib.parse
 from collections.abc import Iterator
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import Response, StreamingResponse
+from fastapi import APIRouter, HTTPException, Query, Request, Response
+from fastapi.responses import StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer
@@ -38,6 +39,7 @@ from app.domain import (
     store,
     uploads,
 )
+from app.domain import files as resource_files
 from app.domain.store import DB
 from app.schemas.chats import (
     AnswerCheck,
@@ -365,6 +367,27 @@ def delete_chat(cid: int, user: Writer, db: Db, cfg: Cfg) -> Ok:
     db.run(["DELETE chat_message WHERE chat = $c", "DELETE $r"], c=cid, r=R("chat", cid))
     sandbox.forget(db, cfg, cid)
     return Ok()
+
+
+@router.get(
+    "/chats/{cid}/files/{fid}",
+    response_class=Response,
+    responses={200: {"content": {"application/octet-stream": {}}, "description": "the file"}},
+)
+def download_chat_file(cid: int, fid: str, user: CurrentUser, db: Db, cfg: Cfg) -> Response:
+    """A file the code sandbox handed you in this conversation (share_sandbox_file, the download on its answer)."""
+    _own_chat(db, cid, user)
+    try:
+        name, body = sandbox.shared(db, cfg, cid, fid)
+    except KeyError:
+        raise HTTPException(404, "no such file in this conversation") from None
+    ascii_name = name.encode("ascii", "replace").decode().replace('"', "").replace("?", "_")
+    headers = {
+        **resource_files.HEADERS,
+        "Content-Disposition": f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{urllib.parse.quote(name)}",
+        "Cache-Control": "private, no-store",
+    }
+    return Response(body, media_type="application/octet-stream", headers=headers)
 
 
 def _attachments(db: DB, ids: list[str], user: Principal) -> list[dict[str, Any]]:

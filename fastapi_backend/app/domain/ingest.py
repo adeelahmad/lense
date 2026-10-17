@@ -859,8 +859,16 @@ def read_calendar(path):
     return calendars.text(pathlib.Path(path).read_text(encoding="utf-8-sig", errors="replace"))
 
 
+def read_feed(path):
+    """A news feed's post (.atom, as a feed source keeps each), or a whole feed, as Markdown, a section per post (rss.py)."""
+    from . import rss
+
+    return rss.text(pathlib.Path(path).read_bytes())
+
+
 DOC_READERS = {".docx": read_docx, ".doc": read_doc, ".pdf": read_pdf}
-MARKDOWN_READERS = {".eml": read_email, ".ics": read_calendar}  # their subject or event title is the title
+# their subject, event title or post title is the title
+MARKDOWN_READERS = {".eml": read_email, ".ics": read_calendar, ".atom": read_feed}
 FORMATS = ("auto", "text", "markdown", "mdx", "json", "jsonl", "srt", "vtt", "chat")
 
 
@@ -1037,7 +1045,7 @@ def _store_import(db, cfg, ns, t, title, fp, src, st, audio, speaker_names, engi
 
 
 def import_transcript(db, cfg, ns, tpath, audio=None, title=None, speaker_names=None, fmt="auto", log=print, collection=None):
-    """A transcript file (txt, md, mdx, docx, doc, pdf, json, jsonl, srt, vtt, eml, ics), optionally with its audio, into a
+    """A transcript file (txt, md, mdx, docx, doc, pdf, json, jsonl, srt, vtt, eml, ics, atom), optionally with its audio, into a
     collection of the namespace (default: its default collection)."""
     src = pathlib.Path(audio or tpath)
     t = read_transcript(tpath, fmt)

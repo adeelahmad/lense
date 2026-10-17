@@ -21,8 +21,9 @@ import { AnswerDetails } from "@/components/chat/details";
 import { keywords } from "@/components/chat/keywords";
 import { RichText } from "@/components/chat/rich-text";
 import { scopeWords, type Scope } from "@/components/chat/scope";
+import { SharedFiles } from "@/components/chat/shared-files";
 import { ToolSteps } from "@/components/chat/steps";
-import type { ToolStep, TurnStatus } from "@/components/chat/stream";
+import { sharedFiles, type ToolStep, type TurnStatus } from "@/components/chat/stream";
 import { Button, IconButton } from "@/components/ui/button";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from "@/components/ui/menu";
 import { data, useApiClient } from "@/lib/api/browser";
@@ -302,6 +303,8 @@ export function Answer(p: AnswerProps) {
           </div>
         )
       )}
+
+      <SharedFiles chatId={p.chatId} files={sharedFiles(p.steps ?? [])} />
 
       {p.status === "stopped" && (
         <p className="m-0 text-[12.5px] text-fg-muted">
