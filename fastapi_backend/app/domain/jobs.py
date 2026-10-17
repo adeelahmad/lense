@@ -17,14 +17,38 @@ import time
 from . import activity, analyze, ingest, keyring, pipelines, render, speakers as spk, store, telemetry
 
 R = store.R
-PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "analyze", "embed", "summarize", "report"]
+PIPELINE = [
+    "enhance",
+    "transcribe",
+    "diarize",
+    "shots",
+    "ocr",
+    "faces",
+    "objects",
+    "nsfw",
+    "describe",
+    "analyze",
+    "embed",
+    "summarize",
+    "report",
+]
 AFTER_IMPORT = ["analyze", "embed", "summarize", "report"]
 ACTIVE = ["queued", "running", "held"]  # held: over budget, waiting for someone to pick (budgets.py)
 FIELDS = (
     "record::id(id) AS id, recording, space, batch, pipeline, steps, step_index, next_step, status, worker, error, attempts, "
     "created_by, created_at, started_at, finished_at, updated_at, cancel_requested, log_total, cost_usd, tokens, cost_estimate, hold"
 )
-MEDIA_STEPS = {"transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe"}  # they take longer the longer the recording
+MEDIA_STEPS = {
+    "enhance",
+    "transcribe",
+    "diarize",
+    "shots",
+    "ocr",
+    "faces",
+    "objects",
+    "nsfw",
+    "describe",
+}  # they take longer the longer the recording
 FILED = ("audio", "document", "image")  # sources with a file of their own for the steps to work on
 TIMINGS = 25  # recent timings kept per kind of step, for estimates
 
@@ -39,6 +63,13 @@ def _source(db, rid):
 
 def _spec(s):
     return {"type": s} if isinstance(s, str) else dict(s)
+
+
+def _enhance(db, cfg, rid, say, spec=None):
+    """A low quality image's enhanced copy, which the steps after it read (enhance.py)."""
+    from . import enhance
+
+    enhance.step(db, cfg, rid, say, spec)
 
 
 def _read(db, cfg, rid, say, spec=None):
@@ -183,6 +214,7 @@ def _describe(db, cfg, rid, say, spec=None):
 
 VIDEO_STEPS = {"shots", "ocr", "faces", "objects", "describe"}  # added after workers.steps lists were first written
 STEPS = {
+    "enhance": _enhance,
     "transcribe": _transcribe,
     "read": _read,
     "diarize": _diarize,
@@ -203,11 +235,18 @@ STEPS = {
 }
 
 
+# The sources the enhance step works on (docs/enhance.md).
+ENHANCED = {"image"}
+
+
 def for_source(steps, source):
     """A pipeline's steps as they run on a resource of this source: a document or an image is read, not transcribed,
     and has no voices to tell apart, so a speech or voice model is never fetched for it. An imported transcript has
     nothing to transcribe and its speakers came with it, so it skips both steps too (unless they're all that was asked
-    for: those still run, to say why there's nothing to do)."""
+    for: those still run, to say why there's nothing to do). Only images are enhanced so far, so the others skip enhance
+    the same way."""
+    if source not in ENHANCED:
+        steps = [s for s in steps if s.get("type") != "enhance"] or steps
     if source == "transcript":
         return [s for s in steps if s.get("type") not in ("transcribe", "diarize")] or steps
     if source not in ("document", "image"):
@@ -733,10 +772,10 @@ def migrate_document_steps(db):
         a=ACTIVE,
     )
     for j in rows:
-        if _source(db, j["recording"]) not in ("document", "image"):
+        if (src := _source(db, j["recording"])) not in ("document", "image"):
             continue
         i, steps = j.get("step_index") or 0, [_spec(s) for s in j.get("steps") or []]
-        left = for_source(steps[i:], "document")
+        left = for_source(steps[i:], src)
         if left == steps[i:] or not left:
             continue
         db.q(
@@ -913,6 +952,8 @@ class Worker:
             self.can.add("embed")
         if not steps and "objects" in self.can:  # NSFW classification runs on ONNX Runtime too; older lists run it as well
             self.can.add("nsfw")
+        if not steps and self.can & {"transcribe", "read"}:  # enhancing comes first; lists written before it run it too
+            self.can.add("enhance")
         if not steps and log and (missing := sorted(set(STEPS) - self.can)):
             log(f"worker {self.name}: workers.steps leaves out {', '.join(missing)}; jobs with those steps wait for another worker")
         self.was_paused = False

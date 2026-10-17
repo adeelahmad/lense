@@ -255,6 +255,7 @@ DEFAULTS = {
         "stale_minutes": 15,
         "max_attempts": 3,
         "steps": [
+            "enhance",
             "transcribe",
             "read",
             "diarize",
@@ -510,6 +511,21 @@ DEFAULTS = {
     # each picture; a resource is flagged when one scores at least the threshold. display is how flagged resources show
     # in the web app: blur (click to see), hide (left out of the Library unless asked for) or show.
     "nsfw": {"enabled": False, "threshold": 0.8, "display": "blur", "max_frames": 300},
+    # enhancing low quality images before they're read (enhance.py, docs/enhance.md): off until an admin turns it on.
+    # An image smaller than min_side (its shorter side, in pixels), blurrier than min_sharpness (the variance of its
+    # Laplacian), noisy, dull, or with a face under min_face_px tall gets an enhanced copy, at most max_scale times
+    # bigger, which the steps after it read; the original stays. image_engine: classic (Pillow, nothing to fetch) or
+    # realesrgan (Real-ESRGAN general x4v3, BSD-3-Clause, 5 MB, fetched on first use). only_faces: only pictures with a
+    # face, where the namespace finds faces.
+    "enhance": {
+        "images": False,
+        "image_engine": "classic",
+        "only_faces": False,
+        "min_side": 720,
+        "min_sharpness": 100,
+        "min_face_px": 64,
+        "max_scale": 4,
+    },
     # rclone and local_roots are bootstrap-only on purpose: the web app must not be able to pick an executable
     # or open up arbitrary folders on the server. Local folders can only be watched inside local_roots.
     "sources": {"rclone": None, "local_roots": [], "check_seconds": 15, "cache_dir": None},

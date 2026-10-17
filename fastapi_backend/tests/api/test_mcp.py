@@ -85,6 +85,7 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "create_podcast",
         "set_nsfw",
         "mark_nsfw",
+        "enhance",
         "set_namespace_integrations",
         "set_file_storage",
         "set_monitoring",

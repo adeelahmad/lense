@@ -27,6 +27,7 @@ SECTIONS = (
     "analysis",
     "graph",
     "video",
+    "enhance",
     "uploads",
     "files",
     "ai",

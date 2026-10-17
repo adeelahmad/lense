@@ -46,6 +46,7 @@ import {
   RefreshCw,
   Network,
   ScrollText,
+  WandSparkles,
   Workflow,
 } from "lucide-react";
 import Link from "next/link";
@@ -87,6 +88,7 @@ const ICON: Record<AnySectionId, LucideIcon> = {
   reports: ChartNoAxesColumn,
   video: Clapperboard,
   nsfw: EyeOff,
+  enhance: WandSparkles,
   workers: Cpu,
   automations: Workflow,
   components: PackageCheck,

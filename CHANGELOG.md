@@ -4,6 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Enhance low quality images before they're read.** The new `enhance` step, first in the standard pipeline,
+  measures each image (size, sharpness, noise, contrast, and face size where the namespace finds faces) and keeps an
+  enhanced copy of a low quality one, which OCR, faces, objects and descriptions then read; the original stays as it
+  is. Off by default: Settings → Enhance. The light `classic` engine (Pillow) is the default; Real-ESRGAN general
+  x4v3 (BSD-3-Clause, 5 MB) is fetched the first time it's chosen. The Details tab says what was found, saves the
+  copy, and enhances an image on request; agents use `POST /api/v1/resources/{rid}/enhance`, the MCP tool `enhance`
+  or the `enhance` automation action ([Enhancing images](docs/enhance.md)).
 - **Automations run.** An automation saved over the API (`/api/v1/automations`) now reacts to new assets in its
   namespaces: when its If passes, it runs its workflow as the person who made it, within its limits and budgets, and
   each run shows what its actions did. Try one on an activity without keeping or sending anything, or run it now;
