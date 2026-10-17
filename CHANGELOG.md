@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Entities found by spaCy, fetched when picked.** Settings → Analysis → Entity extraction → spaCy now fetches spaCy
+  (MIT) and its small model the first time an asset needs it (about 60 MB): English, German, or one for many
+  languages. The defined entities still come first, a lone word like "Okay" isn't taken for a name, and until spaCy is
+  there the rules find them and the job log says so. Workflows' Extract entities (rules) node uses it too
+  ([Entities and the graph explorer](docs/processing.md#entities-and-the-graph-explorer)).
 - **Punctuation put back in transcripts.** With transcripts cleaned up, Settings → Analysis → Put punctuation back
   adds full stops, commas and question marks with a local model (kredor/punctuate-all, MIT, 12 languages), to
   transcripts that have hardly any (imported captions) or to every one, keeping the marks they have. The model and
@@ -25,6 +30,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   how long it took, how it ended and which tool results read like instructions to an AI, with the calls made for it.
   Agents read the same record over the API (`GET /api/v1/chats/<id>/messages/<mid>`), and each tool step shows how long
   it took. Answers from before have no record ([What each answer records](docs/assistant.md#what-each-answer-records)).
+- **Download notes as Markdown.** A note's ⋯ menu in the tree downloads it as a Markdown file, and the Notes page's ⋯
+  menu downloads all of a namespace's notes as a zip in folders that follow the tree, for Obsidian and other notes apps
+  ([Downloading as Markdown](docs/notes.md#downloading-as-markdown)).
 - **Automations for agents.** Agents list, save, try and run automations through the MCP tools `automations`,
   `automation_actions`, `save_automation`, `test_automation` and `run_automation`, with problems in plain words. The
   assistant saves them switched off and asks before switching one on or running it
@@ -57,9 +65,18 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   registries or the public web. Files attached to the conversation go in; a file it makes reaches a namespace once the
   person approves. Off by default; starting the gateway from Settings is in progress
   ([Code sandbox](docs/assistant.md#code-sandbox)).
-- **Download notes as Markdown.** A note's ⋯ menu in the tree downloads it as a Markdown file, and the Notes page's ⋯
-  menu downloads all of a namespace's notes as a zip in folders that follow the tree, for Obsidian and other notes apps
-  ([Downloading as Markdown](docs/notes.md#downloading-as-markdown)).
+- **Find anything by who, what and when.** Agents and the API can find assets by the faces seen in them, the people
+  heard, the entities they mention, the topics they're about, their kind and content type, when they were made (a
+  day, a month or a year), tags, language, objects seen, emotions heard, length and words in them, together or alone,
+  naming people and things instead of looking up ids. Each result says why it matched, with moments to cite
+  (`POST /find`, the MCP tool `find`, the assistant's `find_resources`; [Finding by any
+  attribute](docs/processing.md#finding-by-any-attribute)). The Library list takes faces, entities, topics, content
+  types and emotions as filters too.
+- **Classify an asset or a text.** Agents and the API can ask which of some labels fits, how sure that is and every
+  label ranked: labels they give, Lens's content types or a namespace's topics. The decision model answers, else the
+  language model, logged in the activity ledger; with `apply`, an editor's sure answer sets the content type, suggests
+  the topic or adds the tag (`POST /classify`, the MCP and assistant tool `classify`;
+  [Classifying](docs/processing.md#classifying)).
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 

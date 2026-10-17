@@ -93,7 +93,7 @@ def _clean(db, cfg, rid, say, spec=None):
 
 
 def _analyze(db, cfg, rid, say, spec=None):
-    analyze.analyze_recording(db, cfg, rid)
+    analyze.analyze_recording(db, cfg, rid, say=say)
     say("analysed")
 
 

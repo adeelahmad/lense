@@ -43,6 +43,7 @@ from app.domain import (
     approvals,
     auth,
     blobs,
+    decide,
     events,
     feeds,
     filetree,
@@ -61,7 +62,9 @@ from app.domain import (
     updates,
     variables,
 )
+from app.domain import classify as classifymod
 from app.domain import entities as ents
+from app.domain import find as findmod
 from app.domain import speakers as spk
 from app.domain import topics as topicmod
 from app.domain.store import DB
@@ -645,6 +648,149 @@ def list_recordings(
     }
     if offset + len(rows) < total:
         out["next_offset"] = offset + len(rows)
+    return out
+
+
+FIND_SORTS = ("relevance", "-date", "date", "-title", "title", "-duration", "duration")
+
+
+@tool(
+    "find",
+    "Find assets by any attribute",
+    "Assets (recordings, videos, documents and images) you can read by who is seen in them (faces) and heard (speakers), the "
+    "entities they mention, the topics they're about, their kind and content type, when they were made, tags, language, "
+    "objects seen, emotions heard, length, collection, and words said or written in them. Filters combine with AND, the "
+    "values of one with OR. Faces, people heard, entities and topics are ids or names (ignoring case); `resolved` says what "
+    "each name matched, and one that matches nothing comes back as an error naming the closest. Each result says `why` "
+    "it matched, with up to three moments per reason (a time or a page, the words there, and a url that opens it), to cite.",
+    Arg("namespace", "string", "only this namespace"),
+    Arg("text", "string", 'words said or written in them (words, "phrases", OR); by meaning too when that is set up', max_length=300),
+    Arg("title", "string", "words that must all appear in the title, the namespace or a person's name", max_length=200),
+    Arg("faces", "string[]", "people seen in them: face ids or names"),
+    Arg("speakers", "string[]", "people heard in them: speaker ids or names"),
+    Arg("entities", "string[]", "entities they mention (people, organisations, places …): ids or names"),
+    Arg("topics", "string[]", "topics they're about: ids or labels; narrower topics count too"),
+    Arg("types", "string[]", "their kind", enum=MEDIA),
+    Arg("content_types", "string[]", "content types by key or label: podcast, interview, meeting_audio, scan, photo, email, document …"),
+    Arg("date_from", "string", "made on or after this day, month or year (2026-09-30, 2026-09, 2026)"),
+    Arg("date_to", "string", "made on or before this day, month or year"),
+    Arg("min_duration", "number", "at least this many seconds long", minimum=0),
+    Arg("max_duration", "number", "shorter than this many seconds", minimum=0),
+    Arg("tags", "string[]", "tags (ignoring case)"),
+    Arg("languages", "string[]", "language codes (en, de …); none for those whose language isn't known"),
+    Arg("objects", "string[]", "kinds of object seen in them (person, car, dog …)"),
+    Arg("emotions", "string[]", "emotions heard in them (happy, sad, angry …)"),
+    Arg("collection_id", "integer", "only what's in this collection (and the collections inside it)"),
+    Arg(
+        "sensitive",
+        "string",
+        "where NSFW classification is on: only those flagged NSFW, exclude them, or include them",
+        enum=("include", "only", "exclude"),
+    ),
+    Arg("sort", "string", "relevance (the default with text), else date, title or duration; - first for descending", enum=FIND_SORTS),
+    Arg("limit", "integer", "how many", default=20, minimum=1, maximum=100),
+    Arg("offset", "integer", "skip this many (for the next page)", default=0, minimum=0, maximum=10000),
+)
+def find(
+    ctx: Context,
+    namespace: str | None,
+    limit: int,
+    offset: int,
+    sort: str | None,
+    collection_id: int | None,
+    **spec: Any,
+) -> dict[str, Any]:
+    spaces, within = ctx.acl.scope(namespace)
+    if collection_id is not None:
+        spec["collection"] = collection_id
+    res = findmod.find(ctx.db, ctx.cfg, spaces, within, spec, sort=sort, limit=limit, offset=offset)
+    items = []
+    for r in res["items"]:
+        rid = r["id"]
+        why = []
+        for w in r["why"]:
+            moments = [
+                store.clean(
+                    {
+                        **({"page": m["page"] + 1} if m.get("page") is not None else {}),
+                        **({"to_page": m["last_page"] + 1} if m.get("last_page") is not None else {}),
+                        **({"time": store.tc(m["t0"])} if m.get("t0") is not None else {}),
+                        **({"until": store.tc(m["t1"])} if m.get("t1") is not None and w["by"] == "face" else {}),
+                        "speaker": m.get("speaker"),
+                        "text": _cut(m["text"], 400) if m.get("text") else None,
+                        "url": ctx.link(rid, m.get("t0")),
+                    }
+                )
+                for m in w.get("moments") or []
+            ]
+            why.append(store.clean({"by": w["by"], "name": w.get("name"), "count": w.get("count"), "moments": moments or None}))
+        items.append(
+            store.clean(
+                {
+                    "recording_id": rid,
+                    "title": r.get("title"),
+                    "namespace": r.get("namespace"),
+                    "recorded_at": r.get("recorded_at"),
+                    "duration": store.tc(r.get("duration_ms")) if r.get("duration_ms") else None,
+                    "media": r.get("media_kind"),
+                    "speakers": r.get("speakers") or None,
+                    "tags": r.get("tags") or None,
+                    "language": r.get("language"),
+                    "nsfw": True if (r.get("nsfw") or {}).get("flagged") else None,
+                    "url": ctx.link(rid),
+                    "why": why,
+                }
+            )
+        )
+    out: dict[str, Any] = {"total": res["total"], "results": items}
+    if res["resolved"]:
+        out["resolved"] = res["resolved"]
+    if res["text"]:
+        out["text"] = res["text"]
+    if offset + len(items) < res["total"]:
+        out["next_offset"] = offset + len(items)
+    return out
+
+
+@tool(
+    "classify",
+    "Classify an asset or a text",
+    "Which label fits an asset (or a text) best, how sure that is, and every label ranked: labels you give "
+    '("name" or "name: what it means"), Lens\'s content types (vocabulary content_type: podcast, interview, scan, '
+    "email …, of the asset's kind) or its namespace's topics (vocabulary topic). A decision model answers when "
+    "one is set up, else the language model; `sure` says whether it is sure enough to act on without asking. "
+    "It changes nothing: to act, set the content type in the web app, suggest_topic, or tag it.",
+    Arg("recording_id", "integer", "the asset to classify"),
+    Arg("text", "string", "a text to classify instead", max_length=20000),
+    Arg("labels", "string[]", 'the labels to choose from (2 to 60): "name", or "name: what it means"'),
+    Arg("vocabulary", "string", "choose from Lens's content types or the namespace's topics instead", enum=("content_type", "topic")),
+    Arg("namespace", "string", "whose topics, when classifying a text by topic"),
+    Arg("question", "string", "what to ask (default: which label fits best)", max_length=500),
+)
+def classify(
+    ctx: Context,
+    recording_id: int | None,
+    text: str | None,
+    labels: list[str] | None,
+    vocabulary: str | None,
+    namespace: str | None,
+    question: str | None,
+) -> dict[str, Any]:
+    space = None
+    if recording_id is not None:
+        _recording(ctx, recording_id)
+    elif namespace:
+        space = ctx.acl.namespace(namespace)
+    try:
+        res = classifymod.classify(
+            ctx.db, ctx.cfg, rid=recording_id, text=text, labels=labels, vocab=vocabulary, question=question, space=space
+        )
+    except decide.Undecided as e:
+        raise ToolError(f"nothing could answer: {e}") from None
+    out = {k: res[k] for k in ("choice", "confidence", "sure", "ranked", "by")}
+    for k in ("key", "id"):
+        if res.get(k) is not None:
+            out[k] = res[k]
     return out
 
 

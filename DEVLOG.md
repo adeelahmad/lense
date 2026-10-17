@@ -2,6 +2,16 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-17 · Entities found by spaCy
+
+Adeel: NLP libraries for named entities. Settings → Analysis → Entity extraction → spaCy existed but needed spaCy
+installed by hand; it's now a component fetched the first time an asset needs it (the `spacy` extra and a pinned,
+checksummed model wheel: English, German or the multi-language one, all MIT). The defined entities come first, spaCy's
+names fill in around them, and the rules stand in until spaCy is there. Workflows' rules node uses the same extractor.
+
+Refine later: pick the model by the transcript's language; spaCy's medium and large English models (MIT too, 40 to
+560 MB) as options; run spaCy over a recording's lines in one batch.
+
 ## 2026-10-17 · Cleaning up transcripts before analysis
 
 Adeel: a text cleaning step before entity extraction and transcript processing, from a punctuation and grammar

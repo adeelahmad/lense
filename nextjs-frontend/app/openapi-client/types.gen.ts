@@ -3771,6 +3771,124 @@ export type ChatUpdate = {
 };
 
 /**
+ * ClassifyRequest
+ *
+ * Give a `recording` or a `text`, and `labels` or a `vocabulary`.
+ */
+export type ClassifyRequest = {
+  /**
+   * Recording
+   *
+   * the asset to classify
+   */
+  recording?: number | null;
+  /**
+   * Text
+   *
+   * text to classify instead
+   */
+  text?: string | null;
+  /**
+   * Labels
+   *
+   * the labels to choose from (2 to 60): names, or {name: what it means}
+   */
+  labels?:
+    | {
+        [key: string]: string;
+      }
+    | Array<string>
+    | null;
+  /**
+   * Vocabulary
+   *
+   * choose from Lens's content types (of the asset's kind), or the namespace's topics
+   */
+  vocabulary?: "content_type" | "topic" | null;
+  /**
+   * Namespace
+   *
+   * whose topics, when classifying a text by topic
+   */
+  namespace?: string | null;
+  /**
+   * Question
+   *
+   * what to ask (default: which label fits best)
+   */
+  question?: string | null;
+  /**
+   * Apply
+   *
+   * act on a sure answer: set the content type, suggest the topic, or add the label as a tag (editors)
+   */
+  apply?: boolean;
+};
+
+/**
+ * ClassifyResult
+ */
+export type ClassifyResult = {
+  /**
+   * Choice
+   *
+   * the label that fits best
+   */
+  choice: string;
+  /**
+   * Confidence
+   *
+   * how sure, from 0 to 1
+   */
+  confidence: number;
+  /**
+   * Sure
+   *
+   * sure enough to act on without asking (decisions.act_above)
+   */
+  sure: boolean;
+  /**
+   * Ranked
+   *
+   * every label, the likeliest first
+   */
+  ranked: Array<RankedLabel>;
+  /**
+   * By
+   *
+   * what answered: jev, laya, llm, or only option
+   */
+  by: string;
+  /**
+   * Vocabulary
+   */
+  vocabulary?: string | null;
+  /**
+   * Question
+   */
+  question: string;
+  /**
+   * Applied
+   *
+   * what was done with a sure answer, when apply was asked
+   */
+  applied?: "content_type" | "topic_suggested" | "tag" | null;
+  /**
+   * Key
+   *
+   * content_type: the chosen content type's key
+   */
+  key?: string | null;
+  /**
+   * Id
+   *
+   * topic: the chosen topic's id
+   */
+  id?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * ClientRegistered
  */
 export type ClientRegistered = {
@@ -7508,6 +7626,460 @@ export type FileUpdate = {
    * null clears it
    */
   description?: string | null;
+};
+
+/**
+ * FindItem
+ */
+export type FindItem = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Recorded At
+   */
+  recorded_at?: string | null;
+  /**
+   * Duration Ms
+   */
+  duration_ms?: number | null;
+  /**
+   * Status
+   */
+  status?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Source
+   */
+  source?: string | null;
+  /**
+   * Space
+   */
+  space: number;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Collection
+   *
+   * the collection it lives in
+   */
+  collection?: number | null;
+  /**
+   * Collection Name
+   */
+  collection_name?: string | null;
+  /**
+   * Media Kind
+   *
+   * audio, video, transcript (text without media), document or image
+   */
+  media_kind: string;
+  /**
+   * Pages
+   *
+   * a document's or an image's pages
+   */
+  pages?: number | null;
+  /**
+   * Poster
+   *
+   * signed link to a video's first frame, or a document's or image's first page
+   */
+  poster?: string | null;
+  /**
+   * Emotions
+   */
+  emotions?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Words
+   */
+  words?: number | null;
+  /**
+   * Importance
+   */
+  importance?: unknown;
+  /**
+   * Sentiment
+   */
+  sentiment?: unknown;
+  /**
+   * Speakers
+   *
+   * names of the people in it, comma separated
+   */
+  speakers?: string;
+  /**
+   * Access
+   *
+   * its own access, or its namespace's default
+   */
+  access?: "public" | "restricted" | "private";
+  /**
+   * Open
+   *
+   * the parts anyone may use when it is public
+   */
+  open?: Array<"media" | "transcript" | "index">;
+  /**
+   * Featured
+   */
+  featured?: boolean;
+  /**
+   * Tags
+   */
+  tags?: Array<string>;
+  /**
+   * Language
+   *
+   * its language code, when known
+   */
+  language?: string | null;
+  /**
+   * Origin
+   *
+   * where it came from: source:<id> (a connected source), upload, paste, iiif, folder or file
+   */
+  origin?: string | null;
+  /**
+   * Origin Name
+   *
+   * what to call its origin: the source's name, or e.g. Uploaded
+   */
+  origin_name?: string | null;
+  /**
+   * Role
+   *
+   * your role on it: through its namespace or its collection (an admin of the collection is an owner)
+   */
+  role?: "viewer" | "editor" | "owner" | null;
+  /**
+   * NSFW classification, where it's on in its namespace and it was classified
+   */
+  nsfw?: NsfwState | null;
+  /**
+   * Why
+   *
+   * why it matched
+   */
+  why?: Array<FindReason>;
+  [key: string]: unknown;
+};
+
+/**
+ * FindMoment
+ */
+export type FindMoment = {
+  /**
+   * T0
+   *
+   * ms from the start, on a timeline
+   */
+  t0?: number | null;
+  /**
+   * T1
+   *
+   * ms, where it ends
+   */
+  t1?: number | null;
+  /**
+   * Page
+   *
+   * in a document or an image: the page (from 0)
+   */
+  page?: number | null;
+  /**
+   * Last Page
+   *
+   * a face over several pages: the last of them
+   */
+  last_page?: number | null;
+  /**
+   * Text
+   *
+   * the words there, when it has any
+   */
+  text?: string | null;
+  /**
+   * Speaker
+   */
+  speaker?: string | null;
+  /**
+   * Source
+   *
+   * words: said, screen, file, page, object or described (as search has it)
+   */
+  source?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * FindNamed
+ */
+export type FindNamed = {
+  /**
+   * Id
+   */
+  id?: number | null;
+  /**
+   * Key
+   */
+  key?: string | null;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * FindQuery
+ *
+ * Filters combine with AND, the values of one filter with OR. Faces, speakers, entities and topics are ids or names
+ * (ignoring case; an entity's other names count, and any of a topic's labels).
+ */
+export type FindQuery = {
+  /**
+   * Namespace
+   *
+   * one namespace (default: every namespace you can read)
+   */
+  namespace?: string | null;
+  /**
+   * Text
+   *
+   * words said or written in them, as search takes them (words, "phrases", OR); by meaning too when that is set up
+   */
+  text?: string | null;
+  /**
+   * Title
+   *
+   * words that must all appear in the title, the namespace or a person's name
+   */
+  title?: string | null;
+  /**
+   * Faces
+   *
+   * people seen in them: face identities, by id or name
+   */
+  faces?: Array<number | string> | null;
+  /**
+   * Speakers
+   *
+   * people heard in them: speakers, by id or name
+   */
+  speakers?: Array<number | string> | null;
+  /**
+   * Entities
+   *
+   * entities they mention, by id or name
+   */
+  entities?: Array<number | string> | null;
+  /**
+   * Topics
+   *
+   * topics they were accepted as about, by id or label; a topic's narrower topics count too
+   */
+  topics?: Array<number | string> | null;
+  /**
+   * Types
+   *
+   * their kind: audio, video, transcript, document or image
+   */
+  types?: Array<"audio" | "video" | "transcript" | "document" | "image"> | null;
+  /**
+   * Content Types
+   *
+   * content types (podcast, interview, scan, photo, email …, GET /content-types), by key or label
+   */
+  content_types?: Array<string> | null;
+  /**
+   * Date From
+   *
+   * made on or after this day, month or year (2026-09-30, 2026-09, 2026)
+   */
+  date_from?: string | null;
+  /**
+   * Date To
+   *
+   * made on or before this day, month or year
+   */
+  date_to?: string | null;
+  /**
+   * Min Duration
+   *
+   * at least this many seconds long
+   */
+  min_duration?: number | null;
+  /**
+   * Max Duration
+   *
+   * shorter than this many seconds
+   */
+  max_duration?: number | null;
+  /**
+   * Tags
+   *
+   * tags (ignoring case)
+   */
+  tags?: Array<string> | null;
+  /**
+   * Languages
+   *
+   * language codes; none for those whose language isn't known
+   */
+  languages?: Array<string> | null;
+  /**
+   * Objects
+   *
+   * kinds of object seen in them (person, car, dog …)
+   */
+  objects?: Array<string> | null;
+  /**
+   * Emotions
+   *
+   * emotions heard in them (ignoring case)
+   */
+  emotions?: Array<string> | null;
+  /**
+   * Status
+   *
+   * statuses, or processing and failed
+   */
+  status?: Array<"new" | "transcribed" | "diarized" | "analyzed" | "error" | "processing" | "failed"> | null;
+  /**
+   * Origins
+   *
+   * where they came from: source:<id>, upload, paste, iiif, folder or file
+   */
+  origins?: Array<string> | null;
+  /**
+   * Collection
+   *
+   * a collection: what's in it and in the collections inside it
+   */
+  collection?: number | null;
+  /**
+   * Sensitive
+   *
+   * where NSFW classification is on: only those flagged, exclude them, or include them
+   */
+  sensitive?: "include" | "only" | "exclude" | null;
+  /**
+   * Sort
+   *
+   * relevance (the default with text: best matching words first), else newest first
+   */
+  sort?: "relevance" | "-date" | "date" | "-title" | "title" | "-duration" | "duration" | null;
+  /**
+   * Limit
+   */
+  limit?: number;
+  /**
+   * Offset
+   */
+  offset?: number;
+};
+
+/**
+ * FindReason
+ */
+export type FindReason = {
+  /**
+   * By
+   */
+  by: "words" | "face" | "voice" | "entity" | "topic" | "content_type" | "object" | "emotion";
+  /**
+   * Name
+   *
+   * what matched: the words, the person's or the entity's name, the topic's label …
+   */
+  name?: string | null;
+  /**
+   * Moments
+   *
+   * up to 3 moments that show it, to cite
+   */
+  moments?: Array<FindMoment>;
+  /**
+   * Count
+   *
+   * emotion: how many lines have it
+   */
+  count?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * FindResults
+ */
+export type FindResults = {
+  /**
+   * Total
+   *
+   * how many assets match, on all pages
+   */
+  total: number;
+  /**
+   * Items
+   */
+  items: Array<FindItem>;
+  /**
+   * Resolved
+   *
+   * what the names given matched, by filter (and how many narrower topics came with them)
+   */
+  resolved?: {
+    [key: string]: Array<FindNamed> | number;
+  };
+  text?: FindText | null;
+  [key: string]: unknown;
+};
+
+/**
+ * FindText
+ */
+export type FindText = {
+  /**
+   * Mode
+   *
+   * how the words were matched: keyword, semantic or hybrid
+   */
+  mode: string;
+  /**
+   * Meaning
+   *
+   * why not by meaning, when it was asked and couldn't be
+   */
+  meaning?: string | null;
+  /**
+   * Moments
+   *
+   * moments the words were found in
+   */
+  moments: number;
+  /**
+   * Capped
+   *
+   * more moments matched than were looked through, so some assets may be missing
+   */
+  capped: boolean;
+  [key: string]: unknown;
 };
 
 /**
@@ -15601,6 +16173,35 @@ export type Pushed = {
    * Kept
    */
   kept: number;
+  [key: string]: unknown;
+};
+
+/**
+ * RankedLabel
+ */
+export type RankedLabel = {
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * P
+   *
+   * how likely, from 0 to 1
+   */
+  p: number;
+  /**
+   * Key
+   *
+   * content_type: the content type's key
+   */
+  key?: string | null;
+  /**
+   * Id
+   *
+   * topic: the topic's id
+   */
+  id?: number | null;
   [key: string]: unknown;
 };
 
@@ -29148,6 +29749,36 @@ export type ListRecordingsData = {
      */
     sensitive?: "include" | "only" | "exclude" | null;
     /**
+     * Face
+     *
+     * face identity ids: the assets they're seen in; repeat for several
+     */
+    face?: Array<number> | null;
+    /**
+     * Entity
+     *
+     * entity ids: the assets mentioning them; repeat for several
+     */
+    entity?: Array<number> | null;
+    /**
+     * Topic
+     *
+     * topic ids: the assets accepted as about them (not their narrower topics); repeat for several
+     */
+    topic?: Array<number> | null;
+    /**
+     * Content Type
+     *
+     * content type keys (podcast, scan, email …; GET /content-types): their assets; repeat for several
+     */
+    content_type?: Array<string> | null;
+    /**
+     * Emotion
+     *
+     * emotions heard in them (ignoring case); repeat for several
+     */
+    emotion?: Array<string> | null;
+    /**
      * Collection
      *
      * a collection: the assets in it and in the collections inside it
@@ -33019,6 +33650,56 @@ export type ListMentionsResponses = {
 };
 
 export type ListMentionsResponse = ListMentionsResponses[keyof ListMentionsResponses];
+
+export type FindResourcesData = {
+  body: FindQuery;
+  path?: never;
+  query?: never;
+  url: "/api/v1/find";
+};
+
+export type FindResourcesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type FindResourcesError = FindResourcesErrors[keyof FindResourcesErrors];
+
+export type FindResourcesResponses = {
+  /**
+   * Successful Response
+   */
+  200: FindResults;
+};
+
+export type FindResourcesResponse = FindResourcesResponses[keyof FindResourcesResponses];
+
+export type ClassifyData = {
+  body: ClassifyRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/classify";
+};
+
+export type ClassifyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ClassifyError = ClassifyErrors[keyof ClassifyErrors];
+
+export type ClassifyResponses = {
+  /**
+   * Successful Response
+   */
+  200: ClassifyResult;
+};
+
+export type ClassifyResponse = ClassifyResponses[keyof ClassifyResponses];
 
 export type ListSearchesData = {
   body?: never;
