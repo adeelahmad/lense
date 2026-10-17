@@ -152,8 +152,10 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   showing each step, and rolls back when the new version doesn't start; nothing installs unless an admin says so. The
   same agent changes whether other devices reach Lens and which edition runs, from Settings. Settings › Backups takes,
   lists, downloads and restores backups of the database and Lens's files (a file that hasn't changed takes no new room),
-  takes them on any schedule, and can copy each one, encrypted, to a storage connection.
-  ([Updates and backups](docs/updates.md), [backups](docs/database.md#backups);
+  takes them on any schedule, and can copy each one, encrypted, to a storage connection. Before a version is released,
+  CI upgrades the one before it, holding data, to it, and releases nothing when any of that data is lost.
+  ([Updates and backups](docs/updates.md), [backups](docs/database.md#backups),
+  [the upgrade check](docs/database.md#checked-before-every-release);
   [checks](docs/requirements.md#keep-it-up-to-date-and-backed-up))
 - **Watch it run.** Structured logs from every process, read in Settings › Logs and optionally sent to a syslog
   server. OpenTelemetry traces and metrics, and a Prometheus `/metrics` endpoint, both off until you turn them on, and
