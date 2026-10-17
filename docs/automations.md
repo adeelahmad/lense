@@ -399,7 +399,7 @@ cheap) can ask whether something happened before: a `seen` stands where a test w
 - `count` is `{"at_least": n}` (1 when not given), `{"at_most": n}` or both, up to 100: `{"at_most": 0}` reads
   "if nothing like it came", as in "if I haven't replied within 2 days".
 - It reads at most 200 activities, of the automation's namespaces (`env["spaces"]`) and as the automation's person
-  (`env["account"]`) may see them; `env["db"]` and `env["cfg"]` give the database. Without a database it finds
+  (`env["viewer"]`, or `env["account"]`) may see them; `env["db"]` and `env["cfg"]` give the database. Without a database it finds
   nothing. Its `where` is tested with the same `env` (so its clock too) and can't test `changed`.
 - In words: `at least one of “Email received” in the last 2 days, with the same sender`.
 
@@ -1094,7 +1094,8 @@ Each new activity is checked against each trigger that listens for its kind (a w
 - an automation made it, unless the trigger says `from_automations`;
 - it is the end of a chain of automations setting each other off as long as `automations.max_depth` (3);
 - it isn't in one of the automation's namespaces, or the automation's person may not see it;
-- the trigger's `where` doesn't match it.
+- the trigger's `where` doesn't match it (in the trigger's time zone; a `changed` in it compares with the last
+  activity the trigger saw).
 
 Then it is claimed (for the automation, trigger and activity together), so it runs each automation once, even with the
 API and a worker both following. **`automations.fire(db, cfg, automation_id, alias, activity, events=None, dry=False)`**
@@ -1103,8 +1104,11 @@ joins); it gives the run's id, or none when nothing ran. A run goes:
 
 1. **Its person**: if the person it acts for lost their account, their admin role (for one that works everywhere) or
    the right to edit one of its namespaces, the run fails saying so, and the automation is switched off.
-2. **The If**, on the [run context](#run-context). When it is false the run stops there: it counts in
-   `counters.skipped`, uses up no limit and makes no run and no activity.
+2. **The If**, on the [run context](#run-context), with the run's clock and time zone: a `seen` in it looks back in
+   the automation's namespaces as its person may see, and `changed` compares with what the automation saw last
+   ([Operators](#operators)). The If and the graph's condition, filter and switch nodes share one State a run, so a
+   node testing what the If tested agrees with it; a dry run keeps nothing. When it is false the run stops there: it
+   counts in `counters.skipped`, uses up no limit and makes no run and no activity.
 3. **Limits**: the automation's `cooldown` (the wait between runs) and `max_per_hour`, then every automation's runs
    together this minute (`automations.max_runs_per_minute`, 60). Over one, nothing runs: it counts in
    `counters.limited` and says so in the stream (`automation.limited`) at most once an hour.

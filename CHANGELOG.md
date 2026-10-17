@@ -29,6 +29,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   two, before or after a time or within a duration, falls on certain days or times of day, and whether a value changed
   since the last activity. Each value is checked when it's saved, and patterns that could tie up the worker are refused
   ([Operators](docs/automations.md#operators)).
+- **Automations look back.** An automation's If can ask whether something like this happened before: activities of
+  some kinds within a time, from the same sender or about the same thing, at least or at most so many times, looked for
+  only in the automation's namespaces and only as its person may see them. `changed` in a trigger's where or an If
+  compares each activity with the last one, and trying an automation keeps nothing
+  ([Looking back](docs/automations.md#looking-back)).
 - **Specs from transcripts.** Turn a voice session or a meeting into a technical spec, saved as a note linked to it:
   the model writes the spec, then lists every named decision, every "no" and "not that, this", every constraint and
   every gap the speaker left to decide later, each with its quote and a link to the moment it was said; a quote the
