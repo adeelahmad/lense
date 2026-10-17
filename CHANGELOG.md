@@ -40,6 +40,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   64-bit machine, Landlock in its Linux kernel) and says why not. Off deletes every sandbox and stops it. The same
   over `PUT /api/v1/admin/sandbox` and the MCP tools `sandbox_gateway` and `set_sandbox_gateway`
   ([The gateway](docs/assistant.md#the-gateway)).
+- **See the code the assistant ran, and download the files it made.** Each Python or bash run is a folded step under
+  the answer that opens to the code, its output and how it ended. With `share_sandbox_file` the assistant hands you a
+  file the sandbox made, a chart or a converted document, as a download button on the answer; Lens keeps it
+  encrypted with the conversation and deletes it with the conversation
+  ([In the conversation](docs/assistant.md#code-sandbox)).
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 

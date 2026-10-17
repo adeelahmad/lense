@@ -418,6 +418,9 @@ import type {
   DownloadBackupData,
   DownloadBackupErrors,
   DownloadBackupResponses,
+  DownloadChatFileData,
+  DownloadChatFileErrors,
+  DownloadChatFileResponses,
   DownloadFileData,
   DownloadFileErrors,
   DownloadFileResponses,
@@ -10097,6 +10100,20 @@ export class Chats {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Download Chat File
+   *
+   * A file the code sandbox handed you in this conversation (share_sandbox_file, the download on its answer).
+   */
+  public static downloadChatFile<ThrowOnError extends boolean = false>(
+    options: Options<DownloadChatFileData, ThrowOnError>,
+  ): RequestResult<DownloadChatFileResponses, DownloadChatFileErrors, ThrowOnError> {
+    return (options.client ?? client).get<DownloadChatFileResponses, DownloadChatFileErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/files/{fid}",
+      ...options,
     });
   }
 

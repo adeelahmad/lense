@@ -6,6 +6,7 @@ import {
   ChartLine,
   ChevronDown,
   ChevronRight,
+  Download,
   FileText,
   List,
   PencilLine,
@@ -13,6 +14,7 @@ import {
   Quote,
   Search,
   Shapes,
+  SquareTerminal,
   Waypoints,
   Wrench,
   type LucideIcon,
@@ -36,7 +38,59 @@ const ICON: Record<string, LucideIcon> = {
   run_template: Play,
   propose_entity_change: PencilLine,
   propose_topic_change: PencilLine,
+  run_python: SquareTerminal,
+  run_bash: SquareTerminal,
+  share_sandbox_file: Download,
 };
+
+/** A code sandbox run's code, as the model wrote it (run_python's code, run_bash's command), or null. */
+export function codeOf(step: ToolStep): string | null {
+  if (step.tool !== "run_python" && step.tool !== "run_bash") return null;
+  const v = step.tool === "run_python" ? step.args.code : step.args.command;
+  return typeof v === "string" ? v : null;
+}
+
+/** How a run ended, in a few words: exit 0, exit 1, timed out. */
+export function endedAs(o: NonNullable<ToolStep["output"]>): string {
+  if (o.timed_out) return "timed out";
+  return o.exit_code == null ? "no exit code" : `exit ${o.exit_code}`;
+}
+
+/** The code a run ran, then what it printed: stdout, and stderr in red. */
+function RunDetail({ step, code }: { step: ToolStep; code: string }) {
+  const o = step.output;
+  return (
+    <div className="flex flex-col gap-2 border-t border-border px-3 py-2.5">
+      <pre
+        aria-label={step.tool === "run_python" ? "Python code" : "bash script"}
+        className="m-0 max-h-[320px] overflow-auto rounded-sm bg-surface-neutral px-2.5 py-2 font-mono text-[12px] leading-normal text-fg"
+      >
+        {code}
+      </pre>
+      {o ? (
+        <div className="flex flex-col gap-1">
+          <span className="text-[11.5px] font-semibold text-fg-muted">
+            Output · {endedAs(o)}
+            {o.cut ? " · cut short" : ""}
+          </span>
+          {o.stdout && (
+            <pre className="m-0 max-h-[320px] overflow-auto whitespace-pre-wrap wrap-break-word font-mono text-[12px] leading-normal text-fg">
+              {o.stdout}
+            </pre>
+          )}
+          {o.stderr && (
+            <pre className="m-0 max-h-[240px] overflow-auto whitespace-pre-wrap wrap-break-word font-mono text-[12px] leading-normal text-red-dark">
+              {o.stderr}
+            </pre>
+          )}
+          {!o.stdout && !o.stderr && <span className="text-[12px] text-fg-muted">It printed nothing.</span>}
+        </div>
+      ) : (
+        <span className="text-[12px] text-fg-muted">{step.summary || "It didn’t run."}</span>
+      )}
+    </div>
+  );
+}
 
 type Kind = "done" | "failed" | "waiting";
 
@@ -61,6 +115,7 @@ function StepRow({ step, index }: { step: ToolStep; index: number }) {
     kind === "waiting"
       ? step.summary.replace(/^asked for approval:\s*/i, "Wants to: ") + " — waiting for approval"
       : stepTitle(step);
+  const code = codeOf(step);
   return (
     <li className="overflow-hidden rounded-[10px] border border-border">
       <button
@@ -89,7 +144,12 @@ function StepRow({ step, index }: { step: ToolStep; index: number }) {
           <ChevronRight aria-hidden className="size-3.5 text-fg-muted" />
         )}
       </button>
-      {open && (
+      {open && code != null && kind !== "waiting" && (
+        <div id={`step-${index}`}>
+          <RunDetail step={step} code={code} />
+        </div>
+      )}
+      {open && (code == null || kind === "waiting") && (
         <dl
           id={`step-${index}`}
           className="m-0 grid grid-cols-[70px_minmax(0,1fr)] gap-x-2.5 gap-y-1.5 border-t border-border px-3 py-2.5 font-mono text-[12px] leading-normal"

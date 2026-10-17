@@ -852,7 +852,7 @@ def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, set
             made = made | {key} if name in SAME_AGAIN else set()
             # as the model reads it: what the tool read from the archive, the web or another server marked as data
             result, summary = toolbox.call(name, args, model=True)
-            yield "step", {"tool": name, "args": args, "summary": summary}
+            yield "step", {"tool": name, "args": args, "summary": summary, **toolbox.take_detail()}
             msgs.append({"role": "tool", "tool_call_id": c.get("id"), "content": result})
     text = _finish(cfg, msgs, tools, model) or "I couldn't put an answer together from what I found. Try again, or ask something narrower."
     yield ("answer" if looked else "direct"), text
