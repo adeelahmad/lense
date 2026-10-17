@@ -57,7 +57,7 @@ def test_off_by_default_nothing_is_run(here, client, env, db, cfg):
     drain(db, settings.effective(db, cfg))
     assert not any("--dump-graph" in r["args"] for r in fake_anytopdf.runs(here))
     assert _enrichment(db, up["recording"]) is None
-    assert ("Berlin", "PLACE") not in _entities(db, up["recording"])
+    assert ("2026-10-09", "DATE") not in _entities(db, up["recording"])  # a date only anytopdf reads
     assert client.get(f"/api/v1/recordings/{up['recording']}", headers=env["he"]).json().get("enrichment") is None
 
 
@@ -67,7 +67,7 @@ def test_places_and_dates_become_hints(here, client, env, db, cfg):
     drain(db, settings.effective(db, cfg))
     rid = up["recording"]
     got = _entities(db, rid)
-    assert ("Berlin", "PLACE") in got  # the gazetteer's place, a name the rules alone don't know as a place
+    assert ("Berlin", "PLACE") in got  # the gazetteer's place (the rules know Berlin too)
     assert ("2026-10-09", "DATE") in got
     assert not any(n == "Mobile" and t == "PLACE" for n, t in got)  # anytopdf wasn't sure: left out
     found = _enrichment(db, rid)

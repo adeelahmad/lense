@@ -782,6 +782,8 @@ import type {
   ImportNamespaceRdfData,
   ImportNamespaceRdfErrors,
   ImportNamespaceRdfResponses,
+  ImportTargetData,
+  ImportTargetResponses,
   ImportTranscriptData,
   ImportTranscriptErrors,
   ImportTranscriptResponses,
@@ -11580,9 +11582,27 @@ export class ImportHooks {
   }
 
   /**
+   * Import Target
+   *
+   * Where pushes with this bearer token go, without importing anything: an import webhook's token goes into its
+   * namespace; a person's own token (an API token, an app's, or the web app's) into any namespace they can import into,
+   * named with `?namespace=`. 401 for a token Lens doesn't know, saying which kind it is; 403 while a hook is paused.
+   */
+  public static importTarget<ThrowOnError extends boolean = false>(
+    options?: Options<ImportTargetData, ThrowOnError>,
+  ): RequestResult<ImportTargetResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ImportTargetResponses, unknown, ThrowOnError>({
+      url: "/api/v1/hooks/import",
+      ...options,
+    });
+  }
+
+  /**
    * Push To Import Hook
    *
-   * Push something into an import webhook's namespace, with its token as a bearer token. Three ways:
+   * Push something into an import webhook's namespace, with its token as a bearer token, or into one of your own
+   * namespaces with your own token (an API token with write access, an app's, or the web app's) and `?namespace=`.
+   * Three ways:
    *
    * - a file as the raw body, named by `?filename=`, Content-Disposition or X-Filename: audio, video, documents and
    * images become assets and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as
@@ -11591,8 +11611,9 @@ export class ImportHooks {
    * - JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as text), with an optional
    * `title`.
    *
-   * Each runs the hook's pipeline, or the namespace's. 401 for an unknown token, 403 while the hook is paused, 413 over
-   * uploads.max_mb. Audited as `import.hook`.
+   * Each runs the hook's pipeline, or the namespace's. 401 for an unknown token, saying which kind it is; 403 while the
+   * hook is paused, for a read-only token, or without the import permission; 413 over uploads.max_mb. Audited as
+   * `import.hook` (by the hook) or `import.push` (by the person).
    */
   public static pushToImportHook<ThrowOnError extends boolean = false>(
     options?: Options<PushToImportHookData, ThrowOnError>,
@@ -11610,8 +11631,8 @@ export class ImportHooks {
   /**
    * Push To Import Hook Token
    *
-   * The same, with the token in the address, for services that can only be given a URL. Prefer the bearer token:
-   * addresses end up in logs.
+   * The same, with an import webhook's token in the address, for services that can only be given a URL. Prefer the
+   * bearer token: addresses end up in logs. A person's own token is never taken here.
    */
   public static pushToImportHookToken<ThrowOnError extends boolean = false>(
     options: Options<PushToImportHookTokenData, ThrowOnError>,
