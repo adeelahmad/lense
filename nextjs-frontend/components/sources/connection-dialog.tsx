@@ -161,7 +161,7 @@ export function ConnectionDialog({
         const body = buildPayload(backends[t], f, t);
         sent = body.secrets;
         if (id == null) {
-          name = f.name.trim() || suggestName(t, f.params);
+          name = f.name.trim() || suggestName(t, f.params, f.secrets);
           const r = await data(
             Sources.createSource({
               client,
@@ -241,7 +241,7 @@ export function ConnectionDialog({
       let id = createdId;
       const body = buildPayload(backends[type], form, type);
       if (id == null) {
-        const name = form.name.trim() || suggestName(type, form.params);
+        const name = form.name.trim() || suggestName(type, form.params, form.secrets);
         id = (await data(Sources.createSource({ client, body: { type, name, ...body } }))).id;
         setCreatedId(id);
         setCreatedName(name);

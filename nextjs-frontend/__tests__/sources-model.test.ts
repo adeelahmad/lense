@@ -219,6 +219,27 @@ describe("connections", () => {
     expect(suggestName("ical", cal.params)).toBe("Calendar feed");
     expect([fileKind("Harbour report.eml"), fileKind("2026-10-02 Stand-up.ics")]).toEqual(["document", "transcript"]);
   });
+  it("takes news feeds by their address, or their site's", () => {
+    const RSS: BackendSpec = { label: "News feed (RSS or Atom)", fields: { user: "" }, secrets: ["url", "pass"] };
+    expect(sourceSubtitle({ type: "rss", params: { user: "" } })).toBe("News feed · address kept secret");
+    expect(validateForm("rss", RSS, emptyForm(RSS), false)).toHaveProperty("url");
+    const feed = { ...emptyForm(RSS), secrets: { url: "https://harbour.example.org/feed.xml?key=s3cret" } };
+    expect(validateForm("rss", RSS, feed, false)).toEqual({});
+    for (const ok of [
+      "feed://harbour.example.org/rss",
+      "feed:https://harbour.example.org/rss",
+      "http://harbour.example.org",
+    ])
+      expect(validateForm("rss", RSS, { ...feed, secrets: { url: ok } }, false)).toEqual({});
+    expect(validateForm("rss", RSS, { ...feed, secrets: { url: "harbour.example.org" } }, false)).toHaveProperty("url");
+    expect(validateForm("rss", RSS, emptyForm(RSS), true, (k) => k === "url")).toEqual({});
+    expect(buildPayload(RSS, feed, "rss").secrets).toEqual({ url: "https://harbour.example.org/feed.xml?key=s3cret" });
+    // named by its server, never by the rest of its address
+    expect(suggestName("rss", feed.params, feed.secrets)).toBe("News feed · harbour.example.org");
+    expect(suggestName("rss", {}, { url: "feed:https://news.example.org/atom" })).toBe("News feed · news.example.org");
+    expect(suggestName("rss", {})).toBe("News feed");
+    expect(fileKind("2026-09-29 Night crossing.atom")).toBe("transcript");
+  });
   it("signs Google Calendar in as a Google account or a service account", () => {
     const GCAL: BackendSpec = {
       label: "Google Calendar",

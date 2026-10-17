@@ -4,6 +4,16 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Files added over SMB are imported.** Copy files into a collection's folder on the SMB share and each is imported
+  when it's closed, as an upload is; a new folder under `Collections` is a new collection. Files of a type Lens doesn't
+  take are refused as they're made, files over the upload limit are cut off as they're written, and a file deleted as
+  it's closed or left open when its client goes away isn't imported. The system's own files (`.DS_Store`, `Thumbs.db`,
+  Office's `~$` files) are kept aside, and renaming a file saved under a temporary name imports it. **Import files
+  people add** in Settings, SMB share (`smb.add_files`, on) turns it off and makes the share read-only again ([Adding
+  files](docs/smb.md#adding-files)).
+
+## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
+
 - **Dates read as days, for agents.** With Settings → Analysis → Read dates on (off by default), analysis reads the
   dates each line gives as days on the calendar: "next Tuesday" in a recording made on a Wednesday is the Tuesday
   after, "last week" Monday to Sunday before, "March 2024" all of March, worked out from the asset's own date. Agents
@@ -53,6 +63,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   each run shows what its actions did. Try one on an activity without keeping or sending anything, or run it now;
   Settings → Automations switches them all off and sets how far they may go
   ([Running automations](docs/automations.md#running-automations)).
+- **News feeds.** Subscribe to a blog's or a news site's RSS or Atom feed: add it on the Sources page (its address,
+  or just the site's) and watch it, and each new post comes into a namespace as text, with its link, author and date,
+  so answers cite it. Feeds are asked for again only when they've changed, and a private feed's address is kept like a
+  password ([News feeds](docs/processing.md#news-feeds-rss-and-atom)).
 - **Each answer says what produced it.** The *i* in an answer's header shows the model and the host it ran on, the
   tools it was offered and used, the scope, its limits and what it used, tokens, cost (an estimate from your prices),
   how long it took, how it ended and which tool results read like instructions to an AI, with the calls made for it.
@@ -101,13 +115,6 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   only the version showing. In the web app, Regenerate (and Regenerate with… another model) replaces Try another
   model, and `‹ 2 / 3 ›` under a question or an answer moves between its versions. Existing conversations are upgraded
   on the next start (`chat-tree`) ([Versions](docs/assistant.md)).
-- **Files added over SMB are imported.** Copy files into a collection's folder on the SMB share and each is imported
-  when it's closed, as an upload is; a new folder under `Collections` is a new collection. Files of a type Lens doesn't
-  take are refused as they're made, files over the upload limit are cut off as they're written, and a file deleted as
-  it's closed or left open when its client goes away isn't imported. The system's own files (`.DS_Store`, `Thumbs.db`,
-  Office's `~$` files) are kept aside, and renaming a file saved under a temporary name imports it. **Import files
-  people add** in Settings, SMB share (`smb.add_files`, on) turns it off and makes the share read-only again ([Adding
-  files](docs/smb.md#adding-files)).
 - **The assistant searches the web.** With web search on (off by default; Settings → AI assistant → Web search), the
   assistant gets `web_search` and `web_read`: it searches with DuckDuckGo (no key), your own SearXNG, Brave Search or
   Tavily, and reads pages and online PDFs, public addresses only, through the same guard as captured pages. Pages are
@@ -134,6 +141,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   64-bit machine, Landlock in its Linux kernel) and says why not. Off deletes every sandbox and stops it. The same
   over `PUT /api/v1/admin/sandbox` and the MCP tools `sandbox_gateway` and `set_sandbox_gateway`
   ([The gateway](docs/assistant.md#the-gateway)).
+- **See the code the assistant ran, and download the files it made.** Each Python or bash run is a folded step under
+  the answer that opens to the code, its output and how it ended. With `share_sandbox_file` the assistant hands you a
+  file the sandbox made, a chart or a converted document, as a download button on the answer; Lens keeps it
+  encrypted with the conversation and deletes it with the conversation
+  ([In the conversation](docs/assistant.md#code-sandbox)).
 - **Find anything by who, what and when.** Agents and the API can find assets by the faces seen in them, the people
   heard, the entities they mention, the topics they're about, their kind and content type, when they were made (a
   day, a month or a year), tags, language, objects seen, emotions heard, length and words in them, together or alone,
@@ -150,6 +162,27 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   for the asset (or for what came in) and passes on the choice, how sure and every label ranked, for a Condition
   or Switch to branch on; set to act, a sure answer sets the content type, suggests the topic or adds the tag
   ([Workflows and the canvas](docs/processing.md#workflows-and-the-canvas)).
+
+### Features
+
+- **automations:** the variable picker's catalog and a template's preview for a draft automation ([#461](https://github.com/adeelahmad/lense/pull/461))
+- **automations:** the Approvals page, its badge, and Home's row ([#459](https://github.com/adeelahmad/lense/pull/459))
+- **automations:** save automations for their maker, with checks and an API ([#451](https://github.com/adeelahmad/lense/pull/451))
+
+### Fixes
+
+- **assistant:** let the assistant's tools be imported first ([#466](https://github.com/adeelahmad/lense/pull/466))
+- **files:** let the metadata module be imported first ([#475](https://github.com/adeelahmad/lense/pull/475))
+- **worker:** log the database upgrade a worker runs as it starts ([#496](https://github.com/adeelahmad/lense/pull/496))
+- **ci:** the upgrade check counts entities of every type ([#512](https://github.com/adeelahmad/lense/pull/512))
+
+### Dependencies
+
+- Bump the python-minor group across 1 directory with 11 updates ([#478](https://github.com/adeelahmad/lense/pull/478))
+- bump the javascript-minor group across 1 directory with 16 updates ([#381](https://github.com/adeelahmad/lense/pull/381))
+- update fastapi[standard] requirement in /fastapi_backend ([#367](https://github.com/adeelahmad/lense/pull/367))
+- bump the javascript-minor group ([#500](https://github.com/adeelahmad/lense/pull/500))
+- bump transformers ([#503](https://github.com/adeelahmad/lense/pull/503))
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 

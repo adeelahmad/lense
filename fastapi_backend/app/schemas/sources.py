@@ -1,4 +1,4 @@
-"""Storage sources (where files live, through rclone; email accounts, Gmail and calendar feeds) and watched folders (admins)."""
+"""Storage sources (where files live, through rclone; email accounts, Gmail, calendar feeds and news feeds) and watched folders (admins)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pydantic import Field
 
 from app.schemas.common import Created, Ok, RequestModel, ResponseModel
 
-SourceType = Literal["s3", "dropbox", "drive", "onedrive", "sftp", "smb", "webdav", "local", "imap", "gmail", "ical", "gcal"]
+SourceType = Literal["s3", "dropbox", "drive", "onedrive", "sftp", "smb", "webdav", "local", "imap", "gmail", "ical", "gcal", "rss"]
 WatchKinds = Literal["audio", "transcripts", "both", "documents", "all"]
 KINDS_HELP = (
     "what to pick up: audio (and video), transcripts, both of those (PDFs read as text), documents (PDFs and "
