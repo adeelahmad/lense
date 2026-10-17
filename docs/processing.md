@@ -145,6 +145,16 @@ Nodes are people and named things. Edges are:
 People, organisations, products, places, events, works and topics are extracted from every asset's text. Dates and
 numbers are extracted too, but hidden unless asked for.
 
+**How they're found.** By rules out of the box: capitalised names, titles, organisation endings, dates and numbers,
+after the entities a namespace defines. With `analysis.entities` set to `spacy` (Settings → Analysis → Entity
+extraction), spaCy's small language model finds them instead, after the defined entities, which keep their names and
+types where the two overlap; a lone word like "Okay" isn't taken for a name. Lens fetches spaCy (MIT) and the model
+named in `analysis.spacy_model` the first time an asset needs them ([Components](components.md)): `en_core_web_sm`
+(English, the default), `de_core_news_sm` (German) or `xx_ent_wiki_sm` (many languages; people, organisations and
+places). spaCy's other languages' models carry GPL, LGPL or Creative Commons licenses, so Lens doesn't fetch them; one
+installed by hand works. Until spaCy is there the rules find the entities and the job log says so. The workflows'
+Extract entities (rules) node uses the same extractor.
+
 The **Entities** page in the web app lists a namespace's entities (search, type and collection filters, a Hidden tab).
 An entity's name opens its own page, `/wiki/<namespace>/<Name>`, with its notes, every line that says it and what it
 comes up with ([Entity pages](notes.md#entity-pages)); the rest of its row opens a side panel where editors rename,
@@ -520,7 +530,7 @@ A pipeline's steps make derived files (a transcript or a page's text, shots, tex
 workflow is a versioned graph drawn on a canvas (Pipelines → Workflows): it starts from the Asset node, and each
 node passes what it makes along its connections.
 
-- **Entities:** Extract entities (rules) runs the built-in extractor analyze uses, plus your terms (`Name|TYPE`) and
+- **Entities:** Extract entities (rules) runs the extractor analyze uses (the rules, or spaCy), plus your terms (`Name|TYPE`) and
   regular expressions (`TYPE: pattern`); Extract entities (LLM) asks the model for structured entities and keeps,
   corrects or adds to any passed in; Merge joins lists; Save entities makes them the asset's entities (people's
   corrections kept) and redoes keywords and chapters.
