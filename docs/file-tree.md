@@ -106,9 +106,43 @@ namespaces. Listing (PROPFIND, one level at a time) and reading (GET, with range
 Like S3, it speaks plain HTTP, and Basic sign-in sends the secret with every request: keep it on this machine or
 behind TLS on a network you don't trust.
 
+## At the web app's address
+
+The web app can relay both shares at its own address: S3 at `/s3` and WebDAV at `/dav`. They then work wherever the web
+app opens, including through [Remote access](remote-access.md) and [HTTPS](https.md), which serve the web app over
+`https://` and reach nothing else. It's off until an admin turns on **At the web app's address too** in Settings, File
+shares (`shares.remote`), on top of the shares themselves; until then requests that come that way are turned away
+before anyone signs in, and the shares' own ports work as before.
+
+Once it's on, the dialog that shows a new access key gives these addresses:
+
+```ini
+[lens]
+type = s3
+provider = Other
+access_key_id = LK…
+secret_access_key = …
+endpoint = https://lens.example.com/s3
+force_path_style = true
+```
+
+and `https://lens.example.com/dav/` for WebDAV (Finder, Windows Explorer, `davs://lens.example.com/dav/` in GNOME Files
+or Dolphin, rclone's `type = webdav`). The S3 endpoint has a path, so it needs a client that takes one: rclone, the AWS
+CLI and boto3 do.
+
+How it works: the web app hands requests under `/s3` and `/dav` to the worker's share servers before Next.js sees them
+(`nextjs-frontend/lens-relay.js`; the servers are at `LENS_S3_URL` and `LENS_WEBDAV_URL`, set in the Docker Compose
+files, else this machine's ports 9555 and 9556). The path and `Host` stay as the client sent them, since S3 clients
+sign both, and `X-Forwarded-Prefix` tells the share server the request came through the web app. Failed WebDAV
+sign-ins are counted per visitor, from `X-Forwarded-For` as the web app and the proxies Lens trusts report it
+(Settings, Access & embedding, Trusted proxies). Signing in is the same as at the ports: a person's own access key,
+read-only.
+
 ## Refine later
 
 - TLS by itself for S3 and WebDAV, folders' real dates, and WebDAV locks for clients that insist on them.
+- Virtual-host S3 addressing at the web app's address, for clients that can't take an endpoint with a path (MinIO's
+  `mc`).
 - Show supplementary files (captions, translations, attachments) beside each asset.
 - Cache an asset's text and metadata so large folders list faster.
 - A sidecar for each collection, topic and entity, and a folder of notes.

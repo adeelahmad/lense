@@ -651,6 +651,11 @@ export const JOURNEYS = [
     from: "/",
     async run(ctx) {
       const { page, meter } = ctx;
+      // A slow machine can still be reading import-file's pi-episode here, and its mentions of Lens and Raspberry Pi
+      // landing between the merge and its Undo leave both out of the graph for graph-merge; so wait for the jobs to
+      // finish (not counted)
+      const idle = page.getByRole("button", { name: /^Activity: (Nothing running|\d+ failed)$/ });
+      await madeInBackground(ctx, "/", idle, "/", "the imports' jobs finished");
       await go(ctx, "Entities");
       const main = page.getByRole("main");
       await meter.click(main.getByRole("checkbox", { name: "Pick Lens", exact: true }), "tick Lens");

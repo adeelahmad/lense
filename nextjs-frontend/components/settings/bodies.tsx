@@ -1574,6 +1574,7 @@ function SharesBody({ ctx }: { ctx: BodyCtx }) {
         <F ctx={ctx} id="shares.webdav" />
         <F ctx={ctx} id="shares.webdav_port" />
       </div>
+      <F ctx={ctx} id="shares.remote" />
       <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
         With Docker, the worker container publishes 9555 (S3) and 9556 (WebDAV) where the web app is; set{" "}
         <code className="font-mono">LENS_S3_PORT</code> or <code className="font-mono">LENS_WEBDAV_PORT</code> in .env
