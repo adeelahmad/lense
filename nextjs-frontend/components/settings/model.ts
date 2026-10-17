@@ -751,6 +751,19 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "analysis",
+    key: "cleanup",
+    label: "Clean up transcripts before analysis",
+    kind: "switch",
+    hint: "Repeated words, spacing and capitals tidied by rules before entities are found; every change is in Change history, with Revert",
+  },
+  {
+    section: "analysis",
+    key: "cleanup_fillers",
+    label: "Take out “um” and “uh”",
+    kind: "switch",
+  },
+  {
+    section: "analysis",
     key: "gazetteer",
     label: "Custom vocabulary",
     kind: "lines",
