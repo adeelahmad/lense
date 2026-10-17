@@ -242,6 +242,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
     case "analysis":
       return (
         <>
+          <F ctx={ctx} id="analysis.cleanup" />
+          {raw("analysis.cleanup") === true && <F ctx={ctx} id="analysis.cleanup_fillers" />}
           <F ctx={ctx} id="analysis.entities" />
           {raw("analysis.entities") === "spacy" && <F ctx={ctx} id="analysis.spacy_model" />}
           <F ctx={ctx} id="analysis.anytopdf" />

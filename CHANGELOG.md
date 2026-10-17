@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Clean up transcripts before analysis.** With Settings → Analysis → Clean up transcripts before analysis on (off
+  by default), a new Clean up step runs before Analyze: a word said three times in a row is kept once ("I I I looked"
+  → "I looked"), doubled pronouns and articles once, "um" and "uh" go, and spacing, "i" and sentence capitals are
+  fixed, by rules, on English lines. Every changed line is in Change history with Revert, and lines someone corrected
+  are left alone. Reprocess, pipelines, `POST /api/v1/recordings/<id>/reprocess` and `lens clean` run it
+  ([Cleaning up transcripts](docs/processing.md#cleaning-up-transcripts)).
 - **Automations run.** An automation saved over the API (`/api/v1/automations`) now reacts to new assets in its
   namespaces: when its If passes, it runs its workflow as the person who made it, within its limits and budgets, and
   each run shows what its actions did. Try one on an activity without keeping or sending anything, or run it now;
