@@ -80,11 +80,17 @@ class Passage(ResponseModel):
     """A numbered excerpt an answer can cite: a moment of an asset, or a web page (`source` "web", with its `url`)."""
 
     n: int
-    recording_id: int | None = Field(None, description="the asset it's from; none for a web page")
+    recording_id: int | None = Field(None, description="the asset it's from; none for a web page, Lens's docs or this server's facts")
     source: str | None = Field(
-        None, description="what it is: said (speech), page (a document's), screen (text shown in a video), memory, or web"
+        None,
+        description="what it is: said (speech), page (a document's), screen (text shown in a video), memory, web, docs (Lens's "
+        "docs) or server (this server's facts)",
     )
-    url: str | None = Field(None, description="a web page's address (source web): the citation opens it")
+    url: str | None = Field(
+        None,
+        description="where it is when it isn't the archive's: a web page (web), a page of Lens's docs (docs) or this "
+        "server (server); the citation opens it",
+    )
     site: str | None = Field(None, description="a web page's site, like example.com")
     fetched_at: str | None = Field(None, description="when the web page or search result was read")
     title: str | None = None

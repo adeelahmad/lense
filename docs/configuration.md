@@ -37,6 +37,7 @@ with AES-GCM and are write-only: the API reports whether one is set, never its v
 | `LENS_ANALYTICS` / `LENS_GA_MEASUREMENT_ID` / `LENS_GA_API_SECRET` | off | opt-in usage events sent to your own Google Analytics 4 property ([Usage analytics](analytics.md)) |
 | `LENS_TARGET` / `LENS_BIND` | | how install.sh set the machine up: the edition (`full` or `lean`) and where the web app's port is published (`0.0.0.0`: the network, `127.0.0.1`: this machine only). `docker-compose.prod.yml` and a microsandbox pass them on from `.env`, and Settings show them; unset, Lens says it doesn't know. They're changed in Settings, which has the install run again ([Updates](updates.md#setting-the-machine-up-again)) |
 | `LENS_LOG_LEVEL` / `LENS_LOG_FORMAT` | info / text | the log level and console format for the API and every worker ([Logging](logging.md)); win over Settings → Logs |
+| `LENS_DOCS_DIR` | the `docs/` folder next to the code | where Lens's docs are, which the assistant and agents answer questions about Lens from ([lens_help](assistant.md#questions-about-lens-itself)). The Docker Compose files mount the install's `docs/` read-only at `/docs`, where Lens looks by default |
 | `FRONTEND_URL` | `http://localhost:3000` | the web app's address as people use it: links in emails, and where apps send people to sign in ([OAuth](authentication.md#oauth)) |
 | `CORS_ORIGINS` | `["http://localhost:3000"]` | origins allowed to call the API from a browser |
 | `OPENAPI_URL` | `/openapi.json` | `""` disables `/docs` and the schema |

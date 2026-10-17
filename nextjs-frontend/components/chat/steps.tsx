@@ -2,6 +2,7 @@
 
 import {
   AudioLines,
+  BookOpen,
   Building2,
   ChartLine,
   ChevronDown,
@@ -25,6 +26,7 @@ import { stepCall, stepTitle, type ToolStep } from "@/components/chat/stream";
 import { cn } from "@/lib/utils";
 
 const ICON: Record<string, LucideIcon> = {
+  lens_help: BookOpen,
   search_transcripts: Search,
   list_recordings: List,
   read_transcript: FileText,

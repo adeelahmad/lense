@@ -1,11 +1,14 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
+import { CitationChip } from "@/components/chat/citation";
 import {
   citedNumbers,
   citeLabel,
   isNoModelAnswer,
+  passageHref,
   passageLines,
+  passageTime,
   quoteOf,
   saysNotCovered,
   sentences,
@@ -78,6 +81,41 @@ describe("citations", () => {
       speaker: "Host A",
       text: "Just one line",
     });
+  });
+
+  it("cites Lens's docs and this server as links, not recordings", () => {
+    const docs = {
+      n: 2,
+      url: "https://github.com/adeelahmad/lense/blob/main/docs/mcp.md#connecting",
+      source: "docs",
+      title: "Lens docs: MCP server › Connecting",
+      text: "The server is at `/mcp` on the web app's address.\n\n| Client | |",
+    };
+    expect(citeLabel(docs)).toBe("Docs · MCP server › Connecting");
+    expect(
+      citeLabel({ ...docs, title: "Lens docs: Chat, collections and batch runs › Skills and plugins" }, false),
+    ).toBe("Docs · Skills and plugins");
+    expect(passageHref(docs)).toBe(docs.url);
+    expect(passageTime(docs)).toBe("");
+    expect(quoteOf(docs)).toEqual({ speaker: null, text: "The server is at `/mcp` on the web app's address." });
+    const server = {
+      n: 1,
+      url: "http://localhost:3000",
+      source: "server",
+      title: "This Lens server",
+      text: "It is at x.",
+    };
+    expect(citeLabel(server)).toBe("This Lens server");
+    render(
+      <TooltipProvider>
+        <CitationChip n={2} passage={docs} />
+      </TooltipProvider>,
+    );
+    const chip = screen.getByRole("link", {
+      name: /Source 2: Docs · MCP server › Connecting. Opens Lens’s docs there./,
+    });
+    expect(chip).toHaveAttribute("href", docs.url);
+    expect(chip).toHaveAttribute("target", "_blank");
   });
 
   it("tells the model saying the archive doesn't cover it from an answer that cites nothing", () => {

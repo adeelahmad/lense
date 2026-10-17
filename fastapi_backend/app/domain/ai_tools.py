@@ -28,6 +28,7 @@ from . import (
     entity_setup,
     graph_history,
     llm,
+    manual,
     notebook,
     ns_assistant,
     ops_tools,
@@ -55,6 +56,17 @@ _I = {"type": "integer"}
 _S = {"type": "string"}
 _LIST = {"type": "array", "items": {"type": ["string", "integer"]}}
 TOOLS = [
+    (
+        "lens_help",
+        "Lens itself rather than the archive: what it does and how (setting it up, its settings, the assistant, chat "
+        "rooms and channels, connecting apps and agents, the API, MCP, sharing, backups, costs...), from Lens's docs, "
+        "with this server's own facts: its addresses (the web app, the MCP address, the API), version, what is turned on "
+        "and the person's access. query: what to look up, in a few words; page: one page of the docs to read whole (the "
+        "contents list them). Cite what it gives with its [n].",
+        {"query": _S, "page": _S},
+        [],
+        False,
+    ),
     (
         "search_transcripts",
         "Search the text of the assets in scope: transcripts of speech, document text, and text shown on screen in videos.",
@@ -550,8 +562,8 @@ def builtin_names():
 SENDS_OUT = set(webmod.NAMES)
 
 
-# tools whose results the model may take as Lens's own word: the server's state and settings, the skills the person
-# chose, what the graph holds, and what the built-in tools that change things report (ids, what waits for approval).
+# tools whose results the model may take as Lens's own word: the server's state and settings, its docs, the skills the
+# person chose, what the graph holds, and what the built-in tools that change things report (ids, what waits for approval).
 # What every other tool gives back is third-party text, marked as data (untrusted.py).
 OWN_RESULTS = {
     "server_status",
@@ -562,6 +574,7 @@ OWN_RESULTS = {
     "use_skill",
     "mark_activities",
     "decline_approval",
+    "lens_help",
 } | {
     t[0]
     for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS + AUTOMATION_TOOLS + sandboxmod.TOOLS
@@ -622,6 +635,7 @@ GROUPS = {
     "code": {"label": "Code sandbox", "tools": [t[0] for t in sandboxmod.TOOLS]},
     "extensions": {"label": "Extensions and skills", "tools": [t[0] for t in AUTHOR_TOOLS] + ["use_skill"]},
     "server": {"label": "The server", "tools": [t[0] for t in ops_tools.ADMIN_TOOLS]},
+    "help": {"label": "Lens's docs", "tools": ["lens_help"]},
     "browser": {"label": "Your browser", "tools": [t[0] for t in browsermod.TOOLS]},
 }
 
@@ -732,7 +746,8 @@ class Toolbox(ops_tools.OpsTools):
     `account`: the person an automation acts for, when `user` is the automation itself (automation:<id>,
     the by of what it writes): their approvals, extensions, view of the timeline and marks on it; `origin` ({automation, run,
     node}) is kept on the approvals it asks for. `only`: the groups (GROUPS, an extension's mcp:<name> or ext:<name>)
-    and tools the question was given (None: every tool this person may use; an admin's switch still wins)."""
+    and tools the question was given (None: every tool this person may use; an admin's switch still wins).
+    `web_app`: the web app's address the person is using, for lens_help (else where Lens says it is: app_url)."""
 
     def __init__(
         self,
@@ -752,9 +767,10 @@ class Toolbox(ops_tools.OpsTools):
         act_on=(),
         account=None,
         origin=None,
+        web_app=None,
         only=None,
     ):
-        self.db, self.cfg, self.user, self.chat, self.said = db, cfg, user, chat_id, said
+        self.db, self.cfg, self.user, self.chat, self.said, self.web_app = db, cfg, user, chat_id, said, web_app
         self.only = None if only is None else set(only)
         self.account, self.origin = user["id"] if account is None else account, origin
         # where this answer has read text from outside Lens so far (`outside`: before any tool ran, such as the page it
@@ -766,6 +782,7 @@ class Toolbox(ops_tools.OpsTools):
         self.base, self.admin, self.act, self.act_on = base or cfg, admin, act, set(act_on or ())
         self.scope = scope or {}
         self.readable, self.editable = set(readable), set(editable)
+        self.access = (set(readable), set(editable))  # the person's, whatever this conversation is about (lens_help)
         names = store.space_names(db)
         if self.scope.get("namespaces"):
             self.readable = {s for s in self.readable if names.get(s) in self.scope["namespaces"]}
@@ -897,14 +914,17 @@ class Toolbox(ops_tools.OpsTools):
         known = builtin_names() | set(GROUPS) | set(self.ext.groups if self.ext else ()) | set(self.ext.tools if self.ext else ())
         return [n for n in names if n not in known]
 
-    def ref(self, rid, t0, text, speaker=None, title=None, source="said", page=None):
+    def ref(self, rid, t0, text, speaker=None, title=None, source="said", page=None, url=None):
+        """Number a passage for the answer to cite: a moment of a recording (`rid`), or a page elsewhere (`url`, with
+        no recording: Lens's docs, this server's facts)."""
         self.refs.append(
             store.clean(
                 {
                     "n": len(self.refs) + 1,
                     "recording_id": rid,
+                    "url": url,
                     "t0": t0,
-                    "time": store.tc(t0) if page is None else f"p. {page + 1}",
+                    "time": None if url else store.tc(t0) if page is None else f"p. {page + 1}",
                     "page": page,
                     "speaker": speaker,
                     "title": title,
@@ -1291,6 +1311,20 @@ class Toolbox(ops_tools.OpsTools):
         return max(12000, int(webmod.read_chars(self.cfg) * 1.2) + 4000) if name == "web_read" else 12000
 
     # ---- read tools ----
+    def t_lens_help(self, query=None, page=None):
+        from app.email import app_url
+
+        web = (self.web_app or app_url(self.cfg, self.db)).rstrip("/")
+        out = manual.answer(self.db, self.cfg, web, self.admin, *self.access, query, page)
+        here = out["this_server"]
+        fact = f"This Lens server (version {here['version']}) is at {web}; its MCP address is {here['addresses']['mcp']}."
+        out["this_server"] = {"ref": self.ref(None, None, fact, title="This Lens server", source="server", url=web), **here}
+        found = out["docs"].get("sections") or []
+        for x in found:
+            x["ref"] = self.ref(None, None, x["text"], title=f"Lens docs: {x['title']}", source="docs", url=x["url"])
+        what = f"“{query}”" if query else f"the {page} page" if page else "this server"
+        return out, f"Looked up {what} in Lens's docs: {len(found)} section(s)" if query or page else "Read this server's facts"
+
     def t_search_transcripts(self, query, namespace=None, limit=8):
         # within the conversation's scope in the search itself, so out-of-scope matches don't crowd out the rest
         res = searchmod.search(

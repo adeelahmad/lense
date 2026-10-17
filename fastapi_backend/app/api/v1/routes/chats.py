@@ -62,6 +62,7 @@ from app.schemas.chats import (
 from app.schemas.common import Created, Ok
 
 router = APIRouter(tags=["chats"])
+OUTSIDE = {"web", "docs", "server"}  # citations that aren't the archive's: web pages, Lens's docs, this server's facts
 R = store.R
 log = logging.getLogger("lens")
 SSE_HEADERS = {"Cache-Control": "no-store", "X-Accel-Buffering": "no"}
@@ -192,8 +193,8 @@ def _most(cfg: dict[str, Any], n: int | None) -> int | None:
 @router.get("/chats/{cid}")
 def get_chat(cid: int, user: CurrentUser, acl: Acl, db: Db) -> Chat:
     """A conversation with the version showing (`messages`, each with its `versions`) and every version's messages
-    (`tree`). Citations follow your current access: ones you can no longer read are left out (web pages it cited stay:
-    they aren't the archive's)."""
+    (`tree`). Citations follow your current access: ones you can no longer read are left out (web pages, Lens's docs
+    and this server's facts it cited stay: they aren't the archive's)."""
     return _chat_view(db, acl, _own_chat(db, cid, user))
 
 
@@ -219,7 +220,7 @@ def _chat_view(db: DB, acl: Access, c: dict[str, Any]) -> Chat:
 
 
 def _readable_citations(db: DB, acl: Access, msgs: list[dict[str, Any]]) -> None:
-    """Leave out the citations the asker can no longer read (web pages stay)."""
+    """Leave out the citations the asker can no longer read (web pages, Lens's docs and this server's facts stay)."""
     ok = set(acl.roles)
     ids = {p["recording_id"] for m in msgs for p in m.get("passages") or [] if p.get("recording_id") is not None}
     visible = (
@@ -232,7 +233,7 @@ def _readable_citations(db: DB, acl: Access, msgs: list[dict[str, Any]]) -> None
         else set()
     )
     for m in msgs:
-        m["passages"] = [p for p in m.get("passages") or [] if p.get("source") == "web" or p.get("recording_id") in visible]
+        m["passages"] = [p for p in m.get("passages") or [] if p.get("source") in OUTSIDE or p.get("recording_id") in visible]
 
 
 @router.get("/chats/{cid}/messages/{mid}")
@@ -607,6 +608,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                 outside=(["page"] if page else []) + ai_tools.read_before(past, summary),
                 browser=body.browser,
                 only=tools,
+                web_app=web_app_base(request),  # the address the person uses, for lens_help's MCP and API addresses
             )
             try:
                 answer, how = "", "answered"

@@ -69,6 +69,23 @@ Settings covers one install's own names); type existing entities again when a la
 (needs a marker for types people set, kept out of the versioned rows); "Google Cloud"-like names (a known company,
 then a word) as products.
 
+## 2026-10-15 · The assistant knows Lens itself
+
+Adeel: the assistant had no clue about the platform, its capabilities or general asks like "what is the MCP
+address"; ground it in the docs through an internal tool. `lens_help` (app/domain/manual.py) answers from two things:
+this server's facts (version, the web app, MCP and API addresses as the person uses them, what is turned on, their
+access; admins also get each setting's page) and Lens's docs, cut at their headings into an in-memory SQLite FTS5
+index (the word index's engine), found by words, with the docs' contents. Both are cited ([n]: "This Lens server",
+"Docs · MCP server › Connecting", opening the heading on GitHub). The same tool is on the MCP server, and chat rooms
+list its sources. The Docker Compose files mount the install's `docs/` read-only at `/docs`; Cloudron's image copies
+them.
+
+Refine later: the docs inside the NAS packages' images (Synology, QNAP build from fastapi_backend/ only, so they have
+the server's facts and the online link); an in-app docs page so citations open the installed version instead of
+GitHub's main branch; docs found by meaning too when search by meaning is on; docs passages for models that can't call
+tools (search-and-answer only reads the archive); the README's overview in containers (its symlink points outside
+docs/).
+
 ## 2026-10-14 · Long recordings in pieces a speech provider takes
 
 Adeel: large audio files are segmented automatically to each transcription provider's limits. `speech.Engine` cuts a
