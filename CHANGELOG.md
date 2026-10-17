@@ -13,6 +13,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   `automation_actions`, `save_automation`, `test_automation` and `run_automation`, with problems in plain words. The
   assistant saves them switched off and asks before switching one on or running it
   ([Agents](docs/automations.md#agents)).
+- **Versions in conversations.** A conversation is now a tree: editing a question makes a new version beside it
+  instead of deleting what followed, regenerating an answer (`regenerate`, with the same model or another) writes one
+  beside it, and a question can go on from any message (`parent`). `GET /api/v1/chats/<id>` shows each message's
+  versions and every version's messages, and `PUT /api/v1/chats/<id>/head` switches between them; the model reads
+  only the version showing. The web app's switcher and Regenerate button are in progress. Existing conversations are
+  upgraded on the next start (`chat-tree`) ([Versions](docs/assistant.md)).
 - **The assistant searches the web.** With web search on (off by default; Settings → AI assistant → Web search), the
   assistant gets `web_search` and `web_read`: it searches with DuckDuckGo (no key), your own SearXNG, Brave Search or
   Tavily, and reads pages and online PDFs, public addresses only, through the same guard as captured pages. Pages are

@@ -121,6 +121,14 @@ class Attachment(ResponseModel):
     recording: int | None = Field(None, description="the asset it became, once imported")
 
 
+class Versions(ResponseModel):
+    """A message's versions: it and the others with the same parent and role, oldest first."""
+
+    index: int = Field(description="which of them this one is, from 1")
+    count: int
+    ids: list[int]
+
+
 class ChatMessage(ResponseModel):
     id: int
     role: Literal["user", "assistant"]
@@ -135,6 +143,17 @@ class ChatMessage(ResponseModel):
     error: str | None = Field(None, description="why there's no answer")
     check: AnswerCheck | None = Field(None, description="its latest source check (POST .../messages/{mid}/check)")
     model: str | None = Field(None, description="the model that wrote the answer")
+    parent: int | None = Field(None, description="the message it follows; null for a first question")
+    versions: Versions | None = Field(None, description="it and the others said in its place, from regenerating or editing")
+
+
+class ChatNode(ResponseModel):
+    """A message of any version, as `tree` lists them."""
+
+    id: int
+    parent: int | None = None
+    role: Literal["user", "assistant"]
+    created_at: str | None = None
 
 
 class ChatCapabilities(ResponseModel):
@@ -155,7 +174,13 @@ class StopResult(ResponseModel):
 
 class Chat(ChatSummary):
     account: int
-    messages: list[ChatMessage] = []
+    head: int | None = Field(None, description="the last message of the version showing, which the next question follows")
+    messages: list[ChatMessage] = Field(default_factory=list, description="the version showing, from the first message to `head`")
+    tree: list[ChatNode] = Field(default_factory=list, description="every message of every version, oldest first")
+
+
+class HeadUpdate(RequestModel):
+    message: int = Field(description="a message of the version to show: the head moves to the newest message below it")
 
 
 class MessageCreate(RequestModel):
@@ -169,10 +194,18 @@ class MessageCreate(RequestModel):
     model: str | None = Field(
         None, description="answer this one with another model (one of GET /chats/capabilities `models`), e.g. to retry"
     )
+    parent: int | None = Field(
+        None, description="the message to go on from (one of this conversation's, of any version); null: the conversation's `head`"
+    )
+    regenerate: int | None = Field(
+        None,
+        description="an answer's message id: write a new answer to its question, as another version beside it (`content` is "
+        "not needed; `model` picks another model)",
+    )
     edit: int | None = Field(
         None,
-        description="edit one of your earlier questions (its message id): it and everything after it are replaced by this "
-        "question and a new answer",
+        description="edit one of your earlier questions (its message id): this question becomes a new version beside it, and "
+        "is answered; the old one and what followed it stay as the other version",
     )
     browser: str | None = Field(
         None,

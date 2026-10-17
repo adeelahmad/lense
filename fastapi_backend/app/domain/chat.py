@@ -338,20 +338,136 @@ def create(db, account, title=None, scope=None, model=None, kind="chat"):
 
 def get(db, cid, account):
     c = db.one(
-        "SELECT record::id(id) AS id, account, title, scope, model, kind ?? 'chat' AS kind, created_at, updated_at FROM $r",
+        "SELECT record::id(id) AS id, account, title, scope, model, kind ?? 'chat' AS kind, head, created_at, updated_at FROM $r",
         r=R("chat", cid),
     )
     if not c or c["account"] != account:
         raise KeyError(cid)
+    if c.get("head") is None:  # before its first message, or from before versions
+        c["head"] = head(db, cid)
     return c
 
 
-def history(db, cid):
+def history(db, cid, ids=None):
+    """A conversation's messages, oldest first: every version's, or only those with `ids` (a path)."""
     return db.rows(
         "SELECT record::id(id) AS id, role, content, passages, created_at, stopped ?? false AS stopped, steps ?? [] AS steps, "
-        "attachments ?? [] AS attachments, notice, error, check, model, context FROM chat_message WHERE chat = $c ORDER BY id",
+        "attachments ?? [] AS attachments, notice, error, check, model, context, parent FROM chat_message WHERE chat = $c"
+        + (" AND id IN $ids" if ids is not None else "")
+        + " ORDER BY id",
         c=cid,
+        ids=[R("chat_message", i) for i in ids or []],
     )
+
+
+# ---------- versions: a conversation is a tree, each message under the one it follows; the head is the version showing
+HEAD = "head"  # where add, path and run_command go on from by default: the conversation's head
+
+
+def _head(db, cid):
+    return (db.one("SELECT head FROM $r", r=R("chat", cid)) or {}).get("head")
+
+
+def head(db, cid):
+    """The message the conversation goes on from (the last one of the version showing); None before the first."""
+    h = _head(db, cid)
+    if h is None and (nodes := tree(db, cid)):  # from before versions: its newest message
+        h = nodes[-1]["id"]
+    return h
+
+
+def tree(db, cid):
+    """Every message of a conversation, every version's, as {id, parent, role, created_at}, oldest first. A reply is
+    always newer than what it follows. One from before versions is saved as one line first, as the chat-tree upgrade
+    step does (reads stay right until it has run)."""
+    nodes = db.rows("SELECT record::id(id) AS id, parent, role, created_at FROM chat_message WHERE chat = $c ORDER BY id", c=cid)
+    if len(nodes) > 1 and not any(n.get("parent") for n in nodes) and _head(db, cid) is None:
+        _line_up(db, cid, [n["id"] for n in nodes])
+        for before, n in zip(nodes, nodes[1:]):
+            n["parent"] = before["id"]
+    return nodes
+
+
+def _line_up(db, cid, ids):
+    """Save a conversation from before versions as one line: each message under the one before, the last the head."""
+    pairs = list(zip(ids, ids[1:]))
+    for at in range(0, len(pairs), 200):
+        db.run([f"UPDATE chat_message:{after} SET parent = {before}" for before, after in pairs[at : at + 200]])
+    db.q("UPDATE $r SET head = $h", r=R("chat", cid), h=ids[-1])
+
+
+def lineage(nodes, leaf):
+    """The ids from the first message to `leaf`, following parents (`nodes` from tree)."""
+    up, out = {n["id"]: n.get("parent") for n in nodes}, []
+    while leaf in up and len(out) < len(up):
+        out.append(leaf)
+        leaf = up[leaf]
+    return out[::-1]
+
+
+def path(db, cid, leaf=HEAD, nodes=None):
+    """The messages from the first to `leaf` (by default the head), as history() gives them: one version of the
+    conversation, which the model reads and the app shows. [] for None, before the first message."""
+    leaf = head(db, cid) if leaf == HEAD else leaf
+    ids = lineage(tree(db, cid) if nodes is None else nodes, leaf) if leaf is not None else []
+    return history(db, cid, ids) if ids else []
+
+
+def versions(nodes):
+    """Each message's versions: it and the others said in its place (the same parent and role), oldest first, as
+    {id: {index: which one it is from 1, count, ids}}."""
+    groups = defaultdict(list)
+    for n in nodes:
+        groups[(n.get("parent"), n["role"])].append(n["id"])
+    return {i: {"index": k + 1, "count": len(ids), "ids": ids} for ids in groups.values() for k, i in enumerate(ids)}
+
+
+def newest_below(nodes, mid):
+    """The newest message on `mid`'s branch, itself when nothing follows it: always a leaf, as replies are newer."""
+    below, newest = {mid}, mid
+    for n in nodes:  # oldest first, so a parent comes before what follows it
+        if n.get("parent") in below:
+            below.add(n["id"])
+            newest = n["id"]
+    return newest
+
+
+def switch(db, cid, mid):
+    """Show the version `mid` is in: the head moves to the newest message below it, which is returned. KeyError when
+    `mid` isn't one of the conversation's messages."""
+    nodes = tree(db, cid)
+    if mid not in {n["id"] for n in nodes}:
+        raise KeyError(mid)
+    leaf = newest_below(nodes, mid)
+    db.q("UPDATE $r SET head = $h", r=R("chat", cid), h=leaf)
+    return leaf
+
+
+def said(db, cid, mid, role=None):
+    """One of the conversation's messages ({id, role, content, context, attachments, parent}); KeyError when it isn't
+    one, or isn't of that `role`."""
+    m = db.one(
+        "SELECT record::id(id) AS id, chat, role, content, context, attachments ?? [] AS attachments, parent FROM $r",
+        r=R("chat_message", mid),
+    )
+    if not m or m["chat"] != cid or (role and m["role"] != role):
+        raise KeyError(mid)
+    return m
+
+
+def question_of(db, cid, aid):
+    """The question one of the conversation's answers answers (as said gives it); KeyError when `aid` isn't an answer."""
+    parent = said(db, cid, aid, "assistant").get("parent")
+    if parent is None:
+        raise KeyError(aid)
+    return said(db, cid, parent, "user")
+
+
+def branch(db, cid, mid, parent, role):
+    """The stream's `branch` event for a new version `mid` (saved, or its id taken for an answer about to be):
+    {message, parent, versions}."""
+    ids = [n["id"] for n in tree(db, cid) if n.get("parent") == parent and n["role"] == role and n["id"] != mid] + [mid]
+    return {"message": mid, "parent": parent, "versions": {"index": len(ids), "count": len(ids), "ids": ids}}
 
 
 def add(
@@ -368,11 +484,16 @@ def add(
     attachments=None,
     context=None,
     origin=None,
+    parent=HEAD,
+    mid=None,
 ):
-    """Save a message; an answer keeps the tool steps it took, any notice (e.g. the model can't use tools) and error; a
-    question asked from a page keeps what it shared of it (shared_context). A question an automation asked keeps its
-    `origin` ({automation, run, node}), so it isn't taken for a person's message (`chat.message`)."""
-    mid = db.next_id("chat_message")
+    """Save a message under `parent` (by default the head; None: a first message) and make it the head; an answer
+    keeps the tool steps it took, any notice (e.g. the model can't use tools) and error; a question asked from a page
+    keeps what it shared of it (shared_context). A question an automation asked keeps its `origin` ({automation, run,
+    node}), so it isn't taken for a person's message (`chat.message`). `mid`: an id taken earlier with
+    db.next_id("chat_message"), after the parent was saved."""
+    parent = head(db, cid) if parent == HEAD else parent
+    mid = mid or db.next_id("chat_message")
     db.q(
         "CREATE $r CONTENT $d",
         r=R("chat_message", mid),
@@ -391,23 +512,21 @@ def add(
                 "model": model,
                 "context": context,
                 "origin": origin or None,
+                "parent": parent,
             }
         ),
     )
-    db.q("UPDATE $r SET updated_at = $t", r=R("chat", cid), t=store.now())
+    db.q("UPDATE $r SET updated_at = $t, head = $m", r=R("chat", cid), t=store.now(), m=mid)
     return mid
 
 
-def rewind(db, cid, mid):
-    """Remove a question of yours and everything said after it, to ask it again as edited; returns the old question
-    (its content and the page context it was asked with)."""
-    m = db.one("SELECT chat, role, content, context FROM $r", r=R("chat_message", mid))
-    if not m or m["chat"] != cid or m["role"] != "user":
-        raise KeyError(mid)
-    db.q("DELETE chat_message WHERE chat = $c AND record::id(id) >= $m", c=cid, m=mid)
-    # a summary that covers what was removed no longer holds: the messages left are folded in again
-    db.q("UPDATE $r SET summary = NONE WHERE summary.upto >= $m", r=R("chat", cid), m=mid)
-    return m
+def migrate_tree(db):
+    """Upgrade step chat-tree: conversations from before versions become one line each, every message following the one
+    before it and the last the head. Only conversations without a head, whose head is set last, so it's safe to run
+    twice."""
+    for cid in db.values("SELECT VALUE record::id(id) FROM chat WHERE head = NONE"):
+        if ids := [m["id"] for m in db.rows("SELECT record::id(id) AS id FROM chat_message WHERE chat = $c ORDER BY id", c=cid)]:
+            _line_up(db, cid, ids)
 
 
 # ---------- compaction: a long conversation keeps a summary of what the model no longer sees word for word ----------
@@ -427,17 +546,23 @@ COMPACT_SYSTEM = (
 )
 
 
-def _stored(db, cid):
-    return (db.one("SELECT summary FROM $r", r=R("chat", cid)) or {}).get("summary") or {"text": "", "upto": 0}
+def _stored(db, cid, line=None):
+    """The conversation's summary. It covers the messages up to its `upto` on one version, so with `line` (a version's
+    messages, from path) one written on another version, whose `upto` isn't on this one, counts as none yet."""
+    had = (db.one("SELECT summary FROM $r", r=R("chat", cid)) or {}).get("summary") or {}
+    if not had or (line is not None and had.get("upto") and had["upto"] not in {m["id"] for m in line}):
+        return {"text": "", "upto": 0}
+    return had
 
 
-def memory(db, cfg, cid):
+def memory(db, cfg, cid, line=None):
     """What compaction knows of a conversation: {"text", "upto": the last message it covers, "at"}, empty before the
     first summary; None when compaction is off and neither /clear nor /compact was used (the model then sees the last 6
-    messages only, as before)."""
+    messages only, as before). Of the version `line` is (by default the head's): a summary written on another version
+    isn't used, and the next compaction writes this one's."""
     if not llm.configured(cfg):
         return None
-    had = _stored(db, cid)
+    had = _stored(db, cid, path(db, cid) if line is None else line)
     if cfg["ai"].get("compact", True):
         return had
     return {**had, "window": RECENT} if had.get("upto") else None
@@ -470,16 +595,18 @@ def full(cfg, messages):
     return tokens(messages) > (cfg["ai"].get("context_tokens") or CONTEXT_TOKENS) * FULL
 
 
-def compact(db, cfg, cid, force=False, focus=None, full_only=False):
+def compact(db, cfg, cid, force=False, focus=None, full_only=False, line=None):
     """Fold the messages older than the latest RECENT into the conversation's summary, once COMPACT_AFTER of them have
     built up or they fill FULL of the model's context window (`full_only`: only then; ai.compact, on by default; needs a
     model). `force` (/compact) folds every message in now, whatever the setting, with the person's `focus` (what to
-    keep) if any. The summary is written by ai.compact_model when set, a cheaper model than the chat's. Returns the new
-    summary (with "folded": how many messages), or None when nothing changed."""
+    keep) if any. The summary is written by ai.compact_model when set, a cheaper model than the chat's. It's of the
+    version `line` is (by default the head's), afresh when the summary was another version's. Returns the new summary
+    (with "folded": how many messages), or None when nothing changed."""
     if not llm.configured(cfg) or not (force or cfg["ai"].get("compact", True)):
         return None
-    had = _stored(db, cid)
-    fresh = [m for m in history(db, cid) if m["id"] > (had.get("upto") or 0)]
+    line = path(db, cid) if line is None else line
+    had = _stored(db, cid, line)
+    fresh = [m for m in line if m["id"] > (had.get("upto") or 0)]  # ids grow along a version
     old = fresh if force else fresh[:-RECENT]
     if not old:
         return None
@@ -507,10 +634,12 @@ def command(text):
     return (m.group(1).lower(), (m.group(2) or "").strip()) if m else None
 
 
-def run_command(db, cfg, cid, name, rest=""):
+def run_command(db, cfg, cid, name, rest="", parent=HEAD):
     """Do a chat command and save it with its reply, which the model won't see afterwards. /clear: the model starts
-    afresh (the messages stay to read); /compact: everything so far is folded into the summary now. Returns (reply,
-    the reply's message id)."""
+    afresh (the messages stay to read); /compact: everything so far is folded into the summary now. On the version
+    that goes on from `parent` (by default the head). Returns (reply, the reply's message id)."""
+    parent = head(db, cid) if parent == HEAD else parent
+    line = path(db, cid, parent)
     if name == "clear":
         reply = "Cleared. I'll start afresh from here; the messages above stay for you to read, but I won't use them."
         keep = None
@@ -519,20 +648,20 @@ def run_command(db, cfg, cid, name, rest=""):
         keep = None
     else:
         try:
-            done, failed = compact(db, cfg, cid, force=True, focus=rest or None), None
+            done, failed = compact(db, cfg, cid, force=True, focus=rest or None, line=line), None
         except llm.LLMError as e:
             done, failed = None, str(e)
-        keep = _stored(db, cid)
+        keep = _stored(db, cid, line)
         if failed:
             reply, keep = f"I couldn't write the summary, so nothing changed: {failed}", None
         elif done:
             n = done["folded"]
             reply = f"Compacted {n} message{'s' if n != 1 else ''} into a summary; from here on I read it instead:\n\n{done['text']}"
-        elif any(m["id"] > (keep.get("upto") or 0) for m in history(db, cid)):
+        elif any(m["id"] > (keep.get("upto") or 0) for m in line):
             reply, keep = "The model didn't write a summary, so nothing changed. Try again, or /clear to start afresh.", None
         else:
             reply = "Nothing new to compact yet."
-    add(db, cid, "user", f"/{name}" + (f" {rest}" if rest else ""))
+    add(db, cid, "user", f"/{name}" + (f" {rest}" if rest else ""), parent=parent)
     mid = add(db, cid, "assistant", reply, [])
     if name == "clear":
         keep = {"text": "", "upto": mid, "at": store.now()}
