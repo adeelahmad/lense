@@ -117,7 +117,7 @@ def test_documents_and_fillers(db, cfg, folder):
     drain(db, cfg)
     assert _lines(db, rid)[0] == "Yeah. Sorry, sorry about that. Okay, um, so now it's recording."
     db.q("UPDATE $r SET source = 'document'", r=R("recording", rid))
-    assert cleanup.plan(db, cfg, rid) == []
+    assert cleanup.plan(db, cfg, rid)["changes"] == []
     assert cleanup.clean_pending(db, cfg, log=quiet) == 0  # the command line's clean: transcripts only
 
 
@@ -133,3 +133,98 @@ def test_workers_with_an_older_steps_list_run_it(db, cfg):
     assert "clean" in w.can
     cfg["workers"]["steps"] = ["analyze", "report"]
     assert "clean" in jobs.Worker(db, lambda: cfg, name="older").can
+
+
+# ---------- punctuation ----------
+BARE = """Ann|N|yeah sorry about that okay so now it's recording so if I go back in network
+Ben|N|is it like it should be in the chunks it's only every 30 seconds so it might take a while
+Ann|N|I looked into different methods as well like trying to do that even ran local API"""
+ENDS = {"recording": ".", "network": ".", "chunks": "?", "while": ".", "API": ".", "yeah": ","}
+
+
+class FakePipe:
+    """Transformers' token-classification pipeline as the punctuation model answers: a piece per word (two for long
+    words, the mark on the last), the mark after the words in ENDS."""
+
+    def __init__(self):
+        self.calls = 0
+
+    def __call__(self, text):
+        self.calls += 1
+        out, at = [], 0
+        for w in text.split(" "):
+            if len(w) > 6:
+                out.append({"entity": "0", "score": 0.99, "start": at, "end": at + 3})
+            out.append({"entity": ENDS.get(w, "0"), "score": 0.9, "start": at, "end": at + len(w)})
+            at += len(w) + 1
+        return out
+
+
+@pytest.fixture
+def model(monkeypatch):
+    pipe = FakePipe()
+    monkeypatch.setitem(cleanup._PIPE, "pipe", pipe)
+    return pipe
+
+
+def test_labels_read_long_text_in_overlapping_chunks(model):
+    words = ("so we went to the market and then we bought apples while " * 40).split()
+    labels = cleanup._labels(model, words)
+    assert len(labels) == len(words) and model.calls == 4
+    assert [w for w, m in zip(words, labels, strict=True) if m == "."] == ["while"] * 40
+
+
+def test_punctuation_put_back_where_it_is_missing(db, cfg, model):
+    cfg["analysis"].update(cleanup=True, cleanup_punctuation="missing")
+    rid = ingest.import_text(db, cfg, "pods", BARE, "Bare", "auto")
+    jid = jobs.enqueue(db, rid, ["clean"])
+    drain(db, cfg)
+    assert _lines(db, rid) == [
+        "Yeah, sorry about that okay so now it's recording. So if I go back in network.",
+        "Is it like it should be in the chunks? It's only every 30 seconds so it might take a while.",
+        "I looked into different methods as well like trying to do that even ran local API.",
+    ]
+    log = db.one("SELECT log FROM $j", j=R("job", jid))["log"]
+    assert any("punctuation restored by kredor/punctuate-all" in line for line in log)
+    assert set(db.values("SELECT VALUE punctuated FROM segment WHERE recording = $r", r=rid)) == {cleanup.PUNCTUATED}
+
+    # a line is given marks once, and a transcript with them isn't read again
+    calls = model.calls
+    cfg["analysis"]["cleanup_punctuation"] = "always"
+    jobs.enqueue(db, rid, ["clean"])
+    drain(db, cfg)
+    assert model.calls == calls
+    assert len(db.rows("SELECT * FROM segment_edit WHERE recording = $r", r=rid)) == 3
+
+
+def test_a_transcript_with_punctuation_keeps_it(db, cfg, model):
+    cfg["analysis"].update(cleanup=True, cleanup_punctuation="missing")
+    rid = _talk(db, cfg)
+    jobs.enqueue(db, rid, ["clean"])
+    drain(db, cfg)
+    assert model.calls == 0  # it has its full stops: only the rules ran
+    assert _lines(db, rid)[0] == "Yeah. Sorry, sorry about that. Okay, so now it's recording."
+    # "always" reads it too, but keeps every mark it has
+    assert cleanup.punctuate(["Sorry, I mean it. yeah"]) == ["Sorry, I mean it. yeah,"]
+
+
+def test_without_the_model_the_rules_run_alone(db, cfg):
+    cfg["analysis"].update(cleanup=True, cleanup_punctuation="always")
+    rid = ingest.import_text(db, cfg, "pods", BARE, "Bare", "auto")
+    jid = jobs.enqueue(db, rid, ["clean"])
+    drain(db, cfg)
+    log = db.one("SELECT log FROM $j", j=R("job", jid))["log"]
+    assert any("punctuation not restored: the punctuation model isn't ready here" in line for line in log)
+    assert _lines(db, rid)[0] == "Yeah sorry about that okay so now it's recording so if I go back in network"
+    assert not db.values("SELECT VALUE punctuated FROM segment WHERE recording = $r AND punctuated != NONE", r=rid)
+
+
+def test_the_model_is_fetched_only_when_it_is_asked_for(cfg):
+    from app.domain import components, machine
+
+    c, m = components.BY_ID["punctuation"], machine.probe(cfg["data_dir"])
+    assert not c.needed(cfg, m)
+    cfg["analysis"]["cleanup_punctuation"] = "missing"
+    assert not c.needed(cfg, m)  # cleanup itself is off
+    cfg["analysis"]["cleanup"] = True
+    assert c.needed(cfg, m) and c.serves(cfg, m) == {"clean"}
