@@ -4,6 +4,16 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Export a conversation.** `GET /api/v1/chats/<id>/export.md`, `.pdf` or `.json` gives the version showing, one
+  message (`?message=`) or, as JSON, every version (`?all=true`). The Markdown has each question and answer, its
+  citations as footnotes linking back to the moment in Lens and the tools it used; the PDF is that Markdown printed by
+  Chromium, else anytopdf, else LibreOffice (409 when none can run); the JSON is OpenAI's chat message format in a tree
+  with Dublin Core terms, or `?format=messages` for one `{"messages": [...]}` line, checked against a published schema.
+  Agents use `list_chats`, `read_chat` and `export_chat` over MCP. In the web app, an answer's copy button copies it as
+  Markdown or plain text and exports it, questions and code blocks have their own copy buttons, and the conversation's
+  header has Export; without a PDF printer on the server, the browser prints it instead
+  ([Copy and export](docs/assistant.md#copy-and-export)).
+
 ## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
 
 - **Dates read as days, for agents.** With Settings → Analysis → Read dates on (off by default), analysis reads the
