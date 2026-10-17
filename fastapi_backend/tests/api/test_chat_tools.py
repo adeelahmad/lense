@@ -104,7 +104,7 @@ def test_an_answer_is_offered_only_what_was_picked(app, db, cfg, folder, new_cli
     cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
     llm.tool_script = [{"content": "", "tool_calls": [call(1, "find_notes", {"query": "Dyno"})]}, {"content": "Nothing noted."}]
     ev = ask(c, h, cid, tools=["notes", "find_entities"])
-    assert offered(llm) == {"find_notes", "read_note", "write_note", "update_note", "find_entities"}
+    assert offered(llm) == {"find_notes", "read_note", "write_note", "update_note", "write_spec", "find_entities"}
     meta = ev["meta"][0]
     assert meta["tools"]["picked"] == ["notes", "find_entities"] and set(meta["tools"]["offered"]) == offered(llm)
     question = c.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"][-2]
@@ -119,7 +119,7 @@ def test_an_answer_is_offered_only_what_was_picked(app, db, cfg, folder, new_cli
     assert ca.put("/api/v1/settings/ai", headers=ha, json={"disabled_tools": ["write_note"]}).status_code == 200
     llm.tool_script = [{"content": "Nothing noted."}]
     ask(c, h, cid, tools=["notes"])
-    assert offered(llm) == {"find_notes", "read_note", "update_note"}
+    assert offered(llm) == {"find_notes", "read_note", "update_note", "write_spec"}
     assert ca.put("/api/v1/settings/ai", headers=ha, json={"disabled_tools": []}).status_code == 200
 
     # no tools: it answers from a search, and the model is offered none

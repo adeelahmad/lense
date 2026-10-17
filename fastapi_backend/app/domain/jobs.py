@@ -177,6 +177,16 @@ def _podcast(db, cfg, rid, say, spec=None):
     podcasts.step(db, cfg, rid, say, spec)
 
 
+def _write_spec(db, cfg, rid, say, spec=None):
+    from . import specs
+
+    if not (cfg["llm"].get("base_url") and cfg["llm"].get("model")):
+        raise Skip("no LLM is configured")
+    if not db.values("SELECT VALUE id FROM segment WHERE recording = $r LIMIT 1", r=rid):
+        raise Skip("there's no text to write a spec from")
+    specs.write(db, cfg, rid, say, spec)
+
+
 def _shots(db, cfg, rid, say, spec=None):
     from . import video
 
@@ -234,6 +244,7 @@ STEPS = {
     "export": _export,
     "workflow": _workflow,
     "podcast": _podcast,
+    "spec": _write_spec,
 }
 
 
@@ -944,8 +955,8 @@ class Worker:
         self.can = set(steps or cfg_fn()["workers"]["steps"]) & set(STEPS)
         if not steps and "transcribe" in self.can:  # reading documents moved out of transcribe; older lists run it too
             self.can.add("read")
-        if "llm" in self.can:  # a workflow or a podcast needs what an llm step needs; older lists run them too
-            self.can |= {"workflow", "podcast"}
+        if "llm" in self.can:  # a workflow, a podcast or a spec needs what an llm step needs; older lists run them too
+            self.can |= {"workflow", "podcast", "spec"}
         if not steps and "transcribe" in self.can and not self.can & VIDEO_STEPS:
             # a workers.steps list written before the video steps existed (archive.yaml copied from an older example):
             # without them every import would wait for a worker that can run shots

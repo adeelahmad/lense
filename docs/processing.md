@@ -647,6 +647,8 @@ audio skip themselves for imported text. Steps:
   `report` (the built-in report).
 - `llm`: renders a prompt template, sends it to the configured model, checks the reply against the template's JSON
   Schema and saves it as a named output (e.g. `meeting_notes`).
+- `spec`: writes a technical spec from the transcript into a note linked to the asset, with the Spec from transcript
+  template unless the step names another prompt template ([Specs from transcripts](notes.md#specs-from-transcripts)).
 - `report` with a template: renders an HTML page into the namespace's reports. These pages may not run scripts.
 - `export`: renders a template to a file (Markdown, text, HTML...) and can copy it to a storage source.
 
@@ -658,6 +660,7 @@ internals, caps output size, and escapes HTML in reports. Templates see `recordi
 summary's `key_points` and `action_items` print as their text and have `text`, `who` (empty when not given) and `t0`
 (where the line they come from starts, in ms; none when not known); summaries made before they had times hold plain
 strings. A fresh archive starts with three: Meeting notes (prompt), Markdown transcript (export) and One-page brief (report).
+Every install, new or not, also has Spec from transcript (prompt), which the `spec` step uses.
 `POST /api/v1/templates/preview` renders any template, saved or not, against an asset, and with `run: true` also asks
 the model.
 

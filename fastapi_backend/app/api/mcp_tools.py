@@ -2048,6 +2048,47 @@ def get_podcast(ctx: Context, episode_id: int) -> dict[str, Any]:
     )
 
 
+# ---------- specs from transcripts (docs/notes.md#specs-from-transcripts) ----------
+@tool(
+    "write_spec",
+    "Write a spec from a transcript",
+    "Write a technical spec from a recording's transcript (a voice session, a meeting, a memo) as a note linked to it: "
+    'every named decision, every no and every "not that, this", every constraint the speaker stated, in their own '
+    "words with a link to when they said it, and the gaps they left to decide later, flagged. Quotes not in the "
+    "transcript word for word are marked so. It's written in the background with the Spec from transcript prompt "
+    "template (or template_id, another prompt template); writing it again updates the same note. Check on it with "
+    "get_spec, then read it with read_note. Needs a token with the write scope and the right to process the recording.",
+    Arg("recording_id", "integer", "the recording", required=True),
+    Arg("template_id", "integer", "another prompt template to write it with, such as an edited copy"),
+    writes=True,
+)
+def write_spec(ctx: Context, recording_id: int, template_id: int | None) -> dict[str, Any]:
+    from app.api.v1.routes import specs as spec_routes
+    from app.schemas.specs import SpecWrite
+
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to write specs")
+    out = spec_routes.write_spec(recording_id, ctx.acl, ctx.user, ctx.db, ctx.cfg, SpecWrite(template=template_id))
+    return {"job": out.job, "status": "writing", "recording_url": ctx.link(recording_id)}
+
+
+@tool(
+    "get_spec",
+    "Read how a spec is coming",
+    "A recording's spec written with write_spec: status (none, writing, ready or failed, with the error), its note "
+    "(note_id and url, to read with read_note), and how many decisions, things turned down, constraints and gaps left to "
+    "decide it holds, how many quotes weren't found in the transcript, and whether the transcript was cut for the model.",
+    Arg("recording_id", "integer", "the recording", required=True),
+)
+def get_spec(ctx: Context, recording_id: int) -> dict[str, Any]:
+    from app.domain import specs
+
+    ctx.acl.recording(recording_id)
+    s = specs.status(ctx.db, recording_id)
+    note = s.pop("note", None)
+    return store.clean({**s, "note_id": note, "url": _note_url(ctx, note) if note else None, "recording_url": ctx.link(recording_id)})
+
+
 # ---------- NSFW classification ----------
 @tool(
     "nsfw_settings",
