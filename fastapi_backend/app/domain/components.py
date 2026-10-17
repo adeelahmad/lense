@@ -69,6 +69,24 @@ FILES = {
         "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79",
         39,
     ),
+    # spaCy's MIT-licensed small models (analysis.spacy_model), as the wheels spaCy publishes for 3.8; installed with
+    # no dependencies into the packages folder. Its other languages' models carry GPL, LGPL or Creative Commons
+    # licenses, so they're for people to install themselves.
+    "en_core_web_sm-3.8.0-py3-none-any.whl": (
+        "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
+        "1932429db727d4bff3deed6b34cfc05df17794f4a52eeb26cf8928f7c1a0fb85",
+        13,
+    ),
+    "de_core_news_sm-3.8.0-py3-none-any.whl": (
+        "https://github.com/explosion/spacy-models/releases/download/de_core_news_sm-3.8.0/de_core_news_sm-3.8.0-py3-none-any.whl",
+        "fec69fec52b1780f2d269d5af7582a5e28028738bd3190532459aeb473bfa3e7",
+        15,
+    ),
+    "xx_ent_wiki_sm-3.8.0-py3-none-any.whl": (
+        "https://github.com/explosion/spacy-models/releases/download/xx_ent_wiki_sm-3.8.0/xx_ent_wiki_sm-3.8.0-py3-none-any.whl",
+        "6f3c4b853852ea9e9d2dc76cc950dddb10a7e4c42d813308caefe6c5e8be2f0a",
+        11,
+    ),
     # AdamCodd/vit-base-nsfw-detector (Apache-2.0), its author's 8-bit ONNX export, at a fixed revision (nsfw.py)
     "vit-base-nsfw-detector-int8.onnx": (
         "https://huggingface.co/AdamCodd/vit-base-nsfw-detector/resolve/8587de998f441aac03fdd57a85d2e4cb808c7d64/onnx/model_quantized.onnx",
@@ -496,6 +514,50 @@ class InjectionModel(Component):
             fetch_file(cfg, n, say)
 
 
+SPACY_MODELS = {"en_core_web_sm": "en_core_web_sm-3.8.0-py3-none-any.whl", "de_core_news_sm": "de_core_news_sm-3.8.0-py3-none-any.whl", "xx_ent_wiki_sm": "xx_ent_wiki_sm-3.8.0-py3-none-any.whl"}  # fmt: skip
+
+
+class Spacy(Component):
+    """spaCy and its model (analysis.spacy_model), when Settings → Analysis finds entities with spaCy."""
+
+    kind = "model"
+
+    def _model(self, cfg):
+        return (cfg.get("analysis") or {}).get("spacy_model") or "en_core_web_sm"
+
+    def needed(self, cfg, m):
+        return (cfg.get("analysis") or {}).get("entities") == "spacy"
+
+    def present(self, cfg):
+        return importable("spacy", self._model(cfg))
+
+    def fetch(self, cfg, m, say):
+        if not importable("spacy"):
+            pip_install(cfg, "spacy", say)
+        model = self._model(cfg)
+        if importable(model):
+            return
+        if model not in SPACY_MODELS:
+            raise Unavailable(f"{model} isn't one Lens fetches ({', '.join(SPACY_MODELS)}); install it with pip")
+        wheel = fetch_file(cfg, SPACY_MODELS[model], say)
+        if say:
+            say(f"installing the spaCy model {model}")
+        target = packages_dir(cfg)
+        target.mkdir(parents=True, exist_ok=True)
+        uv = shutil.which("uv")
+        if not uv:
+            raise Unavailable(f"needs uv to install {model}; install it yourself with: pip install {wheel}")
+        _run(
+            [uv, "pip", "install", "--python", sys.executable, "--target", str(target), "--no-deps", "--quiet", wheel],
+            env={**os.environ, "UV_NO_CACHE": "1"},
+        )
+        pathlib.Path(wheel).unlink(missing_ok=True)  # installed: the wheel would only take up the disk
+        activate(cfg)
+
+    def detail(self, cfg):
+        return self._model(cfg)
+
+
 class Punctuation(Component):
     """PyTorch, Transformers and the punctuation model (cleanup.py), when Settings → Analysis cleans up transcripts and
     restores their punctuation."""
@@ -801,6 +863,14 @@ COMPONENTS = [
         license="Apache-2.0",
     ),
     LAYA,
+    Spacy(
+        "spacy",
+        "spaCy",
+        "finds people, organisations, places, dates and more in text with a small language model (analysis.entities spacy)",
+        steps={"analyze", "workflow"},
+        size_mb=60,
+        license="MIT",
+    ),
     Punctuation(
         "punctuation",
         "Punctuation model",
