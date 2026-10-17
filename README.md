@@ -81,7 +81,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   of each conversation's own. Regenerating an answer or editing a question makes a new version beside the old one, and
   nothing is lost. Each answer keeps a record of what produced it (the model, its tools, how long it took and what it
   cost), opened from its header. It reads answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine
-  (opt-in), and `/clear` and `/compact` keep long conversations short. Each namespace can have its own assistant with
+  (opt-in). Long conversations are summarised before they fill the model's context, and `/clear` and `/compact` start
+  afresh or summarise now. Each namespace can have its own assistant with
   its own name, instructions and memory, answering in Telegram and Slack (built in, with voice notes and files), in
   Discord, Matrix, WhatsApp and other chat rooms through Matterbridge, and by email at an address of its own that you
   email or forward things to. ([Chat](docs/assistant.md), [web search](docs/assistant.md#web-search-and-reading-pages),

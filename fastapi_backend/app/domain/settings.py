@@ -448,6 +448,10 @@ def _check(section, key, value, default):
         if value is not None and not (isinstance(value, int) and not isinstance(value, bool) and 1024 <= value <= 2_000_000):
             raise ValueError("ai.context_tokens is a whole number of tokens from 1024 to 2000000")
         return value
+    if (section, key) == ("ai", "compact_at"):
+        if not (isinstance(value, int) and not isinstance(value, bool) and 10 <= value <= 90):
+            raise ValueError("ai.compact_at is a whole percentage of the model's context from 10 to 90")
+        return value
     if (section, key) == ("ai", "browser_steps"):
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 100):
             raise ValueError("ai.browser_steps is a whole number of steps from 1 to 100")

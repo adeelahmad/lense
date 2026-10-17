@@ -9,6 +9,8 @@ import threading
 class Handler(http.server.BaseHTTPRequestHandler):
     seen = []
     models = ["fake", "fake-large"]  # what GET /models lists
+    about = {}  # what GET /models says of a model besides its id, like {"fake": {"context_length": 4096}}
+    props = None  # GET /props, as llama.cpp's server answers it ({"default_generation_settings": {"n_ctx": ...}})
     tool_script = []  # assistant messages to return, in order, when a request offers tools (or functions of the request)
     reject_tools = False  # behave like a server whose model can't call tools
     ignore_tool_choice = False  # behave like a server that calls tools even when asked not to (tool_choice "none")
@@ -28,8 +30,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
-    def do_GET(self):  # GET /models
-        return self._json({"object": "list", "data": [{"id": m, "object": "model"} for m in Handler.models]})
+    def do_GET(self):  # GET /models, or llama.cpp's GET /props
+        if self.path == "/props" and Handler.props is not None:
+            return self._json(Handler.props)
+        if self.path == "/props":
+            self.send_error(404)
+            return None
+        listed = [{"id": m, "object": "model", **Handler.about.get(m, {})} for m in Handler.models]
+        return self._json({"object": "list", "data": listed})
 
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))

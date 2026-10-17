@@ -14,7 +14,7 @@ import time
 from collections import Counter, defaultdict
 from urllib.parse import urlsplit
 
-from . import __version__, activity, llm, recsets, render, semantic, store, textindex, untrusted
+from . import __version__, activity, llm, local_llm, recsets, render, semantic, store, textindex, untrusted
 
 R = store.R
 STOP = set(
@@ -553,8 +553,9 @@ def migrate_tree(db):
 RECENT = 6  # the latest messages, always given word for word
 COMPACT_AFTER = 8  # how many more build up before they're folded into the summary (one model call per that many)
 TURN_CHARS = 1500  # of each message, for the summary
-CONTEXT_TOKENS = 16000  # the model's context window when ai.context_tokens isn't set
-FULL = 0.5  # the share of it the conversation may take before it's folded in early (the rest: excerpts, tools, answer)
+CONTEXT_TOKENS = 16000  # a model's context window when neither ai.context_tokens nor its server says (window)
+COMPACT_AT = 50  # the % of it a conversation may fill before it's folded in early (ai.compact_at; the rest: excerpts, tools, answer)
+SUMMARY_TOKENS = 800  # the most a summary is written in
 COMPACT_SYSTEM = (
     "You keep the running summary of a conversation between a person and their assistant, so the assistant still "
     "knows what was said once the messages themselves are out of view. Fold the new messages into the summary so far: "
@@ -610,18 +611,46 @@ def tokens(messages):
     return sum(len(m.get("content") or "") + len(attached_note(m.get("attachments"))) for m in messages) // 4
 
 
-def full(cfg, messages):
-    """True when the messages fill more than FULL of the model's context window (ai.context_tokens)."""
-    return tokens(messages) > (cfg["ai"].get("context_tokens") or CONTEXT_TOKENS) * FULL
+def window(cfg, model=None):
+    """A model's context window in tokens (by default the chat's): ai.context_tokens when it's set (for the chat's
+    models); the local model's (local_llm.context) when this machine's llama-server is the provider; what the model
+    server says (llm.context_window); else CONTEXT_TOKENS."""
+    if cfg["ai"].get("context_tokens"):
+        return cfg["ai"]["context_tokens"]
+    if local_llm.serves(cfg, model):
+        return local_llm.conf(cfg)["context"]
+    return llm.context_window(cfg, model) or CONTEXT_TOKENS
+
+
+def full(cfg, messages, model=None):
+    """True when the messages fill more than ai.compact_at % (COMPACT_AT) of the model's context window."""
+    return tokens(messages) > window(cfg, model) * (cfg["ai"].get("compact_at") or COMPACT_AT) / 100
+
+
+def _batches(cfg, model, had, old):
+    """`old` in runs that each fit the summary's model with the summary so far and room to write the next one, so a
+    long conversation folded at once (/compact, or one from before summaries) never overflows a small model."""
+    room = window(cfg, model) * 3 // 4 - SUMMARY_TOKENS - (len(COMPACT_SYSTEM) + len(had.get("text") or "") + 2000) // 4
+    run, size = [], 0
+    for m in old:
+        n = len(_said(m)) // 4
+        if run and size + n > room:
+            yield run
+            run, size = [], 0
+        run.append(m)
+        size += n
+    if run:
+        yield run
 
 
 def compact(db, cfg, cid, force=False, focus=None, full_only=False, line=None):
     """Fold the messages older than the latest RECENT into the conversation's summary, once COMPACT_AFTER of them have
-    built up or they fill FULL of the model's context window (`full_only`: only then; ai.compact, on by default; needs a
-    model). `force` (/compact) folds every message in now, whatever the setting, with the person's `focus` (what to
-    keep) if any. The summary is written by ai.compact_model when set, a cheaper model than the chat's. It's of the
-    version `line` is (by default the head's), afresh when the summary was another version's. Returns the new summary
-    (with "folded": how many messages), or None when nothing changed."""
+    built up or they fill ai.compact_at % of the chat model's context window (window; `full_only`: only then;
+    ai.compact, on by default; needs a model). `force` (/compact) folds every message in now, whatever the setting,
+    with the person's `focus` (what to keep) if any. The summary is written by ai.compact_model when set, a cheaper
+    model than the chat's, in as many calls as it takes to fit that model's window (_batches), each in the ledger as
+    the conversation's. It's of the version `line` is (by default the head's), afresh when the summary was another
+    version's. Returns the new summary (with "folded": how many messages), or None when nothing changed."""
     if not llm.configured(cfg) or not (force or cfg["ai"].get("compact", True)):
         return None
     line = path(db, cid) if line is None else line
@@ -630,18 +659,32 @@ def compact(db, cfg, cid, force=False, focus=None, full_only=False, line=None):
     old = fresh if force else fresh[:-RECENT]
     if not old:
         return None
-    if not force and not full(cfg, fresh) and (full_only or len(fresh) < RECENT + COMPACT_AFTER):
+    if not force and (full_only or len(fresh) < RECENT + COMPACT_AFTER):
+        model = (db.one("SELECT model FROM $r", r=R("chat", cid)) or {}).get("model")  # the conversation's, if picked
+        if not full(cfg, fresh, model):
+            return None
+    writer = cfg["ai"].get("compact_model") or None
+    out, folded = None, 0
+    with activity.scope(db, f"chat:{cid}", cfg=cfg):
+        for run in _batches(cfg, writer, had, old):
+            ask = f"Summary so far:\n{had.get('text') or '(none yet)'}\n\nNew messages:\n\n" + "\n\n".join(_said(m) for m in run)
+            if focus:
+                ask += f"\n\nThe person asked the summary to keep: {focus[:500]}"
+            msgs = [{"role": "system", "content": COMPACT_SYSTEM}, {"role": "user", "content": ask}]
+            try:
+                text = llm.chat(cfg, msgs, model=writer, max_tokens=SUMMARY_TOKENS).strip()
+            except (llm.LLMError, activity.OverBudget):
+                if force or out is None:
+                    raise
+                break  # what's folded so far is kept; the rest is folded in next time
+            if not text:
+                break
+            had = out = {"text": text, "upto": run[-1]["id"], "at": store.now()}
+            folded += len(run)
+    if out is None or (force and folded < len(old)):  # /compact folds everything or changes nothing
         return None
-    ask = f"Summary so far:\n{had.get('text') or '(none yet)'}\n\nNew messages:\n\n" + "\n\n".join(_said(m) for m in old)
-    if focus:
-        ask += f"\n\nThe person asked the summary to keep: {focus[:500]}"
-    msgs = [{"role": "system", "content": COMPACT_SYSTEM}, {"role": "user", "content": ask}]
-    text = llm.chat(cfg, msgs, model=cfg["ai"].get("compact_model") or None, max_tokens=800).strip()
-    if not text:
-        return None
-    out = {"text": text, "upto": old[-1]["id"], "at": store.now()}
     db.q("UPDATE $r SET summary = $s", r=R("chat", cid), s=out)
-    return {**out, "folded": len(old)}
+    return {**out, "folded": folded}
 
 
 # ---------- commands: /clear and /compact, typed in the app or in a chat room ----------

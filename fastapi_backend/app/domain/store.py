@@ -298,7 +298,8 @@ DEFAULTS = {
         "refine_notes": True,  # the model keeps notes' titles and one-line summaries true to the whole note (notebook.py)
         "compact": True,  # a long conversation keeps a summary of the messages the model no longer sees (chat.compact)
         "compact_model": None,  # a cheaper model to write those summaries (None: the chat's model)
-        "context_tokens": None,  # the chat model's context window; summarised early before it fills (None: 16000)
+        "context_tokens": None,  # the chat model's context window (None: what its server says, else 16000; chat.window)
+        "compact_at": 50,  # a conversation filling this % of that window is summarised early, before the next answer
         "organise_notes": True,  # notes nobody filed are filed in PARA, or a suggestion waits on them (notebook.py)
         "untrusted_marking": True,  # third-party text reaches the model marked as data, not instructions (untrusted.py)
         "untrusted_asks": True,  # after reading it, tools that send data out or change the server ask first (ai_tools.py)
