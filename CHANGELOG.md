@@ -4,9 +4,6 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
-- **Download notes as Markdown.** A note's ⋯ menu in the tree downloads it as a Markdown file, and the Notes page's ⋯
-  menu downloads all of a namespace's notes as a zip in folders that follow the tree, for Obsidian and other notes apps
-  ([Downloading as Markdown](docs/notes.md#downloading-as-markdown)).
 - **Punctuation put back in transcripts.** With transcripts cleaned up, Settings → Analysis → Put punctuation back
   adds full stops, commas and question marks with a local model (kredor/punctuate-all, MIT, 12 languages), to
   transcripts that have hardly any (imported captions) or to every one, keeping the marks they have. The model and
@@ -60,6 +57,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   registries or the public web. Files attached to the conversation go in; a file it makes reaches a namespace once the
   person approves. Off by default; starting the gateway from Settings is in progress
   ([Code sandbox](docs/assistant.md#code-sandbox)).
+- **Download notes as Markdown.** A note's ⋯ menu in the tree downloads it as a Markdown file, and the Notes page's ⋯
+  menu downloads all of a namespace's notes as a zip in folders that follow the tree, for Obsidian and other notes apps
+  ([Downloading as Markdown](docs/notes.md#downloading-as-markdown)).
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 
