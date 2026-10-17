@@ -190,6 +190,7 @@ request, to another check that proves the same thing; loosening a requirement or
 | Backups of the database and files: take, list, download and restore; unchanged files take no new room | [test_backups.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_backups.py) `test_take_download_and_restore`, `test_backups_keep_and_restore_the_files_too` |
 | Backups on a schedule, each copied, encrypted, to a storage connection | [test_backups.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_backups.py) `test_backups_on_a_schedule`, `test_copies_are_sealed_with_secret_key` |
 | A scheduled backup's copy reaching a storage connection, in CI | No check yet ([#486](https://github.com/adeelahmad/lense/issues/486)) |
+| Each release is first checked by upgrading the one before it, holding data: nothing lost, each pending step run once after a backup, a second run changes nothing | [upgrade.yml](https://github.com/adeelahmad/lense/blob/main/.github/workflows/upgrade.yml) `Upgrade and check`; [release.yml](https://github.com/adeelahmad/lense/blob/main/.github/workflows/release.yml) `Upgrade from the last release`; [test_cli.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/domain/test_cli.py) `test_a_worker_logs_the_upgrade_it_runs_as_it_starts` |
 
 ## Watch it run
 
