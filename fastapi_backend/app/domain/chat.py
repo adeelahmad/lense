@@ -837,6 +837,7 @@ SAME_AGAIN = {
     "find_entities",
     "entity_mentions",
     "entity_timeline",
+    "find_dates",
     "find_topics",
     "topic_recordings",
     "graph_neighbours",

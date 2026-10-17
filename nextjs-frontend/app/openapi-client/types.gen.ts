@@ -5509,6 +5509,114 @@ export type CustomNodeVersionCreate = {
 };
 
 /**
+ * DateList
+ */
+export type DateList = {
+  /**
+   * Total
+   */
+  total: number;
+  /**
+   * Items
+   */
+  items: Array<DateSaid>;
+  /**
+   * Reading
+   *
+   * whether analysis reads dates (Settings → Analysis → Read dates); off, nothing new is read
+   */
+  reading: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * DateSaid
+ *
+ * A date an asset's line gives, as days on the calendar.
+ */
+export type DateSaid = {
+  /**
+   * Day
+   *
+   * the first day it means, YYYY-MM-DD
+   */
+  day: string;
+  /**
+   * Until
+   *
+   * the last day it means: the same day for a day, the Sunday for a week, the 31st for a month
+   */
+  until: string;
+  /**
+   * Period
+   *
+   * day, weekend, week, month or year
+   */
+  period: string;
+  /**
+   * Said
+   *
+   * the words that give it, like "next Tuesday" or "3 March 2024"
+   */
+  said: string;
+  /**
+   * Relative
+   *
+   * worked out from the asset's own date (recorded_at): a day said relative to it, or without its year
+   */
+  relative: boolean;
+  /**
+   * Recording Id
+   */
+  recording_id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Recorded At
+   */
+  recorded_at?: string | null;
+  /**
+   * Segment
+   *
+   * the line's id
+   */
+  segment: number;
+  /**
+   * Idx
+   *
+   * the line's place in the asset's text
+   */
+  idx: number;
+  /**
+   * T0
+   *
+   * ms
+   */
+  t0?: number | null;
+  /**
+   * Time
+   */
+  time?: string | null;
+  /**
+   * Speaker
+   */
+  speaker?: string | null;
+  /**
+   * Text
+   *
+   * the line
+   */
+  text?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * DaySpend
  */
 export type DaySpend = {
@@ -18946,6 +19054,12 @@ export type S3Status = {
    * what the process running it says; none while it's off
    */
   service?: S3Service | null;
+  /**
+   * Add Files
+   *
+   * whether files people add through it are imported (shares.add_files)
+   */
+  add_files?: boolean;
   webdav: ShareServer;
   /**
    * Remote
@@ -20548,6 +20662,12 @@ export type ShareServer = {
    * what the process running it says; none while it's off
    */
   service?: S3Service | null;
+  /**
+   * Add Files
+   *
+   * whether files people add through it are imported (shares.add_files)
+   */
+  add_files?: boolean;
   [key: string]: unknown;
 };
 
@@ -35873,6 +35993,70 @@ export type FindGraphPathResponses = {
 };
 
 export type FindGraphPathResponse = FindGraphPathResponses[keyof FindGraphPathResponses];
+
+export type ListDatesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Start
+     *
+     * from this day on: YYYY-MM-DD, or YYYY-MM or YYYY for its first day
+     */
+    start?: string;
+    /**
+     * End
+     *
+     * up to this day: YYYY-MM-DD, or YYYY-MM or YYYY for its last day
+     */
+    end?: string;
+    /**
+     * Ns
+     *
+     * one namespace
+     */
+    ns?: string | null;
+    /**
+     * Recording
+     *
+     * one asset
+     */
+    recording?: number | null;
+    /**
+     * Q
+     *
+     * only dates whose words or line have this text
+     */
+    q?: string;
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+  };
+  url: "/api/v1/dates";
+};
+
+export type ListDatesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListDatesError = ListDatesErrors[keyof ListDatesErrors];
+
+export type ListDatesResponses = {
+  /**
+   * Successful Response
+   */
+  200: DateList;
+};
+
+export type ListDatesResponse = ListDatesResponses[keyof ListDatesResponses];
 
 export type ListTopicsData = {
   body?: never;

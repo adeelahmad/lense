@@ -17731,6 +17731,132 @@
         }
       }
     },
+    "/api/v1/dates": {
+      "get": {
+        "tags": [
+          "dates"
+        ],
+        "summary": "List Dates",
+        "description": "The dates the assets you can read give that fall between `start` and `end` (a date that spans days counts when\nany of its days does), the earliest first, each with its line. Analysis reads them while Settings \u2192 Analysis \u2192 Read\ndates is on.",
+        "operationId": "list_dates",
+        "parameters": [
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "from this day on: YYYY-MM-DD, or YYYY-MM or YYYY for its first day",
+              "default": "",
+              "title": "Start"
+            },
+            "description": "from this day on: YYYY-MM-DD, or YYYY-MM or YYYY for its first day"
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "up to this day: YYYY-MM-DD, or YYYY-MM or YYYY for its last day",
+              "default": "",
+              "title": "End"
+            },
+            "description": "up to this day: YYYY-MM-DD, or YYYY-MM or YYYY for its last day"
+          },
+          {
+            "name": "ns",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "one namespace",
+              "title": "Ns"
+            },
+            "description": "one namespace"
+          },
+          {
+            "name": "recording",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "one asset",
+              "title": "Recording"
+            },
+            "description": "one asset"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "only dates whose words or line have this text",
+              "default": "",
+              "title": "Q"
+            },
+            "description": "only dates whose words or line have this text"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DateList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/topics": {
       "get": {
         "tags": [
@@ -40976,6 +41102,170 @@
         ],
         "title": "CustomNodeVersionCreate"
       },
+      "DateList": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DateSaid"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "reading": {
+            "type": "boolean",
+            "title": "Reading",
+            "description": "whether analysis reads dates (Settings \u2192 Analysis \u2192 Read dates); off, nothing new is read"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "total",
+          "items",
+          "reading"
+        ],
+        "title": "DateList"
+      },
+      "DateSaid": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "title": "Day",
+            "description": "the first day it means, YYYY-MM-DD"
+          },
+          "until": {
+            "type": "string",
+            "title": "Until",
+            "description": "the last day it means: the same day for a day, the Sunday for a week, the 31st for a month"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period",
+            "description": "day, weekend, week, month or year"
+          },
+          "said": {
+            "type": "string",
+            "title": "Said",
+            "description": "the words that give it, like \"next Tuesday\" or \"3 March 2024\""
+          },
+          "relative": {
+            "type": "boolean",
+            "title": "Relative",
+            "description": "worked out from the asset's own date (recorded_at): a day said relative to it, or without its year"
+          },
+          "recording_id": {
+            "type": "integer",
+            "title": "Recording Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          },
+          "segment": {
+            "type": "integer",
+            "title": "Segment",
+            "description": "the line's id"
+          },
+          "idx": {
+            "type": "integer",
+            "title": "Idx",
+            "description": "the line's place in the asset's text"
+          },
+          "t0": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T0",
+            "description": "ms"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time"
+          },
+          "speaker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "the line"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "day",
+          "until",
+          "period",
+          "said",
+          "relative",
+          "recording_id",
+          "segment",
+          "idx"
+        ],
+        "title": "DateSaid",
+        "description": "A date an asset's line gives, as days on the calendar."
+      },
       "DaySpend": {
         "properties": {
           "day": {
@@ -64025,6 +64315,12 @@
             ],
             "description": "what the process running it says; none while it's off"
           },
+          "add_files": {
+            "type": "boolean",
+            "title": "Add Files",
+            "description": "whether files people add through it are imported (shares.add_files)",
+            "default": false
+          },
           "webdav": {
             "$ref": "#/components/schemas/ShareServer"
           },
@@ -66883,6 +67179,12 @@
               }
             ],
             "description": "what the process running it says; none while it's off"
+          },
+          "add_files": {
+            "type": "boolean",
+            "title": "Add Files",
+            "description": "whether files people add through it are imported (shares.add_files)",
+            "default": false
           }
         },
         "additionalProperties": true,
