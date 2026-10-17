@@ -10486,6 +10486,138 @@ export type MatterbridgeStatus = {
 };
 
 /**
+ * McpConfig
+ */
+export type McpConfig = {
+  /**
+   * Servers
+   */
+  servers?: Array<McpServerFound>;
+  /**
+   * Skipped
+   */
+  skipped?: Array<McpServerSkipped>;
+  [key: string]: unknown;
+};
+
+/**
+ * McpConfigText
+ */
+export type McpConfigText = {
+  /**
+   * Text
+   *
+   * an MCP config from another app: Claude's .mcp.json or mcpServers, VS Code's servers, or one server
+   */
+  text: string;
+};
+
+/**
+ * McpServerFound
+ */
+export type McpServerFound = {
+  /**
+   * Name
+   *
+   * a name for it, from the config or guessed from its package or address
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Spec
+   *
+   * {url, headers}, or {command, args, env} for one that runs as a program
+   */
+  spec: {
+    [key: string]: unknown;
+  };
+  /**
+   * Fill
+   *
+   * values written as ${NAME}, which its app filled in and Lens can't
+   */
+  fill?: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
+ * McpServerSkipped
+ */
+export type McpServerSkipped = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Why
+   */
+  why: string;
+  [key: string]: unknown;
+};
+
+/**
+ * McpServerTools
+ */
+export type McpServerTools = {
+  /**
+   * Tools
+   *
+   * its tools, as it lists them now: {name, description, schema, read_only}
+   */
+  tools: Array<{
+    [key: string]: unknown;
+  }>;
+  [key: string]: unknown;
+};
+
+/**
+ * McpServerTry
+ */
+export type McpServerTry = {
+  /**
+   * Spec
+   *
+   * {url, headers}, or {command, args, env} for one that runs as a program
+   */
+  spec: {
+    [key: string]: unknown;
+  };
+  /**
+   * Extension
+   *
+   * the MCP server whose saved secrets fill in values sent as ••••
+   */
+  extension?: number | null;
+};
+
+/**
+ * McpToolSwitch
+ */
+export type McpToolSwitch = {
+  /**
+   * Tool
+   *
+   * the tool's name, as the server lists it
+   */
+  tool: string;
+  /**
+   * On
+   *
+   * switch it on or off
+   */
+  on?: boolean | null;
+  /**
+   * Ask
+   *
+   * whether it asks first (default: unless the server says it only reads)
+   */
+  ask?: boolean | null;
+};
+
+/**
  * Me
  */
 export type Me = {
@@ -37992,6 +38124,56 @@ export type ImportArchiveResponses = {
 
 export type ImportArchiveResponse = ImportArchiveResponses[keyof ImportArchiveResponses];
 
+export type ReadMcpConfigData = {
+  body: McpConfigText;
+  path?: never;
+  query?: never;
+  url: "/api/v1/extensions/mcp/read";
+};
+
+export type ReadMcpConfigErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ReadMcpConfigError = ReadMcpConfigErrors[keyof ReadMcpConfigErrors];
+
+export type ReadMcpConfigResponses = {
+  /**
+   * Successful Response
+   */
+  200: McpConfig;
+};
+
+export type ReadMcpConfigResponse = ReadMcpConfigResponses[keyof ReadMcpConfigResponses];
+
+export type TestMcpServerData = {
+  body: McpServerTry;
+  path?: never;
+  query?: never;
+  url: "/api/v1/extensions/mcp/test";
+};
+
+export type TestMcpServerErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TestMcpServerError = TestMcpServerErrors[keyof TestMcpServerErrors];
+
+export type TestMcpServerResponses = {
+  /**
+   * Successful Response
+   */
+  200: McpServerTools;
+};
+
+export type TestMcpServerResponse = TestMcpServerResponses[keyof TestMcpServerResponses];
+
 export type DeleteExtensionData = {
   body?: never;
   path: {
@@ -38116,6 +38298,36 @@ export type CreateExtensionVersionResponses = {
 };
 
 export type CreateExtensionVersionResponse = CreateExtensionVersionResponses[keyof CreateExtensionVersionResponses];
+
+export type SwitchMcpToolData = {
+  body: McpToolSwitch;
+  path: {
+    /**
+     * Eid
+     */
+    eid: number;
+  };
+  query?: never;
+  url: "/api/v1/extensions/{eid}/tools";
+};
+
+export type SwitchMcpToolErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SwitchMcpToolError = SwitchMcpToolErrors[keyof SwitchMcpToolErrors];
+
+export type SwitchMcpToolResponses = {
+  /**
+   * Successful Response
+   */
+  200: VersionSaved;
+};
+
+export type SwitchMcpToolResponse = SwitchMcpToolResponses[keyof SwitchMcpToolResponses];
 
 export type TestExtensionData = {
   body: ExtensionTest;

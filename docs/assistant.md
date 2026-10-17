@@ -27,14 +27,17 @@ then.
   others in its place, oldest first), every version's messages as `tree`, and `head`, the last message showing. `PUT
   /api/v1/chats/<id>/head` with `{"message": <id>}` shows the version that message is in, to its newest message. A
   new version streams `branch` first (`message`, `parent`, `versions`). Chat rooms ([Chat rooms](chat-rooms.md)) and
-  automations go on from the version showing. In the web app, Edit makes a version; switching between versions and
-  Regenerate are in progress.
+  automations go on from the version showing. In the web app, Edit on a question and Regenerate on an answer (its menu:
+  Regenerate with… another model) make a version, which streams in place; `‹ 2 / 3 ›` under a question or an answer
+  with versions moves between them (the arrow keys too, while it has focus), showing what followed each, and the next
+  question goes on from the version showing. Approvals proposed in one version show in that version.
 - **Long conversations:** the model reads the latest six messages word for word. Once eight more have built up
   behind them, they're folded into a running summary kept on the conversation (one model call, after an answer), and
   every answer gets that summary plus the messages it doesn't cover yet. Room conversations (chat-rooms.md) go on for
   good, so they rely on it most. A summary covers the version it was written on: on a version that leaves what it
-  covers, the model reads that version's messages, and the next summary is made from them. A conversation that fills half of the model's context window (**Chat model's context**, `ai.context_tokens`,
-  16000 when empty; about four characters a token) is folded in early, before the next answer, whatever the count.
+  covers, the model reads that version's messages, and the next summary is made from them. A conversation that fills
+  half of the model's context window (**Chat model's context**, `ai.context_tokens`, 16000 when empty; about four
+  characters a token) is folded in early, before the next answer, whatever the count.
   **Model for summaries** (`ai.compact_model`) writes them with a smaller, cheaper model on the same provider; empty,
   the chat's model does. Settings › AI assistant › Summarise long conversations (`ai.compact`, on) turns it off; off,
   or with no model, only the last six messages are read.
@@ -45,8 +48,8 @@ then.
   reply, is read by the model afterwards.
 - **Changed access:** old citations are filtered by the person's current access when a conversation is reopened.
 - **Choosing the model:** a conversation can use any model an admin offers (`llm.chat_models`, else whatever the model
-  server lists); Try another model asks a question again with a different one. Each answer records the model that
-  wrote it.
+  server lists); Regenerate with… writes a new answer with a different one, beside the old. Each answer records the
+  model that wrote it.
 - **Chat on any page:** every page except Chat itself has an Ask button that opens a chat panel beside the page (full
   screen on phones). Its conversation follows you between pages, and across visits in the same browser, until New
   chat; it is an ordinary conversation, also listed in Chat. Each question can share the page's text (the page chip,
@@ -331,9 +334,10 @@ shared with namespaces (admins can share with everyone), and switched on or off 
 - **MCP server** (admins add them): a server that speaks the Model Context Protocol over Streamable HTTP, at the
   address an admin gives (this machine and the local network included, as for the model's address), with the headers
   it needs (a token). Lens lists its tools when it's saved, and the assistant calls them as `<server>__<tool>`: one the
-  server marks read-only answers at once, the others ask for approval. A server that runs as a program (stdio:
-  `command`, `args` and `env` instead of an address, as in Claude's `.mcp.json`, usually `npx` or `uvx`) runs in the
-  MCP runner, below.
+  server marks read-only answers at once, the others ask for approval, and an admin switches each on or off and says
+  which ask first ([Adding an MCP server](#adding-an-mcp-server)). A server that runs as a program (stdio: `command`,
+  `args` and `env` instead of an address, as in Claude's `.mcp.json`, usually `npx` or `uvx`) runs in the MCP runner,
+  below.
 - **Plugin**: a bundle of tools, skills, hooks and MCP servers, shared and switched off as one.
 
 Make one however suits you:
@@ -382,6 +386,35 @@ as its system prompt. Claude Code's hooks run commands on the computer, so they'
 the network (`.mcp.json`) come along when an admin installs it, and those that run as a program too when the MCP
 runner is on (ones that run a program shipped inside the plugin are left out). Repositories are read from GitHub or GitLab (or the archive link) through the same guard as web
 tools: public addresses only.
+
+### Adding an MCP server
+
+On **Extensions**, **Add MCP server** (admins) takes a name and either the server's address with the headers it needs,
+or the command it runs as with its arguments and environment. **Paste a config** reads the JSON other apps keep their
+servers in, one server or many: Claude's `.mcp.json` (or `mcpServers` in its settings), VS Code's `mcp.json`
+(`servers`), or a server on its own as its README gives it. A server without a name is named after its package or its
+address (`@modelcontextprotocol/server-github` is `github`), and values written as `${NAME}`, which those apps fill in
+from their own settings, are pointed out to fill in. Servers on the older SSE transport are left out with a note.
+**Test** asks the server for its tools before anything is saved, and Enter adds it. Over the API:
+`POST /api/v1/extensions/mcp/read` reads a config (nothing is reached), `POST /api/v1/extensions/mcp/test` lists a
+server's tools without saving it, and `POST /api/v1/extensions` saves it as an extension of kind `mcp`.
+
+Header and environment values whose names say they carry a credential (Authorization, API keys, tokens, secrets,
+passwords, cookies, sessions) are sealed when the server is saved, with the server's key (as notification targets and
+sources are, since an MCP server belongs to the whole install rather than a namespace), bound to the extension, the
+value's name and where it goes: the address's scheme, host and port, or the command with its arguments. They're opened
+only to reach the server and never shown again: the page, the API and the manifest give the name and `••••`. Saving a
+manifest with `••••` keeps the value saved before, unless the server now goes somewhere else (another host, or another
+command or package), when it asks for the value again, and a sealed value copied into another extension doesn't open.
+Other headers (`X-Team: blue`) stay as they are, and so does a secret written into the address or the arguments, so
+put tokens in headers or the environment.
+
+Each server's page lists its tools with a switch and **Asks first**. A tool the server marks read-only runs at once and
+the others ask, unless an admin says otherwise; the choices are kept in its manifest (`off`, the tools switched off,
+and `ask`, `{tool: true or false}` where it differs from the server's hint), stay when its tools are listed again, and
+each change is a new version (`PATCH /api/v1/extensions/{id}/tools` with `{tool, on, ask}`). Whatever the switch says,
+an MCP tool still asks first after the conversation read outside text, as every tool that sends to another host does
+([Third-party content and prompt injection](#third-party-content-and-prompt-injection)).
 
 ### The MCP runner
 

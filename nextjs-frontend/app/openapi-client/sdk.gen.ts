@@ -1205,6 +1205,9 @@ import type {
   ReadLogsData,
   ReadLogsErrors,
   ReadLogsResponses,
+  ReadMcpConfigData,
+  ReadMcpConfigErrors,
+  ReadMcpConfigResponses,
   RecordingTopicsData,
   RecordingTopicsErrors,
   RecordingTopicsResponses,
@@ -1493,6 +1496,9 @@ import type {
   SuggestTermsData,
   SuggestTermsErrors,
   SuggestTermsResponses,
+  SwitchMcpToolData,
+  SwitchMcpToolErrors,
+  SwitchMcpToolResponses,
   SwitchVersionData,
   SwitchVersionErrors,
   SwitchVersionResponses,
@@ -1537,6 +1543,9 @@ import type {
   TestMailboxResponses,
   TestMailData,
   TestMailResponses,
+  TestMcpServerData,
+  TestMcpServerErrors,
+  TestMcpServerResponses,
   TestNotifyTargetData,
   TestNotifyTargetErrors,
   TestNotifyTargetResponses,
@@ -9725,6 +9734,44 @@ export class Extensions {
   }
 
   /**
+   * Read Mcp Config
+   *
+   * The MCP servers in a config pasted from another app (Claude's .mcp.json, VS Code's mcp.json), ready to add: each
+   * as an MCP extension keeps it, and what was left out and why. Nothing is reached or saved.
+   */
+  public static readMcpConfig<ThrowOnError extends boolean = false>(
+    options: Options<ReadMcpConfigData, ThrowOnError>,
+  ): RequestResult<ReadMcpConfigResponses, ReadMcpConfigErrors, ThrowOnError> {
+    return (options.client ?? client).post<ReadMcpConfigResponses, ReadMcpConfigErrors, ThrowOnError>({
+      url: "/api/v1/extensions/mcp/read",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Test Mcp Server
+   *
+   * Ask an MCP server for its tools without saving it (admins). With `extension`, values sent as •••• are that
+   * server's saved ones.
+   */
+  public static testMcpServer<ThrowOnError extends boolean = false>(
+    options: Options<TestMcpServerData, ThrowOnError>,
+  ): RequestResult<TestMcpServerResponses, TestMcpServerErrors, ThrowOnError> {
+    return (options.client ?? client).post<TestMcpServerResponses, TestMcpServerErrors, ThrowOnError>({
+      url: "/api/v1/extensions/mcp/test",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Delete Extension
    *
    * Takes it out of the assistant at once.
@@ -9786,6 +9833,24 @@ export class Extensions {
         },
       },
     );
+  }
+
+  /**
+   * Switch Mcp Tool
+   *
+   * Switch one of an MCP server's tools on or off, or say whether it asks first (admins): a new version.
+   */
+  public static switchMcpTool<ThrowOnError extends boolean = false>(
+    options: Options<SwitchMcpToolData, ThrowOnError>,
+  ): RequestResult<SwitchMcpToolResponses, SwitchMcpToolErrors, ThrowOnError> {
+    return (options.client ?? client).patch<SwitchMcpToolResponses, SwitchMcpToolErrors, ThrowOnError>({
+      url: "/api/v1/extensions/{eid}/tools",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
   }
 
   /**
