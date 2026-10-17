@@ -1933,6 +1933,10 @@ doctr = [
 faces = [
     { name = "opencv-python-headless" },
 ]
+florence = [
+    { name = "onnxruntime" },
+    { name = "tokenizers" },
+]
 injection = [
     { name = "onnxruntime" },
     { name = "tokenizers" },
@@ -2040,6 +2044,7 @@ requires-dist = [
     { name = "mlx-whisper", marker = "extra == 'mlx'" },
     { name = "modelscope", marker = "extra == 'sensevoice'" },
     { name = "numpy", specifier = ">=2.5.4" },
+    { name = "onnxruntime", marker = "extra == 'florence'" },
     { name = "onnxruntime", marker = "extra == 'injection'" },
     { name = "onnxruntime", marker = "extra == 'insightface'" },
     { name = "onnxruntime", marker = "extra == 'objects'" },
@@ -2064,6 +2069,7 @@ requires-dist = [
     { name = "speechbrain", marker = "extra == 'voices'" },
     { name = "starlette", specifier = ">=1.8.0" },
     { name = "surrealdb", specifier = ">=2.0,<3" },
+    { name = "tokenizers", marker = "extra == 'florence'" },
     { name = "tokenizers", marker = "extra == 'injection'" },
     { name = "torch", marker = "extra == 'punctuation'" },
     { name = "torch", marker = "extra == 'sensevoice'" },
@@ -2073,7 +2079,7 @@ requires-dist = [
     { name = "transformers", marker = "extra == 'punctuation'" },
     { name = "webauthn", specifier = ">=3.0.1,<4" },
 ]
-provides-extras = ["sensevoice", "whisper", "mlx", "laya", "voices", "pyannote", "faces", "mac-ocr", "rapidocr", "doctr", "insightface", "objects", "punctuation", "spacy", "injection", "validate", "smb", "sandbox", "web", "msg"]
+provides-extras = ["sensevoice", "whisper", "mlx", "laya", "voices", "pyannote", "faces", "mac-ocr", "rapidocr", "doctr", "insightface", "objects", "punctuation", "spacy", "injection", "florence", "validate", "smb", "sandbox", "web", "msg"]
 
 [package.metadata.requires-dev]
 dev = [

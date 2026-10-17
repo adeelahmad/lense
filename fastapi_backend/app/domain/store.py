@@ -176,6 +176,9 @@ DEFAULTS = {
         # a model the admin knows can see images: it describes pages and shots (the describe step); none, none are
         "vision_model": None,
         "describe_max": 50,  # pages or shots of a resource described at most
+        # what describes them: "llm" (vision_model, above) or "florence-2" (on this machine, florence.py)
+        "describe_engine": "llm",
+        "florence_model": "base",  # Florence-2 base (about 280 MB) or large (about 830 MB)
     },
     "graph": {"max_nodes": 150, "min_edge_weight": 2},
     "search": {
@@ -302,6 +305,7 @@ DEFAULTS = {
         "injection_check": "patterns",  # flag text that reads like instructions to an AI: patterns, classifier, model, off
         "disabled_tools": [],
         "max_steps": 6,
+        "max_tool_calls": 50,  # the most tool calls a question may give one answer (its `max_tool_calls`; chat.tool_answer)
         "max_transcript_reads": 20,
         "confirm_over_recordings": 100,
         "confirm_over_cost": None,

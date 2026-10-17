@@ -145,6 +145,14 @@ function ScopePicker({
       <div className="max-h-[300px] overflow-y-auto">
         {section === "namespaces" && (
           <ul className="m-0 flex list-none flex-col gap-2 p-0">
+            <li className="flex items-center gap-2 border-b border-border pb-2">
+              <Checkbox
+                checked={!scope.namespaces?.length}
+                onCheckedChange={() => onChange({ ...scope, namespaces: undefined })}
+                label={<span className="font-semibold">All my namespaces</span>}
+              />
+              <span className="ml-auto text-[12px] text-fg-muted">{namespaceSize(namespaces)}</span>
+            </li>
             {namespaces.map((n) => (
               <li key={n.name} className="flex items-center gap-2">
                 <Checkbox
@@ -161,7 +169,8 @@ function ScopePicker({
               </li>
             ))}
             <li className="pt-1 text-[12px] text-fg-muted">
-              None ticked means all your namespaces. Scope never goes beyond what you can read.
+              Scope never goes beyond what you can read. It narrows the archive’s tools: web and MCP tools reach beyond
+              your namespaces.
             </li>
           </ul>
         )}
@@ -298,7 +307,8 @@ function useCollectionNames(enabled: boolean): Map<number, string> {
   return useMemo(() => new Map((cols.data ?? []).map((c) => [c.id, c.name])), [cols.data]);
 }
 
-/** Scope chips (each shows its size), "+ Scope", and which model answers (a menu, when there's a choice). */
+/** Scope chips (each shows its size), "+ Scope", the Tools chip, and which model answers (a menu, when there's a
+ * choice). */
 export function ScopeBar({
   scope,
   onChange,
@@ -306,6 +316,7 @@ export function ScopeBar({
   tools,
   models = [],
   onModel,
+  toolsChip,
   className,
 }: {
   scope: Scope;
@@ -315,6 +326,8 @@ export function ScopeBar({
   /** The models people may pick (GET /chats/capabilities). */
   models?: string[];
   onModel?: (m: string) => void;
+  /** What the answers may use (the Tools chip), after the scope. */
+  toolsChip?: ReactNode;
   className?: string;
 }) {
   const { namespaces } = useArchive();
@@ -379,6 +392,7 @@ export function ScopeBar({
         <PopoverTrigger asChild>
           <button
             type="button"
+            data-scope-open
             className="inline-flex h-7 items-center gap-1 rounded-pill border border-dashed border-border px-2.5 text-[12px] font-semibold text-fg-secondary hover:border-fg-muted hover:text-fg"
           >
             <Plus className="size-3" aria-hidden /> Scope
@@ -388,6 +402,7 @@ export function ScopeBar({
           <ScopePicker scope={scope} onChange={onChange} onClose={() => setOpen(false)} />
         </PopoverContent>
       </Popover>
+      {toolsChip}
       <span className="flex-1" />
       {model &&
         (models.length > 1 && onModel ? (

@@ -684,15 +684,26 @@ function LlmBody({ ctx }: { ctx: BodyCtx }) {
       </div>
       <More
         ctx={ctx}
-        ids={["llm.api_key_env", "llm.chat_models", "llm.vision_model", "llm.describe_max"]}
-        title="Models people may pick, pictures, and a key from the environment"
+        ids={["llm.api_key_env", "llm.chat_models"]}
+        title="Models people may pick, and a key from the environment"
       >
         <F ctx={ctx} id="llm.chat_models" />
+        <F ctx={ctx} id="llm.api_key_env" hint="Used only when no key is stored above" />
+      </More>
+      <More
+        ctx={ctx}
+        ids={["llm.describe_engine", "llm.vision_model", "llm.florence_model", "llm.describe_max"]}
+        title="Describing pictures"
+      >
+        <F ctx={ctx} id="llm.describe_engine" />
         <div className="grid gap-3 sm:grid-cols-2">
-          <F ctx={ctx} id="llm.vision_model" />
+          {ctx.state("llm.describe_engine").value === "florence-2" ? (
+            <F ctx={ctx} id="llm.florence_model" />
+          ) : (
+            <F ctx={ctx} id="llm.vision_model" />
+          )}
           <F ctx={ctx} id="llm.describe_max" />
         </div>
-        <F ctx={ctx} id="llm.api_key_env" hint="Used only when no key is stored above" />
       </More>
       <div className="flex flex-wrap items-center gap-2.5">
         <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
@@ -2582,6 +2593,7 @@ const LIMITS = [
   "ai.price_in",
   "ai.price_out",
   "ai.max_steps",
+  "ai.max_tool_calls",
   "ai.browser_steps",
   "ai.max_transcript_reads",
   "ai.compact_model",
@@ -2649,6 +2661,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
           <F ctx={ctx} id="ai.price_in" />
           <F ctx={ctx} id="ai.price_out" />
           <F ctx={ctx} id="ai.max_steps" />
+          <F ctx={ctx} id="ai.max_tool_calls" />
           <F ctx={ctx} id="ai.browser_steps" />
           <F ctx={ctx} id="ai.max_transcript_reads" />
           <F ctx={ctx} id="ai.compact_model" />

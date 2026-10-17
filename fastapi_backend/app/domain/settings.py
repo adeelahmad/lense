@@ -162,6 +162,8 @@ ENUMS = {
     ("search", "stemming"): {"english", "none"},
     ("search", "engine"): set(store.SEARCH_ENGINES),
     ("reports", "audio"): {"link", "embed", "none"},
+    ("llm", "describe_engine"): {"llm", "florence-2"},
+    ("llm", "florence_model"): {"base", "large"},
     ("video", "ocr_engine"): {"auto", "tesseract", "apple-vision", "rapidocr", "doctr", "none"},
     ("video", "face_engine"): {"opencv", "insightface", "anytopdf", "none"},
     ("video", "object_engine"): {"yolox", "ultralytics", "anytopdf", "off"},
@@ -449,6 +451,10 @@ def _check(section, key, value, default):
     if (section, key) == ("ai", "browser_steps"):
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 100):
             raise ValueError("ai.browser_steps is a whole number of steps from 1 to 100")
+        return value
+    if (section, key) == ("ai", "max_tool_calls"):
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 500):
+            raise ValueError("ai.max_tool_calls is a whole number of tool calls from 1 to 500")
         return value
     if (section, key) == ("llm", "describe_max"):
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 1000):

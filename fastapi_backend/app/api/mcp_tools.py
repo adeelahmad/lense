@@ -44,9 +44,11 @@ from app.domain import (
     auth,
     blobs,
     decide,
+    descriptions,
     events,
     feeds,
     filetree,
+    florence,
     graph_history,
     integrations,
     library,
@@ -1684,7 +1686,8 @@ def find_notes(ctx: Context, query: str | None, namespace: str | None, place: st
 @tool(
     "read_note",
     "Read a note",
-    "A note's Markdown, with what it links to and the notes linking to it: by note_id, or the page of a thing "
+    "A note's Markdown, with what it links to, the notes linking to it, the notes it is inside (path, from the top) and "
+    "the notes inside it: by note_id, or the page of a thing "
     '(about, like "recording:12", "entity:5" or "topic:9"). Links in the Markdown are written @[label](kind:id) and, for '
     "topics, #[label](topic:id).",
     Arg("note_id", "integer", "the note (from find_notes)"),
@@ -1717,6 +1720,8 @@ def read_note(ctx: Context, note_id: int | None, about: str | None) -> dict[str,
             "body": _cut(p.body, FETCH_CHARS),
             "links": [{"target": x.target, "name": x.name} for x in p.links] or None,
             "linked_from": [{"note_id": b.page, "title": b.title} for b in p.backlinks] or None,
+            "path": [{"note_id": c.id, "title": c.title} for c in p.path] or None,
+            "notes_inside": [{"note_id": c.id, "title": c.title} for c in p.children] or None,
             "url": _note_url(ctx, p.id),
         }
     )
@@ -2044,6 +2049,62 @@ def read_file(ctx: Context, path: str, offset: int) -> dict[str, Any]:
     if offset + FILE_CHARS < len(text):
         out["next_offset"] = offset + FILE_CHARS
     return out
+
+
+# ---------- describing pictures (admins) ----------
+@tool(
+    "picture_descriptions",
+    "Describing pictures",
+    "What describes the pages of documents and images and the shots of videos (the describe step; search finds what "
+    "it says): the LLM provider's model that can see images, or Florence-2 on this server. Its model, whether it's "
+    "ready and why not, how many pages or shots of a resource are described at most, and the engines there are. "
+    "Admins only.",
+    admin=True,
+)
+def picture_descriptions(ctx: Context) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins see how pictures are described")
+    return {**descriptions.status(ctx.cfg), "settings": f"{ctx.web}/settings/llm"}
+
+
+@tool(
+    "set_picture_descriptions",
+    "Change how pictures are described",
+    "Choose what describes the pages and shots of new and reprocessed resources: engine llm, the LLM provider's model "
+    "that can see images (vision_model), or florence-2, Florence-2 (MIT) on this server's CPU, so no picture leaves it "
+    "(florence_model base, about 280 MB, or large, about 830 MB, fetched the first time a job needs it); and "
+    "describe_max, how many pages or shots of a resource are described at most. Admins only, with a token that has "
+    "the write scope.",
+    Arg("engine", "string", "what describes pictures", enum=tuple(descriptions.ENGINES)),
+    Arg("vision_model", "string", "the LLM provider's model that can see images, for engine llm; empty for none", max_length=200),
+    Arg("florence_model", "string", "Florence-2's size, for engine florence-2", enum=florence.SIZES),
+    Arg("describe_max", "integer", "pages or shots of a resource described at most, 1 to 1000"),
+    writes=True,
+    admin=True,
+)
+def set_picture_descriptions(
+    ctx: Context,
+    engine: str | None = None,
+    vision_model: str | None = None,
+    florence_model: str | None = None,
+    describe_max: int | None = None,
+) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins change how pictures are described")
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to change how pictures are described")
+    given = (
+        ("describe_engine", engine),
+        ("vision_model", vision_model),
+        ("florence_model", florence_model),
+        ("describe_max", describe_max),
+    )
+    changes = {k: v for k, v in given if v is not None}
+    if not changes:
+        raise ToolError("say what to change: engine, vision_model, florence_model or describe_max")
+    settings.save(ctx.db, ctx.request.app.state.archive.base, "llm", changes, ctx.user.email)
+    auth.audit(ctx.db, ctx.user.as_audit(), "settings.save", "llm", sorted(changes) + ["mcp"])
+    return {"saved": changes, **descriptions.status(ctx.request.app.state.settings.current())}
 
 
 # ---------- where files are kept (admins) ----------

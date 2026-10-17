@@ -4,11 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
-- **More tests for automations' conditions.** An If, a trigger's where and a condition node can now test that text
-  starts or ends with something or matches a pattern, that a value is in a list, that a number or a time is between
-  two, before or after a time or within a duration, falls on certain days or times of day, and whether a value changed
-  since the last activity. Each value is checked when it's saved, and patterns that could tie up the worker are refused
-  ([Operators](docs/automations.md#operators)).
+- **Choose the tools, a limit and the namespaces of an answer.** A conversation, or one question, can pick the tool
+  groups or tools its answers may use (`tools`), cap their tool calls (`max_tool_calls`, up to the new Settings → AI
+  assistant → Most tool calls a question may ask for, 50 by default) and narrow one answer to its own namespaces
+  (`scope`). `GET /api/v1/chats/tools` lists the groups a person has, what each tool does (reads, asks first, sends data
+  out) and why a group is missing. An admin's switches still win, and new conversations start with the person's last
+  choice. In the web app, a Tools chip beside the scope picks them, and "All my namespaces" tops the scope's list
+  ([Choosing tools, namespaces and a limit](docs/assistant.md#choosing-tools-namespaces-and-a-limit)).
 - **Names get their real types, not Term.** The built-in extractor now tells people, places, organisations, events,
   works and dates apart without a model: by a title or role before a name, a given name, the word a name ends or
   starts with (Corp, University of, Summit, Act, River), lists of countries, regions and large cities and of
@@ -33,6 +35,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   fixed, by rules, on English lines. Every changed line is in Change history with Revert, and lines someone corrected
   are left alone. Reprocess, pipelines, `POST /api/v1/recordings/<id>/reprocess` and `lens clean` run it
   ([Cleaning up transcripts](docs/processing.md#cleaning-up-transcripts)).
+- **Describe pictures on this machine with Florence-2.** Settings → LLM provider → Describing pictures can now have
+  Microsoft's Florence-2 (MIT) describe each page and shot instead of the provider's model that can see images
+  (`llm.describe_engine` `florence-2`). It runs on the CPU through ONNX Runtime, so no picture leaves the machine and
+  no provider is needed; its 8-bit export is fetched the first time a job waits to describe something, pinned and
+  checked against its SHA-256: base (about 280 MB, `llm.florence_model`) or large (about 830 MB). Each picture is a
+  `model.describe` row in the activity ledger. Agents read and change it with the MCP tools `picture_descriptions` and
+  `set_picture_descriptions`. The default stays the provider's model ([Descriptions](docs/configuration.md#descriptions)).
 - **Automations run.** An automation saved over the API (`/api/v1/automations`) now reacts to new assets in its
   namespaces: when its If passes, it runs its workflow as the person who made it, within its limits and budgets, and
   each run shows what its actions did. Try one on an activity without keeping or sending anything, or run it now;
@@ -49,6 +58,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Templates.** Notes inside a namespace's Templates note are templates: **New note from a template…** on the Notes
   page and in Jump to starts a note from one, with its text, drawings, files and filing. Any note's menu in the tree can
   also **Make a copy** ([Templates](docs/notes.md#templates)).
+- **A note says where it is.** Above a note's title, **Notes › namespace ›** each note it's inside, every one a link;
+  under its text, **Inside this note** lists the notes inside it with **Add a note inside**. The text now starts in line
+  with the title, the word count shows next to Saved, and Pin, History, Download and Delete are in the note's **⋯**
+  menu. **Costs and activity** is folded at the bottom ([On a note](docs/notes.md#on-a-note)).
 - **Automations for agents.** Agents list, save, try and run automations through the MCP tools `automations`,
   `automation_actions`, `save_automation`, `test_automation` and `run_automation`, with problems in plain words. The
   assistant saves them switched off and asks before switching one on or running it
@@ -116,6 +129,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   for the asset (or for what came in) and passes on the choice, how sure and every label ranked, for a Condition
   or Switch to branch on; set to act, a sure answer sets the content type, suggests the topic or adds the tag
   ([Workflows and the canvas](docs/processing.md#workflows-and-the-canvas)).
+- **More tests for automations' conditions.** An If, a trigger's where and a condition node can now test that text
+  starts or ends with something or matches a pattern, that a value is in a list, that a number or a time is between
+  two, before or after a time or within a duration, falls on certain days or times of day, and whether a value changed
+  since the last activity. Each value is checked when it's saved, and patterns that could tie up the worker are refused
+  ([Operators](docs/automations.md#operators)).
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 

@@ -159,7 +159,8 @@ def test_capabilities_for_everyone(client, new_client, db, cfg, folder, llm):
     make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
     hv = login(client, "vi@x.io", "viewer password 1")
     caps = client.get("/api/v1/chats/capabilities", headers=hv).json()
-    assert caps == {"configured": True, "model": "fake", "tools": True, "max_steps": 6, "check": True, "models": ["fake", "fake-large"]}
+    want = {"configured": True, "model": "fake", "tools": True, "max_steps": 6, "max_tool_calls": 50, "check": True}
+    assert caps == {**want, "models": ["fake", "fake-large"]}
     assert "base_url" not in json.dumps(caps) and new_client().get("/api/v1/chats/capabilities").status_code == 401
     admin = new_client()
     assert (
