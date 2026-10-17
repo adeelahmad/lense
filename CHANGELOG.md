@@ -9,7 +9,7 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   assistant → Most tool calls a question may ask for, 50 by default) and narrow one answer to its own namespaces
   (`scope`). `GET /api/v1/chats/tools` lists the groups a person has, what each tool does (reads, asks first, sends data
   out) and why a group is missing. An admin's switches still win, and new conversations start with the person's last
-  choice. The web app's Tools chip is in progress
+  choice. In the web app, a Tools chip beside the scope picks them, and "All my namespaces" tops the scope's list
   ([Choosing tools, namespaces and a limit](docs/assistant.md#choosing-tools-namespaces-and-a-limit)).
 - **Names get their real types, not Term.** The built-in extractor now tells people, places, organisations, events,
   works and dates apart without a model: by a title or role before a name, a given name, the word a name ends or
@@ -35,6 +35,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   fixed, by rules, on English lines. Every changed line is in Change history with Revert, and lines someone corrected
   are left alone. Reprocess, pipelines, `POST /api/v1/recordings/<id>/reprocess` and `lens clean` run it
   ([Cleaning up transcripts](docs/processing.md#cleaning-up-transcripts)).
+- **Describe pictures on this machine with Florence-2.** Settings → LLM provider → Describing pictures can now have
+  Microsoft's Florence-2 (MIT) describe each page and shot instead of the provider's model that can see images
+  (`llm.describe_engine` `florence-2`). It runs on the CPU through ONNX Runtime, so no picture leaves the machine and
+  no provider is needed; its 8-bit export is fetched the first time a job waits to describe something, pinned and
+  checked against its SHA-256: base (about 280 MB, `llm.florence_model`) or large (about 830 MB). Each picture is a
+  `model.describe` row in the activity ledger. Agents read and change it with the MCP tools `picture_descriptions` and
+  `set_picture_descriptions`. The default stays the provider's model ([Descriptions](docs/configuration.md#descriptions)).
 - **Enhance low quality images before they're read.** The new `enhance` step, first in the standard pipeline,
   measures each image (size, sharpness, noise, contrast, and face size where the namespace finds faces) and keeps an
   enhanced copy of a low quality one, which OCR, faces, objects and descriptions then read; the original stays as it
