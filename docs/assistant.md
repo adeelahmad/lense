@@ -147,7 +147,8 @@ Exports carry each tool call's arguments and summary, never its raw result, whic
 export the same way over MCP: `list_chats`, `read_chat` and `export_chat` ([MCP](mcp.md)) work on the person's own
 conversations.
 
-Planned: importing a conversation from its JSON, exporting one to a note, and a styled PDF without Chromium.
+The web app's copy buttons and Export menus are in progress. Planned: importing a conversation from its JSON,
+exporting one to a note, and a styled PDF without Chromium.
 
 ### Picking the namespace for a conversation over everything
 

@@ -4,6 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Export a conversation.** `GET /api/v1/chats/<id>/export.md`, `.pdf` or `.json` gives the version showing, one
+  message (`?message=`) or, as JSON, every version (`?all=true`). The Markdown has each question and answer, its
+  citations as footnotes linking back to the moment in Lens and the tools it used; the PDF is that Markdown printed by
+  Chromium, else anytopdf, else LibreOffice (409 when none can run); the JSON is OpenAI's chat message format in a tree
+  with Dublin Core terms, or `?format=messages` for one `{"messages": [...]}` line, checked against a published schema.
+  Agents use `list_chats`, `read_chat` and `export_chat` over MCP. The web app's copy and export buttons are in
+  progress ([Copy and export](docs/assistant.md#copy-and-export)).
 - **Automations run.** An automation saved over the API (`/api/v1/automations`) now reacts to new assets in its
   namespaces: when its If passes, it runs its workflow as the person who made it, within its limits and budgets, and
   each run shows what its actions did. Try one on an activity without keeping or sending anything, or run it now;
