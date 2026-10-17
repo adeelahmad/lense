@@ -25,6 +25,7 @@ from app.domain import (
     sensors,
     settings,
     setup,
+    specs,
     store,
     templates,
     tunnel,
@@ -63,6 +64,7 @@ class Archive:
         # first: after a rollback to this version, the database as it was before the upgrade (docs/updates.md)
         updates.restore_on_start(self.db, self.base)
         templates.seed(self.db)
+        specs.template(self.db)  # "Spec from transcript", there to edit before the first spec (and on older installs)
         content_types.seed(self.db)
         routines.seed(self.db)
         # Pay for the embedded engine's full-text repair, or for building the SQLite index, at startup rather than

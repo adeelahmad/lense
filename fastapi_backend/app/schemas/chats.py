@@ -466,6 +466,7 @@ class ApprovalDecision(RequestModel):
 class ApprovalOutcome(ResponseModel):
     status: str
     batch: int | None = Field(default=None, description="the batch run started, for run_template")
+    job: int | None = Field(default=None, description="the job started, for write_spec")
     error: str | None = Field(default=None, description="why an automation's action failed")
     result: Any = Field(default=None, description="what an automation's action gave back")
     always: bool | None = Field(default=None, description="that node runs without asking from now on")
