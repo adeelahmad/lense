@@ -551,8 +551,9 @@ OWN_RESULTS = {
 BROWSER_OUT = {"browser_open", "browser_click", "browser_type", "browser_press"}
 
 # The groups of tools a question can be given (POST /chats/{cid}/messages `tools`; docs/assistant.md, "Choosing tools,
-# namespaces and a limit"), in the order the web app shows them, each built-in tool in one. Extensions add their own:
-# mcp:<name> for an MCP server's tools, ext:<name> for another extension's (extensions.Active.groups).
+# namespaces and a limit"), in the order the web app shows them, each built-in tool in one: a new tool joins one here
+# (test_chat_tools checks). Extensions add their own: mcp:<name> for an MCP server's tools, ext:<name> for another
+# extension's (extensions.Active.groups).
 GROUPS = {
     "archive": {
         "label": "Archive",
