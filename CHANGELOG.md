@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Punctuation put back in transcripts.** With transcripts cleaned up, Settings → Analysis → Put punctuation back
+  adds full stops, commas and question marks with a local model (kredor/punctuate-all, MIT, 12 languages), to
+  transcripts that have hardly any (imported captions) or to every one, keeping the marks they have. The model and
+  PyTorch (about 2 GB) are fetched the first time it's needed; off by default
+  ([Cleaning up transcripts](docs/processing.md#cleaning-up-transcripts)).
 - **Clean up transcripts before analysis.** With Settings → Analysis → Clean up transcripts before analysis on (off
   by default), a new Clean up step runs before Analyze: a word said three times in a row is kept once ("I I I looked"
   → "I looked"), doubled pronouns and articles once, "um" and "uh" go, and spacing, "i" and sentence capitals are

@@ -1871,6 +1871,10 @@ msg = [
 objects = [
     { name = "onnxruntime" },
 ]
+punctuation = [
+    { name = "torch" },
+    { name = "transformers" },
+]
 pyannote = [
     { name = "pyannote-audio" },
 ]
@@ -1971,13 +1975,15 @@ requires-dist = [
     { name = "starlette", specifier = ">=1.3.1" },
     { name = "surrealdb", specifier = ">=2.0,<3" },
     { name = "tokenizers", marker = "extra == 'injection'" },
+    { name = "torch", marker = "extra == 'punctuation'" },
     { name = "torch", marker = "extra == 'sensevoice'" },
     { name = "torch", marker = "extra == 'voices'" },
     { name = "torchaudio", marker = "extra == 'sensevoice'" },
     { name = "torchaudio", marker = "extra == 'voices'" },
+    { name = "transformers", marker = "extra == 'punctuation'" },
     { name = "webauthn", specifier = ">=3.0.1,<4" },
 ]
-provides-extras = ["sensevoice", "whisper", "mlx", "laya", "voices", "pyannote", "faces", "mac-ocr", "rapidocr", "doctr", "insightface", "objects", "injection", "validate", "smb", "sandbox", "web", "msg"]
+provides-extras = ["sensevoice", "whisper", "mlx", "laya", "voices", "pyannote", "faces", "mac-ocr", "rapidocr", "doctr", "insightface", "objects", "punctuation", "injection", "validate", "smb", "sandbox", "web", "msg"]
 
 [package.metadata.requires-dev]
 dev = [
