@@ -11880,6 +11880,45 @@
         }
       }
     },
+    "/api/v1/notes/export": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Export Notes",
+        "description": "Every page of the namespace as Markdown files in a zip, for other notes apps (Obsidian and the like): free notes\nin folders that follow the tree, the pages of things under \"Pages of things\".",
+        "operationId": "export_notes",
+        "parameters": [
+          {
+            "name": "ns",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ns"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "a zip of Markdown files",
+            "content": {
+              "application/zip": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/notes/deleted": {
       "get": {
         "tags": [
@@ -12296,6 +12335,45 @@
                   "title": "Response Notes-Home Suggestions"
                 }
               }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notes/{pid}/markdown": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Page Markdown",
+        "description": "The page as a Markdown file of its own: front matter with its title, date, filing and summary, then its text,\nwith links to other pages as [[Title]] wiki links.",
+        "operationId": "page_markdown",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the page as a Markdown file",
+            "content": {
+              "text/markdown": {}
             }
           },
           "422": {
