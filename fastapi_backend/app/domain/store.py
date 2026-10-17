@@ -153,7 +153,8 @@ DEFAULTS = {
         "sample_seconds": 60,
         "cross_namespace": "suggest",
     },
-    # anytopdf: the places and dates anytopdf (run here) finds, as hints for the extractor (enrich.py); cleanup: the
+    # anytopdf: the places and dates anytopdf (run here) finds, as hints for the extractor (enrich.py); dates: the dates
+    # each line gives kept as days on the calendar (dates.py); cleanup: the
     # clean step tidies transcripts before analysis (cleanup.py), cleanup_fillers taking out "um" and "uh" too, and
     # cleanup_punctuation (off, missing, always) putting marks back with a local model
     "analysis": {
@@ -161,6 +162,7 @@ DEFAULTS = {
         "spacy_model": "en_core_web_sm",
         "gazetteer": [],
         "anytopdf": False,
+        "dates": False,
         "cleanup": False,
         "cleanup_fillers": True,
         "cleanup_punctuation": "off",
@@ -1181,6 +1183,10 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS merge SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS section SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS section_rec ON section FIELDS recording",
+    # the dates a recording's lines give, as days on the calendar (dates.py)
+    "DEFINE TABLE IF NOT EXISTS date_said SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS date_said_rec ON date_said FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS date_said_day ON date_said FIELDS space, day",
     "DEFINE TABLE IF NOT EXISTS entity SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS entity_space ON entity FIELDS space",
     "DEFINE INDEX IF NOT EXISTS entity_key ON entity FIELDS ekey UNIQUE",
@@ -1776,6 +1782,7 @@ DOWNSTREAM = [
     "DELETE mentions WHERE recording = $rid",
     "DELETE term WHERE recording = $rid",
     "DELETE section WHERE recording = $rid",
+    "DELETE date_said WHERE recording = $rid",
     "DELETE appearance WHERE recording = $rid",
     "DELETE segment WHERE recording = $rid AND idx >= $keep",
     "DELETE passage WHERE recording = $rid",

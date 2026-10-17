@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Dates read as days, for agents.** With Settings → Analysis → Read dates on (off by default), analysis reads the
+  dates each line gives as days on the calendar: "next Tuesday" in a recording made on a Wednesday is the Tuesday
+  after, "last week" Monday to Sunday before, "March 2024" all of March, worked out from the asset's own date. Agents
+  ask what was said about a day or a range with `GET /api/v1/dates`, the MCP tool `list_dates` and the assistant's
+  `find_dates`, each date with its line and a link to that moment. English rules, no model; a weekday alone or
+  "10/11/2026" is left out rather than guessed ([Dates](docs/processing.md#dates)).
 - **Choose the tools, a limit and the namespaces of an answer.** A conversation, or one question, can pick the tool
   groups or tools its answers may use (`tools`), cap their tool calls (`max_tool_calls`, up to the new Settings → AI
   assistant → Most tool calls a question may ask for, 50 by default) and narrow one answer to its own namespaces
