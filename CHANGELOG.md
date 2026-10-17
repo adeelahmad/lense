@@ -4,6 +4,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **A loading bar, as in Gmail.** A thin blue bar runs along the top of the web app while a page or its data loads:
+  on every page change, and while a page waits for its first answers from the API. Refreshing what's already on screen
+  and anything quicker than a blink don't show it ([The web app](docs/frontend.md#data)).
 - **Specs from transcripts.** Turn a voice session or a meeting into a technical spec, saved as a note linked to it:
   the model writes the spec, then lists every named decision, every "no" and "not that, this", every constraint and
   every gap the speaker left to decide later, each with its quote and a link to the moment it was said; a quote the
