@@ -24824,7 +24824,7 @@
           "chats"
         ],
         "summary": "Get Chat",
-        "description": "A conversation with its messages. Citations follow your current access: ones you can no longer read are left out.",
+        "description": "A conversation with the version showing (`messages`, each with its `versions`) and every version's messages\n(`tree`). Citations follow your current access: ones you can no longer read are left out.",
         "operationId": "get_chat",
         "parameters": [
           {
@@ -24953,13 +24953,66 @@
         }
       }
     },
+    "/api/v1/chats/{cid}/head": {
+      "put": {
+        "tags": [
+          "chats"
+        ],
+        "summary": "Switch Version",
+        "description": "Show another version: the one `message` is in, from the first message to the newest one below `message`. The\nnext question goes on from there. Returns the conversation as GET /chats/{cid} does.",
+        "operationId": "switch_version",
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeadUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Chat"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chats/{cid}/messages": {
       "post": {
         "tags": [
           "chats"
         ],
         "summary": "Send Message",
-        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).\n\nWith `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and\nits new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked\nfrom (where, and the highlighted text; not the page's text, which isn't kept).\n\n`/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the\nconversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.\n\nWith `browser` (the session of a browser's Lens side panel, POST /browser/sessions), the assistant can use that\nbrowser while the side panel is connected: open pages, read them, click, type and download files into the\nconversation (docs/browser-assistant.md).",
+        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).\n\nA conversation is a tree of versions (GET /chats/{cid}: `tree`, and each message's `versions`); the question goes\non from `parent` when given (any message of the conversation), else from the version showing (`head`). With\n`regenerate` (an answer's id) its question is answered again, as a new version beside that answer (`content` isn't\nneeded; `model` may pick another). With `edit`, one of your earlier questions is edited: this question becomes a new\nversion beside it and is answered, and the old one stays with what followed it (404 if it isn't a question in this\nconversation). Either keeps the page the question was asked from (where, and the highlighted text; not the page's\ntext, which isn't kept) unless `context` is given, and streams `branch` first ({message, parent, versions}: the\nnew version, the message it follows and its versions); so does a question beside others under `parent`.\n\n`/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the\nconversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.\n\nWith `browser` (the session of a browser's Lens side panel, POST /browser/sessions), the assistant can use that\nbrowser while the side panel is connected: open pages, read them, click, type and download files into the\nconversation (docs/browser-assistant.md).",
         "operationId": "send_message",
         "parameters": [
           {
@@ -36014,13 +36067,33 @@
             "type": "integer",
             "title": "Account"
           },
+          "head": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head",
+            "description": "the last message of the version showing, which the next question follows"
+          },
           "messages": {
             "items": {
               "$ref": "#/components/schemas/ChatMessage"
             },
             "type": "array",
             "title": "Messages",
-            "default": []
+            "description": "the version showing, from the first message to `head`"
+          },
+          "tree": {
+            "items": {
+              "$ref": "#/components/schemas/ChatNode"
+            },
+            "type": "array",
+            "title": "Tree",
+            "description": "every message of every version, oldest first"
           }
         },
         "additionalProperties": true,
@@ -36384,6 +36457,29 @@
             ],
             "title": "Model",
             "description": "the model that wrote the answer"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "the message it follows; null for a first question"
+          },
+          "versions": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Versions"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "it and the others said in its place, from regenerating or editing"
           }
         },
         "additionalProperties": true,
@@ -36394,6 +36490,52 @@
           "content"
         ],
         "title": "ChatMessage"
+      },
+      "ChatNode": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "role"
+        ],
+        "title": "ChatNode",
+        "description": "A message of any version, as `tree` lists them."
       },
       "ChatScope": {
         "properties": {
@@ -43619,6 +43761,21 @@
         "title": "HandlingChange",
         "description": "A setting left out stays as it is; null goes back to the settings' default; 0 days keeps them for good."
       },
+      "HeadUpdate": {
+        "properties": {
+          "message": {
+            "type": "integer",
+            "title": "Message",
+            "description": "a message of the version to show: the head moves to the newest message below it"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "HeadUpdate"
+      },
       "Health": {
         "properties": {
           "database": {
@@ -48373,6 +48530,30 @@
             "title": "Model",
             "description": "answer this one with another model (one of GET /chats/capabilities `models`), e.g. to retry"
           },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "the message to go on from (one of this conversation's, of any version); null: the conversation's `head`"
+          },
+          "regenerate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regenerate",
+            "description": "an answer's message id: write a new answer to its question, as another version beside it (`content` is not needed; `model` picks another model)"
+          },
           "edit": {
             "anyOf": [
               {
@@ -48383,7 +48564,7 @@
               }
             ],
             "title": "Edit",
-            "description": "edit one of your earlier questions (its message id): it and everything after it are replaced by this question and a new answer"
+            "description": "edit one of your earlier questions (its message id): this question becomes a new version beside it, and is answered; the old one and what followed it stay as the other version"
           },
           "browser": {
             "anyOf": [
@@ -67802,6 +67983,35 @@
           "version"
         ],
         "title": "VersionSaved"
+      },
+      "Versions": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index",
+            "description": "which of them this one is, from 1"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Ids"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "index",
+          "count",
+          "ids"
+        ],
+        "title": "Versions",
+        "description": "A message's versions: it and the others with the same parent and role, oldest first."
       },
       "VideoImportRequest": {
         "properties": {

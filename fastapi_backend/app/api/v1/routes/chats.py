@@ -1,6 +1,7 @@
 """Conversations with the archive, the assistant's approvals, and checking an answer against its sources.
 
-A question streams back server-sent events: ``scoped`` (the namespace a conversation over everything was narrowed
+A question streams back server-sent events: ``branch`` (a new version: regenerated, edited, or beside others),
+``scoped`` (the namespace a conversation over everything was narrowed
 to) or ``suggested`` (namespaces to offer when it isn't clear, new ones included), ``step`` (a tool the assistant used), ``approval`` (work it proposed that waits for you), ``notice``, ``passages`` (the numbered excerpts), ``token`` (answer text), ``error`` and ``done``.
 The assistant only ever sees, and cites, what the asker can read.
 """
@@ -33,6 +34,7 @@ from app.schemas.chats import (
     ChatScope,
     ChatSummary,
     ChatUpdate,
+    HeadUpdate,
     MessageCreate,
     StopResult,
 )
@@ -111,9 +113,28 @@ def create_chat(user: Writer, acl: Acl, db: Db, cfg: Cfg, body: ChatCreate | Non
 
 @router.get("/chats/{cid}")
 def get_chat(cid: int, user: CurrentUser, acl: Acl, db: Db) -> Chat:
-    """A conversation with its messages. Citations follow your current access: ones you can no longer read are left out."""
+    """A conversation with the version showing (`messages`, each with its `versions`) and every version's messages
+    (`tree`). Citations follow your current access: ones you can no longer read are left out."""
+    return _chat_view(db, acl, _own_chat(db, cid, user))
+
+
+@router.put("/chats/{cid}/head")
+def switch_version(cid: int, body: HeadUpdate, user: Writer, acl: Acl, db: Db) -> Chat:
+    """Show another version: the one `message` is in, from the first message to the newest one below `message`. The
+    next question goes on from there. Returns the conversation as GET /chats/{cid} does."""
     c = _own_chat(db, cid, user)
-    msgs, ok = chat.history(db, cid), set(acl.roles)
+    try:
+        c["head"] = chat.switch(db, cid, body.message)
+    except KeyError:
+        raise HTTPException(404, "no such message in this conversation") from None
+    return _chat_view(db, acl, c)
+
+
+def _chat_view(db: DB, acl: Access, c: dict[str, Any]) -> Chat:
+    nodes = chat.tree(db, c["id"])
+    msgs, ok, versions = chat.path(db, c["id"], c.get("head"), nodes), set(acl.roles), chat.versions(nodes)
+    for m in msgs:
+        m["versions"] = versions.get(m["id"])
     ids = {p["recording_id"] for m in msgs for p in m.get("passages") or []}
     visible = (
         {
@@ -126,7 +147,7 @@ def get_chat(cid: int, user: CurrentUser, acl: Acl, db: Db) -> Chat:
     )
     for m in msgs:
         m["passages"] = [p for p in m.get("passages") or [] if p["recording_id"] in visible]
-    return Chat.model_validate(sign_urls({**c, "messages": msgs}, full=True))
+    return Chat.model_validate(sign_urls({**c, "messages": msgs, "tree": nodes}, full=True))
 
 
 @router.patch("/chats/{cid}")
@@ -181,9 +202,14 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
     reads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
     /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).
 
-    With `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and
-    its new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked
-    from (where, and the highlighted text; not the page's text, which isn't kept).
+    A conversation is a tree of versions (GET /chats/{cid}: `tree`, and each message's `versions`); the question goes
+    on from `parent` when given (any message of the conversation), else from the version showing (`head`). With
+    `regenerate` (an answer's id) its question is answered again, as a new version beside that answer (`content` isn't
+    needed; `model` may pick another). With `edit`, one of your earlier questions is edited: this question becomes a new
+    version beside it and is answered, and the old one stays with what followed it (404 if it isn't a question in this
+    conversation). Either keeps the page the question was asked from (where, and the highlighted text; not the page's
+    text, which isn't kept) unless `context` is given, and streams `branch` first ({message, parent, versions}: the
+    new version, the message it follows and its versions); so does a question beside others under `parent`.
 
     `/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the
     conversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.
@@ -192,17 +218,37 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
     browser while the side panel is connected: open pages, read them, click, type and download files into the
     conversation (docs/browser-assistant.md)."""
     c = await run_in_threadpool(_own_chat, db, cid, user)
-    q = body.content.strip()[:4000]
-    files = await run_in_threadpool(_attachments, db, body.attachments, user)
-    if not q and files:
-        q = "I attached " + ("this file." if len(files) == 1 else "these files.")
-    if not q:
-        raise HTTPException(400, "ask something")
-    cmd = chat.command(q) if not files and body.edit is None else None
+    if body.regenerate is not None and body.edit is not None:
+        raise HTTPException(400, "regenerate an answer or edit a question, not both")
+    if body.parent is not None and (body.regenerate is not None or body.edit is not None):
+        raise HTTPException(400, "parent is for a new question: regenerate and edit go beside their message")
+    again: dict[str, Any] | None = None  # regenerating: the question answered again
+    under: Any = chat.HEAD  # the message the question follows
+    if body.regenerate is not None:
+        try:
+            again = found = await run_in_threadpool(chat.question_of, db, cid, body.regenerate)
+        except KeyError:
+            raise HTTPException(404, "no such answer in this conversation") from None
+        q, files = found["content"], found.get("attachments") or []
+        if chat.command(q):
+            raise HTTPException(400, f"{q.split()[0]} isn't answered by the model, so there's nothing to regenerate")
+    else:
+        q = body.content.strip()[:4000]
+        files = await run_in_threadpool(_attachments, db, body.attachments, user)
+        if not q and files:
+            q = "I attached " + ("this file." if len(files) == 1 else "these files.")
+        if not q:
+            raise HTTPException(400, "ask something")
+        if body.parent is not None:
+            try:
+                under = (await run_in_threadpool(chat.said, db, cid, body.parent))["id"]
+            except KeyError:
+                raise HTTPException(404, "no such message in this conversation") from None
+    cmd = chat.command(q) if not files and body.edit is None and again is None else None
     if cmd:  # /clear or /compact: done here, answered like a question, without asking the model anything else
 
         def run() -> Iterator[str]:
-            reply, mid = chat.run_command(db, cfg, cid, *cmd)
+            reply, mid = chat.run_command(db, cfg, cid, cmd[0], cmd[1], parent=under)
             yield _ev({"clear": "cleared", "compact": "compacted"}[cmd[0]], {"message": mid})
             yield _ev("passages", [])
             yield _ev("token", {"text": reply})
@@ -216,11 +262,16 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
     title = c["title"]
     page = body.context.model_dump() if body.context else None
     kept = chat.shared_context(page)  # what the question keeps of the page
-    if body.edit is not None:  # only after the question checks out, so a refused edit removes nothing
+    if again is not None:
+        under = again.get("parent")
+        if page is None and again.get("context"):
+            page = again["context"]
+    if body.edit is not None:
         try:
-            old = await run_in_threadpool(chat.rewind, db, cid, body.edit)
+            old = await run_in_threadpool(chat.said, db, cid, body.edit, "user")
         except KeyError:
             raise HTTPException(404, "no such question in this conversation") from None
+        under = old.get("parent")
         if title == old["content"][:80]:  # titled after the question being edited: retitle it after the edit
             title = "New conversation"
         if page is None and old.get("context"):
@@ -229,17 +280,28 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
     asked = chat.with_context(q, page, cfg) + chat.attached_note(files)
     readable = set(acl.roles)
     summary: dict[str, Any] | None = None  # what compaction keeps of the earlier messages (chat.compact)
+    question: int | None = again["id"] if again else None  # the question being answered
+    answer_id = 0  # the answer's message id, taken once the question is saved (a reply is newer than what it follows)
+    branched: dict[str, Any] | None = None  # the `branch` event, when this makes a new version
 
     def prepare() -> tuple[list[dict[str, Any]], list[dict[str, Any]], Any]:
-        nonlocal summary
+        nonlocal summary, under, question, answer_id, branched
+        under = chat.head(db, cid) if under == chat.HEAD else under
+        past = chat.path(db, cid, under)  # the version it goes on from: all the model reads of the conversation
         try:  # a conversation that fills the model's context is folded into its summary before it's answered
-            chat.compact(db, cfg, cid, full_only=True)
+            chat.compact(db, cfg, cid, full_only=True, line=past)
         except Exception:  # noqa: BLE001 - answered with what fits; tried again after the answer
             log.warning("chat %s: couldn't update the summary", cid, exc_info=True)
-        past = chat.history(db, cid)
-        summary = chat.memory(db, cfg, cid)
-        chat.add(db, cid, "user", q, attachments=files, context=kept)
-        if not past and title == "New conversation":
+        summary = chat.memory(db, cfg, cid, past)
+        if again is None:
+            question = chat.add(db, cid, "user", q, attachments=files, context=kept, parent=under)
+        answer_id = db.next_id("chat_message")
+        if again is not None:
+            branched = chat.branch(db, cid, answer_id, question, "assistant")
+        elif body.edit is not None or body.parent is not None:  # beside other questions, unless it went on from a leaf
+            made = chat.branch(db, cid, question, under, "user")
+            branched = made if made["versions"]["count"] > 1 else None
+        if not past and again is None and title == "New conversation":
             db.q("UPDATE $r SET title = $t", r=R("chat", cid), t=q[:80])
         # A conversation over everything gets the namespace its first question is about, when that's clear.
         if past or c.get("kind") == "setup" or c.get("scope"):
@@ -269,7 +331,9 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
 
     def save(text: str, cited: list[dict[str, Any]], **kw: Any) -> int:
         wrote = (model or cfg["llm"].get("model")) if llm.configured(cfg) else None
-        return int(chat.add(db, cid, "assistant", text, cited, steps=steps, notice=notice, model=wrote, **kw))
+        return int(
+            chat.add(db, cid, "assistant", text, cited, steps=steps, notice=notice, model=wrote, parent=question, mid=answer_id, **kw)
+        )
 
     def stopped(text: str, cited: list[dict[str, Any]]) -> Iterator[str]:
         yield _ev("stopped", {"message": "Stopped"})
@@ -352,6 +416,8 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         on = chat.Answering(db, cid)
         saved = False
         try:
+            if branched:
+                yield _ev("branch", branched)
             if picked:
                 yield _ev("scoped", {"namespaces": c["scope"]["namespaces"], "confidence": picked["confidence"], "by": picked["by"]})
                 yield _ev("step", steps[0])
