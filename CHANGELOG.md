@@ -4,6 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Enhance low quality images before they're read.** The new `enhance` step, first in the standard pipeline,
+  measures each image (size, sharpness, noise, contrast, and face size where the namespace finds faces) and keeps an
+  enhanced copy of a low quality one, which OCR, faces, objects and descriptions then read; the original stays as it
+  is. Off by default: Settings → Enhance. The light `classic` engine (Pillow) is the default; Real-ESRGAN general
+  x4v3 (BSD-3-Clause, 5 MB) is fetched the first time it's chosen. The Details tab says what was found, saves the
+  copy, and enhances an image on request; agents use `POST /api/v1/resources/{rid}/enhance`, the MCP tool `enhance`
+  or the `enhance` automation action ([Enhancing images](docs/enhance.md)).
 - **Export a conversation.** `GET /api/v1/chats/<id>/export.md`, `.pdf` or `.json` gives the version showing, one
   message (`?message=`) or, as JSON, every version (`?all=true`). The Markdown has each question and answer, its
   citations as footnotes linking back to the moment in Lens and the tools it used; the PDF is that Markdown printed by

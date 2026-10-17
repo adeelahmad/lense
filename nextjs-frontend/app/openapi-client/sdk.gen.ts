@@ -445,6 +445,9 @@ import type {
   EnableAutomationData,
   EnableAutomationErrors,
   EnableAutomationResponses,
+  EnhanceRecordingData,
+  EnhanceRecordingErrors,
+  EnhanceRecordingResponses,
   EntityToTopicData,
   EntityToTopicErrors,
   EntityToTopicResponses,
@@ -556,6 +559,9 @@ import type {
   GetEmbedLinkResponses,
   GetEncryptionData,
   GetEncryptionResponses,
+  GetEnhancedData,
+  GetEnhancedErrors,
+  GetEnhancedResponses,
   GetEntityConnectionsData,
   GetEntityConnectionsErrors,
   GetEntityConnectionsResponses,
@@ -5642,6 +5648,22 @@ export class Resources {
   }
 
   /**
+   * Enhance Recording
+   *
+   * Enhance an image whatever the settings and its quality (docs/enhance.md): an enhanced copy is made, and its
+   * pipeline's steps after enhance (reading its text, faces, objects, …) run again on that copy. The original stays as
+   * it is. 400 for anything but an image. Audited as `recording.enhance`.
+   */
+  public static enhanceRecording<ThrowOnError extends boolean = false>(
+    options: Options<EnhanceRecordingData, ThrowOnError>,
+  ): RequestResult<EnhanceRecordingResponses, EnhanceRecordingErrors, ThrowOnError> {
+    return (options.client ?? client).post<EnhanceRecordingResponses, EnhanceRecordingErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/enhance",
+      ...options,
+    });
+  }
+
+  /**
    * Revoke Shares
    *
    * Revoke every link that still works. Opening one shows a page saying the link isn't available.
@@ -8566,6 +8588,22 @@ export class Video {
   ): RequestResult<GetPdfResponses, GetPdfErrors, ThrowOnError> {
     return (options.client ?? client).get<GetPdfResponses, GetPdfErrors, ThrowOnError>({
       url: "/api/v1/resources/{rid}/pdf",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Enhanced
+   *
+   * The enhanced copy the enhance step made of a low quality image (docs/enhance.md), to save. Members of its
+   * namespace only (a bearer token, or a signed link the API gave one): visitors get its pages, with faces pixelated
+   * where the namespace does that.
+   */
+  public static getEnhanced<ThrowOnError extends boolean = false>(
+    options: Options<GetEnhancedData, ThrowOnError>,
+  ): RequestResult<GetEnhancedResponses, GetEnhancedErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetEnhancedResponses, GetEnhancedErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/enhanced",
       ...options,
     });
   }

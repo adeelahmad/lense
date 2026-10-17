@@ -5949,6 +5949,124 @@ export type EncryptionProgress = {
 };
 
 /**
+ * EnhanceMeasured
+ *
+ * How good a picture looked to the enhance step (docs/enhance.md).
+ */
+export type EnhanceMeasured = {
+  /**
+   * Width
+   */
+  width: number;
+  /**
+   * Height
+   */
+  height: number;
+  /**
+   * Sharpness
+   *
+   * the variance of its Laplacian: how sharply its tones change
+   */
+  sharpness: number;
+  /**
+   * Noise
+   *
+   * its estimated noise, in levels out of 255
+   */
+  noise: number;
+  /**
+   * Contrast
+   *
+   * the standard deviation of its tones (0 to 255)
+   */
+  contrast: number;
+  /**
+   * Brightness
+   *
+   * the mean of its tones (0 to 255)
+   */
+  brightness: number;
+  /**
+   * Faces
+   *
+   * how many faces it has, where they were looked for
+   */
+  faces?: number | null;
+  /**
+   * Smallest Face
+   *
+   * the height of its smallest face, in pixels
+   */
+  smallest_face?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * Enhanced
+ *
+ * What the enhance step found and did (docs/enhance.md): whether the picture looked low quality and why, and the
+ * enhanced copy it's read from, if one was made. The original stays as it is.
+ */
+export type Enhanced = {
+  /**
+   * Kind
+   */
+  kind: "image";
+  /**
+   * Low
+   *
+   * why it looked low quality; empty when it looked good enough
+   */
+  low?: Array<"small" | "blurry" | "noisy" | "dull" | "small_faces">;
+  measured: EnhanceMeasured;
+  /**
+   * Enhanced
+   *
+   * an enhanced copy was made, and the steps after it read that
+   */
+  enhanced: boolean;
+  /**
+   * Engine
+   *
+   * what enhanced it: classic, or realesr-general-x4v3 (Real-ESRGAN)
+   */
+  engine?: string | null;
+  /**
+   * Scale
+   *
+   * how many times bigger the copy is
+   */
+  scale?: number | null;
+  /**
+   * Width
+   *
+   * the copy's width in pixels
+   */
+  width?: number | null;
+  /**
+   * Height
+   */
+  height?: number | null;
+  /**
+   * Forced
+   *
+   * enhanced on request, whatever the settings and its quality
+   */
+  forced?: boolean | null;
+  /**
+   * At
+   */
+  at?: string | null;
+  /**
+   * Download
+   *
+   * a signed link to save the enhanced copy
+   */
+  download?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * EnrichedDate
  *
  * A date or time the text gives.
@@ -17027,6 +17145,10 @@ export type Recording = {
    * NSFW classification, where it's on in its namespace and it was classified
    */
   nsfw?: NsfwState | null;
+  /**
+   * an image the enhance step looked at: what it found, and its enhanced copy
+   */
+  enhanced?: Enhanced | null;
   [key: string]: unknown;
 };
 
@@ -31434,6 +31556,36 @@ export type ReprocessRecordingResponses = {
 
 export type ReprocessRecordingResponse = ReprocessRecordingResponses[keyof ReprocessRecordingResponses];
 
+export type EnhanceRecordingData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/enhance";
+};
+
+export type EnhanceRecordingErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type EnhanceRecordingError = EnhanceRecordingErrors[keyof EnhanceRecordingErrors];
+
+export type EnhanceRecordingResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobQueued;
+};
+
+export type EnhanceRecordingResponse = EnhanceRecordingResponses[keyof EnhanceRecordingResponses];
+
 export type RevokeSharesData = {
   body?: never;
   path: {
@@ -37438,6 +37590,39 @@ export type GetPdfResponses = {
 };
 
 export type GetPdfResponse = GetPdfResponses[keyof GetPdfResponses];
+
+export type GetEnhancedData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: {
+    /**
+     * S
+     */
+    s?: string;
+  };
+  url: "/api/v1/resources/{rid}/enhanced";
+};
+
+export type GetEnhancedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetEnhancedError = GetEnhancedErrors[keyof GetEnhancedErrors];
+
+export type GetEnhancedResponses = {
+  /**
+   * Successful Response
+   */
+  200: unknown;
+};
 
 export type GetFrameData = {
   body?: never;

@@ -409,6 +409,28 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           </p>
         </>
       );
+    case "enhance":
+      return (
+        <>
+          <F ctx={ctx} id="enhance.images" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="enhance.image_engine" />
+            <F ctx={ctx} id="enhance.only_faces" />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-4">
+            <F ctx={ctx} id="enhance.min_side" />
+            <F ctx={ctx} id="enhance.min_sharpness" />
+            <F ctx={ctx} id="enhance.min_face_px" />
+            <F ctx={ctx} id="enhance.max_scale" />
+          </div>
+          <p className="text-[12.5px] leading-[1.45] text-fg-muted">
+            The enhanced copy is kept beside the original, encrypted like it, and is what OCR and descriptions read.
+            Real-ESRGAN general x4v3 (BSD-3-Clause) runs with ONNX Runtime on this server: pictures aren’t sent
+            anywhere. Any image can be enhanced on request from its Details tab, even with this off. Audio isn’t
+            enhanced yet.
+          </p>
+        </>
+      );
     case "workers":
       return (
         <>

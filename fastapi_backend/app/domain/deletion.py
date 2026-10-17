@@ -82,12 +82,20 @@ def stop_jobs(db, rid, verb="delete"):
 
 
 def _files(db, cfg, rec, rid, ns):
-    """The files Lens made from the recording: its frames, its report pages, the PDF made of a document, the exports
-    only it wrote, and a cached copy of a remote file that no other recording uses. Never the media file."""
+    """The files Lens made from the recording: its frames, its report pages, the PDF made of a document, its enhanced
+    copy, the exports only it wrote, and a cached copy of a remote file that no other recording uses. Never the media
+    file."""
+    from . import enhance
+
     data = pathlib.Path(cfg["data_dir"])
     reports = data / "reports" / (ns or "_")
     name = f"{render.slug(rec.get('title'))}-{rid}"
-    out = [reports / f"{name}.html", *reports.glob(f"{name}--*.html"), data / "renditions" / f"{int(rid)}.pdf"]
+    out = [
+        reports / f"{name}.html",
+        *reports.glob(f"{name}--*.html"),
+        data / "renditions" / f"{int(rid)}.pdf",
+        enhance.enhanced_path(cfg, rid),
+    ]
     exports = data / "exports" / (ns or "_")
     mine = {
         (o.get("value") or {}).get("file")

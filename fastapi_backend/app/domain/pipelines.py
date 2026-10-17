@@ -1,5 +1,6 @@
 """Pipelines: named, versioned lists of steps a recording goes through. Each namespace can choose its default; without
-one, recordings get the standard pipeline. Steps: transcribe (speech to text), read (a document's or an
+one, recordings get the standard pipeline. Steps: enhance (an enhanced copy of a low quality image, enhance.py, which
+the steps after it read), transcribe (speech to text), read (a document's or an
 image's pages and their text), diarize, shots, ocr, faces, objects, nsfw (NSFW classification, nsfw.py), describe,
 clean (a transcript tidied before analysis, cleanup.py), analyze, embed (passages for search by meaning, semantic.py),
 summarize, llm (a prompt template whose structured result is saved as a named output), report (built in, or from a
@@ -24,16 +25,28 @@ from . import keyring, llm, render, sources, store, templates
 
 R = store.R
 STANDARD = [
-    "transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "clean", "analyze", "embed", "summarize", "report",
+    "enhance", "transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "clean", "analyze", "embed", "summarize",
+    "report",
 ]  # fmt: skip
 TYPES = {
-    "transcribe", "read", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "clean", "analyze", "embed", "summarize",
-    "llm",
+    "enhance", "transcribe", "read", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "clean", "analyze", "embed",
+    "summarize", "llm",
     "report",
     "export",
     "workflow",
 }  # fmt: skip
-ASSET_STEPS = ("transcribe", "read", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe")  # they make something of the media
+ASSET_STEPS = (
+    "enhance",
+    "transcribe",
+    "read",
+    "diarize",
+    "shots",
+    "ocr",
+    "faces",
+    "objects",
+    "nsfw",
+    "describe",
+)  # they make something of the media
 KEYS = {"type", "name", "when", "template", "version", "key", "filename", "destination", "model", "force", "workflow"}
 NODE_RX = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
 WHEN = {"min_minutes": (int, float), "max_minutes": (int, float), "source": str, "languages": list}

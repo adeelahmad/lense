@@ -87,6 +87,7 @@ nav:
       - Processing: processing.md
       - Video: video.md
       - NSFW classification: nsfw.md
+      - Enhancing images: enhance.md
       - Notifications: notifications.md
       - Automations: automations.md
       - Timeline: timeline.md

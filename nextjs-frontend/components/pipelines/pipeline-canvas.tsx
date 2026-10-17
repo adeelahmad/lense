@@ -18,6 +18,7 @@ import {
   Shapes,
   Sparkles,
   TextSearch,
+  WandSparkles,
   Workflow,
   type LucideIcon,
 } from "lucide-react";
@@ -53,6 +54,7 @@ import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
 const ICON: Record<string, LucideIcon> = {
+  enhance: WandSparkles,
   transcribe: Captions,
   read: ScanText,
   diarize: AudioLines,
@@ -72,7 +74,7 @@ const ICON: Record<string, LucideIcon> = {
   workflow: Workflow,
 };
 const TONE = { intent: "blue", red: "red", green: "green", gate: "gold", neutral: "neutral" } as const;
-const ASSETS = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe"];
+const ASSETS = ["enhance", "transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe"];
 const METADATA = ["clean", "analyze", "embed", "summarize", "llm", "report", "export"];
 
 /** A pipeline drawn as a graph: asset steps, metadata steps and workflows, an edge saying what runs after what. */
