@@ -14,6 +14,16 @@ jest.mock("@/lib/hooks/session", () => ({
   useArchive: () => ({ can: () => true, namespaces: [], roleIn: () => "editor" }),
 }));
 
+// a saved answer's Details opens as a sheet on narrow screens, so it asks the screen's width
+beforeAll(() => {
+  window.matchMedia = ((query: string) => ({
+    matches: false,
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  })) as unknown as typeof window.matchMedia;
+});
+
 // q1 → a1 → q2 → a2, a1 regenerated as b1 (→ q3 → a3), and q1 edited as e1 (→ f1)
 const node = (id: number, parent: number | null, role: "user" | "assistant"): ChatNode => ({ id, parent, role });
 const TREE = [

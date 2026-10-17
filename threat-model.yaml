@@ -1,11 +1,14 @@
 # threat-model.yaml — derived index; the prose threat model (threat-model.md) is canonical.
-# Authority order: prose > yaml > json. Regenerate whenever the prose changes.
+# Authority order: prose > yaml > json. Regenerate whenever the prose changes: CI fails a change to the prose that
+# changes neither this file nor threat-model.json (ci/validate_threat_model.py --base).
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:bd0d9280e07c6b9732681b2f86512422ea37af5a9f0a9cd87dd857b1f48a3988"
+# The prose in the same commit, not a hash of it: a hash is one line every change to the prose edits, so any two pull
+# requests touching the prose conflicted on it (#507). `git hash-object threat-model.md` names the exact prose.
+prose_version: "threat-model.md@same-commit"
 model_status: under-review
 triage_policy: strict
-confidence: {documented: 204, maintainer: 46, inferred: 91, assumption: 8}
+confidence: {documented: 205, maintainer: 46, inferred: 91, assumption: 8}
 
 generation:
   model: "Claude Opus 5.5 (claude-opus-5-5)"
@@ -330,10 +333,10 @@ entry_points:
         control_kinds: [data, resource-name, size]
         caller_must_enforce: "none — P-UPLOAD; the address form /hooks/import/{token} takes hook tokens only, so a person's token never sits in a logged path"
         provenance: {kind: documented, source: 'docs/api.md "the address form takes hook tokens only"'}
-  - id: "watched folders, storage sources, IMAP, Gmail, iCal"
+  - id: "watched folders, storage sources, IMAP, Gmail, iCal, news feeds"
     component: outbound
     parameters:
-      - name: "remote file names, bytes, mail, events"
+      - name: "remote file names, bytes, mail, events, feed posts"
         attacker_controllable: true
         x-condition: "whoever writes to the remote, mails the box or serves the feed"
         control_kinds: [data, resource-name, size]
@@ -350,6 +353,16 @@ entry_points:
         obligation_id: admin-creates-sources
         caller_must_enforce: "admin creates sources; read-only calendar.readonly scope; Google's own token endpoint and API address (a key file's token_uri is ignored); event text escaped into its .ics without control characters"
         provenance: {kind: documented, source: 'docs/processing.md "The token endpoint is always Google''s own"'}
+  - id: "News feed sources"
+    component: outbound
+    parameters:
+      - name: "the feed's address (or a site's page that names its feed), user and password; the feed's XML and its posts' HTML"
+        attacker_controllable: true
+        x-condition: "address and password: admins only, sealed and write-only; XML and HTML: whoever serves the feed or writes its posts"
+        control_kinds: [data, x-prompt-injection, size]
+        obligation_id: admin-creates-sources
+        caller_must_enforce: "admin creates sources; fetched as iCal feeds are; feedparser reads the XML with external entities off and drops scripts, styles and event handlers from a post's HTML; each post kept as an Atom entry Lens writes, without the feed's address; post text is marked untrusted in prompts"
+        provenance: {kind: documented, source: 'docs/processing.md "News feeds (RSS and Atom)"'}
   - id: "Connect with Google"
     component: outbound
     parameters:
@@ -378,7 +391,7 @@ entry_points:
         control_kinds: [resource-name, x-network-destination, x-prompt-injection, size]
         caller_must_enforce: "none — queries go only to the admin's provider; pages are fetched through netguard like web import, 10 MB at most (P-SSRF-GUARD); once the answer has read outside text, a query or address neither the person nor a tool gave it asks first (P-INJECTION-EGRESS); results and pages reach the model marked as data; the ledger keeps the provider or host, never the query or page"
         provenance: {kind: documented, source: 'docs/assistant.md "a search or a page read sends words out of Lens"'}
-  - id: "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer, web search)"
+  - id: "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search)"
     component: outbound
     parameters:
       - name: "URL, credentials, api_key_env"
@@ -663,16 +676,16 @@ contract_dimensions:
   - {component: authz, dimension: x-client-address-other-variants, status: unresolved, conditions: "web app alone, installers, NAS, Proxmox without a reverse proxy setting X-Forwarded-For", question_id: Q2, provenance: {kind: inferred, question_id: Q2}}
   - {component: authz, dimension: x-share-scope, status: unresolved, conditions: "?s= share tokens open the audio, video, frames and page API routes", question_id: Q7, provenance: {kind: inferred, question_id: Q7}}
   # --- Outbound
-  - {component: outbound, dimension: numeric-domain, status: claimed, property_id: P-SSRF-GUARD, conditions: "web paths and iCal: ports 80 and 443", x-routes-to: "P-SSRF-GUARD, P-ADMIN-GUARD", provenance: {kind: documented, source: 'docs/api.md "Only public addresses are reached, on ports 80 and 443"'}}
+  - {component: outbound, dimension: numeric-domain, status: claimed, property_id: P-SSRF-GUARD, conditions: "web paths, iCal and news feeds: ports 80 and 443", x-routes-to: "P-SSRF-GUARD, P-ADMIN-GUARD", provenance: {kind: documented, source: 'docs/api.md "Only public addresses are reached, on ports 80 and 443"'}}
   - {component: outbound, dimension: x-numeric-domain-notification-ports, status: unresolved, conditions: "notification targets may use any port; the guard checks addresses only", question_id: Q15, provenance: {kind: inferred, question_id: Q15}}
   - {component: outbound, dimension: failure-atomicity, status: claimed, property_id: P-NOTIFY, conditions: "each notification event claimed once across processes, then retried", provenance: {kind: documented, source: 'docs/notifications.md "claimed once"'}}
   - {component: outbound, dimension: recursive-cyclic-topology, status: claimed, property_id: P-SSRF-GUARD, conditions: "redirects: http and https only, each hop re-checked; credentials never follow a redirect to another server; notifications and an automation's http_request follow none", x-routes-to: "P-SSRF-GUARD, P-SECRETS", provenance: {kind: documented, source: 'docs/processing.md "never sent on to another server"'}}
   - {component: outbound, dimension: callback-execution, status: disclaimed, property_id: N-CHROMIUM, conditions: "Chromium may lack its sandbox; the proxy is the barrier", provenance: {kind: documented, source: 'docs/deployment.md "what stops a page is Lens''s proxy"'}}
   - {component: outbound, dimension: serialization-reconstruction, status: claimed, property_id: P-SECRETS, conditions: "sealed secrets are write-only through the API", provenance: {kind: documented, source: 'docs/configuration.md "the API reports whether one is set, never its value"'}}
-  - {component: outbound, dimension: x-admin-operand-guards, status: claimed, property_id: P-ADMIN-GUARD, conditions: "iCal public-address guard; telemetry endpoint without user:password or link-local address", provenance: {kind: documented, source: 'docs/processing.md "fetched the way web pages are captured"'}}
+  - {component: outbound, dimension: x-admin-operand-guards, status: claimed, property_id: P-ADMIN-GUARD, conditions: "iCal and news feed public-address guard; telemetry endpoint without user:password or link-local address", provenance: {kind: documented, source: 'docs/processing.md "fetched the way web pages are captured"'}}
   - {component: outbound, dimension: x-admin-operand-guards-telemetry-headers, status: unresolved, conditions: "saved headers dropped when the endpoint moves to another host", question_id: Q35, provenance: {kind: inferred, question_id: Q35}}
   - {component: outbound, dimension: x-remote-identity-imap, status: claimed, property_id: P-REMOTE-NAMES, conditions: "a rebuilt mailbox gets new names, so an old name never reads another message", provenance: {kind: documented, source: 'docs/processing.md "an old one never reads another message"'}}
-  - {component: outbound, dimension: x-remote-identity-other-sources, status: unresolved, conditions: "rclone, iCal and IIIF cache keys and names", question_id: Q43, provenance: {kind: inferred, question_id: Q43}}
+  - {component: outbound, dimension: x-remote-identity-other-sources, status: unresolved, conditions: "rclone, iCal, news feed and IIIF cache keys and names", question_id: Q43, provenance: {kind: inferred, question_id: Q43}}
   - {component: outbound, dimension: reference-lifecycle, status: unresolved, conditions: "key placement: secret.key in data_dir with data and backups", question_id: Q14, provenance: {kind: inferred, question_id: Q14}}
   - {component: outbound, dimension: x-reference-lifecycle-key-rotation, status: claimed, property_id: MX-OUTBOUND-KEY-ROTATION, conditions: "a new key makes stored credentials and encrypted files unreadable", x-routes-to: "§1.13", provenance: {kind: documented, source: 'docs/deployment.md "Stable secrets"'}}
   - {component: outbound, dimension: concurrency-reentrancy, status: unresolved, conditions: "loopback guard proxy open to local processes during a capture", question_id: Q19, provenance: {kind: inferred, question_id: Q19}}
@@ -1512,7 +1525,7 @@ properties_claimed:
     kind: confidentiality
     components: [outbound]
     tier: security-critical
-    conditions: "stored secrets (source credentials, notification secrets, model API keys, iCal addresses, an automation's credential headers, sealed to that automation and the address they were saved for, an MCP server's credential headers and env values, sealed to its extension and the address or command they were saved for) are encrypted and write-only; the API reports whether one is set, never its value; a key from the environment is never shown; they do not leak through the API, logs, exports, or a redirect to another server"
+    conditions: "stored secrets (source credentials, notification secrets, model API keys, iCal and news feed addresses, an automation's credential headers, sealed to that automation and the address they were saved for, an MCP server's credential headers and env values, sealed to its extension and the address or command they were saved for) are encrypted and write-only; the API reports whether one is set, never its value; a key from the environment is never shown; they do not leak through the API, logs, exports, or a redirect to another server"
     violation_symptoms: [info-leak]
     x-voided-by: "secret.key or ARCHIVE_SECRET_KEY holders (domain/settings.py:196-199, Q14); an admin moving a model URL sends the key there (domain/llm.py:30-32, trusted); LLM errors name the URL as typed (domain/llm.py:41, Q18); an MCP server's values whose names don't say they carry a credential, and a secret written into its address or arguments, are kept as given (domain/mcp_servers.py)"
     provenance: {kind: documented, source: 'SECURITY.md "stored credentials for sources and model servers leaking"'}
@@ -1529,9 +1542,9 @@ properties_claimed:
     components: [outbound]
     tier: security-critical
     x-tier-question: Q37
-    conditions: "guards Lens documents on admin-set operands hold: iCal feeds are fetched like web captures (public addresses only and documents.web_networks, ports 80 and 443, the password never goes on to a server the calendar redirects to); the telemetry endpoint cannot carry a user name or password or be a link-local address"
+    conditions: "guards Lens documents on admin-set operands hold: iCal and news feeds are fetched like web captures (public addresses only and documents.web_networks, ports 80 and 443, the password never goes on to a server the calendar or feed redirects to, or to a feed a site's page names on another server); the telemetry endpoint cannot carry a user name or password or be a link-local address"
     violation_symptoms: [info-leak]
-    x-voided-by: "documents.web_networks widens the iCal guard (domain/feeds.py:377); telemetry checks (domain/settings.py:751, :757)"
+    x-voided-by: "documents.web_networks widens the iCal and news feed guard (domain/feeds.py:377); telemetry checks (domain/settings.py:751, :757)"
     provenance: {kind: documented, source: 'docs/processing.md "fetched the way web pages are captured"'}
   - id: P-NO-FETCH
     kind: confidentiality
@@ -1806,7 +1819,7 @@ properties_claimed:
 # ---------------------------------------------------------------- §1.12
 properties_disclaimed:
   - {id: N-ADMIN, components: [outbound, ingest, assistant, optional], tier: security-critical, false_friend: false, conditions: "protection from the instance admin or host operator (admin-set URLs reaching internal hosts, admin code, templates, regexes, component installs, api_key_env). Covers only operands an admin or operator alone can set. Excludes the guards Lens documents on them (P-ADMIN-GUARD): an escape of one is VALID. Excludes saved telemetry headers when the endpoint moves host (unresolved, Q35 -> MODEL-GAP). A non-admin reaching any admin operand is in model.", provenance: {kind: maintainer, date: "2026-10"}}
-  - {id: N-EGRESS, components: [outbound], tier: security-critical, false_friend: true, conditions: "an egress firewall; netguard guards web import, iCal feeds, extension http tools, notifications, the assistant's web search and page reads, and Chromium, nothing else; admin-set URLs other than iCal feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded", x-false-friend-note: "'public addresses only' reads as server-wide", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: N-EGRESS, components: [outbound], tier: security-critical, false_friend: true, conditions: "an egress firewall; netguard guards web import, iCal and news feeds, extension http tools, notifications, the assistant's web search and page reads, and Chromium, nothing else; admin-set URLs other than iCal and news feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded", x-false-friend-note: "'public addresses only' reads as server-wide", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: N-CODE-GUARD, components: [assistant], tier: security-critical, false_friend: true, conditions: "a sandbox for Python code tools; audit hooks, rlimits and an optional network namespace only raise the bar; admin-written code; runs as the Lens user", x-false-friend-note: "guard is not isolation", provenance: {kind: documented, source: 'domain/code_tools.py docstring "they aren''t a wall"'}}
   - {id: N-DOWNLOADS, components: [optional], tier: security-critical, false_friend: false, conditions: "integrity beyond HTTPS and the publisher for llama.cpp, cloudflared, pip installs and hf: models; catalog GGUF files are still checked (P-MODEL-CHECKSUM)", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: N-DB-PLAIN, components: [outbound], tier: security-critical, false_friend: true, conditions: "encryption of the SurrealDB content (assets' text, indexes), derived files, renditions, reports, exports and the storage-source cache; stated limit", x-false-friend-note: "vaults cover files only", provenance: {kind: documented, source: 'docs/encryption.md "the SurrealDB database itself"'}}
@@ -1895,7 +1908,7 @@ known_misuses:
   - {id: km-enable-unread-extension, components: [assistant], pattern: "Enabling a teammate's shared extension without reading it", x-why-unsafe: "Its http tool can send your readable data to its author's host", safer_alternative: "Enable only extensions you trust (Q27)", x-provenance-basis: "§1.13 row 'Enable another person's extension only when you trust its author' (Q27)", provenance: {kind: inferred, question_id: Q27}}
   - {id: km-bridge-without-account, components: [outbound], pattern: "Turning on the chat-room bridge without its own account", x-why-unsafe: "The room reads as the admin", safer_alternative: "Give the bridge a low-role account", x-provenance-basis: "§1.12 N-BRIDGE", provenance: {kind: documented, source: 'docs/chat-rooms.md "answers as the admin who turned it on"'}}
   - {id: km-admin-for-python-tool, components: [assistant], pattern: "Making someone admin so they can write a Python tool", x-why-unsafe: "Admin equals host code execution", safer_alternative: "Use prompt, graph or http tools", x-provenance-basis: "§1.2 roles and trust; §1.13 'Make only fully trusted people admins'", provenance: {kind: maintainer, date: "2026-10"}}
-  - {id: km-wide-web-networks, components: [outbound], pattern: "Wide LENS_WEB_NETWORKS", x-why-unsafe: "Editors, and iCal feed redirects, can then reach those networks", safer_alternative: "List single hosts", x-provenance-basis: "§1.6 web_networks row; §1.13 private networks row", provenance: {kind: documented, source: 'docs/configuration.md "loopback and cloud metadata addresses stay out"'}}
+  - {id: km-wide-web-networks, components: [outbound], pattern: "Wide LENS_WEB_NETWORKS", x-why-unsafe: "Editors, and iCal and news feed redirects, can then reach those networks", safer_alternative: "List single hosts", x-provenance-basis: "§1.6 web_networks row; §1.13 private networks row", provenance: {kind: documented, source: 'docs/configuration.md "loopback and cloud metadata addresses stay out"'}}
   - {id: km-push-token-in-url, components: [optional], pattern: "Webhook push token in a URL that proxies log", x-why-unsafe: "The token is a credential in the path", safer_alternative: "Use the header form", x-provenance-basis: "§1.13 row 'Keep logs that record request paths private'", provenance: {kind: documented, source: 'docs/sensors.md "Ways in"'}}
   - {id: km-hosted-model-sensitive, components: [assistant], pattern: "Pointing the assistant at a hosted model for sensitive archives", x-why-unsafe: "Assets' text leaves the machine", safer_alternative: "Use a local model server", x-provenance-basis: "§1.13 row 'Pick model and speech servers you trust'", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: km-hosted-decision-model-sensitive, components: [assistant], pattern: "A hosted decision model (Jev) for sensitive archives", x-why-unsafe: "Routine choices send it excerpts, notes and the lines that name what analysis can't type", safer_alternative: "Use Laya, or set Settings › Analysis › Names the rules can't type to Leave them terms", x-provenance-basis: "§1.13 row 'Pick model and speech servers you trust'", provenance: {kind: maintainer, date: "2026-10"}}

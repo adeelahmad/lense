@@ -95,6 +95,70 @@ An app's chat completions keep no messages, so their record comes back in the re
 cost ([Chat completions](api.md#chat-completions-for-any-app)). Answers from before Lens kept records have none; Details
 shows what they have and says the rest wasn't recorded.
 
+### Copy and export
+
+A conversation, or one message of it, comes out as a file to keep or hand on: `GET
+/api/v1/chats/<id>/export.md`, `export.pdf` or `export.json`. They hold the version showing; `?message=<mid>` holds
+one message (an answer comes with the question it answers), and the JSON export's `?all=true` holds every version.
+Citations follow the reader's access now, as `GET /api/v1/chats/<id>` does, and no model is called.
+
+- **Markdown:** the title, a short header (the conversation's address in Lens, when it started, what it draws on in
+  words, and the Lens version that exported it), then each question and answer with its time, the model that wrote
+  it and its version (version 2 of 3). An answer's citations become numbered footnotes naming the asset, its time or
+  page and speaker, a short quote and a link back to that moment in Lens; a web page's citation links the page. The
+  tools an answer used are a "Looked up" list with each one's summary.
+- **PDF:** that Markdown on a page, printed by Chromium where it's installed, else by anytopdf (installed, on a
+  conversion node, or fetched on first use, [anytopdf](configuration.md#anytopdf)), else by LibreOffice. When none
+  can run here (Settings › Documents says never to use anytopdf, and nothing else is installed), or printing fails,
+  it answers 409 with the reason; the web app can still print the conversation.
+- **JSON:** the conversation in OpenAI's chat message format, as other tools and trainers read it, with Dublin Core
+  terms (`dc:title`, `dc:created`, `dc:modified`, `dc:creator`, `dc:identifier`, `dc:publisher`). `mapping` holds each
+  message by id with its `parent` and `children` (more than one child where there are versions), and `current_node`
+  is the last message of the version showing. Each node's `message` is `{role, content}`; an answer that used tools
+  has them before it in `tool_messages`: an assistant message with `tool_calls`, then a `tool` message per call
+  carrying the step's summary. What only Lens knows is under `lens`: the citations (`[n]` in the text is `n` there,
+  with a `url` back to Lens or the web page), the answer's record (`meta`, [above](#what-each-answer-records)),
+  `versions`, attached files, and the page a question was asked from. `?format=messages` gives the version showing
+  as one `{"messages": [...]}` line instead, the shape fine-tuning reads. The schema is
+  [chat-export.schema.json](schemas/chat-export.schema.json).
+
+```json
+{
+  "@context": {"dc": "http://purl.org/dc/terms/"},
+  "format": "lens.chat-export/1",
+  "dc:title": "Are ships slow?",
+  "dc:identifier": "https://lens.example/chat/4",
+  "current_node": "2",
+  "mapping": {
+    "1": {"id": "1", "parent": null, "children": ["2"], "message": {"role": "user", "content": "Are ships slow?"}, "lens": {}},
+    "2": {
+      "id": "2", "parent": "1", "children": [],
+      "tool_messages": [
+        {"role": "assistant", "content": null, "tool_calls": [{"id": "call_2_1", "type": "function",
+          "function": {"name": "search_transcripts", "arguments": "{\"query\": \"ships\"}"}}]},
+        {"role": "tool", "tool_call_id": "call_2_1", "content": "2 moments"}
+      ],
+      "message": {"role": "assistant", "content": "Yes, said Ana [1]."},
+      "lens": {"citations": [{"n": 1, "source": "said", "recording_id": 5, "title": "Ep 1", "time": "1:15",
+        "speaker": "Ana", "text": "They are slow.", "url": "https://lens.example/resources/5?t=75"}]}
+    }
+  }
+}
+```
+
+Exports carry each tool call's arguments and summary, never its raw result, which Lens doesn't keep. Agents read and
+export the same way over MCP: `list_chats`, `read_chat` and `export_chat` ([MCP](mcp.md)) work on the person's own
+conversations.
+
+In the web app, an answer's copy button offers **Copy as Markdown** (its citations as footnotes linking back to Lens,
+as in the Markdown export) and **Copy text** (without Markdown or citation numbers), then exports that answer with
+its question as Markdown, PDF or JSON. A question has its own copy button, shown on hover, and each code block in an
+answer has one that copies the code as written. The download icon in a conversation's header exports the whole
+conversation. When the server can't make a PDF, the browser's print dialog opens on the conversation (or that one
+answer), without the app around it, so Save as PDF still works.
+
+Planned: importing a conversation from its JSON, exporting one to a note, and a styled PDF without Chromium.
+
 ### Picking the namespace for a conversation over everything
 
 When a conversation has no scope (the assistant home starts it over everything), its first question goes to the
@@ -170,7 +234,8 @@ When the configured model supports function calling, chat becomes an agent.
   arguments) isn't run again: the model is pointed at the result it already has.
 - **Citations:** every moment a tool returns is numbered, so answers cite [n] across everything the assistant read.
 - **Visible steps:** each tool call streams as a step, for example 'Searched for "refund": 42 matches'.
-- **Approvals:** running a template on assets, changing entities (merging, renaming, retyping, describing one
+- **Approvals:** running a template on assets, writing a [spec](notes.md#specs-from-transcripts) from an asset's
+  transcript (`write_spec`), changing entities (merging, renaming, retyping, describing one
   and its other names, hiding one, or adding one to a namespace's fixed list) and changing topics (merging,
   renaming, describing or deleting one; [Topics](topics.md)) don't happen directly.
   They become approval cards (with the batch estimate) that the person approves, approves on a sample, or declines

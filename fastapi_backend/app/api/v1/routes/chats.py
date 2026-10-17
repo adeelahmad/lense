@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import urllib.error
 import urllib.parse
 from collections.abc import Iterator
 from typing import Any, Literal
@@ -21,7 +22,23 @@ from starlette.concurrency import run_in_threadpool
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer
 from app.api.media import sign_urls
 from app.api.v1.routes.collections import own_collection
-from app.domain import activity, ai_tools, approvals, auth, auto_scope, browser, chat, llm, sandbox, store, uploads
+from app.api.v1.routes.oauth import web_app_base
+from app.domain import (
+    activity,
+    ai_tools,
+    anytopdf,
+    approvals,
+    auth,
+    auto_scope,
+    browser,
+    chat,
+    chat_export,
+    convert,
+    llm,
+    sandbox,
+    store,
+    uploads,
+)
 from app.domain import files as resource_files
 from app.domain.store import DB
 from app.schemas.chats import (
@@ -230,6 +247,95 @@ def get_message(cid: int, mid: int, user: CurrentUser, acl: Acl, db: Db) -> Mess
     msgs[0]["versions"] = chat.versions(chat.tree(db, cid)).get(mid)
     _readable_citations(db, acl, msgs)
     return MessageDetail.model_validate({**sign_urls(msgs[0], full=True), "ledger": activity.history(db, f"chat_message:{mid}", 200)})
+
+
+EXPORTS = {"md": "text/markdown", "json": "application/json", "pdf": "application/pdf"}
+
+
+def export_view(db: DB, acl: Access, c: dict[str, Any], message: int | None = None, every: bool = False) -> list[dict[str, Any]]:
+    """The messages an export holds, oldest first, each with its `versions`, citations the reader can no longer read
+    left out: the version showing, every version (`every`), or one message with the question it answers (`message`)."""
+    nodes = chat.tree(db, c["id"])
+    if message is not None:
+        node = next((n for n in nodes if n["id"] == message), None)
+        if node is None:
+            raise HTTPException(404, "no such message in this conversation")
+        msgs = chat.history(db, c["id"], [node["parent"], message] if node["role"] == "assistant" and node.get("parent") else [message])
+    elif every:
+        msgs = chat.history(db, c["id"])
+    else:
+        msgs = chat.path(db, c["id"], c.get("head"), nodes)
+    versions = chat.versions(nodes)
+    for m in msgs:
+        m["versions"] = versions.get(m["id"])
+    _readable_citations(db, acl, msgs)
+    return msgs
+
+
+def exported(
+    db: DB,
+    cfg: dict[str, Any],
+    acl: Access,
+    user: Principal,
+    cid: int,
+    fmt: str,
+    web: str,
+    message: int | None = None,
+    every: bool = False,
+    shape: str = "tree",
+) -> tuple[bytes, str, str]:
+    """One of your conversations as a file: (its bytes, its media type, its file name). Also the MCP server's
+    export_chat."""
+    if fmt not in EXPORTS:
+        raise HTTPException(404, f"exports: {', '.join(EXPORTS)}")
+    if every and (fmt != "json" or message is not None or shape == "messages"):
+        raise HTTPException(400, "only the JSON tree holds every version (all), and only of the whole conversation")
+    if shape == "messages" and fmt != "json":
+        raise HTTPException(400, "format=messages is a JSON export")
+    c = _own_chat(db, cid, user)
+    msgs = export_view(db, acl, c, message, every)
+    name = chat_export.file_name(c.get("title"), fmt, message)
+    if fmt == "json":
+        if shape == "messages":
+            return json.dumps(chat_export.messages(msgs), ensure_ascii=False).encode() + b"\n", EXPORTS[fmt], name
+        doc = chat_export.document(c, msgs, web, user.name or user.email)
+        return json.dumps(doc, ensure_ascii=False, indent=2).encode(), EXPORTS[fmt], name
+    text = chat_export.markdown(c, msgs, web, one=message is not None)
+    if fmt == "md":
+        return text.encode(), EXPORTS[fmt], name
+    try:
+        return chat_export.pdf(cfg, c.get("title") or "Conversation", text), EXPORTS[fmt], name
+    except (chat_export.Unavailable, anytopdf.Unavailable, convert.Unavailable) as e:
+        raise HTTPException(409, str(e)) from None
+    except (urllib.error.URLError, OSError, RuntimeError, ValueError) as e:  # fetching anytopdf, or printing, failed
+        raise HTTPException(409, f"the PDF couldn't be made here ({getattr(e, 'reason', e)}); print it from the web app instead") from None
+
+
+@router.get("/chats/{cid}/export.{fmt}", response_class=Response, responses={200: {"content": {t: {} for t in EXPORTS.values()}}})
+def export_chat(
+    cid: int,
+    fmt: Literal["md", "json", "pdf"],
+    request: Request,
+    user: CurrentUser,
+    acl: Acl,
+    db: Db,
+    cfg: Cfg,
+    message: int | None = Query(None, description="one message (an answer comes with the question it answers); else the version showing"),
+    every: bool = Query(False, alias="all", description="JSON: every version of the conversation, not only the one showing"),
+    shape: Literal["tree", "messages"] = Query(
+        "tree", alias="format", description='JSON: messages gives the version showing as one {"messages": [...]} line'
+    ),
+) -> Response:
+    """A conversation as a download: Markdown (citations as footnotes linking back to Lens), PDF (that Markdown
+    printed: by Chromium, else anytopdf, else LibreOffice; 409 with the reason when none can run here) or JSON
+    (OpenAI chat messages in a tree, with Dublin Core terms; docs/schemas/chat-export.schema.json). Citations follow
+    your current access, as in GET /chats/{cid}."""
+    data, media, name = exported(db, cfg, acl, user, cid, fmt, web_app_base(request), message, every, shape)
+    return Response(
+        data,
+        media_type=media + ("; charset=utf-8" if fmt != "pdf" else ""),
+        headers={"Content-Disposition": f'attachment; filename="{name}"', "Cache-Control": "private, no-store"},
+    )
 
 
 @router.patch("/chats/{cid}")

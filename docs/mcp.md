@@ -46,8 +46,8 @@ that should see that namespace and nothing else: a family assistant, a project's
 has the same tools, but sees only that namespace, whatever else the person who signs the agent in can read. Tools
 that take a namespace use this one when none is named, `list_namespaces` and `list_files` show only it, and the tools
 about the server itself (`file_storage`, `monitoring`, `sandbox_gateway`, `install_settings` and the ones that change
-them) aren't there,
-even for admins. An admin counts as an owner of the namespace there.
+them) aren't there, even for admins. Nor are the person's own conversations (`list_chats`, `read_chat`,
+`export_chat`), which belong to no namespace. An admin counts as an owner of the namespace there.
 
 It is off until an owner of the namespace turns it on: **Admin → Namespaces →** the namespace **→ Connect apps**, which
 also copies its address, or `PATCH /api/v1/namespaces/<namespace>/integrations` with `{"mcp": true}`, or an agent's
@@ -94,8 +94,13 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `find_notes` | [notes](notes.md) by words in their title, summary or text, or by where they're filed (PARA), with the words around the match and links |
 | `read_note` | a note's Markdown with its links and backlinks, by id or as the page of a thing (`recording:12`) |
 | `write_note` | write a note or a thing's page, marked as written by an assistant. Needs a write-scope token and editor access |
+| `list_chats` | the person's conversations with Lens's [assistant](assistant.md#chat), newest first, by words in their title, each with its link |
+| `read_chat` | one of them: what it draws on, and the version showing (or the one ending at a `message`), each message with its versions, the tools an answer used, its citations with links and its record; `tree` adds every message's parent and role |
+| `export_chat` | one of them as Markdown or JSON ([Copy and export](assistant.md#copy-and-export)): the version showing, one `message`, every version (`all_versions`) or OpenAI's `{"messages": [...]}` shape (`as_messages`) |
 | `create_podcast` | make a two-host learning [episode](podcasts.md) about assets or lines in them, with an angle, a length and a style; it's made in the background. Needs a write-scope token and editor access where it goes |
 | `get_podcast` | an episode: how far it has got, its script with each line's speaker and the sources it cites (links), and what the fact-check changed |
+| `write_spec` | write a technical [spec](notes.md#specs-from-transcripts) from a recording's transcript as a note linked to it: every decision, no and constraint in the speaker's own words with links to when they said them, and the gaps left to decide later; it's written in the background. Needs a write-scope token and the right to process the recording |
+| `get_spec` | how a recording's spec is coming (`writing`, `ready` or `failed` with why), its note's id and link, and how many decisions, things turned down, constraints and gaps it holds and quotes the transcript doesn't |
 | `nsfw_settings` | how [NSFW classification](nsfw.md) works in a namespace: on or off, the threshold, how flagged resources show, and how many are classified, flagged and not classified yet |
 | `set_nsfw` | turn NSFW classification on or off, set its threshold and display, for a namespace (owners) or the archive (admins), and optionally classify what's there. Needs a write-scope token |
 | `mark_nsfw` | mark a resource NSFW or not by hand, or hand it back to the model's score. Needs a write-scope token and editor access |
@@ -141,7 +146,7 @@ Every tool reads, except `suggest_topic`, which adds suggestions people accept o
 which records an undoable change (proposed by default), `undo_graph_change`, `edit_entity`, `edit_topic`,
 `merge_topics`, `delete_topic` and `undo_topic_change`, which curate entities and topics as an editor does in the web
 app (merges and deletes can be undone), `write_note`, which adds a note, `create_podcast`, which
-queues an episode, `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
+queues an episode, `write_spec`, which queues a spec, `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
 editors), `set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_picture_descriptions`, which changes what describes pictures (admins), `set_file_storage`, which changes where new files are kept (admins), and `set_monitoring`,
 `set_sandbox_gateway` (the [code sandbox](assistant.md#code-sandbox)'s gateway) and `set_install_settings`, which have
 the machine change how Lens runs (admins).

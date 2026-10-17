@@ -4,11 +4,15 @@ import { Pencil } from "lucide-react";
 import { useState } from "react";
 
 import { SentFiles } from "@/components/chat/attachments";
+import { CopyQuestion } from "@/components/chat/copy";
 import { Button, IconButton } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /** What a question that only sends files says. */
 export const onlyFiles = (n: number) => (n === 1 ? "I attached this file." : "I attached these files.");
+
+/** A question's buttons show on hover or focus (always on touch screens). */
+const REVEAL = "mt-1.5 opacity-0 focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100";
 
 /** A question you asked, with the files sent with it. With `onEdit` (not while an answer is being written) it can be
  * edited, which asks it again as a new version beside this one; this one keeps what followed it. `versions`: the switch
@@ -70,12 +74,13 @@ export function UserBubble({
   }
   return (
     <div className="group flex items-start justify-end gap-1 self-end">
+      {!filesOnly && <CopyQuestion text={text} className={REVEAL} />}
       {onEdit && (
         <IconButton
           label="Edit"
           size={32}
           onClick={() => setEditing(filesOnly ? "" : text)}
-          className="mt-1.5 opacity-0 focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100 [&_svg]:size-4"
+          className={cn(REVEAL, "print:hidden [&_svg]:size-4")}
         >
           <Pencil />
         </IconButton>

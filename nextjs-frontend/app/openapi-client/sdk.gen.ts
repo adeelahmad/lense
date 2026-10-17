@@ -460,6 +460,9 @@ import type {
   ExportBatchResultsData,
   ExportBatchResultsErrors,
   ExportBatchResultsResponses,
+  ExportChatData,
+  ExportChatErrors,
+  ExportChatResponses,
   ExportNotesData,
   ExportNotesErrors,
   ExportNotesResponses,
@@ -698,6 +701,9 @@ import type {
   GetSettingsResponses,
   GetSetupData,
   GetSetupResponses,
+  GetSpecData,
+  GetSpecErrors,
+  GetSpecResponses,
   GetTemplateData,
   GetTemplateErrors,
   GetTemplateResponses,
@@ -1797,6 +1803,9 @@ import type {
   VaultOptionsResponses,
   VoiceInfoData,
   VoiceInfoResponses,
+  WriteSpecData,
+  WriteSpecErrors,
+  WriteSpecResponses,
 } from "./types.gen";
 
 export type Options<
@@ -10324,6 +10333,23 @@ export class Chats {
   }
 
   /**
+   * Export Chat
+   *
+   * A conversation as a download: Markdown (citations as footnotes linking back to Lens), PDF (that Markdown
+   * printed: by Chromium, else anytopdf, else LibreOffice; 409 with the reason when none can run here) or JSON
+   * (OpenAI chat messages in a tree, with Dublin Core terms; docs/schemas/chat-export.schema.json). Citations follow
+   * your current access, as in GET /chats/{cid}.
+   */
+  public static exportChat<ThrowOnError extends boolean = false>(
+    options: Options<ExportChatData, ThrowOnError>,
+  ): RequestResult<ExportChatResponses, ExportChatErrors, ThrowOnError> {
+    return (options.client ?? client).get<ExportChatResponses, ExportChatErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/export.{fmt}",
+      ...options,
+    });
+  }
+
+  /**
    * Download Chat File
    *
    * A file the code sandbox handed you in this conversation (share_sandbox_file, the download on its answer).
@@ -12045,6 +12071,46 @@ export class Podcasts {
     return (options.client ?? client).post<RegeneratePodcastResponses, RegeneratePodcastErrors, ThrowOnError>({
       url: "/api/v1/podcasts/{rid}/regenerate",
       ...options,
+    });
+  }
+}
+
+export class Specs {
+  /**
+   * Get Spec
+   *
+   * What there is of this asset's spec: its note and what it holds when it's written, the job writing it, or why
+   * the last one failed; and the template it was (or would be) written with.
+   */
+  public static getSpec<ThrowOnError extends boolean = false>(
+    options: Options<GetSpecData, ThrowOnError>,
+  ): RequestResult<GetSpecResponses, GetSpecErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetSpecResponses, GetSpecErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/spec",
+      ...options,
+    });
+  }
+
+  /**
+   * Write Spec
+   *
+   * Write a technical spec from this asset's transcript as a note linked to it, in the background: every named
+   * decision, every no and every "not that, this", every constraint, in the speaker's own words with when they said
+   * them, and the gaps they left to decide later, flagged. It's written with the Spec from transcript prompt template
+   * (edited on the Templates page), or `template`; writing it again updates the same note, whose history keeps what it
+   * said before. It runs after what the asset's job still has to do. Needs the right to process the asset and a
+   * language model (400 without one, or with no text and none on the way). Audited as `spec.write`.
+   */
+  public static writeSpec<ThrowOnError extends boolean = false>(
+    options: Options<WriteSpecData, ThrowOnError>,
+  ): RequestResult<WriteSpecResponses, WriteSpecErrors, ThrowOnError> {
+    return (options.client ?? client).post<WriteSpecResponses, WriteSpecErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/spec",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }
