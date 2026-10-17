@@ -11750,6 +11750,89 @@
         }
       }
     },
+    "/api/v1/notes/templates": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "List Templates",
+        "description": "The namespace's templates: the notes inside its \"Templates\" note, in the tree's order. Start a note from one\nwith `POST /notes/{pid}/copy`.",
+        "operationId": "list_templates",
+        "parameters": [
+          {
+            "name": "ns",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ns"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteTemplates"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Templates Note",
+        "description": "The namespace's \"Templates\" note, made the first time it's asked for: each note put inside it is a template.\nNeeds editor access.",
+        "operationId": "templates_note",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteTemplatesCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotePage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/notes/targets": {
       "get": {
         "tags": [
@@ -12635,6 +12718,59 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/NotePageMove"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotePage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notes/{pid}/copy": {
+      "post": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Copy Page",
+        "description": "A new free note with this page's text, drawings, files, filing and view: a note started from a template, or a\ncopy. Titled `title` (default the page's), inside `parent` (default the top). Needs editor access.",
+        "operationId": "copy_page",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteCopy"
               }
             }
           }
@@ -52631,6 +52767,39 @@
         ],
         "title": "NoteBacklink"
       },
+      "NoteCopy": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "its title (default: the page's)"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "put it inside this page (default: the top)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "NoteCopy"
+      },
       "NoteCreate": {
         "properties": {
           "text": {
@@ -53875,6 +54044,85 @@
           "pages"
         ],
         "title": "NoteSearch"
+      },
+      "NoteTemplate": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "NoteTemplate"
+      },
+      "NoteTemplates": {
+        "properties": {
+          "namespace": {
+            "type": "string",
+            "title": "Namespace"
+          },
+          "root": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Root",
+            "description": "the \"Templates\" note: each note inside it is a template; null until made"
+          },
+          "templates": {
+            "items": {
+              "$ref": "#/components/schemas/NoteTemplate"
+            },
+            "type": "array",
+            "title": "Templates"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "namespace",
+          "templates"
+        ],
+        "title": "NoteTemplates"
+      },
+      "NoteTemplatesCreate": {
+        "properties": {
+          "ns": {
+            "type": "string",
+            "title": "Ns",
+            "description": "the namespace whose Templates note to make"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ns"
+        ],
+        "title": "NoteTemplatesCreate"
       },
       "NoteToday": {
         "properties": {
