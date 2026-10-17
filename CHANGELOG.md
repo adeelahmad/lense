@@ -46,6 +46,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Download notes as Markdown.** A note's ⋯ menu in the tree downloads it as a Markdown file, and the Notes page's ⋯
   menu downloads all of a namespace's notes as a zip in folders that follow the tree, for Obsidian and other notes apps
   ([Downloading as Markdown](docs/notes.md#downloading-as-markdown)).
+- **Templates.** Notes inside a namespace's Templates note are templates: **New note from a template…** on the Notes
+  page and in Jump to starts a note from one, with its text, drawings, files and filing. Any note's menu in the tree can
+  also **Make a copy** ([Templates](docs/notes.md#templates)).
 - **Automations for agents.** Agents list, save, try and run automations through the MCP tools `automations`,
   `automation_actions`, `save_automation`, `test_automation` and `run_automation`, with problems in plain words. The
   assistant saves them switched off and asks before switching one on or running it
@@ -89,9 +92,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **The assistant runs Python and bash.** Turn on Settings → Code sandbox and point Lens at an NVIDIA OpenShell
   gateway, and the assistant gets `run_python`, `run_bash`, `sandbox_files` and `import_sandbox_file`: code runs in a
   sandbox of the conversation's own, with none of Lens's data or keys and no network unless you allow the package
-  registries or the public web. Files attached to the conversation go in; a file it makes reaches a namespace once the
-  person approves. Off by default; starting the gateway from Settings is in progress
-  ([Code sandbox](docs/assistant.md#code-sandbox)).
+  registries, or those and hosts you list. Files attached to the conversation go in; a file it makes reaches a
+  namespace once the person approves. Off by default ([Code sandbox](docs/assistant.md#code-sandbox)).
+- **Start the code sandbox's gateway from Settings.** Settings → Code sandbox → Run the gateway on this machine has
+  the upgrade agent start NVIDIA OpenShell's gateway next to Lens (the Compose profile `sandbox`) and turns the sandbox
+  on; Lens signs in to it over mutual TLS. First it checks the machine can run it (the Docker Compose install, a
+  64-bit machine, Landlock in its Linux kernel) and says why not. Off deletes every sandbox and stops it. The same
+  over `PUT /api/v1/admin/sandbox` and the MCP tools `sandbox_gateway` and `set_sandbox_gateway`
+  ([The gateway](docs/assistant.md#the-gateway)).
 - **Find anything by who, what and when.** Agents and the API can find assets by the faces seen in them, the people
   heard, the entities they mention, the topics they're about, their kind and content type, when they were made (a
   day, a month or a year), tags, language, objects seen, emotions heard, length and words in them, together or alone,

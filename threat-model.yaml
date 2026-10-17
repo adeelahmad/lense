@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:d1966a880e10f94a87dd5751ecc6ee7ea88db46d01c4819a421fbf4fb7247a61"
+prose_version: "threat-model.md@sha256:e6f2ce5ac223fae00e62c9a2d26031edba7199a747b6d1f8335376474727f832"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 204, maintainer: 46, inferred: 91, assumption: 8}
@@ -551,6 +551,16 @@ entry_points:
         obligation_id: admin-is-trusted
         caller_must_enforce: "admin is trusted; audited (lens.install, https.ports); reaches the machine only as an inbox request the agent checks again"
         provenance: {kind: documented, source: 'docs/updates.md "Setting the machine up again"'}
+  - id: "admin sandbox gateway"
+    component: authz
+    parameters:
+      - name: "PUT /api/v1/admin/sandbox {on}, MCP set_sandbox_gateway"
+        attacker_controllable: false
+        x-condition: "admin only (MCP: with the write scope)"
+        control_kinds: [x-env-config]
+        obligation_id: admin-is-trusted
+        caller_must_enforce: "admin is trusted; audited (lens.sandbox); refused when preflight finds the machine can't run the gateway; reaches the machine only as an inbox request (action=services, profile=sandbox) the agent checks again; off deletes every sandbox first"
+        provenance: {kind: documented, source: 'docs/assistant.md "The gateway"'}
   - id: "entity and topic curation tools"
     component: authz
     parameters:
@@ -1245,6 +1255,15 @@ build_flags:
     affects_properties:
       - {property_id: P-HARDENED, effect: narrows}
     provenance: {kind: documented, source: 'docs/updates.md "Setting the machine up again"'}
+  - name: "sandbox Compose profile: Settings › Code sandbox › Run the gateway on this machine, PUT /api/v1/admin/sandbox or MCP set_sandbox_gateway"
+    default: "off"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "runs OpenShell's gateway as root with the Docker socket (it can start any container), with no capabilities and a read-only image; its gRPC port on the host's 127.0.0.1:17670 and the sandbox network shared with the backend and worker; it answers only callers with the client certificate in the sandbox-key volume; the certificates live in the host's /var/lib/openshell, root only"
+    affects_properties:
+      - {property_id: P-HARDENED, effect: narrows}
+      - {property_id: P-SANDBOX, effect: preserves}
+    provenance: {kind: documented, source: 'docs/assistant.md "The gateway"'}
   - name: "Edition: install.sh LENS_TARGET, also from Settings › Components or PUT /api/v1/admin/install"
     default: "full"
     security_relevant: true
@@ -1478,7 +1497,7 @@ properties_claimed:
     x-tier-question: Q37
     conditions: "in the compose files the database, API and Fedora ports bind to 127.0.0.1, containers run non-root with no-new-privileges, and the web app sends nosniff, a referrer policy, a permissions policy and a frame policy (HSTS through Cloudflare); in docker-compose.prod.yml the DB password is random and the web app listens on this machine unless LENS_BIND is set"
     violation_symptoms: [x-missing-hardening]
-    x-voided-by: "LENS_BIND=0.0.0.0 (docker-compose.prod.yml:153), which an admin can also ask for from Settings (PUT /api/v1/admin/install); dev web port (docker-compose.yml:95, §1.3)"
+    x-voided-by: "LENS_BIND=0.0.0.0 (docker-compose.prod.yml:153), which an admin can also ask for from Settings (PUT /api/v1/admin/install); dev web port (docker-compose.yml:95, §1.3); the opt-in sandbox profile's openshell-init, openshell-key and openshell-gateway run as root, the gateway with the Docker socket"
     provenance: {kind: documented, source: 'docs/deployment.md "What''s hardened already"'}
   - id: P-SECRETS
     kind: confidentiality
@@ -1754,9 +1773,9 @@ properties_claimed:
     kind: integrity
     components: [assistant]
     tier: security-critical
-    conditions: "code the assistant runs (sandbox.enabled, off by default) runs only for people sandbox.who allows, in its conversation's own OpenShell sandbox, never in Lens's processes; the sandbox gets none of Lens's data, keys or database address, only the code and files the person attached to that conversation (25 MB each, 100 MB a run); egress: none (off), PyPI and npm on 443 (packages) or public addresses on 80 and 443 (web); a file leaves only as the person's held upload placed by an import_files approval; stopped after idle_minutes, deleted after keep_hours or with its conversation"
+    conditions: "code the assistant runs (sandbox.enabled, off by default) runs only for people sandbox.who allows, in its conversation's own OpenShell sandbox, never in Lens's processes; the sandbox gets none of Lens's data, keys or database address, only the code and files the person attached to that conversation (25 MB each, 100 MB a run); egress: none (off), PyPI and npm on 443 (packages), or those and the names in sandbox.hosts on 80 and 443 (hosts), every endpoint held to public addresses; a file leaves only as the person's held upload placed by an import_files approval; stopped after idle_minutes, deleted after keep_hours or with its conversation"
     violation_symptoms: [integrity-bypass]
-    x-voided-by: "isolation inside the sandbox is OpenShell's; landlock best_effort runs without Landlock where the kernel lacks it (domain/sandbox.py); whoever reaches the gateway can run sandboxes of their own; what the code prints is third-party text (N-PROMPT)"
+    x-voided-by: "isolation inside the sandbox is OpenShell's; landlock best_effort runs without Landlock where the kernel lacks it (domain/sandbox.py); whoever the gateway lets in (in the sandbox profile, a holder of its client certificate) can run sandboxes of their own; what the code prints is third-party text (N-PROMPT)"
     provenance: {kind: documented, source: 'docs/assistant.md "Code sandbox"'}
   - id: MX-AUTHZ-LIST-CAPS
     kind: resource-bound
