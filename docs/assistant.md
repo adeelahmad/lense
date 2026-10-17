@@ -322,6 +322,7 @@ tools it may use, how many tool calls it may make, and which namespaces it reads
     - `changes` (proposals that become approvals);
     - `files` (importing files and web pages);
     - `code` (the [code sandbox](#code-sandbox): Python and bash, once an admin turns it on);
+    - `research` ([deep research](#deep-research): `start_research` plans research that waits for your approval);
     - `extensions`;
     - `server` (admins);
     - `browser`;
@@ -447,6 +448,72 @@ isn't listed; the gateway's port (17670) as a setting; the gateway on macOS (Doc
 driver); the Podman driver for hosts without Docker; GPUs; a direct sandbox API for agents (today an agent asks the
 assistant); one real run against OpenShell in CI (the tests use a fake gateway with OpenShell's own client); showing
 an image the sandbox shared inline in the answer, not only as a download; the 20-file cap as a setting.
+
+## Deep research
+
+Built in the API, MCP, chat rooms and the assistant's tools; the web app's plan and progress cards are in progress.
+Give the assistant a goal that needs many look-ups, and it comes back with a plan; once you approve it, the research
+runs in the background and a cited report comes back in the conversation.
+
+- **Asking.** Start a question with `/research` (`/research what changed in the capsid work this year?`), send it with
+  `research: true` (`POST /api/v1/chats/<id>/messages`), call `POST /api/v1/chats/<id>/research {goal}`, or ask the
+  assistant for research: its `start_research` tool (the `research` [tool group](#choosing-tools-namespaces-and-a-limit))
+  works from chat, voice and [chat rooms](chat-rooms.md). It needs a language model that uses tools.
+- **The plan.** One model call reads the goal and writes up to three follow-up questions, each with answers to pick
+  from, and a plan: a title, the sub-questions it will answer, where it will look (`archive`, `graph`, `notes`, `web`,
+  `code`: only the sources this person has, and of those only what the conversation's choice of tools keeps), the
+  most tool calls it may make, and the report's outline. With it comes an estimate of what it will cost, always
+  labelled an estimate: from what each tool call of past research runs cost in the activity ledger, else its likely
+  tokens at the model's price in Settings (no figure when the model has no price). The plan is the answer to the
+  question, and it waits as an approval of the assistant's (tool `research`).
+- **Approve, edit or revise.** Approve it as it is, or with your edits (`POST /api/v1/approvals/<id>` with
+  `decision: approve` and `params`: any of `title`, `sub_questions`, `sources`, `max_tool_calls`, `report_outline`), in
+  the conversation or the Approvals page; or send your answers and edits back for one more planning call (`POST
+  /api/v1/research/<id>/revise {answers, plan}`), which changes the plan and its approval in place. In a chat room,
+  "yes" approves the plan as it is. Decline it and nothing runs. `review: false` on `POST /chats/<id>/research` starts
+  it at once, as your own pick.
+- **Agents only decline.** An API key, an app or an agent (MCP, the assistant) can decline a plan but not approve it,
+  as for every approval, unless an admin turns on `research.agents_skip_review` (off by default): then an agent's plan
+  starts without review. The `research` settings are saved with `PUT /api/v1/settings/research`; their place in
+  Settings → AI assistant is in progress.
+- **The run.** Once approved, one process runs it at a time (a claim it keeps with a heartbeat every 10 seconds;
+  another process takes it over after two minutes of silence and goes on from the last finished step), in stages:
+    - *gather*: each sub-question in turn, with the assistant's tool loop, its share of the tool calls that are left,
+      and the plan's sources' tools alone (read tools only). Searches and page reads on the web, and code runs that
+      reach the web, don't ask each time: approving the plan approved them. Any other tool that changes something
+      still asks.
+    - *write*: one call writes the report in Markdown, following the outline, citing [n] across every finding,
+      numbered as one list.
+    - *check*: each cited claim is checked against what it cites ([check the sources](#chat)); one that isn't
+      supported is rewritten once, or marked "(not supported by its sources)".
+    - *done*: the report is an answer in the conversation (`kind: research`), after its last message, with its
+      [record](#what-each-answer-records) (`research` is its id; its tokens and cost are the whole run's).
+- **Limits.** A person has one run going at a time; the next waits its turn. `research.max_tool_calls` (40) caps a
+  plan's tool calls, and `research.max_minutes` (20) a run's time: past it, the report is written from what it found
+  and says which sub-questions it didn't get to (outcome `limit`). `research.model` picks another model for research
+  (empty: the conversation's).
+- **Budgets.** Before each stage the [budgets](budgets.md) of the conversation's namespaces and `all` are checked. One
+  that is over holds the run (`held`, saying why) until the budget allows it, or until you let it go on anyway (`POST
+  /api/v1/research/<id>/resume`); a budget that skips stops it with what it found.
+- **Progress and stopping.** `GET /api/v1/research/<id>` gives its status (planned, declined, queued, running, held,
+  done, stopped, failed), stage, and progress: sub-questions done, sources found, tool calls, minutes, and tokens and
+  cost so far. `GET /api/v1/research?chat_id=<id>` lists a conversation's. `POST /api/v1/research/<id>/stop` stops it
+  after the step it's on (at once while it waits), and what it found so far is saved in the conversation as its
+  answer, marked stopped.
+- **After.** `POST /api/v1/research/<id>/note` saves the report as a [note](notes.md) in the namespace it looked in
+  (`namespace` when there are several), its archive citations as mention links to what they cite, web ones as links,
+  and a link back to the conversation (`@[Research: title](chat:12)`), which only you see named. `POST
+  /api/v1/research/<id>/podcast` makes a [podcast episode](podcasts.md) from the assets the report cites, about its
+  goal. The report reads aloud and exports like any answer.
+- **Agents.** MCP has `start_research` (a new conversation unless `chat_id` is given; `namespaces`, `tools`,
+  `max_tool_calls`) and `research_status` (the plan and progress, and once it's done the report with its sources and
+  their links).
+- **Cost.** Planning is one call; gathering makes at most the plan's tool calls, each round a call; writing and
+  checking are two or three calls. Every call is in the activity ledger for the conversation and `research:<id>`.
+
+Refine later: sub-questions in parallel, research on a schedule, sharing a report with a namespace's members, research
+as an automation action, a report template people can edit, and the report posted back into the chat room it was
+asked in (today the room gets the plan, and the report is in the conversation in Lens).
 
 ## Third-party content and prompt injection
 
