@@ -124,7 +124,7 @@ const KIND: Record<string, { label: string; icon: React.ReactNode; tone: Tone }>
   change: { label: "Change", icon: <Pencil aria-hidden />, tone: "gate" },
 };
 
-function actionText(e: ActivityEntry): string {
+export function actionText(e: ActivityEntry): string {
   const a = e.action;
   if (a.startsWith("model."))
     return `${a.slice(6) === "chat" ? "Model call" : `Model ${a.slice(6)}`}${e.model ? ` · ${e.model}` : ""}`;

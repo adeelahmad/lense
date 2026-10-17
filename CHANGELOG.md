@@ -9,6 +9,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   each run shows what its actions did. Try one on an activity without keeping or sending anything, or run it now;
   Settings → Automations switches them all off and sets how far they may go
   ([Running automations](docs/automations.md#running-automations)).
+- **Each answer says what produced it.** The *i* in an answer's header shows the model and the host it ran on, the
+  tools it was offered and used, the scope, its limits and what it used, tokens, cost (an estimate from your prices),
+  how long it took, how it ended and which tool results read like instructions to an AI, with the calls made for it.
+  Agents read the same record over the API (`GET /api/v1/chats/<id>/messages/<mid>`), and each tool step shows how long
+  it took. Answers from before have no record ([What each answer records](docs/assistant.md#what-each-answer-records)).
 - **Automations for agents.** Agents list, save, try and run automations through the MCP tools `automations`,
   `automation_actions`, `save_automation`, `test_automation` and `run_automation`, with problems in plain words. The
   assistant saves them switched off and asks before switching one on or running it

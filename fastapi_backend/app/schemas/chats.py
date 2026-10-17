@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 from pydantic import ConfigDict, Field
 
+from app.schemas.activity import ActivityEntry
 from app.schemas.common import RequestModel, ResponseModel
 
 
@@ -80,6 +81,67 @@ class ToolStep(ResponseModel):
     tool: str
     args: dict[str, Any] = {}
     summary: str = ""
+    ms: int | None = Field(None, description="how long the tool took")
+    failed: bool | None = Field(None, description="the tool failed (or was unknown or blocked); its summary says why")
+
+
+class RecordTools(ResponseModel):
+    picked: list[str] | None = Field(None, description="the tools or groups the question asked for; null: Auto")
+    offered: list[str] = Field(default_factory=list, description="every tool the model was offered")
+
+
+class RecordLimits(ResponseModel):
+    rounds: int | None = Field(None, description="rounds of tool calls it had (calls in one round run together)")
+    tool_calls: int | None = Field(None, description="tool calls it had; null: only the rounds limit them")
+
+
+class RecordUse(ResponseModel):
+    rounds: int = 0
+    tool_calls: int = 0
+
+
+class RecordTokens(ResponseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True, serialize_by_alias=True)
+
+    in_: int = Field(0, alias="in")
+    out: int = 0
+
+
+class RecordOptions(ResponseModel):
+    """What a question was asked with (only what it set)."""
+
+    model: str | None = None
+    tools: list[str] | None = None
+    max_tool_calls: int | None = None
+    scope: dict[str, Any] | None = None
+    research: bool | None = None
+
+
+class MessageRecord(ResponseModel):
+    """What produced a message, recorded as it was written (docs/assistant.md, "What each answer records"). A question's
+    has `via` and `options`; an answer's the rest. Messages from before it was recorded have none."""
+
+    via: Literal["web", "api", "room", "voice", "automation", "completions"] | None = Field(None, description="a question: how it was sent")
+    options: RecordOptions | None = Field(None, description="a question: the options it was asked with")
+    model: str | None = Field(None, description="the model that wrote the answer")
+    provider: str | None = Field(None, description="the host name of the model server it ran on (never its address or key)")
+    tools: RecordTools | None = None
+    scope: dict[str, Any] | None = Field(None, description="the scope it answered in, after a conversation over everything was narrowed")
+    limits: RecordLimits | None = None
+    used: RecordUse | None = None
+    outcome: Literal["answered", "direct", "limit", "fallback", "stopped", "error"] | None = Field(
+        None,
+        description="answered (after looking things up), direct (without looking anything up), limit (its rounds ran "
+        "out, so it answered from what it found), fallback (from a search: the model can't use tools, or none is set "
+        "up), stopped, or error",
+    )
+    tokens: RecordTokens | None = Field(None, description="the tokens of the model calls made for it (the activity ledger)")
+    cost_usd: float | None = Field(None, description="what those calls cost, from the prices in Settings")
+    cost_estimated: bool | None = Field(None, description="some calls had a price but no token counts: the cost is at least this")
+    ms: int | None = Field(None, description="how long it took to write, from the question")
+    flagged: list[str] | None = Field(None, description="tools whose results read like instructions to an AI")
+    research: int | None = Field(None, description="the research it belongs to")
+    version: str | None = Field(None, description="the version of Lens that wrote it")
 
 
 class PageContext(RequestModel):
@@ -127,6 +189,13 @@ class ChatMessage(ResponseModel):
     error: str | None = Field(None, description="why there's no answer")
     check: AnswerCheck | None = Field(None, description="its latest source check (POST .../messages/{mid}/check)")
     model: str | None = Field(None, description="the model that wrote the answer")
+    meta: MessageRecord | None = Field(None, description="what produced it; none on messages from before it was recorded")
+
+
+class MessageDetail(ChatMessage):
+    ledger: list[ActivityEntry] = Field(
+        default_factory=list, description="its rows in the activity ledger: the model and tool calls made for it, newest first"
+    )
 
 
 class ChatCapabilities(ResponseModel):
@@ -172,6 +241,7 @@ class MessageCreate(RequestModel):
         description="asked from a browser's Lens side panel: its session (POST /browser/sessions). While it's connected, the "
         "assistant can use that browser (docs/browser-assistant.md)",
     )
+    via: Literal["voice"] | None = Field(None, description="voice: said in a voice conversation (the question's record keeps it)")
 
 
 class ApprovalOrigin(ResponseModel):

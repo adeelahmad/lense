@@ -120,6 +120,7 @@ export function ChatApp() {
   const [scopeOpenTick, setScopeOpenTick] = useState(0);
   const [announce, setAnnounce] = useState("");
   const abortRef = useRef<AbortController | null>(null);
+  const spoken = useRef<"voice" | undefined>(undefined); // the question being sent was said, in voice mode
   const files = useAttachments();
   const [queue, setQueue] = useState<Queued[]>([]);
   const threadRef = useRef<HTMLDivElement>(null);
@@ -242,7 +243,7 @@ export function ChatApp() {
       try {
         for await (const msg of streamSSE(`/api/v1/chats/${cid}/messages`, {
           method: "POST",
-          body: { content: question, model, attachments: attached.map((f) => f.id), edit },
+          body: { content: question, model, attachments: attached.map((f) => f.id), edit, via: spoken.current },
           accessToken: session?.accessToken,
           signal: ac.signal,
         })) {
@@ -400,7 +401,8 @@ export function ChatApp() {
             if (voiceRef.current) await speak(ok ? `Okay, using ${named.name}.` : `I couldn't use ${named.name}.`);
             continue;
           }
-          const turn = await dispatchRef.current(said);
+          spoken.current = "voice"; // the question's record says it was said
+          const turn = await dispatchRef.current(said).finally(() => (spoken.current = undefined));
           if (!voiceRef.current || !turn) break;
           if (turn.status === "done" && turn.text) await speak(turn.text);
         }
@@ -677,6 +679,7 @@ export function ChatApp() {
                       onRetryWith={it.q ? (m) => send(it.q!.content, m) : undefined}
                       onAddScope={addScope}
                       check={checks[it.a.id] ?? it.a.check}
+                      meta={it.a.meta}
                       onChecked={(c) => setChecks((x) => ({ ...x, [it.a!.id]: c }))}
                       {...answerHandlers(aKey)}
                     />
@@ -724,6 +727,7 @@ export function ChatApp() {
                   approvals={liveHere.approvals}
                   scope={scope}
                   model={model}
+                  meta={liveHere.meta}
                   onStop={stop}
                   stopping={stopping != null && stopping === live?.chatId}
                   onRetry={() => send(liveHere.question)}

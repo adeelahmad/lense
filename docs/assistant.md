@@ -13,11 +13,12 @@ then.
   numbered.
 - **Answers:** the model answers only from those excerpts and cites them as [n]. Each citation carries the asset
   and timestamp.
-- **Streaming:** answers arrive over server-sent events: `passages`, then `token`s, then `done`.
+- **Streaming:** answers arrive over server-sent events: `passages`, then `token`s, then `meta` (the answer's
+  record, [below](#what-each-answer-records)) and `done`.
 - **Stopping:** Stop asks the server to end the answer after the piece or tool step it's on (whichever server process
   is writing it); what came before is saved, marked stopped. A model call already under way finishes first.
 - **Reopening:** a conversation's answers keep the tools the assistant used (and with what), any notice (the model
-  couldn't use tools), the error when there was no answer, and their latest source check.
+  couldn't use tools), the error when there was no answer, their latest source check and what produced them.
 - **Editing a question:** Edit on a question you asked asks it again as edited; the answer and everything after it
   are replaced (`POST /api/v1/chats/<id>/messages` with `edit`).
 - **Long conversations:** the model reads the latest six messages word for word. Once eight more have built up
@@ -50,6 +51,37 @@ then.
   rises above them, or steps out of sight when there's no room to rise.
 - **No model configured:** chat returns the best-matching passages instead. Anyone signed in can see whether a model
   is set up, and which (`GET /chats/capabilities`), so the app says so before the first question.
+
+### What each answer records
+
+Every answer keeps a record of what produced it (`meta` on the message), so a person can trust and debug it and an
+agent can read it. The **i** in an answer's header (Details) shows it, with the calls made for it and what the
+conversation has cost this month; on a phone it opens as a sheet.
+
+| Field | What it says |
+| --- | --- |
+| `model`, `provider` | the model that wrote it, and the host name of the model server it ran on (never the server's address, path or key) |
+| `tools` | `offered`: every tool the model was offered; `picked`: the tools the question asked for (null: all it may use) |
+| `scope` | the scope it answered in, after a conversation over everything was narrowed to a namespace |
+| `limits`, `used` | the rounds of tool calls it had (and the tool calls, when they're limited), and how many it used |
+| `outcome` | `answered` (after looking things up), `direct` (without looking anything up), `limit` (its rounds ran out, so it answered from what it found), `fallback` (from a search: the model can't use tools, or none is set up), `stopped` or `error` |
+| `tokens`, `cost_usd`, `cost_estimated` | the tokens of the model calls made for it, and what they cost from the prices in Settings ([Costs](activity.md#costs)); `cost_estimated` when some had a price but no token counts, so it cost at least this |
+| `ms` | how long it took, from the question |
+| `flagged` | tools whose results read like instructions to an AI ([below](#third-party-content-and-prompt-injection)) |
+| `version` | the version of Lens that wrote it |
+
+Each tool step also keeps how long it took (`ms`) and whether it failed (`failed`). A question keeps how it was sent
+(`via`: `web`, `api`, `voice`, `room` or `automation`) and the options it was asked with (`options`, such as another
+`model`).
+
+An answer is written inside the activity ledger's scope `chat_message:<id>` (with `chat:<id>`), so every model and
+tool call made for it names it ([Activity](activity.md)), and its record's tokens and cost are theirs: one ledger
+total per answer, and no model call. `GET /api/v1/chats/<id>` returns the record on each message, and
+`GET /api/v1/chats/<id>/messages/<mid>` returns one message with its record and those ledger rows (`ledger`).
+Answers in chat rooms ([Chat rooms](chat-rooms.md)) and the automations' agent record theirs the same way. An app's
+chat completions keep no messages, so their record comes back in the reply's `lens.record`, without tokens and cost
+([Chat completions](api.md#chat-completions-for-any-app)). Answers from before Lens kept records have none; Details
+shows what they have and says the rest wasn't recorded.
 
 ### Picking the namespace for a conversation over everything
 

@@ -1,7 +1,7 @@
 """Conversations with the archive, the assistant's approvals, and checking an answer against its sources.
 
 A question streams back server-sent events: ``scoped`` (the namespace a conversation over everything was narrowed
-to) or ``suggested`` (namespaces to offer when it isn't clear, new ones included), ``step`` (a tool the assistant used), ``approval`` (work it proposed that waits for you), ``notice``, ``passages`` (the numbered excerpts), ``token`` (answer text), ``error`` and ``done``.
+to) or ``suggested`` (namespaces to offer when it isn't clear, new ones included), ``step`` (a tool the assistant used), ``approval`` (work it proposed that waits for you), ``notice``, ``passages`` (the numbered excerpts), ``token`` (answer text), ``error``, ``meta`` (the answer's record) and ``done``.
 The assistant only ever sees, and cites, what the asker can read.
 """
 
@@ -19,7 +19,7 @@ from starlette.concurrency import run_in_threadpool
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer
 from app.api.media import sign_urls
 from app.api.v1.routes.collections import own_collection
-from app.domain import ai_tools, approvals, auth, auto_scope, browser, chat, llm, store, uploads
+from app.domain import activity, ai_tools, approvals, auth, auto_scope, browser, chat, llm, store, uploads
 from app.domain.store import DB
 from app.schemas.chats import (
     AnswerCheck,
@@ -34,6 +34,7 @@ from app.schemas.chats import (
     ChatSummary,
     ChatUpdate,
     MessageCreate,
+    MessageDetail,
     StopResult,
 )
 from app.schemas.common import Created, Ok
@@ -129,6 +130,17 @@ def get_chat(cid: int, user: CurrentUser, acl: Acl, db: Db) -> Chat:
     return Chat.model_validate(sign_urls({**c, "messages": msgs}, full=True))
 
 
+@router.get("/chats/{cid}/messages/{mid}")
+def get_message(cid: int, mid: int, user: CurrentUser, acl: Acl, db: Db) -> MessageDetail:
+    """One message with its record (`meta`: for an answer, the model and the host it ran on, the tools offered and
+    used, the scope, limits and use, tokens, cost, time and how it ended) and its rows in the activity ledger (`ledger`:
+    the calls made for it, newest first). Citations follow your current access, as in GET /chats/{cid}."""
+    m = next((x for x in get_chat(cid, user, acl, db).messages if x.id == mid), None)
+    if m is None:
+        raise HTTPException(404, "not found")
+    return MessageDetail.model_validate({**m.model_dump(by_alias=True), "ledger": activity.history(db, f"chat_message:{mid}", 200)})
+
+
 @router.patch("/chats/{cid}")
 def update_chat(cid: int, body: ChatUpdate, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> Ok:
     """Rename a conversation, change what it draws on, or the model that answers in it (null: the configured one)."""
@@ -177,7 +189,8 @@ def _ev(name: str, data: Any) -> str:
 async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db: Db, cfg: Cfg, request: Request) -> StreamingResponse:
     """Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model
     reads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
-    /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).
+    /chats/{cid}/stop: what came before is saved, marked stopped), meta (the answer's record, kept with it: what produced
+    it), done (the saved message id).
 
     With `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and
     its new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked
@@ -211,6 +224,8 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
     model = await run_in_threadpool(_model, cfg, body.model) if body.model else c.get("model")
     if model and not body.model and model not in await run_in_threadpool(chat.model_choices, cfg):
         model = None
+    record = chat.Record(cfg, model)  # what produced the answer, kept with it (from here: it times the answer)
+    mid = 0  # the answer's id, taken once the question is saved
     title = c["title"]
     page = body.context.model_dump() if body.context else None
     kept = chat.shared_context(page)  # what the question keeps of the page
@@ -229,14 +244,21 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
     summary: dict[str, Any] | None = None  # what compaction keeps of the earlier messages (chat.compact)
 
     def prepare() -> tuple[list[dict[str, Any]], list[dict[str, Any]], Any]:
-        nonlocal summary
+        nonlocal summary, mid
         try:  # a conversation that fills the model's context is folded into its summary before it's answered
             chat.compact(db, cfg, cid, full_only=True)
         except Exception:  # noqa: BLE001 - answered with what fits; tried again after the answer
             log.warning("chat %s: couldn't update the summary", cid, exc_info=True)
         past = chat.history(db, cid)
         summary = chat.memory(db, cfg, cid)
-        chat.add(db, cid, "user", q, attachments=files, context=kept)
+        via = "voice" if body.via == "voice" else "web" if user.via == "access" else "api"
+        chat.add(db, cid, "user", q, attachments=files, context=kept, meta=chat.question_record(via, model=body.model))
+        mid = db.next_id("chat_message")
+        # what's worked out for the answer from here (the excerpts, the namespace it's about) counts for it in the ledger
+        with activity.scope(db, f"chat:{cid}", f"chat_message:{mid}", cfg=cfg):
+            return draw_on(past)
+
+    def draw_on(past: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], Any]:
         if not past and title == "New conversation":
             db.q("UPDATE $r SET title = $t", r=R("chat", cid), t=q[:80])
         # A conversation over everything gets the namespace its first question is about, when that's clear.
@@ -251,6 +273,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         return past, chat.retrieve(db, q, readable, c["scope"], cfg=cfg), placed
 
     past, passages, placed = await run_in_threadpool(prepare)
+    record.scope = c.get("scope") or {}  # after a conversation over everything was narrowed to what it's about
     picked = placed[1] if placed and placed[0] == "scoped" else None
     suggested = placed[1] if placed and placed[0] == "suggest" else None
 
@@ -265,13 +288,17 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         )
     notice: str | None = None
 
-    def save(text: str, cited: list[dict[str, Any]], **kw: Any) -> int:
+    def save(text: str, cited: list[dict[str, Any]], outcome: str = "answered", **kw: Any) -> Iterator[str]:
+        """The answer saved with its record: `meta`, then `done` (its id)."""
         wrote = (model or cfg["llm"].get("model")) if llm.configured(cfg) else None
-        return int(chat.add(db, cid, "assistant", text, cited, steps=steps, notice=notice, model=wrote, **kw))
+        meta = record.meta(db, outcome, f"chat_message:{mid}")
+        chat.add(db, cid, "assistant", text, cited, steps=steps, notice=notice, model=wrote, mid=mid, meta=meta, **kw)
+        yield _ev("meta", meta)
+        yield _ev("done", {"message": mid})
 
     def stopped(text: str, cited: list[dict[str, Any]]) -> Iterator[str]:
         yield _ev("stopped", {"message": "Stopped"})
-        yield _ev("done", {"message": save(text or "(stopped)", cited, stopped=True)})
+        yield from save(text or "(stopped)", cited, "stopped", stopped=True)
 
     def answer(on: chat.Answering) -> Iterator[str]:
         nonlocal notice
@@ -294,10 +321,10 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                 browser=body.browser,
             )
             try:
-                answer = ""
+                answer, how = "", "answered"
                 # setting the server up, or working in the person's browser, takes more steps than looking things up
                 steps_max = max(cfg["ai"].get("max_steps") or 6, 12 if setup else 0, browser.steps(cfg) if box.browser else 0)
-                for kind, data in chat.tool_answer(cfg, box, asked, past, steps_max, model, setup=setup, summary=summary):
+                for kind, data in chat.tool_answer(cfg, box, asked, past, steps_max, model, setup=setup, summary=summary, record=record):
                     if kind == "step":
                         steps.append(data)
                         yield _ev("step", data)
@@ -311,7 +338,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                     elif kind == "direct" and passages and not setup and not (page and page.get("text")) and not box.cited(data):
                         break
                     else:
-                        answer = data
+                        answer, how = data, "direct" if kind == "direct" else "answered"
                 else:
                     box.after_answer(answer)
                     for appr in box.approvals:
@@ -319,23 +346,25 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                     cited = box.cited(answer)
                     yield _ev("passages", cited)
                     yield _ev("token", {"text": answer})
-                    yield _ev("done", {"message": save(answer or "(no answer)", cited)})
+                    yield from save(answer or "(no answer)", cited, how)
                     return
             except llm.ToolsUnsupported:
                 notice = "This model can't use tools, so the answer comes from a search instead."
                 yield _ev("notice", {"message": notice})
             except llm.LLMError as e:
                 yield _ev("error", {"message": str(e)})
-                yield _ev("done", {"message": save("(no answer)", [], error=str(e))})
+                yield from save("(no answer)", [], "error", error=str(e))
                 return
         yield _ev("passages", passages)
         text, error = "", None
         try:
             if llm.configured(cfg):
-                for piece in llm.stream_chat(cfg, chat.messages_for(asked, passages, past, summary, cfg), model=model):
+                pieces = llm.stream_chat(cfg, chat.messages_for(asked, passages, past, summary, cfg), model=model)
+                for piece in pieces:
                     text += piece
                     yield _ev("token", {"text": piece})
                     if on.stop_requested():
+                        pieces.close()  # the call ends here, so its ledger row is in the answer's record
                         yield from stopped(text, chat.cited(text, passages))
                         return
             else:
@@ -344,7 +373,8 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         except llm.LLMError as e:
             error = str(e)
             yield _ev("error", {"message": error})
-        yield _ev("done", {"message": save(text or "(no answer)", chat.cited(text, passages), error=error)})
+        how = "error" if error else "fallback" if notice or not llm.configured(cfg) else "answered"
+        yield from save(text or "(no answer)", chat.cited(text, passages), how, error=error)
 
     def gen() -> Iterator[str]:
         on = chat.Answering(db, cid)
@@ -355,7 +385,8 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                 yield _ev("step", steps[0])
             if suggested:
                 yield _ev("suggested", {"namespaces": suggested})
-            for ev in answer(on):
+            # every call made for the answer counts for it in the ledger (the scope holds across the stream's steps)
+            for ev in activity.scoped(answer(on), db, f"chat:{cid}", f"chat_message:{mid}", cfg=cfg):
                 saved = saved or ev.startswith("event: done")
                 yield ev
         except Exception:  # an answer that breaks off still ends with an error and is saved, so the question isn't left unanswered
@@ -363,7 +394,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
             message = "Something went wrong while answering. Try again."
             yield _ev("error", {"message": message})
             if not saved:
-                yield _ev("done", {"message": save("(no answer)", [], error=message)})
+                yield from save("(no answer)", [], "error", error=message)
         finally:
             on.end()
             try:  # once enough has built up, older messages are folded into the summary (after the answer, so it waits on nothing)

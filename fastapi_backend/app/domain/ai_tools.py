@@ -532,6 +532,7 @@ class Toolbox(ops_tools.OpsTools):
             self.readable = {s for s in self.readable if names.get(s) in self.scope["namespaces"]}
         self.allowed = recsets.within(db, self.readable, self.scope.get("recordings"), self.scope.get("collections"))
         self.refs, self.reads, self.approvals = [], 0, []
+        self.flagged, self.failed = [], False  # tools whose results read like instructions to an AI; the last call failed
         # the extensions this person switched on or was given (extensions.py); hooks don't run inside hooks
         roles = {s: "editor" if s in self.editable else "viewer" for s in self.readable}
         self.me = extensions.who(self.account, user.get("email"), admin, roles)
@@ -688,6 +689,7 @@ class Toolbox(ops_tools.OpsTools):
         """A tool's result (JSON) and the step's summary. `model`: the result as the model reads it, third-party text
         marked as data (untrusted), with what hooks add after it, unmarked."""
         offered = {s["function"]["name"] for s in self.specs()}
+        self.failed = True  # until it runs: a tool that's unknown or blocked failed
         try:
             if name not in offered:
                 raise AttributeError(name)
@@ -703,6 +705,7 @@ class Toolbox(ops_tools.OpsTools):
                 extra += self._hook(h, {"said": self.said, "tool": name})
         asked = len(self.approvals)
         result, summary = self._run(name, fn, args)
+        self.failed = result.startswith('{"error"')
         self.links |= untrusted.links(result)
         if self.untrusted(name) and len(self.approvals) == asked:  # it read something, rather than asking for a yes
             self.read_outside(f"tool {name}")
@@ -714,6 +717,7 @@ class Toolbox(ops_tools.OpsTools):
                 why = untrusted.flags(result, self.cfg, model=True)
                 if why:  # the person sees it on the step, the model on the marker, admins in the audit log
                     summary = f"{summary} (reads like instructions to an AI: {'; '.join(why)})"
+                    self.flagged.append(name)
                     auth.audit(self.db, self.user, "assistant.injection_flagged", f"chat:{self.chat}", {"tool": name, "why": why})
                 result = untrusted.wrap(result, f"tool {name}", self.cfg, why=why)
             return result + (f"\n\n{extra.strip()}" if extra else ""), summary
