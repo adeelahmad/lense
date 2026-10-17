@@ -228,9 +228,25 @@ def parse(raw, base, ctype=None):
             "title": p["title"] or None,
             "when": p["published"] or p["updated"],
             "settled": True,  # a post is whole once its feed lists it: no waiting for it to settle
+            "post": _listed(p, title, site),
         }
         posts[rel] = (entry, body)
     return {"title": title, "site": site, "posts": posts}
+
+
+def _listed(p, feed_title, site):
+    """What a listing says of a post beside its file, kept on its resource as `post` (sources._post_of) for automations
+    and the timeline: its address, the feed and site it came from, who wrote it, when, and its categories."""
+    who = next((a["name"] or a["email"] for a in p["authors"] if a["name"] or a["email"]), None)
+    out = {
+        "href": p["page"],
+        "feed": feed_title,
+        "site": site,
+        "author": who,
+        "published": p["published"] or p["updated"],
+        "categories": p["categories"][:10],
+    }
+    return {k: v for k, v in out.items() if v}
 
 
 def _iso(t):
