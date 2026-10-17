@@ -1,26 +1,27 @@
 #!/usr/bin/env bash
-# Run the pull-request CI jobs (.github/workflows/ci.yml, pre-commit.yml, pr-title.yml) on this machine, one command:
+# Run the pull-request CI jobs (.github/workflows/ci.yml, pre-commit.yml, pr-title.yml, upgrade.yml) on this machine,
+# one command:
 #
-#   ci/local-ci.sh [REF | --pr N] [--title "feat: …"] [--jobs backend,server,frontend,pre-commit,title]
+#   ci/local-ci.sh [REF | --pr N] [--title "feat: …"] [--jobs backend,server,frontend,pre-commit,title,upgrade]
 #
 # REF (default HEAD) is checked out into a throwaway git worktree, so the working tree is never touched. --pr N tests
 # what GitHub's pull_request event tests: pull request N's head merged into the latest origin/main.
-# Needs uv, pnpm, Node 22 and Docker (for the SurrealDB server job); ffmpeg, tesseract, poppler and LibreOffice Writer
-# as on the runner. Each job's log goes to $LOCAL_CI_OUT (default ./.local-ci/<sha>/); a summary table prints at the end
-# and as summary.md, and the exit code is non-zero when any job failed.
+# Needs uv, pnpm, Node 22 and Docker (for the SurrealDB server and upgrade jobs); ffmpeg, tesseract, poppler and
+# LibreOffice Writer as on the runner. Each job's log goes to $LOCAL_CI_OUT (default ./.local-ci/<sha>/); a summary table
+# prints at the end and as summary.md, and the exit code is non-zero when any job failed.
 set -uo pipefail
 
 REPO=$(git rev-parse --show-toplevel)
 REF=HEAD
 TITLE=""
 PR=""
-JOBS="backend,server,frontend,pre-commit,title"
+JOBS="backend,server,frontend,pre-commit,title,upgrade"
 while [ $# -gt 0 ]; do
   case "$1" in
     --title) TITLE=$2; shift 2 ;;
     --jobs) JOBS=$2; shift 2 ;;
     --pr) PR=$2; shift 2 ;;
-    -h|--help) sed -n '2,9p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,11p' "$0"; exit 0 ;;
     *) REF=$1; shift ;;
   esac
 done
@@ -132,6 +133,11 @@ title() {
   step "Check the title" python3 "$WT/.github/scripts/release.py" check-title "$TITLE"
 }
 
+upgrade() {
+  cd "$WT" || return 1
+  LENS_UPGRADE_OUT=$OUT/upgrade step "Upgrade from the last release" ci/upgrade/upgrade.sh
+}
+
 echo "Local CI for ${SHA:0:12} ($REF), logs in $OUT"
 for j in ${JOBS//,/ }; do
   case "$j" in
@@ -140,6 +146,7 @@ for j in ${JOBS//,/ }; do
     frontend) job frontend "Next.js" frontend ;;
     pre-commit) job pre-commit "pre-commit" precommit ;;
     title) job title "PR title" title ;;
+    upgrade) job upgrade "Upgrade from the last release" upgrade ;;
     *) echo "unknown job: $j" >&2 ;;
   esac
 done

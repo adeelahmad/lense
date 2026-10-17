@@ -88,7 +88,8 @@
     {
       "name": "ingest",
       "entry_points": [
-        "/uploads, /import, /recordings/{rid}/files"
+        "/uploads, /import, /recordings/{rid}/files",
+        "POST /hooks/import"
       ],
       "touches": [
         "filesystem",
@@ -402,6 +403,15 @@
       "caller_must_enforce": "none — P-UPLOAD",
       "provenance": "documented",
       "source": "docs/configuration.md \"Uploads accept only the types\""
+    },
+    {
+      "entry_point": "POST /hooks/import",
+      "parameter": "bearer (a hook's lih_ token, or a person's la_, lo_ or web token with ?namespace=), file bytes, URL, text",
+      "attacker_controllable": "yes",
+      "component": "ingest",
+      "caller_must_enforce": "none — P-UPLOAD; the address form /hooks/import/{token} takes hook tokens only, so a person's token never sits in a logged path",
+      "provenance": "documented",
+      "source": "docs/api.md \"the address form takes hook tokens only\""
     },
     {
       "entry_point": "watched folders, storage sources, IMAP, Gmail, iCal",

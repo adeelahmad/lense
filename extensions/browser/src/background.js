@@ -1,6 +1,7 @@
 // The extension's background: context menus, shortcuts, and every push to Lens (so a send finishes even when the
 // popup closes). The assistant lives in the side panel (ui/sidepanel.js); this only opens it.
-import { fetchImages, push } from "./core/lens.js";
+import * as account from "./core/account.js";
+import { fetchImages, push, pushLink } from "./core/lens.js";
 import * as settingsStore from "./core/settings.js";
 
 const ext = globalThis.browser ?? globalThis.chrome;
@@ -63,28 +64,55 @@ async function startPicker(tabId, intent) {
 }
 
 // ---------- sending ----------
-async function send(clip, destinationId) {
-  const settings = await settingsStore.load();
+const signInAgain = (dest) => new Error(`sign in to ${new URL(dest.server).host} again in the clipper's options`);
+
+// The person's sign-in for a signed-in destination (renewed first when it's about to run out), else the token kept on
+// this device for it.
+async function credentials(dest, namespace) {
+  const where = { server: dest.server, namespace: settingsStore.asPerson(dest) ? (namespace || dest.namespace) || undefined : undefined };
+  if (dest.kind !== "signin") return { ...where, token: await settingsStore.token(dest.id) };
+  if ((await account.load())?.server !== dest.server) throw signInAgain(dest);
+  try {
+    return { ...where, token: await account.accessToken() };
+  } catch (e) {
+    throw e instanceof account.SignedOut ? signInAgain(dest) : e;
+  }
+}
+
+/** `fn` with a destination's credentials; a signed-in one renews its sign-in once when Lens says it has run out. */
+async function withCredentials(dest, namespace, fn) {
+  const creds = await credentials(dest, namespace);
+  try {
+    return await fn(creds);
+  } catch (e) {
+    if (e.status !== 401 || dest.kind !== "signin") throw e;
+    let token;
+    try {
+      token = await account.accessToken({ force: true });
+    } catch (again) {
+      throw again instanceof account.SignedOut ? signInAgain(dest) : again;
+    }
+    return fn({ ...creds, token });
+  }
+}
+
+function chosen(settings, destinationId) {
   const dest = settingsStore.destination(settings, destinationId);
   if (!dest) throw new Error("Add your Lens in the clipper's options first");
-  const token = await settingsStore.token(dest.id);
+  return dest;
+}
+
+async function send(clip, destinationId, namespace) {
+  const settings = await settingsStore.load();
+  const dest = chosen(settings, destinationId);
   const images = settings.sendImages && clip.images?.length ? await fetchImages(clip.images, { max: settings.maxImages }) : [];
-  const answer = await push({ server: dest.server, token }, clip, { images, captureUrl: settings.captureOnServer });
+  const answer = await withCredentials(dest, namespace, (creds) => push(creds, clip, { images, captureUrl: settings.captureOnServer }));
   return { ...answer, server: dest.server, destination: dest.name };
 }
 
 async function sendLink(url, title) {
-  const settings = await settingsStore.load();
-  const dest = settingsStore.destination(settings);
-  if (!dest) throw new Error("Add your Lens in the clipper's options first");
-  const token = await settingsStore.token(dest.id);
-  const res = await fetch(`${dest.server}/api/v1/hooks/import`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(title ? { url, title: title.slice(0, 200) } : { url }),
-    credentials: "omit",
-  });
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail ?? `Lens answered ${res.status}`);
+  const dest = chosen(await settingsStore.load());
+  await withCredentials(dest, undefined, (creds) => pushLink(creds, url, title));
 }
 
 // ---------- telling the user ----------
@@ -131,14 +159,12 @@ ext.contextMenus.onClicked.addListener(async (info, tab) => {
       return flag(tab.id, true, "link sent; Lens captures it");
     }
     if (info.menuItemId === "clip-image") {
-      const settings = await settingsStore.load();
-      const dest = settingsStore.destination(settings);
-      if (!dest) throw new Error("Add your Lens in the clipper's options first");
+      const dest = chosen(await settingsStore.load());
       const images = await fetchImages([info.srcUrl], { max: 1 });
       if (!images.length) throw new Error("couldn't download that image");
       const title = tab.title || info.srcUrl;
       const markdown = `![](${info.srcUrl})\n\nFrom [${title}](${info.pageUrl})\n`;
-      await push({ server: dest.server, token: await settingsStore.token(dest.id) }, { title, markdown, url: info.pageUrl }, { images });
+      await withCredentials(dest, undefined, (creds) => push(creds, { title, markdown, url: info.pageUrl }, { images }));
       return flag(tab.id, true, "image sent");
     }
   } catch (e) {
@@ -168,7 +194,7 @@ ext.runtime.onMessage.addListener((msg, sender, reply) => {
     return false;
   }
   if (msg?.type === "send") {
-    send(msg.clip, msg.destination).then(
+    send(msg.clip, msg.destination, msg.namespace).then(
       (answer) => reply({ ok: true, answer }),
       (e) => reply({ ok: false, error: e.message }),
     );
