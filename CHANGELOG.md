@@ -29,6 +29,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   `automation_actions`, `save_automation`, `test_automation` and `run_automation`, with problems in plain words. The
   assistant saves them switched off and asks before switching one on or running it
   ([Agents](docs/automations.md#agents)).
+- **The web clipper takes your API token, or just signs in.** It used to take only an import webhook's token, so an API
+  token was refused with "Lens didn't recognise this token: make a new import webhook and paste its token". Now its
+  options have **Sign in**: Lens asks you to allow the clipper, nothing to copy, and clips go into the namespace you
+  pick (the popup offers each one you can add to). **Use a token instead** takes an API token with write access or a
+  hook's token, and when Lens refuses one the clipper says why: unknown, revoked, read-only, or a Lens too old for
+  API tokens. Anything acting as you (an agent, a script) can push to `POST /api/v1/hooks/import?namespace=` with
+  your own token too, and `GET` there says where a token's pushes go ([Web clipper](docs/web-clipper.md#setting-it-up),
+  [API](docs/api.md#import-webhooks)).
 - **Versions in conversations.** A conversation is now a tree: editing a question makes a new version beside it
   instead of deleting what followed, regenerating an answer (`regenerate`, with the same model or another) writes one
   beside it, and a question can go on from any message (`parent`). `GET /api/v1/chats/<id>` shows each message's
@@ -57,14 +65,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   registries or the public web. Files attached to the conversation go in; a file it makes reaches a namespace once the
   person approves. Off by default; starting the gateway from Settings is in progress
   ([Code sandbox](docs/assistant.md#code-sandbox)).
-- **The web clipper takes your API token, or just signs in.** It used to take only an import webhook's token, so an API
-  token was refused with "Lens didn't recognise this token: make a new import webhook and paste its token". Now its
-  options have **Sign in**: Lens asks you to allow the clipper, nothing to copy, and clips go into the namespace you
-  pick (the popup offers each one you can add to). **Use a token instead** takes an API token with write access or a
-  hook's token, and when Lens refuses one the clipper says why: unknown, revoked, read-only, or a Lens too old for
-  API tokens. Anything acting as you (an agent, a script) can push to `POST /api/v1/hooks/import?namespace=` with
-  your own token too, and `GET` there says where a token's pushes go ([Web clipper](docs/web-clipper.md#setting-it-up),
-  [API](docs/api.md#import-webhooks)).
+- **Find anything by who, what and when.** Agents and the API can find assets by the faces seen in them, the people
+  heard, the entities they mention, the topics they're about, their kind and content type, when they were made (a
+  day, a month or a year), tags, language, objects seen, emotions heard, length and words in them, together or alone,
+  naming people and things instead of looking up ids. Each result says why it matched, with moments to cite
+  (`POST /find`, the MCP tool `find`, the assistant's `find_resources`; [Finding by any
+  attribute](docs/processing.md#finding-by-any-attribute)). The Library list takes faces, entities, topics, content
+  types and emotions as filters too.
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 

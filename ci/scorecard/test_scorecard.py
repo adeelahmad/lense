@@ -6,11 +6,13 @@ import io
 import json
 import tempfile
 import unittest
+import zipfile
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
 
+import measure_install as mi
 import scorecard as sc
 
 
@@ -300,3 +302,96 @@ class Main(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FakeGitHub(sc.GitHub):
+    """Answers the artifacts list and downloads from memory."""
+
+    def __init__(self, artifacts: dict[str, dict[str, str]], token="t"):
+        super().__init__("o/r", token)
+        self.artifacts = artifacts
+
+    def pages(self, path, params, key=None):
+        name = params.get("name")
+        if name not in self.artifacts:
+            return iter([])
+        run = {"head_branch": "main", "head_sha": "abcdef1234567890"}
+        return iter(
+            [
+                {
+                    "expired": False,
+                    "created_at": "t",
+                    "workflow_run": run,
+                    "archive_download_url": name,
+                },
+            ]
+        )
+
+    def request(self, url, accept="application/vnd.github+json"):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as z:
+            for member, text in self.artifacts[url].items():
+                z.writestr(member, text)
+        return buf.getvalue()
+
+
+class Install(unittest.TestCase):
+    def test_reads_the_timed_install_from_main(self):
+        made = {
+            "install_to_first_answer_s": 812,
+            "idle_ram_mb": 1450.3,
+            "disk_mb": 6120.0,
+            "build_cache_mb": 900.0,
+            "containers_mb": {"backend": 700.0},
+            "machine": "GitHub ubuntu-24.04-arm",
+            "arch": "aarch64",
+            "target": "full",
+        }
+        gh = FakeGitHub(
+            {"install-scorecard": {"install-scorecard.json": json.dumps(made)}}
+        )
+        m = sc.install_metrics(gh)
+        self.assertEqual(m["install_to_first_answer_s"]["value"], 812)
+        self.assertEqual(m["idle_ram_mb"]["containers"], {"backend": 700.0})
+        self.assertEqual(m["disk_mb"]["build_cache_mb"], 900.0)
+        self.assertEqual(m["disk_mb"]["arch"], "aarch64")
+        self.assertEqual(m["disk_mb"]["commit"], "abcdef123456")
+        self.assertEqual(m["disk_mb"]["better"], "down")
+
+    def test_not_measured_without_an_artifact_or_a_token(self):
+        m = sc.install_metrics(FakeGitHub({}))
+        self.assertIn("no install-scorecard artifact", m["idle_ram_mb"]["not_measured"])
+        m = sc.install_metrics(FakeGitHub({"install-scorecard": {}}, token=None))
+        self.assertIn("needs a GitHub token", m["disk_mb"]["not_measured"])
+
+    def test_coverage_from_an_artifact(self):
+        xml = '<coverage lines-valid="400" lines-covered="300">'
+        gh = FakeGitHub({"backend-coverage": {"coverage.xml": xml}})
+        m = sc.coverage(gh, "backend-coverage", "coverage.xml", sc.cobertura_rate)
+        self.assertEqual(
+            (m["value"], m["lines"], m["commit"]), (75.0, 400, "abcdef123456")
+        )
+
+
+class MeasureInstall(unittest.TestCase):
+    def test_sizes(self):
+        self.assertAlmostEqual(mi.to_mb("1.5GiB"), 1610.6127, places=3)
+        self.assertEqual(mi.to_mb("512MB"), 512)
+        self.assertEqual(mi.to_mb("0B"), 0)
+        self.assertAlmostEqual(mi.to_mb("12.2kB"), 0.0122)
+        with self.assertRaises(ValueError):
+            mi.to_mb("lots")
+
+    def test_docker_stats_and_df(self):
+        stats = [
+            {"Name": "lens-backend-1", "MemUsage": "700MiB / 15.6GiB"},
+            {"Name": "lens-db-1", "MemUsage": "1.2GiB / 15.6GiB"},
+        ]
+        self.assertEqual(
+            mi.ram_mb(stats), {"lens-backend-1": 734.0, "lens-db-1": 1288.5}
+        )
+        df = [
+            {"Type": "Images", "Size": "3.2GB"},
+            {"Type": "Build Cache", "Size": "0B"},
+        ]
+        self.assertEqual(mi.disk_mb(df), {"Images": 3200.0, "Build Cache": 0.0})
