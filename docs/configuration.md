@@ -107,7 +107,8 @@ Start from `fastapi_backend/archive.example.yaml`, which documents every key. Th
 ## Settings in the app
 
 Admins can change, in Settings: transcription, speaker separation, speech providers, voice IDs, analysis, the LLM
-provider and key, a local model, the AI assistant, search (word search and search by meaning), reports and graph,
+provider and key, a local model, the AI assistant, the [code sandbox](assistant.md#code-sandbox), search (word
+search and search by meaning), reports and graph,
 video, OCR, faces and objects, [NSFW classification](nsfw.md), workers, sign-in, components (and the edition, full or
 lean), access and embedding (whether other devices on the network reach Lens, embed frame ancestors, text and transcript
 upload limit, allowed hosts, trusted proxies, session length), remote access, email, chat rooms, notifications,
@@ -200,6 +201,20 @@ People can choose the model a conversation uses, and ask a question again with a
 `llm.chat_models` (Settings → LLM provider) lists the models they may pick, besides `llm.model`, which is always
 offered and stays the default. Left empty, they may pick whatever the model server lists (`GET /models`, kept for a
 minute); on providers that list many models, or charge by model, list the ones you want offered.
+
+## Web search
+
+Whether the assistant searches the web and reads pages ([Web search and reading pages](assistant.md#web-search-and-reading-pages)).
+Settings → AI assistant → Web search; the setup chat always asks before it changes these:
+
+| Setting | Default | |
+|---|---|---|
+| `web.search` | `off` | the search provider: `off`, `duckduckgo` (no key; fetches the ddgs client, about 30 MB, when picked), `searxng` (your own instance), `brave` or `tavily` (an API key) |
+| `web.searxng_url` | null | your SearXNG instance's address, such as `http://searxng:8080`, with its JSON output on; asked directly, so it may be on your network |
+| `web.api_key` | none | the Brave Search or Tavily API key, stored encrypted |
+| `web.results` | 5 | results per search when the model doesn't say, 1–20 |
+| `web.read_chars` | 20000 | the most of a page's text the model reads at once, 1,000–200,000 characters |
+| `web.render` | false | load a page that comes back nearly empty in Chromium, scripts run, and read it again (needs Chromium: the full edition) |
 
 ## Descriptions
 
@@ -477,6 +492,24 @@ follow ([Automations](automations.md#contract)), their timers, and how long thei
 | `automations.approval_days` | 7 | how long an automation's action waits for your pick before it expires and nothing runs, 1–365 days |
 | `events.poll_seconds` | 5 | how often followers look for new activities when nothing wakes them, 1–3600 |
 | `events.keep_days` | 30 | how long activities with no row of their own (the event log) are kept, 1–3650 days |
+
+## Code sandbox
+
+Where the assistant runs Python and bash ([Code sandbox](assistant.md#code-sandbox)). Settings → Code sandbox; the
+image, CPU, memory, run time and how long sandboxes are kept are under its fold:
+
+| Setting | Default | |
+|---|---|---|
+| `sandbox.enabled` | false | on: the assistant gets `run_python`, `run_bash`, `sandbox_files` and `import_sandbox_file` |
+| `sandbox.who` | `editors` | who may use it: `editors` (people who can edit a namespace, and admins) or `admins` |
+| `sandbox.network` | `off` | `off` (no traffic), `packages` (the Python and npm registries) or `web` (public addresses on ports 80 and 443) |
+| `sandbox.gateway` | `openshell-gateway:8080` | the OpenShell gateway's gRPC address, `host:port` |
+| `sandbox.image` | `python:3.12-slim` | the container image sandboxes are made from; it needs `python3` and `bash` |
+| `sandbox.cpu` | `1` | cores a sandbox may use, like `1`, `0.5` or `500m` (0.1–64) |
+| `sandbox.memory` | `512Mi` | memory a sandbox may use, like `512Mi` or `2Gi` (64Mi–64Gi) |
+| `sandbox.seconds` | 60 | the longest one run may take, 1–600 seconds |
+| `sandbox.idle_minutes` | 15 | a sandbox nobody ran code in for this long is stopped (its files stay), 1–1440 |
+| `sandbox.keep_hours` | 24 | one unused for this long is deleted with its files, 1–720 |
 
 ## Trusted proxies
 

@@ -20,7 +20,7 @@ from starlette.concurrency import run_in_threadpool
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer
 from app.api.media import sign_urls
 from app.api.v1.routes.collections import own_collection
-from app.domain import activity, ai_tools, approvals, auth, auto_scope, browser, chat, llm, store, uploads
+from app.domain import activity, ai_tools, approvals, auth, auto_scope, browser, chat, llm, sandbox, store, uploads
 from app.domain.store import DB
 from app.schemas.chats import (
     AnswerCheck,
@@ -115,7 +115,8 @@ def create_chat(user: Writer, acl: Acl, db: Db, cfg: Cfg, body: ChatCreate | Non
 @router.get("/chats/{cid}")
 def get_chat(cid: int, user: CurrentUser, acl: Acl, db: Db) -> Chat:
     """A conversation with the version showing (`messages`, each with its `versions`) and every version's messages
-    (`tree`). Citations follow your current access: ones you can no longer read are left out."""
+    (`tree`). Citations follow your current access: ones you can no longer read are left out (web pages it cited stay:
+    they aren't the archive's)."""
     return _chat_view(db, acl, _own_chat(db, cid, user))
 
 
@@ -141,9 +142,9 @@ def _chat_view(db: DB, acl: Access, c: dict[str, Any]) -> Chat:
 
 
 def _readable_citations(db: DB, acl: Access, msgs: list[dict[str, Any]]) -> None:
-    """Leave out the citations the asker can no longer read."""
+    """Leave out the citations the asker can no longer read (web pages stay)."""
     ok = set(acl.roles)
-    ids = {p["recording_id"] for m in msgs for p in m.get("passages") or []}
+    ids = {p["recording_id"] for m in msgs for p in m.get("passages") or [] if p.get("recording_id") is not None}
     visible = (
         {
             r["id"]
@@ -154,7 +155,7 @@ def _readable_citations(db: DB, acl: Access, msgs: list[dict[str, Any]]) -> None
         else set()
     )
     for m in msgs:
-        m["passages"] = [p for p in m.get("passages") or [] if p["recording_id"] in visible]
+        m["passages"] = [p for p in m.get("passages") or [] if p.get("source") == "web" or p.get("recording_id") in visible]
 
 
 @router.get("/chats/{cid}/messages/{mid}")
@@ -185,9 +186,11 @@ def update_chat(cid: int, body: ChatUpdate, user: Writer, acl: Acl, db: Db, cfg:
 
 
 @router.delete("/chats/{cid}")
-def delete_chat(cid: int, user: Writer, db: Db) -> Ok:
+def delete_chat(cid: int, user: Writer, db: Db, cfg: Cfg) -> Ok:
+    """Delete a conversation, with its code sandbox and the files in it."""
     _own_chat(db, cid, user)
     db.run(["DELETE chat_message WHERE chat = $c", "DELETE $r"], c=cid, r=R("chat", cid))
+    sandbox.forget(db, cfg, cid)
     return Ok()
 
 
