@@ -24,6 +24,7 @@ import {
   Podcast,
   RefreshCw,
   RotateCw,
+  ScrollText,
   Workflow,
 } from "lucide-react";
 import Link from "next/link";
@@ -38,7 +39,7 @@ import { NsfwNotice } from "@/components/nsfw/nsfw";
 import { CreatePodcastDialog } from "@/components/podcasts/create-dialog";
 import { useRec } from "@/components/recording/context";
 import { pageAt, pagesSummary } from "@/components/recording/document/model";
-import { useEvidence, useExport, usePipelines, useRecordingActions } from "@/components/recording/hooks";
+import { useEvidence, useExport, usePipelines, useRecordingActions, useSpec } from "@/components/recording/hooks";
 import { isActive, readyBefore, shortError, stepLabel, loopSteps } from "@/components/recording/jobs";
 import { Badge, StatusChip } from "@/components/ui/badge";
 import { Button, IconButton } from "@/components/ui/button";
@@ -48,6 +49,7 @@ import { useToast } from "@/components/ui/toast";
 import { Tooltip } from "@/components/ui/tooltip";
 import { absolute, shortDate, tc } from "@/lib/format";
 import { EXPORTS, failureImpact, sourceLabel } from "@/components/recording/labels";
+import { specAction } from "@/components/recording/spec-model";
 import { needRole } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
@@ -347,8 +349,23 @@ function MoreMenu({ compact }: { compact?: boolean }) {
   const r = useRec();
   const api = usePlayerApi();
   const toast = useToast();
+  const router = useRouter();
   const latest = r.jobs[0];
   const [podcast, setPodcast] = useState(false);
+  const [opened, setOpened] = useState(false); // the spec is looked up once the menu is first opened
+  const spec = useSpec(r.id, opened);
+  const { writeSpec } = useRecordingActions(r.id);
+  const sa = specAction(spec.data, r.canEdit);
+  const startSpec = () =>
+    writeSpec.mutate(undefined, {
+      onSuccess: (res) =>
+        toast({
+          title: "Writing the spec",
+          body: "It opens from this menu when it’s written; the job is also in Activity.",
+          tone: "intent",
+          action: { label: "View job", onClick: () => router.push(`/activity/${res.job}`) },
+        }),
+    });
   const copy = async (withTime: boolean) => {
     const t = Math.floor(api.now() / 1000);
     const page = r.paged ? pageAt(r.model.segments, api.now()) + 1 : 0; // a document's: the page with the text in view
@@ -366,7 +383,7 @@ function MoreMenu({ compact }: { compact?: boolean }) {
   };
   return (
     <>
-      <Menu>
+      <Menu onOpenChange={(open) => open && setOpened(true)}>
         <MenuTrigger asChild>
           <IconButton label="More actions" size={32}>
             <Ellipsis />
@@ -384,6 +401,17 @@ function MoreMenu({ compact }: { compact?: boolean }) {
           </MenuItem>
           <MenuItem icon={<Podcast />} onSelect={() => setPodcast(true)}>
             Create podcast…
+          </MenuItem>
+          {sa.open && (
+            <MenuItem asChild>
+              <Link href={sa.open} className="flex items-center gap-2.5">
+                <ScrollText />
+                <span className="flex-1">Open spec</span>
+              </Link>
+            </MenuItem>
+          )}
+          <MenuItem icon={<ScrollText />} disabled={sa.disabled} onSelect={startSpec}>
+            {sa.write}
           </MenuItem>
           {compact && (
             <>
