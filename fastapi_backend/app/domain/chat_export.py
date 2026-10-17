@@ -29,7 +29,7 @@ from . import __version__, anytopdf, convert, render, store
 FORMAT = "lens.chat-export/1"
 DC = "http://purl.org/dc/terms/"
 QUOTE = 280  # the most of a citation's text a footnote quotes
-CITE = re.compile(r"\[(\d+)\](?!\()")  # [n], but not a link's text
+CITE = re.compile(r"\[(\d+(?:\s*,\s*\d+)*)\](?!\()")  # [n] or [n, m], but not a link's text
 
 
 class Unavailable(RuntimeError):
@@ -96,8 +96,16 @@ def _versions(m):
 # ---------- Markdown ----------
 def _cited(m):
     """The citations an answer's text cites, by number."""
-    said = {int(n) for n in CITE.findall(m.get("content") or "")}
+    said = {int(n) for group in CITE.findall(m.get("content") or "") for n in group.split(",")}
     return {p["n"]: p for p in m.get("passages") or [] if p.get("n") in said}
+
+
+def _footnotes(mid, match, cited):
+    """[n] or [n, m] as footnote references, for the numbers that cite a passage; the others stay [n]."""
+    ns = [int(n) for n in match.group(1).split(",")]
+    if not any(n in cited for n in ns):
+        return match.group(0)
+    return "".join(f"[^{mid}-{n}]" if n in cited else f"[{n}]" for n in ns)
 
 
 def _question(web, m):
@@ -118,7 +126,7 @@ def _answer(web, m):
     model = (m.get("meta") or {}).get("model") or m.get("model")
     out = [f"## Lens{f', {model}' if model else ''}, {_when(m.get('created_at'))}{_versions(m)}", ""]
     cited = _cited(m)
-    text = CITE.sub(lambda x: f"[^{m['id']}-{x.group(1)}]" if int(x.group(1)) in cited else x.group(0), m.get("content") or "")
+    text = CITE.sub(lambda x: _footnotes(m["id"], x, cited), m.get("content") or "")
     if text.strip():
         out += [text, ""]
     if m.get("stopped"):

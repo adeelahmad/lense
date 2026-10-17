@@ -36,7 +36,7 @@ def conv(client, db, cfg, folder):
         db,
         cid,
         "assistant",
-        "It leaves on Friday [1], and the ship is late [2]. See [the plan](https://example.org/plan) [9].",
+        "It leaves on Friday [1], and the ship is late [2, 9]. See [the plan](https://example.org/plan) [9].",
         passages=[
             _passage(ids[0], 1, "Ana: The shipment leaves\non Friday.", 75_000, "Episode one", "pods", speaker="Ana", used=True),
             _passage(ids[2], 2, "The ship is late.", 5_000, "The call", "calls", used=True),
@@ -80,7 +80,7 @@ def test_markdown(client, db, conv):
     # one answer, with its question: citations as footnotes linking back to the moment, tools as "Looked up"
     md = export(client, conv, "md", message=a1).text
     assert "When does the shipment leave?" in md and "On Friday." not in md and "Who ships it?" not in md
-    assert f"It leaves on Friday [^{a1}-1], and the ship is late [^{a1}-2]. See [the plan](https://example.org/plan) [9]." in md
+    assert f"It leaves on Friday [^{a1}-1], and the ship is late [^{a1}-2][9]. See [the plan](https://example.org/plan) [9]." in md
     assert f"[^{a1}-1]: Episode one, 1:15, Ana: “Ana: The shipment leaves on Friday.” <{WEB}/resources/{conv['ids'][0]}?t=75>" in md
     assert f"[^{a1}-2]: The call, 0:05: “The ship is late.” <{WEB}/resources/{conv['ids'][2]}?t=5>" in md
     assert "Episode two" not in md  # given to the model, not cited
@@ -90,7 +90,7 @@ def test_markdown(client, db, conv):
     # citations follow the reader's access now: no longer in calls, its moment is left out
     auth.set_role(db, conv["uid"], store.ns_id(db, "calls"), None)
     md = export(client, conv, "md", message=a1).text
-    assert f"[^{a1}-1]" in md and f"[^{a1}-2]" not in md and "The ship is late." not in md
+    assert f"[^{a1}-1]" in md and "late [2, 9]." in md and f"[^{a1}-2]" not in md and "The ship is late." not in md
 
 
 def test_json(client, conv):
