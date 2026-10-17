@@ -15,6 +15,13 @@ asset's language when transcription gave one, else when the text reads as Englis
 said three times or more in a row kept once, and their sentences capitalised. A document's or an image's text is kept
 as it was read.
 
+Punctuation (`analysis.cleanup_punctuation`, off by default): a transcript with hardly a full stop in it (imported
+captions, some engines) gets full stops, commas and question marks back from a local model, kredor/punctuate-all
+(MIT, XLM-RoBERTa, 12 languages), the one the punctuation script this comes from used. "missing" does it for those
+transcripts only, "always" for every one; either way a mark the transcript has is kept, and each line is given marks
+once. The model and PyTorch (about 2 GB) are fetched the first time a clean step needs them (components.py); until
+then, or where it can't run, the rules run alone.
+
 Every line it changes is kept in the asset's edit history, by "text cleanup": Change history lists them and Revert
 puts a line back. A line someone corrected is never cleaned, since people's corrections outrank the rules, and running
 the rules again on what they made changes nothing.
@@ -139,34 +146,156 @@ def clean_line(text, english_rules=True, fillers=True, starts_sentence=True):
     return out.strip()
 
 
+# ---------- punctuation, by a local model ----------
+PUNCTUATION_MODEL = ("kredor/punctuate-all", "0fe37019de3f5e4fbd83289fd94e07fa588e47df")  # pinned: MIT, 12 languages
+PUNCTUATION_FILES = ["config.json", "pytorch_model.bin", "special_tokens_map.json", "tokenizer.json", "tokenizer_config.json"]
+PUNCTUATION_LANGS = {"en", "de", "fr", "es", "bg", "it", "pl", "nl", "cs", "pt", "sk", "sl"}
+PUNCTUATED = f"{PUNCTUATION_MODEL[0]}@{PUNCTUATION_MODEL[1][:12]}"  # a line the model has given marks to
+SURE = 0.7  # a mark the model is less sure of than this isn't added (the script it comes from used 0.7 too)
+CHUNK, OVERLAP = 150, 5  # words the model reads at once (well inside its 512 tokens), and how many chunks share
+OWN_MARK = re.compile(r"[.,;:!?…]['\"”’)]*$")
+SENTENCE_END = re.compile(r"[.!?…]['\"”’)]*$")
+NUMBER_MARK = re.compile(r"(?<!\d)[.,;:!?](?!\d)")  # marks the model is shown without (not 3.5 or 1,000)
+_PIPE: dict = {}
+
+
+class Unavailable(RuntimeError):
+    """The punctuation model can't run here (yet); the message says why."""
+
+
+def fetch_punctuation():
+    """Download the model at its pinned revision into the models folder (Hugging Face's cache there)."""
+    from huggingface_hub import snapshot_download
+
+    name, rev = PUNCTUATION_MODEL
+    return snapshot_download(name, revision=rev, allow_patterns=PUNCTUATION_FILES)
+
+
+def punctuation_ready():
+    try:
+        from huggingface_hub import snapshot_download
+
+        name, rev = PUNCTUATION_MODEL
+        snapshot_download(name, revision=rev, allow_patterns=PUNCTUATION_FILES, local_files_only=True)
+        return True
+    except Exception:  # noqa: BLE001 - not installed, or not downloaded
+        return False
+
+
+def _pipe():
+    if "pipe" not in _PIPE:
+        try:
+            from huggingface_hub import snapshot_download
+            from transformers import pipeline
+
+            name, rev = PUNCTUATION_MODEL
+            path = snapshot_download(name, revision=rev, allow_patterns=PUNCTUATION_FILES, local_files_only=True)
+            _PIPE["pipe"] = pipeline("token-classification", model=path, aggregation_strategy="none", device=-1)
+        except Exception as e:  # noqa: BLE001 - not fetched yet, or it won't load here
+            raise Unavailable(f"the punctuation model isn't ready here ({type(e).__name__}; Settings → Components)") from None
+    return _PIPE["pipe"]
+
+
+def _labels(pipe, words):
+    """The model's mark after each word ("0": none), read CHUNK words at a time with OVERLAP words shared, as
+    deepmultilingualpunctuation does: a word's last piece decides, and a mark it's less than SURE of counts as none."""
+    out, k = [], 0
+    while k < len(words):
+        batch = words[k : k + CHUNK]
+        keep = len(batch) if k + CHUNK >= len(words) else len(batch) - OVERLAP
+        ends, at = [], 0
+        for w in batch:
+            at += len(w)
+            ends.append(at)
+            at += 1
+        marks, j = ["0"] * len(batch), 0
+        for piece in pipe(" ".join(batch)):
+            while j < len(ends) and piece["end"] > ends[j]:
+                j += 1
+            if j < len(ends):
+                marks[j] = piece["entity"] if float(piece["score"]) >= SURE else "0"
+        out += marks[:keep]
+        k += keep
+    return out
+
+
+def punctuate(texts):
+    """The texts with the full stops, commas and question marks the model puts back after words that have no mark;
+    the marks they have are kept."""
+    pipe = _pipe()
+    words = [t.split() for t in texts]
+    flat = [NUMBER_MARK.sub("", w) or w for ws in words for w in ws]
+    labels = _labels(pipe, flat) if flat else []
+    out, k = [], 0
+    for ws in words:
+        line = [w + m if m in (".", ",", "?") and not OWN_MARK.search(w) else w for w, m in zip(ws, labels[k : k + len(ws)])]
+        out.append(" ".join(line))
+        k += len(ws)
+    return out
+
+
+def lacks_punctuation(texts):
+    """Hardly a sentence's end in it: fewer than one in 40 words."""
+    ws = [w for t in texts for w in t.split()]
+    return len(ws) >= 20 and sum(1 for w in ws if SENTENCE_END.search(w)) * 40 < len(ws)
+
+
+def _punctuation(cfg, rec, segs):
+    """(the lines' texts with marks put back, the ids of the lines given marks, a note for the job's log)."""
+    mode = (cfg.get("analysis") or {}).get("cleanup_punctuation") or "off"
+    texts = [s.get("text") or "" for s in segs]
+    todo = [k for k, s in enumerate(segs) if s.get("punctuated") != PUNCTUATED and texts[k].strip()]
+    lang = str(rec.get("language") or "").lower()[:2]
+    known = lang in PUNCTUATION_LANGS or (not lang and english(None, texts[:400]))
+    if mode == "off" or not todo or not known or (mode == "missing" and not lacks_punctuation(texts)):
+        return texts, [], None
+    try:
+        marked = punctuate(texts)
+    except Unavailable as e:
+        return texts, [], f"punctuation not restored: {e}"
+    for k in todo:
+        texts[k] = marked[k]
+    return texts, [segs[k]["id"] for k in todo], f"punctuation restored by {PUNCTUATION_MODEL[0]}"
+
+
+# ---------- an asset's lines ----------
 def plan(db, cfg, rid):
-    """[(segment id, idx, text, cleaned)] for the lines the rules change; [] for a document or an image."""
+    """What cleaning an asset does: {changes: [(segment id, idx, text, cleaned)], punctuated: [segment ids], note}.
+    Nothing for a document or an image."""
     rec = db.one("SELECT source, language FROM $r", r=R("recording", rid)) or {}
     if rec.get("source") not in SPEECH:
-        return []
-    segs = db.rows("SELECT record::id(id) AS id, idx, text, lang, speaker FROM segment WHERE recording = $r ORDER BY idx", r=rid)
+        return {"changes": [], "punctuated": [], "note": None}
+    segs = db.rows(
+        "SELECT record::id(id) AS id, idx, text, lang, speaker, punctuated FROM segment WHERE recording = $r ORDER BY idx", r=rid
+    )
     people = set(db.values("SELECT VALUE idx FROM segment_edit WHERE recording = $r AND by != $c AND after.text != NONE", r=rid, c=CLEANER))
     fillers = bool((cfg.get("analysis") or {}).get("cleanup_fillers", True))
     whole = english(rec.get("language"), [s.get("text") or "" for s in segs[:400]])
+    marked, punctuated, note = _punctuation(cfg, rec, segs)
     out, prev = [], None
-    for s in segs:
-        text = s.get("text") or ""
-        ended = prev is None or prev["speaker"] != s.get("speaker") or re.search(r"[.!?…]['\"”’)]*$", prev["text"]) is not None
+    for s, text in zip(segs, marked):
+        ended = prev is None or prev["speaker"] != s.get("speaker") or SENTENCE_END.search(prev["text"]) is not None
         prev = {"speaker": s.get("speaker"), "text": text}
         if s["idx"] in people or not text.strip():
             continue
         lang = s.get("lang")
         en = english(lang, [text]) if lang and lang not in ("auto", "nospeech") else whole
         new = clean_line(text, en, fillers, ended)
-        if new and new != text:
-            out.append((s["id"], s["idx"], text, new))
+        if new and new != (s.get("text") or ""):
+            out.append((s["id"], s["idx"], s.get("text") or "", new))
             prev["text"] = new
-    return out
+    kept = {s["id"] for s in segs if s["idx"] in people}
+    return {"changes": out, "punctuated": [i for i in punctuated if i not in kept], "note": note}
 
 
-def clean_recording(db, cfg, rid):
+def clean_recording(db, cfg, rid, say=None):
     """Clean an asset's transcript lines; how many changed. Each change goes into its edit history."""
-    changes = plan(db, cfg, rid)
+    p = plan(db, cfg, rid)
+    if p["note"] and say:
+        say(p["note"])
+    changes = p["changes"]
+    if p["punctuated"]:
+        db.q("UPDATE segment SET punctuated = $m WHERE id IN $ids", m=PUNCTUATED, ids=[R("segment", i) for i in p["punctuated"]])
     if not changes:
         return 0
     last = int(db.values("UPSERT $r SET n += $k RETURN VALUE n", r=R("seq", "segment_edit"), k=len(changes))[0])
