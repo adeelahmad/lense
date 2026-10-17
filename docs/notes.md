@@ -148,6 +148,10 @@ The assistant is the note's writer, in the asset's namespace, dated the day the 
 again updates the same note, and its [history](#history) keeps what it said before; once that note is deleted, the
 next spec is a new one.
 
+- **The web app:** an asset's More actions menu (⋯) has **Write a spec**, which says when it's queued and links to
+  the job. Once the spec is written the menu has **Open spec** and **Write the spec again**; while it's being written,
+  the item waits. A pipeline's editor has a **Spec** step, with the template to use (Spec from transcript unless you
+  pick another prompt template).
 - **API:** `POST /api/v1/recordings/{id}/spec` (with the right to process the asset) queues it as a job step, after
   what the asset's job still has to do; `{template, version}` writes it with another prompt template, such as an edited
   copy. `GET /api/v1/recordings/{id}/spec` says how it's going: `writing`, `ready` with its note and how many
