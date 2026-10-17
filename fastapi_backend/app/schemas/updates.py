@@ -140,3 +140,25 @@ class Monitoring(ResponseModel):
 
 class MonitoringRequest(RequestModel):
     on: bool = Field(description="start (true) or stop (false) Prometheus, node-exporter and Grafana")
+
+
+class Service(ResponseModel):
+    profile: str = Field(description="the Docker Compose profile: mcp (the MCP runner), browser, monitoring")
+    label: str
+    description: str
+    on: bool = Field(description="as last asked here; never asked here: whether it runs")
+    running: bool | None = Field(None, description="whether it answers where Lens reaches it now; null: Lens can't tell")
+    state: Literal["queued", "running", "done", "failed"] | None = Field(None, description="how the machine's last change went")
+    error: str | None = None
+    asked_at: str | None = None
+    finished_at: str | None = None
+    agent: str | None = Field(None, description="what changes it on this machine (systemd, launchd); none: run `manual` there")
+    manual: str = Field(description="the line that turns it on by hand, on the machine Lens runs on")
+
+
+class Services(ResponseModel):
+    services: list[Service]
+
+
+class ServiceRequest(RequestModel):
+    on: bool = Field(description="start (true) or stop (false) the profile's containers")

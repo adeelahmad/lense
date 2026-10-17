@@ -10513,6 +10513,62 @@ export type McpConfigText = {
 };
 
 /**
+ * McpPreset
+ */
+export type McpPreset = {
+  /**
+   * Name
+   *
+   * what its tools are called by: name__tool
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Description
+   */
+  description: string;
+  /**
+   * Spec
+   *
+   * the server, as an MCP extension keeps it
+   */
+  spec: {
+    [key: string]: unknown;
+  };
+  /**
+   * Fill
+   *
+   * values written as ${NAME} in spec, to type in first
+   */
+  fill?: Array<string>;
+  /**
+   * Needs
+   *
+   * the optional profile it runs in (GET /admin/services), if any
+   */
+  needs?: string | null;
+  /**
+   * that profile: whether it's on and running
+   */
+  service?: Service | null;
+  [key: string]: unknown;
+};
+
+/**
+ * McpPresets
+ */
+export type McpPresets = {
+  /**
+   * Presets
+   */
+  presets: Array<McpPreset>;
+  [key: string]: unknown;
+};
+
+/**
  * McpServerFound
  */
 export type McpServerFound = {
@@ -18353,6 +18409,92 @@ export type SeriesPoint = {
 };
 
 /**
+ * Service
+ */
+export type Service = {
+  /**
+   * Profile
+   *
+   * the Docker Compose profile: mcp (the MCP runner), browser, monitoring
+   */
+  profile: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Description
+   */
+  description: string;
+  /**
+   * On
+   *
+   * as last asked here; never asked here: whether it runs
+   */
+  on: boolean;
+  /**
+   * Running
+   *
+   * whether it answers where Lens reaches it now; null: Lens can't tell
+   */
+  running?: boolean | null;
+  /**
+   * State
+   *
+   * how the machine's last change went
+   */
+  state?: "queued" | "running" | "done" | "failed" | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Asked At
+   */
+  asked_at?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Agent
+   *
+   * what changes it on this machine (systemd, launchd); none: run `manual` there
+   */
+  agent?: string | null;
+  /**
+   * Manual
+   *
+   * the line that turns it on by hand, on the machine Lens runs on
+   */
+  manual: string;
+  [key: string]: unknown;
+};
+
+/**
+ * ServiceRequest
+ */
+export type ServiceRequest = {
+  /**
+   * On
+   *
+   * start (true) or stop (false) the profile's containers
+   */
+  on: boolean;
+};
+
+/**
+ * Services
+ */
+export type Services = {
+  /**
+   * Services
+   */
+  services: Array<Service>;
+  [key: string]: unknown;
+};
+
+/**
  * SetupAdmin
  */
 export type SetupAdmin = {
@@ -26052,6 +26194,52 @@ export type SetMonitoringResponses = {
 };
 
 export type SetMonitoringResponse = SetMonitoringResponses[keyof SetMonitoringResponses];
+
+export type ListServicesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/services";
+};
+
+export type ListServicesResponses = {
+  /**
+   * Successful Response
+   */
+  200: Services;
+};
+
+export type ListServicesResponse = ListServicesResponses[keyof ListServicesResponses];
+
+export type SetServiceData = {
+  body: ServiceRequest;
+  path: {
+    /**
+     * Profile
+     */
+    profile: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/services/{profile}";
+};
+
+export type SetServiceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetServiceError = SetServiceErrors[keyof SetServiceErrors];
+
+export type SetServiceResponses = {
+  /**
+   * Successful Response
+   */
+  202: Service;
+};
+
+export type SetServiceResponse = SetServiceResponses[keyof SetServiceResponses];
 
 export type ListBackupsData = {
   body?: never;
@@ -38053,6 +38241,22 @@ export type TestMcpServerResponses = {
 };
 
 export type TestMcpServerResponse = TestMcpServerResponses[keyof TestMcpServerResponses];
+
+export type McpPresetsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/extensions/mcp/presets";
+};
+
+export type McpPresetsResponses = {
+  /**
+   * Successful Response
+   */
+  200: McpPresets;
+};
+
+export type McpPresetsResponse = McpPresetsResponses[keyof McpPresetsResponses];
 
 export type DeleteExtensionData = {
   body?: never;

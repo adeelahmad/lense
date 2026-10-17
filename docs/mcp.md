@@ -45,8 +45,8 @@ Each namespace can have its own server, at `/mcp/<namespace>` (`https://lens.exa
 that should see that namespace and nothing else: a family assistant, a project's coding agent, a client's app. It
 has the same tools, but sees only that namespace, whatever else the person who signs the agent in can read. Tools
 that take a namespace use this one when none is named, `list_namespaces` and `list_files` show only it, and the tools
-about the server itself (`file_storage`, `monitoring`, `install_settings` and the ones that change them) aren't there,
-even for admins. An admin counts as an owner of the namespace there.
+about the server itself (`file_storage`, `monitoring`, `services`, `install_settings` and the ones that change them)
+aren't there, even for admins. An admin counts as an owner of the namespace there.
 
 It is off until an owner of the namespace turns it on: **Admin → Namespaces →** the namespace **→ Connect apps**, which
 also copies its address, or `PATCH /api/v1/namespaces/<namespace>/integrations` with `{"mcp": true}`, or an agent's
@@ -115,6 +115,8 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `preview_template` | what a template in a drafted automation gives before it's saved, against an activity or the trigger kind's sample; a prompt shows outside text marked as the model sees it; an error names the missing variable and its nearest name |
 | `file_storage` | where Lens keeps its own files (notes' images and attachments) and the connections it could use; `check` tests it. Admins only |
 | `set_file_storage` | keep new files on this machine or a storage connection (folder, rclone crypt); checked before it's saved. Admins only, with a write-scope token |
+| `services` | Lens's optional containers ([Optional containers](assistant.md#optional-containers)): the MCP runner, the browser and monitoring, whether each is on and answering, and how the machine's last change went. Admins only |
+| `set_service` | start or stop one of them (`mcp`, `browser` or `monitoring`): the machine's upgrade agent does it. Admins only, with a write-scope token |
 | `install_settings` | whether other devices on the network reach Lens and its edition (full or lean), whether the machine's upgrade agent can change them, and the install line to run when it can't. Admins only |
 | `set_install_settings` | open Lens to the network or keep it to this machine, or change the edition: the machine sets itself up again and Lens restarts ([Updates](updates.md#setting-the-machine-up-again)). Admins only, with a write-scope token |
 | `propose_graph_change` | ask for two entities to be merged or linked; it waits in Proposed changes unless `apply` makes it at once (it can be undone). Needs a write-scope token and editor access |
@@ -136,8 +138,8 @@ which records an undoable change (proposed by default), `undo_graph_change`, `ed
 `merge_topics`, `delete_topic` and `undo_topic_change`, which curate entities and topics as an editor does in the web
 app (merges and deletes can be undone), `write_note`, which adds a note, `create_podcast`, which
 queues an episode, `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
-editors), `set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_file_storage`, which changes where new files are kept (admins), and `set_monitoring` and
-`set_install_settings`, which have the machine change how Lens runs (admins).
+editors), `set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_file_storage`, which changes where new files are kept (admins), and `set_monitoring`, `set_service`
+and `set_install_settings`, which have the machine change how Lens runs (admins).
 Importing stays in the web app and the API.
 
 ### What the archive says is data

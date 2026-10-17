@@ -22,6 +22,7 @@ Lens is one repository with several projects, and [Nx](https://nx.dev/) runs the
 | `docs` | `docs/` (with `mkdocs.yml`, `overrides/`, `README.md`, `CHANGELOG.md`) | `build` (strict, as CI), `serve` |
 | `clipper` | `extensions/browser/` | `install` (`npm ci` when the lockfile is newer than `node_modules`), `test`, `build` (every browser target, checked) |
 | `desktop` | `desktop/` | `lint` (`sh -n` and shellcheck on `lens-app.sh`), `test` (`lens-app.sh` checks on Linux; the Mac build stays in the Desktop workflow) |
+| `host-agent` | `packaging/host/` | `lint` (`sh -n` and shellcheck on the upgrade agent), `test` (`test-services.sh`, its optional-containers action against a stand-in `docker`) |
 | `microsandbox` | `microsandbox/` | `lint` (`sh -n` and shellcheck on its scripts), `test` (`test-dns.sh`, the name-lookup fallback, and `test-programs.sh`, LibreOffice and Chromium on first use, in the base image with Docker; the install itself runs in the Install workflow) |
 
 ```bash

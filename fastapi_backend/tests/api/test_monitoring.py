@@ -41,7 +41,7 @@ def test_turning_monitoring_on_and_off(client, db, control):
     r = client.put("/api/v1/admin/monitoring", json={"on": True}, headers=h)
     assert r.status_code == 202 and r.json()["on"] is True and r.json()["state"] == "queued"
     req = request_of(control)
-    assert (req["action"], req["monitoring"], req["by"]) == ("services", "on", "root@x.io")
+    assert (req["action"], req["profile"], req["turn"], req["by"]) == ("services", "monitoring", "on", "root@x.io")
     # /metrics turned on with a token made for it, and the token where the monitoring Prometheus reads it
     t = client.app.state.settings.current()["telemetry"]
     assert t["prometheus"] is True and len(t["prometheus_token"]) == 64
@@ -52,7 +52,7 @@ def test_turning_monitoring_on_and_off(client, db, control):
 
     # the agent picks it up and says how it went
     (control / "inbox" / "upgrade").unlink()
-    (control / "services-status").write_text(f"id={req['id']}\nmonitoring=on\nstate=done\ngrafana_port=3005\ncode=0\n")
+    (control / "services-status").write_text(f"id={req['id']}\nprofile=monitoring\nstate=done\ngrafana_port=3005\ncode=0\n")
     v = client.get("/api/v1/admin/monitoring", headers=h).json()
     assert (v["state"], v["grafana_port"], v["error"]) == ("done", 3005, None)
 
@@ -62,7 +62,7 @@ def test_turning_monitoring_on_and_off(client, db, control):
 
     # off stops the containers and turns /metrics off again, since monitoring turned it on
     r = client.put("/api/v1/admin/monitoring", json={"on": False}, headers=h)
-    assert r.status_code == 202 and request_of(control)["monitoring"] == "off"
+    assert r.status_code == 202 and request_of(control)["turn"] == "off"
     assert client.app.state.settings.current()["telemetry"]["prometheus"] is False
 
 
