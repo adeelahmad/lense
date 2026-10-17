@@ -13,8 +13,9 @@ import { NO_ANSWER } from "@/components/chat/cite";
 import { CitationChip } from "@/components/chat/citation";
 import { useChat, useLlmStatus, useStopAnswer } from "@/components/chat/data";
 import { RichText } from "@/components/chat/rich-text";
+import { SharedFiles } from "@/components/chat/shared-files";
 import { ToolSteps } from "@/components/chat/steps";
-import { applyEvent, newTurn, savedSteps, type ToolStep, type TurnState } from "@/components/chat/stream";
+import { applyEvent, newTurn, savedSteps, sharedFiles, type ToolStep, type TurnState } from "@/components/chat/stream";
 import { useAskPlace } from "@/components/page-chat/ask-place";
 import {
   hiddenOn,
@@ -378,13 +379,14 @@ function ChatPanel({
           m.role === "user" ? (
             <Question key={m.id} text={m.content} context={m.context ?? null} />
           ) : (
-            <SavedAnswer key={m.id} m={m} />
+            <SavedAnswer key={m.id} m={m} chatId={state.chatId} />
           ),
         )}
         {liveHere && (
           <>
             <Question text={liveHere.turn.question} context={liveHere.context} />
             <AnswerBody
+              chatId={state.chatId}
               text={liveHere.turn.text}
               passages={liveHere.turn.passages ?? []}
               steps={liveHere.turn.steps}
@@ -533,9 +535,10 @@ function Question({ text, context }: { text: string; context: SharedContext | nu
   );
 }
 
-function SavedAnswer({ m }: { m: ChatMessage }) {
+function SavedAnswer({ m, chatId }: { m: ChatMessage; chatId: number | null }) {
   return (
     <AnswerBody
+      chatId={chatId}
       text={m.content === "(stopped)" ? "" : m.content}
       passages={m.passages ?? []}
       steps={savedSteps(m.steps)}
@@ -547,6 +550,7 @@ function SavedAnswer({ m }: { m: ChatMessage }) {
 }
 
 function AnswerBody({
+  chatId,
   text,
   passages,
   steps,
@@ -555,6 +559,7 @@ function AnswerBody({
   streaming,
   stopped,
 }: {
+  chatId: number | null;
   text: string;
   passages: Passage[];
   steps: ToolStep[];
@@ -594,6 +599,7 @@ function AnswerBody({
           )}
         </div>
       )}
+      <SharedFiles chatId={chatId} files={sharedFiles(steps)} />
       {stopped && <p className="m-0 text-[12.5px] text-fg-muted">Stopped.</p>}
     </div>
   );
