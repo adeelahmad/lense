@@ -5,10 +5,12 @@
 
 export type Passage = {
   n: number;
-  /** None for a page that isn't a recording: Lens's docs or this server (lens_help), at `url`. */
+  /** The asset it's from; none for a web page, Lens's docs or this server (lens_help), at `url`. */
   recording_id?: number | null;
-  url?: string | null;
+  /** "web" for a web page the assistant searched for or read, with its `url` and `site`; "docs" or "server" from lens_help. */
   source?: string | null;
+  url?: string | null;
+  site?: string | null;
   t0?: number | null;
   /** When it was said ("12:34"), or for a document its page ("p. 3"). */
   time?: string | null;

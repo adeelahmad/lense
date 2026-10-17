@@ -5,16 +5,24 @@ from __future__ import annotations
 import logging
 from collections import Counter
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
 
-from app.api.deps import Acl, AdminReader, AdminWriter, Cfg, CurrentUser, Db
-from app.domain import auth, sources, store
+from app.api.deps import Acl, AdminReader, AdminWriter, Cfg, CurrentUser, Db, web_origin
+from app.api.v1.routes.external import _cookie
+from app.domain import auth, google_auth, rclone_signin, sources, store
 from app.domain.store import DB
 from app.schemas.admin import Started
 from app.schemas.common import Created, Ok
 from app.schemas.sources import (
     Backend,
     BrowseEntry,
+    GoogleClient,
+    GoogleConnect,
+    GoogleConnectStart,
+    RcloneSignIn,
+    RcloneSignInFinish,
+    RcloneSignInStart,
+    RcloneSignInState,
     RoutedMessage,
     RoutePreviewRequest,
     Source,
@@ -80,6 +88,53 @@ def update_source(sid: int, body: SourceUpdate, user: AdminWriter, db: Db, cfg: 
     return SourceUpdated(health=sources.test(db, cfg, sid))
 
 
+@router.post("/sources/rclone-signin")
+def start_rclone_signin(body: RcloneSignInStart, user: AdminWriter, db: Db, cfg: Cfg) -> RcloneSignIn:
+    """Connect Google Drive (with no Google app set up here), Dropbox or OneDrive by signing in through rclone on this
+    server, or sign a connection in again (`source`). Open `url` in a browser and sign in; the service then sends the
+    browser to http://127.0.0.1:53682/?…, which only loads on the machine Lens runs on. Hand that address to
+    POST /sources/rclone-signin/{id}, which makes the connection. One at a time: this ends any other."""
+    if body.source is None and body.type is None:
+        raise HTTPException(400, "say which type of connection to make, or which connection to sign in again")
+    try:
+        fid, url, port = rclone_signin.start(db, cfg, body.type, body.params, body.name, body.source, by=user.email)
+    except KeyError:
+        raise HTTPException(404, "not found") from None
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(400, str(e)) from None
+    row = db.one("SELECT expires_at FROM $r", r=store.R("rclone_signin", fid))
+    return RcloneSignIn(id=fid, url=url, port=port, expires_at=row["expires_at"])
+
+
+@router.post("/sources/rclone-signin/{fid}")
+def finish_rclone_signin(fid: str, body: RcloneSignInFinish, user: AdminWriter, db: Db, cfg: Cfg) -> RcloneSignInState:
+    """Finish signing in through rclone with the address the browser ended on (`address`), or, without one, look
+    whether rclone already got it. Answers the connection, made and tested, or none while it waits. 400: that address
+    isn't this sign-in's, and it's still waiting for the right one; 410: it didn't work (cancelled, refused, ran out),
+    and it's over; start again. Audited as `source.signin`."""
+    try:
+        sid = rclone_signin.finish(db, cfg, fid, body.address)
+    except KeyError:
+        raise HTTPException(404, "no such sign-in: it finished, ran out or was cancelled") from None
+    except rclone_signin.WrongAddress as e:
+        raise HTTPException(400, str(e)) from None
+    except ValueError as e:
+        raise HTTPException(410, str(e)) from None
+    if sid is not None:
+        auth.audit(db, user.as_audit(), "source.signin", f"storage_source:{sid}", ["rclone"])
+    return RcloneSignInState(connected=sid)
+
+
+@router.delete("/sources/rclone-signin/{fid}")
+def cancel_rclone_signin(fid: str, user: AdminWriter, db: Db) -> Ok:
+    """Stop a sign-in through rclone."""
+    try:
+        rclone_signin.cancel(db, fid)
+    except KeyError:
+        raise HTTPException(404, "no such sign-in") from None
+    return Ok()
+
+
 @router.delete("/sources/{sid}")
 def delete_source(sid: int, user: AdminWriter, db: Db) -> Ok:
     """Remove a source and its watched folders."""
@@ -92,6 +147,45 @@ def delete_source(sid: int, user: AdminWriter, db: Db) -> Ok:
 def test_source(sid: int, user: AdminWriter, db: Db, cfg: Cfg) -> SourceHealth:
     _source(db, sid)
     return sources.test(db, cfg, sid)
+
+
+@router.get("/sources/google-client")
+def google_client(user: AdminReader, request: Request, db: Db, cfg: Cfg) -> GoogleClient:
+    """The OAuth client a Google account would be connected through (never its secret), and the redirect URI it needs."""
+    try:
+        c = google_auth.client(db, cfg)
+    except ValueError:
+        c = {"origin": None, "client_id": None}
+    return GoogleClient(origin=c["origin"], client_id=c["client_id"], redirect_uri=web_origin(request) + google_auth.CALLBACK)
+
+
+@router.post("/sources/{sid}/google")
+def connect_google(
+    sid: int, user: AdminWriter, request: Request, response: Response, db: Db, cfg: Cfg, body: GoogleConnect | None = None
+) -> GoogleConnectStart:
+    """Connect a Google account to a Google source (Gmail, Google Calendar): open the returned address in this browser,
+    consent there, and Google sends you back to the Sources page with the account connected. Its refresh token is kept
+    sealed on the source. Without a client here, the Google sign-in provider's (Settings › Sign-in) or an earlier connection's is
+    used. Only from the web app: the consent comes back to the browser that asked (an agent saves an authorized user
+    JSON it already has as the source's `token` instead). Audited as `source.google_connect`."""
+    if user.via != "access":
+        raise HTTPException(
+            403,
+            "connect Google from the web app: the consent comes back to the browser that asked, so API tokens and apps "
+            "can't (save an authorized user JSON as the source's token instead)",
+        )
+    body = body or GoogleConnect()
+    try:
+        src = sources.get(db, sid)
+    except KeyError:
+        raise HTTPException(404, "not found") from None
+    origin = web_origin(request)
+    try:
+        url, browser = google_auth.connect_start(db, cfg, src, origin, (body.client_id, body.client_secret), user.id)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    _cookie(response, origin, browser)
+    return GoogleConnectStart(url=url)
 
 
 @router.get("/sources/{sid}/browse")

@@ -178,6 +178,8 @@ class EmailInfo(ResponseModel):
     to: str | None = None
     cc: str | None = None
     date: str | None = Field(None, description="when it was sent (ISO 8601)")
+    attachments: int | None = Field(None, description="how many files it carried")
+    snippet: str | None = Field(None, description="the start of its text, at most 300 characters")
 
 
 class Rendition(ResponseModel):

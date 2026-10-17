@@ -1,29 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 
+import { Sources } from "@/app/openapi-client";
 import {
   DRIVE_SCOPES,
   FIELD_LABEL,
+  GMAIL_VIA,
   IMAP_SECURITY,
   S3_PROVIDERS,
+  SIGNIN_SERVICE,
   WEBDAV_VENDORS,
   type BackendSpec,
   type ConnForm,
+  type SignInWith,
   type SourceType,
+  gmailScope,
   imapHost,
   parseServiceAccountKey,
 } from "@/components/sources/source-model";
 import { TokenPaste } from "@/components/sources/token-paste";
 import { Button } from "@/components/ui/button";
 import { Field, Input, SecretField, Select, Textarea } from "@/components/ui/field";
+import { CodeBlock } from "@/components/ui/states";
 import { Segmented } from "@/components/ui/tabs";
-
-const SERVICE: Partial<Record<SourceType, string>> = {
-  dropbox: "Dropbox",
-  drive: "Google",
-  onedrive: "Microsoft",
-};
+import { data, useApiClient } from "@/lib/api/browser";
 
 /** SO2 step 2: the details for one type of connection, from the backend's field list, with type-specific widgets. */
 export function ConnectionFields({
@@ -34,7 +36,10 @@ export function ConnectionFields({
   errors,
   saved,
   isSet,
-  replaceToken,
+  onSignIn,
+  signingIn,
+  onConnectGoogle,
+  connectingGoogle,
 }: {
   type: SourceType;
   spec: BackendSpec;
@@ -44,9 +49,29 @@ export function ConnectionFields({
   /** The connection exists (editing it, or created earlier in the dialog): saved secrets show as set / replace / clear. */
   saved: boolean;
   isSet: (key: string) => boolean;
-  replaceToken?: boolean;
+  /** Sign in again through rclone; shown while a saved connection can also just be saved. */
+  onSignIn?: () => void;
+  signingIn?: boolean;
+  /** Connect with Google (Google Calendar, Google Drive): save the connection and go to Google's consent screen,
+   * through this OAuth client when one is given, else the one Lens has. */
+  onConnectGoogle?: (client: { client_id?: string; client_secret?: string }) => void;
+  connectingGoogle?: boolean;
 }) {
-  const [pasting, setPasting] = useState(Boolean(replaceToken));
+  const api = useApiClient();
+  const [ownClient, setOwnClient] = useState(false);
+  const [oauthClient, setOauthClient] = useState({ client_id: "", client_secret: "" });
+  const googleClient = useQuery({
+    queryKey: ["google-client"],
+    queryFn: () => data(Sources.googleClient({ client: api })),
+    enabled: type === "gcal" || type === "gmail" || type === "drive",
+    staleTime: 60_000,
+  });
+  // a new Drive connection connects with Google when Lens has a Google OAuth client already, else through rclone
+  const hasClient = Boolean(googleClient.data?.origin);
+  useEffect(() => {
+    if (type === "drive" && !saved && hasClient && form.signInWith === "rclone")
+      onChange({ ...form, signInWith: "google" });
+  }, [hasClient]);
   const editing = saved;
   const p = form.params;
   const set = (k: string, v: string) => onChange({ ...form, params: { ...p, [k]: v } });
@@ -136,31 +161,51 @@ export function ConnectionFields({
     </Field>
   );
 
-  const token = spec.oauth ? (
-    editing && isSet("token") && !pasting ? (
+  const service = SIGNIN_SERVICE[type] ?? "your account";
+  const how = (label: string, to: SignInWith) => (
+    <button
+      type="button"
+      className="self-start text-[12.5px] text-fg-secondary underline underline-offset-2 hover:text-fg"
+      onClick={() => onChange({ ...form, signInWith: to })}
+    >
+      {label}
+    </button>
+  );
+  const saving = editing && isSet("token");
+  // an OAuth connection signs in through rclone on the server (the footer's button), or pastes rclone's token
+  const token = !spec.oauth ? null : form.signInWith === "paste" ? (
+    <div className="flex flex-col gap-2">
+      <TokenPaste
+        command={spec.oauth}
+        service={service}
+        value={form.tokenText}
+        onChange={(v) => onChange({ ...form, tokenText: v })}
+        replacing={editing}
+      />
+      {errors.token && form.tokenText.trim() === "" && (
+        <p role="alert" className="text-[12.5px] text-red-dark">
+          {errors.token}
+        </p>
+      )}
+      {how(`Sign in with ${service} instead`, "rclone")}
+    </div>
+  ) : (
+    <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2 rounded-sm border border-border bg-surface px-3.5 py-2.5 text-[13px] text-fg-secondary">
-        <span className="flex-1">A token is saved (never shown again). rclone refreshes it while it can.</span>
-        <Button size="sm" variant="secondary" onClick={() => setPasting(true)}>
-          Paste new token
-        </Button>
-      </div>
-    ) : (
-      <div className="flex flex-col gap-1">
-        <TokenPaste
-          command={spec.oauth}
-          service={SERVICE[type] ?? "your account"}
-          value={form.tokenText}
-          onChange={(v) => onChange({ ...form, tokenText: v })}
-          replacing={editing}
-        />
-        {errors.token && form.tokenText.trim() === "" && (
-          <p role="alert" className="text-[12.5px] text-red-dark">
-            {errors.token}
-          </p>
+        <span className="flex-1">
+          {saving
+            ? "A token is saved (never shown again). rclone renews it while it can; sign in again if it stops."
+            : `You sign in to ${service} in a new tab. Lens connects through rclone on its server, so ${service} asks you to allow rclone.`}
+        </span>
+        {saving && onSignIn && (
+          <Button size="sm" variant="secondary" onClick={onSignIn} disabled={signingIn}>
+            {signingIn ? `Waiting for ${service}…` : "Sign in again"}
+          </Button>
         )}
       </div>
-    )
-  ) : null;
+      {how("Paste a token from rclone instead", "paste")}
+    </div>
+  );
 
   /** A Google service account's .json key file (Google Drive, Google Calendar). */
   const serviceAccountKey = (share: string) => {
@@ -195,6 +240,149 @@ export function ConnectionFields({
     );
   };
 
+  /** Connect with Google (Google's consent screen) for a Google account, through the OAuth client Lens has or one
+   * entered here; `api` is the Google API that client's project turns on, `account` the address connected. */
+  const connectWithGoogle = (api: string, connected: boolean, account?: string) => {
+    const g = googleClient.data;
+    const needClient = Boolean(g) && (g?.origin == null || ownClient);
+    return (
+      <>
+        {connected && (
+          <p className="rounded-sm border border-border bg-surface px-3.5 py-2.5 text-[13px] text-fg-secondary">
+            {account ? (
+              <>
+                Connected as <strong className="font-semibold text-fg">{account}</strong>.
+              </>
+            ) : (
+              "A Google account is connected."
+            )}
+          </p>
+        )}
+        {needClient && g && (
+          <>
+            <div className="grid grid-cols-2 gap-2.5">
+              <Field label="OAuth client ID">
+                {({ id }) => (
+                  <Input
+                    id={id}
+                    mono
+                    autoComplete="off"
+                    placeholder="…apps.googleusercontent.com"
+                    value={oauthClient.client_id}
+                    onChange={(e) => setOauthClient({ ...oauthClient, client_id: e.target.value })}
+                  />
+                )}
+              </Field>
+              <Field label="Client secret">
+                {({ id }) => (
+                  <Input
+                    id={id}
+                    type="password"
+                    autoComplete="off"
+                    value={oauthClient.client_secret}
+                    onChange={(e) => setOauthClient({ ...oauthClient, client_secret: e.target.value })}
+                  />
+                )}
+              </Field>
+            </div>
+            <div className="flex flex-col gap-1.5 text-[12.5px] leading-normal text-fg-secondary">
+              <span>
+                In Google Cloud › APIs &amp; Services: enable the {api}, then under Credentials create an OAuth client
+                ID (a web application) with this authorized redirect URI. Lens keeps the client with the connection.
+              </span>
+              <CodeBlock inline text={g.redirect_uri} label="redirect URI" />
+            </div>
+          </>
+        )}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <Button
+            variant={connected ? "secondary" : "primary"}
+            disabled={
+              !g ||
+              connectingGoogle ||
+              (needClient && !(oauthClient.client_id.trim() && oauthClient.client_secret.trim()))
+            }
+            onClick={() =>
+              onConnectGoogle?.(
+                needClient
+                  ? { client_id: oauthClient.client_id.trim(), client_secret: oauthClient.client_secret.trim() }
+                  : {},
+              )
+            }
+          >
+            {connectingGoogle ? "Opening Google…" : connected ? "Connect again" : "Connect with Google"}
+          </Button>
+          {g?.origin && !ownClient && (
+            <span className="text-[12px] text-fg-muted">
+              Through {g.origin === "sign-in" ? "Google sign-in’s" : "an earlier connection’s"} OAuth client ·{" "}
+              <Button size="xs" variant="link" onClick={() => setOwnClient(true)}>
+                use another
+              </Button>
+            </span>
+          )}
+        </div>
+      </>
+    );
+  };
+
+  /** Google Calendar or Gmail as a Google account: Connect with Google, or an authorized user JSON pasted under the
+   * fold. */
+  const googleAccount = (() => {
+    const gmail = type === "gmail";
+    const pasted = form.secrets.token ?? "";
+    return (
+      <div className="flex flex-col gap-3">
+        {connectWithGoogle(
+          gmail ? "Gmail API" : "Google Calendar API",
+          editing && isSet("token") && form.secrets.token === undefined,
+          gmail ? p.user : p.account,
+        )}
+        {errors.token && !pasted.trim() && (
+          <p role="alert" className="text-[12.5px] text-red-dark">
+            {errors.token}
+          </p>
+        )}
+        <details open={Boolean(pasted) || undefined} className="text-[13px]">
+          <summary className="cursor-pointer font-semibold text-fg-secondary">Or paste an authorized user JSON</summary>
+          <div className="mt-2">
+            <Field
+              hint={`client_id, client_secret and refresh_token of an OAuth client of yours with the ${gmail ? (p.via === "imap" ? "https://mail.google.com/" : "gmail.readonly") : "calendar.readonly"} scope, as gcloud auth application-default login --client-id-file writes it. Never shown again after saving`}
+              error={pasted.trim() ? errors.token : undefined}
+            >
+              {({ id, describedBy, invalid }) => (
+                <Textarea
+                  id={id}
+                  aria-label="Authorized user JSON"
+                  aria-describedby={describedBy}
+                  invalid={invalid}
+                  mono
+                  rows={3}
+                  className="min-h-[64px] text-[12px]"
+                  placeholder='{"client_id": "…", "client_secret": "…", "refresh_token": "…"}'
+                  value={pasted}
+                  onChange={(e) => setSecret("token", e.target.value || undefined)}
+                  spellCheck={false}
+                />
+              )}
+            </Field>
+          </div>
+        </details>
+      </div>
+    );
+  })();
+
+  const googleAuth = (
+    <Segmented
+      className="w-full [&>button]:flex-1 [&>button]:justify-center"
+      value={form.driveAuth}
+      onChange={(v) => onChange({ ...form, driveAuth: v as ConnForm["driveAuth"] })}
+      items={[
+        { value: "token", label: "Google account" },
+        { value: "service_account", label: "Service account" },
+      ]}
+    />
+  );
+
   switch (type) {
     case "s3":
       return (
@@ -218,16 +406,25 @@ export function ConnectionFields({
       const serviceAccount = serviceAccountKey("Share the folders Lens should read with that address.");
       return (
         <div className="flex flex-col gap-3">
-          <Segmented
-            className="w-full [&>button]:flex-1 [&>button]:justify-center"
-            value={form.driveAuth}
-            onChange={(v) => onChange({ ...form, driveAuth: v as ConnForm["driveAuth"] })}
-            items={[
-              { value: "token", label: "Google account" },
-              { value: "service_account", label: "Service account" },
-            ]}
-          />
-          {form.driveAuth === "service_account" ? serviceAccount : token}
+          {googleAuth}
+          {form.driveAuth === "service_account" ? (
+            serviceAccount
+          ) : form.signInWith === "google" ? (
+            <div className="flex flex-col gap-3">
+              {connectWithGoogle("Google Drive API", editing && isSet("token") && Boolean(p.client_id), p.account)}
+              {errors.token && (
+                <p role="alert" className="text-[12.5px] text-red-dark">
+                  {errors.token}
+                </p>
+              )}
+              {how("Or sign in through rclone, with no Google app of your own", "rclone")}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {token}
+              {how(hasClient ? "Connect with Google instead" : "Connect through your own Google app instead", "google")}
+            </div>
+          )}
           {select("scope", DRIVE_SCOPES)}
           {text("root_folder_id", {
             mono: true,
@@ -262,7 +459,7 @@ export function ConnectionFields({
             {text("drive_id", {
               mono: true,
               optional: true,
-              hint: "rclone config shows it",
+              hint: "Filled in when you sign in",
             })}
             {text("drive_type", {
               optional: true,
@@ -369,18 +566,48 @@ export function ConnectionFields({
           </p>
         </div>
       );
+    case "gmail": {
+      const keyText = form.secrets.service_account_credentials;
+      const key = keyText ? parseServiceAccountKey(keyText) : null;
+      const clientId = key?.ok && key.clientId ? key.clientId : "its client ID";
+      return (
+        <div className="flex flex-col gap-3">
+          {googleAuth}
+          {form.driveAuth === "service_account" ? (
+            <>
+              {serviceAccountKey(
+                `A Workspace admin lets ${clientId} use ${gmailScope(p.via)} (Admin console › Security › API controls › Domain-wide delegation).`,
+              )}
+              {text("user", {
+                label: "Mailbox",
+                placeholder: "you@company.com",
+                hint: "The address of the person whose mail Lens reads",
+              })}
+            </>
+          ) : (
+            <>
+              {googleAccount}
+              {form.secrets.token?.trim() &&
+                text("user", {
+                  label: "Address",
+                  optional: p.via !== "imap",
+                  placeholder: "you@gmail.com",
+                  hint: "The account’s address, to read over IMAP",
+                })}
+            </>
+          )}
+          {select("via", GMAIL_VIA)}
+          <p className="text-[12.5px] leading-normal text-fg-secondary">
+            Labels are folders and each message becomes an email document, with its attachments. Lens only reads: mail
+            stays unread.
+          </p>
+        </div>
+      );
+    }
     case "gcal":
       return (
         <div className="flex flex-col gap-3">
-          <Segmented
-            className="w-full [&>button]:flex-1 [&>button]:justify-center"
-            value={form.driveAuth}
-            onChange={(v) => onChange({ ...form, driveAuth: v as ConnForm["driveAuth"] })}
-            items={[
-              { value: "token", label: "Google account" },
-              { value: "service_account", label: "Service account" },
-            ]}
-          />
+          {googleAuth}
           {form.driveAuth === "service_account" ? (
             <>
               {serviceAccountKey("Share the calendars Lens should read with that address, and enter their IDs below.")}
@@ -390,34 +617,8 @@ export function ConnectionFields({
                 hint: "Workspace only: read this user’s calendars (needs domain-wide delegation)",
               })}
             </>
-          ) : editing && isSet("token") && form.secrets.token === undefined ? (
-            <div className="flex flex-wrap items-center gap-2 rounded-sm border border-border bg-surface px-3.5 py-2.5 text-[13px] text-fg-secondary">
-              <span className="flex-1">A Google account is connected (never shown again).</span>
-              <Button size="sm" variant="secondary" onClick={() => setSecret("token", "")}>
-                Replace
-              </Button>
-            </div>
           ) : (
-            <Field
-              label="Google account"
-              hint="The authorized user JSON (client_id, client_secret, refresh_token) of an OAuth client of yours with the calendar.readonly scope, as gcloud auth application-default login --client-id-file writes it. Never shown again after saving"
-              error={errors.token}
-            >
-              {({ id, describedBy, invalid }) => (
-                <Textarea
-                  id={id}
-                  aria-describedby={describedBy}
-                  invalid={invalid}
-                  mono
-                  rows={3}
-                  className="min-h-[64px] text-[12px]"
-                  placeholder='{"client_id": "…", "client_secret": "…", "refresh_token": "…"}'
-                  value={form.secrets.token ?? ""}
-                  onChange={(e) => setSecret("token", e.target.value || undefined)}
-                  spellCheck={false}
-                />
-              )}
-            </Field>
+            googleAccount
           )}
           {text("calendars", {
             mono: true,

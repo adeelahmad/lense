@@ -32,6 +32,7 @@ class NotePageItem(ResponseModel):
     about: str | None = Field(None, description='what this is the page of, like "recording:12"; null for a free note')
     author: Literal["person", "assistant"] = Field("person", description="who wrote it")
     view: Literal["page", "edgeless"] | None = Field(None, description="how the editor shows it (default: page)")
+    pinned: bool = Field(False, description="you pinned it: it shows first on your Notes page and in your tree")
     created_at: str | None = None
     updated_at: str | None = None
 
@@ -111,6 +112,15 @@ class NoteHit(ResponseModel):
     snippet: str | None = Field(None, description="the words around the match in its text, when the text has it")
 
 
+class NoteDeleted(ResponseModel):
+    id: int
+    title: str
+    about: str | None = Field(None, description='what it was the page of, like "recording:12"; null for a free note')
+    namespace: str
+    deleted_at: str
+    deleted_by: str | None = Field(None, description="who deleted it (their email)")
+
+
 class NoteSearch(ResponseModel):
     total: int = Field(description="how many pages match; `pages` has the first `limit`")
     pages: list[NoteHit]
@@ -137,6 +147,11 @@ class NotePageUpdate(RequestModel):
     place: Place | Literal[""] | None = Field(None, description='"" to unfile it')
     doc: str | None = Field(None, description="the editor's document state; a new body without it marks the old one stale")
     view: Literal["page", "edgeless"] | None = Field(None, description="show it as a page or on the edgeless canvas")
+
+
+class NoteToday(RequestModel):
+    ns: str = Field(description="the namespace whose daily note it is")
+    date: str | None = Field(None, description="YYYY-MM-DD, your today (default: the server's)")
 
 
 class NotePageMove(RequestModel):

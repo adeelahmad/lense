@@ -593,6 +593,32 @@ class Smb(Component):
         pip_install(cfg, "smb", say)
 
 
+class SandboxClient(Component):
+    """OpenShell's Python client, for the assistant's code sandbox (sandbox.py): fetched when the sandbox is turned on."""
+
+    def needed(self, cfg, m):
+        return bool((cfg.get("sandbox") or {}).get("enabled"))
+
+    def present(self, cfg):
+        return importable("openshell")
+
+    def fetch(self, cfg, m, say):
+        pip_install(cfg, "sandbox", say)
+
+
+class WebSearch(Component):
+    """ddgs, for the assistant's web search through DuckDuckGo (web.py): fetched when an admin picks DuckDuckGo."""
+
+    def needed(self, cfg, m):
+        return (cfg.get("web") or {}).get("search") == "duckduckgo"
+
+    def present(self, cfg):
+        return importable("ddgs")
+
+    def fetch(self, cfg, m, say):
+        pip_install(cfg, "web", say)
+
+
 class Laya(Component):
     """laya-mlx and the chosen Laya model, for local decisions (decide.py) on Apple Silicon."""
 
@@ -755,6 +781,16 @@ COMPONENTS = [
     OllamaModel("llm-model", "Chat model", "the LLM provider's model, pulled on Ollama", section="llm"),
     OllamaModel("embedding-model", "Embedding model", "search by meaning's model, pulled on Ollama", section="embeddings", steps={"embed"}),
     Smb("smb", "SMB server", "shares the file tree over SMB, read-only (smb.enabled; impacket)", size_mb=15, license="Apache-1.1"),
+    SandboxClient(
+        "sandbox",
+        "Code sandbox client",
+        "reaches the OpenShell gateway the assistant's code sandbox runs on (sandbox.enabled; openshell)",
+        size_mb=10,
+        license="Apache-2.0",
+    ),
+    WebSearch(
+        "web-search", "DuckDuckGo search", "the assistant's web search through DuckDuckGo (web.search; ddgs)", size_mb=30, license="MIT"
+    ),
     Msg("msg", "Outlook .msg emails", "reads Outlook .msg files (extract-msg)", optional=True, license="GPL-3.0", size_mb=5),
 ]
 BY_ID = {c.id: c for c in COMPONENTS}

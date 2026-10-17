@@ -102,7 +102,10 @@ def test_the_assistant_answers_about_lens_itself(app, db, cfg, folder, new_clien
 
 
 def test_admins_see_where_each_setting_is(db, cfg, folder):
-    box = ai_tools.Toolbox(db, cfg, {"id": 1, "email": "root@x.io"}, set(), set(), {}, None, admin=True, web="https://lens.example.org/")
+    cfg["web"] = {"search": "duckduckgo"}  # web search on too: its tools and lens_help side by side
+    box = ai_tools.Toolbox(
+        db, cfg, {"id": 1, "email": "root@x.io"}, set(), set(), {}, None, admin=True, web_app="https://lens.example.org/"
+    )
     out, summary = box.call("lens_help", {})
     here = json.loads(out)["this_server"]
     assert summary == "Read this server's facts" and here["ref"] == 1 and box.refs[0]["url"] == "https://lens.example.org"
@@ -110,7 +113,7 @@ def test_admins_see_where_each_setting_is(db, cfg, folder):
     assert here["settings_pages"]["telegram"] == "telegram" and set(here["settings_pages"]) == set(here["turned_on"])
     assert here["version"] and here["you"]["admin"] is True
     assert "lens_help" in ai_tools.OWN_RESULTS and not box.outside  # Lens's own word: nothing read from outside
-    assert "lens_help" in [t["function"]["name"] for t in box.specs()]
+    assert {"lens_help", "web_search"} <= {t["function"]["name"] for t in box.specs()}
     for name in manual.index().pages:  # whatever is read, it fits what the model is given of a tool's result
         got = json.loads(box.call("lens_help", {"page": name, "query": None})[0])
         assert got["docs"]["sections"][0]["page"] == name

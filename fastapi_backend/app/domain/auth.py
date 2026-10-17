@@ -192,6 +192,7 @@ def remove_account(db, uid, lose_vaults=False):
                     "iiif_token",
                     "iiif_cookie",
                     "highlight",
+                    "event_mark",
                 )
             ),
             "DELETE note WHERE account = $a AND (shared ?? false) = false",
@@ -377,7 +378,9 @@ def token_days(cfg, days):
     return days
 
 
-def create_token(db, uid, name, scope="read", days=90):
+def create_token(db, uid, name, scope="read", days=90, space=None):
+    """A new API key for this person: `space` makes it open one namespace alone (its own MCP server and chat
+    completions, deps.serves), else it opens whatever they can reach."""
     if scope not in ("read", "write"):
         raise ValueError("scope is read or write")
     raw = "la_" + secrets.token_urlsafe(32)
@@ -394,6 +397,7 @@ def create_token(db, uid, name, scope="read", days=90):
                 "prefix": raw[:9],
                 "created_at": store.now(),
                 "expires_at": _later(24 * days) if days else None,
+                "space": int(space) if space is not None else None,
             }
         ),
     )
@@ -403,19 +407,33 @@ def create_token(db, uid, name, scope="read", days=90):
 def token_account(db, raw):
     if not raw or not raw.startswith("la_"):
         return None
-    t = db.one("SELECT record::id(id) AS id, account, scope, expires_at FROM api_token WHERE hash = $h LIMIT 1", h=sha(raw))
+    t = db.one("SELECT record::id(id) AS id, account, scope, expires_at, space FROM api_token WHERE hash = $h LIMIT 1", h=sha(raw))
     if not t or (t.get("expires_at") and t["expires_at"] < store.now()):
         return None
     u = get_account(db, t["account"])
     if not _active(u):
         return None
     db.q("UPDATE $r SET last_used_at = $n", r=R("api_token", t["id"]), n=store.now())
-    return {**public(u), "via": "token", "scope": t["scope"]}
+    return {**public(u), "via": "token", "scope": t["scope"], "space": t.get("space")}
+
+
+def _named(db, rows):
+    """Keys with the namespace each was made for, by name ("" once that namespace is gone: the key opens nothing)."""
+    names = store.space_names(db)
+    out = []
+    for r in rows:
+        sid = r.pop("space", None)
+        out.append({**r, "namespace": None if sid is None else names.get(sid, "")})
+    return out
 
 
 def list_tokens(db, uid):
-    return db.rows(
-        "SELECT record::id(id) AS id, name, scope, prefix, created_at, expires_at, last_used_at FROM api_token WHERE account = $a", a=uid
+    return _named(
+        db,
+        db.rows(
+            "SELECT record::id(id) AS id, name, scope, prefix, created_at, expires_at, last_used_at, space FROM api_token WHERE account = $a",
+            a=uid,
+        ),
     )
 
 
@@ -434,7 +452,9 @@ def revoke_token(db, uid, tid):
 def all_tokens(db):
     """Everyone's keys (admins): the key's fields with its owner's email, the latest made first."""
     people = {a["id"]: a["email"] for a in db.rows("SELECT record::id(id) AS id, email FROM account")}
-    rows = db.rows("SELECT record::id(id) AS id, account, name, scope, prefix, created_at, expires_at, last_used_at FROM api_token")
+    rows = _named(
+        db, db.rows("SELECT record::id(id) AS id, account, name, scope, prefix, created_at, expires_at, last_used_at, space FROM api_token")
+    )
     return sorted(
         ({**r, "email": people.get(r["account"])} for r in rows), key=lambda r: (r.get("created_at") or "", r["id"]), reverse=True
     )

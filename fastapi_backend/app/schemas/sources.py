@@ -65,12 +65,58 @@ class SourceUpdate(RequestModel):
     secrets: dict[str, str | None] | None = Field(default=None, description="null or empty removes a secret")
 
 
+class RcloneSignInStart(RequestModel):
+    type: SourceType | None = Field(
+        default=None, description="the kind of connection to make (drive, dropbox, onedrive); leave out with `source`"
+    )
+    source: int | None = Field(default=None, description="a connection to sign in again, instead of making a new one")
+    name: str | None = Field(default=None, description="the new connection's name; by default the service's")
+    params: dict[str, Any] | None = Field(default=None, description="its options, as for POST /sources (scope, root_folder_id...)")
+
+
+class RcloneSignIn(ResponseModel):
+    id: str = Field(description="this sign-in, to finish or cancel")
+    url: str = Field(description="the service's sign-in page, to open in a browser (it asks to allow rclone); once, within ten minutes")
+    port: int = Field(description="where the service sends the browser back afterwards: http://127.0.0.1:<port>/?state=…&code=…")
+    expires_at: str
+
+
+class RcloneSignInFinish(RequestModel):
+    address: str | None = Field(
+        default=None,
+        description="the address the browser ended on after signing in (http://127.0.0.1:53682/?state=…&code=…); leave "
+        "out to only look whether rclone already got it (a browser on the machine Lens runs on reaches it itself)",
+    )
+
+
+class RcloneSignInState(ResponseModel):
+    connected: int | None = Field(default=None, description="the connection, made or signed in again, and tested; none while it waits")
+
+
 class SourceCreated(Created):
     health: SourceHealth
 
 
 class SourceUpdated(Ok):
     health: SourceHealth
+
+
+class GoogleClient(ResponseModel):
+    origin: Literal["sign-in", "connection"] | None = Field(
+        description="where the OAuth client for connecting a Google account comes from: the Google sign-in provider, "
+        "an earlier Google connection, or none (enter one to connect)"
+    )
+    client_id: str | None = None
+    redirect_uri: str = Field(description="the address to add to the OAuth client's authorized redirect URIs")
+
+
+class GoogleConnect(RequestModel):
+    client_id: str | None = Field(default=None, max_length=300, description="an OAuth client of your own (else the one Lens has)")
+    client_secret: str | None = Field(default=None, max_length=300)
+
+
+class GoogleConnectStart(ResponseModel):
+    url: str = Field(description="Google's consent page; open it in this browser")
 
 
 class ImportedAs(ResponseModel):

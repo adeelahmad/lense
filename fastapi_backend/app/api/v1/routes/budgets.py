@@ -13,7 +13,7 @@ from app.schemas.budgets import BudgetMeter, BudgetSet, BudgetStatus
 from app.schemas.common import Ok
 
 router = APIRouter(tags=["budgets"])
-RESOURCE = Query(description="all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>")
+RESOURCE = Query(description="all (everything Lens spends), routine:<id>, automation:<id>, pipeline:<id>, workflow:<id> or space:<id>")
 
 
 @router.get("/budgets")

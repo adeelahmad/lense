@@ -61,6 +61,13 @@ describe("the consent page", () => {
     go = jest.spyOn(leave, "to").mockImplementation(() => {});
   });
 
+  it("says when an app asks for one namespace alone (its own MCP server)", async () => {
+    api.consent.mockReturnValue(ok(consent()));
+    show(<ConsentCard request={{ ...request, resource: "https://lens.example.org/mcp/pods" }} email="vi@x.io" />);
+    expect(await screen.findByText("pods")).toBeInTheDocument();
+    expect(screen.getByText(/it sees what you see there, nothing else/)).toBeInTheDocument();
+  });
+
   it("says which app asks and for what, and Allow sends the browser back with the code", async () => {
     api.consent.mockReturnValue(ok(consent()));
     api.answer.mockReturnValue(ok({ redirect_to: "https://app.example/cb?code=abc&state=s1" }));

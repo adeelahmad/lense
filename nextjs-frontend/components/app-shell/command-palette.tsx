@@ -81,6 +81,12 @@ export function CommandPalette() {
               href: "/import",
               icon: <Zap className="size-4" />,
             },
+            {
+              group: "Actions",
+              label: "Today’s note",
+              href: "/notes/today",
+              icon: <Zap className="size-4" />,
+            },
           ]
         : []),
       {

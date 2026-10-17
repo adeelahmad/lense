@@ -323,7 +323,7 @@ function AnswerView({ text, passages, streaming }: { text: string; passages: Pas
         if (ps.url)
           return (
             <a key={i} href={ps.url} target="_blank" rel="noopener noreferrer" className={cls} title={ps.text}>
-              {citeLabel(ps)}
+              {ps.source === "web" ? (ps.site ?? ps.title ?? "Web page") : citeLabel(ps)}
             </a>
           );
         return ps.recording_id === id ? (
