@@ -842,10 +842,12 @@ DELETE /api/v1/notes/{pid}/files
 ```
 
 Note pages ([Notes](notes.md)), apart from the notes on an asset above. `GET /notes?ns=` is a namespace's page tree
-(`all=true` adds the pages of things). `today` gives the namespace's note for `date`, made the first time it's asked
-for ([Today's note](notes.md#todays-note)). `templates` lists the notes inside the namespace's Templates note, and
-`POST /notes/templates` makes that note the first time; `copy` makes a new note from a page, with its text, drawings,
-files and filing ([Templates](notes.md#templates)). `search?q=` finds pages by the words in their title, summary or text, title
+(`all=true` adds the pages of things). `GET /notes/{pid}` gives a page with its text, links, backlinks, `path` (the
+notes it's inside, from the top) and `children` (the notes inside it) ([On a note](notes.md#on-a-note)). `today` gives
+the namespace's note for `date`, made the first time it's asked for ([Today's note](notes.md#todays-note)).
+`templates` lists the notes inside the namespace's Templates note, and `POST /notes/templates` makes that note the first
+time; `copy` makes a new note from a page, with its text, drawings, files and filing ([Templates](notes.md#templates)).
+`search?q=` finds pages by the words in their title, summary or text, title
 matches first, each with the words around the match ([Finding notes](notes.md#finding-notes)). `DELETE /notes/{pid}`
 moves a page to recently deleted for 30 days: `deleted` lists them, `restore` puts one back where it was and
 `DELETE /notes/deleted/{pid}` deletes one for good ([Deleting](notes.md#deleting-and-putting-back)). `move` puts a
@@ -1364,14 +1366,16 @@ photo search results carry `nsfw: true` for the ones the web app blurs.
 
 ### Descriptions
 
-The `describe` step has a model that can see images, the one an admin chose as `llm.vision_model`, say in a few
-sentences what each page of a document or an image shows, and each shot of a video (from its keyframe): the setting,
-the people (by what they do and wear, never who they might be), the things and any text in it. It comes after
-`nsfw` in the standard pipeline, and describes at most `llm.describe_max` pages or shots of a resource. Without an
-LLM, or with no `llm.vision_model`, it's skipped, saying why; a model that can't see makes it fail with what the server
-said ([Configuration](configuration.md#descriptions)). The player's `descriptions` lists them in order:
+The `describe` step has a model that can see images say in a few sentences what each page of a document or an image
+shows, and each shot of a video (from its keyframe): the setting, the people (by what they do and wear, never who they
+might be), the things and any text in it. The model is the one an admin chose as `llm.vision_model` on the LLM
+provider, or, with `llm.describe_engine` `florence-2`, Florence-2 on the server itself, which needs no provider. It
+comes after `nsfw` in the standard pipeline, and describes at most `llm.describe_max` pages or shots of a resource.
+Without an LLM, with no `llm.vision_model`, or before Florence-2 is fetched, it's skipped, saying why; a model that
+can't see makes it fail with what the server said ([Configuration](configuration.md#descriptions)). The player's `descriptions` lists them in order:
 `{idx, t0, t1, text, model, frame, paged}`: the shot or page, where it starts and ends (ms; on pages, the page from 0
-and the next), what the model said, which model, and a signed link to the picture it was shown. Search finds them
+and the next), what the model said, which model (such as `Florence-2-base`), and a signed link to the picture it was
+shown. Search finds them
 (`source: described`, [search](#search)). Moving or deleting a resource moves or deletes them; the step run again
 replaces them.
 

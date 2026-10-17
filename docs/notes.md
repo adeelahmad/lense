@@ -31,6 +31,17 @@ draft with its name and the pages that already link to it. A page follows its as
 thing is deleted, or an entity is merged into another, its page stays as a free note at the top of the tree, so
 nothing written on it is lost.
 
+## On a note
+
+Above the title, a note says where it is: **Notes › namespace ›** each note it's inside, every one a link. Next to that
+are how many words it has, whether it's saved, and its **⋯** menu: **Add a note inside**, **Pin**, **History**,
+**Download as Markdown** and **Delete** (with Undo). The text starts in line with the title. Under the text, **Inside
+this note** lists the notes inside it in the tree's order, with **Add a note inside**, then the notes that link to it;
+**Costs and activity** is folded at the bottom and loads when opened.
+
+`GET /api/v1/notes/{pid}` gives `path` (the notes it's inside, from the top) and `children` (the notes inside it); the
+assistant's and MCP's `read_note` give them as `path` and `notes_inside`.
+
 ## Entity pages
 
 Every entity (a person, organisation, product, place, event, work or term) has a page of its own, named by its name

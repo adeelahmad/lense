@@ -84,6 +84,26 @@ def test_tree(client, env):
     assert sorted((p["title"], p["parent"]) for p in tree) == [("Budget", None), ("Hiring", None)]
 
 
+def test_path_and_children(client, env):
+    """A note says which notes it's inside, from the top down, and lists the notes inside it in the tree's order."""
+    he, hv = env["he"], env["hv"]
+    top = _new(client, he, title="Home lab")
+    mid = _new(client, he, title="Pi 5", parent=top["id"])
+    leaf = _new(client, he, title="Shopping list", parent=mid["id"])
+    second = _new(client, he, title="Cases", parent=mid["id"])
+    client.post(f"/api/v1/notes/{second['id']}/move", headers=he, json={"parent": mid["id"], "before": leaf["id"]})
+    got = client.get(f"/api/v1/notes/{leaf['id']}", headers=hv).json()
+    assert [(c["id"], c["title"]) for c in got["path"]] == [(top["id"], "Home lab"), (mid["id"], "Pi 5")]
+    assert got["children"] == []
+    got = client.get(f"/api/v1/notes/{mid['id']}", headers=hv).json()
+    assert [c["title"] for c in got["path"]] == ["Home lab"]
+    assert [c["title"] for c in got["children"]] == ["Cases", "Shopping list"]
+    assert client.get(f"/api/v1/notes/{top['id']}", headers=hv).json()["path"] == []
+    # a thing's page isn't in the tree, so nothing is inside it
+    page = _new(client, he, title="About the call", about=f"recording:{env['a']}")
+    assert (page["path"], page["children"]) == ([], [])
+
+
 def test_links_and_backlinks(client, env, db):
     he, a = env["he"], env["a"]
     term, person = _entity(db, "Capsids", "TERM"), _entity(db, "Ada Lovelace", "PERSON")
@@ -278,6 +298,10 @@ def test_assistant_keeps_notes(client, env, db, cfg):
     got = call("read_note", note_id=w["note_id"])
     assert got["body"].endswith("Alice sends them.") and got["summary"] == "When the samples ship"
     assert got["links"] == [{"sign": "@", "target": f"recording:{env['a']}", "label": "ep1"}]
+    assert "path" not in got and "notes_inside" not in got  # at the top, with nothing inside
+    kid = call("write_note", namespace="pods", title="Samples", body="Two boxes.", parent_id=w["note_id"])["note_id"]
+    assert call("read_note", note_id=w["note_id"])["notes_inside"] == [{"id": kid, "title": "Samples"}]
+    assert call("read_note", note_id=kid)["path"] == [{"id": w["note_id"], "title": "Shipping"}]
     assert call("read_note", about=f"recording:{env['a']}")["note"] is None
     assert [n["id"] for n in call("find_notes", query="alice")["notes"]] == [w["note_id"]]
     assert call("find_notes", place="area")["notes"] == []
