@@ -68,7 +68,9 @@ GET    /api/v1/admin/tokens
 DELETE /api/v1/admin/tokens/{token_id}
 ```
 
-`POST /tokens {name, scope, days?}` makes an API key (while signed in). `days` defaults to `tokens.default_days`; more
+`POST /tokens {name, scope, days?, namespace?}` makes an API key (while signed in); with `namespace` (one you can read)
+it opens that namespace's own MCP server and chat completions alone, and the list shows it as `namespace`
+([API tokens](authentication.md#api-tokens)). `days` defaults to `tokens.default_days`; more
 than `tokens.max_days`, or `0` (never expires) when `tokens.never_expire` is off, is a 400. `GET /tokens/limits` says
 `{default_days, max_days, never_expire}`. `PATCH /tokens/{token_id} {name}` renames one of your keys (audited as
 `token.rename`). `/admin/tokens` lists everyone's keys with their owner's `email` (admins), and
@@ -178,6 +180,126 @@ GET    /api/v1/activity/top
 leaving out the ones you can't see; `estimate` marks a figure as a floor. `/activity/top` lists the costliest
 resources (admins).
 
+## automations
+
+```
+GET    /api/v1/automations
+POST   /api/v1/automations
+GET    /api/v1/automations/actions
+POST   /api/v1/automations/draft
+GET    /api/v1/automations/{id}
+PATCH  /api/v1/automations/{id}
+DELETE /api/v1/automations/{id}
+POST   /api/v1/automations/{id}/restore
+POST   /api/v1/automations/{id}/enable
+POST   /api/v1/automations/{id}/policy
+POST   /api/v1/automations/{id}/test
+POST   /api/v1/automations/test
+POST   /api/v1/automations/{id}/run
+GET    /api/v1/automations/{id}/runs
+GET    /api/v1/automations/{id}/upcoming
+GET    /api/v1/automations/runs
+GET    /api/v1/automations/runs/{run}
+POST   /api/v1/automations/runs/{run}/decide
+```
+
+Automations act for the person who made them in namespaces they can edit ([Saving
+automations](automations.md#saving-automations)). Admins see and change all of them; anyone else the ones that work
+only in namespaces they can edit (`?removed=true` lists deleted ones, to restore). A save answers `{id, hooks}`.
+`/policy` lets an action node run without asking (`auto`) only from a signed-in session in the web app.
+`/actions` lists what action nodes can do. `/draft {"text": ...}` asks the model to turn a sentence into a draft to
+try and save, saying what didn't fit (`dropped`) and what it couldn't express (`unmapped`) ([Describe it in
+words](automations.md#describe-it-in-words)). The list adds each one's actions waiting (`waiting`) and cost this month
+(`cost_month`). `/test` tries a saved automation, and `POST /automations/test {"draft": ...}` an unsaved one, on an
+activity (`activity`) or a kind's sample (`kind`) without keeping or sending anything; `/run` runs it now (on
+`activity`, else the newest one its triggers listen for). `/runs` pages its runs (`before`, `limit`; `next` for the
+page after), `/runs?activity=<id>` lists the runs an activity started, `/runs/{run}` gives one with its trace, log and
+intents, and `/runs/{run}/decide {"run": true}` runs a run held over budget, or skips it ([Running
+automations](automations.md#running-automations)).
+
+## activities
+
+```
+GET    /api/v1/activities
+GET    /api/v1/activities/kinds
+GET    /api/v1/activities/{activity_id}
+POST   /api/v1/activities/mark
+POST   /api/v1/activities/{activity_id}/mark
+```
+
+`GET /activities` is what happened in Lens, newest first, from every source: Activity Streams 2.0 activities with a
+Lens `kind` (the shape is in [Automations](automations.md#activities)). Filters, each optional: `kinds` (repeat it,
+or separate with commas; the kinds under each count too), `actor` (an actor's id, like `lens:account/1`),
+`namespace` (by name), `tag` (an entity's id or name), `since` (published after) and `until` (at or before),
+`q` (words in the summary) and `where` (a [match tree](automations.md#match-trees) on the activity, as JSON).
+`limit` is 1 to 200 (50). The answer is `{items, next, namespaces}`: give `next` as `before` for the page after (it is
+null at the end); `namespaces` names the namespaces in the page by id. Noisy kinds are left out unless named. People
+see the activities of the namespaces they can read, their own (`lens.audience` owner), and admins also those for
+admins alone. `/activities/kinds` lists the kinds of activity with their schemas and samples; `/activities/{id}`
+reads one activity, like `create-recording-7`.
+
+Each person marks activities `reviewed`, `important` or `hidden` for themselves alone ([Timeline](timeline.md#review-marks)):
+`POST /activities/{id}/mark` with any of the three (true or false; one left out stays) answers the marks on it now,
+and `POST /activities/mark` with `ids` (up to 500) answers `{marks, unknown}`. `GET /activities` has your marks on
+the page in `marks` and filters by them with `reviewed`, `important` and `hidden` (true or false).
+
+## automations
+
+```
+POST   /api/v1/automations/hooks/{token}
+```
+
+An automation's webhook ([Webhook trigger](automations.md#webhook-trigger)): calling the address of a trigger
+`{"on": "webhook"}` sets that automation off. No session or API token: the token in the address (`lah_...`, shown
+once when the automation is saved) is the credential. Send JSON, a form (text fields) or text, up to 64 KB; the answer
+(202) is `{"id"}`, the `webhook.received` activity the call made, before the automation runs. Sign the call the
+Standard Webhooks way (`webhook-id`, `webhook-timestamp`, `webhook-signature`, with the secret shown with the
+address) and the signature is checked; a `webhook-id` or `Idempotency-Key` makes a retried call count once. 401 for a
+token that isn't a webhook's or a signature that doesn't match, 403 while the automation is switched off, 413 over 64
+KB, 415 for other bodies, 429 past 60 calls a minute.
+
+```
+curl -H "Content-Type: application/json" -d '{"event": "doorbell"}' https://lens.example/api/v1/automations/hooks/lah_...
+```
+
+```
+GET    /api/v1/automations/{id}/vars
+PUT    /api/v1/automations/{id}/vars
+GET    /api/v1/namespaces/{name}/automation-vars
+PUT    /api/v1/namespaces/{name}/automation-vars
+```
+
+The values automations keep between runs ([Saved variables](automations.md#saved-variables)): an automation's own,
+or a namespace's, which every automation working there reads. `GET` answers `{"vars": [{name, value, untrusted,
+updated_at, updated_by}]}` by name; `untrusted` says a run set it from text from outside Lens. `PUT {"vars": {name:
+value}}` sets several at once (`null` clears one) and answers the same list. An automation's are for admins and
+whoever may change it (it works only in namespaces they edit); a namespace's are read by its readers and changed by
+its editors. 404 for an automation you can't see, 400 for a bad name (lowercase letters, digits and `_`, up to 40),
+a value over 16 KB, or past 100 variables.
+
+```
+curl -X PUT -H "Authorization: Bearer $LENS_TOKEN" -H "Content-Type: application/json" \
+  -d '{"vars": {"alerts": 0, "last_alert": null}}' https://lens.example/api/v1/automations/7/vars
+```
+
+```
+POST   /api/v1/automations/variables
+POST   /api/v1/automations/preview
+```
+
+The variable picker and a template's preview for an automation being written
+([The variable picker and preview](automations.md#the-variable-picker-and-preview)). Both take `draft`, the automation
+as written so far (`{triggers, join?, workflow?, spaces?, id?, name?}`, `workflow` an id or a graph). `variables`
+(`{draft, node?}`) answers `{"variables": [{path, type, label, example, group, untrusted}]}`. `preview` (`{template,
+draft, activity?, trigger?, node?, prompt?}`) answers `{text, value, prompt, rules, system, error, line, activity}`;
+a template that fails is a 200 with `error` and `line`. 400 for a draft that doesn't check, 404 for an activity, a
+namespace or an automation you can't see.
+
+```
+curl -H "Authorization: Bearer $LENS_TOKEN" -H "Content-Type: application/json" https://lens.example/api/v1/automations/preview \
+  -d '{"template": "{{ events.mail.object.subject }}", "draft": {"triggers": [{"as": "mail", "on": "event", "kinds": ["email.received"]}]}}'
+```
+
 ## vaults
 
 ```
@@ -271,6 +393,10 @@ PATCH  /api/v1/namespaces/{name}/collections/{cid}
 DELETE /api/v1/namespaces/{name}/collections/{cid}
 GET    /api/v1/namespaces/{name}/collections/{cid}/members
 PUT    /api/v1/namespaces/{name}/collections/{cid}/members
+GET    /api/v1/namespaces/{name}/integrations
+PATCH  /api/v1/namespaces/{name}/integrations
+GET    /api/v1/namespaces/{name}/models
+POST   /api/v1/namespaces/{name}/chat/completions
 ```
 
 `GET /namespaces` lists the namespaces you have a role in, with their counts and your `role`, and those you see only
@@ -311,6 +437,63 @@ the archive) and the archive's settings (`archive`), and how many resources are 
 also queues the `nsfw` step for its videos, documents and images not classified yet, answering how many runs were
 `queued`. Audited as `namespace.nsfw`. `POST …/nsfw/classify` queues them on its own (editors) and answers the `jobs`.
 Both are a 409 where classification is off in the namespace.
+
+`/namespaces/{name}/integrations` says whether the namespace's [own MCP server](mcp.md#one-namespaces-mcp-server)
+(`mcp`, at `mcp_url`) and its [chat completions](#chat-completions-for-any-app) (`chat`, at `chat_url`) are on, the
+read tools the model may use there (`tools`) and the ones it may be offered (`tool_choices`), for anyone who can read
+the namespace. `PATCH` with any of `{mcp, chat, tools}` changes them (owners); what isn't sent stays. A tool that
+isn't one of `tool_choices` is a 400. Audited as `namespace.integrations`.
+
+### Chat completions for any app
+
+A namespace can answer OpenAI's chat completions API, so any app that speaks it (a chat app, an automation tool, a
+library's OpenAI client) gets answers from the configured model, grounded in that namespace and citing it. Give the app:
+
+- **Base URL**: `https://lens.example.org/api/v1/namespaces/<namespace>` (the app adds `/chat/completions`);
+- **API key**: a Lens [API token](authentication.md#api-tokens) (`la_…`; read-only is enough), best one made for
+  this namespace alone (Connect apps links to it), or an app's OAuth token;
+- **Model**: `lens`, the configured model. One of the models people may pick in Lens's chat works too
+  (`GET …/models` lists them); any other name answers with the configured model.
+
+```bash
+curl https://lens.example.org/api/v1/namespaces/family/chat/completions \
+  -H "Authorization: Bearer la_…" -H "Content-Type: application/json" \
+  -d '{"model": "lens", "messages": [{"role": "user", "content": "When is the dentist?"}]}'
+```
+
+Each request is answered like a question in Lens's chat, from that namespace alone, with what the token's person can
+read there:
+
+- the last message is the question (a `user` message), the `user` and `assistant` messages before it the
+  conversation, and `system` (or `developer`) messages the app's own instructions, which the model reads after Lens's
+  rules. Pictures and files in a message are left out;
+- the namespace's excerpts that best answer it are found and the model answers from them, citing each claim as `[n]`.
+  With no model set up, the best excerpts come back on their own;
+- when the namespace's owners picked tools, the model may first look things up with them, in the namespace. They are
+  the assistant's tools that only read (`tool_choices`). A model that can't call tools answers from the excerpts and
+  says so in `lens.notice`;
+- when the namespace's [own assistant](assistant.md#a-namespaces-own-assistant) is on, its name and instructions answer.
+
+What it cites comes back three ways, so any app can show it: `[n]` in the text with a **Sources** list of links after
+it (left out when the request has a `response_format`), `citations` (the link for `[n]` is the n-th), and
+`lens.sources` (`n`, `recording_id`, `title`, `time`, `speaker`, `url`, `cited`). `lens.steps` lists the tools the
+model used, and `lens.record` what produced the answer, as a chat answer's record
+([What each answer records](assistant.md#what-each-answer-records)) without tokens and cost. With `"stream": true` the answer comes as OpenAI's `chat.completion.chunk` events, ending with
+`data: [DONE]`; the last chunk before it carries `finish_reason: "stop"`, `citations` and `lens`. While the tools run,
+the stream sends SSE comments, so nothing in between closes it.
+
+It is off until an owner of the namespace turns it on: **Admin → Namespaces →** the namespace **→ Connect apps**,
+which also copies the base URL and picks the tools, or `PATCH /namespaces/{name}/integrations` with `{"chat": true}`,
+or an agent's `set_namespace_integrations`. Errors come in OpenAI's shape (`{"error": {"message", "type", "code"}}`):
+401 `invalid_api_key` without a token, 422 for a body that isn't a request (FastAPI's shape), 404 `not_found` for a
+namespace the token's person can't read (or that doesn't exist), 403 `endpoint_off` while it's off, 400
+`invalid_messages` with nothing to answer, 429 `insufficient_quota` when the namespace's [budget](budgets.md) or
+Lens's overall one is used up, 502 `upstream_error` when the model server fails.
+
+It only reads. Model calls go through the activity ledger and count for the namespace (`space:<id>`), so its budget
+covers them. Not yet: the app's own `tools` (they are ignored), `max_tokens`, enforcing a `response_format`, token
+counts in `usage`, streaming the tools' answer piece by piece (it comes in one chunk), and what the namespace's
+assistant remembers.
 
 ### Collections of a namespace
 
@@ -628,6 +811,7 @@ deleted.
 ```
 GET    /api/v1/notes
 POST   /api/v1/notes
+POST   /api/v1/notes/today
 GET    /api/v1/notes/search
 GET    /api/v1/notes/deleted
 POST   /api/v1/notes/deleted/{pid}/restore
@@ -636,6 +820,8 @@ GET    /api/v1/notes/{pid}
 PATCH  /api/v1/notes/{pid}
 DELETE /api/v1/notes/{pid}
 POST   /api/v1/notes/{pid}/move
+PUT    /api/v1/notes/{pid}/pin
+DELETE /api/v1/notes/{pid}/pin
 GET    /api/v1/notes/{pid}/history
 GET    /api/v1/notes/{pid}/history/{vid}
 POST   /api/v1/notes/{pid}/history/{vid}/restore
@@ -646,11 +832,14 @@ DELETE /api/v1/notes/{pid}/files
 ```
 
 Note pages ([Notes](notes.md)), apart from the notes on an asset above. `GET /notes?ns=` is a namespace's page tree
-(`all=true` adds the pages of things). `search?q=` finds pages by the words in their title, summary or text, title
+(`all=true` adds the pages of things). `today` gives the namespace's note for `date`, made the first time it's asked
+for ([Today's note](notes.md#todays-note)). `search?q=` finds pages by the words in their title, summary or text, title
 matches first, each with the words around the match ([Finding notes](notes.md#finding-notes)). `DELETE /notes/{pid}`
 moves a page to recently deleted for 30 days: `deleted` lists them, `restore` puts one back where it was and
-`DELETE /notes/deleted/{pid}` deletes one for good ([Deleting](notes.md#deleting-and-putting-back)). `move` puts a free note inside `parent` before `before`, `history` lists what the
-page was before each change, and `restore` puts an earlier version back (what it was becomes a version too). `files`
+`DELETE /notes/deleted/{pid}` deletes one for good ([Deleting](notes.md#deleting-and-putting-back)). `move` puts a
+free note inside `parent` before `before`. `PUT …/pin` pins a page for you (`pinned` on each page says whether you
+did) and `DELETE …/pin` unpins it ([Pinned notes](notes.md#pinned-notes)). `history` lists what the page was before
+each change, and `restore` puts an earlier version back (what it was becomes a version too). `files`
 lists the files and images attached to a page; `blobs` uploads (in chunks) and reads them, and `DELETE …/files?key=`
 removes one.
 
@@ -1275,18 +1464,31 @@ GET    /api/v1/chats/{cid}
 PATCH  /api/v1/chats/{cid}
 DELETE /api/v1/chats/{cid}
 POST   /api/v1/chats/{cid}/messages
+GET    /api/v1/chats/{cid}/messages/{mid}
 POST   /api/v1/chats/{cid}/stop
 POST   /api/v1/chats/{cid}/messages/{mid}/check
 GET    /api/v1/approvals
+GET    /api/v1/approvals/count
+GET    /api/v1/approvals/{aid}
 POST   /api/v1/approvals/{aid}
 ```
+
+`GET /approvals` lists what waits for your pick and what became of it, newest first: the assistant's proposals and
+automations' actions ([Approvals](automations.md#approvals)); filter by `status`, `origin` (`automation` or `chat`),
+`automation` or `chat_id`, and page with `before` (the last id of the page before) and `limit`. `/approvals/count`
+gives `{waiting, automations}`. `POST /approvals/{aid} {decision, params?}` decides one: `approve`, `sample` (a batch
+run on 3 assets first), `decline`, `edit` (an automation's action with `params` changed) or `always` (approved, and
+that node runs without asking from now on). Approving, editing and `always` on an automation's action need a signed-in
+session (403 for an API key or an app); each approval's `can` says what you may do with it.
 
 `GET /chats/capabilities` tells anyone signed in whether a language model is set up (`configured`), which (`model`),
 whether it uses tools (`tools`, `max_steps`), whether answers can be checked (`check`) and the `models` people may pick
 (the configured one first; `llm.chat_models`, else the server's list); never the model server's address or key. A
 conversation's `model` (`POST /chats`, `PATCH /chats/{cid}`; null for the configured one) answers in it, and a
 question can name another (`POST /chats/{cid}/messages {content, model}`, e.g. to retry); a model that isn't offered is
-a 400. Each answer records the `model` that wrote it. `POST /chats/{cid}/stop` stops the answer being written in your conversation after the piece or tool
+a 400. Each answer records the `model` that wrote it, and its `meta` what produced it; `GET
+/chats/{cid}/messages/{mid}` gives one message with its record and its rows in the activity ledger
+([What each answer records](assistant.md#what-each-answer-records)). `POST /chats/{cid}/stop` stops the answer being written in your conversation after the piece or tool
 step it's on: the stream sends `stopped`, then `done` with the saved message, whose `stopped` is true and whose
 `content` is what came before (`(stopped)` when nothing had). `{stopping: false}` when nothing was being written.
 `POST /chats/{cid}/messages {content, edit}` edits one of your earlier questions (`edit` is its message id): it and

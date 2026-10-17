@@ -122,6 +122,35 @@ refining it, or someone else always starts a new one. **History** on a page list
 it; pick one to read it, and editors can restore it. Restoring keeps the page as it was too, so it can be undone.
 `GET /api/v1/notes/{id}/history`, `GET .../history/{version}` and `POST .../history/{version}/restore`.
 
+## The tree
+
+Free notes sit in a tree in the left navigation, under the main links. The links and the tree scroll together, so a
+long tree has the whole height. A row opens its note, its arrow shows the notes inside it (the tree remembers which are
+open) and **+** adds a note inside. Each row's **⋯** menu, which always shows on a touch screen, adds a note inside,
+renames the note in place (Enter saves, Escape leaves it as it was), moves it (**Move to…** finds the note to put it in
+by name, Enter picks the first; **Move to the top**), pins it ([below](#pinned-notes)) and deletes it with Undo.
+Dragging a note onto another puts it inside, and onto the Notes heading moves it to the top. The pages of recordings
+and entities aren't in the tree: they open from those things.
+
+`POST /api/v1/notes/{pid}/move` with `{parent}` moves a note (`null` for the top); `PATCH /api/v1/notes/{pid}` with
+`{title}` renames it.
+
+## Today's note
+
+**Today** on the Notes page (or **Today's note** in Jump to, or the address `/notes/today`) opens the note for the
+day in the namespace in view, made the first time it's asked for: titled with the date (like 2026-10-15) and inside a
+**Daily notes** note, made too when there's none. It's the day where you are, and one note a day per namespace that
+everyone there shares; rename or move it like any note. `POST /api/v1/notes/today` with `{ns, date}` (editors) gives
+the same note to agents.
+
+## Pinned notes
+
+**Pin** in a note's ⋯ menu in the tree pins it for you: it shows at the top of the tree, under **Pinned**, and first
+on the Notes page with a pin. Pins are each person's own, so pinning changes nothing for anyone else and needs only
+read access; up to 50 per namespace. **Unpin** (in the menu, or the button on its row under Pinned) takes it off.
+`PUT /api/v1/notes/{pid}/pin` pins and `DELETE` unpins; each page in `GET /api/v1/notes` says whether you pinned it
+(`pinned`).
+
 ## Deleting and putting back
 
 **Delete** on a page deletes it at once, with no question first: the notice has **Undo**, which puts it back and opens

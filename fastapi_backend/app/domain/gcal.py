@@ -31,7 +31,7 @@ API = "https://www.googleapis.com/calendar/v3"
 SCOPES = ("https://www.googleapis.com/auth/calendar.readonly",)
 TYPE = {
     "label": "Google Calendar",
-    "fields": {"calendars": "", "impersonate": "", "days_back": "365"},
+    "fields": {"calendars": "", "impersonate": "", "days_back": "365", "account": ""},  # account: the one connected
     "secrets": ["token", "service_account_credentials"],
     "google": True,  # signs in through google_auth.py
 }

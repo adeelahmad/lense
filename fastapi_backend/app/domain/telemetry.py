@@ -323,6 +323,7 @@ METRICS = {
     "lens.job.step.duration": ("histogram", "s", "How long a job's step took"),
     "lens.jobs": ("counter", "{job}", "Job runs, by how they ended"),
     "lens.routine.runs": ("counter", "{run}", "Routine runs, by how they ended"),
+    "lens.automation.runs": ("counter", "{run}", "Automation runs, by how they ended"),
     "lens.workflow.runs": ("counter", "{run}", "Workflow runs, by how they ended"),
     "gen_ai.client.operation.duration": ("histogram", "s", "Model call duration"),
     "gen_ai.client.token.usage": ("histogram", "{token}", "Tokens per model call"),

@@ -153,8 +153,16 @@ DEFAULTS = {
         "sample_seconds": 60,
         "cross_namespace": "suggest",
     },
-    # anytopdf: the places and dates anytopdf (run here) finds, as hints for the extractor (enrich.py)
-    "analysis": {"entities": "rules", "spacy_model": "en_core_web_sm", "gazetteer": [], "anytopdf": False},
+    # anytopdf: the places and dates anytopdf (run here) finds, as hints for the extractor (enrich.py); cleanup: the
+    # clean step tidies transcripts before analysis (cleanup.py), cleanup_fillers taking out "um" and "uh" too
+    "analysis": {
+        "entities": "rules",
+        "spacy_model": "en_core_web_sm",
+        "gazetteer": [],
+        "anytopdf": False,
+        "cleanup": False,
+        "cleanup_fillers": True,
+    },
     # chat_models: the models people may pick in Chat; empty: whatever the model server lists (docs/configuration.md)
     "llm": {
         "base_url": None,
@@ -264,6 +272,7 @@ DEFAULTS = {
             "objects",
             "nsfw",
             "describe",
+            "clean",
             "analyze",
             "embed",
             "summarize",
@@ -297,6 +306,11 @@ DEFAULTS = {
         "price_in": None,
         "price_out": None,
     },
+    # the assistant's web search and page reading (web.py, docs/assistant.md#web-search): off until an admin picks a
+    # provider. duckduckgo needs no key (the ddgs package, fetched when it's picked); searxng asks the instance at
+    # searxng_url; brave and tavily need api_key. results: per search; read_chars: of a page's text the model reads;
+    # render: a page that comes back nearly empty is loaded with Chromium (scripts run), when Chromium is installed
+    "web": {"search": "off", "searxng_url": None, "api_key": None, "results": 5, "read_chars": 20000, "render": False},
     # talking to Lens (voice.py): input auto uses the server's speech-to-text engine when it has one, else the
     # browser's; spoken answers come from tts_model (an OpenAI-compatible /audio/speech), else the browser reads them
     # stt: the engine that hears voice chat ("same": the transcription engine); tts_provider: who reads answers aloud
@@ -524,6 +538,22 @@ DEFAULTS = {
         "port": int(os.environ.get("LENS_SMB_LISTEN_PORT") or 4445),
         "allowed_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "100.64.0.0/10", "fc00::/7", "::1/128"],
     },
+    # the assistant's code sandbox (sandbox.py, docs/assistant.md#code-sandbox): off until an admin turns it on. Then
+    # each conversation's Python and bash run in a sandbox of its own on the OpenShell gateway at `gateway`, made from
+    # `image` with `cpu` and `memory`, stopped after idle_minutes and deleted keep_hours after its last run. network:
+    # off (none), packages (PyPI and npm) or web (public addresses). who: editors (and admins), or admins only.
+    "sandbox": {
+        "enabled": False,
+        "gateway": "openshell-gateway:8080",
+        "image": "python:3.12-slim",
+        "network": "off",
+        "who": "editors",
+        "cpu": "1",
+        "memory": "512Mi",
+        "seconds": 60,
+        "idle_minutes": 15,
+        "keep_hours": 24,
+    },
     # sensors (sensors.py, docs/sensors.md): off until an admin turns them on. Then the MQTT hub and the syslog listener
     # run in the process that runs routines (`lens worker`), on these ports; syslog is taken only from syslog_networks.
     # store, raw_days, rollup_days, important_days and max_per_minute are what a stream sensor gets unless it has its own.
@@ -619,6 +649,22 @@ DEFAULTS = {
     # the activity ledger (docs/activity.md): every change and call in or out, with its cost, per resource. On by
     # default; reads: log API reads (GET) too; keep_days: how long rows are kept
     "activity": {"enabled": True, "reads": False, "keep_days": 365},
+    # the stream of activities automations follow (docs/automations.md): keep_days: how long activities with no row
+    # of their own (the event log) are kept; poll_seconds: how often followers look when nothing wakes them
+    "events": {"keep_days": 30, "poll_seconds": 5},
+    # automations (domain/automations.py): enabled false stops every run and keeps everything; max_depth is how many
+    # automations may follow one another (one's run starting the next); runs past keep_runs_days are dropped, each
+    # automation keeping its last 20; approval_days: how long an automation's action waits for your pick before it
+    # expires and nothing runs; catch_up: how late a timer (a schedule, a waiting action) may still fire after Lens
+    # was off, older ones being missed
+    "automations": {
+        "enabled": True,
+        "max_depth": 3,
+        "max_runs_per_minute": 60,
+        "keep_runs_days": 30,
+        "approval_days": 7,
+        "catch_up": "1h",
+    },
     # database backups (docs/database.md, Backups): schedule is a cron expression in timezone, or none (the default)
     # for none; the newest `keep` scheduled backups are kept. connection: a storage connection (sources.py) every new
     # backup is also copied to, under folder, encrypted with a key from secret.key first (none: kept here only)
@@ -1250,6 +1296,48 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS notify_delivery_status ON notify_delivery FIELDS status",
     "DEFINE TABLE IF NOT EXISTS notify_event SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS notify_state SCHEMALESS",
+    # the stream of activities (domain/events.py, docs/automations.md): activities no row of their own records
+    # (event_log:<n>), the keys they were emitted with (event_log_key:<hash>), where each consumer's next look starts
+    # (event_cursor:<consumer>) and what each consumer claimed (event_claim:<hash of consumer and key>)
+    "DEFINE TABLE IF NOT EXISTS event_log SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS event_log_logged ON event_log FIELDS logged_at",
+    "DEFINE INDEX IF NOT EXISTS event_log_published ON event_log FIELDS published",
+    "DEFINE TABLE IF NOT EXISTS event_log_key SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS event_log_key_at ON event_log_key FIELDS at",
+    "DEFINE TABLE IF NOT EXISTS event_cursor SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS event_claim SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS event_claim_at ON event_claim FIELDS at",
+    # an automation trigger's webhook (domain/automation_hooks.py): automation_hook:<n>, the token kept only as a hash
+    "DEFINE TABLE IF NOT EXISTS automation_hook SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS automation_hook_token ON automation_hook FIELDS token_hash UNIQUE",
+    "DEFINE INDEX IF NOT EXISTS automation_hook_automation ON automation_hook FIELDS automation",
+    # timers (domain/timers.py, docs/automations.md, Time): timer:<hash of key>, what runs when, for which automation
+    "DEFINE TABLE IF NOT EXISTS timer SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS timer_due ON timer FIELDS status, at",
+    "DEFINE INDEX IF NOT EXISTS timer_automation ON timer FIELDS automation, status",
+    "DEFINE INDEX IF NOT EXISTS timer_done ON timer FIELDS done_at",
+    # automations (domain/automations.py, docs/automations.md): automation:<n>
+    "DEFINE TABLE IF NOT EXISTS automation SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS automation_enabled ON automation FIELDS enabled",
+    # its runs (automation_run:<n>), what their action nodes meant to do (automation_intent:<run>-<node>) and the
+    # counters its limits are kept with (automation_limit:<automation or all>-<hour or minute>)
+    "DEFINE TABLE IF NOT EXISTS automation_run SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS automation_run_a ON automation_run FIELDS automation",
+    "DEFINE INDEX IF NOT EXISTS automation_run_finished ON automation_run FIELDS finished_at",
+    "DEFINE TABLE IF NOT EXISTS automation_intent SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS automation_intent_run ON automation_intent FIELDS run",
+    "DEFINE INDEX IF NOT EXISTS automation_intent_a ON automation_intent FIELDS automation, status",
+    "DEFINE TABLE IF NOT EXISTS automation_limit SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS upload_recording ON upload FIELDS recording",
+    # automations' saved variables (domain/variables.py, docs/automations.md, Saved variables): an automation's own or
+    # its namespace's, automation_var:<hash of whose and name> (the id keeps the name unique)
+    "DEFINE TABLE IF NOT EXISTS automation_var SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS automation_var_automation ON automation_var FIELDS automation",
+    "DEFINE INDEX IF NOT EXISTS automation_var_space ON automation_var FIELDS space",
+    # review marks on the timeline (domain/event_marks.py, docs/timeline.md): each person's reviewed, important and
+    # hidden flags on an activity, event_mark:<hash of account and activity> (the id keeps the pair unique)
+    "DEFINE TABLE IF NOT EXISTS event_mark SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS event_mark_account ON event_mark FIELDS account",
     # every line of a run's log, in chunks (jobs.RunLog): job_log:<random>
     "DEFINE TABLE IF NOT EXISTS job_log SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_log_job ON job_log FIELDS job",
@@ -1270,6 +1358,8 @@ SCHEMA = [
     # hourly rollups (sensor_rollup:<stream>-<field>-<hour>), hub logins and the processes running the hub
     "DEFINE INDEX IF NOT EXISTS storage_source_key ON storage_source FIELDS key",
     "DEFINE INDEX IF NOT EXISTS storage_source_push ON storage_source FIELDS push_hash",
+    # sensors discovery made, newest first, as sensor.joined (events_streams.py)
+    "DEFINE INDEX IF NOT EXISTS storage_source_created ON storage_source FIELDS created_at",
     "DEFINE TABLE IF NOT EXISTS sensor_stream SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS sensor_stream_sensor ON sensor_stream FIELDS sensor",
     "DEFINE TABLE IF NOT EXISTS sensor_reading SCHEMALESS",
@@ -1284,6 +1374,7 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS sensor_pattern_sensor ON sensor_pattern FIELDS sensor, stream",
     "DEFINE INDEX IF NOT EXISTS sensor_pattern_stream ON sensor_pattern FIELDS stream",
     "DEFINE INDEX IF NOT EXISTS sensor_pattern_action ON sensor_pattern FIELDS action",
+    "DEFINE INDEX IF NOT EXISTS sensor_pattern_label ON sensor_pattern FIELDS label",
     "DEFINE INDEX IF NOT EXISTS sensor_reading_pattern ON sensor_reading FIELDS pattern",
     "DEFINE TABLE IF NOT EXISTS sensor_login SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS sensor_login_name ON sensor_login FIELDS username UNIQUE",
@@ -1293,6 +1384,10 @@ SCHEMA = [
     # the chat-room bridge (bridge.py): which process reads Matterbridge (bridge_state:lease); its conversations are
     # chats with a `bridge` key (the room and person)
     "DEFINE TABLE IF NOT EXISTS bridge_state SCHEMALESS",
+    # where each chat channel tells its account's person things nobody asked about yet (chat_route:<channel>: the
+    # private chat it last had with someone it vouches for; channels.tell)
+    "DEFINE TABLE IF NOT EXISTS chat_route SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS chat_route_account ON chat_route FIELDS account",
     # templates, pipelines, outputs, chat, edits
     "DEFINE TABLE IF NOT EXISTS template SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS template_version SCHEMALESS",
@@ -1322,12 +1417,15 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS fedora_status SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS routine_run SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS routine_run_r ON routine_run FIELDS routine",
+    # finished runs, by when, as routine.ran (events_streams.py)
+    "DEFINE INDEX IF NOT EXISTS routine_run_finished ON routine_run FIELDS finished_at",
     "DEFINE TABLE IF NOT EXISTS graph_change SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS graph_change_run ON graph_change FIELDS run",
     "DEFINE INDEX IF NOT EXISTS graph_change_status ON graph_change FIELDS status",
     "DEFINE INDEX IF NOT EXISTS graph_change_pair ON graph_change FIELDS pair",
     # the entity graph's history (graph_history.py): one append-only event per change, and named versions
     "DEFINE TABLE IF NOT EXISTS graph_event SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS graph_event_at ON graph_event FIELDS at",  # read as activities (events_content.py)
     "DEFINE TABLE IF NOT EXISTS graph_tag SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS graph_checkpoint SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS graph_checkpoint_part SCHEMALESS",
@@ -1341,6 +1439,8 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS chat_account ON chat FIELDS account",
     "DEFINE TABLE IF NOT EXISTS chat_message SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS chat_message_chat ON chat_message FIELDS chat",
+    # what people said to Lens, by time, as chat.message (events_streams.py)
+    "DEFINE INDEX IF NOT EXISTS chat_message_said ON chat_message FIELDS role, created_at",
     # what each namespace's assistant remembers (ns_assistant.py); its name and instructions are space.assistant
     "DEFINE TABLE IF NOT EXISTS assistant_memory SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS assistant_memory_space ON assistant_memory FIELDS space",
@@ -1349,6 +1449,8 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS browser_session_account ON browser_session FIELDS account",
     "DEFINE TABLE IF NOT EXISTS browser_action SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS browser_action_session ON browser_action FIELDS session, state",
+    # each conversation's code sandbox on the OpenShell gateway (sandbox.py): its name, settings and last use
+    "DEFINE TABLE IF NOT EXISTS code_sandbox SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS segment_edit SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS segment_edit_rec ON segment_edit FIELDS recording",
     # descriptive metadata history, IIIF change discovery and IIIF authorization
@@ -1412,6 +1514,7 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS note_page_parent ON note_page FIELDS parent",
     "DEFINE INDEX IF NOT EXISTS note_page_about ON note_page FIELDS about_key UNIQUE",
     "DEFINE INDEX IF NOT EXISTS note_page_refine ON note_page FIELDS refine_pending",
+    "DEFINE INDEX IF NOT EXISTS note_page_created ON note_page FIELDS created_at",
     # the links in a page's body (@ and # mentions), for backlinks and the graph
     "DEFINE TABLE IF NOT EXISTS note_link SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS note_link_page ON note_link FIELDS page",
@@ -1419,6 +1522,7 @@ SCHEMA = [
     # what a page was before each change (notebook.snapshot): its history, to look back at and restore
     "DEFINE TABLE IF NOT EXISTS note_version SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS note_version_page ON note_version FIELDS page",
+    "DEFINE INDEX IF NOT EXISTS note_version_at ON note_version FIELDS at",
     # deleted pages, under their own id, until they're put back or TRASH_DAYS pass (notebook.delete)
     "DEFINE TABLE IF NOT EXISTS note_trash SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS note_trash_space ON note_trash FIELDS space",
@@ -1429,6 +1533,7 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS comment SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS comment_rec ON comment FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS comment_parent ON comment FIELDS parent",
+    "DEFINE INDEX IF NOT EXISTS comment_created ON comment FIELDS created_at",
     # passages of resources marked in colour by their editors (app/domain/highlights.py)
     "DEFINE TABLE IF NOT EXISTS highlight SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS highlight_rec ON highlight FIELDS recording",
@@ -1453,6 +1558,13 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS job_batch ON job FIELDS batch",
     "DEFINE TABLE IF NOT EXISTS approval SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS approval_chat ON approval FIELDS chat",
+    # the inbox (approvals.py): a person's waiting approvals, an automation's (capped), and the expiry sweep
+    "DEFINE INDEX IF NOT EXISTS approval_waiting ON approval FIELDS account, status",
+    "DEFINE INDEX IF NOT EXISTS approval_automation ON approval FIELDS origin.automation",
+    "DEFINE INDEX IF NOT EXISTS approval_expires ON approval FIELDS expires_at",
+    # approvals as activities (events_approvals.py): asked by created_at, decided by decided_at
+    "DEFINE INDEX IF NOT EXISTS approval_created ON approval FIELDS created_at",
+    "DEFINE INDEX IF NOT EXISTS approval_decided ON approval FIELDS decided_at",
     # the scheduled backup (domain/backups.py): backup_schedule:next holds when it's next due and how the last went
     "DEFINE TABLE IF NOT EXISTS backup_schedule SCHEMALESS",
     # backup_remote:last: how copying the last backup to backups.connection went

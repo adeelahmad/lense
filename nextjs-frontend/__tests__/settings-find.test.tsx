@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 import { findSettings, hitHref, SETTINGS_GROUPS } from "@/components/settings/find";
-import { SECTIONS } from "@/components/settings/model";
+import { fieldId, fieldsOf, SECTIONS } from "@/components/settings/model";
 import { SettingsShell } from "@/components/settings/settings-shell";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -72,6 +72,23 @@ describe("finding a setting", () => {
   it("finds a field by one of its choices, ignoring case and accents", () => {
     const hits = findSettings("DEEPGRAM", true);
     expect(hits.some((h) => h.section === "transcription" && h.fields.some((f) => f.key === "engine"))).toBe(true);
+  });
+
+  it("finds the stream automations follow in Automations, under System", () => {
+    const hits = findSettings("activities", true);
+    const auto = hits.find((h) => h.section === "automations")!;
+    expect(auto.group).toBe("System");
+    expect(fieldsOf("automations").map((f) => fieldId(f))).toEqual([
+      "automations.enabled",
+      "automations.max_depth",
+      "automations.max_runs_per_minute",
+      "automations.keep_runs_days",
+      "automations.catch_up",
+      "automations.approval_days",
+      "events.poll_seconds",
+      "events.keep_days",
+    ]);
+    expect(findSettings("missed", true).some((h) => h.section === "automations")).toBe(true);
   });
 
   it("finds only People for people who aren't admins", () => {

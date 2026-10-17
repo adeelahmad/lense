@@ -88,6 +88,21 @@ headers:
 };
 
 type Item = { kind: string; name: string; spec: { effect?: string } };
+type McpTool = { name: string; description?: string; read_only?: boolean };
+type McpSpec = { tools?: McpTool[]; off?: string[]; ask?: Record<string, boolean> };
+
+/** An MCP server's tools as the assistant has them (extensions.mcp_tools): named server__tool, less those switched
+ * off, each asking first unless it only reads or an admin said it needn't. */
+export function mcpItems(name: string, spec: McpSpec): Item[] {
+  const off = spec.off ?? [];
+  return (spec.tools ?? [])
+    .filter((t) => !off.includes(t.name))
+    .map((t) => ({
+      kind: "tool",
+      name: `${name}__${t.name}`.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 64),
+      spec: { effect: (spec.ask?.[t.name] ?? !t.read_only) ? "change" : "read" },
+    }));
+}
 
 /** One extension: its manifest (written as code, checked as you go), on or off, who can use it, trying its tools,
  * and its versions. With no id, a new one. */
@@ -219,6 +234,15 @@ export function ExtensionEditor({ id }: { id?: number }) {
                 setChecked(null);
               }}
             />
+            {id == null && kind === "mcp" && (
+              <p className="text-[13px] text-fg-secondary">
+                Or{" "}
+                <Link href="/extensions/new/mcp" className="text-fg-accent hover:underline">
+                  add it with a form, or paste a config
+                </Link>{" "}
+                from Claude or VS Code.
+              </p>
+            )}
             {checked && (
               <p
                 role={checked.ok ? "status" : "alert"}
@@ -289,7 +313,9 @@ function SidePanels({ id }: { id: number }) {
       ? [{ kind: "tool", name: e.name, spec: e.spec as Item["spec"] }]
       : e.kind === "plugin"
         ? ((e.spec.items as Item[]) ?? []).filter((it) => it.kind === "tool")
-        : [];
+        : e.kind === "mcp"
+          ? mcpItems(e.name, e.spec as McpSpec)
+          : [];
   return (
     <div className="flex flex-col gap-4">
       <Panel title="In conversations">
@@ -325,7 +351,8 @@ function SidePanels({ id }: { id: number }) {
           )}
         </div>
       </Panel>
-      {tools.length > 0 && <TryPanel id={id} tools={tools} />}
+      {e.kind === "mcp" && <McpToolsPanel id={id} spec={e.spec as McpSpec} editable={Boolean(e.editable)} />}
+      {tools.length > 0 && <TryPanel key={tools.map((t) => t.name).join()} id={id} tools={tools} />}
       <Panel title="Versions">
         <ul className="flex flex-col gap-1.5 text-[13px]">
           {(e.history ?? []).map((h) => (
@@ -352,6 +379,61 @@ function SidePanels({ id }: { id: number }) {
         </Button>
       )}
     </div>
+  );
+}
+
+/** An MCP server's tools, each switched on or off and set to ask first or not: a new version each time. */
+function McpToolsPanel({ id, spec, editable }: { id: number; spec: McpSpec; editable: boolean }) {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const change = useMutation({
+    mutationFn: (body: { tool: string; on?: boolean; ask?: boolean }) =>
+      data(Extensions.switchMcpTool({ client, path: { eid: id }, body })),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["extensions"] }),
+    onError: (err) => toast({ tone: "red", title: "Couldn’t change it", body: (err as Error).message }),
+  });
+  const tools = spec.tools ?? [];
+  return (
+    <Panel
+      title="Its tools"
+      subtitle={
+        tools.length
+          ? "Switch each on or off. One that asks first waits for the person’s yes."
+          : "It listed none: save it again once the server can be reached."
+      }
+    >
+      <ul className="flex flex-col gap-3">
+        {tools.map((t) => {
+          const on = !(spec.off ?? []).includes(t.name);
+          const asks = spec.ask?.[t.name] ?? !t.read_only;
+          return (
+            <li key={t.name} className="flex flex-col gap-1">
+              <Switch
+                aria-label={`${t.name} on`}
+                label={<span className="font-mono text-[13px] font-semibold">{t.name}</span>}
+                checked={on}
+                disabled={!editable || change.isPending}
+                onCheckedChange={(v) => change.mutate({ tool: t.name, on: v })}
+              />
+              {t.description && (
+                <span className="line-clamp-2 pl-[46px] text-[12px] text-fg-muted">{t.description}</span>
+              )}
+              {on && (
+                <Checkbox
+                  className="pl-[46px]"
+                  aria-label={`${t.name} asks first`}
+                  label={<span className="text-[13px]">Asks first</span>}
+                  checked={asks}
+                  disabled={!editable || change.isPending}
+                  onCheckedChange={(v) => change.mutate({ tool: t.name, ask: v })}
+                />
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </Panel>
   );
 }
 

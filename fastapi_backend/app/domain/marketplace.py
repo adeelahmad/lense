@@ -424,19 +424,17 @@ def _mcp(found, meta, admin, report):
             {"kind": "mcp", "name": ", ".join(conf)[:200], "why": "only admins add MCP servers: an admin installing it brings them"}
         )
         return []
-    from . import mcp_client
+    from . import mcp_client, mcp_servers
 
     out = []
     for name, c in list(conf.items())[:20]:
-        c = c if isinstance(c, dict) else {}
-        kind = c.get("type") or ("stdio" if c.get("command") else "http")
-        if kind == "stdio" or c.get("command"):
-            args = [str(x) for x in c.get("args") or [] if isinstance(x, (str, int, float))]
-            env = {k: str(v) for k, v in (c.get("env") or {}).items() if isinstance(k, str) and isinstance(v, (str, int, float))}
-            if not isinstance(c.get("command"), str):
-                report.append({"kind": "mcp", "name": name, "why": "it says it runs a program but not which"})
-                continue
-            if any("CLAUDE_PLUGIN_ROOT" in x for x in [c["command"], *args, *env.values()]):
+        server, why = mcp_servers.entry(c)
+        if server is None:
+            report.append({"kind": "mcp", "name": name, "why": why})
+            continue
+        if server.get("command"):
+            words = [server["command"], *(server.get("args") or []), *(server.get("env") or {}).values()]
+            if any("CLAUDE_PLUGIN_ROOT" in x for x in words):
                 report.append(
                     {"kind": "mcp", "name": name, "why": "it runs a program from the plugin's own folder, which Lens doesn't run"}
                 )
@@ -444,13 +442,6 @@ def _mcp(found, meta, admin, report):
             if not mcp_client.runner():
                 report.append({"kind": "mcp", "name": name, "why": mcp_client.NO_RUNNER})
                 continue
-            server = store.clean({"command": c["command"], "args": args or None, "env": env or None})
-        elif kind not in ("http", "streamable-http") or not isinstance(c.get("url"), str):
-            report.append({"kind": "mcp", "name": name, "why": f"Lens speaks MCP over HTTP; this one uses {kind}"})
-            continue
-        else:
-            headers = {k: v for k, v in (c.get("headers") or {}).items() if isinstance(k, str) and isinstance(v, str)}
-            server = {"url": c["url"], "headers": headers or None}
         try:
             tools = mcp_client.discover(server)
         except ValueError as e:

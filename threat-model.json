@@ -6,7 +6,7 @@
   "scope_subpath": null,
   "description": "Lens is a self-hosted archive for documents, recordings, photos and messages: it reads, transcribes, indexes and publishes them, and people search and chat over them. One operator (the instance admin) runs an instance for their own people: a FastAPI API, a Next.js web app that proxies the API and holds the sign-in session, and background workers, around one SurrealDB database, with content split into namespaces and per-namespace roles. Exposing an instance to the internet behind HTTPS (reverse proxy or Cloudflare tunnel) is supported. Only the instance admin (equivalent to host code execution) and the host operator are trusted; everyone else is trusted only as far as their role.",
   "confidence": {
-    "documented": 246,
+    "documented": 247,
     "inferred": 99
   },
   "components": [
@@ -68,8 +68,9 @@
       "entry_points": [
         "watched folders, storage sources, IMAP, Gmail, iCal",
         "Google Calendar sources",
+        "Connect with Google",
         "POST /imports/web, extension http tools, notification targets",
-        "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer)",
+        "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer, web search)",
         "replies from remote servers",
         ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY"
       ],
@@ -117,8 +118,11 @@
       "entry_points": [
         "chat, /graph/ask, MCP tools",
         "extensions (prompt, graph and http tools, hooks), custom nodes including template nodes",
+        "MCP servers: POST /extensions/mcp/read and /mcp/test, saving an extension of kind mcp, PATCH /extensions/{id}/tools",
         "Python code tools, shipped and admin-created templates, workflows, pipelines, routines",
-        "Lens extension side panel"
+        "Lens extension side panel",
+        "automations",
+        "the assistant's web_search and web_read"
       ],
       "touches": [
         "network",
@@ -131,6 +135,8 @@
     {
       "name": "optional",
       "entry_points": [
+        "POST /automations/hooks/{token} (an automation's webhook)",
+        "automations' params and prompts, POST /automations/preview and /automations/variables",
         "MQTT 1883, syslog 5514, POST /sensors/push/{token}/{stream}",
         "SMB share (port 1445 on the host, 4445 in the worker)"
       ],
@@ -425,6 +431,15 @@
       "source": "docs/processing.md \"The token endpoint is always Google's own\""
     },
     {
+      "entry_point": "Connect with Google",
+      "parameter": "OAuth client id and secret; on the way back state, code and the email in Google's id token",
+      "attacker_controllable": "yes",
+      "component": "outbound",
+      "caller_must_enforce": "admin only, from the web app (API tokens refused), still an admin on return; single-use hashed state bound to the starting browser (cookie), 10 minutes, PKCE S256; client secret sealed on the flow, refresh token on the source; kept only when the source's scope was granted (read only, but all of Gmail over IMAP, all of Drive for Drive set to full access); Drive keeps its client's secret sealed too; returns only to the starting web origin",
+      "provenance": "documented",
+      "source": "docs/processing.md \"the consent itself is a person's\""
+    },
+    {
       "entry_point": "POST /imports/web, extension http tools, notification targets",
       "parameter": "URL",
       "attacker_controllable": "yes",
@@ -434,7 +449,16 @@
       "source": "maintainer ruling, 2026-10"
     },
     {
-      "entry_point": "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer)",
+      "entry_point": "the assistant's web_search and web_read",
+      "parameter": "a search query and a page address, both chosen by the model; the results and pages that come back",
+      "attacker_controllable": "yes",
+      "component": "assistant",
+      "caller_must_enforce": "none — queries go only to the admin's provider; pages are fetched through netguard like web import, 10 MB at most (P-SSRF-GUARD); once the answer has read outside text, a query or address neither the person nor a tool gave it asks first (P-INJECTION-EGRESS); results and pages reach the model marked as data; the ledger keeps the provider or host, never the query or page",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"a search or a page read sends words out of Lens\""
+    },
+    {
+      "entry_point": "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer, web search)",
       "parameter": "URL, credentials, api_key_env",
       "attacker_controllable": "no",
       "component": "outbound",
@@ -456,7 +480,7 @@
       "parameter": "prompt text; model-chosen tool calls",
       "attacker_controllable": "yes",
       "component": "assistant",
-      "caller_must_enforce": "none — P-RETRIEVAL",
+      "caller_must_enforce": "none — P-RETRIEVAL; what people say to Lens reaches automations as outside text (chat.message, lens.untrusted)",
       "provenance": "documented",
       "source": "docs/assistant.md \"limited to what the person can read\""
     },
@@ -479,6 +503,15 @@
       "source": "docs/assistant.md \"other people's run only when an admin shared them\""
     },
     {
+      "entry_point": "MCP servers: POST /extensions/mcp/read and /mcp/test, saving an extension of kind mcp, PATCH /extensions/{id}/tools",
+      "parameter": "config text (JSON or YAML), a server's address and headers, or a command, its arguments and env; a tool name and its switches",
+      "attacker_controllable": "no",
+      "component": "assistant",
+      "caller_must_enforce": "admin is trusted with the address and the command; reading a config parses text only; a command runs only in the MCP runner; credential values are sealed to the extension and where they go and shown as ••••; a tool switched off isn't offered, and every MCP tool asks first after outside text",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"Adding an MCP server\""
+    },
+    {
       "entry_point": "Python code tools, shipped and admin-created templates, workflows, pipelines, routines",
       "parameter": "Python, Jinja source, regexes",
       "attacker_controllable": "no",
@@ -488,11 +521,29 @@
       "source": "maintainer ruling, 2026-10"
     },
     {
+      "entry_point": "POST /automations/hooks/{token} (an automation's webhook)",
+      "parameter": "body (JSON, a form's text fields or text), query, Standard Webhooks headers, token in the path",
+      "attacker_controllable": "yes",
+      "component": "optional",
+      "caller_must_enforce": "the person keeps the address and secret to the services that call it; Lens keeps the token hashed, caps size and rate, checks signatures sent, and treats what was sent as outside text",
+      "provenance": "documented",
+      "source": "docs/automations.md \"No webhook exists until an automation with such a trigger is saved\""
+    },
+    {
+      "entry_point": "automations' params and prompts, POST /automations/preview and /automations/variables",
+      "parameter": "template text, a draft automation, an activity id",
+      "attacker_controllable": "yes",
+      "component": "optional",
+      "caller_must_enforce": "Lens renders them in the Jinja sandbox (2 MB of output, guarded * and **; Q23); previews read only activities, namespaces and automations the person may see, and prompts mark outside text as data",
+      "provenance": "documented",
+      "source": "docs/automations.md \"The variable picker and preview\""
+    },
+    {
       "entry_point": "MQTT 1883, syslog 5514, POST /sensors/push/{token}/{stream}",
       "parameter": "payloads, hub logins, token in the path",
       "attacker_controllable": "yes",
       "component": "optional",
-      "caller_must_enforce": "admin enables; operator firewalls",
+      "caller_must_enforce": "admin enables; operator firewalls; readings, alert patterns and new devices reach automations as outside text (lens.untrusted)",
       "provenance": "documented",
       "source": "docs/sensors.md \"Sensors are off until an admin turns them on\""
     },
@@ -558,6 +609,24 @@
       "caller_must_enforce": "none — the curate permission in each namespace touched and a write-capable principal (the web app's own route functions); the assistant's changes wait for the person's approval; merges and deletes are kept to undo, and audited",
       "provenance": "documented",
       "source": "docs/mcp.md \"curate entities and topics as an editor does\""
+    },
+    {
+      "entry_point": "automations",
+      "parameter": "/api/v1/automations (save, try, run now, decide, draft from a sentence), the MCP and assistant automation tools: triggers, where and If match trees, the event workflow graph (action params are Jinja templates), policy, limits, an activity id; the text of the activities an automation runs on",
+      "attacker_controllable": "yes",
+      "component": "assistant",
+      "caller_must_enforce": "none — it runs as its maker with their permissions at run time (P-AUTOMATION-ACTOR); actions reaching outside Lens ask first; outside text marks intents untrusted and breaks up links (P-INJECTION-EGRESS); chains and bursts are bounded (P-AUTOMATION-LOOP)",
+      "provenance": "documented",
+      "source": "docs/automations.md \"Running automations\""
+    },
+    {
+      "entry_point": "code sandbox",
+      "parameter": "assistant run_python, run_bash, sandbox_files and import_sandbox_file: code the model writes, attachment ids, a path in the sandbox; sandbox.* settings (admins)",
+      "attacker_controllable": "yes",
+      "component": "assistant",
+      "caller_must_enforce": "none — off by default; the code runs in the conversation's own OpenShell sandbox with none of Lens's data or keys and no network unless sandbox.network allows it (P-SANDBOX); with the network on, a run after outside text asks first (P-INJECTION-EGRESS); files in only from the person's attachments, out only through an approved import",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"Code sandbox\""
     },
     {
       "entry_point": "microsandbox program requests",
@@ -821,7 +890,7 @@
       "property": "P-ROLE",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",
-      "conditions": "a principal does no more than its role allows; writes need a write-capable principal and a role with the permission the route names (or editor or owner where a route still asks for a rank); publishing and access changes need the publish permission, through every API path; a custom role counts as the largest built-in role it covers and never does more than its permissions",
+      "conditions": "a principal does no more than its role allows; writes need a write-capable principal and a role with the permission the route names (or editor or owner where a route still asks for a rank); publishing and access changes need the publish permission, through every API path; a custom role counts as the largest built-in role it covers and never does more than its permissions; an API key made for one namespace authenticates only on that namespace's own MCP server and chat completions, with its maker's role there",
       "provenance": "documented",
       "source": "SECURITY.md \"doing more than your role allows\""
     },
@@ -973,7 +1042,7 @@
       "property": "P-SECRETS",
       "violation_symptom": "info-leak",
       "severity_tier": "security",
-      "conditions": "stored secrets (source credentials, notification secrets, model API keys, iCal addresses) are encrypted and write-only; the API reports whether one is set, never its value; a key from the environment is never shown; they do not leak through the API, logs, exports, or a redirect to another server",
+      "conditions": "stored secrets (source credentials, notification secrets, model API keys, iCal addresses, an automation's credential headers, sealed to that automation and the address they were saved for, an MCP server's credential headers and env values, sealed to its extension and the address or command they were saved for) are encrypted and write-only; the API reports whether one is set, never its value; a key from the environment is never shown; they do not leak through the API, logs, exports, or a redirect to another server",
       "provenance": "documented",
       "source": "SECURITY.md \"stored credentials for sources and model servers leaking\""
     },
@@ -981,7 +1050,7 @@
       "property": "P-SSRF-GUARD",
       "violation_symptom": "info-leak",
       "severity_tier": "security",
-      "conditions": "URLs a non-admin sets (web import and extension http tools by editors; notification targets by owners) reach public addresses only, or networks the operator listed; web paths use ports 80 and 443, follow redirects only to http and https, re-check every redirect and sub-request, and connect to the checked address",
+      "conditions": "URLs a non-admin sets (web import and extension http tools by editors; notification targets by owners; an automation's http_request by its person, within the notification networks; the page addresses the assistant's web_read reads, which the model picks for whoever uses the assistant) reach public addresses only, or networks the operator listed; web paths use ports 80 and 443, follow redirects only to http and https, re-check every redirect and sub-request, and connect to the checked address; an automation's http_request follows no redirect, takes 10 seconds and reads 64 KB at most, asks first unless the person set its node to run on its own, and passes the answer on as outside text",
       "provenance": "documented",
       "source": "maintainer ruling, 2026-10"
     },
@@ -1013,7 +1082,7 @@
       "property": "P-RETRIEVAL",
       "violation_symptom": "info-leak, hang",
       "severity_tier": "security",
-      "conditions": "chat, assistant tools and MCP return only what the person can read, within the conversation's scope, and the tool loop stops at ai.max_steps and ai.max_transcript_reads",
+      "conditions": "chat, assistant tools and MCP return only what the person can read, within the conversation's scope, and the tool loop stops at ai.max_steps and ai.max_transcript_reads; a namespace's chat completions answer from that namespace alone, with only the read tools its owners offered",
       "provenance": "documented",
       "source": "docs/assistant.md \"limited to what the person can read\""
     },
@@ -1026,10 +1095,18 @@
       "source": "docs/assistant.md \"Approvals\""
     },
     {
+      "property": "P-AUTOMATION-APPROVAL",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "an automation's action that asks first waits as an approval of the automation's person and nothing runs until they pick; approving, editing or always need them signed in, or (approving an action inside Lens) a yes in the private chat they were told in, from someone the channel lets approve, while it is the only one waiting there or named by number (API keys, apps, MCP and the assistant only list and decline); a decision is claimed once; at most 100 wait per automation, each tells the person once, and undecided ones expire after automations.approval_days",
+      "provenance": "documented",
+      "source": "docs/automations.md \"Approvals\""
+    },
+    {
       "property": "P-INJECTION-EGRESS",
       "violation_symptom": "info-leak",
       "severity_tier": "correctness",
-      "conditions": "Once an assistant answer has read text from outside Lens (a tool result other than Lens's own, the page it was asked from, a namespace assistant's memories, a message in a chat room with no bridge.users, or an earlier answer in the conversation that read any of these), tools that could carry it out of Lens (the person's own read web tools, other servers' MCP tools, Python tools with the network) and an admin setup conversation's own changes wait for the person's approval. A chat room's answer keeps a web address linkable only when the person, the archive, a tool or Lens wrote it. A bypass is VALID-HARDENING (Q26).",
+      "conditions": "Once an assistant answer has read text from outside Lens (a tool result other than Lens's own, the page it was asked from, a namespace assistant's memories, a message in a chat room with no bridge.users, or an earlier answer in the conversation that read any of these), tools that could carry it out of Lens (the person's own read web tools, a web search or page read neither the person nor a tool gave it, other servers' MCP tools, Python tools with the network) and an admin setup conversation's own changes wait for the person's approval. A chat room's answer keeps a web address linkable only when the person, the archive, a tool or Lens wrote it. A bypass is VALID-HARDENING (Q26). An automation's model and agent actions (ask_model, call_tool, ask_agent) run with nobody reading along: the activity and earlier steps reach the model marked as data, every change they would make (notes included) is an approval of the automation's person, and anything that could carry data out of Lens asks first whatever the run read (docs/automations.md \"The model and the agent\"). A saved variable a run set from outside text stays marked as data in later runs' prompts, and an action whose params read it counts as reading outside text (docs/automations.md \"Saved variables\").",
       "provenance": "documented",
       "source": "docs/assistant.md \"it read out of Lens waits for your approval\""
     },
@@ -1194,6 +1271,22 @@
       "source": "domain/flow.py docstring \"Graphs never loop back\""
     },
     {
+      "property": "P-AUTOMATION-ACTOR",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "an automation acts only for its maker (run_as), with their permissions when it runs, in namespaces they edit, on activities they may see published after it was switched on; a maker who lost access fails its next run and switches it off; actions reaching outside Lens or other people ask first unless the person, signed in to the web app, set the node to auto (API keys, apps, agents and drafts cannot); the assistant saves automations switched off, and switching one on or running one waits for the person's approval",
+      "provenance": "documented",
+      "source": "docs/automations.md \"Running automations\""
+    },
+    {
+      "property": "P-AUTOMATION-LOOP",
+      "violation_symptom": "x-cap-exceeded",
+      "severity_tier": "correctness",
+      "conditions": "activities an automation made start another only with from_automations; a chain stops at automations.max_depth runs (3); each automation has a cooldown and a most runs an hour (60) under a most runs a minute for all (60); a run over a limit does nothing, is counted and logged at most hourly",
+      "provenance": "documented",
+      "source": "docs/automations.md \"Running automations\""
+    },
+    {
       "property": "P-BROWSER",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",
@@ -1208,6 +1301,14 @@
       "conditions": "the side panel reads and acts only on sites the person allowed, opens addresses only there, asks before a consequential click, submit or Enter (model flag, the control's words, a posting form), and, once the answer read outside text (ai.untrusted_asks), before opening or downloading an address or typing text the person's message doesn't contain; it never types into or reports password, card or file fields, and shows each action",
       "provenance": "documented",
       "source": "docs/browser-assistant.md \"Letting it use your browser\""
+    },
+    {
+      "property": "P-SANDBOX",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "code the assistant runs (sandbox.enabled, off by default) runs only for people sandbox.who allows, in its conversation's own OpenShell sandbox, never in Lens's processes; the sandbox gets none of Lens's data, keys or database address, only the code and files the person attached to that conversation; egress: none (off), PyPI and npm on 443 (packages) or public addresses on 80 and 443 (web); a file leaves only as the person's held upload placed by an import_files approval; stopped when idle, deleted when unused or with its conversation",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"Code sandbox\""
     },
     {
       "property": "MX-AUTHZ-LIST-CAPS",
@@ -1236,7 +1337,7 @@
     },
     {
       "property": "N-EGRESS",
-      "reason": "an egress firewall; netguard guards web import, iCal feeds, extension http tools, notifications and Chromium, nothing else; admin-set URLs other than iCal feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel) are unguarded",
+      "reason": "an egress firewall; netguard guards web import, iCal feeds, extension http tools, notifications, the assistant's web search and page reads, and Chromium, nothing else; admin-set URLs other than iCal feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded",
       "false_friend": true,
       "provenance": "documented",
       "source": "maintainer ruling, 2026-10"
@@ -1481,7 +1582,7 @@
     },
     {
       "property": "N-BRIDGE",
-      "reason": "per-person access in chat rooms; the bridge answers as one account, the turning-on admin by default; everyone in the room reads what that account reads (exposure posture: Q28)",
+      "reason": "per-person access in chat rooms; the bridge answers as one account, the turning-on admin by default; everyone in the room reads what that account reads (exposure posture: Q28); an automation's message to its own person goes to the private chat a channel last had with someone on its users list, never to a room",
       "false_friend": false,
       "provenance": "documented",
       "source": "docs/chat-rooms.md \"answers as the admin who turned it on\""

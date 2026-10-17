@@ -100,6 +100,18 @@ describe("the Notes page", () => {
     expect(push).toHaveBeenCalledWith("/entities/5");
   });
 
+  it("lists the notes this person pinned first", async () => {
+    m(Notes.listPages).mockImplementation(() =>
+      ok({ namespace: "home", pages: [page(1, "Fresh"), page(2, "Pinned plan", { pinned: true }), page(3, "Newest")] }),
+    );
+    show(<NotesHome />);
+    await screen.findByRole("link", { name: /Pinned plan/ });
+    const rows = screen.getAllByRole("listitem").map((li) => li.textContent);
+    expect(rows[0]).toContain("Pinned plan");
+    expect(rows.slice(1)).toEqual([expect.stringContaining("Newest"), expect.stringContaining("Fresh")]);
+    expect(screen.getByLabelText("Pinned")).toBeInTheDocument();
+  });
+
   it("says when no note has the words", async () => {
     m(Notes.searchPages).mockImplementation(() => ok({ total: 0, pages: [] }));
     show(<NotesHome />);

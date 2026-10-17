@@ -15,8 +15,10 @@ from . import (
     batches,
     cypher,
     entities,
+    event_marks,
     extensions,
     entity_map,
+    events,
     graph_ask,
     graph_model,
     entity_setup,
@@ -26,6 +28,7 @@ from . import (
     ops_tools,
     recsets,
     render,
+    sandbox as sandboxmod,
     search as searchmod,
     browser as browsermod,
     similar,
@@ -35,6 +38,8 @@ from . import (
     topics,
     untrusted,
     uploads,
+    web as webmod,
+    webcapture,
     wiki,
 )
 
@@ -63,6 +68,83 @@ TOOLS = [
         "list_recordings",
         "List assets (recordings, documents, images and text) in scope, newest first, optionally by namespace, dates (YYYY-MM-DD), person, entity or media.",
         {"namespace": _S, "from": _S, "to": _S, "speaker_id": _I, "entity_id": _I, "media": _S, "limit": _I},
+        [],
+        False,
+    ),
+    (
+        "timeline",
+        "What happened in Lens, newest first (new assets, and every other kind of activity there is): who did it, what "
+        "it is about, when, and a one-line summary. Optionally by kinds (such as asset.added), namespace, entity tag, "
+        "time (since, until: ISO 8601), words in the summary, unreviewed (those the person hasn't marked reviewed); "
+        "give next as before for more.",
+        {
+            "kinds": {"type": "array", "items": _S},
+            "namespace": _S,
+            "tag": _S,
+            "since": _S,
+            "until": _S,
+            "q": _S,
+            "unreviewed": {"type": "boolean"},
+            "before": _S,
+            "limit": _I,
+        },
+        [],
+        False,
+    ),
+    (
+        "mark_activities",
+        "Mark activities of the timeline (by their ids from timeline) reviewed, important or hidden, or clear those "
+        "marks (false), for the person alone; marks left out stay as they are.",
+        {
+            "ids": {"type": "array", "items": _S},
+            "reviewed": {"type": "boolean"},
+            "important": {"type": "boolean"},
+            "hidden": {"type": "boolean"},
+        },
+        ["ids"],
+        False,
+    ),
+    (
+        "approvals",
+        "What waits for the person's pick, newest first: automations' actions that ask first and your own proposals in "
+        "this conversation, each with what it would do, why (the activity that caused it), when it expires and where "
+        "the person decides it. One by id, or by status (pending, the default, or any), origin (automation or chat) or "
+        "automation; give next as before for more. Only the person approves, in Lens or their chat app: you can list "
+        "and decline.",
+        {
+            "id": _I,
+            "status": {"type": "string", "enum": ["pending", "done", "failed", "declined", "expired", "any"]},
+            "origin": {"type": "string", "enum": ["automation", "chat"]},
+            "automation": _I,
+            "before": _I,
+            "limit": _I,
+        },
+        [],
+        False,
+    ),
+    (
+        "decline_approval",
+        "Decline something waiting for the person's pick, by its id from approvals: nothing is done, and an "
+        "automation's run records that it was declined.",
+        {"id": _I},
+        ["id"],
+        False,
+    ),
+    (
+        "automations",
+        "The person's automations (when something happens in Lens, if a test passes, do something, as them): each "
+        "one's triggers, whether it's on, its last run and what waits for their pick. With automation_id, one in full "
+        "(its If, its graph, its policy) with its latest runs; with run_id, one run with what its actions did.",
+        {"automation_id": _I, "run_id": _I},
+        [],
+        False,
+    ),
+    (
+        "test_automation",
+        "Try an automation without keeping, sending or counting anything: a saved one (automation_id) or a draft (what "
+        "save_automation takes, with if for its condition), on an activity (its id, from timeline) or a kind's sample "
+        "(default: its first trigger's kind). Says whether its If passes and what each action would do.",
+        {"automation_id": _I, "draft": {"type": "object"}, "activity": _S, "kind": _S},
         [],
         False,
     ),
@@ -313,6 +395,40 @@ AUTHOR_TOOLS = [
     ),
 ]
 
+# automations (automations.py): saving one is made at once, switched off; switching one on or running it now acts, so
+# it waits for the person's approval
+AUTOMATION_TOOLS = [
+    (
+        "save_automation",
+        "Make an automation for the person, or change one of theirs (automation_id): when something happens in Lens, "
+        "if a test passes, do something, as them, in namespaces they edit. Saved switched off; enabled true then asks "
+        "the person to switch it on. For a new one give name, triggers ([{as: name, on: event, kinds: [asset.added], "
+        "where?: a match tree}] or [{as, on: manual}]) and graph (a workflow of scope event: an input node, then action "
+        "nodes {id, type: action, config: {action: log_line or notify, params: {text: 'New: {{ event.object.name }}'}}}, "
+        "and edges); condition is its If, a match tree over the run context ({} drops it). Try it with test_automation.",
+        {
+            "automation_id": _I,
+            "name": _S,
+            "description": _S,
+            "triggers": {"type": "array", "items": {"type": "object"}},
+            "condition": {"type": "object"},
+            "graph": {"type": "object"},
+            "namespaces": {"type": "array", "items": _S},
+            "enabled": {"type": "boolean"},
+        },
+        [],
+        True,
+    ),
+    (
+        "run_automation",
+        "Run one of the person's automations now, on an activity (its id, from timeline), else the newest one its "
+        "triggers listen for. Needs the person's approval.",
+        {"automation_id": _I, "activity": _S},
+        ["automation_id"],
+        True,
+    ),
+]
+
 
 # a namespace's own assistant (ns_assistant.py), in conversations scoped to that namespace while it's on: remembering
 # is routine and made at once (by people who edit the namespace), forgetting waits for the person's yes
@@ -344,15 +460,40 @@ MEMORY_TOOLS = [
 
 def builtin_names():
     """The assistant's own tool names, which extensions can't take."""
-    every = TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS + browsermod.TOOLS
-    return {t[0] for t in every} | {"use_skill"}
+    every = (
+        TOOLS
+        + ops_tools.ADMIN_TOOLS
+        + ops_tools.FILE_TOOLS
+        + AUTHOR_TOOLS
+        + MEMORY_TOOLS
+        + AUTOMATION_TOOLS
+        + browsermod.TOOLS
+        + sandboxmod.TOOLS
+    )
+    return {t[0] for t in every + webmod.TOOLS} | {"use_skill"}
+
+
+# the built-in tools that carry what the model gives them to another host (the words searched for, the address read):
+# once an answer has read text from outside Lens, they ask first (Toolbox.wary)
+SENDS_OUT = set(webmod.NAMES)
 
 
 # tools whose results the model may take as Lens's own word: the server's state and settings, the skills the person
 # chose, what the graph holds, and what the built-in tools that change things report (ids, what waits for approval).
 # What every other tool gives back is third-party text, marked as data (untrusted.py).
-OWN_RESULTS = {"server_status", "find_model_servers", "read_settings", "file_storage", "graph_schema", "use_skill"} | {
-    t[0] for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS if t[4]
+OWN_RESULTS = {
+    "server_status",
+    "find_model_servers",
+    "read_settings",
+    "file_storage",
+    "graph_schema",
+    "use_skill",
+    "mark_activities",
+    "decline_approval",
+} | {
+    t[0]
+    for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS + AUTOMATION_TOOLS + sandboxmod.TOOLS
+    if t[4]
 }
 
 
@@ -374,7 +515,10 @@ class Toolbox(ops_tools.OpsTools):
     """`admin` adds the server tools (ops_tools.py), with `base` (archive.yaml's config) to save settings over; `act`
     makes their changes at once instead of asking for approval, `act_on` only those of these tools (a chat channel's:
     channels.Channel.acts). `browser`: the person's connected side panel (browser.py), whose browser the assistant can
-    then use."""
+    then use. The conversation's code sandbox (sandbox.py) is there when an admin turned it on and the person may use it.
+    `account`: the person an automation acts for, when `user` is the automation itself (automation:<id>,
+    the by of what it writes): their approvals, extensions, view of the timeline and marks on it; `origin` ({automation, run,
+    node}) is kept on the approvals it asks for."""
 
     def __init__(
         self,
@@ -392,8 +536,11 @@ class Toolbox(ops_tools.OpsTools):
         outside=(),
         browser=None,
         act_on=(),
+        account=None,
+        origin=None,
     ):
         self.db, self.cfg, self.user, self.chat, self.said = db, cfg, user, chat_id, said
+        self.account, self.origin = user["id"] if account is None else account, origin
         # where this answer has read text from outside Lens so far (`outside`: before any tool ran, such as the page it
         # was asked from or a chat room's message): once it has, tools that send data out of Lens or change the server
         # ask first, even where they'd act at once (wary)
@@ -407,9 +554,10 @@ class Toolbox(ops_tools.OpsTools):
             self.readable = {s for s in self.readable if names.get(s) in self.scope["namespaces"]}
         self.allowed = recsets.within(db, self.readable, self.scope.get("recordings"), self.scope.get("collections"))
         self.refs, self.reads, self.approvals = [], 0, []
+        self.flagged, self.failed = [], False  # tools whose results read like instructions to an AI; the last call failed
         # the extensions this person switched on or was given (extensions.py); hooks don't run inside hooks
         roles = {s: "editor" if s in self.editable else "viewer" for s in self.readable}
-        self.me = extensions.who(user["id"], user.get("email"), admin, roles)
+        self.me = extensions.who(self.account, user.get("email"), admin, roles)
         self.ext = extensions.Active(db, self.me) if cfg["ai"].get("extensions", True) else None
         self.hooking = False
         # the namespace's own assistant, when the conversation is about that namespace alone and its assistant is on
@@ -418,11 +566,18 @@ class Toolbox(ops_tools.OpsTools):
         # the browser the person is talking from, while its side panel is connected (and an admin hasn't turned it off)
         on = browser and browsermod.enabled(cfg) and browsermod.live(db, browser, user["id"])
         self.browser = str(browser) if on else None
+        # Python and bash in the conversation's own sandbox, once an admin turned it on (sandbox.enabled, sandbox.who)
+        self.sandbox = chat_id is not None and sandboxmod.offered(cfg, admin, bool(self.editable))
+        self.web = webmod.enabled(cfg)  # web search and page reading, once an admin picked a provider (web.py)
 
     def system_note(self):
         """What the model is told besides its usual instructions: the skills it can follow, and context that hooks add
         for this question."""
         out = self._home_note() + (browsermod.NOTE if self.browser else "")
+        if self.sandbox:
+            out += sandboxmod.NOTE.format(network=sandboxmod.NETWORK_NOTE[sandboxmod.settings(self.cfg)["network"]])
+        if self.web and webmod.NAMES & {s["function"]["name"] for s in self.specs()}:
+            out += webmod.NOTE
         if not self.ext:
             return out
         out += self.ext.system_note()
@@ -488,10 +643,16 @@ class Toolbox(ops_tools.OpsTools):
             tools += ops_tools.FILE_TOOLS
         if self.cfg["ai"].get("extensions", True):
             tools += [t for t in AUTHOR_TOOLS if can_act or self.admin or not t[4]]
+        if can_act or self.admin:
+            tools += AUTOMATION_TOOLS
         if self.home:
             tools += [t for t in MEMORY_TOOLS if self.home[0] in self.editable or not t[4]]
         if self.browser:
             tools += browsermod.TOOLS
+        if self.sandbox:
+            tools += sandboxmod.TOOLS
+        if self.web:
+            tools += webmod.TOOLS
         if self.ext:
             tools += self.ext.tool_specs(can_act or self.admin)
         return [
@@ -561,6 +722,7 @@ class Toolbox(ops_tools.OpsTools):
         """A tool's result (JSON) and the step's summary. `model`: the result as the model reads it, third-party text
         marked as data (untrusted), with what hooks add after it, unmarked."""
         offered = {s["function"]["name"] for s in self.specs()}
+        self.failed = True  # until it runs: a tool that's unknown or blocked failed
         try:
             if name not in offered:
                 raise AttributeError(name)
@@ -576,6 +738,7 @@ class Toolbox(ops_tools.OpsTools):
                 extra += self._hook(h, {"said": self.said, "tool": name})
         asked = len(self.approvals)
         result, summary = self._run(name, fn, args)
+        self.failed = result.startswith('{"error"')
         self.links |= untrusted.links(result)
         if self.untrusted(name) and len(self.approvals) == asked:  # it read something, rather than asking for a yes
             self.read_outside(f"tool {name}")
@@ -587,6 +750,7 @@ class Toolbox(ops_tools.OpsTools):
                 why = untrusted.flags(result, self.cfg, model=True)
                 if why:  # the person sees it on the step, the model on the marker, admins in the audit log
                     summary = f"{summary} (reads like instructions to an AI: {'; '.join(why)})"
+                    self.flagged.append(name)
                     auth.audit(self.db, self.user, "assistant.injection_flagged", f"chat:{self.chat}", {"tool": name, "why": why})
                 result = untrusted.wrap(result, f"tool {name}", self.cfg, why=why)
             return result + (f"\n\n{extra.strip()}" if extra else ""), summary
@@ -689,6 +853,106 @@ class Toolbox(ops_tools.OpsTools):
         attached = {"upload_id": uid, "filename": up["filename"], "size": up["size"], "next": "import_files puts it in a namespace"}
         return attached, f"Attached {up['filename']} from the browser"
 
+    # ---- the conversation's code sandbox (sandbox.py): Python and bash on the OpenShell gateway ----
+    def _sandbox(self, fn, *args):
+        try:
+            return fn(self.db, self.cfg, self.chat, *args)
+        except sandboxmod.SandboxError as e:
+            raise ValueError(str(e)) from None
+
+    def _sandbox_run(self, kind, source, files):
+        source = str(source or "")
+        files = [str(f) for f in ([files] if isinstance(files, str) else files or [])]
+        if sandboxmod.sends_out(self.cfg) and self.wary():
+            # code that reaches another host can carry out what the answer read: after text from outside Lens, which
+            # may have put it there, a run asks first
+            first = next((x.strip() for x in source.splitlines() if x.strip()), "")[:80]
+            args = store.clean({"code" if kind == "python" else "command": source, "files": files or None})
+            lang = "Python" if kind == "python" else "bash"
+            where = "the package registries" if sandboxmod.settings(self.cfg)["network"] == "packages" else "the web"
+            return self._approval(f"run_{kind}", args, f"Run {lang} in the code sandbox, which can reach {where}: {first}" + self.why())
+        out = self._sandbox(sandboxmod.run, self.account, kind, source, files)
+        return out, sandboxmod.summary(kind, source, out)
+
+    def t_run_python(self, code, files=None):
+        return self._sandbox_run("python", code, files)
+
+    def t_run_bash(self, command, files=None):
+        return self._sandbox_run("bash", command, files)
+
+    def t_sandbox_files(self):
+        out = self._sandbox(sandboxmod.listing, self.account)
+        n = len(out.get("files") or []) + int(out.get("more") or 0)
+        return out, f"Looked at the sandbox's files ({n})"
+
+    def t_import_sandbox_file(self, path, namespace=None):
+        # out of the sandbox as one of the person's held uploads, then imported as a file they attached would be
+        up = self._sandbox(sandboxmod.hold, self.user, path)
+        return self.t_import_files([up["id"]], namespace)
+
+    # ---- the web (web.py): searching it and reading pages, once an admin picked a search provider ----
+    def _web(self, tool, args, what, own):
+        """A web search or page read, as (what it found, None), or (None, the approval it waits for): the words or the
+        address leave the machine, so once this answer has read text from outside Lens, which may have put them there,
+        it asks first, unless the person wrote them (`own`) or already approved the same call in this conversation."""
+        if own or not self.wary():
+            return webmod.run(self.cfg, tool, args), None
+        rows = (
+            self.db.rows(
+                "SELECT id, args, result FROM approval WHERE chat = $c AND account = $a AND tool = $t AND status = 'done' ORDER BY id DESC LIMIT 20",
+                c=self.chat,
+                a=self.account,
+                t=tool,
+            )
+            if self.chat is not None
+            else []
+        )
+        for a in rows:
+            got = a.get("result")
+            if webmod.same_call(tool, a.get("args"), args) and isinstance(got, dict) and "output" in got:
+                return got["output"], None
+        return None, self._approval(tool, args, what + self.why())
+
+    def web_ref(self, url, title, site, text, fetched_at=None):
+        """A web page or search result to cite as [n] (web.py): its address instead of an asset's moment. The same
+        address keeps its number, with the page's own text once it's read."""
+        for r in self.refs:
+            if r.get("source") == "web" and r.get("url") == url:
+                r.update(
+                    store.clean(
+                        {"title": title or r.get("title"), "text": text or r.get("text"), "fetched_at": fetched_at or r.get("fetched_at")}
+                    )
+                )
+                return r["n"]
+        n = len(self.refs) + 1
+        self.refs.append(
+            store.clean({"n": n, "source": "web", "url": url, "title": title, "site": site, "fetched_at": fetched_at, "text": text})
+        )
+        return n
+
+    def t_web_search(self, query, limit=None, time_range=None):
+        args = store.clean({"query": " ".join(str(query or "").split()), "limit": limit, "time_range": time_range})
+        out, asked = self._web("web_search", args, f"Search the web for “{args['query'][:120]}”", self.said_it(args["query"]))
+        if asked:
+            return asked
+        when = store.now()
+        found = [
+            {"ref": self.web_ref(r["url"], r.get("title"), r.get("site"), r.get("snippet") or r.get("title"), when), **r}
+            for r in out["results"]
+        ]
+        return {"query": out["query"], "results": found}, webmod.summary("web_search", args, out)
+
+    def t_web_read(self, url, find=None):
+        args = store.clean({"url": str(url or "").strip(), "find": find})
+        own = args["url"] in self.links or self.said_it(args["url"])  # an address a tool gave back carries nothing it read
+        out, asked = self._web("web_read", args, f"Read the web page {webcapture.placeholder(args['url'])[:160]}", own)
+        if asked:
+            return asked
+        excerpt = " ".join(out.get("text", "").split())[:600]
+        return {"ref": self.web_ref(out["url"], out.get("title"), out.get("site"), excerpt, out.get("fetched_at")), **out}, webmod.summary(
+            "web_read", args, out
+        )
+
     # ---- extensions, from chat ----
     def _ext_named(self, name):
         for g in extensions.visible(self.db, self.me):
@@ -772,7 +1036,11 @@ class Toolbox(ops_tools.OpsTools):
         except Exception as e:  # noqa: BLE001 - the model hears what went wrong instead of the answer breaking off
             log.exception("assistant tool %s failed", name)
             return json.dumps({"error": f"the tool failed: {e}"}), f"{name} failed"
-        return json.dumps(out, ensure_ascii=False, default=str)[:12000], summary
+        return json.dumps(out, ensure_ascii=False, default=str)[: self._most(name)], summary
+
+    def _most(self, name):
+        """The most of a tool's result the model reads: a web page read takes what web.read_chars allows."""
+        return max(12000, int(webmod.read_chars(self.cfg) * 1.2) + 4000) if name == "web_read" else 12000
 
     # ---- read tools ----
     def t_search_transcripts(self, query, namespace=None, limit=8):
@@ -876,6 +1144,203 @@ class Toolbox(ops_tools.OpsTools):
             for r in sorted(rows, key=lambda r: r.get("recorded_at") or "", reverse=True)
         ]
         return {"total": len(ids), "recordings": out}, f"Listed {len(ids)} asset(s)"
+
+    def _viewer(self):
+        # admins see what is for admins alone too, unless the conversation is about some namespaces
+        return events.viewer(self.account, self.readable, admin=bool(self.admin) and not self.scope.get("namespaces"))
+
+    def _about_allowed(self, a):
+        """Whether an activity is about the assets of a conversation about some assets (any, in one that isn't)."""
+        return self.allowed is None or events.ref_id((a.get("object") or {}).get("id"), "recording") in self.allowed
+
+    def t_timeline(self, kinds=None, namespace=None, tag=None, since=None, until=None, q=None, unreviewed=None, before=None, limit=20):
+        names = store.space_names(self.db)
+        spaces = self.readable
+        if namespace:
+            spaces = {s for s in self.readable if names.get(s) == namespace}
+            if not spaces:
+                raise ValueError(f"namespace {namespace} isn't in this conversation")
+        flt = {"kinds": kinds or None, "tag": tag, "since": since, "until": until, "q": q, "spaces": sorted(spaces) if namespace else None}
+        keep = event_marks.keeper(self.db, self.account, {"reviewed": False} if unreviewed else None)
+        page = events.page(self.db, self.cfg, self._viewer(), before, {k: v for k, v in flt.items() if v}, min(int(limit or 20), 50), keep)
+        items = [a for a in page["items"] if self._about_allowed(a)]  # a conversation about some assets: only what is about them
+        marks = event_marks.of(self.db, self.account, [a["id"] for a in items])
+        out = [
+            {
+                "id": a["id"],
+                "kind": a["kind"],
+                "published": a["published"],
+                "summary": a["summary"],
+                "actor": a["actor"]["name"],
+                "object": a["object"],
+                "namespace": names.get(a.get("space")),
+                **({"marked": [f for f in event_marks.FLAGS if marks[a["id"]][f]]} if a["id"] in marks else {}),
+            }
+            for a in items
+        ]
+        return {"activities": out, "next": page["next"]}, f"Read {len(out)} activit{'y' if len(out) == 1 else 'ies'} from the timeline"
+
+    def t_mark_activities(self, ids, reviewed=None, important=None, hidden=None):
+        flags = event_marks.check({"reviewed": reviewed, "important": important, "hidden": hidden})
+        ids = [str(i) for i in ([ids] if isinstance(ids, str) else ids or [])]
+        if not ids or len(ids) > event_marks.MAX_IDS:
+            raise ValueError(f"give the ids of 1 to {event_marks.MAX_IDS} activities, from timeline")
+        seen = {i: a for i, a in events.get_many(self.db, self.cfg, ids, self._viewer()).items() if self._about_allowed(a)}
+        known, unknown = [i for i in dict.fromkeys(ids) if i in seen], [i for i in dict.fromkeys(ids) if i not in seen]
+        said = ", ".join(f"{'' if v else 'not '}{k}" for k, v in flags.items())
+        what = f"{len(known)} activit{'y' if len(known) == 1 else 'ies'} {said}"
+        if not known:
+            return {"marks": {}, "unknown": unknown}, "Marked no activities: none of those can be seen here"
+        # what it read from outside Lens (the timeline's own titles too) may have asked it to take things out of the
+        # person's sight: hiding them or marking them reviewed asks first then; the other marks only bring things back
+        if self.wary() and (flags.get("hidden") or flags.get("reviewed")):
+            return self._approval("mark_activities", {"ids": known, **flags}, f"Mark {what}" + self.why())
+        marks = event_marks.mark(self.db, self.account, known, flags)
+        return {"marks": marks, "unknown": unknown}, f"Marked {what}"
+
+    # ---- approvals (approvals.py): the person's own, read and declined; approving is theirs ----
+    def _approval_seen(self, a):
+        """An approval of the person's this conversation may see: an automation's about a namespace it reads (or none),
+        or one the assistant asked for here."""
+        if not a or a.get("account") != self.account:
+            return False
+        if a.get("origin") or a.get("intent"):
+            return a.get("space") is None or a["space"] in self.readable
+        return a.get("chat") == self.chat
+
+    def t_approvals(self, id=None, status=None, origin=None, automation=None, before=None, limit=20):
+        from . import approvals
+
+        web = approvals.link(self.cfg, self.db, 0).removesuffix("/approvals?id=0")
+        if id is not None:
+            a = approvals.get(self.db, int(id))
+            if not self._approval_seen(a):
+                raise ValueError(f"no approval {id} of the person's here")
+            return {"approval": approvals.brief(a, web)}, f"Read the approval “{a.get('summary')}”"
+        n = max(1, min(int(limit or 20), 50))
+        st = None if status == "any" else status or "pending"
+        rows = approvals.listing(self.db, self.account, st, origin, automation, None, before, n)
+        out = [approvals.brief(a, web) for a in rows if self._approval_seen(a)]
+        nxt = rows[-1]["id"] if len(rows) >= n else None
+        return {"approvals": out, "next": nxt}, f"Read {len(out)} approval{'' if len(out) == 1 else 's'}"
+
+    def t_decline_approval(self, id):
+        from . import approvals
+
+        a = approvals.get(self.db, int(id))
+        if not self._approval_seen(a):
+            raise ValueError(f"no approval {id} of the person's here")
+        if a["status"] != "pending":
+            raise ValueError(f"approval {id} is {a['status']}, not waiting")
+        # what it read from outside Lens may have asked it to throw away what the person would pick: it asks first then
+        if self.wary():
+            return self._approval("decline_approval", {"approval": a["id"]}, f"Decline “{a.get('summary')}”" + self.why())
+        out = approve(self.db, self.cfg, a["id"], self.user, self.editable, "decline", via="agent")
+        return {"approval": a["id"], "status": out.get("status")}, f"Declined “{a.get('summary')}”"
+
+    # ---- automations (automations.py) ----
+    def _automation(self, automation_id):
+        """One of the person's automations (ValueError when there's none they manage)."""
+        try:
+            row = automationsmod.get(self.db, int(automation_id))
+        except KeyError:
+            row = None
+        me = {"id": self.user["id"], "admin": bool(self.admin)}
+        if not row or not automationsmod.manages(row, automationsmod.editable(self.db, me), bool(self.admin)):
+            raise ValueError(f"there's no automation {automation_id} of yours")
+        return row
+
+    @staticmethod
+    def _automation_line(a):
+        return store.clean(
+            {
+                "automation_id": a["id"],
+                "name": a["name"],
+                "enabled": a["enabled"],
+                "triggers": a["triggers"],
+                "last_run_at": a.get("last_run_at"),
+                "last_status": a.get("last_status"),
+                "waiting": a.get("waiting") or None,
+            }
+        )
+
+    def t_automations(self, automation_id=None, run_id=None):
+        if run_id is not None:
+            r = automationsmod.get_run(self.db, int(run_id))
+            self._automation(r["automation"])
+            return r, f"Read run {run_id} of automation {r['automation']}"
+        if automation_id is not None:
+            a = self._automation(automation_id)
+            a["runs"] = automationsmod.runs(self.db, a["id"], limit=5)
+            return a, f"Read automation {a['name']}"
+        me = {"id": self.user["id"], "admin": bool(self.admin)}
+        rows = automationsmod.list_automations(self.db, None if self.admin else automationsmod.editable(self.db, me))
+        out = [self._automation_line(a) for a in automationsmod.extras(self.db, rows)]
+        return {"automations": out}, f"Listed {len(out)} automation(s)"
+
+    def t_test_automation(self, automation_id=None, draft=None, activity=None, kind=None):
+        if (automation_id is None) == (draft is None):
+            raise ValueError("give automation_id or draft")
+        a = None
+        if activity:
+            a = events.get(self.db, self.cfg, str(activity), self._viewer())
+            if a is None:
+                raise ValueError(f"there's no activity {activity} you can see")
+        elif kind:
+            try:
+                a = events.kind_info(kind)["sample"]
+            except KeyError:
+                raise ValueError(f"there's no kind {kind} (such as asset.added)") from None
+        if automation_id is not None:
+            got = automationsmod.test(self.db, self.cfg, self._automation(automation_id)["id"], activity=a)
+        else:
+            got = automationsmod.test(self.db, self.cfg, draft={**dict(draft), "enabled": False}, activity=a, user=self.user)
+        return {k: got[k] for k in ("status", "why", "intents", "log", "error")}, f"Tried it: {got['status']}"
+
+    def t_save_automation(
+        self, automation_id=None, name=None, description=None, triggers=None, condition=None, graph=None, namespaces=None, enabled=None
+    ):
+        names = {v: k for k, v in store.space_names(self.db).items()}
+        d = {"name": name, "description": description, "triggers": triggers, "graph": graph}
+        d = {k: v for k, v in d.items() if v is not None}
+        if namespaces:
+            unknown = [n for n in namespaces if n not in names]
+            if unknown:
+                raise ValueError(f"there's no namespace {unknown[0]}")
+            d["spaces"] = [names[n] for n in namespaces]
+        if condition is not None:
+            d["if"] = condition or None
+        if automation_id is None:
+            aid = automationsmod.create(self.db, self.cfg, {**d, "enabled": False}, self.user)["id"]
+            what = f"Saved automation {d.get('name')}, switched off"
+        else:
+            row = self._automation(automation_id)
+            aid = row["id"]
+            if d:
+                automationsmod.update(self.db, self.cfg, aid, d, self.user["email"])
+            if enabled is False:
+                automationsmod.enable(self.db, self.cfg, aid, False, self.user["email"])
+            what = f"Saved automation {row['name']}"
+        row = automationsmod.get(self.db, aid)
+        out = {"automation_id": aid, "enabled": row["enabled"]}
+        if enabled and not row["enabled"]:
+            kinds = sorted({k for t in row["triggers"] for k in t.get("kinds") or []})
+            does = sorted(_actions_in(row["graph"]))
+            on = f"when {', '.join(kinds)} happens" if kinds else "when it's run by hand"
+            asked, _ = self._approval(
+                "switch_automation",
+                {"automation_id": aid, "name": row["name"]},
+                f"Switch on automation {row['name']}: {on}, it does {', '.join(does)}",
+            )
+            out["switching_on"] = asked
+        return out, what
+
+    def t_run_automation(self, automation_id, activity=None):
+        row = self._automation(automation_id)
+        if activity and events.get(self.db, self.cfg, str(activity), self._viewer()) is None:
+            raise ValueError(f"there's no activity {activity} you can see")
+        on = f" on {activity}" if activity else ""
+        return self._approval("run_automation", {"automation_id": row["id"], "activity": activity}, f"Run automation {row['name']} now{on}")
 
     def t_read_transcript(self, recording_id, start_seconds=0, end_seconds=None, max_lines=60):
         cap = self.cfg["ai"].get("max_transcript_reads") or 20
@@ -1095,7 +1560,8 @@ class Toolbox(ops_tools.OpsTools):
             d=store.clean(
                 {
                     "chat": self.chat,
-                    "account": self.user["id"],
+                    "account": self.account,
+                    "origin": self.origin,
                     "tool": tool,
                     "args": args,
                     "summary": summary,
@@ -1342,12 +1808,23 @@ class Toolbox(ops_tools.OpsTools):
         return [{**r, "used": r["n"] in used} for r in self.refs if r["n"] in used]
 
 
-def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=False, readable=None):
-    """Carry out an approved action: a batch run (or a sample of it), an entity change, or a change to the server
-    (ops_tools.py: settings, a namespace, importing attached files or web pages)."""
-    a = db.one("SELECT record::id(id) AS id, chat, account, tool, args, status FROM $r", r=R("approval", int(aid)))
+def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=False, readable=None, params=None, via="web"):
+    """Carry out an approved action: a batch run (or a sample of it), an entity change, a note an automation's agent
+    proposed, or a change to the server (ops_tools.py: settings, a namespace, importing attached files or web pages).
+    An automation's action (an approval with an intent) is decided by approvals.decide: `params` are an edit's, `via`
+    where the pick was made (web, chat, token, oauth or agent; only the person, signed in or in their own chat,
+    approves it)."""
+    from . import approvals  # it carries actions out, and actions load the assistant's tools
+
+    a = approvals.get(db, aid)
     if not a or a["status"] != "pending":
         raise ValueError("nothing to approve")
+    if via == "agent" and decision != "decline":
+        raise PermissionError("approving is the person's own pick: an agent can only decline")
+    if a.get("intent"):
+        return approvals.decide(db, cfg, a, user, decision, params, via)
+    if decision in ("edit", "always"):
+        raise ValueError("only an automation's action can be edited or allowed from now on")
     if decision == "decline":
         db.q(
             "UPDATE $r SET status = 'declined', decided_at = $t, decided_by = $u", r=R("approval", a["id"]), t=store.now(), u=user["email"]
@@ -1372,8 +1849,37 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
         result = run_extension(db, cfg, args, user, admin, box.readable, box)
     elif a["tool"] in ("save_extension", "switch_extension"):
         result = author_extension(db, a["tool"], args, user, admin, readable if readable is not None else editable, editable)
+    elif a["tool"] in ("switch_automation", "run_automation"):
+        result = _automation_approved(db, cfg, a["tool"], args, user, admin)
+    elif a["tool"] in ("run_python", "run_bash"):  # a run that can reach another host, asked first (Toolbox._sandbox_run)
+        if a.get("chat") is None or not sandboxmod.offered(cfg, admin, bool(editable)):
+            raise PermissionError("the code sandbox is off, or not yours to use")
+        kind = a["tool"].removeprefix("run_")
+        source = args.get("code") if kind == "python" else args.get("command")
+        try:
+            result = {"result": sandboxmod.run(db, cfg, a["chat"], a.get("account") or user["id"], kind, source, args.get("files") or [])}
+        except sandboxmod.SandboxError as e:
+            raise ValueError(str(e)) from None
     elif a["tool"] in ("change_settings", "create_namespace", "import_files", "import_urls", "invite_person", "change_person"):
         result = ops_tools.apply(db, cfg, base or cfg, a["tool"], args, user, editable, admin)
+    elif a["tool"] == "decline_approval":  # the person's yes to declining another of their approvals
+        from . import approvals
+
+        b = approvals.get(db, int(args["approval"]))
+        if not b or b.get("account") != a.get("account"):
+            raise ValueError("that approval is gone")
+        if b["status"] != "pending":
+            result = {"approval": b["id"], "status": b["status"]}  # decided meanwhile: nothing to decline
+        else:
+            result = {"approval": b["id"], **approve(db, cfg, b["id"], user, editable, "decline", via="agent")}
+    elif a["tool"] == "mark_activities":  # the person's own marks, on activities they could see when it was asked
+        flags = {k: v for k, v in args.items() if k in event_marks.FLAGS}
+        result = {"marked": len(event_marks.mark(db, user["id"], args["ids"], flags))}
+    elif a["tool"] in webmod.NAMES:  # the person's yes to a search or page read after the answer read outside text
+        result = {"output": webmod.run(cfg, a["tool"], args)}
+    elif a["tool"] in ("write_note", "update_note"):  # proposed by an automation's agent (actions_ai.Box)
+        box = Toolbox(db, cfg, user, readable if readable is not None else editable, editable, None, a["chat"], base, admin)
+        result = getattr(box, "t_" + a["tool"])(**args)[0]
     elif a["tool"] == "forget_memory":
         sid = {v: k for k, v in store.space_names(db).items()}.get(args["namespace"])
         if sid not in editable:
@@ -1447,6 +1953,40 @@ def _topic_change(db, args, user, editable):
     return {"topic": tid}
 
 
+def _actions_in(graph):
+    """The actions an event workflow's nodes take, bodies included."""
+    out = set()
+    for n in (graph or {}).get("nodes") or []:
+        cfg = n.get("config") or {}
+        if n.get("type") == "action" and cfg.get("action"):
+            out.add(str(cfg["action"]))
+        if isinstance(cfg.get("body"), dict):
+            out |= _actions_in(cfg["body"])
+    return out
+
+
+def _automation_approved(db, cfg, tool, args, user, admin):
+    """An approved switch-on or run of an automation, if the person still manages it."""
+    aid = int(args["automation_id"])
+    me = {"id": user["id"], "admin": bool(admin)}
+    try:
+        row = automationsmod.get(db, aid)
+    except KeyError:
+        row = None
+    if not row or not automationsmod.manages(row, automationsmod.editable(db, me), bool(admin)):
+        raise PermissionError("that automation was deleted, or isn't yours to change any more")
+    if tool == "switch_automation":
+        automationsmod.enable(db, cfg, aid, True, user["email"])
+        return {"automation": aid, "enabled": True}
+    act = None
+    if args.get("activity"):
+        viewer = automationsmod._viewer(db, automationsmod._account(db, user["id"]) or {"id": user["id"]})
+        act = events.get(db, cfg, args["activity"], viewer)
+        if act is None:
+            raise PermissionError("that activity is gone, or isn't one you can see any more")
+    return automationsmod.run_now(db, cfg, aid, user, activity=act)
+
+
 def run_extension(db, cfg, args, user, admin, readable, toolbox=None):
     """An approved extension tool: the version that was proposed, if it's still on and still the person's to use."""
     g = extensions.get(db, int(args["extension"]), args.get("version"))
@@ -1472,3 +2012,7 @@ def author_extension(db, tool, args, user, admin, readable, editable):
         n = extensions.save_version(db, me, same["id"], manifest, args.get("notes"), origin="chat")
         return {"extension": same["id"], "version": n}
     return {"extension": extensions.create(db, me, manifest, origin="chat"), "version": 1}
+
+
+# last, because automations imports the actions, and the agent's action (actions_ai.Box) builds on Toolbox above
+from . import automations as automationsmod  # noqa: E402
