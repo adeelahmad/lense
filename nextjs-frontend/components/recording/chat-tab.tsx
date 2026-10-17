@@ -35,8 +35,8 @@ export function ChatTab() {
   if (!member)
     return (
       <EmptyState icon={<MessagesSquare />} title={`Chat needs a role in ${ns ?? "the namespace"}`} className="py-10">
-        You see this recording through a role on its collection. Asking the assistant about recordings needs a role in
-        the namespace: ask an owner of {ns ?? "it"}.
+        You see this asset through a role on its collection. Asking the assistant about assets needs a role in the
+        namespace: ask an owner of {ns ?? "it"}.
       </EmptyState>
     );
   return <ChatPanel />;
@@ -144,10 +144,10 @@ function ChatPanel() {
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center gap-2 border-b border-border px-5 py-2.5">
         <span className="inline-flex h-6 items-center gap-1.5 rounded-pill border border-blue-border bg-blue-surface px-2.5 text-[12px] font-semibold text-blue-dark">
-          <MessagesSquare className="size-3.5" /> This recording
+          <MessagesSquare className="size-3.5" /> This asset
         </span>
         <span className="min-w-0 flex-1 truncate text-[12px] text-fg-muted">
-          Answers come only from its transcript and cite the moment.
+          Answers come only from its text and cite where they found it.
         </span>
         {chatId != null && (
           <Button
@@ -173,10 +173,10 @@ function ChatPanel() {
         {chat.isLoading && chatId != null && <Skeleton className="w-3/4" />}
         {!messages.length && !answer && !chat.isLoading && (
           <div className="flex flex-col gap-2 py-6 text-center">
-            <p className="text-[14px] font-bold text-fg">Ask about this recording</p>
+            <p className="text-[14px] font-bold text-fg">Ask about this asset</p>
             <p className="text-[13px] leading-normal text-fg-secondary">
-              For example: “What did they decide?”, “Who raised the budget?”. Select text in the transcript and choose
-              Ask in chat to quote it.
+              For example: “What did they decide?”, “Who raised the budget?”. Select text in the asset and choose Ask in
+              chat to quote it.
             </p>
           </div>
         )}
@@ -215,7 +215,7 @@ function ChatPanel() {
             ) : (
               streaming && (
                 <p className="flex items-center gap-2 text-[13px] text-fg-secondary">
-                  <span aria-hidden className="size-2 animate-pulse rounded-full bg-blue" /> Reading the transcript…
+                  <span aria-hidden className="size-2 animate-pulse rounded-full bg-blue" /> Reading the text…
                 </p>
               )
             )}
@@ -251,8 +251,8 @@ function ChatPanel() {
               void send();
             }
           }}
-          placeholder="Ask about this recording…"
-          aria-label="Ask about this recording"
+          placeholder="Ask about this asset…"
+          aria-label="Ask about this asset"
           className="max-h-40 min-h-10 flex-1 resize-none rounded-sm border border-border bg-background px-3 py-2 text-[14px] leading-snug text-fg outline-hidden placeholder:text-fg-muted focus:border-blue focus:shadow-[0_0_0_3px_var(--intent-surface)]"
         />
         {streaming ? (
@@ -319,6 +319,12 @@ function AnswerView({ text, passages, streaming }: { text: string; passages: Pas
         const label = `${ps.page != null ? (ps.time ?? `p. ${ps.page + 1}`) : tc(ps.t0 ?? 0)}${ps.speaker ? ` · ${ps.speaker}` : ""}`;
         const cls =
           "mx-0.5 inline-flex h-[20px] items-center rounded-pill border border-blue-border bg-blue-surface px-1.5 align-[2px] font-sans text-[11.5px] font-semibold text-blue-dark hover:bg-blue hover:text-white";
+        if (ps.source === "web" && ps.url)
+          return (
+            <a key={i} href={ps.url} target="_blank" rel="noopener noreferrer" className={cls} title={ps.text}>
+              {ps.site ?? ps.title ?? "Web page"}
+            </a>
+          );
         return ps.recording_id === id ? (
           <button
             key={i}
@@ -337,7 +343,7 @@ function AnswerView({ text, passages, streaming }: { text: string; passages: Pas
             className={cls}
             title={ps.text}
           >
-            {ps.title ?? "Recording"} · {label}
+            {ps.title ?? "Asset"} · {label}
           </Link>
         );
       })}

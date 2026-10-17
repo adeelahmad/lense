@@ -16,7 +16,7 @@ no passwords on a fresh install (`auth.passwords` is off), so there is nothing t
 * **The first admin** makes theirs on the setup page, with the setup code. Where the browser can't use passkeys (a
   plain `http://` address other than localhost, or an IP address) the code alone makes the admin, still without a
   password; they sign in later with a passkey at the `https://` address, or with a sign-in link.
-* **Everyone else** gets a one-time **sign-in link** from an admin (People › Send a sign-in link, or
+* **Everyone else** gets a one-time **sign-in link** from an admin (Members › Send a sign-in link, or
   `lens users link them@example.com` on the server). When mail is set up (Settings › Email), the web app also emails
   it to them as an invitation (`POST /api/v1/users/{id}/signin-link?email=true`); either way the admin sees the link. Opening it adds a passkey on that device and signs them in; on an
   address browsers won't use passkeys on, the link alone signs them in. A link lasts three days and works once; making
@@ -64,7 +64,9 @@ OpenID Connect provider (Authentik, Keycloak, Okta, ...; give its issuer address
 `/.well-known/openid-configuration` there). Each needs a client id and secret from the provider, and the redirect URI
 the dialog shows: `<the web app's address>/api/v1/auth/external/<name>/callback`, registered for every address people
 open Lens at. The secret is kept encrypted (like other settings secrets) and never shown again. The sign-in page then
-has a "Continue with ..." button for each provider that's turned on.
+has a "Continue with ..." button for each provider that's turned on. Google's client also connects Google accounts to
+Google Calendar sources (Connect with Google, [Google Calendar](processing.md#email-imap-calendar-feeds-ical-and-google-calendar)),
+through the same redirect URI.
 
 * **Who it signs in.** An outside account that's connected signs in its Lens account. One that isn't yet is connected
   to the account with the same email, when the provider vouches for the email: Google and OpenID Connect providers say
@@ -143,6 +145,12 @@ For scripts and integrations: `POST /api/v1/tokens` (while signed in) returns `l
 (`/api/v1/admin/tokens`); both are audited as `token.revoke`. The web app names a new token after its scope ("Read only
 token") unless you type a name, and the pencil in the list renames it (`PATCH /api/v1/tokens/{token_id}`).
 
+A token can also be made for **one namespace** (`namespace` on `POST /api/v1/tokens`, or **Opens** in the web app,
+which Admin → Namespaces → the namespace → Connect apps fills in). It opens that namespace's own
+[MCP server](mcp.md#one-namespaces-mcp-server) and [chat completions](api.md#chat-completions-for-any-app), with your
+role there, and nothing else: anywhere else in Lens it is refused (401), so an app given it can't read your other
+namespaces or make keys. It stops opening anything if you lose your role there or the namespace is deleted.
+
 ```bash
 curl -H "Authorization: Bearer la_…" https://lens.example.org/api/v1/resources
 ```
@@ -213,14 +221,14 @@ use, or apps will be sent to the wrong place to sign in.
 
 ## Share links and signed links
 
-* **Share links** give read-only access to one recording's player and embed, and expire. Each has a short address
+* **Share links** give read-only access to one asset's player and embed, and expire. Each has a short address
   too (`/s/<code>`). Editors see how often each was played and which sites embed it, and revoke one link or all of
   them: `POST/DELETE /api/v1/resources/<id>/share`, `GET /api/v1/resources/<id>/shares`,
   `DELETE /api/v1/resources/<id>/shares/<link id>`. Only hashes of the token and the code are stored. A link that
   no longer works opens a neutral "This link isn't available" page (status 410), the same whatever went wrong, so it
-  never tells whether a recording exists.
+  never tells whether an asset exists.
 * **Signed links** are what the API puts in responses for media (`?exp=&sig=`); see [Architecture](architecture.md#media).
-  `GET /api/v1/resources/<id>/embed-link` returns a signed `/embed/<id>` link for people who can read the recording.
+  `GET /api/v1/resources/<id>/embed-link` returns a signed `/embed/<id>` link for people who can read the asset.
 
 ## IIIF viewers
 

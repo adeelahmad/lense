@@ -4,7 +4,7 @@ A **sensor** is anything that feeds Lens. There are two families, in one list (`
 
 | Family | Kinds | Channels | What it reports becomes |
 | --- | --- | --- | --- |
-| Files | S3, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV, a local folder (through rclone); email (IMAP); calendar feeds (iCal); Google Calendar | the folders it watches | resources, run through their pipelines (as sources always have) |
+| Files | S3, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV, a local folder (through rclone); email (IMAP, Gmail and Google Workspace); calendar feeds (iCal); Google Calendar | the folders it watches | resources, run through their pipelines (as sources always have) |
 | Streams | MQTT devices, syslog senders, webhooks | streams: an MQTT topic, a syslog program, a webhook's stream name | readings, kept with retention, and hourly summaries of anything numeric |
 
 File sensors are the storage sources: they are added and changed as sources (`/api/v1/sources`), and nothing about
@@ -98,11 +98,15 @@ the language model when there's no Jev key) to label the busiest unlabelled patt
 pattern, never per line. A label it wasn't sure of (below `decisions.act_above`) is kept with `sure: false`, for you to
 settle.
 
+Automations see sensors too ([Automations](automations.md#sensors-as-activities)): the readings a sensor keeps as
+`sensor.reading`, a pattern labelled alert or notable as `sensor.alert` (once an hour while lines fit it), and a device
+that reports for the first time as `sensor.joined`.
+
 ## Daily digests
 
 With `digest` on (and a namespace), each full day (UTC) of a sensor becomes a document in its namespace: each stream's
 count and range, its JSON fields' ranges, the busiest log patterns with their labels, and the warnings and errors. It's
-a recording like any other, queued for the namespace's pipeline, so it can be searched, linked and asked about. Days
+an asset like any other, queued for the namespace's pipeline, so it can be searched, linked and asked about. Days
 are written once, oldest first, up to a week a run; a day with nothing in it is skipped.
 
 ## In the web app

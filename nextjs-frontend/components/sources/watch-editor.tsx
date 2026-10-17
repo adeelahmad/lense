@@ -90,7 +90,7 @@ export function WatchEditor({
   path: string;
   watch?: Watch | null;
 }) {
-  const email = source.type === "imap";
+  const email = source.type === "imap" || source.type === "gmail";
   const client = useApiClient();
   const qc = useQueryClient();
   const toast = useToast();
@@ -431,7 +431,7 @@ export function WatchEditor({
             <b>
               Stop watching {source.name}:{path || "/"}?
             </b>{" "}
-            Recordings already imported stay in {watch?.namespace}. Files on the storage aren’t touched.
+            Assets already imported stay in {watch?.namespace}. Files on the storage aren’t touched.
           </span>
           <span className="flex justify-end gap-2">
             <Button size="sm" variant="ghost" onClick={() => setConfirmStop(false)}>

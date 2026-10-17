@@ -93,7 +93,7 @@ class RecordingSummary(ResponseModel):
     words: int | None = None
     importance: Any = None
     sentiment: Any = None
-    speakers: str = Field("", description="speaker names, comma separated")
+    speakers: str = Field("", description="names of the people in it, comma separated")
     access: AccessLevel = Field("private", description="its own access, or its namespace's default")
     open: list[AccessPart] = Field(default_factory=list, description="the parts anyone may use when it is public")
     featured: bool = False
@@ -126,7 +126,7 @@ class ObjectCount(ResponseModel):
 
 
 class NsfwCounts(ResponseModel):
-    """NSFW classification in the recordings you can read (docs/nsfw.md)."""
+    """NSFW classification in the assets you can read (docs/nsfw.md)."""
 
     on: bool = Field(description="it's on in at least one of their namespaces")
     flagged: int = Field(0, description="how many are flagged NSFW")
@@ -134,7 +134,7 @@ class NsfwCounts(ResponseModel):
 
 
 class ObjectTrack(ResponseModel):
-    """A kind of object seen in a recording, and where."""
+    """A kind of object seen in an asset, and where."""
 
     label: str = Field(description="what it is (person, car, dog …: the COCO dataset's kinds, with the default engine)")
     spans: list[list[int]] = Field(description="[from, to) where it's seen: ms, or page numbers from 0 when `paged`")
@@ -178,6 +178,8 @@ class EmailInfo(ResponseModel):
     to: str | None = None
     cc: str | None = None
     date: str | None = Field(None, description="when it was sent (ISO 8601)")
+    attachments: int | None = Field(None, description="how many files it carried")
+    snippet: str | None = Field(None, description="the start of its text, at most 300 characters")
 
 
 class Rendition(ResponseModel):
@@ -236,7 +238,7 @@ class EnrichedDate(ResponseModel):
 
 
 class Enrichment(ResponseModel):
-    """The places and dates anytopdf found in a recording (analysis.anytopdf); members of its namespace only."""
+    """The places and dates anytopdf found in an asset (analysis.anytopdf); members of its namespace only."""
 
     by: str = Field(description="anytopdf and its version")
     place: EnrichedPlace | None = Field(None, description="a photo: where it was taken")
@@ -254,7 +256,7 @@ class AttachedTo(ResponseModel):
 
 
 class Recording(ResponseModel):
-    """The recording row (less its envelope) plus what the recording page needs."""
+    """The asset row (less its envelope) plus what the asset page needs."""
 
     id: int
     title: str | None = None
@@ -299,7 +301,7 @@ class Page(ResponseModel):
 
 
 class Player(ResponseModel):
-    """Everything the player shows: transcript, speakers, sections, entities and, for videos, shots and faces; for
+    """Everything the player shows: text, people, sections, entities and, for videos, shots and faces; for
     documents and images, their pages."""
 
     id: int
@@ -311,7 +313,7 @@ class Player(ResponseModel):
     speakers: list[dict[str, Any]] = Field(default_factory=list)
     segments: list[dict[str, Any]] = Field(
         default_factory=list,
-        description="the lines: t0, t1 (ms), s (speaker key), text, e (emotion), v (event), and w, the timed words as "
+        description="the lines: t0, t1 (ms), s (person key), text, e (emotion), v (event), and w, the timed words as "
         "[c0, c1, t0, t1] (a character range of text, ms) when transcription gave them; a document's or an image's "
         "blocks of text have p, their page (from 0), and b, where they are on it ([x, y, w, h] as fractions of the "
         "page), and times that are only a reading pace",
@@ -322,7 +324,7 @@ class Player(ResponseModel):
     envelope: list[Any] | None = None
     summary: dict[str, Any] | None = None
     media: dict[str, Any] | None = Field(
-        None, description="kind: audio, video, document or image (audio for a transcript without media), and its size"
+        None, description="kind: audio, video, document or image (audio for text without media), and its size"
     )
     pages: list[Page] | None = Field(None, description="a document's or an image's pages, in order")
     objects: list[ObjectTrack] = Field(
@@ -350,7 +352,7 @@ class RecordingsRetag(RequestModel):
 
 
 class TagsChanged(Ok):
-    changed: int = Field(description="how many recordings' tags changed")
+    changed: int = Field(description="how many assets' tags changed")
 
 
 class TagCount(ResponseModel):
@@ -364,10 +366,10 @@ class NamespaceAccess(ResponseModel):
 
 
 class RecordingAccess(ResponseModel):
-    """Who may see the recording: public, restricted or private (docs/access.md)."""
+    """Who may see the asset: public, restricted or private (docs/access.md)."""
 
     access: AccessLevel
-    open: list[AccessPart] = Field(description="the parts anyone may use when it is public: media, transcript, index")
+    open: list[AccessPart] = Field(description="the parts anyone may use when it is public: media, transcript (the text), index")
     featured: bool
     inherited: bool = Field(description="access and open come from the namespace's default")
     default: NamespaceAccess = Field(description="the namespace's default")
@@ -382,7 +384,7 @@ class RecordingAccessUpdate(RequestModel):
 
 
 class Permission(ResponseModel):
-    """Someone given permission on a recording (docs/access.md): they see all of it on the pages visitors see and in
+    """Someone given permission on an asset (docs/access.md): they see all of it on the pages visitors see and in
     IIIF, whatever its access."""
 
     account: int
@@ -393,7 +395,7 @@ class Permission(ResponseModel):
 
 
 class AccessRequest(ResponseModel):
-    """Someone asking for permission on a recording (docs/access.md)."""
+    """Someone asking for permission on an asset (docs/access.md)."""
 
     recording: int
     title: str | None = None
@@ -409,19 +411,19 @@ class AccessRequest(ResponseModel):
 
 
 class RecordingIpGroup(ResponseModel):
-    """One of the namespace's IP groups, and whether it opens this recording (docs/access.md)."""
+    """One of the namespace's IP groups, and whether it opens this asset (docs/access.md)."""
 
     id: int
     name: str
     ranges: list[str]
-    everything: bool = Field(description="it opens every recording in the namespace")
-    opens: bool = Field(description="visitors from its addresses see all of this recording")
+    everything: bool = Field(description="it opens every asset in the namespace")
+    opens: bool = Field(description="visitors from its addresses see all of this asset")
 
 
 class RecordingMove(RequestModel):
     namespace: str = Field(min_length=1, description="the namespace to move it to")
     rediarize: bool = Field(
-        False, description="identify its speakers again from their voices in the new namespace (audio only); else matched by name"
+        False, description="identify its people again from their voices in the new namespace (audio only); else matched by name"
     )
     revoke_shares: bool = Field(False, description="stop its share links working; otherwise they keep working")
     collection: int | None = Field(None, description="a collection of the new namespace to put it in; default: its default collection")
@@ -485,7 +487,7 @@ class Share(ResponseModel):
 
 
 class SegmentUpdate(RequestModel):
-    """Send ``text``, ``speaker`` (a speaker id in the same namespace, or null), or both."""
+    """Send ``text``, ``speaker`` (a person id in the same namespace, or null), or both."""
 
     text: str | None = None
     speaker: int | None = None
@@ -504,9 +506,9 @@ class SegmentSplit(RequestModel):
     """Where to split a line: `at`, a position in its text (the split goes at the start of the word it's in)."""
 
     at: int = Field(ge=1, description="a character position in the line's text")
-    t: int | None = Field(None, ge=0, description="when the second part starts, in ms (default: when its first word was said)")
+    t: int | None = Field(None, ge=0, description="when the second part starts, in ms (default: when its first word starts)")
     speaker: int | None = Field(
-        None, description="the second part's speaker (an id in the namespace, or null); leave out to keep the line's"
+        None, description="the second part's person (an id in the namespace, or null); leave out to keep the line's"
     )
 
 

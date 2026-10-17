@@ -174,7 +174,7 @@ export function ConversationList({
         title="Delete this conversation?"
         description={
           deleting
-            ? `“${deleting.title}” and its answers are deleted. Recordings and batch runs it started stay.`
+            ? `“${deleting.title}” and its answers are deleted. Assets and batch runs it started stay.`
             : undefined
         }
         actions={

@@ -1,4 +1,4 @@
-"""Command line: batch steps, imports, speaker edits, search, reports and the server."""
+"""Command line: batch steps, imports, people edits, search, reports and the server."""
 
 from __future__ import annotations
 
@@ -20,18 +20,26 @@ def run_steps(db, cfg, which, ns=None, limit=0, force=False, recording=None, aud
         log("transcribe:", ingest.transcribe_pending(db, cfg, ns, limit, force, log), "recording(s)")
     if "diarize" in which:
         log("diarize:", spk.diarize_pending(db, cfg, ns, limit, force, log), "recording(s)")
+    if "clean" in which:
+        from .domain import cleanup, settings
+
+        ccfg = settings.effective(db, cfg)
+        if (ccfg.get("analysis") or {}).get("cleanup") or force:
+            log("clean:", cleanup.clean_pending(db, ccfg, ns, limit, force, log), "asset(s)")
+        else:
+            log("clean: skipped; cleaning up transcripts is off (analysis.cleanup, Settings → Analysis)")
     if "analyze" in which:
-        log("analyze:", analyze.analyze_pending(db, cfg, ns, limit, force, log), "recording(s)")
+        log("analyze:", analyze.analyze_pending(db, cfg, ns, limit, force, log), "asset(s)")
     if "embed" in which:
         from .domain import semantic, settings
 
         ecfg = settings.effective(db, cfg)
         if semantic.configured(ecfg):
-            log("embed:", semantic.index_pending(db, ecfg, ns, limit, force, log), "recording(s)")
+            log("embed:", semantic.index_pending(db, ecfg, ns, limit, force, log), "asset(s)")
         else:
             log("embed: skipped; search by meaning is off, or has no embeddings server and model (embeddings in archive.yaml)")
     if "summarize" in which:
-        log("summarize:", analyze.summarize_pending(db, cfg, ns, limit, force, log), "recording(s)")
+        log("summarize:", analyze.summarize_pending(db, cfg, ns, limit, force, log), "asset(s)")
     if "report" in which:
         log(
             "report:",
@@ -51,27 +59,30 @@ def _main_base(argv=None):
         ("scan", "register new files in each namespace's folders"),
         ("transcribe", "transcribe new recordings"),
         ("diarize", "split speakers and match voice IDs within each namespace"),
-        ("analyze", "named things, keywords, sections and talk statistics"),
+        ("clean", "tidy transcripts before analysis: fillers, repeated words, spacing and capitals"),
+        ("analyze", "named things, keywords, sections and speaking-time statistics"),
         ("embed", "index passages for search by meaning (with the configured embedding model)"),
         ("summarize", "optional LLM summaries"),
-        ("run", "scan, transcribe, diarize, analyze, embed, summarize and report, resuming where it stopped"),
+        ("run", "scan, transcribe, diarize, clean, analyze, embed, summarize and report, resuming where it stopped"),
     ):
         p = sub.add_parser(name, help=helptext)
         p.add_argument("--ns")
         p.add_argument("--limit", type=int, default=0)
-        p.add_argument("--force", action="store_true", help="redo recordings already done")
-    p = sub.add_parser("report", help="write HTML reports (per recording and per namespace)")
+        p.add_argument("--force", action="store_true", help="redo assets already done")
+    p = sub.add_parser("report", help="write HTML reports (per asset and per namespace)")
     p.add_argument("--ns")
     p.add_argument("--recording", type=int)
     p.add_argument("--audio", choices=["link", "embed", "none"])
-    p = sub.add_parser("import", help="import a transcript: txt, md, mdx, docx, doc, pdf, srt, vtt, json, chunk jsonl, or - for stdin")
+    p = sub.add_parser(
+        "import", help="import text or a transcript: txt, md, mdx, docx, doc, pdf, srt, vtt, json, chunk jsonl, or - for stdin"
+    )
     p.add_argument("ns")
     p.add_argument("transcript", help="a file, or - to read pasted text from stdin")
     p.add_argument("--format", default="auto", choices=list(ingest.FORMATS))
     p.add_argument("--audio")
     p.add_argument("--title")
     p.add_argument("--speakers", help='display names for labels, e.g. "F=Host A,M=Host B"')
-    p = sub.add_parser("speakers", help="list, rename, merge, undo or link speakers")
+    p = sub.add_parser("speakers", help="list, rename, merge, undo or link people")
     s2 = p.add_subparsers(dest="action", required=True)
     s2.add_parser("list").add_argument("ns")
     x = s2.add_parser("rename")
@@ -134,8 +145,8 @@ def _main_base(argv=None):
         return
     conn = store.connect(cfg, upgrade=a.cmd != "migrations")  # so a failed upgrade can still be looked at
     try:
-        if a.cmd in ("scan", "transcribe", "diarize", "analyze", "embed", "summarize", "run", "report"):
-            which = ["scan", "transcribe", "diarize", "analyze", "embed", "summarize", "report"] if a.cmd == "run" else [a.cmd]
+        if a.cmd in ("scan", "transcribe", "diarize", "clean", "analyze", "embed", "summarize", "run", "report"):
+            which = ["scan", "transcribe", "diarize", "clean", "analyze", "embed", "summarize", "report"] if a.cmd == "run" else [a.cmd]
             with store.lock(cfg, "pipeline"):
                 run_steps(
                     conn,
@@ -153,12 +164,12 @@ def _main_base(argv=None):
                 rid = ingest.import_text(conn, cfg, a.ns, sys.stdin.read(), a.title, a.format, names)
             else:
                 rid = ingest.import_transcript(conn, cfg, a.ns, a.transcript, a.audio, a.title, names, a.format)
-            print(f"imported recording {rid} into {a.ns}; next: lens analyze && lens report")
+            print(f"imported asset {rid} into {a.ns}; next: lens analyze && lens report")
         elif a.cmd == "speakers":
             if a.action == "list":
                 for s in spk.list_speakers(conn, store.ns_id(conn, a.ns, create=False)):
                     sug = "; maybe " + ", ".join(f"{x['name']} ({x['score']})" for x in s["suggestions"]) if s["suggestions"] else ""
-                    print(f"{s['id']:>5}  {s['display']:<24} {s['talk_ms'] / 60000:7.1f} min  {s['recordings']:>3} rec{sug}")
+                    print(f"{s['id']:>5}  {s['display']:<24} {s['talk_ms'] / 60000:7.1f} min  {s['recordings']:>3} asset(s){sug}")
             elif a.action == "rename":
                 spk.rename(conn, a.id, a.name)
             elif a.action == "merge":
@@ -262,6 +273,7 @@ def platform_main(argv, config):
 
     from .domain import (
         auth,
+        automations,
         channels,
         https,
         jobs,
@@ -384,6 +396,7 @@ def platform_main(argv, config):
                 notify.start(db, C, stop, name=wk.name, log=say)  # sends notifications too (docs/notifications.md)
                 if not (a.steps or a.no_schedule):  # and scans watched folders and runs routines, as `lens watch` does
                     routines.start(db, C, stop, log=say)
+                    automations.start(db, C, stop, log=say)  # and automations, following the stream
                     sensors.start(db, C, stop, log=say, name=wk.name)  # and the sensor hub, while sensors are on
                     smb_share.start(db, C, stop, name=wk.name, log=say)  # and the SMB share of the file tree, while it's on
                     shares.start(db, C, stop, log=say, name=wk.name)  # and the file shares (S3, WebDAV), while they're on

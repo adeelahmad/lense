@@ -87,7 +87,7 @@ def test_assistant_manages_entities(db, cfg, folder, llm):
     box.call("propose_entity_change", {"action": "define", "namespace": "pods", "new_name": "Initech", "new_type": "ORG"})
     box.call("propose_entity_change", {"action": "hide", "entity_id": globex})
     assert [a["summary"] for a in box.approvals] == [
-        "Describe Globex as “A prospect” (also said as Globex Corp)",
+        "Describe Globex as “A prospect” (also known as Globex Corp)",
         "Add Initech to the entities of pods",
         "Hide Globex",
     ]
@@ -101,7 +101,7 @@ def test_assistant_manages_entities(db, cfg, folder, llm):
     ai_tools.approve(db, cfg, hide, me, {sid})
     assert entities.detail(db, globex, {sid})["hidden"] is True
     found = json.loads(box.call("find_entities", {"query": "Initech"})[0])["entities"][0]
-    assert found["defined"] is True
+    assert found["defined"] is True and found["page"] == "/wiki/pods/Initech"
     box.call("propose_entity_change", {"action": "define", "namespace": "pods", "new_name": "Hooli"})
     with pytest.raises(PermissionError):  # approved by someone who can't change pods
         ai_tools.approve(db, cfg, box.approvals[-1]["id"], me, set())

@@ -374,8 +374,11 @@ def _hand_over(db, run, backup):
         run.update(state="queued", queued_at=_ts())
     except Exception as e:  # noqa: BLE001 - the admin reads why
         log.exception("couldn't start the upgrade")
+        backing = run["state"] == "backing-up"
         run.update(
-            state="failed", error=f"{'backing up' if run['state'] == 'backing-up' else 'handing the upgrade over'} failed: {e}"[:500]
+            state="failed",
+            step="backup" if backing else None,  # the step the web app marks as failed
+            error=f"{'backing up' if backing else 'handing the upgrade over'} failed: {e}"[:500],
         )
     _put(db, upgrade=run)
 
@@ -447,6 +450,12 @@ def announce(db, cfg, log_fn=None):
         notify.release(db, cfg, rel, current())
     except Exception:  # noqa: BLE001 - the email still goes
         log.exception("couldn't queue the release notifications")
+    try:  # for automations: lens.release (events_streams.py)
+        from . import events_streams
+
+        events_streams.lens_release(db, rel, current())
+    except Exception:  # noqa: BLE001 - the email still goes
+        log.exception("couldn't log the release for automations")
     if cfg["updates"].get("email", True):
         admins = db.values("SELECT VALUE email FROM account WHERE admin = true AND disabled != true")
         try:

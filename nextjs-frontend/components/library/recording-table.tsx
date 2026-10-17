@@ -77,7 +77,7 @@ const COLUMNS: Col[] = [
   },
   {
     key: "speakers",
-    label: "Speakers",
+    label: "People",
     width: 164,
     sort: "speakers",
     cell: (r) => <SpeakersCell speakers={r.speakers} />,
@@ -186,7 +186,7 @@ export function RecordingTable({
   );
   return (
     <div className="w-full overflow-x-auto">
-      <table className="w-full min-w-[980px] table-fixed border-collapse text-[13px]" aria-label="Recordings">
+      <table className="w-full min-w-[980px] table-fixed border-collapse text-[13px]" aria-label="Assets">
         <colgroup>
           <col style={{ width: 50 }} />
           <col />
@@ -270,7 +270,7 @@ export function RecordingTable({
                   <Checkbox
                     checked={sel}
                     onCheckedChange={() => onToggle(r.id, i, shift.current)}
-                    aria-label={`Select ${r.title ?? "recording"}`}
+                    aria-label={`Select ${r.title ?? "asset"}`}
                   />
                 </td>
                 <td className="min-w-0 px-[7px]">

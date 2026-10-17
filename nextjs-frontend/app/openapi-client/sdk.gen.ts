@@ -82,9 +82,15 @@ import type {
   BulkUpdateMetadataData,
   BulkUpdateMetadataErrors,
   BulkUpdateMetadataResponses,
+  CallAutomationHookData,
+  CallAutomationHookErrors,
+  CallAutomationHookResponses,
   CancelJobData,
   CancelJobErrors,
   CancelJobResponses,
+  CancelRcloneSigninData,
+  CancelRcloneSigninErrors,
+  CancelRcloneSigninResponses,
   CancelUploadData,
   CancelUploadErrors,
   CancelUploadResponses,
@@ -123,6 +129,9 @@ import type {
   CombineBatchResponses,
   ConnectData,
   ConnectErrors,
+  ConnectGoogleData,
+  ConnectGoogleErrors,
+  ConnectGoogleResponses,
   ConnectResponses,
   ConsentData,
   ConsentErrors,
@@ -133,9 +142,17 @@ import type {
   ControlWorkerData,
   ControlWorkerErrors,
   ControlWorkerResponses,
+  CountApprovalsData,
+  CountApprovalsResponses,
+  CreateAutomationData,
+  CreateAutomationErrors,
+  CreateAutomationResponses,
   CreateBatchData,
   CreateBatchErrors,
   CreateBatchResponses,
+  CreateChatCompletionData,
+  CreateChatCompletionErrors,
+  CreateChatCompletionResponses,
   CreateChatData,
   CreateChatErrors,
   CreateChatResponses,
@@ -256,6 +273,9 @@ import type {
   DecideApprovalData,
   DecideApprovalErrors,
   DecideApprovalResponses,
+  DecideHeldRun2Data,
+  DecideHeldRun2Errors,
+  DecideHeldRun2Responses,
   DecideHeldRunData,
   DecideHeldRunErrors,
   DecideHeldRunResponses,
@@ -267,6 +287,9 @@ import type {
   DefineEntityData,
   DefineEntityErrors,
   DefineEntityResponses,
+  DeleteAutomationData,
+  DeleteAutomationErrors,
+  DeleteAutomationResponses,
   DeleteBackupData,
   DeleteBackupErrors,
   DeleteBackupResponses,
@@ -285,6 +308,9 @@ import type {
   DeleteCustomNodeData,
   DeleteCustomNodeErrors,
   DeleteCustomNodeResponses,
+  DeletedPagesData,
+  DeletedPagesErrors,
+  DeletedPagesResponses,
   DeleteEntityData,
   DeleteEntityErrors,
   DeleteEntityResponses,
@@ -395,12 +421,18 @@ import type {
   DownloadFileData,
   DownloadFileErrors,
   DownloadFileResponses,
+  DraftAutomationData,
+  DraftAutomationErrors,
+  DraftAutomationResponses,
   DropPasskeysData,
   DropPasskeysErrors,
   DropPasskeysResponses,
   EditSegmentData,
   EditSegmentErrors,
   EditSegmentResponses,
+  EnableAutomationData,
+  EnableAutomationErrors,
+  EnableAutomationResponses,
   EntityToTopicData,
   EntityToTopicErrors,
   EntityToTopicResponses,
@@ -439,8 +471,14 @@ import type {
   FindSimilarData,
   FindSimilarErrors,
   FindSimilarResponses,
+  FindWikiPageData,
+  FindWikiPageErrors,
+  FindWikiPageResponses,
   FinishData,
   FinishErrors,
+  FinishRcloneSigninData,
+  FinishRcloneSigninErrors,
+  FinishRcloneSigninResponses,
   FinishResponses,
   FinishTourData,
   FinishTourResponses,
@@ -456,9 +494,21 @@ import type {
   ForgotPasswordData,
   ForgotPasswordErrors,
   ForgotPasswordResponses,
+  GetActivityData,
+  GetActivityErrors,
+  GetActivityResponses,
+  GetApprovalData,
+  GetApprovalErrors,
+  GetApprovalResponses,
   GetAudioData,
   GetAudioErrors,
   GetAudioResponses,
+  GetAutomationData,
+  GetAutomationErrors,
+  GetAutomationResponses,
+  GetAutomationVarsData,
+  GetAutomationVarsErrors,
+  GetAutomationVarsResponses,
   GetBatchData,
   GetBatchErrors,
   GetBatchResponses,
@@ -530,6 +580,9 @@ import type {
   GetMediaData,
   GetMediaErrors,
   GetMediaResponses,
+  GetMessageData,
+  GetMessageErrors,
+  GetMessageResponses,
   GetMonitoringData,
   GetMonitoringResponses,
   GetNamespaceAssistantData,
@@ -541,6 +594,9 @@ import type {
   GetNamespaceFacesData,
   GetNamespaceFacesErrors,
   GetNamespaceFacesResponses,
+  GetNamespaceIntegrationsData,
+  GetNamespaceIntegrationsErrors,
+  GetNamespaceIntegrationsResponses,
   GetNamespaceMetadataData,
   GetNamespaceMetadataErrors,
   GetNamespaceMetadataResponses,
@@ -553,6 +609,9 @@ import type {
   GetNamespaceStatsData,
   GetNamespaceStatsErrors,
   GetNamespaceStatsResponses,
+  GetNamespaceVarsData,
+  GetNamespaceVarsErrors,
+  GetNamespaceVarsResponses,
   GetNamespaceWordcloudData,
   GetNamespaceWordcloudErrors,
   GetNamespaceWordcloudResponses,
@@ -606,6 +665,9 @@ import type {
   GetRoutineData,
   GetRoutineErrors,
   GetRoutineResponses,
+  GetRun2Data,
+  GetRun2Errors,
+  GetRun2Responses,
   GetRunData,
   GetRunErrors,
   GetRunResponses,
@@ -636,6 +698,8 @@ import type {
   GetWorkflowData,
   GetWorkflowErrors,
   GetWorkflowResponses,
+  GoogleClientData,
+  GoogleClientResponses,
   GraphAsOfData,
   GraphAsOfErrors,
   GraphAsOfResponses,
@@ -743,6 +807,13 @@ import type {
   ListAccessRequestsData,
   ListAccessRequestsErrors,
   ListAccessRequestsResponses,
+  ListActionsData,
+  ListActionsResponses,
+  ListActivitiesData,
+  ListActivitiesErrors,
+  ListActivitiesResponses,
+  ListActivityKindsData,
+  ListActivityKindsResponses,
   ListAllTokensData,
   ListAllTokensResponses,
   ListApprovalsData,
@@ -754,6 +825,9 @@ import type {
   ListAuditData,
   ListAuditErrors,
   ListAuditResponses,
+  ListAutomationsData,
+  ListAutomationsErrors,
+  ListAutomationsResponses,
   ListBackendsData,
   ListBackendsResponses,
   ListBackupsData,
@@ -772,6 +846,9 @@ import type {
   ListCommentsData,
   ListCommentsErrors,
   ListCommentsResponses,
+  ListCompletionModelsData,
+  ListCompletionModelsErrors,
+  ListCompletionModelsResponses,
   ListComponentsData,
   ListComponentsResponses,
   ListContentTypesData,
@@ -902,6 +979,9 @@ import type {
   ListRolesResponses,
   ListRoutinesData,
   ListRoutinesResponses,
+  ListRuns2Data,
+  ListRuns2Errors,
+  ListRuns2Responses,
   ListRunsData,
   ListRunsErrors,
   ListRunsResponses,
@@ -952,6 +1032,7 @@ import type {
   ListWorkersData,
   ListWorkersResponses,
   ListWorkflowsData,
+  ListWorkflowsErrors,
   ListWorkflowsResponses,
   LlmProvidersData,
   LlmProvidersResponses,
@@ -976,6 +1057,12 @@ import type {
   MakeSigninLinkData,
   MakeSigninLinkErrors,
   MakeSigninLinkResponses,
+  MarkActivitiesData,
+  MarkActivitiesErrors,
+  MarkActivitiesResponses,
+  MarkActivityData,
+  MarkActivityErrors,
+  MarkActivityResponses,
   MarkEntitiesNotSameData,
   MarkEntitiesNotSameErrors,
   MarkEntitiesNotSameResponses,
@@ -1048,6 +1135,9 @@ import type {
   PasskeySetupOptionsErrors,
   PasskeySetupOptionsResponses,
   PasskeySetupResponses,
+  PinPageData,
+  PinPageErrors,
+  PinPageResponses,
   PlaceRecordingsData,
   PlaceRecordingsErrors,
   PlaceRecordingsResponses,
@@ -1069,6 +1159,9 @@ import type {
   PreviewScheduleData,
   PreviewScheduleErrors,
   PreviewScheduleResponses,
+  PreviewTemplate2Data,
+  PreviewTemplate2Errors,
+  PreviewTemplate2Responses,
   PreviewTemplateData,
   PreviewTemplateErrors,
   PreviewTemplateResponses,
@@ -1078,6 +1171,9 @@ import type {
   ProposeGraphChangeData,
   ProposeGraphChangeErrors,
   ProposeGraphChangeResponses,
+  PurgeDeletedData,
+  PurgeDeletedErrors,
+  PurgeDeletedResponses,
   PushData,
   PushResponses,
   PushStreamData,
@@ -1092,9 +1188,15 @@ import type {
   PushTokenData,
   PushTokenErrors,
   PushTokenResponses,
+  PutAutomationVarsData,
+  PutAutomationVarsErrors,
+  PutAutomationVarsResponses,
   PutBlobData,
   PutBlobErrors,
   PutBlobResponses,
+  PutNamespaceVarsData,
+  PutNamespaceVarsErrors,
+  PutNamespaceVarsResponses,
   QueryNamespaceSparqlData,
   QueryNamespaceSparqlErrors,
   QueryNamespaceSparqlResponses,
@@ -1107,6 +1209,9 @@ import type {
   ReadLogsData,
   ReadLogsErrors,
   ReadLogsResponses,
+  ReadMcpConfigData,
+  ReadMcpConfigErrors,
+  ReadMcpConfigResponses,
   RecordingTopicsData,
   RecordingTopicsErrors,
   RecordingTopicsResponses,
@@ -1186,9 +1291,15 @@ import type {
   ResourceTotalsData,
   ResourceTotalsErrors,
   ResourceTotalsResponses,
+  RestoreAutomationData,
+  RestoreAutomationErrors,
+  RestoreAutomationResponses,
   RestoreBackupData,
   RestoreBackupErrors,
   RestoreBackupResponses,
+  RestoreDeletedData,
+  RestoreDeletedErrors,
+  RestoreDeletedResponses,
   RestoreVersionData,
   RestoreVersionErrors,
   RestoreVersionResponses,
@@ -1230,6 +1341,9 @@ import type {
   RotateNotifySecretData,
   RotateNotifySecretErrors,
   RotateNotifySecretResponses,
+  RunAutomationData,
+  RunAutomationErrors,
+  RunAutomationResponses,
   RunData,
   RunErrors,
   RunPipelineData,
@@ -1239,6 +1353,9 @@ import type {
   RunRoutineData,
   RunRoutineErrors,
   RunRoutineResponses,
+  RunsCausedData,
+  RunsCausedErrors,
+  RunsCausedResponses,
   RunWorkflowData,
   RunWorkflowErrors,
   RunWorkflowResponses,
@@ -1321,6 +1438,9 @@ import type {
   SetNamespaceFacesModeData,
   SetNamespaceFacesModeErrors,
   SetNamespaceFacesModeResponses,
+  SetPolicyData,
+  SetPolicyErrors,
+  SetPolicyResponses,
   SetRecordingContentTypeData,
   SetRecordingContentTypeErrors,
   SetRecordingContentTypeResponses,
@@ -1355,6 +1475,9 @@ import type {
   SplitSegmentData,
   SplitSegmentErrors,
   SplitSegmentResponses,
+  StartRcloneSigninData,
+  StartRcloneSigninErrors,
+  StartRcloneSigninResponses,
   StartUpgradeData,
   StartUpgradeErrors,
   StartUpgradeResponses,
@@ -1374,6 +1497,12 @@ import type {
   SuggestTermsData,
   SuggestTermsErrors,
   SuggestTermsResponses,
+  SwitchMcpToolData,
+  SwitchMcpToolErrors,
+  SwitchMcpToolResponses,
+  SwitchVersionData,
+  SwitchVersionErrors,
+  SwitchVersionResponses,
   SyncFedoraData,
   SyncFedoraResponses,
   TagRecordingsData,
@@ -1387,12 +1516,18 @@ import type {
   TelemetryStatusResponses,
   TestAnalyticsData,
   TestAnalyticsResponses,
+  TestAutomationData,
+  TestAutomationErrors,
+  TestAutomationResponses,
   TestBridgeData,
   TestBridgeResponses,
   TestConversionNodeData,
   TestConversionNodeResponses,
   TestDecisionsData,
   TestDecisionsResponses,
+  TestDraftData,
+  TestDraftErrors,
+  TestDraftResponses,
   TestEmbeddingsData,
   TestEmbeddingsResponses,
   TestExtensionData,
@@ -1409,6 +1544,9 @@ import type {
   TestMailboxResponses,
   TestMailData,
   TestMailResponses,
+  TestMcpServerData,
+  TestMcpServerErrors,
+  TestMcpServerResponses,
   TestNotifyTargetData,
   TestNotifyTargetErrors,
   TestNotifyTargetResponses,
@@ -1426,6 +1564,9 @@ import type {
   TestTelemetryResponses,
   TestTikaData,
   TestTikaResponses,
+  TodayPageData,
+  TodayPageErrors,
+  TodayPageResponses,
   TokenData,
   TokenErrors,
   TokenLimitsData,
@@ -1471,12 +1612,21 @@ import type {
   UnlockVaultData,
   UnlockVaultErrors,
   UnlockVaultResponses,
+  UnpinPageData,
+  UnpinPageErrors,
+  UnpinPageResponses,
   UnsealVaultData,
   UnsealVaultErrors,
   UnsealVaultResponses,
+  UpcomingData,
+  UpcomingErrors,
+  UpcomingResponses,
   UpdateAssistantMemoryData,
   UpdateAssistantMemoryErrors,
   UpdateAssistantMemoryResponses,
+  UpdateAutomationData,
+  UpdateAutomationErrors,
+  UpdateAutomationResponses,
   UpdateChatData,
   UpdateChatErrors,
   UpdateChatResponses,
@@ -1527,6 +1677,9 @@ import type {
   UpdateNamespaceCollectionResponses,
   UpdateNamespaceData,
   UpdateNamespaceErrors,
+  UpdateNamespaceIntegrationsData,
+  UpdateNamespaceIntegrationsErrors,
+  UpdateNamespaceIntegrationsResponses,
   UpdateNamespaceMetadataData,
   UpdateNamespaceMetadataErrors,
   UpdateNamespaceMetadataResponses,
@@ -1602,6 +1755,9 @@ import type {
   UsageMetricsData,
   UsageMetricsErrors,
   UsageMetricsResponses,
+  VariableCatalogData,
+  VariableCatalogErrors,
+  VariableCatalogResponses,
   VaultOptionsData,
   VaultOptionsErrors,
   VaultOptionsResponses,
@@ -2235,7 +2391,9 @@ export class Tokens {
    * Create Token
    *
    * A key that acts as you, with your roles (read only, or read and write). It lasts `days` (default
-   * tokens.default_days, at most tokens.max_days; 0 never expires when tokens.never_expire allows), else 400.
+   * tokens.default_days, at most tokens.max_days; 0 never expires when tokens.never_expire allows), else 400. With a
+   * `namespace` you can read, it opens that namespace's own MCP server and chat completions alone (docs/api.md, "Chat
+   * completions for any app"), with your role there; anywhere else it is refused (401).
    */
   public static createToken<ThrowOnError extends boolean = false>(
     options: Options<CreateTokenData, ThrowOnError>,
@@ -3044,7 +3202,7 @@ export class Admin {
   /**
    * Semantic Status
    *
-   * Search by meaning: whether it's set up, its model, and how many recordings are indexed with it.
+   * Search by meaning: whether it's set up, its model, and how many assets are indexed with it.
    */
   public static semanticStatus<ThrowOnError extends boolean = false>(
     options?: Options<SemanticStatusData, ThrowOnError>,
@@ -3058,8 +3216,8 @@ export class Admin {
   /**
    * Index Semantic
    *
-   * Queue the embed step for up to `limit` recordings not yet indexed with the configured model, oldest first (a
-   * recording with a job waiting or running is left for the next time).
+   * Queue the embed step for up to `limit` assets not yet indexed with the configured model, oldest first (an
+   * asset with a job waiting or running is left for the next time).
    */
   public static indexSemantic<ThrowOnError extends boolean = false>(
     options?: Options<IndexSemanticData, ThrowOnError>,
@@ -3586,7 +3744,7 @@ export class Activity {
    *
    * A resource's history, newest first: API requests that changed it, calls made for it (models, embeddings, the
    * decision model, webhooks, web tools) with tokens and cost, runs that ended, its audit log entries, and its graph
-   * changes (an entity's, a namespace's, or what analysing a recording changed; docs/graph-history.md).
+   * changes (an entity's, a namespace's, or what analysing an asset changed; docs/graph-history.md).
    */
   public static resourceHistory<ThrowOnError extends boolean = false>(
     options: Options<ResourceHistoryData, ThrowOnError>,
@@ -3636,6 +3794,518 @@ export class Activity {
   ): RequestResult<TopResourcesResponses, TopResourcesErrors, ThrowOnError> {
     return (options?.client ?? client).get<TopResourcesResponses, TopResourcesErrors, ThrowOnError>({
       url: "/api/v1/activity/top",
+      ...options,
+    });
+  }
+}
+
+export class Activities {
+  /**
+   * List Activities
+   *
+   * What happened in Lens, newest first: new assets and everything else the stream holds, each an Activity Streams
+   * 2.0 activity with a Lens kind. Give `next` as `before` for the page after. Noisy kinds (like sensor readings) are
+   * left out unless named in `kinds`. Text from outside Lens is listed in each activity's `lens.untrusted`. `marks`
+   * has your own marks on the page's activities; `reviewed`, `important` and `hidden` filter by them.
+   */
+  public static listActivities<ThrowOnError extends boolean = false>(
+    options?: Options<ListActivitiesData, ThrowOnError>,
+  ): RequestResult<ListActivitiesResponses, ListActivitiesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListActivitiesResponses, ListActivitiesErrors, ThrowOnError>({
+      url: "/api/v1/activities",
+      ...options,
+    });
+  }
+
+  /**
+   * List Activity Kinds
+   *
+   * Every kind of activity: its label, the source that makes it, its parent and children (a trigger on a kind
+   * matches the kinds under it), a JSON Schema of its activities with each field's title, the fields holding text
+   * from outside Lens, and a sample.
+   */
+  public static listActivityKinds<ThrowOnError extends boolean = false>(
+    options?: Options<ListActivityKindsData, ThrowOnError>,
+  ): RequestResult<ListActivityKindsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListActivityKindsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/activities/kinds",
+      ...options,
+    });
+  }
+
+  /**
+   * Mark Activities
+   *
+   * Mark activities reviewed, important or hidden, or clear those marks, for yourself alone: each mark given true or
+   * false, one left out stays as it is. Up to 500 at once; `unknown` lists the ids there are no activities of, or
+   * that you can't see.
+   */
+  public static markActivities<ThrowOnError extends boolean = false>(
+    options: Options<MarkActivitiesData, ThrowOnError>,
+  ): RequestResult<MarkActivitiesResponses, MarkActivitiesErrors, ThrowOnError> {
+    return (options.client ?? client).post<MarkActivitiesResponses, MarkActivitiesErrors, ThrowOnError>({
+      url: "/api/v1/activities/mark",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Activity
+   *
+   * One activity by its id, like create-recording-7.
+   */
+  public static getActivity<ThrowOnError extends boolean = false>(
+    options: Options<GetActivityData, ThrowOnError>,
+  ): RequestResult<GetActivityResponses, GetActivityErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetActivityResponses, GetActivityErrors, ThrowOnError>({
+      url: "/api/v1/activities/{activity_id}",
+      ...options,
+    });
+  }
+
+  /**
+   * Mark Activity
+   *
+   * Mark one activity reviewed, important or hidden, or clear a mark, for yourself alone: each mark given true or
+   * false, one left out stays as it is. The answer is your marks on it now.
+   */
+  public static markActivity<ThrowOnError extends boolean = false>(
+    options: Options<MarkActivityData, ThrowOnError>,
+  ): RequestResult<MarkActivityResponses, MarkActivityErrors, ThrowOnError> {
+    return (options.client ?? client).post<MarkActivityResponses, MarkActivityErrors, ThrowOnError>({
+      url: "/api/v1/activities/{activity_id}/mark",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Automations {
+  /**
+   * Call Automation Hook
+   *
+   * Set an automation off: what is sent (JSON, a form or text, up to 64 KB) becomes a `webhook.received` activity
+   * for the automation whose trigger this address is. No session: the token in the address is the credential. Signed
+   * the Standard Webhooks way (webhook-id, webhook-timestamp, webhook-signature), the signature must match the webhook's
+   * secret; `webhook-id` or `Idempotency-Key` makes a retried call count once. Answers at once, before the automation
+   * runs.
+   */
+  public static callAutomationHook<ThrowOnError extends boolean = false>(
+    options: Options<CallAutomationHookData, ThrowOnError>,
+  ): RequestResult<CallAutomationHookResponses, CallAutomationHookErrors, ThrowOnError> {
+    return (options.client ?? client).post<CallAutomationHookResponses, CallAutomationHookErrors, ThrowOnError>({
+      url: "/api/v1/automations/hooks/{token}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Automation Vars
+   *
+   * The automation's own saved variables: what its runs keep between them (set_variable), by name.
+   */
+  public static getAutomationVars<ThrowOnError extends boolean = false>(
+    options: Options<GetAutomationVarsData, ThrowOnError>,
+  ): RequestResult<GetAutomationVarsResponses, GetAutomationVarsErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetAutomationVarsResponses, GetAutomationVarsErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/vars",
+      ...options,
+    });
+  }
+
+  /**
+   * Put Automation Vars
+   *
+   * Set or clear the automation's variables: each one named gets its value, null clears it, the others stay.
+   */
+  public static putAutomationVars<ThrowOnError extends boolean = false>(
+    options: Options<PutAutomationVarsData, ThrowOnError>,
+  ): RequestResult<PutAutomationVarsResponses, PutAutomationVarsErrors, ThrowOnError> {
+    return (options.client ?? client).put<PutAutomationVarsResponses, PutAutomationVarsErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/vars",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Namespace Vars
+   *
+   * The namespace's saved variables: what its automations share, read as vars.<name> (an automation's own win).
+   */
+  public static getNamespaceVars<ThrowOnError extends boolean = false>(
+    options: Options<GetNamespaceVarsData, ThrowOnError>,
+  ): RequestResult<GetNamespaceVarsResponses, GetNamespaceVarsErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetNamespaceVarsResponses, GetNamespaceVarsErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/automation-vars",
+      ...options,
+    });
+  }
+
+  /**
+   * Put Namespace Vars
+   *
+   * Set or clear the namespace's variables (editors): each one named gets its value, null clears it.
+   */
+  public static putNamespaceVars<ThrowOnError extends boolean = false>(
+    options: Options<PutNamespaceVarsData, ThrowOnError>,
+  ): RequestResult<PutNamespaceVarsResponses, PutNamespaceVarsErrors, ThrowOnError> {
+    return (options.client ?? client).put<PutNamespaceVarsResponses, PutNamespaceVarsErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/automation-vars",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Variable Catalog
+   *
+   * What a draft automation's templates can read, for the variable picker: the run context, each trigger's activity
+   * fields, the saved variables and, with node, what the nodes before it pass on; with types, labels and examples.
+   */
+  public static variableCatalog<ThrowOnError extends boolean = false>(
+    options: Options<VariableCatalogData, ThrowOnError>,
+  ): RequestResult<VariableCatalogResponses, VariableCatalogErrors, ThrowOnError> {
+    return (options.client ?? client).post<VariableCatalogResponses, VariableCatalogErrors, ThrowOnError>({
+      url: "/api/v1/automations/variables",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Preview Template
+   *
+   * What a template gives for a draft automation before it is saved, against an activity (by id; 404 for one you
+   * can't see) or the trigger kind's sample. A prompt shows outside text marked as the model sees it. A template that
+   * fails answers 200 with error and line; a draft that doesn't check answers 400.
+   */
+  public static previewTemplate<ThrowOnError extends boolean = false>(
+    options: Options<PreviewTemplateData, ThrowOnError>,
+  ): RequestResult<PreviewTemplateResponses, PreviewTemplateErrors, ThrowOnError> {
+    return (options.client ?? client).post<PreviewTemplateResponses, PreviewTemplateErrors, ThrowOnError>({
+      url: "/api/v1/automations/preview",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Automations
+   *
+   * Your automations: every one for an admin, else those that work only in namespaces you can edit. `removed`
+   * lists the deleted ones instead, to restore.
+   */
+  public static listAutomations<ThrowOnError extends boolean = false>(
+    options?: Options<ListAutomationsData, ThrowOnError>,
+  ): RequestResult<ListAutomationsResponses, ListAutomationsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListAutomationsResponses, ListAutomationsErrors, ThrowOnError>({
+      url: "/api/v1/automations",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Automation
+   *
+   * A new automation that acts for you. Its Then is a graph (saved as a workflow of scope event) or a saved
+   * workflow; its namespaces default to each one you can edit. Nodes ask first unless you let one run on its own
+   * (POST /automations/{id}/policy).
+   */
+  public static createAutomation<ThrowOnError extends boolean = false>(
+    options: Options<CreateAutomationData, ThrowOnError>,
+  ): RequestResult<CreateAutomationResponses, CreateAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateAutomationResponses, CreateAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Actions
+   *
+   * What an action node can do: each action's params (a JSON Schema), what it reaches (its effect) and what it
+   * gives back.
+   */
+  public static listActions<ThrowOnError extends boolean = false>(
+    options?: Options<ListActionsData, ThrowOnError>,
+  ): RequestResult<ListActionsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListActionsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/automations/actions",
+      ...options,
+    });
+  }
+
+  /**
+   * Delete Automation
+   *
+   * Delete it: switched off and hidden; POST /automations/{id}/restore undoes it.
+   */
+  public static deleteAutomation<ThrowOnError extends boolean = false>(
+    options: Options<DeleteAutomationData, ThrowOnError>,
+  ): RequestResult<DeleteAutomationResponses, DeleteAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteAutomationResponses, DeleteAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Automation
+   */
+  public static getAutomation<ThrowOnError extends boolean = false>(
+    options: Options<GetAutomationData, ThrowOnError>,
+  ): RequestResult<GetAutomationResponses, GetAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetAutomationResponses, GetAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Automation
+   *
+   * Change what is sent: a new graph is saved as a new version of its workflow; `if: null` drops its If,
+   * `version: null` follows the published version.
+   */
+  public static updateAutomation<ThrowOnError extends boolean = false>(
+    options: Options<UpdateAutomationData, ThrowOnError>,
+  ): RequestResult<UpdateAutomationResponses, UpdateAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateAutomationResponses, UpdateAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Enable Automation
+   *
+   * Switch it on (it reacts to what happens from now on, never to what happened while it was off) or off.
+   */
+  public static enableAutomation<ThrowOnError extends boolean = false>(
+    options: Options<EnableAutomationData, ThrowOnError>,
+  ): RequestResult<EnableAutomationResponses, EnableAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<EnableAutomationResponses, EnableAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/enable",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Restore Automation
+   *
+   * Undo a delete: it comes back switched off.
+   */
+  public static restoreAutomation<ThrowOnError extends boolean = false>(
+    options: Options<RestoreAutomationData, ThrowOnError>,
+  ): RequestResult<RestoreAutomationResponses, RestoreAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<RestoreAutomationResponses, RestoreAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/restore",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Policy
+   *
+   * Whether an action node asks you first (ask) or runs on its own (auto). Only you, signed in to the web app,
+   * let a node run on its own: never an API key, an app or an agent.
+   */
+  public static setPolicy<ThrowOnError extends boolean = false>(
+    options: Options<SetPolicyData, ThrowOnError>,
+  ): RequestResult<SetPolicyResponses, SetPolicyErrors, ThrowOnError> {
+    return (options.client ?? client).post<SetPolicyResponses, SetPolicyErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/policy",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Runs Caused
+   *
+   * What an activity caused: the runs of your automations it started (it was their event, or one of a join's).
+   */
+  public static runsCaused<ThrowOnError extends boolean = false>(
+    options: Options<RunsCausedData, ThrowOnError>,
+  ): RequestResult<RunsCausedResponses, RunsCausedErrors, ThrowOnError> {
+    return (options.client ?? client).get<RunsCausedResponses, RunsCausedErrors, ThrowOnError>({
+      url: "/api/v1/automations/runs",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Run
+   *
+   * One run: what each node did (trace), its log, and what its actions did, asked or wait to do (intents).
+   */
+  public static getRun<ThrowOnError extends boolean = false>(
+    options: Options<GetRunData, ThrowOnError>,
+  ): RequestResult<GetRunResponses, GetRunErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetRunResponses, GetRunErrors, ThrowOnError>({
+      url: "/api/v1/automations/runs/{run}",
+      ...options,
+    });
+  }
+
+  /**
+   * Decide Held Run
+   *
+   * Pick for a run held over a budget: run it now, once, whatever its budgets say, or skip it.
+   */
+  public static decideHeldRun<ThrowOnError extends boolean = false>(
+    options: Options<DecideHeldRunData, ThrowOnError>,
+  ): RequestResult<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError> {
+    return (options.client ?? client).post<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError>({
+      url: "/api/v1/automations/runs/{run}/decide",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Draft Automation
+   *
+   * Describe an automation in words: the model (one call, in the activity ledger, refused over budget) turns the
+   * sentence into a draft with the kinds of activity, the match operators and the actions as its vocabulary. What
+   * doesn't fit is dropped and said; nothing is saved. Try it with POST /automations/test, then save it.
+   */
+  public static draftAutomation<ThrowOnError extends boolean = false>(
+    options: Options<DraftAutomationData, ThrowOnError>,
+  ): RequestResult<DraftAutomationResponses, DraftAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<DraftAutomationResponses, DraftAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/draft",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Test Draft
+   *
+   * Try an automation before you save it: a dry run on an activity, or on a kind's sample (default: its first
+   * trigger's kind). Says whether its If passes and what each action would do; keeps, sends and counts nothing.
+   */
+  public static testDraft<ThrowOnError extends boolean = false>(
+    options: Options<TestDraftData, ThrowOnError>,
+  ): RequestResult<TestDraftResponses, TestDraftErrors, ThrowOnError> {
+    return (options.client ?? client).post<TestDraftResponses, TestDraftErrors, ThrowOnError>({
+      url: "/api/v1/automations/test",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Test Automation
+   *
+   * Try a saved automation: a dry run on an activity, or on a kind's sample (default: its first trigger's kind).
+   * Keeps, sends and counts nothing.
+   */
+  public static testAutomation<ThrowOnError extends boolean = false>(
+    options: Options<TestAutomationData, ThrowOnError>,
+  ): RequestResult<TestAutomationResponses, TestAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<TestAutomationResponses, TestAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/test",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Run Automation
+   *
+   * Run it now: on an activity, else the newest one its triggers listen for, else as started by hand. It acts as it
+   * would on its own: limits and budgets apply, and actions that ask first wait for your pick.
+   */
+  public static runAutomation<ThrowOnError extends boolean = false>(
+    options: Options<RunAutomationData, ThrowOnError>,
+  ): RequestResult<RunAutomationResponses, RunAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<RunAutomationResponses, RunAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/run",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Runs
+   *
+   * Its runs, newest first; `next` pages on.
+   */
+  public static listRuns<ThrowOnError extends boolean = false>(
+    options: Options<ListRunsData, ThrowOnError>,
+  ): RequestResult<ListRunsResponses, ListRunsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListRunsResponses, ListRunsErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/runs",
+      ...options,
+    });
+  }
+
+  /**
+   * Upcoming
+   *
+   * When it runs next, from its schedules and timers (coming soon: empty until schedules are built).
+   */
+  public static upcoming<ThrowOnError extends boolean = false>(
+    options: Options<UpcomingData, ThrowOnError>,
+  ): RequestResult<UpcomingResponses, UpcomingErrors, ThrowOnError> {
+    return (options.client ?? client).get<UpcomingResponses, UpcomingErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/upcoming",
       ...options,
     });
   }
@@ -3925,7 +4595,7 @@ export class Namespaces {
    * List Namespaces
    *
    * The namespaces you have a role in, with their counts, and those you see only some collections of (`partial`,
-   * no `role`): counted over those collections, without the namespace-wide speakers and word cloud.
+   * no `role`): counted over those collections, without the namespace-wide people and word cloud.
    */
   public static listNamespaces<ThrowOnError extends boolean = false>(
     options?: Options<ListNamespacesData, ThrowOnError>,
@@ -4038,8 +4708,8 @@ export class Namespaces {
   /**
    * Get Namespace Stats
    *
-   * The namespace's numbers for the recordings made in a range of days (the Reports overview): how many and how long,
-   * who was heard and for how long, and the same per month. Without a range, every recording.
+   * The namespace's numbers for the assets made in a range of days (the Reports overview): how many and how long,
+   * who was heard and for how long, and the same per month. Without a range, every asset.
    */
   public static getNamespaceStats<ThrowOnError extends boolean = false>(
     options: Options<GetNamespaceStatsData, ThrowOnError>,
@@ -4067,8 +4737,8 @@ export class Namespaces {
   /**
    * Create Ip Group
    *
-   * Add an IP group (owners): visitors from its addresses see all of every recording in the namespace
-   * (everything), or of the recordings chosen on each. Answers with all of the namespace's groups.
+   * Add an IP group (owners): visitors from its addresses see all of every asset in the namespace
+   * (everything), or of the assets chosen on each. Answers with all of the namespace's groups.
    */
   public static createIpGroup<ThrowOnError extends boolean = false>(
     options: Options<CreateIpGroupData, ThrowOnError>,
@@ -4100,7 +4770,7 @@ export class Namespaces {
   /**
    * Update Ip Group
    *
-   * Rename an IP group, change its ranges or what it opens (owners). Choosing recordings again after opening
+   * Rename an IP group, change its ranges or what it opens (owners). Choosing assets again after opening
    * everything brings back the ones chosen before.
    */
   public static updateIpGroup<ThrowOnError extends boolean = false>(
@@ -4231,9 +4901,47 @@ export class Namespaces {
   }
 
   /**
+   * Get Namespace Integrations
+   *
+   * Whether the namespace's own MCP server and chat completions are on, their addresses, and the tools offered.
+   */
+  public static getNamespaceIntegrations<ThrowOnError extends boolean = false>(
+    options: Options<GetNamespaceIntegrationsData, ThrowOnError>,
+  ): RequestResult<GetNamespaceIntegrationsResponses, GetNamespaceIntegrationsErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      GetNamespaceIntegrationsResponses,
+      GetNamespaceIntegrationsErrors,
+      ThrowOnError
+    >({ url: "/api/v1/namespaces/{name}/integrations", ...options });
+  }
+
+  /**
+   * Update Namespace Integrations
+   *
+   * Owners: turn the namespace's own MCP server or chat completions on or off, or pick the read tools the model may
+   * use in its chat completions. Off, each answers 403; apps keep their access to the rest of Lens as before.
+   */
+  public static updateNamespaceIntegrations<ThrowOnError extends boolean = false>(
+    options: Options<UpdateNamespaceIntegrationsData, ThrowOnError>,
+  ): RequestResult<UpdateNamespaceIntegrationsResponses, UpdateNamespaceIntegrationsErrors, ThrowOnError> {
+    return (options.client ?? client).patch<
+      UpdateNamespaceIntegrationsResponses,
+      UpdateNamespaceIntegrationsErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/namespaces/{name}/integrations",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * List Namespace Collections
    *
-   * The namespace's collections, depth first and by name, each with its place in the tree, how many recordings it
+   * The namespace's collections, depth first and by name, each with its place in the tree, how many assets it
    * holds (with and without the collections inside it), and what you may do with it. Someone who sees only some
    * collections of the namespace gets those, starting from the ones they were given.
    */
@@ -4275,7 +4983,7 @@ export class Namespaces {
    * Delete Namespace Collection
    *
    * Delete an empty collection (editors of the namespace, or an admin of it), with the roles given on it: 409 while
-   * it holds recordings or collections, or is the namespace's default. Audited as `collection.delete`.
+   * it holds assets or collections, or is the namespace's default. Audited as `collection.delete`.
    */
   public static deleteNamespaceCollection<ThrowOnError extends boolean = false>(
     options: Options<DeleteNamespaceCollectionData, ThrowOnError>,
@@ -4304,7 +5012,7 @@ export class Namespaces {
    *
    * Rename it, describe it, move it inside another collection of the namespace (`parent`; null: to the top) or make
    * it the default. Editors of the namespace may do all of that; an admin of the collection all but moving it to the
-   * top or making it the default, and only into a collection they're an admin of. The recordings and collections
+   * top or making it the default, and only into a collection they're an admin of. The assets and collections
    * inside it go with it. Audited as `collection.update`.
    */
   public static updateNamespaceCollection<ThrowOnError extends boolean = false>(
@@ -4361,11 +5069,50 @@ export class Namespaces {
   }
 }
 
+export class ChatCompletions {
+  /**
+   * List Completion Models
+   *
+   * OpenAI's model list for the namespace's chat completions: lens (the configured model) and the models people may
+   * pick in Lens's chat.
+   */
+  public static listCompletionModels<ThrowOnError extends boolean = false>(
+    options: Options<ListCompletionModelsData, ThrowOnError>,
+  ): RequestResult<ListCompletionModelsResponses, ListCompletionModelsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListCompletionModelsResponses, ListCompletionModelsErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/models",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Chat Completion
+   *
+   * OpenAI's chat completions, answered from this namespace alone: the last user message is the question, the
+   * messages before it the conversation and system messages the app's instructions. The answer cites what it read as
+   * [n], with a Sources list after it, `citations` (the n-th link for [n]) and `lens.sources`. With `stream`, it comes
+   * as OpenAI's chunks (server-sent events) ending in `data: [DONE]`. Off until an owner of the namespace turns it on;
+   * read-only tokens are enough. 429 when the namespace's budget or Lens's overall one is used up.
+   */
+  public static createChatCompletion<ThrowOnError extends boolean = false>(
+    options: Options<CreateChatCompletionData, ThrowOnError>,
+  ): RequestResult<CreateChatCompletionResponses, CreateChatCompletionErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateChatCompletionResponses, CreateChatCompletionErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/chat/completions",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
 export class Resources {
   /**
    * List Recordings
    *
-   * Recordings you can read, newest first by default: those of the namespaces you have a role in, and of the
+   * Assets you can read, newest first by default: those of the namespaces you have a role in, and of the
    * collections you were given a role on. Filters combine with AND; the ``X-Total-Count`` header says how many match in
    * all, so pages can be counted. Each row has your `role` on it.
    */
@@ -4381,7 +5128,7 @@ export class Resources {
   /**
    * List Tags
    *
-   * The tags on the recordings you can read (or one namespace's), with how many recordings have each.
+   * The tags on the assets you can read (or one namespace's), with how many assets have each.
    */
   public static listTags<ThrowOnError extends boolean = false>(
     options?: Options<ListTagsData, ThrowOnError>,
@@ -4395,7 +5142,7 @@ export class Resources {
   /**
    * Retag Recordings
    *
-   * Add and remove tags on several recordings at once (editors of each one's namespace).
+   * Add and remove tags on several assets at once (editors of each one's namespace).
    */
   public static retagRecordings<ThrowOnError extends boolean = false>(
     options: Options<RetagRecordingsData, ThrowOnError>,
@@ -4413,7 +5160,7 @@ export class Resources {
   /**
    * List Origins
    *
-   * Where the recordings you can read (or one namespace's) came from, with how many came from each: connected sources
+   * Where the assets you can read (or one namespace's) came from, with how many came from each: connected sources
    * by name, uploads, pasted text, IIIF imports, the archive's own folders and other imported files.
    */
   public static listOrigins<ThrowOnError extends boolean = false>(
@@ -4428,7 +5175,7 @@ export class Resources {
   /**
    * List Languages
    *
-   * The languages of the recordings you can read (or one namespace's), with how many are in each; null: not known.
+   * The languages of the assets you can read (or one namespace's), with how many are in each; null: not known.
    */
   public static listLanguages<ThrowOnError extends boolean = false>(
     options?: Options<ListLanguagesData, ThrowOnError>,
@@ -4442,7 +5189,7 @@ export class Resources {
   /**
    * List Objects
    *
-   * The kinds of object seen in the recordings you can read (or one namespace's), with how many recordings each is
+   * The kinds of object seen in the assets you can read (or one namespace's), with how many assets each is
    * in, the most first (the objects step finds them).
    */
   public static listObjects<ThrowOnError extends boolean = false>(
@@ -4457,7 +5204,7 @@ export class Resources {
   /**
    * Nsfw Counts
    *
-   * NSFW classification in the recordings you can read (or one namespace's): whether it's on in any of their
+   * NSFW classification in the assets you can read (or one namespace's): whether it's on in any of their
    * namespaces, how many are flagged, and how many of those the Library leaves out (docs/nsfw.md).
    */
   public static nsfwCounts<ThrowOnError extends boolean = false>(
@@ -4472,8 +5219,8 @@ export class Resources {
   /**
    * Place Recordings
    *
-   * Move recordings into a collection of their namespace: editors of each recording (through the namespace or the
-   * collection it's in) who are editors of the collection too. Recordings of another namespace are a 400: move them
+   * Move assets into a collection of their namespace: editors of each asset (through the namespace or the
+   * collection it's in) who are editors of the collection too. Assets of another namespace are a 400: move them
    * to that namespace first. Their IIIF Manifests change (partOf), so harvesters hear an Update. Audited as
    * `recording.collection`.
    */
@@ -4493,7 +5240,7 @@ export class Resources {
   /**
    * Delete Recording
    *
-   * Delete a recording (owners). Everything Lens made from it goes: its transcript and analysis, frames, reports and
+   * Delete an asset (owners). Everything Lens made from it goes: its text and analysis, frames, reports and
    * outputs, shares, notes, permissions and requests for access. The media file stays where it is, and scans and watched
    * folders don't import it again; importing it on purpose brings it back. Its waiting jobs are cancelled; while a job
    * is running on it, this answers 409. Audited as `recording.delete`.
@@ -4522,7 +5269,7 @@ export class Resources {
   /**
    * Update Recording
    *
-   * Rename a recording or replace its tags (editors). A renamed recording's report is rebuilt with the new title.
+   * Rename an asset or replace its tags (editors). A renamed asset's report is rebuilt with the new title.
    */
   public static updateRecording<ThrowOnError extends boolean = false>(
     options: Options<UpdateRecordingData, ThrowOnError>,
@@ -4559,12 +5306,12 @@ export class Resources {
   /**
    * Move Recording
    *
-   * Move a recording to another namespace (owners of its namespace, editors of the new one).
+   * Move an asset to another namespace (owners of its namespace, editors of the new one).
    *
-   * It keeps its transcript, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);
-   * its IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and
-   * faces are matched by name in the new namespace (`rediarize`: identified again from their voices, audio only), and
-   * analysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. Its
+   * It keeps its text, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);
+   * its IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). People
+   * (voices and faces) are matched by name in the new namespace (`rediarize`: voices identified again, audio only),
+   * and analysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. Its
    * files are kept under the new namespace's key. 409 when the new namespace has the same file or a job is running on
    * it; 423 when either namespace is a vault nobody has unlocked. Audited as `recording.move`.
    */
@@ -4584,7 +5331,7 @@ export class Resources {
   /**
    * Get Recording Access
    *
-   * Who may see the recording: public, restricted or private, the parts a public one opens, featured.
+   * Who may see the asset: public, restricted or private, the parts a public one opens, featured.
    */
   public static getRecordingAccess<ThrowOnError extends boolean = false>(
     options: Options<GetRecordingAccessData, ThrowOnError>,
@@ -4598,10 +5345,10 @@ export class Resources {
   /**
    * Update Recording Access
    *
-   * Make a recording public, restricted or private, choose what a public one opens, feature it (owners).
+   * Make an asset public, restricted or private, choose what a public one opens, feature it (owners).
    *
    * access or open set to null follow the namespace's default again. The change is kept in the metadata history, and
-   * IIIF harvesters hear when the recording is published, changed or withdrawn.
+   * IIIF harvesters hear when the asset is published, changed or withdrawn.
    */
   public static updateRecordingAccess<ThrowOnError extends boolean = false>(
     options: Options<UpdateRecordingAccessData, ThrowOnError>,
@@ -4619,7 +5366,7 @@ export class Resources {
   /**
    * List Recording Permissions
    *
-   * The people given permission on the recording (owners), newest first.
+   * The people given permission on the asset (owners), newest first.
    */
   public static listRecordingPermissions<ThrowOnError extends boolean = false>(
     options: Options<ListRecordingPermissionsData, ThrowOnError>,
@@ -4634,7 +5381,7 @@ export class Resources {
   /**
    * Add Recording Permission
    *
-   * Give someone with an account permission on the recording (owners): they see all of it on the pages visitors see
+   * Give someone with an account permission on the asset (owners): they see all of it on the pages visitors see
    * and in IIIF, whatever its access; members of its namespace already do. Answers with everyone who has permission.
    */
   public static addRecordingPermission<ThrowOnError extends boolean = false>(
@@ -4655,7 +5402,7 @@ export class Resources {
   /**
    * Remove Recording Permission
    *
-   * Take someone's permission on the recording away (owners). Answers with everyone who still has it.
+   * Take someone's permission on the asset away (owners). Answers with everyone who still has it.
    */
   public static removeRecordingPermission<ThrowOnError extends boolean = false>(
     options: Options<RemoveRecordingPermissionData, ThrowOnError>,
@@ -4670,7 +5417,7 @@ export class Resources {
   /**
    * List Recording Ip Groups
    *
-   * The namespace's IP groups (owners), each with whether visitors from its addresses see all of this recording.
+   * The namespace's IP groups (owners), each with whether visitors from its addresses see all of this asset.
    */
   public static listRecordingIpGroups<ThrowOnError extends boolean = false>(
     options: Options<ListRecordingIpGroupsData, ThrowOnError>,
@@ -4684,7 +5431,7 @@ export class Resources {
   /**
    * Close Recording To Ip Group
    *
-   * Close the recording to an IP group again (owners).
+   * Close the asset to an IP group again (owners).
    */
   public static closeRecordingToIpGroup<ThrowOnError extends boolean = false>(
     options: Options<CloseRecordingToIpGroupData, ThrowOnError>,
@@ -4699,7 +5446,7 @@ export class Resources {
   /**
    * Open Recording To Ip Group
    *
-   * Open the recording to an IP group that opens chosen recordings (owners): visitors from its addresses see all of
+   * Open the asset to an IP group that opens chosen assets (owners): visitors from its addresses see all of
    * it. Answers with the namespace's groups.
    */
   public static openRecordingToIpGroup<ThrowOnError extends boolean = false>(
@@ -4714,7 +5461,7 @@ export class Resources {
   /**
    * List Access Requests
    *
-   * Requests for access to the recording (owners), newest first; pending ones wait for an answer.
+   * Requests for access to the asset (owners), newest first; pending ones wait for an answer.
    */
   public static listAccessRequests<ThrowOnError extends boolean = false>(
     options: Options<ListAccessRequestsData, ThrowOnError>,
@@ -4728,7 +5475,7 @@ export class Resources {
   /**
    * Approve Access Request
    *
-   * Approve a request (owners): the person gets permission on the recording.
+   * Approve a request (owners): the person gets permission on the asset.
    */
   public static approveAccessRequest<ThrowOnError extends boolean = false>(
     options: Options<ApproveAccessRequestData, ThrowOnError>,
@@ -4770,7 +5517,7 @@ export class Resources {
   /**
    * Get Embed Link
    *
-   * A signed link to the embeddable player, for people who can see the recording (it expires; share links don't).
+   * A signed link to the embeddable player, for people who can see the asset (it expires; share links don't).
    */
   public static getEmbedLink<ThrowOnError extends boolean = false>(
     options: Options<GetEmbedLinkData, ThrowOnError>,
@@ -4873,7 +5620,7 @@ export class Resources {
   /**
    * List Shares
    *
-   * The recording's share links, newest first: whether each still works, how often it was played, and the sites
+   * The asset's share links, newest first: whether each still works, how often it was played, and the sites
    * whose pages embed it.
    */
   public static listShares<ThrowOnError extends boolean = false>(
@@ -4888,7 +5635,7 @@ export class Resources {
   /**
    * Export Recording
    *
-   * The transcript as txt, md, srt, vtt or json (a download).
+   * The text (transcript, for audio and video) as txt, md, srt, vtt or json (a download).
    */
   public static exportRecording<ThrowOnError extends boolean = false>(
     options: Options<ExportRecordingData, ThrowOnError>,
@@ -4921,7 +5668,7 @@ export class Resources {
   /**
    * Edit Segment
    *
-   * Correct a transcript line (text and/or speaker); the recording is re-analysed afterwards.
+   * Correct a line of the text (its words and/or person); the asset is re-analysed afterwards.
    */
   public static editSegment<ThrowOnError extends boolean = false>(
     options: Options<EditSegmentData, ThrowOnError>,
@@ -4939,10 +5686,10 @@ export class Resources {
   /**
    * Split Segment
    *
-   * Split a transcript line in two (editors): at `at`, a position in its text, moved back to the start of the word
-   * it's in. The second part starts at `t` (ms) when given, else when its first word was said (or as far into the
-   * line's time as `at` is into its text); it keeps the line's speaker unless `speaker` is sent. The lines after it
-   * move down one, with their corrections. Kept in the edit history; the recording is re-analysed afterwards.
+   * Split a line of the text in two (editors): at `at`, a position in its text, moved back to the start of the word
+   * it's in. The second part starts at `t` (ms) when given, else when its first word starts (or as far into the
+   * line's time as `at` is into its text); it keeps the line's person unless `speaker` is sent. The lines after it
+   * move down one, with their corrections. Kept in the edit history; the asset is re-analysed afterwards.
    */
   public static splitSegment<ThrowOnError extends boolean = false>(
     options: Options<SplitSegmentData, ThrowOnError>,
@@ -4960,9 +5707,9 @@ export class Resources {
   /**
    * Merge Segments
    *
-   * Merge a transcript line with the next one (editors): one line with both texts, from the first's start to the
-   * second's end, with the first's speaker. The lines after it move up one, with their corrections. Kept in the edit
-   * history (with where to split it again); the recording is re-analysed afterwards.
+   * Merge a line of the text with the next one (editors): one line with both texts, from the first's start to the
+   * second's end, with the first's person. The lines after it move up one, with their corrections. Kept in the edit
+   * history (with where to split it again); the asset is re-analysed afterwards.
    */
   public static mergeSegments<ThrowOnError extends boolean = false>(
     options: Options<MergeSegmentsData, ThrowOnError>,
@@ -4976,7 +5723,7 @@ export class Resources {
   /**
    * List Segment Edits
    *
-   * Corrections, splits and merges of the transcript, the latest first.
+   * Corrections, splits and merges of the text, the latest first.
    */
   public static listSegmentEdits<ThrowOnError extends boolean = false>(
     options: Options<ListSegmentEditsData, ThrowOnError>,
@@ -4990,7 +5737,7 @@ export class Resources {
   /**
    * List Outputs
    *
-   * Results of LLM pipeline steps for this recording.
+   * Results of LLM pipeline steps for this asset.
    */
   public static listOutputs<ThrowOnError extends boolean = false>(
     options: Options<ListOutputsData, ThrowOnError>,
@@ -5006,7 +5753,7 @@ export class Notes {
   /**
    * List Notes
    *
-   * Your notes on the recording and the ones shared on it: notes about the whole recording first, then by moment.
+   * Your notes on the asset and the ones shared on it: notes about the whole asset first, then by moment.
    */
   public static listNotes<ThrowOnError extends boolean = false>(
     options: Options<ListNotesData, ThrowOnError>,
@@ -5020,9 +5767,9 @@ export class Notes {
   /**
    * Create Note
    *
-   * Write a note about a moment (`t0`–`t1`, with the `quote` picked in the transcript) or about the whole recording.
-   * Anyone who can read the recording can; only you see it unless you share it with everyone who can read the
-   * recording, which needs editor access. Up to 500 each on a recording. Sharing is audited (`note.share`).
+   * Write a note about a moment (`t0`–`t1`, with the `quote` picked in the text) or about the whole asset.
+   * Anyone who can read the asset can; only you see it unless you share it with everyone who can read the
+   * asset, which needs editor access. Up to 500 each on an asset. Sharing is audited (`note.share`).
    */
   public static createNote<ThrowOnError extends boolean = false>(
     options: Options<CreateNoteData, ThrowOnError>,
@@ -5040,7 +5787,7 @@ export class Notes {
   /**
    * Delete Note
    *
-   * Delete it: its writer, or for a shared note an owner of the recording (of its namespace, or an admin of its
+   * Delete it: its writer, or for a shared note an owner of the asset (of its namespace, or an admin of its
    * collection). Deleting a shared note is audited (`note.delete`).
    */
   public static deleteNote<ThrowOnError extends boolean = false>(
@@ -5105,10 +5852,29 @@ export class Notes {
   }
 
   /**
+   * Today Page
+   *
+   * The namespace's note for the day (`date`, your today), made the first time it's asked for: titled with the
+   * date, inside the "Daily notes" note. Needs editor access.
+   */
+  public static todayPage<ThrowOnError extends boolean = false>(
+    options: Options<TodayPageData, ThrowOnError>,
+  ): RequestResult<TodayPageResponses, TodayPageErrors, ThrowOnError> {
+    return (options.client ?? client).post<TodayPageResponses, TodayPageErrors, ThrowOnError>({
+      url: "/api/v1/notes/today",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Link Targets
    *
-   * What a mention can link to, best matches first: `#` for topics; `@` for pages, recordings, people and other
-   * entities, collections and speakers.
+   * What a mention can link to, best matches first: `#` for topics; `@` for pages, assets, named people and other
+   * entities, collections and people.
    */
   public static linkTargets<ThrowOnError extends boolean = false>(
     options: Options<LinkTargetsData, ThrowOnError>,
@@ -5135,9 +5901,51 @@ export class Notes {
   }
 
   /**
+   * Deleted Pages
+   *
+   * Pages deleted in the last 30 days, the latest first: each can be put back until then.
+   */
+  public static deletedPages<ThrowOnError extends boolean = false>(
+    options?: Options<DeletedPagesData, ThrowOnError>,
+  ): RequestResult<DeletedPagesResponses, DeletedPagesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<DeletedPagesResponses, DeletedPagesErrors, ThrowOnError>({
+      url: "/api/v1/notes/deleted",
+      ...options,
+    });
+  }
+
+  /**
+   * Restore Deleted
+   *
+   * Put a deleted page back where it was, with its links, files and history (Undo after Delete). Editors.
+   */
+  public static restoreDeleted<ThrowOnError extends boolean = false>(
+    options: Options<RestoreDeletedData, ThrowOnError>,
+  ): RequestResult<RestoreDeletedResponses, RestoreDeletedErrors, ThrowOnError> {
+    return (options.client ?? client).post<RestoreDeletedResponses, RestoreDeletedErrors, ThrowOnError>({
+      url: "/api/v1/notes/deleted/{pid}/restore",
+      ...options,
+    });
+  }
+
+  /**
+   * Purge Deleted
+   *
+   * Delete a deleted page for good now, with its files and history, rather than after 30 days. Editors.
+   */
+  public static purgeDeleted<ThrowOnError extends boolean = false>(
+    options: Options<PurgeDeletedData, ThrowOnError>,
+  ): RequestResult<PurgeDeletedResponses, PurgeDeletedErrors, ThrowOnError> {
+    return (options.client ?? client).delete<PurgeDeletedResponses, PurgeDeletedErrors, ThrowOnError>({
+      url: "/api/v1/notes/deleted/{pid}",
+      ...options,
+    });
+  }
+
+  /**
    * Page About
    *
-   * The page of a recording, entity, topic, collection or speaker: its page, or a draft while nobody has written one.
+   * The page of an asset, entity, topic, collection or person: its page, or a draft while nobody has written one.
    */
   public static pageAbout<ThrowOnError extends boolean = false>(
     options: Options<PageAboutData, ThrowOnError>,
@@ -5151,7 +5959,8 @@ export class Notes {
   /**
    * Delete Page
    *
-   * Delete a page; the pages inside it move up a level. Needs editor access.
+   * Delete a page; the pages inside it move up a level. It can be put back from recently deleted for
+   * `TRASH_DAYS` (30) days (`POST /notes/deleted/{pid}/restore`). Needs editor access.
    */
   public static deletePage<ThrowOnError extends boolean = false>(
     options: Options<DeletePageData, ThrowOnError>,
@@ -5282,6 +6091,35 @@ export class Notes {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Unpin Page
+   *
+   * Unpin the page for you.
+   */
+  public static unpinPage<ThrowOnError extends boolean = false>(
+    options: Options<UnpinPageData, ThrowOnError>,
+  ): RequestResult<UnpinPageResponses, UnpinPageErrors, ThrowOnError> {
+    return (options.client ?? client).delete<UnpinPageResponses, UnpinPageErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/pin",
+      ...options,
+    });
+  }
+
+  /**
+   * Pin Page
+   *
+   * Pin the page for you: it shows first on your Notes page and in your tree. Pins are each person's own; anyone
+   * who can read the page can pin it.
+   */
+  public static pinPage<ThrowOnError extends boolean = false>(
+    options: Options<PinPageData, ThrowOnError>,
+  ): RequestResult<PinPageResponses, PinPageErrors, ThrowOnError> {
+    return (options.client ?? client).put<PinPageResponses, PinPageErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/pin",
+      ...options,
     });
   }
 
@@ -5962,9 +6800,9 @@ export class Uploads {
    * Start Upload
    *
    * Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of
-   * a transcript-only recording (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the
+   * a text-only asset (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the
    * namespace's. Then send the file with PUT /uploads/{uid}.
-   * 400 for a type not in uploads.extensions, 409 when the recording has audio already, 413 over uploads.max_mb, 507
+   * 400 for a type not in uploads.extensions, 409 when the asset has audio already, 413 over uploads.max_mb, 507
    * when the server's disk can't hold it.
    */
   public static startUpload<ThrowOnError extends boolean = false>(
@@ -5983,7 +6821,7 @@ export class Uploads {
   /**
    * Cancel Upload
    *
-   * Stop an upload and throw away what has arrived. A finished one is only forgotten: its recording stays.
+   * Stop an upload and throw away what has arrived. A finished one is only forgotten: its asset stays.
    */
   public static cancelUpload<ThrowOnError extends boolean = false>(
     options: Options<CancelUploadData, ThrowOnError>,
@@ -5997,7 +6835,7 @@ export class Uploads {
   /**
    * Get Upload
    *
-   * How much of an upload has arrived (`offset`), or the recording it became.
+   * How much of an upload has arrived (`offset`), or the asset it became.
    */
   public static getUpload<ThrowOnError extends boolean = false>(
     options: Options<GetUploadData, ThrowOnError>,
@@ -6014,7 +6852,7 @@ export class Uploads {
    * The next chunk of the file as the raw request body (application/octet-stream), starting at `offset`; it streams
    * to disk. A chunk that breaks off is dropped whole. 409 when `offset` isn't where the upload has got to (GET it and
    * send from its `offset`), or while another chunk of it is arriving. The chunk with the last byte returns the upload
-   * done, with its recording and job (for `attach`, the job that runs the steps that need media); audited as `upload`.
+   * done, with its asset and job (for `attach`, the job that runs the steps that need media); audited as `upload`.
    */
   public static sendChunk<ThrowOnError extends boolean = false>(
     options: Options<SendChunkData, ThrowOnError>,
@@ -6035,10 +6873,11 @@ export class Search {
   /**
    * Search Transcripts
    *
-   * Moments where the words are said (or shown on screen in a video, or written in a resource's supplementary
-   * transcripts, captions, translations and indexes, or the kinds of object seen in videos, documents and images),
-   * best first, in the namespaces you can read and the collections you were given a role on. A speaker or emotion
-   * filter keeps to what was said. By meaning, a moment is a passage about what was asked, though its words may differ.
+   * Moments where the words appear (said in audio or video, shown on screen in a video, written in a document or in
+   * a resource's supplementary transcripts, captions, translations and indexes, or the kinds of object seen in videos,
+   * documents and images),
+   * best first, in the namespaces you can read and the collections you were given a role on. A person or emotion
+   * filter keeps to their lines. By meaning, a moment is a passage about what was asked, though its words may differ.
    */
   public static searchTranscripts<ThrowOnError extends boolean = false>(
     options: Options<SearchTranscriptsData, ThrowOnError>,
@@ -6068,10 +6907,10 @@ export class Search {
   /**
    * Find Similar
    *
-   * The resources most like a text, a resource, a topic or an entity (give one), best first, in the namespaces you
+   * The assets most like a text, an asset, a topic or an entity (give one), best first, in the namespaces you
    * can read and the collections you were given a role on, each with why: its closest passages by meaning (when
    * search by meaning is set up), the lines with the key words it shares, and the topics and entities in common.
-   * Each cited moment can be opened. A resource is never listed as like itself.
+   * Each cited moment can be opened. An asset is never listed as like itself.
    */
   public static findSimilar<ThrowOnError extends boolean = false>(
     options?: Options<FindSimilarData, ThrowOnError>,
@@ -6085,7 +6924,7 @@ export class Search {
   /**
    * Suggest Terms
    *
-   * Whole words said in the namespaces you can read (or `ns`) that start with `prefix`, the most said first. Search
+   * Whole words found in the namespaces you can read (or `ns`) that start with `prefix`, the most frequent first. Search
    * has no prefix search, so the web app offers these when someone types interp*. Words are counted per namespace, so
    * collections you were given a role on don't add any.
    */
@@ -6101,7 +6940,7 @@ export class Search {
   /**
    * Get Graph
    *
-   * Speakers and entities as a graph, over the namespaces you can read (isolated ones only in their own scope).
+   * People and entities as a graph, over the namespaces you can read (isolated ones only in their own scope).
    * `as_of` shows the entities as they were at an earlier version (docs/graph-history.md); mentions are today's.
    */
   public static getGraph<ThrowOnError extends boolean = false>(
@@ -6128,11 +6967,11 @@ export class Search {
   /**
    * Find Resources
    *
-   * Resources you can read that match every filter given: the people seen in them (faces) and heard (speakers), the
+   * Assets you can read that match every filter given: the people seen in them (faces) and heard (speakers), the
    * entities they mention, the topics they're about, their kind and content type, when they were made, their tags,
    * language, objects seen, emotions heard, length, status, collection and origin, and words said or written in them.
-   * Faces, speakers, entities and topics can be named instead of numbered; `resolved` says what each name matched, and
-   * a name that matches nothing is a 400 naming the closest ones. Each resource says `why` it matched, with up to three
+   * Faces, people heard, entities and topics can be named instead of numbered; `resolved` says what each name matched, and
+   * a name that matches nothing is a 400 naming the closest ones. Each asset says `why` it matched, with up to three
    * moments per reason to cite (a time, or a page). With `text`, the best matching come first.
    */
   public static findResources<ThrowOnError extends boolean = false>(
@@ -6167,7 +7006,7 @@ export class Searches {
   /**
    * Create Search
    *
-   * Save a search (its words, namespace, speaker, emotion, recording and object) under a name unique among yours. Sharing it
+   * Save a search (its words, namespace, person, emotion, asset and object) under a name unique among yours. Sharing it
    * with its namespace needs editor access there.
    */
   public static createSearch<ThrowOnError extends boolean = false>(
@@ -6221,8 +7060,8 @@ export class Speakers {
   /**
    * List Speakers
    *
-   * A namespace's speakers, its recent merges (undoable; who merged and how many recordings moved), links to speakers
-   * in other namespaces, and voices in other shared namespaces that are likely the same person (`cross`).
+   * A namespace's people, its recent merges (undoable; who merged and how many assets moved), links to people
+   * in other namespaces, and people in other shared namespaces who are likely the same person (`cross`).
    */
   public static listSpeakers<ThrowOnError extends boolean = false>(
     options: Options<ListSpeakersData, ThrowOnError>,
@@ -6264,7 +7103,7 @@ export class Speakers {
   /**
    * Merge Speaker
    *
-   * Fold this speaker into ``into`` (same namespace). Undo with POST /merges/{merge_id}/undo.
+   * Fold this person into ``into`` (same namespace). Undo with POST /merges/{merge_id}/undo.
    */
   public static mergeSpeaker<ThrowOnError extends boolean = false>(
     options: Options<MergeSpeakerData, ThrowOnError>,
@@ -6294,7 +7133,7 @@ export class Speakers {
   /**
    * Link Speaker
    *
-   * Mark this speaker and one in another namespace as the same person (you need editor access to both).
+   * Mark this person and one in another namespace as the same person (you need editor access to both).
    */
   public static linkSpeaker<ThrowOnError extends boolean = false>(
     options: Options<LinkSpeakerData, ThrowOnError>,
@@ -6353,8 +7192,8 @@ export class Entities {
    * List Entities
    *
    * Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones.
-   * With `recording`, those said in it, also for someone who sees it through a role on its collection (then counted
-   * over the recordings they see). With `collection`, those said in its recordings and those of the collections inside
+   * With `recording`, those mentioned in it, also for someone who sees it through a role on its collection (then counted
+   * over the assets they see). With `collection`, those mentioned in its assets and those of the collections inside
    * it (counted over them).
    */
   public static listEntities<ThrowOnError extends boolean = false>(
@@ -6511,7 +7350,7 @@ export class Entities {
   /**
    * Update Entity
    *
-   * Describe the entity (what it is, in your words), say how else it's said, or put it on (or off) the fixed list.
+   * Describe the entity (what it is, in your words), say how else it's called, or put it on (or off) the fixed list.
    */
   public static updateEntity<ThrowOnError extends boolean = false>(
     options: Options<UpdateEntityData, ThrowOnError>,
@@ -6523,6 +7362,21 @@ export class Entities {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Find Wiki Page
+   *
+   * The page /wiki/<ns>/<address> names: the entity called that (spaces as underscores, any case), or the one a name
+   * it had before a rename or a merge now belongs to. When `canonical` is false, show `path` instead.
+   */
+  public static findWikiPage<ThrowOnError extends boolean = false>(
+    options: Options<FindWikiPageData, ThrowOnError>,
+  ): RequestResult<FindWikiPageResponses, FindWikiPageErrors, ThrowOnError> {
+    return (options.client ?? client).get<FindWikiPageResponses, FindWikiPageErrors, ThrowOnError>({
+      url: "/api/v1/wiki/{ns}/{address}",
+      ...options,
     });
   }
 
@@ -6557,7 +7411,7 @@ export class Entities {
   /**
    * Rename Entity
    *
-   * Rename; with `correct`, also fix the transcript lines (re-analysing the recordings). `dry_run` previews the lines.
+   * Rename; with `correct`, also fix the lines of text (re-analysing the assets). `dry_run` previews the lines.
    */
   public static renameEntity<ThrowOnError extends boolean = false>(
     options: Options<RenameEntityData, ThrowOnError>,
@@ -6657,7 +7511,7 @@ export class Entities {
   /**
    * Explore Graph
    *
-   * The neighbourhood of a node (`e<id>` for an entity, a speaker node id...). scope: `all` (shared graphs) or `ns:<name>`.
+   * The neighbourhood of a node (`e<id>` for an entity, `s<id>` for a person...). scope: `all` (shared graphs) or `ns:<name>`.
    */
   public static exploreGraph<ThrowOnError extends boolean = false>(
     options: Options<ExploreGraphData, ThrowOnError>,
@@ -6731,7 +7585,7 @@ export class Entities {
   /**
    * Apply Entity Setup
    *
-   * Analyse the recordings of the namespace (or of a collection and those inside it) again, so their entities follow
+   * Analyse the assets of the namespace (or of a collection and those inside it) again, so their entities follow
    * the setup as it is now.
    */
   public static applyEntitySetup<ThrowOnError extends boolean = false>(
@@ -6815,7 +7669,7 @@ export class Topics {
   /**
    * Delete Topic
    *
-   * Delete it: its narrower topics move up, recordings stop being about it, and an entity it was made from shows
+   * Delete it: its narrower topics move up, assets stop being about it, and an entity it was made from shows
    * again. `undo` takes it back (POST /topics/changes/{undo}/undo).
    */
   public static deleteTopic<ThrowOnError extends boolean = false>(
@@ -6830,7 +7684,7 @@ export class Topics {
   /**
    * Get Topic
    *
-   * A topic with its broader, narrower and related topics and the recordings about it.
+   * A topic with its broader, narrower and related topics and the assets about it.
    */
   public static getTopic<ThrowOnError extends boolean = false>(
     options: Options<GetTopicData, ThrowOnError>,
@@ -6880,8 +7734,8 @@ export class Topics {
   /**
    * Topic Candidates
    *
-   * What the namespace's summaries say recordings are about that no topic covers yet, the most recordings first.
-   * Adding one as a topic suggests it for those recordings; skipping one stops it being offered.
+   * What the namespace's summaries say assets are about that no topic covers yet, the most assets first.
+   * Adding one as a topic suggests it for those assets; skipping one stops it being offered.
    */
   public static topicCandidates<ThrowOnError extends boolean = false>(
     options: Options<TopicCandidatesData, ThrowOnError>,
@@ -6913,7 +7767,7 @@ export class Topics {
   /**
    * Merge Topics
    *
-   * Fold topics into one: their labels become its other labels and their recordings are about it. `undo` takes it
+   * Fold topics into one: their labels become its other labels and their assets are about it. `undo` takes it
    * back (POST /topics/changes/{undo}/undo).
    */
   public static mergeTopics<ThrowOnError extends boolean = false>(
@@ -6946,7 +7800,7 @@ export class Topics {
   /**
    * Undo Topic Change
    *
-   * Take back a merge or a delete: the topics come back with their labels, recordings and pages. What changed
+   * Take back a merge or a delete: the topics come back with their labels, assets and pages. What changed
    * since stays. Refused (400) when another topic has taken one of their labels meanwhile.
    */
   public static undoTopicChange<ThrowOnError extends boolean = false>(
@@ -6961,7 +7815,7 @@ export class Topics {
   /**
    * Tag Recordings
    *
-   * Say recordings of the topic's namespace are about it (accepting suggestions too), or with `remove` that they aren't.
+   * Say assets of the topic's namespace are about it (accepting suggestions too), or with `remove` that they aren't.
    */
   public static tagRecordings<ThrowOnError extends boolean = false>(
     options: Options<TagRecordingsData, ThrowOnError>,
@@ -6979,7 +7833,7 @@ export class Topics {
   /**
    * Recording Topics
    *
-   * The topics a recording is about, and those suggested for it.
+   * The topics an asset is about, and those suggested for it.
    */
   public static recordingTopics<ThrowOnError extends boolean = false>(
     options: Options<RecordingTopicsData, ThrowOnError>,
@@ -6993,7 +7847,7 @@ export class Topics {
   /**
    * Entity To Topic
    *
-   * Make a topic-like entity (type TERM) a topic: its names become the topic's labels and the recordings that
+   * Make a topic-like entity (type TERM) a topic: its names become the topic's labels and the assets that
    * mention it are about the topic. The entity is hidden; deleting the topic shows it again.
    */
   public static entityToTopic<ThrowOnError extends boolean = false>(
@@ -7141,7 +7995,7 @@ export class Graph {
    * Graph As Of
    *
    * The graph as it was at a version: entities (with their other names), cross-namespace links and the pairs someone
-   * said are different. Mentions aren't versioned: counts elsewhere are today's.
+   * marked as different. Mentions aren't versioned: counts elsewhere are today's.
    */
   public static graphAsOf<ThrowOnError extends boolean = false>(
     options: Options<GraphAsOfData, ThrowOnError>,
@@ -7342,7 +8196,7 @@ export class Metadata {
   /**
    * Revert Metadata Edit
    *
-   * Put a recording's (editors) or namespace's (owners) metadata back to how it was before this edit.
+   * Put an asset's (editors) or namespace's (owners) metadata back to how it was before this edit.
    */
   public static revertMetadataEdit<ThrowOnError extends boolean = false>(
     options: Options<RevertMetadataEditData, ThrowOnError>,
@@ -7357,7 +8211,7 @@ export class Metadata {
    * Get Namespace Metadata
    *
    * The namespace's description and metadata profile, for anyone who sees some of it (the profile says how its
-   * recordings are catalogued).
+   * assets are catalogued).
    */
   public static getNamespaceMetadata<ThrowOnError extends boolean = false>(
     options: Options<GetNamespaceMetadataData, ThrowOnError>,
@@ -7393,7 +8247,7 @@ export class Metadata {
   /**
    * Bulk Update Metadata
    *
-   * Set or clear fields on many recordings. `dry_run` (the default) reports what would change.
+   * Set or clear fields on many assets. `dry_run` (the default) reports what would change.
    */
   public static bulkUpdateMetadata<ThrowOnError extends boolean = false>(
     options: Options<BulkUpdateMetadataData, ThrowOnError>,
@@ -7413,7 +8267,7 @@ export class Rdf {
   /**
    * Get Recording Rdf
    *
-   * The recording described with Dublin Core, with the entities it mentions.
+   * The asset described with Dublin Core, with the entities it mentions.
    */
   public static getRecordingRdf<ThrowOnError extends boolean = false>(
     options: Options<GetRecordingRdfData, ThrowOnError>,
@@ -7427,7 +8281,7 @@ export class Rdf {
   /**
    * Get Namespace Rdf
    *
-   * Everything in the namespace as one graph: itself, its collections, recordings, entities and speakers.
+   * Everything in the namespace as one graph: itself, its collections, assets, entities and people.
    */
   public static getNamespaceRdf<ThrowOnError extends boolean = false>(
     options: Options<GetNamespaceRdfData, ThrowOnError>,
@@ -7441,8 +8295,8 @@ export class Rdf {
   /**
    * Import Namespace Rdf
    *
-   * Read Dublin Core descriptions into the namespace's recordings (matched by their URI or an identifier). Each change
-   * is a metadata edit, kept in the recording's history. With dry_run (the default) nothing changes.
+   * Read Dublin Core descriptions into the namespace's assets (matched by their URI or an identifier). Each change
+   * is a metadata edit, kept in the asset's history. With dry_run (the default) nothing changes.
    */
   public static importNamespaceRdf<ThrowOnError extends boolean = false>(
     options: Options<ImportNamespaceRdfData, ThrowOnError>,
@@ -7682,7 +8536,7 @@ export class Video {
   /**
    * Link Face Speaker
    *
-   * Say whose voice goes with this face (null unlinks).
+   * Say which person this face is (null unlinks).
    */
   public static linkFaceSpeaker<ThrowOnError extends boolean = false>(
     options: Options<LinkFaceSpeakerData, ThrowOnError>,
@@ -7700,7 +8554,7 @@ export class Video {
   /**
    * Dismiss Face Suggestion
    *
-   * Drop a suggestion (`kind` face or speaker, with its id).
+   * Drop a suggestion (`kind` face, or speaker for a person, with its id).
    */
   public static dismissFaceSuggestion<ThrowOnError extends boolean = false>(
     options: Options<DismissFaceSuggestionData, ThrowOnError>,
@@ -7720,7 +8574,7 @@ export class Iiif {
   /**
    * Get Recording Iiif
    *
-   * The recording's manifest (as `json`), whether it is published, its layers, a schema check and viewer links.
+   * The asset's manifest (as `json`), whether it is published, its layers, a schema check and viewer links.
    */
   public static getRecordingIiif<ThrowOnError extends boolean = false>(
     options: Options<GetRecordingIiifData, ThrowOnError>,
@@ -7734,7 +8588,7 @@ export class Iiif {
   /**
    * Get Content State
    *
-   * A IIIF Content State pointing at a moment (t0..t1 seconds) of the recording, and links that open it.
+   * A IIIF Content State pointing at a moment (t0..t1 seconds) of the asset, and links that open it.
    */
   public static getContentState<ThrowOnError extends boolean = false>(
     options: Options<GetContentStateData, ThrowOnError>,
@@ -7766,9 +8620,9 @@ export class Iiif {
   /**
    * Import Iiif
    *
-   * Import recordings (audio, captions and metadata) from a IIIF manifest or collection into a namespace.
+   * Import assets (audio, captions and metadata) from a IIIF manifest or collection into a namespace.
    *
-   * With `wait`, answers with the new recording ids; otherwise imports in the background (202).
+   * With `wait`, answers with the new asset ids; otherwise imports in the background (202).
    */
   public static importIiif<ThrowOnError extends boolean = false>(
     options: Options<ImportIiifData, ThrowOnError>,
@@ -7789,7 +8643,7 @@ export class Jobs {
    * List Jobs
    *
    * Recent jobs, newest first, with counts by status and by namespace (of the jobs in `namespace` and `batch`, of
-   * any status), plus the latest job's step and log (for the progress bar). With `recording`, that recording's runs,
+   * any status), plus the latest job's step and log (for the progress bar). With `recording`, that asset's runs,
    * also for someone who sees it through a role on its collection (then the counts are of those runs only).
    */
   public static listJobs<ThrowOnError extends boolean = false>(
@@ -7804,7 +8658,7 @@ export class Jobs {
   /**
    * Create Jobs
    *
-   * Queue recordings (these steps, a pipeline, or their namespace's pipeline) and/or everything pending in a namespace.
+   * Queue assets (these steps, a pipeline, or their namespace's pipeline) and/or everything pending in a namespace.
    */
   public static createJobs<ThrowOnError extends boolean = false>(
     options: Options<CreateJobsData, ThrowOnError>,
@@ -7823,7 +8677,7 @@ export class Jobs {
    * Get Job
    *
    * One run: its steps and how each went (`step_runs`), the pipeline it runs, its last log lines, and how long its
-   * steps usually take on this recording (`estimates`, `eta_seconds`).
+   * steps usually take on this asset (`estimates`, `eta_seconds`).
    */
   public static getJob<ThrowOnError extends boolean = false>(
     options: Options<GetJobData, ThrowOnError>,
@@ -8032,6 +8886,62 @@ export class Sources {
   }
 
   /**
+   * Start Rclone Signin
+   *
+   * Connect Google Drive (with no Google app set up here), Dropbox or OneDrive by signing in through rclone on this
+   * server, or sign a connection in again (`source`). Open `url` in a browser and sign in; the service then sends the
+   * browser to http://127.0.0.1:53682/?…, which only loads on the machine Lens runs on. Hand that address to
+   * POST /sources/rclone-signin/{id}, which makes the connection. One at a time: this ends any other.
+   */
+  public static startRcloneSignin<ThrowOnError extends boolean = false>(
+    options: Options<StartRcloneSigninData, ThrowOnError>,
+  ): RequestResult<StartRcloneSigninResponses, StartRcloneSigninErrors, ThrowOnError> {
+    return (options.client ?? client).post<StartRcloneSigninResponses, StartRcloneSigninErrors, ThrowOnError>({
+      url: "/api/v1/sources/rclone-signin",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Cancel Rclone Signin
+   *
+   * Stop a sign-in through rclone.
+   */
+  public static cancelRcloneSignin<ThrowOnError extends boolean = false>(
+    options: Options<CancelRcloneSigninData, ThrowOnError>,
+  ): RequestResult<CancelRcloneSigninResponses, CancelRcloneSigninErrors, ThrowOnError> {
+    return (options.client ?? client).delete<CancelRcloneSigninResponses, CancelRcloneSigninErrors, ThrowOnError>({
+      url: "/api/v1/sources/rclone-signin/{fid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Finish Rclone Signin
+   *
+   * Finish signing in through rclone with the address the browser ended on (`address`), or, without one, look
+   * whether rclone already got it. Answers the connection, made and tested, or none while it waits. 400: that address
+   * isn't this sign-in's, and it's still waiting for the right one; 410: it didn't work (cancelled, refused, ran out),
+   * and it's over; start again. Audited as `source.signin`.
+   */
+  public static finishRcloneSignin<ThrowOnError extends boolean = false>(
+    options: Options<FinishRcloneSigninData, ThrowOnError>,
+  ): RequestResult<FinishRcloneSigninResponses, FinishRcloneSigninErrors, ThrowOnError> {
+    return (options.client ?? client).post<FinishRcloneSigninResponses, FinishRcloneSigninErrors, ThrowOnError>({
+      url: "/api/v1/sources/rclone-signin/{fid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Test Source
    */
   public static testSource<ThrowOnError extends boolean = false>(
@@ -8044,10 +8954,46 @@ export class Sources {
   }
 
   /**
+   * Google Client
+   *
+   * The OAuth client a Google account would be connected through (never its secret), and the redirect URI it needs.
+   */
+  public static googleClient<ThrowOnError extends boolean = false>(
+    options?: Options<GoogleClientData, ThrowOnError>,
+  ): RequestResult<GoogleClientResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GoogleClientResponses, unknown, ThrowOnError>({
+      url: "/api/v1/sources/google-client",
+      ...options,
+    });
+  }
+
+  /**
+   * Connect Google
+   *
+   * Connect a Google account to a Google source (Gmail, Google Calendar): open the returned address in this browser,
+   * consent there, and Google sends you back to the Sources page with the account connected. Its refresh token is kept
+   * sealed on the source. Without a client here, the Google sign-in provider's (Settings › Sign-in) or an earlier connection's is
+   * used. Only from the web app: the consent comes back to the browser that asked (an agent saves an authorized user
+   * JSON it already has as the source's `token` instead). Audited as `source.google_connect`.
+   */
+  public static connectGoogle<ThrowOnError extends boolean = false>(
+    options: Options<ConnectGoogleData, ThrowOnError>,
+  ): RequestResult<ConnectGoogleResponses, ConnectGoogleErrors, ThrowOnError> {
+    return (options.client ?? client).post<ConnectGoogleResponses, ConnectGoogleErrors, ThrowOnError>({
+      url: "/api/v1/sources/{sid}/google",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Browse Source
    *
    * The folders and files at one path of a source (for local sources, no path lists the allowed roots), with the
-   * recordings each file already is.
+   * assets each file already is.
    */
   public static browseSource<ThrowOnError extends boolean = false>(
     options: Options<BrowseSourceData, ThrowOnError>,
@@ -8201,14 +9147,14 @@ export class Templates {
   /**
    * Preview Template
    *
-   * Render a template (saved, or the unsaved text in the editor) against a recording; run=true also calls the model.
+   * Render a template (saved, or the unsaved text in the editor) against an asset; run=true also calls the model.
    *
    * A template that fails to render answers ok=false with the error, so the editor can show it inline.
    */
   public static previewTemplate<ThrowOnError extends boolean = false>(
-    options: Options<PreviewTemplateData, ThrowOnError>,
-  ): RequestResult<PreviewTemplateResponses, PreviewTemplateErrors, ThrowOnError> {
-    return (options.client ?? client).post<PreviewTemplateResponses, PreviewTemplateErrors, ThrowOnError>({
+    options: Options<PreviewTemplate2Data, ThrowOnError>,
+  ): RequestResult<PreviewTemplate2Responses, PreviewTemplate2Errors, ThrowOnError> {
+    return (options.client ?? client).post<PreviewTemplate2Responses, PreviewTemplate2Errors, ThrowOnError>({
       url: "/api/v1/templates/preview",
       ...options,
       headers: {
@@ -8363,7 +9309,7 @@ export class Pipelines {
   /**
    * Run Pipeline
    *
-   * Run this pipeline on one recording now (its outputs are kept).
+   * Run this pipeline on one asset now (its outputs are kept).
    */
   public static runPipeline<ThrowOnError extends boolean = false>(
     options: Options<RunPipelineData, ThrowOnError>,
@@ -8481,12 +9427,12 @@ export class Workflows {
    * List Workflows
    *
    * Saved workflows, plus the nodes a workflow can be built from: the primitives, each scope's own nodes, and the
-   * custom nodes you can use.
+   * custom nodes you can use. Automations' workflows (scope event) are listed only when asked for with scope.
    */
   public static listWorkflows<ThrowOnError extends boolean = false>(
     options?: Options<ListWorkflowsData, ThrowOnError>,
-  ): RequestResult<ListWorkflowsResponses, unknown, ThrowOnError> {
-    return (options?.client ?? client).get<ListWorkflowsResponses, unknown, ThrowOnError>({
+  ): RequestResult<ListWorkflowsResponses, ListWorkflowsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListWorkflowsResponses, ListWorkflowsErrors, ThrowOnError>({
       url: "/api/v1/workflows",
       ...options,
     });
@@ -8512,7 +9458,8 @@ export class Workflows {
    * Try Workflow
    *
    * Run a graph (saved or not) once without keeping anything: what each node passed on, for the canvas. Nodes
-   * that would save something say what they would save; models are still asked.
+   * that would save something say what they would save; models are still asked. An automation's workflow (scope
+   * event) runs on an activity (by id) or a kind's sample, and its actions say what they would do (intents).
    */
   public static tryWorkflow<ThrowOnError extends boolean = false>(
     options: Options<TryWorkflowData, ThrowOnError>,
@@ -8578,7 +9525,7 @@ export class Workflows {
   /**
    * Run Workflow
    *
-   * Run this workflow on one recording now, as a job (after anything its current job still has to do).
+   * Run this workflow on one asset now, as a job (after anything its current job still has to do).
    */
   public static runWorkflow<ThrowOnError extends boolean = false>(
     options: Options<RunWorkflowData, ThrowOnError>,
@@ -8777,6 +9724,44 @@ export class Extensions {
   }
 
   /**
+   * Read Mcp Config
+   *
+   * The MCP servers in a config pasted from another app (Claude's .mcp.json, VS Code's mcp.json), ready to add: each
+   * as an MCP extension keeps it, and what was left out and why. Nothing is reached or saved.
+   */
+  public static readMcpConfig<ThrowOnError extends boolean = false>(
+    options: Options<ReadMcpConfigData, ThrowOnError>,
+  ): RequestResult<ReadMcpConfigResponses, ReadMcpConfigErrors, ThrowOnError> {
+    return (options.client ?? client).post<ReadMcpConfigResponses, ReadMcpConfigErrors, ThrowOnError>({
+      url: "/api/v1/extensions/mcp/read",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Test Mcp Server
+   *
+   * Ask an MCP server for its tools without saving it (admins). With `extension`, values sent as •••• are that
+   * server's saved ones.
+   */
+  public static testMcpServer<ThrowOnError extends boolean = false>(
+    options: Options<TestMcpServerData, ThrowOnError>,
+  ): RequestResult<TestMcpServerResponses, TestMcpServerErrors, ThrowOnError> {
+    return (options.client ?? client).post<TestMcpServerResponses, TestMcpServerErrors, ThrowOnError>({
+      url: "/api/v1/extensions/mcp/test",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Delete Extension
    *
    * Takes it out of the assistant at once.
@@ -8838,6 +9823,24 @@ export class Extensions {
         },
       },
     );
+  }
+
+  /**
+   * Switch Mcp Tool
+   *
+   * Switch one of an MCP server's tools on or off, or say whether it asks first (admins): a new version.
+   */
+  public static switchMcpTool<ThrowOnError extends boolean = false>(
+    options: Options<SwitchMcpToolData, ThrowOnError>,
+  ): RequestResult<SwitchMcpToolResponses, SwitchMcpToolErrors, ThrowOnError> {
+    return (options.client ?? client).patch<SwitchMcpToolResponses, SwitchMcpToolErrors, ThrowOnError>({
+      url: "/api/v1/extensions/{eid}/tools",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
   }
 
   /**
@@ -9023,6 +10026,8 @@ export class Chats {
 
   /**
    * Delete Chat
+   *
+   * Delete a conversation, with its code sandbox and the files in it.
    */
   public static deleteChat<ThrowOnError extends boolean = false>(
     options: Options<DeleteChatData, ThrowOnError>,
@@ -9036,7 +10041,9 @@ export class Chats {
   /**
    * Get Chat
    *
-   * A conversation with its messages. Citations follow your current access: ones you can no longer read are left out.
+   * A conversation with the version showing (`messages`, each with its `versions`) and every version's messages
+   * (`tree`). Citations follow your current access: ones you can no longer read are left out (web pages it cited stay:
+   * they aren't the archive's).
    */
   public static getChat<ThrowOnError extends boolean = false>(
     options: Options<GetChatData, ThrowOnError>,
@@ -9066,15 +10073,56 @@ export class Chats {
   }
 
   /**
+   * Switch Version
+   *
+   * Show another version: the one `message` is in, from the first message to the newest one below `message`. The
+   * next question goes on from there. Returns the conversation as GET /chats/{cid} does.
+   */
+  public static switchVersion<ThrowOnError extends boolean = false>(
+    options: Options<SwitchVersionData, ThrowOnError>,
+  ): RequestResult<SwitchVersionResponses, SwitchVersionErrors, ThrowOnError> {
+    return (options.client ?? client).put<SwitchVersionResponses, SwitchVersionErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/head",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Message
+   *
+   * One message of any version, with its record (`meta`: for an answer, the model and the host it ran on, the tools
+   * offered and used, the scope, limits and use, tokens, cost, time and how it ended) and its rows in the activity ledger
+   * (`ledger`: the calls made for it, newest first). Citations follow your current access, as in GET /chats/{cid}.
+   */
+  public static getMessage<ThrowOnError extends boolean = false>(
+    options: Options<GetMessageData, ThrowOnError>,
+  ): RequestResult<GetMessageResponses, GetMessageErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetMessageResponses, GetMessageErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/messages/{mid}",
+      ...options,
+    });
+  }
+
+  /**
    * Send Message
    *
    * Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model
    * reads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
-   * /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).
+   * /chats/{cid}/stop: what came before is saved, marked stopped), meta (the answer's record, kept with it: what produced
+   * it), done (the saved message id).
    *
-   * With `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and
-   * its new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked
-   * from (where, and the highlighted text; not the page's text, which isn't kept).
+   * A conversation is a tree of versions (GET /chats/{cid}: `tree`, and each message's `versions`); the question goes
+   * on from `parent` when given (any message of the conversation), else from the version showing (`head`). With
+   * `regenerate` (an answer's id) its question is answered again, as a new version beside that answer (`content` isn't
+   * needed; `model` may pick another). With `edit`, one of your earlier questions is edited: this question becomes a new
+   * version beside it and is answered, and the old one stays with what followed it (404 if it isn't a question in this
+   * conversation). Either keeps the page the question was asked from (where, and the highlighted text; not the page's
+   * text, which isn't kept) unless `context` is given, and streams `branch` first ({message, parent, versions}: the
+   * new version, the message it follows and its versions); so does a question beside others under `parent`.
    *
    * `/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the
    * conversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.
@@ -9128,7 +10176,9 @@ export class Chats {
   /**
    * List Approvals
    *
-   * Work the assistant proposed for you to approve (and what became of it), newest first.
+   * What waits for your pick (and what became of it), newest first: the assistant's proposals and automations'
+   * actions. Filter by `status` (pending is waiting), `origin` (automation or chat), one `automation` or one chat
+   * (`chat_id`); page with `before`.
    */
   public static listApprovals<ThrowOnError extends boolean = false>(
     options?: Options<ListApprovalsData, ThrowOnError>,
@@ -9140,9 +10190,40 @@ export class Chats {
   }
 
   /**
+   * Count Approvals
+   *
+   * How many approvals wait for you, for the badge in the top bar.
+   */
+  public static countApprovals<ThrowOnError extends boolean = false>(
+    options?: Options<CountApprovalsData, ThrowOnError>,
+  ): RequestResult<CountApprovalsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<CountApprovalsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/approvals/count",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Approval
+   *
+   * One of your approvals.
+   */
+  public static getApproval<ThrowOnError extends boolean = false>(
+    options: Options<GetApprovalData, ThrowOnError>,
+  ): RequestResult<GetApprovalResponses, GetApprovalErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetApprovalResponses, GetApprovalErrors, ThrowOnError>({
+      url: "/api/v1/approvals/{aid}",
+      ...options,
+    });
+  }
+
+  /**
    * Decide Approval
    *
-   * Approve (or run a sample of, or decline) something the assistant proposed. Each approval is decided once.
+   * Approve (or run a sample of, or decline) something the assistant proposed or an automation's action. Each
+   * approval is decided once. An automation's action can also be edited (`params`) and then carried out, or allowed
+   * from now on for that automation (`always`); approving one needs you signed in, since it's your pick: an API key
+   * or an app can only decline it.
    */
   public static decideApproval<ThrowOnError extends boolean = false>(
     options: Options<DecideApprovalData, ThrowOnError>,
@@ -9305,7 +10386,7 @@ export class Collections {
   /**
    * Get Collection
    *
-   * The collection with how many recordings you can read in it, and the newest 200 of them.
+   * The collection with how many assets you can read in it, and the newest 200 of them.
    */
   public static getCollection<ThrowOnError extends boolean = false>(
     options: Options<GetCollectionData, ThrowOnError>,
@@ -9319,7 +10400,7 @@ export class Collections {
   /**
    * Update Collection
    *
-   * Change your collection. A filter collection takes a new filter; a fixed one a new list of recordings.
+   * Change your collection. A filter collection takes a new filter; a fixed one a new list of assets.
    */
   public static updateCollection<ThrowOnError extends boolean = false>(
     options: Options<UpdateCollectionData, ThrowOnError>,
@@ -9337,9 +10418,9 @@ export class Collections {
   /**
    * Collection Evidence
    *
-   * The collection's recordings you can read (a list in its order, a filter's oldest first) as one evidence PDF made by anytopdf (a download): each
+   * The collection's assets you can read (a list in its order, a filter's oldest first) as one evidence PDF made by anytopdf (a download): each
    * one's pages and what Lens found about it, then a provenance page with every file's SHA-256 and size. `include` picks the parts, as for a
-   * resource's evidence PDF. At most 50 recordings.
+   * resource's evidence PDF. At most 50 assets.
    */
   public static collectionEvidence<ThrowOnError extends boolean = false>(
     options: Options<CollectionEvidenceData, ThrowOnError>,
@@ -9355,7 +10436,7 @@ export class Batches {
   /**
    * Estimate Batch
    *
-   * What a run would cost, before starting it. Only recordings you can change count; the rest are `skipped`.
+   * What a run would cost, before starting it. Only assets you can change count; the rest are `skipped`.
    */
   public static estimateBatch<ThrowOnError extends boolean = false>(
     options: Options<EstimateBatchData, ThrowOnError>,
@@ -9415,7 +10496,7 @@ export class Batches {
   /**
    * Combine Batch
    *
-   * One overview written by the model from every recording's result, citing each as [n]; saved on the batch.
+   * One overview written by the model from every asset's result, citing each as [n]; saved on the batch.
    */
   public static combineBatch<ThrowOnError extends boolean = false>(
     options: Options<CombineBatchData, ThrowOnError>,
@@ -9433,7 +10514,7 @@ export class Batches {
   /**
    * Control Batch
    *
-   * continue (after a sample), pause, resume, cancel, or retry the failed recordings.
+   * continue (after a sample), pause, resume, cancel, or retry the failed assets.
    */
   public static controlBatch<ThrowOnError extends boolean = false>(
     options: Options<ControlBatchData, ThrowOnError>,
@@ -9475,7 +10556,7 @@ export class Public {
   /**
    * Get Public Home
    *
-   * The home page: featured public recordings, for everyone, and the collections this visitor sees anything in.
+   * The home page: featured public assets, for everyone, and the collections this visitor sees anything in.
    */
   public static getPublicHome<ThrowOnError extends boolean = false>(
     options?: Options<GetPublicHomeData, ThrowOnError>,
@@ -9489,7 +10570,7 @@ export class Public {
   /**
    * Get Public Collection
    *
-   * A collection's page: its description and the recordings this visitor sees, newest first. Visitors see the public
+   * A collection's page: its description and the assets this visitor sees, newest first. Visitors see the public
    * ones; signed-in people also see restricted ones, locked; members see all of them. A collection with nothing for
    * this visitor answers 404, as a missing one does.
    */
@@ -9505,9 +10586,9 @@ export class Public {
   /**
    * Search Public
    *
-   * Search what this visitor may see: titles of the recordings they see listed, and the lines of the transcripts
-   * they may read. Title matches come first. Restricted recordings (for signed-in people) and public ones with the
-   * transcript closed match on their title only.
+   * Search what this visitor may see: titles of the assets they see listed, and the lines of the text of those
+   * they may read. Title matches come first. Restricted assets (for signed-in people) and public ones with the
+   * text closed match on their title only.
    */
   public static searchPublic<ThrowOnError extends boolean = false>(
     options?: Options<SearchPublicData, ThrowOnError>,
@@ -9521,11 +10602,11 @@ export class Public {
   /**
    * Get Public Recording
    *
-   * A recording's public page: what this visitor may see of it, and nothing more.
+   * An asset's public page: what this visitor may see of it, and nothing more.
    *
-   * Anyone sees a public recording's page, description and open parts; a signed-in person sees a restricted one's title
-   * with a lock; people with a role in its namespace, given permission on the recording, or on the network of an IP
-   * group that opens it, see all of it. Everything else answers 404, as a recording that doesn't exist would.
+   * Anyone sees a public asset's page, description and open parts; a signed-in person sees a restricted one's title
+   * with a lock; people with a role in its namespace, given permission on the asset, or on the network of an IP
+   * group that opens it, see all of it. Everything else answers 404, as an asset that doesn't exist would.
    */
   public static getPublicRecording<ThrowOnError extends boolean = false>(
     options: Options<GetPublicRecordingData, ThrowOnError>,
@@ -9539,9 +10620,9 @@ export class Public {
   /**
    * Request Access
    *
-   * Ask for access to a recording (signed in, without permission): its closed parts, or a restricted one. Asking
+   * Ask for access to an asset (signed in, without permission): its closed parts, or a restricted one. Asking
    * again replaces the earlier request. The namespace's owners hear of it by email when mail is set up; they approve
-   * (which gives permission) or decline in the recording's access settings.
+   * (which gives permission) or decline in the asset's access settings.
    */
   public static requestAccess<ThrowOnError extends boolean = false>(
     options: Options<RequestAccessData, ThrowOnError>,
@@ -9561,8 +10642,8 @@ export class AccessRequests {
   /**
    * List Pending Access Requests
    *
-   * Requests waiting for an answer, for recordings in the namespaces you own (all of them for admins), newest
-   * first. Each is answered in its recording's access settings.
+   * Requests waiting for an answer, for assets in the namespaces you own (all of them for admins), newest
+   * first. Each is answered in its asset's access settings.
    */
   public static listPendingAccessRequests<ThrowOnError extends boolean = false>(
     options?: Options<ListPendingAccessRequestsData, ThrowOnError>,
@@ -9861,9 +10942,9 @@ export class Routines {
    * Pick for a run held over a budget: run it now, once, whatever its budgets say, or skip it.
    */
   public static decideHeldRun<ThrowOnError extends boolean = false>(
-    options: Options<DecideHeldRunData, ThrowOnError>,
-  ): RequestResult<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError> {
-    return (options.client ?? client).post<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError>({
+    options: Options<DecideHeldRun2Data, ThrowOnError>,
+  ): RequestResult<DecideHeldRun2Responses, DecideHeldRun2Errors, ThrowOnError> {
+    return (options.client ?? client).post<DecideHeldRun2Responses, DecideHeldRun2Errors, ThrowOnError>({
       url: "/api/v1/routines/runs/{run_id}/decide",
       ...options,
       headers: {
@@ -9877,9 +10958,9 @@ export class Routines {
    * List Runs
    */
   public static listRuns<ThrowOnError extends boolean = false>(
-    options: Options<ListRunsData, ThrowOnError>,
-  ): RequestResult<ListRunsResponses, ListRunsErrors, ThrowOnError> {
-    return (options.client ?? client).get<ListRunsResponses, ListRunsErrors, ThrowOnError>({
+    options: Options<ListRuns2Data, ThrowOnError>,
+  ): RequestResult<ListRuns2Responses, ListRuns2Errors, ThrowOnError> {
+    return (options.client ?? client).get<ListRuns2Responses, ListRuns2Errors, ThrowOnError>({
       url: "/api/v1/routines/{rid}/runs",
       ...options,
     });
@@ -9889,9 +10970,9 @@ export class Routines {
    * Get Run
    */
   public static getRun<ThrowOnError extends boolean = false>(
-    options: Options<GetRunData, ThrowOnError>,
-  ): RequestResult<GetRunResponses, GetRunErrors, ThrowOnError> {
-    return (options.client ?? client).get<GetRunResponses, GetRunErrors, ThrowOnError>({
+    options: Options<GetRun2Data, ThrowOnError>,
+  ): RequestResult<GetRun2Responses, GetRun2Errors, ThrowOnError> {
+    return (options.client ?? client).get<GetRun2Responses, GetRun2Errors, ThrowOnError>({
       url: "/api/v1/routine-runs/{run_id}",
       ...options,
     });
@@ -10387,10 +11468,10 @@ export class ImportHooks {
    * Push something into an import webhook's namespace, with its token as a bearer token. Three ways:
    *
    * - a file as the raw body, named by `?filename=`, Content-Disposition or X-Filename: audio, video, documents and
-   * images become recordings and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as
+   * images become assets and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as
    * transcripts;
    * - multipart form files (field `file`, up to 20), with optional `title`, `url` and `text` fields;
-   * - JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as a transcript), with an optional
+   * - JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as text), with an optional
    * `title`.
    *
    * Each runs the hook's pipeline, or the namespace's. 401 for an unknown token, 403 while the hook is paused, 413 over
@@ -10671,7 +11752,7 @@ export class Podcasts {
   /**
    * Delete Podcast
    *
-   * Delete an episode with its audio (editors of its namespace, unlike other recordings: Lens made it). 409 while a
+   * Delete an episode with its audio (editors of its namespace, unlike other assets: Lens made it). 409 while a
    * job is working on it.
    */
   public static deletePodcast<ThrowOnError extends boolean = false>(

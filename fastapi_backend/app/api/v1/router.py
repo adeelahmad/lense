@@ -3,9 +3,13 @@
 from fastapi import APIRouter
 
 from app.api.v1.routes import (
+    activities,
     activity,
     admin,
     auth,
+    automation_hooks,
+    automation_vars,
+    automations,
     backups,
     batches,
     browser,
@@ -13,6 +17,7 @@ from app.api.v1.routes import (
     chats,
     collections,
     comments,
+    completions,
     components,
     content_types,
     custom_nodes,
@@ -31,6 +36,7 @@ from app.api.v1.routes import (
     iiif,
     import_hooks,
     imports,
+    integrations,
     jobs,
     marketplaces,
     metadata,
@@ -80,11 +86,17 @@ for module in (
     backups,  # before updates: its /admin/backups/remote would otherwise be read as a backup's name
     updates,
     activity,
+    activities,
+    automation_hooks,
+    automation_vars,  # before namespaces: /namespaces/{name}/automation-vars
+    automations,
     budgets,
     fedora,
     setup,
     namespaces,
     ns_assistant,
+    integrations,
+    completions,
     hierarchy,
     recordings,
     notes,

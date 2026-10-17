@@ -1,11 +1,11 @@
 # Processing
 
-How recordings move through Lens: where they come from, what each step does, and how speakers, entities and the knowledge graph are built. Every step can be started from the web app, the API or the `lens` command line.
+How assets move through Lens: where they come from, what each step does, and how people, entities and the knowledge graph are built. Every step can be started from the web app, the API or the `lens` command line.
 
 ## Steps
 
 - `scan` finds audio under each namespace's paths and fingerprints it: moved files keep their history, duplicates are skipped,
-  and so are files whose recording someone deleted or moved to another namespace (at the same path, or a copy of the same
+  and so are files whose asset someone deleted or moved to another namespace (at the same path, or a copy of the same
   file).
 - `transcribe` uses SenseVoice, faster-whisper or mlx-whisper. When the configured engine isn't installed on a worker (or
   doesn't import there), it uses the next one that is and says so in the job log; with none at all the step fails,
@@ -13,22 +13,49 @@ How recordings move through Lens: where they come from, what each step does, and
   document or an image it draws the pages and reads their text instead: a PDF's own text, and OCR for scans and images
   ([Documents and images](configuration.md#documents-and-images)).
 - `diarize` splits genuinely two-channel files by channel, otherwise clusters voice embeddings (or uses pyannote), then
-  matches voiceprints against the namespace's speakers.
+  matches voiceprints against the namespace's people.
+- `clean` (off until Settings → Analysis → Clean up transcripts before analysis is on) tidies a transcript before
+  analysis reads it: [Cleaning up transcripts](#cleaning-up-transcripts).
 - `analyze` finds entities, chapters, keywords and talk statistics; `summarize` (optional) calls any OpenAI-compatible
   server for a summary, key points, action items (with who will do them), topics, people, tone and importance, each
-  key point and action item with the time of the line it comes from; `report` writes static HTML per recording and
+  key point and action item with the time of the line it comes from; `report` writes static HTML per asset and
   per namespace, with word clouds.
 
 Every step takes `--ns`, `--limit` and `--force`; `run` does them all, and a lock stops two runs overlapping.
 
-## Importing transcripts
+### Cleaning up transcripts
+
+Speech comes out of transcription as it was said, and the extractor, chapters, keywords and search all read it. With
+`analysis.cleanup` on (Settings → Analysis → Clean up transcripts before analysis; off by default), the `clean` step,
+which the standard pipeline runs just before `analyze`, tidies each line of a transcript with rules. It needs no model,
+fetches nothing and sends nothing out:
+
+- a word said three times or more in a row is kept once ("I I I looked" → "I looked"), and a doubled pronoun, article
+  or conjunction ("the the", "I, I") once; "had had", "that that" and "very very" stay;
+- "um", "uh", "erm" and "hmm" go, with the comma after them (`analysis.cleanup_fillers`, Take out "um" and "uh"; on);
+- one space between words, none before a comma or a full stop, one after a comma;
+- "i" becomes "I", and each sentence starts with a capital. A line that carries on the one before (same speaker, no
+  full stop) keeps its lower case.
+
+These are English rules ("um" is a word in German and Portuguese), so they apply to English lines: the line's or the
+asset's language when transcription gave one, else when the text reads as English. In other languages only a word
+said three times in a row is kept once, and sentences start with a capital. Documents and images keep their text as
+it was read.
+
+Every line it changes is in the asset's Change history (by "text cleanup"), with Revert. A line someone corrected,
+or reverted, is never cleaned again, and running the step again on cleaned text changes nothing. Turn it on for a
+custom pipeline by adding the Clean up step before Analyze (with Force it runs even while the setting is off); run it
+on an asset with Reprocess → Clean up, `POST /api/v1/recordings/{id}/reprocess` with `{"steps": ["clean", "analyze"]}`,
+or `lens clean`. Workers whose `workers.steps` list has `analyze` run it too.
+
+## Importing text and transcripts {#importing-transcripts}
 
 Formats: .txt, .md, .markdown, .mdx, .docx, .doc, .pdf, .srt, .vtt, .json (lens, Whisper or a list of segments) and
 .jsonl (SenseVoice chunk files; overlapping windows are stitched). Pasted text works too.
 
 **Chat exports.** A WhatsApp chat (Export chat, the .txt), a Telegram chat (Export chat history as JSON, result.json),
 a day of a Slack channel from a workspace export, or an iMessage chat from imessage-exporter's text export is read
-as a chat: one line per message, its sender the speaker, so the people in it become the namespace's speakers. When
+as a chat: one line per message, credited to its sender, so the people in it join the namespace's people. When
 each message was sent is kept on its line (`at`); line times are a reading pace, so a year of messages doesn't read
 as a year-long recording. The chat is dated by its first message and gets the Chat export content type. A WhatsApp
 or iMessage .txt uploaded with the other files is read the same way; any other text file stays a document.
@@ -55,27 +82,27 @@ files too.
 
 In the web app, Import takes pasted text, a chosen file or one dropped on the text box, and analyses it straight away.
 It also uploads audio, video, documents and images, which go through the namespace's pipeline like scanned files. A
-PDF is a document (its pages, to look at and search) unless you choose Transcript (its text only). "Then run" picks
+PDF is a document (its pages, to look at and search) unless you choose to import its text only. "Then run" picks
 another saved pipeline for what you import.
 
 **Audio for a transcript.** A transcript can get its audio (or video) in the web app: Import → Paste's "Attach audio…",
 a transcript dropped together with the audio of the same name (`ep14-transcript.srt` and `ep14.m4a`), or "Attach audio"
-on a transcript-only recording's page. The file is uploaded and becomes the recording's media; the transcript and its
-speakers stay. Then these steps run, after anything the recording's job still had to do: transcribe (which keeps the
+on a text-only asset's page. The file is uploaded and becomes the asset's media; the transcript and its
+speakers stay. Then these steps run, after anything the asset's job still had to do: transcribe (which keeps the
 transcript and draws the waveform), diarize (speakers by voice, unless the transcript named them), shots, text on screen
-and faces (video only), analyze and report. The recording takes the file's fingerprint, so scans and uploads of the
-same file find it, unless another recording in the namespace has it already.
+and faces (video only), analyze and report. The asset takes the file's fingerprint, so scans and uploads of the
+same file find it, unless another asset in the namespace has it already.
 
 Speakers are recognised from `Name: text`, `[12:30] Name: text`, `Name (12:30): text`, Otter/Zoom/Teams exports (a
 `Name  12:30` line, then what they said), `speaker|emotion|text` lines, and the speakers in SRT/VTT and JSON. Anything
 else becomes paragraphs split into segments of about 40 words with estimated times. Markdown and MDX are reduced to text
 first: front matter or the first heading becomes the title; imports, exports, JSX and code blocks are dropped. A PDF
-imported as a transcript needs a text layer; import a scan as a document instead, and its pages are read by OCR. Named speakers are reused within the namespace; generic labels (SPEAKER_00, S1, CH0)
-become new speakers.
+imported as a transcript needs a text layer; import a scan as a document instead, and its pages are read by OCR. Named speakers are matched to the namespace's people by name; generic labels (SPEAKER_00, S1, CH0)
+become new people.
 
-## Speakers and namespaces
+## People and namespaces
 
-Speaker ids belong to one namespace. Per recording, `diarize.engine: auto` works like this:
+Person ids belong to one namespace. Per recording, `diarize.engine: auto` works like this:
 
 - If the file is genuinely two-channel (left and right carry different voices), each channel is one speaker. That separation is exact and free.
 - Otherwise, voices are clustered from embeddings. Short backchannels take the label of the nearest long turn.
@@ -84,21 +111,21 @@ Speaker ids belong to one namespace. Per recording, `diarize.engine: auto` works
 
 Each voice gets a voiceprint (SpeechBrain ECAPA, up to `sample_seconds` of that speaker's clearest audio). The voiceprint is matched one-to-one against the namespace registry:
 
-- At or above `match_threshold`, it reuses the existing speaker and updates the centroid.
-- Between `review_threshold` and `match_threshold`, it creates a new speaker plus a suggested merge for you to confirm.
-- Below that, it creates a new speaker.
+- At or above `match_threshold`, it reuses the existing person and updates the centroid.
+- Between `review_threshold` and `match_threshold`, it creates a new person plus a suggested merge for you to confirm.
+- Below that, it creates a new person.
 
-You can rename and merge speakers in the web app or the CLI (`lens speakers …`), and every merge can be undone; merges
-keep who made them and how many recordings moved. Speakers in different namespaces are never merged. You can link them
+You can rename and merge people in the web app or the CLI (`lens speakers …`), and every merge can be undone; merges
+keep who made them and how many assets moved. People in different namespaces are never merged. You can link them
 as the same person (and unlink them), and with `speakers.cross_namespace: suggest` the graph shows likely voice matches
-as dashed edges and Speakers lists them with how alike the voices are. Saying a suggested pair is "not the same", in one
+as dashed edges and People lists them with how alike the voices are. Saying a suggested pair is "not the same", in one
 namespace or across two, removes the suggestion for good.
 
 ## Knowledge graph
 
-Nodes are speakers and named things. Edges are:
+Nodes are people and named things. Edges are:
 
-- speakers who were in a recording together,
+- people who were in an asset together,
 - who mentions what,
 - what is mentioned together,
 - same-person links.
@@ -107,11 +134,13 @@ Nodes are speakers and named things. Edges are:
 
 ## Entities and the graph explorer
 
-People, organisations, products, places, events, works and topics are extracted from every transcript. Dates and
+People, organisations, products, places, events, works and topics are extracted from every asset's text. Dates and
 numbers are extracted too, but hidden unless asked for.
 
-The **Entities** page in the web app lists a namespace's entities (search, type and collection filters, a Hidden tab)
-and opens each in a side panel where editors rename, retype, describe, merge and hide it.
+The **Entities** page in the web app lists a namespace's entities (search, type and collection filters, a Hidden tab).
+An entity's name opens its own page, `/wiki/<namespace>/<Name>`, with its notes, every line that says it and what it
+comes up with ([Entity pages](notes.md#entity-pages)); the rest of its row opens a side panel where editors rename,
+retype, describe, merge and hide it.
 
 - **Merge from the side panel:** **Merge** opens a find box; type a name and press Enter, and the entity picked is
   merged into the open one at once. Its **Maybe the same** list offers likely doubles (same letters, an acronym, a near
@@ -124,18 +153,20 @@ and opens each in a side panel where editors rename, retype, describe, merge and
 
 - **Index** (`GET /api/v1/entities`):
   - Search forgives misspellings and covers aliases.
-  - Filters: type, namespace, collection (and the collections inside it), speaker, recording, date range, minimum
+  - Filters: type, namespace, collection (and the collections inside it), person, asset, date range, minimum
     mentions, and hidden entities.
-  - Sorts: most mentioned, most recordings, most recent, rising, and name.
+  - Sorts: most mentioned, most assets, most recent, rising, and name.
   - Options: grouping by name across namespaces, a twelve-month sparkline, and facets.
-- **Entity page:** its details and aliases, paged mentions (each line with the words highlighted, linking to its moment),
-  a timeline by month or week and namespace, and connections (entities mentioned together, speakers, recordings).
+- **Entity page** (`/wiki/<namespace>/<Name>` in the web app; `GET /api/v1/wiki/{ns}/{address}` finds it by name): its
+  details and aliases, its notes, paged mentions (each line with the words highlighted, linking to its moment), and
+  connections (entities mentioned together, people, assets); the API also gives a timeline by month or week and
+  namespace.
 - **Explorer:**
-  - `GET /api/v1/graph/explore?focus=e12` gives the neighbourhood of an entity or speaker. Depth is one or two hops, and it
+  - `GET /api/v1/graph/explore?focus=e12` gives the neighbourhood of an entity or person. Depth is one or two hops, and it
     can be filtered by type, edge kind and strength, within one namespace or all shared ones.
   - `GET /api/v1/graph/path?a=…&b=…` gives the shortest chain between two nodes, with the lines that support each link.
 - **Curation** (editors of the entity's namespace):
-  - **Rename:** the old name stays as an alias. It can optionally correct the words in every transcript line, with a
+  - **Rename:** the old name stays as an alias. It can optionally correct the words in every line of text, with a
     dry-run preview first, then re-analysis.
   - **Change type, describe (`PATCH /api/v1/entities/{id}`), and hide or restore.**
   - **Merge:** with undo.
@@ -148,22 +179,22 @@ and opens each in a side panel where editors rename, retype, describe, merge and
 ### Entity setup
 
 Each namespace has an entity setup (Entities → Setup, `GET`/`PUT /api/v1/namespaces/{name}/entity-setup`): the types
-it keeps (names of other types are left out when a recording is analysed) and a description of what it's about. Any
-collection can have its own setup, which also holds for the collections inside it; a recording follows the setup of the
+it keeps (names of other types are left out when an asset is analysed) and a description of what it's about. Any
+collection can have its own setup, which also holds for the collections inside it; an asset follows the setup of the
 nearest collection that has one, else its namespace's. Editors of the namespace change its setup and any collection's;
 editors of a collection change that collection's. A namespace can add entity types of its own (Entities → Types,
 `/api/v1/namespaces/{name}/entity-types`), each with a description of what counts as one; a type can be deleted once no
-entity has it. Changes apply to recordings analysed from then on; "Apply to analysed recordings"
-(`POST /api/v1/namespaces/{name}/entity-setup/apply`) analyses the namespace's or a collection's recordings again.
+entity has it. Changes apply to assets analysed from then on; "Apply to analysed assets"
+(`POST /api/v1/namespaces/{name}/entity-setup/apply`) analyses the namespace's or a collection's assets again.
 
 A setup has a mode:
 
 - **Self-organizing** (the default): every name the extractors find becomes an entity, and people merge, rename and
   describe them. Names of types the setup doesn't keep are left out.
 - **Fixed list:** editors define the entities (Entities → Add entity, `POST /api/v1/namespaces/{name}/entities`), each
-  with a type, the other ways it's said and a description, for the whole namespace or for one collection and those
-  inside it. Each name found goes to the defined entity it names (by name or another way it's said, in any case; the
-  defined names are looked for in the transcript too), else to **Unlabeled** when it belongs here (a type the setup
+  with a type, its other names and a description, for the whole namespace or for one collection and those
+  inside it. Each name found goes to the defined entity it names (by name or one of its other names, in any case; the
+  defined names are looked for in the text too), else to **Unlabeled** when it belongs here (a type the setup
   keeps; with every type kept, anything but dates and numbers), else to **Unknown**. Unknown and Unlabeled are always
   there and can't be renamed, retyped, merged, hidden or deleted. Moving a mention to a new name in a fixed-list place
   adds that name to the list. `PATCH /api/v1/entities/{id}` sets an entity's other names and whether it is on the list;
@@ -187,7 +218,7 @@ about them come back as not found.
 ## Search
 
 All words must appear, matched after English stemming ("exploit" also finds exploits and exploiting); "quoted phrases"
-must appear as written; OR separates alternatives. Filter by namespace, speaker, emotion or recording. The words are
+must appear as written; OR separates alternatives. Filter by namespace, person, emotion or asset. The words are
 looked up in the index of `search.engine`: a SQLite FTS5 file by default, SurrealDB's own index, or OpenSearch
 ([configuration](configuration.md#word-search)). For archives that aren't in English set `search.stemming: none` and
 run `lens reindex`. There is no prefix search: a trailing `*` (`expl*`) is ignored and the word is searched as it is;
@@ -198,11 +229,11 @@ stemming covers most of what prefixes were used for.
 With an embedding model set up (Settings → Search, or `embeddings` in archive.yaml: see
 [configuration](configuration.md#search-by-meaning)), search also finds moments about what was asked in other words:
 "money worries" finds "we can't afford the rent this month". The `embed` step (in the standard pipeline, after
-analyze) joins a recording's transcript lines into passages of about `embeddings.passage_chars` characters (each within
+analyze) joins an asset's lines of text into passages of about `embeddings.passage_chars` characters (each within
 one page of a document), adds what its shots or pages are described as showing, and has the model embed each; the
-vectors live in the `passage` table under SurrealDB's HNSW index. Indexing a recording again only embeds the passages
+vectors live in the `passage` table under SurrealDB's HNSW index. Indexing an asset again only embeds the passages
 whose text changed, so a corrected line costs one request; correcting, splitting or merging lines and renaming an
-entity across the transcript run the step again.
+entity across the text run the step again.
 
 A search is matched three ways (`mode` on `GET /search`, the Match switch in the web app):
 
@@ -211,7 +242,7 @@ A search is matched three ways (`mode` on `GET /search`, the Match switch in the
 * **keyword**: only the words, as above.
 * **semantic**: only by meaning.
 
-A passage found by meaning is shown at its line that best fits (the speaker or emotion filtered on, else the one with
+A passage found by meaning is shown at its line that best fits (the person or emotion filtered on, else the one with
 most of the query's words), marked Related, with how alike it is (`similarity`, cosine). One that holds a keyword hit
 adds to that hit's rank instead of showing twice. Only passages at least `embeddings.min_similarity` alike count, and
 none much further than the closest one, so an unrelated query finds nothing rather than whatever is least unlike it.
@@ -219,8 +250,8 @@ Facets count the moments found by meaning too. The assistant's search tool and c
 so a question finds excerpts that answer it without sharing its words.
 
 The vectors are only comparable within one model. When the model (or `embeddings.document_prefix`) changes, the old
-vectors are dropped and searches go by the words until recordings are indexed again: the **Index for search by
-meaning** routine (seeded, hourly at :20) queues the embed step for up to 500 recordings not yet indexed with the
+vectors are dropped and searches go by the words until assets are indexed again: the **Index for search by
+meaning** routine (seeded, hourly at :20) queues the embed step for up to 500 assets not yet indexed with the
 current model each time, and does nothing (no run is recorded) while search by meaning is off or everything is indexed;
 Settings → Search shows how far it has got and can queue more now; `lens embed` indexes here and now. When the
 embeddings server can't be reached, the step is skipped (the routine tries again later) and searches go by the words,
@@ -228,10 +259,10 @@ saying why.
 
 ### Similar content
 
-The web app, the API (`GET /similar`), the assistant and the MCP server (`find_similar`) list the resources most like
-a text (a sentence, a passage, a title), a resource, a topic or an entity.
+The web app, the API (`GET /similar`), the assistant and the MCP server (`find_similar`) list the assets most like
+a text (a sentence, a passage, a title), an asset, a topic or an entity.
 
-Four lists are fused by reciprocal rank, so a resource alike in several ways comes first:
+Four lists are fused by reciprocal rank, so an asset alike in several ways comes first:
 
 * **meaning**, when search by meaning is set up: the passages closest to the text (a topic's labels and definition,
   an entity's name and description), or for a resource to the centre of its own passages, so no model call is needed;
@@ -258,10 +289,10 @@ In the web app:
 
 ### Finding by any attribute
 
-The API (`POST /find`), the assistant (`find_resources`) and the MCP server (`find`) find resources by what is known
+The API (`POST /find`), the assistant (`find_resources`) and the MCP server (`find`) find assets by what is known
 about them, one filter for all three:
 
-* who is **seen** in them (`faces`: face identities, [Video](video.md)) and **heard** (`speakers`: voices);
+* who is **seen** in them (`faces`: face identities, [Video](video.md)) and **heard** (`speakers`: people, by voice);
 * the **entities** they mention and the **topics** they were accepted as about (a topic brings its narrower topics);
 * their **kind** (`types`: audio, video, transcript, document, image) and **content type** (`content_types`: podcast,
   interview, scan, photo, email … [Content types](#content-types));
@@ -271,14 +302,14 @@ about them, one filter for all three:
   came from;
 * and words said or written in them (`text`, matched as a search is, by meaning too when that is set up).
 
-Filters combine with AND, the values of one filter with OR. Faces, speakers, entities and topics take an id or a name:
-a name matches every face, speaker, entity (or one of the other ways it's said) or topic label called that in the
+Filters combine with AND, the values of one filter with OR. Faces, people heard, entities and topics take an id or a
+name: a name matches every face, person, entity (or one of the other ways it's said) or topic label called that in the
 namespaces you can read, ignoring case, and `resolved` says what it matched. A name that matches nothing is an error
 that lists the closest names, so an agent can correct itself.
 
-Each resource found says **why** it matched, with up to three moments per reason to cite: where the words are, when the
-face is on screen (or the pages it's on), the speaker's first lines, the lines that mention the entity, and the topics,
-content type, kinds of object and emotions that matched. With `text`, the resource whose moment matches best comes
+Each asset found says **why** it matched, with up to three moments per reason to cite: where the words are, when the
+face is on screen (or the pages it's on), the person's first lines, the lines that mention the entity, and the topics,
+content type, kinds of object and emotions that matched. With `text`, the asset whose moment matches best comes
 first; otherwise the newest. Nothing here calls a model, apart from `text` searching by meaning when it is set up
 (one embedding request, logged in the activity ledger).
 
@@ -305,11 +336,11 @@ streams to its Activity page as it's written.
 
 A run keeps a record of each step: when it started and finished, how long it took, how it ended (done, skipped,
 failed), its last message (or why it skipped, or its error), which worker ran it, its lines of the log, and the outputs
-it saved (with the template version and model that made them). A step with nothing to do for a recording skips
+it saved (with the template version and model that made them). A step with nothing to do for an asset skips
 itself and says why: no LLM is configured, it isn't a video, the speakers came with the transcript. Retrying a run
 starts the records over from the step it retries. Each finished or skipped step also adds its time to the last 25 of
 its kind (template steps per template), and `GET /jobs/{jid}` turns these into how long each step usually takes on
-that recording (scaled to its length for transcribe, diarize and the video steps) and about how long an active run
+that asset (scaled to its length for transcribe, diarize and the video steps) and about how long an active run
 has left.
 
     lens worker --steps transcribe,diarize     # e.g. on the Mac, with SURREAL_URL pointing at the server
@@ -321,22 +352,50 @@ A folder scan and a routine run are each claimed first, so several processes doi
 ## Storage sources
 
 Admins add sources in the app (`/api/v1/sources`): S3 or S3-compatible, Dropbox, Google Drive, OneDrive, SFTP, SMB,
-WebDAV, or a folder on this machine; or an email account (IMAP), a calendar feed (iCal) or Google Calendar, below. A watched folder maps a path on a source to a namespace, with include/exclude
+WebDAV, or a folder on this machine; or an email account (IMAP, or Gmail and Google Workspace), a calendar feed (iCal) or Google Calendar, below. A watched folder maps a path on a source to a namespace, with include/exclude
 patterns, audio and/or transcripts, a polling interval, how long a file must be unchanged before it is picked up, and
 whether files already there are imported (backfill). New audio is queued for the full pipeline; new transcripts are
 imported and analysed. Audio stays where it is: it is copied to a cache for processing and streamed from the source for
-playback. A file whose recording someone deleted, or moved to another namespace, isn't imported again, even when it
+playback. A file whose asset someone deleted, or moved to another namespace, isn't imported again, even when it
 changes.
 
 Admins can also import chosen files of a source once, without watching their folder: Import → From a source, tick the
-files, then Import (`POST /api/v1/import/source`). The listing marks files that are recordings already, and where.
+files, then Import (`POST /api/v1/import/source`). The listing marks files that are assets already, and where.
 
 - Credentials are encrypted in the database (AES-GCM, key from `ARCHIVE_SECRET_KEY` or `data_dir/secret.key`) and given
-  to rclone in a private temporary config file per call. For Dropbox, Drive and OneDrive, paste the token from
-  `rclone authorize dropbox` (or drive, onedrive); tokens rclone refreshes are saved back.
+  to rclone in a private temporary config file per call; tokens rclone refreshes are saved back.
+- **Dropbox, OneDrive, and Google Drive as a Google account sign in through rclone on the Lens server**, with nothing
+  to install elsewhere and no app of your own: Sign in with Dropbox (or Microsoft, Google) opens the service's page in
+  a new tab, which asks you to allow rclone, the tool Lens connects with. Afterwards the service sends that tab to
+  `http://127.0.0.1:53682/?state=…&code=…`, where `rclone authorize` waits on the server. When your browser runs on
+  the same machine as Lens that reaches rclone and the dialog carries on by itself; otherwise the page doesn't load:
+  copy its address from the address bar and paste it into the dialog. Lens passes only that address's state, code and
+  error on to rclone, and only when the state is this sign-in's. The connection is then made and tested (OneDrive's
+  own drive filled in), and the dialog goes on to pick a folder. One sign-in runs at a time (rclone listens on one
+  port), each for ten minutes. A connection whose token stopped working shows Sign in again. Pasting the token
+  `rclone authorize dropbox` (or drive, onedrive) prints on another computer still works: Paste a token from rclone
+  instead.
+- Agents sign in through rclone the same way: `POST /api/v1/sources/rclone-signin` with `{"type": "dropbox"}` (or
+  `{"source": <id>}`, and `params`) answers `{id, url, port}`; the person opens `url`, and the agent posts the address
+  they end on to `POST /api/v1/sources/rclone-signin/{id}` (`{"address": …}`), which answers `{connected: <id>}`
+  (400: not this sign-in's address, still waiting; 410: cancelled, refused or ran out). `DELETE` stops it. Audited as
+  `source.signin`.
+- **Google Drive can connect with Google** as Google Calendar does: when Lens has a Google OAuth client (the Google
+  sign-in provider's, or an earlier Google connection's), a new Google account connection uses it, so **Connect with
+  Google** saves the connection, opens Google's consent screen in this browser and comes back with the account
+  connected (its address shows on the connection). Read only asks Google for `drive.readonly`, Full access for all of
+  Drive. With no client Lens signs in through rclone; Connect through your own Google app instead takes a web
+  application client of a Google Cloud project with the Drive API turned on (the form shows the redirect URI to
+  register). The connection keeps that client with its token (`client_id`, and the secret encrypted) so rclone renews
+  the token with it; a token from rclone (signing in through rclone, or pasted) drops it. A connection whose sign-in
+  stopped working shows **Connect Google account** on its row. As for Google Calendar, connecting happens in the web
+  app (`POST /api/v1/sources/{id}/google`).
 - Google Drive can also sign in as a service account: choose Service account and upload its JSON key file
   (`service_account_credentials`). Share the folders Lens should read with the account's address, or give a shared
   drive ID (`team_drive`); in Google Workspace, `impersonate` reads a user's own Drive through domain-wide delegation.
+- To import from one Drive folder only, set Root folder (`root_folder_id`): paste the folder's link from the address
+  bar (`https://drive.google.com/drive/folders/<id>`, `open?id=<id>`) or its id; Lens keeps the id. The shared drive
+  takes its link the same way. A file's link is refused with a note to paste its folder's.
 - A rate-limited connection (Google Drive throttling an account) still works: its check shows it working, slowly;
   rclone backs off and retries (Drive gets 10 low-level retries); and a file a scan couldn't fetch waits for the next
   scan, as do the rest of that scan's files, rather than failing for good.
@@ -367,6 +426,7 @@ importing chosen ones and watching work as above.
   exists (rules never create one); mail for a namespace deleted since goes to the watch's. Rules apply to messages that
   arrive after they're saved. `POST /api/v1/watches/routes/preview` shows where the latest messages would go before
   saving, and a scan's stats count the messages `routed` elsewhere.
+- **Gmail and Google Workspace**: see [below](#gmail-and-google-workspace).
 - **Calendar feed (iCal)**: the calendar's iCal address (`https://` or `webcal://`; a user and password if it asks for
   one). The address is kept encrypted like a password and never shown again, since a private calendar's address is
   all it takes to read it. It is fetched the way web pages are captured: public addresses only (and the networks in
@@ -383,8 +443,20 @@ importing chosen ones and watching work as above.
   of its own, as Google keeps it; working-location entries ("Home", "Office") are left out. It signs in one of two ways,
   each kept encrypted like a password and never shown again:
 
-    - **Google account** (`token`): the "authorized user" JSON (`client_id`, `client_secret`, `refresh_token`) of an
-      OAuth client of your own Google Cloud project, with the Calendar API turned on there. `gcloud auth
+    - **Google account** (`token`): **Connect with Google** in the connection form saves the connection and opens
+      Google's consent screen in this browser. Once you allow read-only calendar access, Google sends you back to
+      Sources with the account connected (its address shows on the connection) and its calendars open, to pick one to
+      watch. It goes through an OAuth client of a Google Cloud project with the Calendar API turned on: the Google
+      sign-in provider's (Settings › Sign-in) when there is one, else an earlier Google connection's, else one you
+      enter in the form: a web application client whose authorized redirect URIs include
+      `<your Lens address>/api/v1/auth/external/google/callback` (the address Google sign-in uses too; the form shows
+      it). While the client's OAuth consent screen is in Testing, Google ends its refresh tokens after 7 days and warns
+      that the app isn't verified; publish it to keep the connection. A connection whose sign-in stopped working shows
+      **Connect Google account** on its row. Connecting happens in the web app (`POST /api/v1/sources/{id}/google`
+      returns the consent address, and refuses API tokens), because the consent itself is a person's and comes back to
+      the browser that asked. What is kept is the "authorized user" JSON (`client_id`, `client_secret`,
+      `refresh_token`), which an agent or a person can also save directly as the `token` (Or paste an authorized user
+      JSON): `gcloud auth
       application-default login --client-id-file=client.json --scopes=https://www.googleapis.com/auth/calendar.readonly,https://www.googleapis.com/auth/cloud-platform`
       writes one (to `application_default_credentials.json` in gcloud's folder).
     - **Service account** (`service_account_credentials`, its .json key file). On its own it reads the calendars shared
@@ -401,13 +473,51 @@ importing chosen ones and watching work as above.
     a Google calendar's secret address in iCal format (Settings › Integrate calendar) works as a calendar feed.
 - `.eml` and `.ics` files in any source, and uploaded through Import, can be read as text this way too.
 
+### Gmail and Google Workspace
+
+A Gmail or Google Workspace mailbox (type `gmail`) is read through Google's Gmail API, read only (`gmail.readonly`),
+or over IMAP (`via: imap`). For a personal Gmail account, an email (IMAP) connection with an app password works too,
+with nothing to set up at Google. A Gmail source signs in one of two ways:
+
+- **Google account** (`token`): **Connect with Google** in the connection form, as for
+  [Google Calendar](#email-imap-calendar-feeds-ical-and-google-calendar): Google's consent screen asks to read your mail
+  (read only; all of Gmail to read over IMAP, since Google has no read-only scope for it), then sends you back to
+  Sources with the account connected, its address as the source's `user`, and its labels open. Turn on the Gmail API in
+  the OAuth client's Google Cloud project and add the Gmail scope to its consent screen. Google reviews apps that read
+  Gmail before people outside your Workspace domain can use them without a warning: while the consent screen is in
+  Testing, it works for its test users and Google ends their sign-ins after seven days. Unticking the mail permission on
+  Google's page leaves the source unconnected, and says so. An agent saves the `token` directly instead (in the form:
+  Or paste an authorized user JSON): `gcloud auth application-default login --client-id-file=client.json --scopes=https://www.googleapis.com/auth/gmail.readonly,https://www.googleapis.com/auth/cloud-platform`
+  writes one; enter the account's address as `user` to read over IMAP.
+- **A service account** (Google Workspace). Upload the service account's JSON key and enter the address of the person
+  whose mail Lens reads; nobody signs in. A Workspace admin lets the account's client id use
+  `https://www.googleapis.com/auth/gmail.readonly` (or `https://mail.google.com/` to read over IMAP) under Admin
+  console › Security › API controls › Domain-wide delegation. One source reads one person's mailbox.
+
+Labels are the folders: the inbox, sent, starred, important, the inbox's categories (Primary, Social, Promotions,
+Updates, Forums) and your own labels. A message is a file `<label id>/<message id>.eml`, read as Gmail keeps it, so it
+becomes an email document as an IMAP message does. Watching the whole mailbox (no path) takes everything but spam, the
+bin, drafts and chats, each message once. A watch follows Gmail's history: a scan asks only for what arrived since the
+last one (and, on a label, messages the label was put on since), and a watch that doesn't take what's there already
+reads nothing old at all. Messages are taken as soon as Gmail lists them, with no wait for them to settle. When Gmail
+no longer keeps the history a watch points into (it keeps about a week), the watch reads what arrived from an hour
+before its last scan on, and skips what it already has. Browsing a label shows its newest 200 messages; Import → From a
+source takes any message chosen. Routing rules work as for IMAP, and a message's `mailbox` is its labels.
+
+Over IMAP, a Gmail source works as an IMAP account does, at imap.gmail.com with the Google sign-in (XOAUTH2). That
+needs Google's all-of-Gmail scope, since Google has no read-only one for IMAP; Lens still only reads. Changing `via`
+starts the source's watches again as new ones (taking what's there only if they backfill), since the two name folders
+and messages differently: check their folders. Each access token Google gives, each listing and each message read is a
+row in the activity ledger (`google.token`, `gmail.list`, `gmail.read`); none costs anything.
+
 ## Pipelines and templates
 
 A pipeline is a named, versioned list of steps; each namespace can choose its default (otherwise: transcribe, diarize,
 analyze, summarize, report). Imports, watched folders and reprocessing use the namespace's pipeline; steps that need
-audio skip themselves for imported transcripts. Steps:
+audio skip themselves for imported text. Steps:
 
-- `transcribe`, `diarize`, `analyze`, `summarize`, and `report` (the built-in report).
+- `transcribe`, `diarize`, `clean` ([Cleaning up transcripts](#cleaning-up-transcripts)), `analyze`, `summarize`, and
+  `report` (the built-in report).
 - `llm`: renders a prompt template, sends it to the configured model, checks the reply against the template's JSON
   Schema and saves it as a named output (e.g. `meeting_notes`).
 - `report` with a template: renders an HTML page into the namespace's reports. These pages may not run scripts.
@@ -418,10 +528,10 @@ Any step can carry a condition: `min_minutes`, `max_minutes`, `source` (audio or
 Templates are versioned (publish, history, diff) and rendered in a sandboxed Jinja environment. It can't reach Python
 internals, caps output size, and escapes HTML in reports. Templates see `recording`, `speakers`, `segments`,
 `transcript` (trimmed to `llm.max_chars`), `sections`, `entities`, `keywords`, `summary`, `stats` and `outputs`. The
-summary's `key_points` and `action_items` print as their text and have `text`, `who` (empty when not said) and `t0`
+summary's `key_points` and `action_items` print as their text and have `text`, `who` (empty when not given) and `t0`
 (where the line they come from starts, in ms; none when not known); summaries made before they had times hold plain
 strings. A fresh archive starts with three: Meeting notes (prompt), Markdown transcript (export) and One-page brief (report).
-`POST /api/v1/templates/preview` renders any template, saved or not, against a recording, and with `run: true` also asks
+`POST /api/v1/templates/preview` renders any template, saved or not, against an asset, and with `run: true` also asks
 the model.
 
 New pipelines, workflows, templates and routines don't need a name typed: the web app guesses one (from a pipeline's
@@ -430,21 +540,22 @@ steps, what a workflow runs on, a template's kind, a routine's schedule and acti
 
 ## Workflows and the canvas
 
-A pipeline's steps make assets (a transcript, shots, text on screen, faces); workflows turn them into metadata. A
-workflow is a versioned graph drawn on a canvas (Pipelines → Workflows): it starts from the Recording node, and each
+A pipeline's steps make derived files (a transcript or a page's text, shots, text on screen, faces); workflows turn them into metadata. A
+workflow is a versioned graph drawn on a canvas (Pipelines → Workflows): it starts from the Asset node, and each
 node passes what it makes along its connections.
 
 - **Entities:** Extract entities (rules) runs the built-in extractor analyze uses, plus your terms (`Name|TYPE`) and
   regular expressions (`TYPE: pattern`); Extract entities (LLM) asks the model for structured entities and keeps,
-  corrects or adds to any passed in; Merge joins lists; Save entities makes them the recording's entities (people's
+  corrects or adds to any passed in; Merge joins lists; Save entities makes them the asset's entities (people's
   corrections kept) and redoes keywords and chapters.
 - **AI and logic:** LLM prompt (a prompt template, with what came in as `{{ input }}`), Pick (a path like
-  `action_items.0.text`), Condition (yes and no branches) and Merge.
+  `action_items.0.text`), Condition (yes and no branches; one test, or a [match tree](automations.md#match-trees) of
+  several) and Merge.
 - **Keeping results:** Save output (`outputs.<name>`), Set field (a custom field, kept in the metadata history) and
   Save entities.
 
 A pipeline runs a workflow as a Workflow step, pinned to the workflow's published version when the run is queued
-(`POST /api/v1/workflows/{id}/run` runs one on a recording). Pipelines can be drawn on the canvas too: a connection
+(`POST /api/v1/workflows/{id}/run` runs one on an asset). Pipelines can be drawn on the canvas too: a connection
 means "runs after", and the graph is put in order (ties left to right) and kept as the version's steps, so runs and
 Activity work as before. A pipeline saved as a list is drawn as a chain.
 
@@ -474,9 +585,9 @@ namespaces, or all of them:
 
 - **Sync** scans watched folders now (all of the routine's namespaces' folders, or the ones you pick), so new files
   come in and run their pipelines.
-- **Pipeline** queues a pipeline for recordings (one you pick, else the one each recording's content type gets, as
+- **Pipeline** queues a pipeline for assets (one you pick, else the one each asset's content type gets, as
   above): new ones (since the routine last looked), unprocessed ones, or all of them.
-- **Workflow** runs a workflow. One that runs on recordings is queued on them as a workflow step, pinned to its
+- **Workflow** runs a workflow. One that runs on assets is queued on them as a workflow step, pinned to its
   published version; one that organises the graph runs over the namespaces there and then.
 
 The schedule is a five-field cron expression (minute hour day-of-month month day-of-week, e.g. `0 3 * * *`) or
@@ -487,12 +598,13 @@ log.
 
 ### Organising the graph
 
-A workflow's scope is either recordings (above) or the graph. Graph workflows have their own nodes:
+A workflow's scope is assets (above), the graph, or an event: an automation's workflow, run by its automation
+([The event workflow scope](automations.md#the-event-workflow-scope)). Graph workflows have their own nodes:
 
 - **Candidates** finds pairs of entities that may be one thing, by the same rules as the merge suggestions (same
   letters, acronym, spelling, sounds alike, one name inside the other): inside each namespace (merge) or across
-  namespaces whose graph is shared (link). Pairs someone said are different, and pairs already proposed, are skipped.
-- **Ask the model** (`llm_judge`) shows the model each pair with lines where the names were said and asks whether
+  namespaces whose graph is shared (link). Pairs someone marked as different, and pairs already proposed, are skipped.
+- **Ask the model** (`llm_judge`) shows the model each pair with lines where the names appear and asks whether
   they are the same thing, how sure it is, and which name to keep.
 - **Filter** keeps the pairs that pass a test, e.g. `verdict.same` equals true.
 - **Apply changes** merges or links the pairs whose confidence is at least *apply above* (at most *max apply* a run)

@@ -85,9 +85,15 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "create_podcast",
         "set_nsfw",
         "mark_nsfw",
+        "set_namespace_integrations",
         "set_file_storage",
         "set_monitoring",
         "set_install_settings",
+        "mark_activities",
+        "decline_approval",
+        "set_automation_vars",
+        "save_automation",
+        "run_automation",
     ]
     assert next(t for t in tools if t["name"] == "search")["inputSchema"]["required"] == ["query"]
     # API tokens and sessions work too
@@ -224,7 +230,7 @@ def test_search_and_cite(client, env):
     at = tool(client, h, "cite", recording_id=ep1, seconds=c["seconds"] + 0.5)  # the line being said then
     assert at["line"] == 1 and at["quote"].startswith("Wow, really?")
     assert tool_error(client, h, "cite", recording_id=ep1) == "give line or seconds"
-    assert tool_error(client, h, "cite", recording_id=ep1, line=99) == f"recording {ep1} has no line 99"
+    assert tool_error(client, h, "cite", recording_id=ep1, line=99) == f"asset {ep1} has no line 99"
     assert tool_error(client, h, "cite", recording_id=call, line=0) == "not found, or not something you can read"
 
 
@@ -281,6 +287,7 @@ def test_entities_and_the_graph(client, env, monkeypatch):
 
     e = tool(client, h, "get_entity", entity_id=dyno["entity_id"], mentions=2)
     assert e["name"] == "Dyno Therapeutics" and e["mentions"] == 4 and e["next_mentions_offset"] == 2
+    assert e["url"] == "http://localhost:3000/wiki/pods/Dyno_Therapeutics"  # its page, by name
     assert tool_error(client, h, "get_entity", entity_id=dyno["entity_id"], mentions_offset=10001).startswith("mentions_offset")
     for name in ("list_recordings", "list_entities", "list_topics"):  # every page offset has the same cap as search's
         assert tool_error(client, h, name, offset=10001).startswith("offset"), name

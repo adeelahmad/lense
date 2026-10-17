@@ -266,7 +266,7 @@ export function ImportScreen() {
       <div className="px-4 py-6 md:px-6">
         <h1 className="text-[24px] font-bold leading-tight tracking-[-.015em] text-fg">Import</h1>
         <EmptyState icon={<Upload />} title="Importing needs editor access">
-          You can read, listen, search and chat in {namespaces.map((n) => n.name).join(", ") || "your namespaces"}, but
+          You can open, search and chat in {namespaces.map((n) => n.name).join(", ") || "your namespaces"}, but
           importing needs the editor role. Ask an owner of the namespace to make you an editor.
         </EmptyState>
       </div>
@@ -332,7 +332,7 @@ export function ImportScreen() {
                   {
                     key: `paste-${Date.now()}`,
                     name: "Pasted text",
-                    title: b.title || "Pasted transcript",
+                    title: b.title || "Pasted text",
                     namespace: ns,
                     kind: "paste",
                     body: async () => ({
@@ -392,7 +392,7 @@ export function ImportScreen() {
                     <FolderOpen className="size-6" aria-hidden />
                   </span>
                   <div className="flex flex-col gap-1.5">
-                    <h2 className="text-[17px] font-bold text-fg">Drop transcripts, audio or video here</h2>
+                    <h2 className="text-[17px] font-bold text-fg">Drop files here</h2>
                     <p className="max-w-md text-[14px] leading-normal text-fg-secondary">
                       Transcripts (txt, md, mdx, docx, doc, pdf, srt, vtt, json or jsonl) up to{" "}
                       {files.limits.transcript_mb} MB each: you’ll see how each one was read before anything is saved.

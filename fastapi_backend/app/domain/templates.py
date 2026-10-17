@@ -1,24 +1,29 @@
 """Templates written in the app: prompt templates (for LLM steps, with an output schema) and report or export
 templates (HTML or text). Versioned; rendered with a sandboxed Jinja environment that can't reach Python internals,
-can't build huge strings, and escapes HTML in reports."""
+can't build huge strings, and escapes HTML in reports. Automations render their params and prompts with the same
+sandbox (variables.py); the filters below (date, ago, local, plain, emails, defang) are there for every template."""
 
 from __future__ import annotations
 
+import datetime as dt
 import difflib
+import functools
 import json
+import re
 
-from jinja2 import StrictUndefined, TemplateSyntaxError, UndefinedError
+from jinja2 import StrictUndefined, TemplateSyntaxError, UndefinedError, pass_context
 from jinja2.exceptions import SecurityError
 from jinja2.sandbox import SandboxedEnvironment
 
-from . import analyze, render, store
+from . import analyze, render, schedule, store, untrusted
 
 R = store.R
 KINDS = ("prompt", "report", "export")
+PARAM = "param"  # how automations render their params and prompts (variables.py); not a kind templates are saved as
 LIMIT = 2_000_000
 DEFAULT_SYSTEM = (
-    "You analyse transcripts of recorded conversations. Be accurate and specific, and don't invent anything "
-    "that isn't in the transcript. Reply with JSON only."
+    "You analyse the assets of a personal archive: transcripts of recordings, documents and other text. Be accurate "
+    "and specific, and don't invent anything that isn't in the text. Reply with JSON only."
 )
 
 
@@ -39,16 +44,163 @@ class _Env(SandboxedEnvironment):
         return super().call_binop(context, operator, left, right)
 
 
+class _DataEnv(_Env):
+    """The sandbox for automations' params and prompts (kind `param`). a.b reads a dict's key b before a method of the
+    same name, so an action's output {"items": [...]} reads as steps.n3.items, not as dict.items. Outside text marked
+    as data (untrusted.Marked) stays marked through filters and string methods: they work on its words and what they
+    give is marked again (`plain`, `truncate`, `upper`... can't drop or cut its markers)."""
+
+    def getattr(self, obj, attribute):
+        if isinstance(obj, dict) and isinstance(attribute, str) and attribute in obj:
+            return obj[attribute]
+        return super().getattr(obj, attribute)
+
+    def call(self, context, obj, /, *args, **kwargs):
+        owner = getattr(obj, "__self__", None)
+        if isinstance(owner, untrusted.Marked) and isinstance(getattr(obj, "__name__", None), str):
+            return owner._again(super().call(context, getattr(owner._text, obj.__name__), *args, **kwargs))
+        return super().call(context, obj, *args, **kwargs)
+
+
+def _marked_aware(fn):
+    """A filter that, given marked outside text (or a list holding some), works on its words and marks what it gives
+    again, with the source of the first marked piece."""
+    skip = 1 if getattr(fn, "jinja_pass_arg", None) else 0
+
+    @functools.wraps(fn)
+    def run(*args, **kwargs):
+        v = args[skip] if len(args) > skip else None
+        if isinstance(v, untrusted.Marked):
+            return v._again(fn(*args[:skip], v._text, *args[skip + 1 :], **kwargs))
+        if isinstance(v, (list, tuple)) and any(isinstance(x, untrusted.Marked) for x in v):
+            first = next(x for x in v if isinstance(x, untrusted.Marked))
+            words = [x._text if isinstance(x, untrusted.Marked) else x for x in v]
+            return first._again(fn(*args[:skip], words, *args[skip + 1 :], **kwargs))
+        return fn(*args, **kwargs)
+
+    return run
+
+
 _ENVS = {}
 
 
-def _env(escape):
-    if escape not in _ENVS:
-        e = _Env(autoescape=escape, undefined=StrictUndefined, trim_blocks=True, lstrip_blocks=True)
+# ---------- filters for times, text and addresses ----------
+EMAIL_RX = re.compile(r"[A-Za-z0-9._%+'-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
+MAX_FORMAT = 200
+
+
+def when(v):
+    """A time from what a template holds: a datetime or date, epoch seconds (or milliseconds), or ISO 8601 text (Z or
+    an offset; none means UTC; a date alone stays a date). ValueError for anything else."""
+    if isinstance(v, dt.datetime):
+        return v if v.tzinfo else v.replace(tzinfo=dt.timezone.utc)
+    if isinstance(v, dt.date):
+        return v
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        return dt.datetime.fromtimestamp(v / 1000 if abs(v) > 1e11 else v, dt.timezone.utc)
+    text = str(v or "").strip()
+    try:
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
+            return dt.date.fromisoformat(text)
+        d = dt.datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        raise ValueError(f"{text[:60] or 'nothing'} isn't a time") from None
+    return d if d.tzinfo else d.replace(tzinfo=dt.timezone.utc)
+
+
+def _zone(context, tz):
+    return schedule.zone(tz or (context.get("timezone") if context is not None else None) or "UTC")
+
+
+def _now(context):
+    got = context.get("now") if context is not None else None
+    try:
+        return when(got) if got else dt.datetime.now(dt.timezone.utc)
+    except ValueError:
+        return dt.datetime.now(dt.timezone.utc)
+
+
+@pass_context
+def f_date(context, v, fmt="%Y-%m-%d %H:%M", tz=None):
+    """A time written with a strftime format, in `tz` (default the template's `timezone`, else UTC)."""
+    fmt = str(fmt)
+    if len(fmt) > MAX_FORMAT:
+        raise ValueError(f"date: the format is at most {MAX_FORMAT} characters")
+    d = when(v)
+    if isinstance(d, dt.datetime):
+        d = d.astimezone(_zone(context, tz))
+    return d.strftime(fmt)
+
+
+@pass_context
+def f_local(context, v, tz=None):
+    """A time in the template's time zone (`timezone`, else UTC), as ISO 8601 with its offset."""
+    d = when(v)
+    return d.astimezone(_zone(context, tz)).isoformat(timespec="seconds") if isinstance(d, dt.datetime) else d.isoformat()
+
+
+def _span(seconds):
+    for unit, n in (("year", 31_536_000), ("month", 2_592_000), ("week", 604_800), ("day", 86_400), ("hour", 3600), ("minute", 60)):
+        if seconds >= n:
+            k = int(seconds // n)
+            return f"{k} {unit}{'' if k == 1 else 's'}"
+    return f"{int(seconds)} second{'' if int(seconds) == 1 else 's'}"
+
+
+@pass_context
+def f_ago(context, v):
+    """How long ago a time was, from the template's `now` (else now): "3 hours ago", "in 2 days", "just now"."""
+    d = when(v)
+    if not isinstance(d, dt.datetime):
+        d = dt.datetime.combine(d, dt.time(), dt.timezone.utc)
+    seconds = (_now(context) - d).total_seconds()
+    if abs(seconds) < 45:
+        return "just now"
+    return f"{_span(seconds)} ago" if seconds > 0 else f"in {_span(-seconds)}"
+
+
+def f_plain(v):
+    """HTML as plain text: tags, scripts and styles out, one line per block. Markers around outside text stay."""
+    from . import mailbox
+
+    kept = []
+
+    def keep(m):
+        kept.append(m.group(0))
+        return f"\x00{len(kept) - 1}\x00"
+
+    text = mailbox.html_text(untrusted.MARKER_RX.sub(keep, str(v or "")))
+    return re.sub(r"\x00(\d+)\x00", lambda m: kept[int(m.group(1))], text)
+
+
+def f_emails(v):
+    """The email addresses in text (or in a list of texts), lowercased, each once, in order."""
+    text = " ".join(map(str, v)) if isinstance(v, (list, tuple)) else str(v or "")
+    return list(dict.fromkeys(m.lower() for m in EMAIL_RX.findall(text)))
+
+
+FILTERS = {
+    "date": f_date,
+    "local": f_local,
+    "ago": f_ago,
+    "plain": f_plain,
+    "emails": f_emails,
+    "defang": lambda v: untrusted.defang(str(v or "")),
+}
+
+
+def _env(escape, data=False):
+    """The sandbox: HTML escaped with `escape`; with `data`, dict keys before dict methods (_DataEnv)."""
+    if (escape, data) not in _ENVS:
+        e = (_DataEnv if data else _Env)(autoescape=escape, undefined=StrictUndefined, trim_blocks=True, lstrip_blocks=True)
         e.filters["tc"] = store.tc
         e.filters["json"] = lambda v: json.dumps(v, ensure_ascii=False, indent=2)
-        _ENVS[escape] = e
-    return _ENVS[escape]
+        for name, fn in FILTERS.items():
+            e.filters.setdefault(name, fn)  # never in place of a filter templates already use
+        if data:
+            e.filters = {name: _marked_aware(fn) for name, fn in e.filters.items()}
+        _ENVS[(escape, data)] = e
+    return _ENVS[(escape, data)]
 
 
 def check(body):
@@ -59,8 +211,11 @@ def check(body):
 
 
 def render_body(body, ctx, kind, filename=None):
+    """`body` rendered with `ctx`: HTML escaped for reports and .html exports; kind `param` (an automation's params and
+    prompts) reads dict keys before dict methods. TemplateProblem naming the problem."""
+    escape = kind == "report" or (filename or "").lower().endswith(".html")
     try:
-        out = _env(kind == "report" or (filename or "").lower().endswith(".html")).from_string(body).render(**ctx)
+        out = _env(escape, kind == PARAM).from_string(body).render(**ctx)
     except SecurityError as e:
         raise TemplateProblem(f"not allowed in templates: {e}") from None
     except TemplateSyntaxError as e:
@@ -111,7 +266,7 @@ def context(db, cfg, rid):
         ],
         "segments": segs,
         "full_transcript": full,
-        "transcript": full if len(full) <= cap else full[:cap] + "\n[… transcript truncated]",
+        "transcript": full if len(full) <= cap else full[:cap] + "\n[… text truncated]",
         "sections": [{"title": x["title"], "time": store.tc(x["t0"]), "t0": x["t0"]} for x in d["sections"]],
         "entities": [{"name": e["name"], "type": e["type"], "mentions": len(e["segs"])} for e in d["entities"]],
         "keywords": [w for w, _ in d["keywords"]],
@@ -207,6 +362,20 @@ def save_version(db, tid, body, schema=None, system=None, notes=None, user=None,
     )
     db.q("UPDATE $r SET updated_at = $t" + (", current = $n" if publish else ""), r=R("template", tid), t=store.now(), n=n)
     return n
+
+
+def reference(v):
+    """(template id, version or None) when `v` names a saved template ({"template": 5} or {"template": 5, "version":
+    2}) in place of inline text, else None. TemplateProblem for a dict that doesn't."""
+    if not isinstance(v, dict):
+        return None
+    extra = sorted(set(v) - {"template", "version"})
+    tid, version = v.get("template"), v.get("version")
+    if extra or not isinstance(tid, int) or isinstance(tid, bool) or tid < 1:
+        raise TemplateProblem('name a saved template as {"template": <id>}, with "version" to pin one')
+    if version is not None and (not isinstance(version, int) or isinstance(version, bool) or version < 1):
+        raise TemplateProblem("a template's version is a number from 1, or none for its current one")
+    return tid, version
 
 
 def get(db, tid, version=None):

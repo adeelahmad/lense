@@ -17,8 +17,10 @@ import time
 from . import activity, analyze, ingest, keyring, pipelines, render, speakers as spk, store, telemetry
 
 R = store.R
-PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "analyze", "embed", "summarize", "report"]
-AFTER_IMPORT = ["analyze", "embed", "summarize", "report"]
+PIPELINE = [
+    "transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "clean", "analyze", "embed", "summarize", "report",
+]  # fmt: skip
+AFTER_IMPORT = ["clean", "analyze", "embed", "summarize", "report"]
 ACTIVE = ["queued", "running", "held"]  # held: over budget, waiting for someone to pick (budgets.py)
 FIELDS = (
     "record::id(id) AS id, recording, space, batch, pipeline, steps, step_index, next_step, status, worker, error, attempts, "
@@ -56,7 +58,7 @@ def _transcribe(db, cfg, rid, say, spec=None):
     if rec.get("source") in ("document", "image"):  # a run queued before documents had a step of their own
         return _read(db, cfg, rid, say, spec)
     if rec.get("source") != "audio":
-        raise Skip("an imported transcript has nothing to transcribe")
+        raise Skip("imported text has nothing to transcribe")
     if str(rec.get("engine") or "").startswith("import:") and rec.get("status") != "new" and not (spec or {}).get("force"):
         if not rec.get("envelope"):  # its audio was attached after the transcript was imported
             ingest.add_envelope(db, cfg, rid)
@@ -76,6 +78,18 @@ def _diarize(db, cfg, rid, say, spec=None):
     if rec.get("source") != "audio" or (rec.get("diarizer") == "labels" and not (spec or {}).get("force")):
         raise Skip("the speakers came with the transcript; kept them")
     spk.diarize_one(db, cfg, rid, say)
+
+
+def _clean(db, cfg, rid, say, spec=None):
+    """A transcript's lines tidied before analysis (cleanup.py), where Settings → Analysis turns it on."""
+    from . import cleanup
+
+    if not ((cfg.get("analysis") or {}).get("cleanup") or (spec or {}).get("force")):
+        raise Skip("cleaning up transcripts is off (Settings → Analysis)")
+    if _source(db, rid) not in cleanup.SPEECH:
+        raise Skip("a document's or an image's text is kept as it was read")
+    n = cleanup.clean_recording(db, cfg, rid)
+    say(f"cleaned up {n} line(s); Change history lists them" if n else "nothing to clean up")
 
 
 def _analyze(db, cfg, rid, say, spec=None):
@@ -192,6 +206,7 @@ STEPS = {
     "objects": _objects,
     "nsfw": _nsfw,
     "describe": _describe,
+    "clean": _clean,
     "analyze": _analyze,
     "embed": _embed,
     "summarize": _summarize,
@@ -653,7 +668,7 @@ def _run_job(db, cfg_fn, job, worker, can, log=None):
             step = spec["type"]
             gone = not db.one("SELECT id FROM $r", r=R("recording", rid))
             if gone or (db.one("SELECT cancel_requested FROM $j", j=jr) or {}).get("cancel_requested"):
-                say("the recording was deleted" if gone else "cancelled")
+                say("the asset was deleted" if gone else "cancelled")
                 save("status = 'cancelled', worker = NONE, finished_at = $t")
                 return "cancelled"
             if (db.one("SELECT drain FROM $w", w=wr) or {}).get("drain"):
@@ -757,7 +772,7 @@ def retry(db, jid):
     if j["status"] not in ("failed", "cancelled"):
         raise ValueError("only failed or cancelled jobs can be retried")
     if not db.one("SELECT id FROM $r", r=R("recording", j["recording"])):
-        raise ValueError("its recording was deleted")
+        raise ValueError("its asset was deleted")
     i = min(j.get("step_index") or 0, len(j["steps"]) - 1)
     db.q(
         "UPDATE $j SET status = 'queued', next_step = $s, step_index = $i, error = NONE, cancel_requested = false, finished_at = NONE, "
@@ -911,6 +926,8 @@ class Worker:
             self.can |= VIDEO_STEPS
         if self.can & {"analyze", "summarize"}:  # embedding needs what they need; lists written before it existed run it too
             self.can.add("embed")
+        if "analyze" in self.can:  # cleaning up a transcript needs no more than analysing it; older lists run it too
+            self.can.add("clean")
         if not steps and "objects" in self.can:  # NSFW classification runs on ONNX Runtime too; older lists run it as well
             self.can.add("nsfw")
         if not steps and log and (missing := sorted(set(STEPS) - self.can)):

@@ -2,7 +2,7 @@
 # Tests dns.sh against a resolver that answers every lookup with no address, the way uv's lookups failed in a
 # microsandbox ("No address associated with hostname"). Run it as root in the image run.sh runs in, with the internet:
 #
-#   docker run --rm -v "$PWD:/lens:ro" python:3.12-slim-bookworm sh /lens/microsandbox/test-dns.sh
+#   docker run --rm -v "$PWD:/lens:ro" python:3.12-slim-trixie sh /lens/microsandbox/test-dns.sh
 #   msb exec lens -- sh /lens/microsandbox/test-dns.sh     # in the sandbox itself, through microsandbox's DNS
 #
 # It puts /etc/resolv.conf back as it was when it ends.

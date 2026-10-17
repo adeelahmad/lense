@@ -31,6 +31,7 @@ const ICON: Record<string, LucideIcon> = {
   webdav: Globe,
   local: Folder,
   imap: Mail,
+  gmail: Mail,
   ical: CalendarDays,
 };
 

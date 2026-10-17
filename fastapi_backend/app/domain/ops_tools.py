@@ -32,6 +32,8 @@ SECTIONS = (
     "ai",
     "reports",
     "notifications",
+    "events",
+    "automations",
     "workers",
     "decisions",
     "voice",
@@ -44,17 +46,18 @@ SECTIONS = (
     "analytics",
     "sensors",
     "shares",
+    "web",
 )
-# telemetry and analytics send data elsewhere; sensors and shares open ports on the network; files moves where new
-# files go
-ALWAYS_ASK = {"telemetry", "analytics", "sensors", "shares", "files"}
+# telemetry, analytics and web search send data elsewhere; sensors and shares open ports on the network; files moves
+# where new files go
+ALWAYS_ASK = {"telemetry", "analytics", "sensors", "shares", "files", "web"}
 ASK_TOOLS = {"invite_person", "change_person"}  # who gets in always waits for the admin's approval
 
 ADMIN_TOOLS = [
     (
         "server_status",
         "What this Lens server has set up and what it still needs: the model provider, search by meaning, namespaces, "
-        "sources, recordings, the job queue. Start here when setting up or troubleshooting.",
+        "sources, assets, the job queue. Start here when setting up or troubleshooting.",
         {},
         [],
         False,
@@ -95,7 +98,7 @@ ADMIN_TOOLS = [
     ),
     (
         "create_namespace",
-        "Create a namespace: a separate set of recordings, documents and images with its own people and access. "
+        "Create a namespace: a separate set of assets (recordings, documents and images) with its own people and access. "
         "Name: lowercase letters, digits, - and _. graph: shared (people and places joined across namespaces) or isolated.",
         {"name": _S, "graph": {"type": "string", "enum": ["shared", "isolated"]}},
         ["name"],
@@ -170,7 +173,7 @@ def status(db, cfg, base):
     if not llm.configured(cfg):
         missing.append("a model provider (chat, summaries and this assistant need one): find_model_servers, then change_settings llm")
     if not names:
-        missing.append("a namespace to put recordings in: create_namespace")
+        missing.append("a namespace to put assets in: create_namespace")
     emb = cfg.get("embeddings") or {}
     if not (emb.get("model") and (emb.get("base_url") or cfg["llm"].get("base_url"))):
         missing.append("search by meaning: an embedding model (embeddings.model, e.g. nomic-embed-text on Ollama)")
@@ -339,7 +342,7 @@ def describe_namespace(db, sid, name):
     titles = [r["title"] for r in rows if r.get("title")]
     parts = [about] if about else []
     if titles:
-        parts.append("Holds recordings such as: " + "; ".join(str(t)[:80] for t in titles))
+        parts.append("Holds assets such as: " + "; ".join(str(t)[:80] for t in titles))
     return " ".join(parts) or f"The namespace called {name}; nothing in it yet."
 
 

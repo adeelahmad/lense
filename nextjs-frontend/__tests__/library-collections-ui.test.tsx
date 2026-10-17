@@ -86,7 +86,7 @@ describe("the collections dialog", () => {
     const list = await open(onPick);
     expect(within(list).getAllByRole("listitem")).toHaveLength(3);
     expect(within(list).getByText("Default")).toBeInTheDocument();
-    expect(within(list).getAllByText("3 recordings").length).toBeGreaterThan(0);
+    expect(within(list).getAllByText("3 assets").length).toBeGreaterThan(0);
     fireEvent.click(within(list).getByRole("button", { name: /^General/ }));
     expect(onPick).toHaveBeenCalledWith(1);
   });
@@ -241,7 +241,7 @@ describe("moving recordings into a collection", () => {
       <PlaceDialog
         ns="pods"
         ids={[7, 8]}
-        title="2 recordings"
+        title="2 assets"
         current={2}
         open
         onOpenChange={onOpenChange}
@@ -256,7 +256,7 @@ describe("moving recordings into a collection", () => {
     await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(m(Resources.placeRecordings).mock.calls[0][0].body).toEqual({ recordings: [7, 8], collection: 3 });
     expect(onOpenChange).toHaveBeenCalledWith(false);
-    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Moved 2 recordings to “2024”" }));
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Moved 2 assets to “2024”" }));
   });
 });
 

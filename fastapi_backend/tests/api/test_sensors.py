@@ -153,7 +153,8 @@ def test_syslog_any_free_port_skips_one_taken_on_tcp(monkeypatch):
     monkeypatch.setattr(socketserver.ThreadingTCPServer, "server_bind", busy_once)
     listener = syslog.Listener("127.0.0.1", 0, [], lambda *a: None).start()
     try:
-        assert len(tries) == 2 and listener.tcp.server_address[1] == listener.port
+        # at least one more try: the next port UDP picks can be taken on TCP too, on a busy machine
+        assert len(tries) >= 2 and listener.tcp.server_address[1] == listener.port
     finally:
         listener.stop()
 

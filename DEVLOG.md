@@ -2,6 +2,19 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-17 · Cleaning up transcripts before analysis
+
+Adeel: a text cleaning step before entity extraction and transcript processing, from a punctuation and grammar
+script he pasted. The `clean` step (cleanup.py) runs before `analyze` in the standard pipeline, off until Settings →
+Analysis turns it on: rules take out fillers and stutters and tidy spacing and capitals, each change kept in the edit
+history with Revert. The script's alternating "Speaker 1 / Speaker 2" labels aren't carried over: Lens tells voices
+apart by diarization, or keeps the labels a transcript came with.
+
+Next: punctuation restored by a local model (the script's deepmultilingualpunctuation, fetched on first use), grammar
+from a LanguageTool server, spaCy fetched for named entities, and dates found and normalised.
+
+Refine later: revert a whole cleanup at once; cleanup rules for other languages' fillers; per-namespace switch.
+
 ## 2026-10-14 · Long recordings in pieces a speech provider takes
 
 Adeel: large audio files are segmented automatically to each transcription provider's limits. `speech.Engine` cuts a

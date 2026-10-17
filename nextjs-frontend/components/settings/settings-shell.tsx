@@ -30,6 +30,7 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
+  SquareTerminal,
   Terminal,
   Upload,
   type LucideIcon,
@@ -46,6 +47,7 @@ import {
   RefreshCw,
   Network,
   ScrollText,
+  Workflow,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -82,11 +84,13 @@ const ICON: Record<AnySectionId, LucideIcon> = {
   llm: Sparkles,
   "local-model": HardDrive,
   ai: Bot,
+  sandbox: SquareTerminal,
   search: Search,
   reports: ChartNoAxesColumn,
   video: Clapperboard,
   nsfw: EyeOff,
   workers: Cpu,
+  automations: Workflow,
   components: PackageCheck,
   access: ShieldCheck,
   "remote-access": Cloud,
@@ -324,7 +328,7 @@ function ArchiveSettings({
         title="These settings are for admins"
         actions={
           <Button asChild>
-            <Link href="/settings/speakers">Go to Speakers</Link>
+            <Link href="/settings/speakers">Go to People</Link>
           </Button>
         }
       >

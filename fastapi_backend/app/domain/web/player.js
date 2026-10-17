@@ -24,7 +24,7 @@
       '<div class="ap-secs"></div><div class="ap-marks"></div>' +
       '<div class="ap-rail" tabindex="0" role="slider" aria-label="Position in the recording" aria-valuemin="0" aria-valuemax="' + Math.round(dur / 1000) + '" aria-valuenow="0"><canvas></canvas><div class="ap-tip" hidden></div></div>' +
       '<div class="ap-legend">' + (d.speakers || []).map(s => '<span><i style="background:' + s.color + '"></i>' + esc(s.name) + '</span>').join('') + '</div>' +
-      '<div class="ap-tabs" role="tablist"><button role="tab" data-tab="t" aria-selected="true">Transcript</button><button role="tab" data-tab="i" aria-selected="false">Index</button>' +
+      '<div class="ap-tabs" role="tablist"><button role="tab" data-tab="t" aria-selected="true">Text</button><button role="tab" data-tab="i" aria-selected="false">Index</button>' +
       '<input class="ap-find" type="search" placeholder="Find in this recording" aria-label="Find in this recording"><span class="ap-found"></span>' +
       '<label class="ap-follow"><input type="checkbox" checked> Follow</label></div>' +
       '<div class="ap-body"><div class="ap-tx" role="tabpanel"></div><div class="ap-ix" role="tabpanel" hidden></div></div>' + (opts.media ? '' : '<audio preload="metadata"></audio>');
@@ -32,7 +32,7 @@
     const audio = opts.media || $('audio'), rail = $('.ap-rail'), cv = rail.querySelector('canvas'), tip = rail.querySelector('.ap-tip');
     const body = $('.ap-body'), tx = $('.ap-tx'), ix = $('.ap-ix'), playBtn = $('.ap-play');
     let now = 0, active = -1, hits = [], hitAt = -1, userScroll = 0, hover = null;
-    if (opts.media) { /* the caller set the source */ } else if (src) audio.src = src; else { playBtn.disabled = true; $('.ap-now').textContent = 'No audio here; the transcript still works.'; }
+    if (opts.media) { /* the caller set the source */ } else if (src) audio.src = src; else { playBtn.disabled = true; $('.ap-now').textContent = 'No audio here; the text still works.'; }
 
     const nameOf = k => (spk[k] && spk[k].name) || 'Unattributed';
     const colorOf = k => (spk[k] && spk[k].color) || '#9AA5B1';
@@ -57,7 +57,7 @@
       html.push('<span class="ap-seg" data-i="' + i + '">' + markOf(s) + '<span class="ap-txt">' + esc(s.text) + '</span></span> ');
     });
     if (open) html.push('</p></div>');
-    tx.innerHTML = html.join('') || '<p class="ap-empty">No transcript yet.</p>';
+    tx.innerHTML = html.join('') || '<p class="ap-empty">No text yet.</p>';
     const spans = Array.from(tx.querySelectorAll('.ap-seg'));
 
     // index: sections, speakers, named things, keywords, summary

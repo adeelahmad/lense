@@ -24,7 +24,7 @@ function estimateLine(e: Estimate | null | undefined, model: string | null): str
   if (!e) return null;
   const tokens = (e.llm?.input_tokens ?? 0) + (e.llm?.output_tokens ?? 0);
   const parts = [
-    plural(e.recordings, "recording"),
+    plural(e.recordings, "asset"),
     e.hours ? `~${hoursShort(e.hours * 3.6e6)}` : null,
     tokens ? `${approxCount(tokens)} tokens` : null,
     e.llm?.cost != null ? `about ${money(e.llm.cost)}` : null,
@@ -82,11 +82,14 @@ export function ApprovalCard({
   canAct,
   model,
   chatId,
+  onDecided,
 }: {
   a: ApprovalView;
   canAct: boolean;
   model: string | null;
   chatId: number | null;
+  /** After a pick, besides the conversation's approvals being read again (the inbox reads its own). */
+  onDecided?: () => void;
 }) {
   const client = useApiClient();
   const qc = useQueryClient();
@@ -99,7 +102,10 @@ export function ApprovalCard({
           body: { decision },
         }),
       ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["approvals", chatId] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["approvals", chatId] });
+      onDecided?.();
+    },
   });
   const decided = decide.data ?? null;
   if ((a.status && a.status !== "pending") || decided)

@@ -55,7 +55,7 @@ export function targetText(target: string | null | undefined, action: string, lo
     const id = Number(m[2]);
     switch (m[1]) {
       case "recording":
-        return `Recording ${id}`;
+        return `Asset ${id}`;
       case "account":
         return look.accounts[id] ?? `Account ${id}`;
       case "space":
@@ -128,7 +128,7 @@ export function detailText(e: AuditEntry, look: Lookup): string {
         changed?: number;
         fields?: string[];
       };
-      return `${x.changed ?? 0} of ${x.recordings ?? 0} recordings · ${listOf(x.fields).join(", ")}`;
+      return `${x.changed ?? 0} of ${x.recordings ?? 0} assets · ${listOf(x.fields).join(", ")}`;
     }
   }
   if (Array.isArray(d)) return d.map(String).join(", ");

@@ -40,10 +40,10 @@ export function ShareEmbedDialog({ recordingId, open, onOpenChange, startMs }: S
     enabled: open,
     staleTime: 60_000,
   });
-  const title = (rec.data?.title as string | undefined) ?? `Recording ${recordingId}`;
+  const title = (rec.data?.title as string | undefined) ?? `Asset ${recordingId}`;
   const ns = (rec.data?.namespace as string | undefined) ?? null;
   const canShare = rec.isSuccess && can("editor", ns);
-  const whyNot = rec.isSuccess ? needRole("editor", ns) : "Loading the recording…";
+  const whyNot = rec.isSuccess ? needRole("editor", ns) : "Loading the asset…";
   const startSec = startMs ? Math.floor(startMs / 1000) : undefined;
 
   return (
@@ -69,7 +69,7 @@ export function ShareEmbedDialog({ recordingId, open, onOpenChange, startMs }: S
           role="alert"
           className="rounded-sm border border-red-border bg-red-surface px-3 py-2 text-[13px] text-red-dark"
         >
-          Couldn’t load the recording: {(rec.error as Error).message}
+          Couldn’t load the asset: {(rec.error as Error).message}
         </p>
       ) : tab === "share" ? (
         <ShareLinks

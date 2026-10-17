@@ -14,11 +14,11 @@ router = APIRouter(tags=["search"])
 
 @router.post("/find")
 def find_resources(body: FindQuery, acl: Acl, user: CurrentUser, db: Db, cfg: Cfg) -> FindResults:
-    """Resources you can read that match every filter given: the people seen in them (faces) and heard (speakers), the
+    """Assets you can read that match every filter given: the people seen in them (faces) and heard (speakers), the
     entities they mention, the topics they're about, their kind and content type, when they were made, their tags,
     language, objects seen, emotions heard, length, status, collection and origin, and words said or written in them.
-    Faces, speakers, entities and topics can be named instead of numbered; `resolved` says what each name matched, and
-    a name that matches nothing is a 400 naming the closest ones. Each resource says `why` it matched, with up to three
+    Faces, people heard, entities and topics can be named instead of numbered; `resolved` says what each name matched, and
+    a name that matches nothing is a 400 naming the closest ones. Each asset says `why` it matched, with up to three
     moments per reason to cite (a time, or a page). With `text`, the best matching come first."""
     spaces, within = acl.scope(body.namespace)
     spec = body.model_dump(exclude={"namespace", "sort", "limit", "offset"}, exclude_none=True)

@@ -1,5 +1,5 @@
 # LibreOffice and Chromium in the full edition, installed the first time Lens needs one (docs/microsandbox.md),
-# sourced by run.sh, which defines log(), apt_install() and PROGRAMS. Root only. test-programs.sh tests it.
+# sourced by run.sh, which defines log(), apt_install(), wipe() and PROGRAMS. Root only. test-programs.sh tests it.
 #
 # Lens runs as the lens user, so it asks for one by name: it writes ask/NAME.want in $PROGRAMS
 # (convert.fetch_program). programs_loop, as root, installs that name's packages (from the volume after the first
@@ -19,7 +19,7 @@ program_packages() {
 
 # programs_prepare: nothing is installed on this new disk yet; what was installed before is asked for again
 programs_prepare() {
-  rm -rf "$PROGRAMS/ask" "$PROGRAMS/got"
+  wipe "$PROGRAMS/ask" "$PROGRAMS/got"
   mkdir -p "$PROGRAMS/ask" "$PROGRAMS/got"
   chown lens:lens "$PROGRAMS/ask" && chmod 700 "$PROGRAMS/ask"
   # an install from before first use: the ones the full edition installed at every start, whose packages are here

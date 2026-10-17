@@ -6,7 +6,7 @@ import { useState } from "react";
 
 import { Oauth } from "@/app/openapi-client";
 import { AuthAlert, AuthCard } from "@/components/auth/auth-card";
-import { canWrite, returnsTo, safeToFollow, type ConsentRequest } from "@/components/oauth/model";
+import { canWrite, namespaceOf, returnsTo, safeToFollow, type ConsentRequest } from "@/components/oauth/model";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/states";
@@ -89,15 +89,23 @@ export function ConsentCard({ request, email }: { request: ConsentRequest | null
 
   const app = info.data.client;
   const busy = answer.isPending || answer.isSuccess;
+  const only = namespaceOf(request.resource);
   return (
     <AuthCard
       wide
       title={<>Give {app.name} access?</>}
       description={
-        <>
-          It will use Lens as you (<span className="font-semibold text-fg">{email}</span>), with your roles: it sees
-          what you see, nothing more.
-        </>
+        only ? (
+          <>
+            It will use Lens as you (<span className="font-semibold text-fg">{email}</span>), in{" "}
+            <span className="font-semibold text-fg">{only}</span> alone: it sees what you see there, nothing else.
+          </>
+        ) : (
+          <>
+            It will use Lens as you (<span className="font-semibold text-fg">{email}</span>), with your roles: it sees
+            what you see, nothing more.
+          </>
+        )
       }
       footer={
         <>

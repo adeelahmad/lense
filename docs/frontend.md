@@ -38,9 +38,9 @@ nextjs-frontend/
 
 The nav rail (`components/app-shell/nav-config.ts`) is in four groups, each named above its first item (a line when
 the rail is collapsed to icons): what people use every day (Home, Library, Search, Chat, Notes), **Explore** what Lens
-found (Entities, Topics, Graph, Podcasts, Reports), **Automate** what runs by itself (Pipelines, Routines, Extensions,
-Sensors, or Sources for people who aren't admins), and **Manage** Lens (Costs, Analytics, Settings, Admin). Every page
-stays one click from Home; ⌘K reaches every page, recording and setting by name.
+found (Timeline, Entities, Topics, Graph, Podcasts, Reports), **Automate** what runs by itself (Pipelines, Routines,
+Extensions, Sensors, or Sources for people who aren't admins), and **Manage** Lens (Costs, Analytics, Settings,
+Admin). Every page stays one click from Home; ⌘K reaches every page, recording and setting by name.
 
 ## Design system
 
@@ -54,7 +54,7 @@ four-colour loop (Transcribe blue, Diarize red, Analyze green, Summarize and Rep
 * **Tailwind 4** is configured in CSS: the `@theme` block in `app/globals.css` maps the tokens, and there is no
   `tailwind.config.js`. Its utilities stay outside cascade layers there, so a class still beats the notes editor's
   global element styles (BlockSuite adds rules such as `input { font-size: 12px }` to the page).
-* **Type:** DM Sans for the UI (13–14 px), Source Serif 4 for transcripts (`.transcript-text`, 17.5/1.6), JetBrains
+* **Type:** DM Sans for the UI (13–14 px), Source Serif 4 for an asset's text (`.transcript-text`, 17.5/1.6), JetBrains
   Mono for paths and code. All three are self-hosted in `public/fonts`.
 * **Primitives** (`components/ui`): Button (pill; `disabledReason` explains a disabled action), IconButton, Badge,
   StatusChip, RoleChip, SpeakerChip, EmotionChip, JobStepChip, Field/Input/Select/Switch/Checkbox, SecretField,

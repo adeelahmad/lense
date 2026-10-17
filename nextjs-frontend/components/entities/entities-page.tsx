@@ -2,6 +2,7 @@
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { ChevronRight, Plus, Shapes } from "lucide-react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -29,6 +30,7 @@ import { EmptyState, PageHeader, SkeletonRows } from "@/components/ui/states";
 import { Pagination, SortTh, Table, Td, Th, THead, Tr } from "@/components/ui/table";
 import { Tabs } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
+import { wikiPath } from "@/components/wiki/links";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
 import { count, plural, shortDate } from "@/lib/format";
 import { needRole, useArchive } from "@/lib/hooks/session";
@@ -161,8 +163,8 @@ export function EntitiesPage() {
       <div className="px-4 py-6 md:px-6">
         <PageHeader title="Entities" />
         <EmptyState icon={<Shapes />} title="No namespaces yet">
-          Entities are kept per namespace. Once you have access to one, the people, organisations and topics its
-          recordings mention show here.
+          Entities are kept per namespace. Once you have access to one, the people, organisations and topics its assets
+          mention show here.
         </EmptyState>
       </div>
     );
@@ -293,7 +295,7 @@ export function EntitiesPage() {
                 ? "Nothing matches these filters."
                 : f.hidden
                   ? "Nobody has hidden an entity in this namespace."
-                  : "Entities appear once recordings are analysed."}
+                  : "Entities appear once assets are analysed."}
             </EmptyState>
           )}
           {list.data && rows.length > 0 && (
@@ -318,10 +320,10 @@ export function EntitiesPage() {
                       Mentions
                     </SortTh>
                     <SortTh {...sortBy("recordings")} className="hidden w-[120px] md:table-cell">
-                      Recordings
+                      Assets
                     </SortTh>
                     <SortTh {...sortBy("recent")} className="hidden w-[130px] md:table-cell">
-                      Last said
+                      Last mentioned
                     </SortTh>
                     <Th className="w-8">
                       <span className="sr-only">Open</span>
@@ -350,16 +352,14 @@ export function EntitiesPage() {
                           </Td>
                         )}
                         <Td>
-                          <button
-                            type="button"
+                          {/* the name opens its page; the rest of the row, the panel to change it */}
+                          <Link
+                            href={wikiPath(e.namespace ?? ns ?? "", e.name)}
                             className="text-left font-semibold text-fg hover:text-fg-accent hover:underline"
-                            onClick={(ev) => {
-                              ev.stopPropagation();
-                              set({ entity: String(e.id) }, true);
-                            }}
+                            onClick={(ev) => ev.stopPropagation()}
                           >
                             {e.name}
-                          </button>
+                          </Link>
                           {e.builtin ? (
                             <Badge tone="gate" className="ml-2">
                               always there

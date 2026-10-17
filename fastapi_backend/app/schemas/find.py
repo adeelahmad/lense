@@ -22,11 +22,9 @@ class FindQuery(RequestModel):
         max_length=300,
         description='words said or written in them, as search takes them (words, "phrases", OR); by meaning too when that is set up',
     )
-    title: str | None = Field(
-        None, max_length=200, description="words that must all appear in the title, the namespace or a speaker's name"
-    )
+    title: str | None = Field(None, max_length=200, description="words that must all appear in the title, the namespace or a person's name")
     faces: Named | None = Field(None, max_length=20, description="people seen in them: face identities, by id or name")
-    speakers: Named | None = Field(None, max_length=20, description="voices heard in them: speakers, by id or name")
+    speakers: Named | None = Field(None, max_length=20, description="people heard in them: speakers, by id or name")
     entities: Named | None = Field(None, max_length=20, description="entities they mention, by id or name")
     topics: Named | None = Field(
         None, max_length=20, description="topics they were accepted as about, by id or label; a topic's narrower topics count too"
@@ -90,11 +88,11 @@ class FindText(ResponseModel):
     mode: str = Field(description="how the words were matched: keyword, semantic or hybrid")
     meaning: str | None = Field(None, description="why not by meaning, when it was asked and couldn't be")
     moments: int = Field(description="moments the words were found in")
-    capped: bool = Field(description="more moments matched than were looked through, so some resources may be missing")
+    capped: bool = Field(description="more moments matched than were looked through, so some assets may be missing")
 
 
 class FindResults(ResponseModel):
-    total: int = Field(description="how many resources match, on all pages")
+    total: int = Field(description="how many assets match, on all pages")
     items: list[FindItem]
     resolved: dict[str, list[FindNamed] | int] = Field(
         default_factory=dict, description="what the names given matched, by filter (and how many narrower topics came with them)"

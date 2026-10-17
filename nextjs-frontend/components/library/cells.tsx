@@ -23,15 +23,13 @@ const MEDIA_WORD = { video: "Video", audio: "Audio", document: "Document", image
 export function MediaIcon({ kind, className }: { kind: string | null | undefined; className?: string }) {
   const k = kind && kind in MEDIA_ICON ? (kind as keyof typeof MEDIA_ICON) : null;
   const Icon = k ? MEDIA_ICON[k] : FileText;
-  return (
-    <Icon aria-label={k ? MEDIA_WORD[k] : "Transcript only"} role="img" className={cn("size-3 shrink-0", className)} />
-  );
+  return <Icon aria-label={k ? MEDIA_WORD[k] : "Text only"} role="img" className={cn("size-3 shrink-0", className)} />;
 }
 
 /** "Text" marks transcript-only recordings (no audio). */
 export function TextBadge() {
   return (
-    <Tooltip content="Transcript only — no audio">
+    <Tooltip content="Text only — no media">
       <span
         tabIndex={0}
         className="inline-flex h-[18px] shrink-0 items-center gap-[3px] rounded-xs bg-surface-neutral px-1.5 text-[10.5px] font-semibold text-fg-secondary"

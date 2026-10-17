@@ -11,6 +11,7 @@ import { Notes } from "@/app/openapi-client";
 import type { NotePage as Page, NotePageDraft as PageDraft } from "@/app/openapi-client/types.gen";
 import { ActivityPanel } from "@/components/costs/costs";
 import type { EditorBlobs, EditorChange, LinkTarget } from "@/components/notes/block-editor";
+import { useDeleteNote } from "@/components/notes/delete";
 import { HomeSuggestion } from "@/components/notes/home-suggestions";
 import { LinkSuggestions } from "@/components/notes/link-suggestions";
 import { NoteHistory } from "@/components/notes/note-history";
@@ -39,8 +40,9 @@ type Changes = {
 };
 
 /** A note: a free note (`id`), or the page of a thing (`about`, like "entity:5"), which is a draft until someone writes
- * on it. Everything saves as you type. */
-export function NotePage({ id, about }: { id?: number; about?: string }) {
+ * on it. Everything saves as you type. `embedded`: the notes part of a page that shows the thing itself (an entity's
+ * wiki page), which has its own title and description, so only the text, its view, history and links show. */
+export function NotePage({ id, about, embedded = false }: { id?: number; about?: string; embedded?: boolean }) {
   const client = useApiClient();
   const qc = useQueryClient();
   const router = useRouter();
@@ -217,20 +219,18 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
     [router, page?.namespace],
   );
 
+  // No question first: the notice has Undo, and the note waits in recently deleted
+  const deleteNote = useDeleteNote();
   const remove = async () => {
     if (savedId.current == null) return;
-    if (!window.confirm("Delete this note? The notes inside it move up a level.")) return;
-    try {
-      await data(Notes.deletePage({ client, path: { pid: savedId.current } }));
-      qc.invalidateQueries({ queryKey: ["notes-tree"] });
-      router.push("/notes");
-    } catch (err) {
-      toast({
-        title: "Couldn’t delete it",
-        body: err instanceof ApiError ? err.message : "Please try again.",
-        tone: "red",
-      });
-    }
+    await flush(); // what was just typed is kept with it, for Undo
+    if (!(await deleteNote(savedId.current, title.trim() || page?.title || "Untitled"))) return;
+    if (!embedded) return router.push("/notes");
+    // the thing's own page stays, with an empty draft of its notes
+    await qc.invalidateQueries({ queryKey: key });
+    savedId.current = null;
+    loadedFor.current = null;
+    setRestored((n) => n + 1);
   };
 
   if (q.isError)
@@ -241,19 +241,46 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
     );
   if (!page)
     return (
-      <div className="mx-auto flex max-w-[860px] flex-col gap-4 px-6 py-8">
-        <Skeleton className="h-10 w-2/3" />
-        <Skeleton className="h-5 w-1/2" />
+      <div className={cn("flex flex-col gap-4", !embedded && "mx-auto max-w-[860px] px-6 py-8")}>
+        {!embedded && <Skeleton className="h-10 w-2/3" />}
+        {!embedded && <Skeleton className="h-5 w-1/2" />}
         <Skeleton className="h-[240px] w-full" />
       </div>
     );
 
   const canEdit = page.can_edit;
-  const aboutHref = page.about ? hrefFor(page.about, page.namespace) : null;
+  const aboutHref = page.about && !embedded ? hrefFor(page.about, page.namespace) : null;
+  const views = (
+    <div role="radiogroup" aria-label="Show as" className="inline-flex rounded-pill border border-border p-0.5">
+      {(
+        [
+          ["page", "Page", FileText],
+          ["edgeless", "Canvas", Shapes],
+        ] as const
+      ).map(([v, label, Icon]) => (
+        <button
+          key={v}
+          type="button"
+          role="radio"
+          aria-checked={view === v}
+          onClick={() => {
+            setView(v);
+            if (canEdit) change({ view: v });
+          }}
+          className={cn(
+            "inline-flex items-center gap-1 rounded-pill px-2.5 py-0.5",
+            view === v ? "bg-blue-surface font-bold text-fg-accent" : "text-fg-secondary hover:text-fg",
+          )}
+        >
+          <Icon className="size-3.5" /> {label}
+        </button>
+      ))}
+    </div>
+  );
   return (
-    <article className="mx-auto flex w-full max-w-[860px] flex-col gap-3 px-6 py-8">
+    <article className={cn("flex w-full flex-col gap-3", !embedded && "mx-auto max-w-[860px] px-6 py-8")}>
       <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-fg-muted">
-        <span>{page.namespace}</span>
+        {!embedded && <span>{page.namespace}</span>}
         {aboutHref && (
           <Link href={aboutHref} className="inline-flex items-center gap-1 text-fg-accent hover:underline">
             Open {page.about?.split(":")[0]} <ArrowUpRight className="size-3.5" />
@@ -265,6 +292,7 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
           </span>
         )}
         <span className="flex-1" />
+        {embedded && views}
         {canEdit && (
           <span aria-live="polite">
             {state === "saving" ? "Saving…" : state === "error" ? "Not saved" : saved ? "Saved" : "Draft"}
@@ -281,142 +309,130 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
           </Button>
         )}
       </div>
-      <input
-        aria-label="Title"
-        ref={titleRef}
-        value={title}
-        readOnly={!canEdit}
-        onChange={(e) => {
-          setTitle(e.target.value);
-          change({ title: e.target.value });
-        }}
-        onKeyDown={(e) => {
-          // Enter goes on to the page's first line, as in a document
-          if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
-          // (the page root is what takes the focus; the caret goes in its first paragraph, not the hidden title line)
-          const root = document.querySelector<HTMLElement>(".lens-block-editor affine-page-root");
-          const line = root?.querySelector(".inline-editor");
-          if (!root || !line) return;
-          e.preventDefault();
-          root.focus();
-          window.getSelection()?.collapse(line, 0);
-        }}
-        placeholder="Untitled"
-        className="w-full bg-transparent text-[30px] font-bold leading-tight tracking-[-.015em] text-fg outline-hidden placeholder:text-fg-muted"
-      />
-      <input
-        aria-label="Summary"
-        value={summary}
-        readOnly={!canEdit}
-        maxLength={300}
-        onChange={(e) => {
-          setSummary(e.target.value);
-          change({ summary: e.target.value });
-        }}
-        placeholder={canEdit ? "One line on what this note holds (the assistant reads it first)" : ""}
-        className="w-full bg-transparent text-[15px] text-fg-secondary outline-hidden placeholder:text-fg-muted"
-      />
-      <div className="flex flex-wrap items-center gap-3 border-b border-border pb-3 text-[13px] text-fg-secondary">
-        <label className="flex items-center gap-1.5">
-          Date
+      {!embedded && (
+        <>
           <input
-            type="date"
-            value={date}
+            aria-label="Title"
+            ref={titleRef}
+            value={title}
             readOnly={!canEdit}
             onChange={(e) => {
-              setDate(e.target.value);
-              change({ date: e.target.value });
+              setTitle(e.target.value);
+              change({ title: e.target.value });
             }}
-            className="rounded-sm border border-border bg-background px-2 py-0.5 text-fg"
+            onKeyDown={(e) => {
+              // Enter goes on to the page's first line, as in a document
+              if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+              // (the page root is what takes the focus; the caret goes in its first paragraph, not the hidden title line)
+              const root = document.querySelector<HTMLElement>(".lens-block-editor affine-page-root");
+              const line = root?.querySelector(".inline-editor");
+              if (!root || !line) return;
+              e.preventDefault();
+              root.focus();
+              window.getSelection()?.collapse(line, 0);
+            }}
+            placeholder="Untitled"
+            className="w-full bg-transparent text-[30px] font-bold leading-tight tracking-[-.015em] text-fg outline-hidden placeholder:text-fg-muted"
           />
-        </label>
-        <label className="flex items-center gap-1.5">
-          Filed under
-          <select
-            value={place}
-            disabled={!canEdit}
+          <input
+            aria-label="Summary"
+            value={summary}
+            readOnly={!canEdit}
+            maxLength={300}
             onChange={(e) => {
-              setPlace(e.target.value);
-              change({ place: e.target.value });
+              setSummary(e.target.value);
+              change({ summary: e.target.value });
             }}
-            className="rounded-sm border border-border bg-background px-2 py-0.5 text-fg"
-          >
-            <option value="">Not filed</option>
-            {PLACES.map((p) => (
-              <option key={p.value} value={p.value}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        {canEdit && !place && saved?.place_suggestion && (
-          <button
-            type="button"
-            onClick={() => {
-              setPlace(saved.place_suggestion!.place);
-              change({ place: saved.place_suggestion!.place });
-            }}
-            className="inline-flex items-center gap-1 rounded-pill border border-border px-2 py-0.5 text-fg-accent hover:bg-blue-surface"
-            title="The assistant wasn’t sure; file it there?"
-          >
-            <Sparkles className="size-3.5" />
-            File under {PLACES.find((x) => x.value === saved.place_suggestion!.place)?.label}
-          </button>
-        )}
-        {canEdit && saved && !saved.about && saved.parent == null && (
-          <HomeSuggestion
-            pid={saved.id}
-            version={saved.updated_at}
-            busy={linking}
-            onMove={async (s) => {
-              setLinking(true);
-              try {
-                await flush();
-                const out = await data(Notes.movePage({ client, path: { pid: saved.id }, body: { parent: s.page } }));
-                qc.setQueryData(key, out);
-                qc.invalidateQueries({ queryKey: ["notes-tree"] });
-              } catch (err) {
-                toast({
-                  title: "Couldn’t move it",
-                  body: err instanceof ApiError ? err.message : "Please try again.",
-                  tone: "red",
-                });
-              } finally {
-                setLinking(false);
-              }
-            }}
+            placeholder={canEdit ? "One line on what this note holds (the assistant reads it first)" : ""}
+            className="w-full bg-transparent text-[15px] text-fg-secondary outline-hidden placeholder:text-fg-muted"
           />
-        )}
-        {saved?.updated_at && <span>Changed {shortDate(saved.updated_at)}</span>}
-        <span className="flex-1" />
-        <div role="radiogroup" aria-label="Show as" className="inline-flex rounded-pill border border-border p-0.5">
-          {(
-            [
-              ["page", "Page", FileText],
-              ["edgeless", "Canvas", Shapes],
-            ] as const
-          ).map(([v, label, Icon]) => (
-            <button
-              key={v}
-              type="button"
-              role="radio"
-              aria-checked={view === v}
-              onClick={() => {
-                setView(v);
-                if (canEdit) change({ view: v });
-              }}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-pill px-2.5 py-0.5",
-                view === v ? "bg-blue-surface font-bold text-fg-accent" : "text-fg-secondary hover:text-fg",
-              )}
-            >
-              <Icon className="size-3.5" /> {label}
-            </button>
-          ))}
-        </div>
-      </div>
+          <div className="flex flex-wrap items-center gap-3 border-b border-border pb-3 text-[13px] text-fg-secondary">
+            <label className="flex items-center gap-1.5">
+              Date
+              <input
+                type="date"
+                value={date}
+                readOnly={!canEdit}
+                onChange={(e) => {
+                  setDate(e.target.value);
+                  change({ date: e.target.value });
+                }}
+                className="rounded-sm border border-border bg-background px-2 py-0.5 text-fg"
+              />
+            </label>
+            <label className="flex items-center gap-1.5">
+              Filed under
+              <select
+                value={place}
+                disabled={!canEdit}
+                onChange={(e) => {
+                  setPlace(e.target.value);
+                  change({ place: e.target.value });
+                }}
+                className="rounded-sm border border-border bg-background px-2 py-0.5 text-fg"
+              >
+                <option value="">Not filed</option>
+                {PLACES.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {canEdit && !place && saved?.place_suggestion && (
+              <button
+                type="button"
+                onClick={() => {
+                  setPlace(saved.place_suggestion!.place);
+                  change({ place: saved.place_suggestion!.place });
+                }}
+                className="inline-flex items-center gap-1 rounded-pill border border-border px-2 py-0.5 text-fg-accent hover:bg-blue-surface"
+                title="The assistant wasn’t sure; file it there?"
+              >
+                <Sparkles className="size-3.5" />
+                File under {PLACES.find((x) => x.value === saved.place_suggestion!.place)?.label}
+              </button>
+            )}
+            {canEdit && saved && !saved.about && saved.parent == null && (
+              <HomeSuggestion
+                pid={saved.id}
+                version={saved.updated_at}
+                busy={linking}
+                onMove={async (s) => {
+                  setLinking(true);
+                  try {
+                    await flush();
+                    const out = await data(
+                      Notes.movePage({ client, path: { pid: saved.id }, body: { parent: s.page } }),
+                    );
+                    qc.setQueryData(key, out);
+                    qc.invalidateQueries({ queryKey: ["notes-tree"] });
+                  } catch (err) {
+                    toast({
+                      title: "Couldn’t move it",
+                      body: err instanceof ApiError ? err.message : "Please try again.",
+                      tone: "red",
+                    });
+                  } finally {
+                    setLinking(false);
+                  }
+                }}
+              />
+            )}
+            {saved?.updated_at && <span>Changed {shortDate(saved.updated_at)}</span>}
+            <span className="flex-1" />
+            {views}
+          </div>
+        </>
+      )}
+      {embedded && canEdit && !(page.body ?? "").trim() && (
+        <p className="m-0 text-[13px] text-fg-muted">
+          Nothing written on {page.title} yet. Write below: @ links people, things and recordings, # links topics.
+        </p>
+      )}
       <BlockEditor
         key={`${page.about ?? `page:${page.id}`}:${restored}`}
+        className={embedded && view === "page" ? "rounded-md border border-border px-4 py-2" : undefined}
         markdown={page.body ?? ""}
         doc={saved?.doc ?? null}
         readOnly={!canEdit}
@@ -472,7 +488,7 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
           }}
         />
       )}
-      {saved && <ActivityPanel resource={`note_page:${saved.id}`} title="Costs and activity" />}
+      {saved && !embedded && <ActivityPanel resource={`note_page:${saved.id}`} title="Costs and activity" />}
     </article>
   );
 }
@@ -487,7 +503,10 @@ function Backlinks({ items }: { items: { page: number; title: string; about?: st
       <ul className="flex flex-col gap-1">
         {items.map((b) => (
           <li key={b.page}>
-            <Link href={`/notes/${b.page}`} className={cn("text-[14px] text-fg-accent hover:underline")}>
+            <Link
+              href={(b.about && hrefFor(b.about)) || `/notes/${b.page}`}
+              className={cn("text-[14px] text-fg-accent hover:underline")}
+            >
               {b.title}
             </Link>
           </li>

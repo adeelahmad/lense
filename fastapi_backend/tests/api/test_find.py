@@ -205,7 +205,7 @@ def test_find_for_agents(client, db, cfg, env):
     box = ai_tools.Toolbox(db, cfg, me, {env["pods"], env["calls"]}, set(), {"recordings": [env["ep1"], env["call"]]}, None)
     assert "find_resources" in {t["function"]["name"] for t in box.specs()}
     got, summary = box.t_find_resources(entities=["Dyno Therapeutics"])
-    assert summary == "Found 2 resource(s)"
+    assert summary == "Found 2 asset(s)"
     assert {x["recording_id"] for x in got["results"]} == {env["ep1"], env["call"]}
     refs = [m["ref"] for x in got["results"] for w in x["why"] for m in w["moments"]]
     assert refs == list(range(1, len(refs) + 1)) and len(box.refs) == len(refs)

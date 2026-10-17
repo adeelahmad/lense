@@ -13,6 +13,7 @@ from app.config import settings as env
 from app.domain import (
     activity,
     auth,
+    automations,
     channels,
     components,
     content_types,
@@ -85,7 +86,7 @@ class Archive:
             )
 
     def start_background(self) -> None:
-        """Inline workers, the watched-folder poller, the notifier, the routine scheduler, the sensor hub (idle while
+        """Inline workers, the watched-folder poller, the notifier, the routine scheduler, automations, the sensor hub (idle while
         sensors are off) and the chat channels (each idle while it's off). Production runs these as separate processes (`lens worker`)."""
         for i in range(max(0, int(self.current()["workers"]["inline"]))):
             w = jobs.Worker(self.db, self.current, name=f"api-{os.getpid()}-{i}", log=log.info)
@@ -93,6 +94,7 @@ class Archive:
 
         notify.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.warning)
         routines.start(self.db, self.current, self.stop, log=log.info)
+        automations.start(self.db, self.current, self.stop, log=log.info)
         sensors.start(self.db, self.current, self.stop, log=log.info, name=f"api-{os.getpid()}")
         channels.start_all(self.db, self.current, self.stop, lambda: self.base, name=f"api-{os.getpid()}", log_fn=log.warning)
         tunnel.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.info)

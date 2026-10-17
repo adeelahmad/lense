@@ -475,7 +475,7 @@ def clean_tags(values):
         if t:
             out.setdefault(t.casefold(), t)
     if len(out) > TAGS_MAX:
-        raise ValueError(f"a recording has at most {TAGS_MAX} tags")
+        raise ValueError(f"an asset has at most {TAGS_MAX} tags")
     return sorted(out.values(), key=str.casefold)
 
 

@@ -61,7 +61,7 @@ export function DetailsTab() {
             ? "Video"
             : model.audio
               ? "Audio"
-              : "Transcript only (no audio)",
+              : "Text only (no audio)",
     ],
     ["Content type", <ContentTypePicker key="ct" rid={id} editable={canEdit} />],
     paged ? ["Pages", count(model.pages.length)] : ["Duration", tc(model.durationMs)],
@@ -74,7 +74,7 @@ export function DetailsTab() {
             .join(" · "),
         ]
       : [
-          "Transcript",
+          video || model.audio ? "Transcript" : "Text",
           [plural(model.segments.length, "line"), transcriptOrigin(rec.engine)].filter(Boolean).join(" · "),
         ],
     ["Language", rec.language && !["none", "nospeech"].includes(rec.language) ? rec.language.toUpperCase() : null],
@@ -146,7 +146,7 @@ export function DetailsTab() {
     <>
       <div className="flex items-center gap-2">
         <p className="flex-1 text-[12.5px] leading-snug text-fg-muted">
-          From the recording&apos;s own record. Codec and loudness details aren&apos;t measured yet.
+          From the asset&apos;s own record. Codec and loudness details aren&apos;t measured yet.
         </p>
         {model.audio && (
           <Button asChild variant="secondary" size="sm" icon={<Download />}>

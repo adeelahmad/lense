@@ -125,7 +125,7 @@ def test_tools_approvals_and_checking(app, db, cfg, folder, new_client, llm):
     assert {p["namespace"] if "namespace" in p else "pods" for p in ev["passages"][0]} == {"pods"}
     assert [p["n"] for p in ev["passages"][0]] == [1, 2]
     approval = ev["approval"][0]
-    assert approval["summary"] == "Run Meeting notes (prompt) on 1 recording(s)"
+    assert approval["summary"] == "Run Meeting notes (prompt) on 1 asset(s)"
     pending = c.get("/api/v1/approvals", headers=h, params={"chat_id": cid}).json()
     assert [(x["id"], x["status"]) for x in pending] == [(approval["id"], "pending")]
     cv, hv = s.cl["viewer"]
@@ -478,18 +478,19 @@ def test_editing_a_question(plain, client, new_client, db, cfg, folder, llm):
     assert other.post(f"/api/v1/chats/{cid}/messages", headers=hv, json={"content": "x", "edit": second}).status_code == 404
     elsewhere = client.post("/api/v1/chats", headers=h, json={}).json()["id"]
     assert client.post(f"/api/v1/chats/{elsewhere}/messages", headers=h, json={"content": "x", "edit": second}).status_code == 404
-    assert len(client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"]) == 6  # nothing was removed
+    assert len(client.get(f"/api/v1/chats/{cid}", headers=h).json()["tree"]) == 6  # nothing changed
 
-    # editing the second question replaces it and everything after it; the model sees only what came before
+    # editing the second question makes a version beside it, and the old one keeps what followed it; the model sees
+    # only what came before
     llm.seen.clear()
     ev = sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "Who ships it, exactly?", "edit": second}).text)
-    assert ev["done"]
+    assert ev["done"] and ev["branch"][0]["versions"] == {"index": 2, "count": 2, "ids": [second, ev["branch"][0]["message"]]}
     sent = [m["content"] for m in llm.seen[-1]["messages"] if m["role"] == "user"]
     assert "When does the shipment leave?" in sent[0] and not any("Who is shipping it?" in s or "And where to?" in s for s in sent)
     c = client.get(f"/api/v1/chats/{cid}", headers=h).json()
     assert [m["content"] for m in c["messages"] if m["role"] == "user"] == ["When does the shipment leave?", "Who ships it, exactly?"]
     assert [m["role"] for m in c["messages"]] == ["user", "assistant", "user", "assistant"]
-    assert c["title"] == "When does the shipment leave?"
+    assert c["title"] == "When does the shipment leave?" and len(c["tree"]) == 8
 
     # editing the first question retitles a conversation titled after it, but keeps a title you set
     first = c["messages"][0]["id"]
@@ -504,12 +505,12 @@ def test_editing_a_question(plain, client, new_client, db, cfg, folder, llm):
     sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "When does it ship?", "edit": first}).text)
     assert client.get(f"/api/v1/chats/{cid}", headers=h).json()["title"] == "Shipping"
 
-    # a refused edit (a model that isn't offered) removes nothing
-    n = len(client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"])
+    # a refused edit (a model that isn't offered) changes nothing
+    n = len(client.get(f"/api/v1/chats/{cid}", headers=h).json()["tree"])
     assert (
         client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "x", "edit": first, "model": "gpt-9"}).status_code == 400
     )
-    assert len(client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"]) == n
+    assert len(client.get(f"/api/v1/chats/{cid}", headers=h).json()["tree"]) == n
 
     # a question asked from a page keeps the page and the highlighted text when edited
     page = {"url": "/library", "title": "Library", "text": "Shipment report", "selection": "Dyno shipment"}

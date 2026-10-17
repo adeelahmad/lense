@@ -452,14 +452,14 @@ if [ "$BACKEND" = microsandbox ]; then
   # this machine has Docker Hub credentials that microsandbox can't use, and limits anonymous pulls.
   say "Getting the base image..."
   image=""
-  for ref in mirror.gcr.io/library/python:3.12-slim-bookworm public.ecr.aws/docker/library/python:3.12-slim-bookworm \
-    docker.io/library/python:3.12-slim-bookworm; do
+  for ref in mirror.gcr.io/library/python:3.12-slim-trixie public.ecr.aws/docker/library/python:3.12-slim-trixie \
+    docker.io/library/python:3.12-slim-trixie; do
     if out="$(msb pull -q "$ref" 2>&1)"; then
       image="$ref"
       break
     fi
   done
-  [ -n "$image" ] || fail "Couldn't download the base image (python:3.12-slim-bookworm): $out"
+  [ -n "$image" ] || fail "Couldn't download the base image (python:3.12-slim-trixie): $out"
   # The volume its data is kept in (the database, the archive, the builds). A database opens only with the keys of
   # the install that made it, which are in that install's .env. So a first install that finds the volume of an earlier
   # one whose folder is gone (deleted, or installed elsewhere) starts on a volume of its own, and leaves that one as it

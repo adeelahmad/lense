@@ -320,3 +320,30 @@ def test_google_drive_as_a_service_account(client, db, cfg, monkeypatch):
         assert r.status_code == 400 and "service account" in r.text
     r = client.patch(f"/api/v1/sources/{sid}", json={"secrets": {"service_account_credentials": "{}"}}, headers=h)
     assert r.status_code == 400
+
+
+def test_a_drive_folder_link_is_kept_as_its_id(client, db, monkeypatch):
+    """The root folder and shared drive take the link Drive shows in the address bar, as well as the bare id."""
+    monkeypatch.setattr(sources, "test", lambda *a, **k: {"ok": True})
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    h = login(client, "root@x.io", "root password 1")
+    links = {
+        "https://drive.google.com/drive/folders/1AbC-d_E?usp=sharing": "1AbC-d_E",
+        "https://drive.google.com/drive/u/1/folders/1XyZ": "1XyZ",
+        "https://drive.google.com/open?id=1Open&authuser=0": "1Open",
+        " 1Bare ": "1Bare",
+    }
+    for link, fid in links.items():
+        body = {
+            "name": "Drive",
+            "type": "drive",
+            "params": {"root_folder_id": link, "team_drive": "https://drive.google.com/drive/folders/0AShared"},
+        }
+        sid = client.post("/api/v1/sources", json=body, headers=h).json()["id"]
+        params = sources.get(db, sid)["params"]
+        assert params["root_folder_id"] == fid and params["team_drive"] == "0AShared", link
+    client.patch(f"/api/v1/sources/{sid}", json={"params": {"root_folder_id": "https://drive.google.com/drive/folders/1Moved"}}, headers=h)
+    assert sources.get(db, sid)["params"]["root_folder_id"] == "1Moved"
+    for bad, why in (("https://drive.google.com/file/d/1File/view", "a file's"), ("https://example.com/somewhere", "folder's link")):
+        r = client.post("/api/v1/sources", json={"type": "drive", "params": {"root_folder_id": bad}}, headers=h)
+        assert r.status_code == 400 and why in r.json()["detail"], r.text
