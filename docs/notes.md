@@ -7,8 +7,9 @@ Status: **built**: pages (free notes in a tree, a page per asset, entity, topic,
 links with backlinks (# links topics), the tree in the left navigation, the page view with the BlockSuite editor, the
 model keeping titles and summaries up to date, assistant tools to find, read, write and update notes, and MCP tools to
 find, read and write them ([MCP](mcp.md)), page history with restore, suggested links to what a note names, the
-project or area a note fits under, images and attachments kept where Settings → Storage says, and every entity's
-own page at a wiki address, `/wiki/<namespace>/<Name>` ([Entity pages](#entity-pages)).
+project or area a note fits under, images and attachments kept where Settings → Storage says, every entity's
+own page at a wiki address, `/wiki/<namespace>/<Name>` ([Entity pages](#entity-pages)), and technical specs written
+from transcripts by the API, MCP, the assistant and pipelines ([Specs from transcripts](#specs-from-transcripts)).
 **Planned**: nesting notes under their project or area without a click, pages in the graph, wiki addresses for topics,
 recordings and the other things that have pages.
 
@@ -125,6 +126,51 @@ assistant lists them). It looks there first, and writes or updates a note when i
 in PARA and linked with @ and #. Writing needs editor access to the namespace and takes effect at once, with no
 approval: notes it writes say so. It never deletes a note.
 
+## Specs from transcripts
+
+A voice session, a meeting or a memo becomes a technical spec, in a note linked to it. The model reads the transcript
+with the **Spec from transcript** prompt template, which opens with the instruction it's built around:
+
+> You are writing a technical spec from a voice-session transcript. Preserve every named decision, every 'no' and
+> every 'not that — this', and every constraint the speaker stated. Do not paraphrase their reasoning. Flag any gap
+> where the speaker said they would decide later.
+
+The note starts with where it came from (an @ link to the asset, so the asset's page lists it) and flags what needs a
+look: what the speaker left to decide later, quotes the transcript doesn't hold word for word, and, when the transcript
+is longer than the model is given (`llm.max_chars`), the moment after which nothing was read. Then come the spec, in
+the sections the model gives it, and four lists: **Decisions**, **No, and not that — this**, **Constraints** and
+**Decide later** (as checkboxes). Each item carries the speaker's own words, linked to when they said them. Lens looks
+for every quote in the transcript (case, punctuation and line breaks aside; an ellipsis may skip words): one it doesn't
+find is marked *not found word for word in the transcript* and gets no link, so the model's wording is never passed
+off as the speaker's. A list with nothing in it says so.
+
+The assistant is the note's writer, in the asset's namespace, dated the day the asset was recorded. Writing the spec
+again updates the same note, and its [history](#history) keeps what it said before; once that note is deleted, the
+next spec is a new one.
+
+- **The web app:** an asset's More actions menu (⋯) has **Write a spec**, which says when it's queued and links to
+  the job. Once the spec is written the menu has **Open spec** and **Write the spec again**; while it's being written,
+  the item waits. A pipeline's editor has a **Spec** step, with the template to use (Spec from transcript unless you
+  pick another prompt template).
+- **API:** `POST /api/v1/recordings/{id}/spec` (with the right to process the asset) queues it as a job step, after
+  what the asset's job still has to do; `{template, version}` writes it with another prompt template, such as an edited
+  copy. `GET /api/v1/recordings/{id}/spec` says how it's going: `writing`, `ready` with its note and how many
+  decisions, things turned down, constraints and gaps it holds, or `failed` with why. It's the asset's `spec` output
+  too.
+- **MCP:** `write_spec`, then `get_spec` and `read_note` ([MCP](mcp.md)).
+- **The assistant:** `write_spec`, one of the Notes tools. As a model call, it asks for your approval first, with an
+  estimate.
+- **Pipelines:** a `spec` step writes one for each asset a pipeline runs on, such as a namespace of voice memos
+  ([Pipelines and templates](processing.md#pipelines-and-templates)), and a batch run of the template writes them for
+  a collection.
+
+The template is made when Lens starts, on new installs and existing ones alike, and admins edit it on the Templates
+page like any other; a new version is used from the next spec on. Its answer is JSON with `title`, `summary`, `spec`
+and the lists `decisions`, `rejected`, `constraints` and `gaps`, each item with its `quote` and `time`. The transcript
+reaches the model marked as data ([prompt injection](assistant.md#third-party-content-and-prompt-injection)), and web
+addresses in what the model writes that the transcript doesn't hold are broken up. It's one model call, logged in the
+activity ledger and held to budgets.
+
 ## History
 
 Before each change to a page's title, summary or text, Lens keeps what the page was as a version (`note_version`, up to
@@ -230,3 +276,6 @@ names differ only by `_` and a space share an address (the one with spaces wins)
 
 Pages for people who see only some collections of a namespace; differences between versions; live co-editing through
 OctoBase; pages and their links as nodes and relationships in the graph.
+
+Specs: transcripts longer than `llm.max_chars` read in parts rather than cut; specs from a chat conversation; one spec
+from several assets.

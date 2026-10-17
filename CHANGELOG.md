@@ -4,18 +4,28 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
-- **More tests for automations' conditions.** An If, a trigger's where and a condition node can now test that text
-  starts or ends with something or matches a pattern, that a value is in a list, that a number or a time is between
-  two, before or after a time or within a duration, falls on certain days or times of day, and whether a value changed
-  since the last activity. Each value is checked when it's saved, and patterns that could tie up the worker are refused
-  ([Operators](docs/automations.md#operators)).
+- **Specs from transcripts.** Turn a voice session or a meeting into a technical spec, saved as a note linked to it:
+  the model writes the spec, then lists every named decision, every "no" and "not that, this", every constraint and
+  every gap the speaker left to decide later, each with its quote and a link to the moment it was said; a quote the
+  transcript doesn't hold word for word is marked. The prompt is the "Spec from transcript" template, editable on
+  the Templates page. In the web app it's Write a spec, then Open spec, in an asset's More actions menu, and a Spec
+  step in the pipeline editor. Agents write one with `POST /api/v1/recordings/{id}/spec`, the MCP tools `write_spec` and
+  `get_spec`, and the assistant's `write_spec` (which asks first); pipelines and batches run it as a `spec` step
+  ([Specs from transcripts](docs/notes.md#specs-from-transcripts)).
 - **Export a conversation.** `GET /api/v1/chats/<id>/export.md`, `.pdf` or `.json` gives the version showing, one
   message (`?message=`) or, as JSON, every version (`?all=true`). The Markdown has each question and answer, its
   citations as footnotes linking back to the moment in Lens and the tools it used; the PDF is that Markdown printed by
   Chromium, else anytopdf, else LibreOffice (409 when none can run); the JSON is OpenAI's chat message format in a tree
   with Dublin Core terms, or `?format=messages` for one `{"messages": [...]}` line, checked against a published schema.
-  Agents use `list_chats`, `read_chat` and `export_chat` over MCP. The web app's copy and export buttons are in
-  progress ([Copy and export](docs/assistant.md#copy-and-export)).
+  Agents use `list_chats`, `read_chat` and `export_chat` over MCP. In the web app, an answer's copy button copies it as
+  Markdown or plain text and exports it, questions and code blocks have their own copy buttons, and the conversation's
+  header has Export; without a PDF printer on the server, the browser prints it instead
+  ([Copy and export](docs/assistant.md#copy-and-export)).
+- **More tests for automations' conditions.** An If, a trigger's where and a condition node can now test that text
+  starts or ends with something or matches a pattern, that a value is in a list, that a number or a time is between
+  two, before or after a time or within a duration, falls on certain days or times of day, and whether a value changed
+  since the last activity. Each value is checked when it's saved, and patterns that could tie up the worker are refused
+  ([Operators](docs/automations.md#operators)).
 
 ## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
 
