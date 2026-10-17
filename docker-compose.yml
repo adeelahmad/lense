@@ -49,6 +49,8 @@ x-backend: &backend
     # the MCP runner (the optional `mcp` service, docs/assistant.md): MCP servers that run as a program, sandboxed there
     LENS_MCP_RUNNER_URL: http://mcp:8090
     LENS_MCP_TOKEN_FILE: /mcp-key/token
+    # the assistant's browser (the optional `browser` service, docs/assistant.md): Playwright MCP
+    LENS_BROWSER_URL: http://browser:8931
     # the code sandbox's gateway (the optional `sandbox` profile, docs/assistant.md#code-sandbox): the client
     # certificate Lens signs in to it with
     LENS_SANDBOX_TLS_DIR: /sandbox-key
@@ -66,7 +68,7 @@ x-backend: &backend
   depends_on:
     surrealdb:
       condition: service_healthy
-  networks: [lens, mcp, sandbox]
+  networks: [lens, mcp, browser, sandbox]
 
 services:
   surrealdb:
@@ -185,6 +187,47 @@ services:
       - mcp-data:/data
       - mcp-key:/key
     networks: [mcp]
+
+  # The assistant's browser and its proxy, as in docker-compose.prod.yml (docs/assistant.md#the-browser). Opt-in:
+  # `docker compose --profile browser up -d`.
+  browser:
+    image: mcr.microsoft.com/playwright/mcp:${PLAYWRIGHT_MCP_VERSION:-v0.0.83}
+    profiles: [browser]
+    command:
+      - --port=8931
+      - --host=0.0.0.0
+      - --allowed-hosts=browser:8931
+      - --shared-browser-context
+      - --proxy-server=http://browser-proxy:3128
+      - --image-responses=omit
+      - --timeout-navigation=45000
+      - --output-dir=/tmp/output
+      - --config=/etc/lens/playwright-mcp.json
+    stdin_open: true  # it stops when its input closes
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs: [/tmp, "/home/node:uid=1000,gid=1000"]  # the image runs as node (1000); its profile lives in its home
+    mem_limit: 1g
+    pids_limit: 512
+    volumes:
+      - ./browser/playwright-mcp.json:/etc/lens/playwright-mcp.json:ro
+    depends_on: [browser-proxy]
+    networks: [browser]
+
+  browser-proxy:
+    image: python:3.12-slim-trixie
+    profiles: [browser]
+    command: ["python", "-I", "/netguard/netguard.py", "--listen", "0.0.0.0:3128"]
+    user: "65534:65534"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    mem_limit: 256m
+    pids_limit: 256
+    volumes:
+      - ./fastapi_backend/app/domain/netguard.py:/netguard/netguard.py:ro
+    networks: [browser, browser-out]
 
   # The code sandbox's NVIDIA OpenShell gateway (docs/assistant.md#code-sandbox): Python and bash for the assistant, one
   # sandbox container per conversation, made through this machine's Docker. Opt-in: Settings → Code sandbox → Start
@@ -305,6 +348,11 @@ networks:
   lens:
     driver: bridge
   mcp:
+    driver: bridge
+  browser:
+    driver: bridge
+    internal: true  # no way out but browser-proxy
+  browser-out:
     driver: bridge
   sandbox:
     driver: bridge

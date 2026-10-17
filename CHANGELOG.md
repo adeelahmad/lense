@@ -137,6 +137,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   sealed and never shown again (manifests say `••••`), and an upgrade step seals the ones saved before. Each server's
   tools have a switch and "Asks first", kept in its manifest
   ([Adding an MCP server](docs/assistant.md#adding-an-mcp-server)).
+- **A browser for the assistant, and ready-made MCP servers.** Add MCP server now starts with Ready-made:
+  **Browser** runs a headless Chromium ([Playwright MCP](https://github.com/microsoft/playwright-mcp)) in a container
+  of its own, whose only way out is a proxy to public addresses on ports 80 and 443, and adds it with one click;
+  **GitHub** fills in GitHub's own server with a field for its token. Values written as `${NAME}` in a pasted config
+  now get a field of their own too. The MCP runner, the browser and monitoring turn on and off from the web app (the
+  machine's upgrade agent starts and stops them), and agents do the same with `PUT /api/v1/admin/services/<profile>`
+  or the MCP tools `services` and `set_service`. A server whose spec says `keep: true` keeps one session between
+  calls ([The browser](docs/assistant.md#the-browser), [Optional containers](docs/assistant.md#optional-containers)).
 - **Describe an automation in words.** `POST /api/v1/automations/draft` asks the model once to turn a sentence into
   a draft automation to try and save, and says what didn't fit and what it couldn't express
   ([Describe it in words](docs/automations.md#describe-it-in-words)).
