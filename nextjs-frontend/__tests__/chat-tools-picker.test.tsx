@@ -1,12 +1,18 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
+import { Chats } from "@/app/openapi-client";
 import type { ChatTools } from "@/app/openapi-client/types.gen";
 import { ScopeBar } from "@/components/chat/composer";
-import { choiceLabel, settingLink, ToolsChip, type ToolChoice } from "@/components/chat/tools-picker";
+import { choiceLabel, settingLink, ToolsChip, useSaveTools, type ToolChoice } from "@/components/chat/tools-picker";
+import { ToastProvider } from "@/components/ui/toast";
+import { data } from "@/lib/api/browser";
 
-jest.mock("@/app/openapi-client", () => ({ Chats: { chatTools: jest.fn() }, Collections: {} }));
+jest.mock("@/app/openapi-client", () => ({
+  Chats: { chatTools: jest.fn(), getChat: jest.fn(), updateChat: jest.fn() },
+  Collections: {},
+}));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
 jest.mock("@/lib/hooks/session", () => ({
   useArchive: () => ({
@@ -128,6 +134,55 @@ describe("the Tools chip", () => {
     expect(r.onChange).toHaveBeenCalledTimes(1); // past the most: not sent
     fireEvent.change(screen.getByRole("spinbutton", { name: "Tool calls per answer" }), { target: { value: "3" } });
     expect(r.onChange).toHaveBeenLastCalledWith({ tools: null, max_tool_calls: 3 });
+  });
+});
+
+describe("saving a conversation's tools", () => {
+  const ok = (data: unknown) => ({ data, response: { ok: true, status: 200 } });
+
+  it("builds a change on the one before while that one is still being saved, and saves them in order", async () => {
+    let server: ToolChoice = { tools: null, max_tool_calls: null };
+    const saving: (() => void)[] = []; // each save, finished when the test says
+    (Chats.updateChat as jest.Mock).mockImplementation(
+      ({ body }: { body: ToolChoice }) =>
+        new Promise((done) =>
+          saving.push(() => {
+            server = { ...server, ...body };
+            done(ok({ ok: true }));
+          }),
+        ),
+    );
+    (Chats.getChat as jest.Mock).mockImplementation(() => Promise.resolve(ok({ id: 4, ...server })));
+    function Conversation() {
+      const chat = useQuery({ queryKey: ["chat", 4], queryFn: () => data(Chats.getChat({ path: { cid: 4 } })) });
+      const save = useSaveTools(4);
+      if (!chat.data) return null;
+      const value = { tools: chat.data.tools ?? null, max_tool_calls: chat.data.max_tool_calls ?? null };
+      return <ToolsChip value={value} onChange={(v) => void save(v)} catalog={CATALOG} admin={false} />;
+    }
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <ToastProvider>
+          <Conversation />
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: /^Tools: Auto\./ }));
+    fireEvent.click(screen.getByRole("switch", { name: "Notes" }));
+    await waitFor(() => expect(screen.getByRole("switch", { name: "Notes" })).not.toBeChecked()); // shown at once
+    // the limit, before Notes is saved: it keeps Notes off, and waits for that save
+    fireEvent.click(screen.getByRole("switch", { name: "Limit tool calls per answer" }));
+    await waitFor(() => expect(screen.getByRole("switch", { name: "Limit tool calls per answer" })).toBeChecked());
+    expect(Chats.updateChat).toHaveBeenCalledTimes(1);
+    act(() => saving[0]());
+    await waitFor(() => expect(Chats.updateChat).toHaveBeenCalledTimes(2));
+    expect((Chats.updateChat as jest.Mock).mock.calls[1][0].body).toEqual({ tools: ["archive"], max_tool_calls: 10 });
+    expect(Chats.getChat).toHaveBeenCalledTimes(1); // not read back between the two
+    act(() => saving[1]());
+    await waitFor(() => expect(Chats.getChat).toHaveBeenCalledTimes(2));
+    expect(server).toEqual({ tools: ["archive"], max_tool_calls: 10 });
+    expect(screen.getByRole("button", { name: /^Tools: 1 picked · 10 calls\./ })).toBeInTheDocument();
   });
 });
 
