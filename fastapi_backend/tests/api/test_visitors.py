@@ -9,7 +9,7 @@ import socket
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api import deps
+from app.domain import ipgroups
 from tests.helpers import make_user
 
 WEB_APP = "172.18.0.5"
@@ -27,9 +27,9 @@ def web_app(app, monkeypatch):
         return real(host, *a, **kw)
 
     monkeypatch.setattr(socket, "getaddrinfo", lookup)
-    deps._PROXY_HOSTS.clear()
+    ipgroups._PROXY_HOSTS.clear()
     yield TestClient(app, base_url="http://127.0.0.1", client=(WEB_APP, 50000))
-    deps._PROXY_HOSTS.clear()
+    ipgroups._PROXY_HOSTS.clear()
 
 
 def bad_logins(client, visitor, n=8):

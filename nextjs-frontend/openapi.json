@@ -29206,7 +29206,7 @@
           "shares"
         ],
         "summary": "S3 Status",
-        "description": "Whether the S3 server is on and on which port, what the worker running it says, the same for WebDAV, and your\naccess keys.",
+        "description": "Whether the S3 server is on and on which port, what the worker running it says, the same for WebDAV, whether\nboth are open at the web app's address too (/s3, /dav), and your access keys.",
         "operationId": "s3_status",
         "responses": {
           "200": {
@@ -62135,6 +62135,12 @@
           },
           "webdav": {
             "$ref": "#/components/schemas/ShareServer"
+          },
+          "remote": {
+            "type": "boolean",
+            "title": "Remote",
+            "description": "whether an admin opened both at the web app's address too, /s3 and /dav (shares.remote), so remote access reaches them",
+            "default": false
           },
           "keys": {
             "items": {

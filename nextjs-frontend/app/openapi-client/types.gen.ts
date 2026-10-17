@@ -18249,6 +18249,12 @@ export type S3Status = {
   service?: S3Service | null;
   webdav: ShareServer;
   /**
+   * Remote
+   *
+   * whether an admin opened both at the web app's address too, /s3 and /dav (shares.remote), so remote access reaches them
+   */
+  remote?: boolean;
+  /**
    * Keys
    *
    * your access keys
