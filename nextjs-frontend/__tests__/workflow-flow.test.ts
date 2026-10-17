@@ -7,6 +7,7 @@ import {
   portsOf,
   problems,
   inScope,
+  nodeSummary,
   replaceSelection,
   starterTool,
   withBody,
@@ -121,5 +122,34 @@ describe("tool graphs", () => {
     expect(problems(call, () => undefined, "tool", "custom").ask).toBe("Name the tool it calls.");
     const recording = { ...g, nodes: [...g.nodes, { id: "keep", type: "save_entities", config: {} }] };
     expect(problems(recording, () => undefined, "tool", "custom").keep).toBe("This node isn’t for tools.");
+  });
+});
+
+describe("classify", () => {
+  const names = { template: () => undefined, field: () => undefined };
+  const wf = (config: Record<string, unknown>, keep = true): WfGraph => ({
+    nodes: [
+      { id: "in", type: "input", config: {} },
+      { id: "c", type: "classify", config },
+      ...(keep ? [{ id: "o", type: "output", config: { key: "desk" } }] : []),
+    ],
+    edges: [{ source: "in", target: "c" }, ...(keep ? [{ source: "c", target: "o" }] : [])],
+  });
+
+  it("chooses from labels, content types or topics, and acting on a sure answer keeps something", () => {
+    expect(inScope("classify", "recording")).toBe(true);
+    expect(inScope("classify", "graph")).toBe(false);
+    expect(problems(wf(defaultConfig("classify")), kind)).toEqual({});
+    expect(problems(wf({}), kind).c).toMatch(/Give labels/);
+    expect(problems(wf({ labels: ["a: one", "a: two"] }), kind).c).toMatch(/at least two/);
+    expect(problems(wf({ vocabulary: "topic", of: "input", apply: true }), kind).c).toMatch(/Only the asset/);
+    expect(problems(wf({ vocabulary: "topic" }, false), kind)[""]).toMatch(/keeps nothing/);
+    expect(problems(wf({ vocabulary: "topic", apply: true }, false), kind)).toEqual({});
+    expect(nodeSummary({ id: "c", type: "classify", config: { labels: ["security: attacks", "health"] } }, names)).toBe(
+      "security, health",
+    );
+    expect(nodeSummary({ id: "c", type: "classify", config: { vocabulary: "topic", apply: true } }, names)).toBe(
+      "The namespace’s topics · acts when sure",
+    );
   });
 });

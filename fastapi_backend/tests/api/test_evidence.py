@@ -220,7 +220,7 @@ def test_everything_lens_found_goes_in(here, client, db, cfg, folder):
         "Happy: 56%",
         "Alice: Happy 100%",
         "Laughter: 1 time",
-        "Term: Berlin (1)",
+        "Place: Berlin (1)",
         "Places it names:",
         "Berlin, Germany (52.52400, 13.41100)",
         "3 March 2026 (2026-03-03)",
@@ -239,7 +239,7 @@ def test_everything_lens_found_goes_in(here, client, db, cfg, folder):
     assert "0:01: Shared with the team (" in text and '0:01 to 0:03 "The invoice is paid": Payment (' in text
     assert "Payment" in text and "Is this the March invoice?" in text
     assert "Only mine to read" not in text  # a private note is its writer's alone
-    assert "Summary (written by a model)" in text and "Term: Berlin" not in text and "Berlin, Germany" not in text
+    assert "Summary (written by a model)" in text and "Place: Berlin" not in text and "Berlin, Germany" not in text
     # without emotion, the transcript is as it was said
     assert "Alice: The invoice is paid in Berlin." in text and "(Happy" not in text
 

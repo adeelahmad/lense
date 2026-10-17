@@ -14,7 +14,15 @@ from app.domain.store import R
 
 # Every step that has shipped, in order. A database remembers steps by name, so these may never be renamed, reordered
 # or removed: add new steps to the end of migrations.steps() and here.
-SHIPPED = ["access-levels", "collection-homes", "tour-seen", "document-read-step", "chat-tree", "mcp-sealed-secrets"]
+SHIPPED = [
+    "access-levels",
+    "collection-homes",
+    "tour-seen",
+    "document-read-step",
+    "chat-tree",
+    "mcp-sealed-secrets",
+    "entity-types",
+]
 
 
 def test_steps_are_append_only():
