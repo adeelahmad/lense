@@ -593,6 +593,46 @@ def test_daily_notes(client, env, db):
     assert again["parent"] not in (None, root["id"])
 
 
+def test_templates_and_copies(client, env, db, cfg, folder):
+    """Notes inside the Templates note are templates; a copy of one, or of any note, has its text, files and filing."""
+    he, hv = env["he"], env["hv"]
+    assert client.get("/api/v1/notes/templates?ns=pods", headers=hv).json() == {"namespace": "pods", "root": None, "templates": []}
+    assert client.post("/api/v1/notes/templates", headers=hv, json={"ns": "pods"}).status_code == 403
+    root = client.post("/api/v1/notes/templates", headers=he, json={"ns": "pods"}).json()
+    assert (root["title"], root["parent"]) == ("Templates", None)
+    assert client.post("/api/v1/notes/templates", headers=he, json={"ns": "pods"}).json()["id"] == root["id"]  # one
+    body = f"## Agenda\n\n- [ ] \n\nSee @[the call](recording:{env['a']})."
+    meeting = _new(client, he, title="Meeting", body=body, summary="For weekly calls", place="area", parent=root["id"])
+    _new(client, he, title="Trip", parent=root["id"])
+    got = client.get("/api/v1/notes/templates?ns=pods", headers=hv).json()
+    assert got["root"] == root["id"]
+    assert [(t["title"], t["summary"]) for t in got["templates"]] == [("Meeting", "For weekly calls"), ("Trip", None)]
+    # an image in the template comes with it, under the same key
+    png = b"\x89PNG\r\n\x1a\n" + b"pixels" * 50
+    key = base64.urlsafe_b64encode(hashlib.sha256(png).digest()).decode()
+    r = client.put(
+        f"/api/v1/notes/{meeting['id']}/blobs",
+        params={"key": key, "name": "logo.png"},
+        content=png,
+        headers={**he, "Content-Type": "image/png"},
+    )
+    assert r.status_code == 200, r.text
+    r = client.post(f"/api/v1/notes/{meeting['id']}/copy", headers=he, json={})
+    assert r.status_code == 200, r.text
+    new = r.json()
+    assert new["id"] != meeting["id"] and (new["title"], new["body"], new["place"], new["parent"]) == ("Meeting", body, "area", None)
+    assert new["summary"] is None and new["author"] == "person"
+    assert [x["target"] for x in new["links"]] == [f"recording:{env['a']}"]
+    assert client.get(f"/api/v1/notes/{new['id']}/blobs", params={"key": key}, headers=hv).content == png
+    # a copy of any note, titled and placed
+    inside = client.post(f"/api/v1/notes/{new['id']}/copy", headers=he, json={"title": "Copy", "parent": new["id"]}).json()
+    assert (inside["title"], inside["parent"]) == ("Copy", new["id"])
+    # editors only; other namespaces' notes can't be a parent
+    assert client.post(f"/api/v1/notes/{meeting['id']}/copy", headers=hv, json={}).status_code == 403
+    other = notebook.create(db, store.ns_id(db, "calls"), None, "Elsewhere")
+    assert client.post(f"/api/v1/notes/{meeting['id']}/copy", headers=he, json={"parent": other}).status_code == 400
+
+
 def test_markdown_export(client, env, db):
     import io
     import zipfile

@@ -817,6 +817,8 @@ deleted.
 GET    /api/v1/notes
 POST   /api/v1/notes
 POST   /api/v1/notes/today
+GET    /api/v1/notes/templates
+POST   /api/v1/notes/templates
 GET    /api/v1/notes/search
 GET    /api/v1/notes/export
 GET    /api/v1/notes/deleted
@@ -826,6 +828,7 @@ GET    /api/v1/notes/{pid}
 PATCH  /api/v1/notes/{pid}
 DELETE /api/v1/notes/{pid}
 POST   /api/v1/notes/{pid}/move
+POST   /api/v1/notes/{pid}/copy
 PUT    /api/v1/notes/{pid}/pin
 DELETE /api/v1/notes/{pid}/pin
 GET    /api/v1/notes/{pid}/markdown
@@ -840,7 +843,9 @@ DELETE /api/v1/notes/{pid}/files
 
 Note pages ([Notes](notes.md)), apart from the notes on an asset above. `GET /notes?ns=` is a namespace's page tree
 (`all=true` adds the pages of things). `today` gives the namespace's note for `date`, made the first time it's asked
-for ([Today's note](notes.md#todays-note)). `search?q=` finds pages by the words in their title, summary or text, title
+for ([Today's note](notes.md#todays-note)). `templates` lists the notes inside the namespace's Templates note, and
+`POST /notes/templates` makes that note the first time; `copy` makes a new note from a page, with its text, drawings,
+files and filing ([Templates](notes.md#templates)). `search?q=` finds pages by the words in their title, summary or text, title
 matches first, each with the words around the match ([Finding notes](notes.md#finding-notes)). `DELETE /notes/{pid}`
 moves a page to recently deleted for 30 days: `deleted` lists them, `restore` puts one back where it was and
 `DELETE /notes/deleted/{pid}` deletes one for good ([Deleting](notes.md#deleting-and-putting-back)). `move` puts a
