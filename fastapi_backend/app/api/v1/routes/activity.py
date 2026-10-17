@@ -48,6 +48,10 @@ def _may_see(db: Db, user: CurrentUser, acl: Acl, resource: str) -> None:
             return
         if table == "chat" and db.one("SELECT id FROM $r WHERE account = $a", r=activity.R("chat", int(key)), a=user.id):
             return
+        if table == "chat_message":  # a message in one of your conversations
+            m = db.one("SELECT chat FROM $r", r=activity.R("chat_message", int(key)))
+            if m and db.one("SELECT id FROM $r WHERE account = $a", r=activity.R("chat", m["chat"]), a=user.id):
+                return
     raise HTTPException(403, "only admins see this resource's activity")
 
 

@@ -9,7 +9,7 @@ import re
 
 import pytest
 
-from app.domain import actions, actions_ai, ai_tools, budgets, chat, notebook, store, untrusted
+from app.domain import actions, actions_ai, activity, ai_tools, budgets, chat, notebook, store, untrusted
 from tests import fake_llm
 from tests.api._assist import start_llm
 from tests.api.test_setup_assistant import call
@@ -171,6 +171,10 @@ def test_ask_agent_works_on_what_happened_and_saves_the_conversation(db, cfg, ll
     q, a = chat.history(db, got["chat"])
     assert q["content"] == "File this where it belongs." and q["context"]["url"] == "/resources/7"
     assert a["content"] == got["answer"] and [s["tool"] for s in a["steps"]] == [s["tool"] for s in got["steps"]]
+    # it records what produced it, like any answer: the question came from an automation
+    assert q["meta"] == {"via": "automation", "options": {}} and a["meta"]["used"] == {"rounds": 2, "tool_calls": 2}
+    assert (a["meta"]["outcome"], a["meta"]["scope"]) == ("answered", {"namespaces": ["pods"]})
+    assert activity.totals(db, f"chat_message:{a['id']}")["calls"] == 3  # its model calls name it in the ledger
     first = next(b for b in llm.seen if b.get("tools"))
     system, asked = first["messages"][0]["content"], first["messages"][-1]["content"]
     assert "acting for an automation, “Automation 4”, that runs for me" in system
