@@ -1,17 +1,31 @@
 "use client";
 
 import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, FileText, NotebookPen, Pin, Plus, Search, Sparkles } from "lucide-react";
+import {
+  CalendarDays,
+  Download,
+  Ellipsis,
+  FileText,
+  LayoutTemplate,
+  NotebookPen,
+  Pin,
+  Plus,
+  Search,
+  Sparkles,
+} from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { Notes } from "@/app/openapi-client";
 import type { NotePageItem } from "@/app/openapi-client/types.gen";
 import { PLACES, pageOf } from "@/components/notes/links";
+import { useNoteDownloads } from "@/components/notes/download";
 import { RecentlyDeleted } from "@/components/notes/recently-deleted";
-import { Button } from "@/components/ui/button";
+import { TemplatePicker } from "@/components/notes/templates";
+import { Button, IconButton } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/field";
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
 import { EmptyState, PageHeader, SkeletonRows } from "@/components/ui/states";
 import { Segmented } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
@@ -96,6 +110,35 @@ export function NotesHome() {
       New note
     </Button>
   ) : null;
+  const downloads = useNoteDownloads();
+  // A new note from a template (Jump to's action opens /notes?template)
+  const [picking, setPicking] = useState(useSearchParams().has("template"));
+  // Every namespace's notes as Markdown, for other notes apps
+  const more =
+    names.length > 0 ? (
+      <Menu>
+        <MenuTrigger asChild>
+          <IconButton label="More on Notes" size={36}>
+            <Ellipsis />
+          </IconButton>
+        </MenuTrigger>
+        <MenuContent align="end">
+          {editable && (
+            <>
+              <MenuItem icon={<LayoutTemplate />} onSelect={() => setPicking(true)}>
+                New note from a template…
+              </MenuItem>
+              <MenuSeparator />
+            </>
+          )}
+          {names.map((ns) => (
+            <MenuItem key={ns} icon={<Download />} onSelect={() => void downloads.all(ns)}>
+              {names.length > 1 ? `Download ${ns}’s notes as Markdown` : "Download all as Markdown"}
+            </MenuItem>
+          ))}
+        </MenuContent>
+      </Menu>
+    ) : null;
   const placeLabel = (v?: string | null) => PLACES.find((p) => p.value === v)?.label;
   /** "Home lab › Parts": the notes this one is inside, outermost first. */
   const path = (r: Row) => {
@@ -118,17 +161,20 @@ export function NotesHome() {
         title="Notes"
         meta={namespace ?? "All namespaces"}
         actions={
-          editable && (
-            <>
-              <Button asChild>
-                <Link href="/notes/today">
-                  <CalendarDays />
-                  Today
-                </Link>
-              </Button>
-              {newNote}
-            </>
-          )
+          <>
+            {editable && (
+              <>
+                <Button asChild>
+                  <Link href="/notes/today">
+                    <CalendarDays />
+                    Today
+                  </Link>
+                </Button>
+                {newNote}
+              </>
+            )}
+            {more}
+          </>
         }
       />
       {(all.length > 0 || q) && (
@@ -236,6 +282,15 @@ export function NotesHome() {
         </>
       )}
       <RecentlyDeleted ns={namespace} />
+      {picking && editable && (
+        <TemplatePicker
+          ns={target!}
+          onClose={() => {
+            setPicking(false);
+            if (window.location.search) window.history.replaceState(window.history.state, "", "/notes");
+          }}
+        />
+      )}
     </div>
   );
 }

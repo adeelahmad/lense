@@ -9572,6 +9572,51 @@ export type ImportResult = {
 };
 
 /**
+ * ImportTarget
+ *
+ * Where pushes with a token go (GET /hooks/import).
+ */
+export type ImportTarget = {
+  /**
+   * Kind
+   *
+   * an import webhook's token, or a person's own
+   */
+  kind: "hook" | "person";
+  /**
+   * Hook
+   *
+   * the hook's name
+   */
+  hook?: string | null;
+  /**
+   * Email
+   *
+   * whom a person's own token acts as
+   */
+  email?: string | null;
+  /**
+   * Namespace
+   *
+   * where a push goes without ?namespace=; null when there's a choice
+   */
+  namespace?: string | null;
+  /**
+   * Namespaces
+   *
+   * every namespace this token can push into
+   */
+  namespaces?: Array<string>;
+  /**
+   * Write
+   *
+   * false for a read-only API token, which can't push
+   */
+  write: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * ImportedAs
  */
 export type ImportedAs = {
@@ -12718,6 +12763,24 @@ export type NoteBacklink = {
 };
 
 /**
+ * NoteCopy
+ */
+export type NoteCopy = {
+  /**
+   * Title
+   *
+   * its title (default: the page's)
+   */
+  title?: string | null;
+  /**
+   * Parent
+   *
+   * put it inside this page (default: the top)
+   */
+  parent?: number | null;
+};
+
+/**
  * NoteCreate
  */
 export type NoteCreate = {
@@ -13379,6 +13442,58 @@ export type NoteSearch = {
    */
   pages: Array<NoteHit>;
   [key: string]: unknown;
+};
+
+/**
+ * NoteTemplate
+ */
+export type NoteTemplate = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Summary
+   */
+  summary?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * NoteTemplates
+ */
+export type NoteTemplates = {
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Root
+   *
+   * the "Templates" note: each note inside it is a template; null until made
+   */
+  root?: number | null;
+  /**
+   * Templates
+   */
+  templates: Array<NoteTemplate>;
+  [key: string]: unknown;
+};
+
+/**
+ * NoteTemplatesCreate
+ */
+export type NoteTemplatesCreate = {
+  /**
+   * Ns
+   *
+   * the namespace whose Templates note to make
+   */
+  ns: string;
 };
 
 /**
@@ -18348,12 +18463,97 @@ export type S3Status = {
   service?: S3Service | null;
   webdav: ShareServer;
   /**
+   * Remote
+   *
+   * whether an admin opened both at the web app's address too, /s3 and /dav (shares.remote), so remote access reaches them
+   */
+  remote?: boolean;
+  /**
    * Keys
    *
    * your access keys
    */
   keys: Array<S3Key>;
   [key: string]: unknown;
+};
+
+/**
+ * SandboxGateway
+ */
+export type SandboxGateway = {
+  /**
+   * On
+   *
+   * the sandbox profile (the code sandbox's OpenShell gateway) as last asked
+   */
+  on: boolean;
+  /**
+   * State
+   *
+   * how the machine's last change went
+   */
+  state?: "queued" | "running" | "done" | "failed" | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Asked At
+   */
+  asked_at?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Agent
+   *
+   * what changes it on this machine (systemd, launchd); none: run `manual` there
+   */
+  agent?: string | null;
+  /**
+   * Manual
+   *
+   * the line that starts it by hand, on the machine Lens runs on
+   */
+  manual: string;
+  /**
+   * Preflight
+   *
+   * what stands in the way of running it on this machine, a sentence each
+   */
+  preflight: Array<string>;
+  /**
+   * Address
+   *
+   * where Lens reaches the gateway (sandbox.gateway)
+   */
+  address: string;
+  /**
+   * Reachable
+   *
+   * whether the gateway answered and let Lens in; null: not checked
+   */
+  reachable?: boolean | null;
+  /**
+   * Problem
+   *
+   * why it didn't, when it didn't
+   */
+  problem?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SandboxGatewayRequest
+ */
+export type SandboxGatewayRequest = {
+  /**
+   * On
+   *
+   * start (true) or stop (false) the code sandbox's gateway; stopping deletes its sandboxes
+   */
+  on: boolean;
 };
 
 /**
@@ -27177,6 +27377,47 @@ export type SetMonitoringResponses = {
 
 export type SetMonitoringResponse = SetMonitoringResponses[keyof SetMonitoringResponses];
 
+export type GetSandboxGatewayData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/sandbox";
+};
+
+export type GetSandboxGatewayResponses = {
+  /**
+   * Successful Response
+   */
+  200: SandboxGateway;
+};
+
+export type GetSandboxGatewayResponse = GetSandboxGatewayResponses[keyof GetSandboxGatewayResponses];
+
+export type SetSandboxGatewayData = {
+  body: SandboxGatewayRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/sandbox";
+};
+
+export type SetSandboxGatewayErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetSandboxGatewayError = SetSandboxGatewayErrors[keyof SetSandboxGatewayErrors];
+
+export type SetSandboxGatewayResponses = {
+  /**
+   * Successful Response
+   */
+  202: SandboxGateway;
+};
+
+export type SetSandboxGatewayResponse = SetSandboxGatewayResponses[keyof SetSandboxGatewayResponses];
+
 export type ListBackupsData = {
   body?: never;
   path?: never;
@@ -31553,6 +31794,61 @@ export type TodayPageResponses = {
 
 export type TodayPageResponse = TodayPageResponses[keyof TodayPageResponses];
 
+export type ListTemplatesData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Ns
+     */
+    ns: string;
+  };
+  url: "/api/v1/notes/templates";
+};
+
+export type ListTemplatesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListTemplatesError = ListTemplatesErrors[keyof ListTemplatesErrors];
+
+export type ListTemplatesResponses = {
+  /**
+   * Successful Response
+   */
+  200: NoteTemplates;
+};
+
+export type ListTemplatesResponse = ListTemplatesResponses[keyof ListTemplatesResponses];
+
+export type TemplatesNoteData = {
+  body: NoteTemplatesCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/notes/templates";
+};
+
+export type TemplatesNoteErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TemplatesNoteError = TemplatesNoteErrors[keyof TemplatesNoteErrors];
+
+export type TemplatesNoteResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type TemplatesNoteResponse = TemplatesNoteResponses[keyof TemplatesNoteResponses];
+
 export type LinkTargetsData = {
   body?: never;
   path?: never;
@@ -31650,6 +31946,36 @@ export type SearchPagesResponses = {
 };
 
 export type SearchPagesResponse = SearchPagesResponses[keyof SearchPagesResponses];
+
+export type ExportNotesData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Ns
+     */
+    ns: string;
+  };
+  url: "/api/v1/notes/export";
+};
+
+export type ExportNotesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ExportNotesError = ExportNotesErrors[keyof ExportNotesErrors];
+
+export type ExportNotesResponses = {
+  /**
+   * a zip of Markdown files
+   */
+  200: Blob | File;
+};
+
+export type ExportNotesResponse = ExportNotesResponses[keyof ExportNotesResponses];
 
 export type DeletedPagesData = {
   body?: never;
@@ -31935,6 +32261,34 @@ export type HomeSuggestionsResponses = {
 
 export type HomeSuggestionsResponse = HomeSuggestionsResponses[keyof HomeSuggestionsResponses];
 
+export type PageMarkdownData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/markdown";
+};
+
+export type PageMarkdownErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PageMarkdownError = PageMarkdownErrors[keyof PageMarkdownErrors];
+
+export type PageMarkdownResponses = {
+  /**
+   * the page as a Markdown file
+   */
+  200: unknown;
+};
+
 export type PageHistoryData = {
   body?: never;
   path: {
@@ -32067,6 +32421,36 @@ export type MovePageResponses = {
 };
 
 export type MovePageResponse = MovePageResponses[keyof MovePageResponses];
+
+export type CopyPageData = {
+  body: NoteCopy;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/copy";
+};
+
+export type CopyPageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CopyPageError = CopyPageErrors[keyof CopyPageErrors];
+
+export type CopyPageResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type CopyPageResponse = CopyPageResponses[keyof CopyPageResponses];
 
 export type UnpinPageData = {
   body?: never;
@@ -38156,14 +38540,14 @@ export type ScanWatchResponses = {
 
 export type ScanWatchResponse = ScanWatchResponses[keyof ScanWatchResponses];
 
-export type ListTemplatesData = {
+export type ListTemplates2Data = {
   body?: never;
   path?: never;
   query?: never;
   url: "/api/v1/templates";
 };
 
-export type ListTemplatesResponses = {
+export type ListTemplates2Responses = {
   /**
    * Response Templates-List Templates
    *
@@ -38172,7 +38556,7 @@ export type ListTemplatesResponses = {
   200: Array<TemplateSummary>;
 };
 
-export type ListTemplatesResponse = ListTemplatesResponses[keyof ListTemplatesResponses];
+export type ListTemplates2Response = ListTemplates2Responses[keyof ListTemplates2Responses];
 
 export type CreateTemplateData = {
   body: TemplateCreate;
@@ -42481,6 +42865,22 @@ export type NewImportHookTokenResponses = {
 
 export type NewImportHookTokenResponse = NewImportHookTokenResponses[keyof NewImportHookTokenResponses];
 
+export type ImportTargetData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/hooks/import";
+};
+
+export type ImportTargetResponses = {
+  /**
+   * Successful Response
+   */
+  200: ImportTarget;
+};
+
+export type ImportTargetResponse = ImportTargetResponses[keyof ImportTargetResponses];
+
 export type PushToImportHookData = {
   /**
    * HookPush
@@ -42519,6 +42919,12 @@ export type PushToImportHookData = {
      * its title (default: the file's name, or the page's)
      */
     title?: string | null;
+    /**
+     * Namespace
+     *
+     * with your own token: the namespace it goes into (default: the only one you can import into)
+     */
+    namespace?: string | null;
   };
   url: "/api/v1/hooks/import";
 };

@@ -128,9 +128,10 @@ Free notes sit in a tree in the left navigation, under the main links. The links
 long tree has the whole height. A row opens its note, its arrow shows the notes inside it (the tree remembers which are
 open) and **+** adds a note inside. Each row's **⋯** menu, which always shows on a touch screen, adds a note inside,
 renames the note in place (Enter saves, Escape leaves it as it was), moves it (**Move to…** finds the note to put it in
-by name, Enter picks the first; **Move to the top**), pins it ([below](#pinned-notes)) and deletes it with Undo.
-Dragging a note onto another puts it inside, and onto the Notes heading moves it to the top. The pages of recordings
-and entities aren't in the tree: they open from those things.
+by name, Enter picks the first; **Move to the top**), makes a copy beside it ("Copy of …", with its text, drawings
+and files), pins it ([below](#pinned-notes)), downloads it as Markdown and
+deletes it with Undo. Dragging a note onto another puts it inside, and onto the Notes heading moves it to the top. The
+pages of recordings and entities aren't in the tree: they open from those things.
 
 `POST /api/v1/notes/{pid}/move` with `{parent}` moves a note (`null` for the top); `PATCH /api/v1/notes/{pid}` with
 `{title}` renames it.
@@ -143,6 +144,17 @@ day in the namespace in view, made the first time it's asked for: titled with th
 everyone there shares; rename or move it like any note. `POST /api/v1/notes/today` with `{ns, date}` (editors) gives
 the same note to agents.
 
+## Templates
+
+Each note inside a namespace's **Templates** note is a template. **New note from a template…** in the Notes page's
+**⋯** menu, or the same action in Jump to (⌘K), lists them: type to find one, Enter takes the first. The new note has the
+template's title (selected, to type over), text, drawings, files, filing and view, and goes at the top of the tree.
+With no templates yet, the same place makes the Templates note.
+
+`GET /api/v1/notes/templates?ns=` lists a namespace's templates; `POST /api/v1/notes/templates` with `{ns}` gives its
+Templates note, made the first time; `POST /api/v1/notes/{pid}/copy` with optional `{title, parent}` makes a new note
+from any page (editors).
+
 ## Pinned notes
 
 **Pin** in a note's ⋯ menu in the tree pins it for you: it shows at the top of the tree, under **Pinned**, and first
@@ -150,6 +162,15 @@ on the Notes page with a pin. Pins are each person's own, so pinning changes not
 read access; up to 50 per namespace. **Unpin** (in the menu, or the button on its row under Pinned) takes it off.
 `PUT /api/v1/notes/{pid}/pin` pins and `DELETE` unpins; each page in `GET /api/v1/notes` says whether you pinned it
 (`pinned`).
+
+## Downloading as Markdown
+
+**Download as Markdown** in a note's ⋯ menu in the tree saves it as a `.md` file, and **Download all as Markdown**
+in the Notes page's ⋯ menu saves every page of the namespace as a zip of them, for Obsidian and other notes apps. Each
+file starts with front matter (its title, date, where it's filed, its summary, what it's the page of), then its text:
+links to other notes become `[[Title]]` wiki links and the rest the names they link to. In the zip, the notes inside a
+note sit in a folder named like it, and the pages of recordings, entities and topics under `Pages of things`.
+`GET /api/v1/notes/{pid}/markdown` and `GET /api/v1/notes/export?ns=` give the same files to agents.
 
 ## Deleting and putting back
 

@@ -18,10 +18,11 @@ router = APIRouter(prefix="/shares", tags=["shares"])
 
 @router.get("/s3")
 def s3_status(user: CurrentUser, db: Db, cfg: Cfg) -> S3Status:
-    """Whether the S3 server is on and on which port, what the worker running it says, the same for WebDAV, and your
-    access keys."""
+    """Whether the S3 server is on and on which port, what the worker running it says, the same for WebDAV, whether
+    both are open at the web app's address too (/s3, /dav), and your access keys."""
     st = shares.status(db, cfg)
-    return S3Status(**st["s3"], webdav=ShareServer(**st["webdav"]), keys=[S3Key(**k) for k in s3.keys_of(db, user.id)])
+    keys = [S3Key(**k) for k in s3.keys_of(db, user.id)]
+    return S3Status(**st["s3"], webdav=ShareServer(**st["webdav"]), remote=shares.remote(cfg), keys=keys)
 
 
 @router.post("/s3/keys")

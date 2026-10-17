@@ -87,7 +87,8 @@
     {
       "name": "ingest",
       "entry_points": [
-        "/uploads, /import, /recordings/{rid}/files"
+        "/uploads, /import, /recordings/{rid}/files",
+        "POST /hooks/import"
       ],
       "touches": [
         "filesystem",
@@ -403,6 +404,15 @@
       "source": "docs/configuration.md \"Uploads accept only the types\""
     },
     {
+      "entry_point": "POST /hooks/import",
+      "parameter": "bearer (a hook's lih_ token, or a person's la_, lo_ or web token with ?namespace=), file bytes, URL, text",
+      "attacker_controllable": "yes",
+      "component": "ingest",
+      "caller_must_enforce": "none — P-UPLOAD; the address form /hooks/import/{token} takes hook tokens only, so a person's token never sits in a logged path",
+      "provenance": "documented",
+      "source": "docs/api.md \"the address form takes hook tokens only\""
+    },
+    {
       "entry_point": "watched folders, storage sources, IMAP, Gmail, iCal",
       "parameter": "remote file names, bytes, mail, events",
       "attacker_controllable": "yes",
@@ -556,6 +566,15 @@
       "source": "docs/smb.md \"What keeps it safe\""
     },
     {
+      "entry_point": "web app /s3 and /dav (file shares relayed by lens-relay.js, ahead of Next)",
+      "parameter": "any method, path, Host and body, passed to the share servers with X-Forwarded-Prefix and X-Forwarded-For",
+      "attacker_controllable": "yes",
+      "component": "optional",
+      "caller_must_enforce": "admin enables shares.enabled and shares.remote; per-person access keys, read-only; failed WebDAV sign-ins throttled per visitor from X-Forwarded-For as trusted proxies report it",
+      "provenance": "documented",
+      "source": "docs/file-tree.md \"At the web app's address\""
+    },
+    {
       "entry_point": ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY",
       "parameter": "process configuration",
       "attacker_controllable": "no",
@@ -608,6 +627,15 @@
       "caller_must_enforce": "none — it runs as its maker with their permissions at run time (P-AUTOMATION-ACTOR); actions reaching outside Lens ask first; outside text marks intents untrusted and breaks up links (P-INJECTION-EGRESS); chains and bursts are bounded (P-AUTOMATION-LOOP)",
       "provenance": "documented",
       "source": "docs/automations.md \"Running automations\""
+    },
+    {
+      "entry_point": "admin sandbox gateway",
+      "parameter": "PUT /api/v1/admin/sandbox {on}, MCP set_sandbox_gateway",
+      "attacker_controllable": "no",
+      "component": "authz",
+      "caller_must_enforce": "admin is trusted; audited (lens.sandbox); refused when preflight finds the machine can't run the gateway; reaches the machine only as an inbox request (action=services, profile=sandbox) the agent checks again; off deletes every sandbox first",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"The gateway\""
     },
     {
       "entry_point": "code sandbox",
@@ -790,6 +818,14 @@
       "discouraged": false,
       "provenance": "documented",
       "source": "docs/sensors.md \"Sensors are off until an admin turns them on\""
+    },
+    {
+      "name": "shares.enabled, shares.remote",
+      "default": "off (bind 0.0.0.0); off",
+      "effect": "narrows P-SHARES",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "docs/file-tree.md \"At the web app's address\""
     },
     {
       "name": "tunnel.mode, local_llm.enabled, telemetry",
@@ -1216,7 +1252,7 @@
       "property": "P-SHARES",
       "violation_symptom": "info-leak, integrity-bypass",
       "severity_tier": "security",
-      "conditions": "the file shares (S3, WebDAV) are off until an admin enables them; every request carries a person's own access key (SigV4 or Basic), reads as them and never writes",
+      "conditions": "the file shares (S3, WebDAV) are off until an admin enables them, and reach the web app's address (/s3, /dav) only with shares.remote too; every request carries a person's own access key (SigV4 or Basic), reads as them and never writes",
       "provenance": "documented",
       "source": "docs/file-tree.md \"Off until an admin turns it on\""
     },
@@ -1296,7 +1332,7 @@
       "property": "P-SANDBOX",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",
-      "conditions": "code the assistant runs (sandbox.enabled, off by default) runs only for people sandbox.who allows, in its conversation's own OpenShell sandbox, never in Lens's processes; the sandbox gets none of Lens's data, keys or database address, only the code and files the person attached to that conversation; egress: none (off), PyPI and npm on 443 (packages) or public addresses on 80 and 443 (web); a file leaves only as the person's held upload placed by an import_files approval; stopped when idle, deleted when unused or with its conversation",
+      "conditions": "code the assistant runs (sandbox.enabled, off by default) runs only for people sandbox.who allows, in its conversation's own OpenShell sandbox, never in Lens's processes; the sandbox gets none of Lens's data, keys or database address, only the code and files the person attached to that conversation; egress: none (off), PyPI and npm on 443 (packages), or those and the names in sandbox.hosts on 80 and 443 (hosts), every endpoint held to public addresses; a file leaves only as the person's held upload placed by an import_files approval; stopped when idle, deleted when unused or with its conversation",
       "provenance": "documented",
       "source": "docs/assistant.md \"Code sandbox\""
     },

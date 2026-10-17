@@ -15,6 +15,7 @@ jest.mock("@/app/openapi-client", () => ({
     restoreDeleted: jest.fn(),
     pinPage: jest.fn(),
     unpinPage: jest.fn(),
+    copyPage: jest.fn(),
   },
 }));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
@@ -23,6 +24,10 @@ let pathname = "/notes";
 jest.mock("next/navigation", () => ({ usePathname: () => pathname, useRouter: () => ({ push }) }));
 const toast = jest.fn();
 jest.mock("@/components/ui/toast", () => ({ useToast: () => toast }));
+const download = jest.fn<Promise<void>, [string, string | undefined, string]>(() => Promise.resolve());
+jest.mock("@/components/library/actions", () => ({
+  downloadWithToken: (url: string, token: string | undefined, name: string) => download(url, token, name),
+}));
 let editor = true;
 jest.mock("@/lib/hooks/session", () => ({
   useArchive: () => ({ namespaces: [{ name: "home" }], namespace: "home", can: () => editor }),
@@ -114,6 +119,18 @@ describe("the notes tree", () => {
     expect(m(Notes.createPage).mock.calls[0][0].body).toMatchObject({ ns: "home", parent: 4 });
   });
 
+  it("makes a copy beside the note and opens it", async () => {
+    m(Notes.copyPage).mockImplementation(() => ok({ id: 10, title: "Copy of Pi 5 shopping list" }));
+    localStorage.setItem("lens.notes.open", "[1]");
+    show();
+    await choose("Pi 5 shopping list", "Make a copy");
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/notes/10?new=1"));
+    expect(m(Notes.copyPage).mock.calls[0][0]).toMatchObject({
+      path: { pid: 2 },
+      body: { title: "Copy of Pi 5 shopping list", parent: 1 },
+    });
+  });
+
   it("deletes a note with Undo on the notice, and leaves it when it was open", async () => {
     pathname = "/notes/4";
     m(Notes.deletePage).mockImplementation(() => ok({ ok: true }));
@@ -138,12 +155,12 @@ describe("the notes tree", () => {
     expect(m(Notes.unpinPage).mock.calls[0][0].path).toEqual({ pid: 4 });
   });
 
-  it("lets someone who can only read pin, and nothing else", async () => {
+  it("lets someone who can only read pin and download, and nothing else", async () => {
     editor = false;
     show();
     fireEvent.keyDown(await screen.findByRole("button", { name: "More for Trips" }), { key: "Enter" });
     const items = await screen.findAllByRole("menuitem");
-    expect(items.map((i) => i.textContent)).toEqual(["Pin"]);
+    expect(items.map((i) => i.textContent)).toEqual(["Pin", "Download as Markdown"]);
     expect(screen.queryByRole("button", { name: "New note inside Trips" })).not.toBeInTheDocument();
   });
 
@@ -156,5 +173,11 @@ describe("the notes tree", () => {
     await waitFor(() => expect(toast).toHaveBeenCalled());
     expect(toast.mock.calls[0][0].title).toBe("Couldn’t pin it");
     expect(screen.queryByRole("group", { name: "Pinned notes" })).not.toBeInTheDocument();
+  });
+
+  it("downloads a note as Markdown", async () => {
+    show();
+    await choose("Trips", "Download as Markdown");
+    await waitFor(() => expect(download).toHaveBeenCalledWith("/api/v1/notes/4/markdown", "t", "Trips.md"));
   });
 });

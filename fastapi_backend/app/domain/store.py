@@ -544,12 +544,14 @@ DEFAULTS = {
     # the assistant's code sandbox (sandbox.py, docs/assistant.md#code-sandbox): off until an admin turns it on. Then
     # each conversation's Python and bash run in a sandbox of its own on the OpenShell gateway at `gateway`, made from
     # `image` with `cpu` and `memory`, stopped after idle_minutes and deleted keep_hours after its last run. network:
-    # off (none), packages (PyPI and npm) or web (public addresses). who: editors (and admins), or admins only.
+    # off (none), packages (PyPI and npm) or hosts (those and `hosts`). who: editors (and admins), or admins only. The
+    # gateway's address is the one the Compose profile `sandbox` runs.
     "sandbox": {
         "enabled": False,
-        "gateway": "openshell-gateway:8080",
+        "gateway": "openshell-gateway:17670",
         "image": "python:3.12-slim",
         "network": "off",
+        "hosts": [],
         "who": "editors",
         "cpu": "1",
         "memory": "512Mi",
@@ -588,8 +590,17 @@ DEFAULTS = {
         "account": None,
     },
     # the graph as files over S3 and WebDAV (shares.py, docs/file-tree.md): off until an admin turns it on. Then the process
-    # that runs routines (`lens worker`) serves it, read-only, on these ports. bind is a startup setting only.
-    "shares": {"enabled": False, "bind": "0.0.0.0", "s3": True, "s3_port": 9555, "webdav": True, "webdav_port": 9556},
+    # that runs routines (`lens worker`) serves it, read-only, on these ports. bind is a startup setting only. remote: also at
+    # the web app's address (/s3, /dav), so through Settings › Remote access and HTTPS too; off until an admin turns it on.
+    "shares": {
+        "enabled": False,
+        "bind": "0.0.0.0",
+        "s3": True,
+        "s3_port": 9555,
+        "webdav": True,
+        "webdav_port": 9556,
+        "remote": False,
+    },
     # notifications to webhooks and Matterbridge (docs/notifications.md): targets reach public addresses only, and the
     # private networks listed here (a Matterbridge on the LAN or the Docker network); app_url is where links in messages
     # point (null: FRONTEND_URL)

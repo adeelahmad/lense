@@ -90,6 +90,7 @@ whether the wizard is still pending (`wizard_pending`).
 | `AUTH_TRUST_HOST` | `true` behind a proxy or in Docker |
 | `TRUST_PROXY_HEADERS` | `true` when a reverse proxy in front of the web app sets `X-Forwarded-Host`, `-Proto` and `-For`: they're passed on to the API, which names that address in OAuth discovery and reads the visitor's address for IP groups and throttles. Off, the web app reports the `Host` the browser sent and the address it was reached from |
 | `LENS_WEB_PROXY_HOSTS` | hosts whose `X-Forwarded-For` the web app passes on with `TRUST_PROXY_HEADERS` off (`backend,worker` in the Docker Compose files, for the Cloudflare tunnel) |
+| `LENS_S3_URL`, `LENS_WEBDAV_URL` | where the web app finds the file shares it relays at `/s3` and `/dav` once Settings › File shares allows it (`http://worker:9555` and `http://worker:9556` in the Docker Compose files; unset, this machine's ports 9555 and 9556). See [The graph as files](file-tree.md#at-the-web-apps-address) |
 | `LENS_HTTPS`, `LENS_HTTPS_PORT`, `LENS_HTTP_PORT`, `LENS_HTTPS_BIND` | install.sh: `LENS_HTTPS=1` publishes the HTTPS and HTTP ports (443 and 80 by default) for [HTTPS](https.md) |
 | `LENS_HTTPS_LISTEN` | `1` in the process that has the HTTPS ports and runs Caddy (the worker in `docker-compose.https.yml`); `LENS_CADDY`: a caddy to use instead of fetching one |
 
@@ -502,8 +503,9 @@ image, CPU, memory, run time and how long sandboxes are kept are under its fold:
 |---|---|---|
 | `sandbox.enabled` | false | on: the assistant gets `run_python`, `run_bash`, `sandbox_files` and `import_sandbox_file` |
 | `sandbox.who` | `editors` | who may use it: `editors` (people who can edit a namespace, and admins) or `admins` |
-| `sandbox.network` | `off` | `off` (no traffic), `packages` (the Python and npm registries) or `web` (public addresses on ports 80 and 443) |
-| `sandbox.gateway` | `openshell-gateway:8080` | the OpenShell gateway's gRPC address, `host:port` |
+| `sandbox.network` | `off` | `off` (no traffic), `packages` (the Python and npm registries) or `hosts` (those and `sandbox.hosts`) |
+| `sandbox.hosts` | `[]` | with `hosts`: the names it may reach on ports 80 and 443, like `api.example.com` or `*.wikipedia.org` (up to 50); only at public addresses |
+| `sandbox.gateway` | `openshell-gateway:17670` | the OpenShell gateway's gRPC address, `host:port`; Run the gateway on this machine sets it |
 | `sandbox.image` | `python:3.12-slim` | the container image sandboxes are made from; it needs `python3` and `bash` |
 | `sandbox.cpu` | `1` | cores a sandbox may use, like `1`, `0.5` or `500m` (0.1–64) |
 | `sandbox.memory` | `512Mi` | memory a sandbox may use, like `512Mi` or `2Gi` (64Mi–64Gi) |

@@ -5,6 +5,7 @@ import "@testing-library/jest-dom";
 import { Notes } from "@/app/openapi-client";
 import { CommandPalette } from "@/components/app-shell/command-palette";
 import { NotesHome } from "@/components/notes/notes-home";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 jest.mock("@/app/openapi-client", () => ({
   Notes: {
@@ -12,13 +13,24 @@ jest.mock("@/app/openapi-client", () => ({
     searchPages: jest.fn(),
     createPage: jest.fn(),
     deletedPages: jest.fn(() => Promise.resolve({ data: [], response: { ok: true, status: 200 } })),
+    listTemplates: jest.fn(),
+    copyPage: jest.fn(),
   },
   Resources: { listRecordings: jest.fn(() => Promise.resolve({ data: [], response: { ok: true, status: 200 } })) },
 }));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
 const push = jest.fn();
-jest.mock("next/navigation", () => ({ usePathname: () => "/notes", useRouter: () => ({ push }) }));
+let search = "";
+jest.mock("next/navigation", () => ({
+  usePathname: () => "/notes",
+  useRouter: () => ({ push }),
+  useSearchParams: () => new URLSearchParams(search),
+}));
 jest.mock("@/components/ui/toast", () => ({ useToast: () => jest.fn() }));
+const download = jest.fn<Promise<void>, [string, string | undefined, string]>(() => Promise.resolve());
+jest.mock("@/components/library/actions", () => ({
+  downloadWithToken: (url: string, token: string | undefined, name: string) => download(url, token, name),
+}));
 jest.mock("@/lib/hooks/session", () => ({
   useArchive: () => ({
     admin: false,
@@ -33,7 +45,7 @@ const m = (f: unknown) => f as jest.Mock;
 const show = (ui: React.ReactNode) =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      {ui}
+      <TooltipProvider>{ui}</TooltipProvider>
     </QueryClientProvider>,
   );
 
@@ -110,6 +122,31 @@ describe("the Notes page", () => {
     expect(rows[0]).toContain("Pinned plan");
     expect(rows.slice(1)).toEqual([expect.stringContaining("Newest"), expect.stringContaining("Fresh")]);
     expect(screen.getByLabelText("Pinned")).toBeInTheDocument();
+  });
+
+  it("downloads every note as Markdown from its menu", async () => {
+    show(<NotesHome />);
+    fireEvent.keyDown(await screen.findByRole("button", { name: "More on Notes" }), { key: "Enter" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Download all as Markdown" }));
+    await waitFor(() => expect(download).toHaveBeenCalledWith("/api/v1/notes/export?ns=home", "t", "home notes.zip"));
+  });
+
+  it("starts a note from a template, from its menu or Jump to's link", async () => {
+    m(Notes.listTemplates).mockImplementation(() =>
+      ok({ namespace: "home", root: 1, templates: [{ id: 5, title: "Meeting" }] }),
+    );
+    m(Notes.copyPage).mockImplementation(() => ok({ id: 8, title: "Meeting" }));
+    const first = show(<NotesHome />);
+    fireEvent.keyDown(await screen.findByRole("button", { name: "More on Notes" }), { key: "Enter" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "New note from a template…" }));
+    fireEvent.keyDown(await screen.findByRole("combobox", { name: "Template" }), { key: "Enter" });
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/notes/8?new=1"));
+    expect(m(Notes.copyPage).mock.calls[0][0].path).toEqual({ pid: 5 });
+    first.unmount();
+    search = "template";
+    show(<NotesHome />);
+    expect(await screen.findByRole("combobox", { name: "Template" })).toBeInTheDocument();
+    search = "";
   });
 
   it("says when no note has the words", async () => {

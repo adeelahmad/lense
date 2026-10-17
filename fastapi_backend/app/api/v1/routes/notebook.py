@@ -7,11 +7,12 @@ first time someone writes on it; until then it reads as a draft.
 from __future__ import annotations
 
 import contextlib
+import tempfile
 from typing import Any
 from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer, domain_errors
@@ -22,6 +23,7 @@ from app.domain import files as resource_files
 from app.domain.store import DB
 from app.schemas.common import Ok
 from app.schemas.notebook import (
+    NoteCopy,
     NoteDeleted,
     NoteFile,
     NoteHistory,
@@ -36,6 +38,9 @@ from app.schemas.notebook import (
     NotePageMove,
     NotePageUpdate,
     NoteSearch,
+    NoteTemplate,
+    NoteTemplates,
+    NoteTemplatesCreate,
     NoteToday,
     NoteTree,
     NoteVersion,
@@ -127,6 +132,26 @@ def today_page(body: NoteToday, user: Writer, acl: Acl, db: Db) -> NotePage:
     return _out(acl, db, notebook.get(db, pid), user)
 
 
+@router.get("/templates")
+def list_templates(ns: str, user: CurrentUser, acl: Acl, db: Db) -> NoteTemplates:
+    """The namespace's templates: the notes inside its "Templates" note, in the tree's order. Start a note from one
+    with `POST /notes/{pid}/copy`."""
+    sid = acl.namespace(ns)
+    return NoteTemplates(
+        namespace=ns, root=notebook.templates_root(db, sid), templates=[NoteTemplate(**t) for t in notebook.templates(db, sid)]
+    )
+
+
+@router.post("/templates")
+def templates_note(body: NoteTemplatesCreate, user: Writer, acl: Acl, db: Db) -> NotePage:
+    """The namespace's "Templates" note, made the first time it's asked for: each note put inside it is a template.
+    Needs editor access."""
+    sid = acl.namespace(body.ns, "editor")
+    with domain_errors():
+        pid = notebook.templates_root(db, sid, user.id)
+    return _out(acl, db, notebook.get(db, pid), user)
+
+
 @router.get("/targets")
 def link_targets(
     ns: str, user: CurrentUser, acl: Acl, db: Db, q: str = "", sign: str = "@", limit: int = Query(20, ge=1, le=50)
@@ -168,6 +193,35 @@ def _trashed(acl: Access, db: DB, pid: int, role: str = "viewer") -> dict[str, A
         raise HTTPException(404, "not found") from None
     acl.need(t["space"], role)
     return t
+
+
+def _attachment(name: str) -> str:
+    ascii_name = name.encode("ascii", "replace").decode().replace('"', "").replace("?", "_")
+    return f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name)}"
+
+
+@router.get(
+    "/export",
+    response_class=StreamingResponse,
+    responses={200: {"content": {"application/zip": {}}, "description": "a zip of Markdown files"}},
+)
+def export_notes(ns: str, user: CurrentUser, acl: Acl, db: Db) -> StreamingResponse:
+    """Every page of the namespace as Markdown files in a zip, for other notes apps (Obsidian and the like): free notes
+    in folders that follow the tree, the pages of things under "Pages of things"."""
+    sid = acl.namespace(ns)
+    out = tempfile.SpooledTemporaryFile(max_size=32 * 1024 * 1024)
+    notebook.export(db, sid, out)
+    out.seek(0)
+
+    def body():
+        try:
+            while part := out.read(256 * 1024):
+                yield part
+        finally:
+            out.close()
+
+    name = f"{notebook.file_name(ns)} notes.zip"
+    return StreamingResponse(body(), media_type="application/zip", headers={"Content-Disposition": _attachment(name)})
 
 
 @router.get("/deleted")
@@ -278,6 +332,23 @@ def _version_out(db: DB, v: dict[str, Any], cls: type[NoteVersionItem] = NoteVer
     return cls(**{**{k: x for k, x in v.items() if k not in ("by", "page", "doc")}, "by": (who or {}).get("email")})
 
 
+@router.get(
+    "/{pid}/markdown",
+    response_class=Response,
+    responses={200: {"content": {"text/markdown": {}}, "description": "the page as a Markdown file"}},
+)
+def page_markdown(pid: int, user: CurrentUser, acl: Acl, db: Db) -> Response:
+    """The page as a Markdown file of its own: front matter with its title, date, filing and summary, then its text,
+    with links to other pages as [[Title]] wiki links."""
+    p = _page(acl, db, pid)
+    titles = {r["id"]: r["title"] for r in notebook.tree(db, p["space"], everything=True)}
+    return Response(
+        notebook.markdown(p, titles),
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": _attachment(f"{notebook.file_name(p['title'])}.md")},
+    )
+
+
 @router.get("/{pid}/history")
 def page_history(pid: int, user: CurrentUser, acl: Acl, db: Db, limit: int = Query(50, ge=1, le=100)) -> NoteHistory:
     """What the page was before each change to its title, summary or text, newest first."""
@@ -314,6 +385,16 @@ def move_page(pid: int, body: NotePageMove, user: Writer, acl: Acl, db: Db) -> N
     with domain_errors():
         notebook.move(db, pid, body.parent, body.before)
     return _out(acl, db, notebook.get(db, pid), user)
+
+
+@router.post("/{pid}/copy")
+def copy_page(pid: int, body: NoteCopy, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> NotePage:
+    """A new free note with this page's text, drawings, files, filing and view: a note started from a template, or a
+    copy. Titled `title` (default the page's), inside `parent` (default the top). Needs editor access."""
+    _page(acl, db, pid, "editor")
+    with domain_errors(), _vault():
+        new = notebook.copy(db, cfg, pid, user.id, body.title, body.parent)
+    return _out(acl, db, notebook.get(db, new), user)
 
 
 @router.put("/{pid}/pin")

@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:0dd7f47f6aef27ac5fa7ddc80ee776fe1b6b41a8f737822e68fbecb9b6eb9608"
+prose_version: "threat-model.md@sha256:8b287cb4b5686f2a85af423583b61b8d5ef8bb22e404480724217df6ecc65d34"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 204, maintainer: 46, inferred: 91, assumption: 8}
@@ -321,6 +321,15 @@ entry_points:
         control_kinds: [data, type-class, size]
         caller_must_enforce: "none — P-UPLOAD"
         provenance: {kind: documented, source: 'docs/configuration.md "Uploads accept only the types"'}
+  - id: "POST /hooks/import"
+    component: ingest
+    parameters:
+      - name: "bearer (a hook's lih_ token, or a person's la_, lo_ or web token with ?namespace=), file bytes, URL, text"
+        attacker_controllable: true
+        x-condition: "anyone holding a hook's token, for its namespace; a person's token, for namespaces where its person has the import permission and only with write scope"
+        control_kinds: [data, resource-name, size]
+        caller_must_enforce: "none — P-UPLOAD; the address form /hooks/import/{token} takes hook tokens only, so a person's token never sits in a logged path"
+        provenance: {kind: documented, source: 'docs/api.md "the address form takes hook tokens only"'}
   - id: "watched folders, storage sources, IMAP, Gmail, iCal"
     component: outbound
     parameters:
@@ -486,6 +495,15 @@ entry_points:
         obligation_id: enable-and-limit-smb
         caller_must_enforce: "admin enables; operator firewalls"
         provenance: {kind: documented, source: 'docs/smb.md "What keeps it safe"'}
+  - id: "web app /s3 and /dav (file shares relayed by lens-relay.js, ahead of Next)"
+    component: optional
+    parameters:
+      - name: "any method, path, Host and body, passed to the share servers with X-Forwarded-Prefix and X-Forwarded-For"
+        attacker_controllable: true
+        x-condition: "once shares.enabled and shares.remote; from the internet through the tunnel or HTTPS"
+        control_kinds: [x-credential, resource-name, x-network-source]
+        caller_must_enforce: "admin enables both; per-person access keys, read-only; failed WebDAV sign-ins throttled per visitor from X-Forwarded-For as trusted proxies report it"
+        provenance: {kind: documented, source: 'docs/file-tree.md "At the web app''s address"'}
   - id: ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY"
     component: outbound
     parameters:
@@ -533,6 +551,16 @@ entry_points:
         obligation_id: admin-is-trusted
         caller_must_enforce: "admin is trusted; audited (lens.install, https.ports); reaches the machine only as an inbox request the agent checks again"
         provenance: {kind: documented, source: 'docs/updates.md "Setting the machine up again"'}
+  - id: "admin sandbox gateway"
+    component: authz
+    parameters:
+      - name: "PUT /api/v1/admin/sandbox {on}, MCP set_sandbox_gateway"
+        attacker_controllable: false
+        x-condition: "admin only (MCP: with the write scope)"
+        control_kinds: [x-env-config]
+        obligation_id: admin-is-trusted
+        caller_must_enforce: "admin is trusted; audited (lens.sandbox); refused when preflight finds the machine can't run the gateway; reaches the machine only as an inbox request (action=services, profile=sandbox) the agent checks again; off deletes every sandbox first"
+        provenance: {kind: documented, source: 'docs/assistant.md "The gateway"'}
   - id: "entity and topic curation tools"
     component: authz
     parameters:
@@ -1203,6 +1231,14 @@ build_flags:
     affects_properties:
       - {property_id: P-SHARES, effect: narrows}
     provenance: {kind: documented, source: 'docs/file-tree.md "Off until an admin turns it on"'}
+  - name: "shares.remote"
+    default: "off"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "the web app relays the file shares at its own address (/s3, /dav; nextjs-frontend/lens-relay.js), so the tunnel and HTTPS reach them; until on, the share servers refuse requests carrying X-Forwarded-Prefix before any sign-in"
+    affects_properties:
+      - {property_id: P-SHARES, effect: narrows}
+    provenance: {kind: documented, source: 'docs/file-tree.md "At the web app''s address"'}
   - name: "https.enabled"
     default: "off"
     security_relevant: true
@@ -1219,6 +1255,15 @@ build_flags:
     affects_properties:
       - {property_id: P-HARDENED, effect: narrows}
     provenance: {kind: documented, source: 'docs/updates.md "Setting the machine up again"'}
+  - name: "sandbox Compose profile: Settings › Code sandbox › Run the gateway on this machine, PUT /api/v1/admin/sandbox or MCP set_sandbox_gateway"
+    default: "off"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "runs OpenShell's gateway as root with the Docker socket (it can start any container), with no capabilities and a read-only image; its gRPC port on the host's 127.0.0.1:17670 and the sandbox network shared with the backend and worker; it answers only callers with the client certificate in the sandbox-key volume; the certificates live in the host's /var/lib/openshell, root only"
+    affects_properties:
+      - {property_id: P-HARDENED, effect: narrows}
+      - {property_id: P-SANDBOX, effect: preserves}
+    provenance: {kind: documented, source: 'docs/assistant.md "The gateway"'}
   - name: "Edition: install.sh LENS_TARGET, also from Settings › Components or PUT /api/v1/admin/install"
     default: "full"
     security_relevant: true
@@ -1452,7 +1497,7 @@ properties_claimed:
     x-tier-question: Q37
     conditions: "in the compose files the database, API and Fedora ports bind to 127.0.0.1, containers run non-root with no-new-privileges, and the web app sends nosniff, a referrer policy, a permissions policy and a frame policy (HSTS through Cloudflare); in docker-compose.prod.yml the DB password is random and the web app listens on this machine unless LENS_BIND is set"
     violation_symptoms: [x-missing-hardening]
-    x-voided-by: "LENS_BIND=0.0.0.0 (docker-compose.prod.yml:153), which an admin can also ask for from Settings (PUT /api/v1/admin/install); dev web port (docker-compose.yml:95, §1.3)"
+    x-voided-by: "LENS_BIND=0.0.0.0 (docker-compose.prod.yml:153), which an admin can also ask for from Settings (PUT /api/v1/admin/install); dev web port (docker-compose.yml:95, §1.3); the opt-in sandbox profile's openshell-init, openshell-key and openshell-gateway run as root, the gateway with the Docker socket"
     provenance: {kind: documented, source: 'docs/deployment.md "What''s hardened already"'}
   - id: P-SECRETS
     kind: confidentiality
@@ -1646,9 +1691,9 @@ properties_claimed:
     kind: authentication
     components: [optional]
     tier: security-critical
-    conditions: "the file shares (S3, WebDAV) are off until an admin enables them; every request carries a person's own access key (SigV4 or Basic), reads as them and never writes"
+    conditions: "the file shares (S3, WebDAV) are off until an admin enables them, and reach the web app's address (/s3, /dav) only with shares.remote too; every request carries a person's own access key (SigV4 or Basic), reads as them and never writes"
     violation_symptoms: [info-leak, integrity-bypass]
-    x-voided-by: "plain HTTP on the network with LENS_BIND=0.0.0.0 (WebDAV's Basic secret in clear); secrets sealed with the server key, not hashed (domain/s3.py)"
+    x-voided-by: "plain HTTP on the network with LENS_BIND=0.0.0.0, or shares.remote with the web app itself on plain HTTP (WebDAV's Basic secret in clear); secrets sealed with the server key, not hashed (domain/s3.py)"
     provenance: {kind: documented, source: 'docs/file-tree.md "Off until an admin turns it on"'}
   - id: P-CHILD-SECRETS
     kind: confidentiality
@@ -1728,9 +1773,9 @@ properties_claimed:
     kind: integrity
     components: [assistant]
     tier: security-critical
-    conditions: "code the assistant runs (sandbox.enabled, off by default) runs only for people sandbox.who allows, in its conversation's own OpenShell sandbox, never in Lens's processes; the sandbox gets none of Lens's data, keys or database address, only the code and files the person attached to that conversation (25 MB each, 100 MB a run); egress: none (off), PyPI and npm on 443 (packages) or public addresses on 80 and 443 (web); a file leaves only as the person's held upload placed by an import_files approval; stopped after idle_minutes, deleted after keep_hours or with its conversation"
+    conditions: "code the assistant runs (sandbox.enabled, off by default) runs only for people sandbox.who allows, in its conversation's own OpenShell sandbox, never in Lens's processes; the sandbox gets none of Lens's data, keys or database address, only the code and files the person attached to that conversation (25 MB each, 100 MB a run); egress: none (off), PyPI and npm on 443 (packages), or those and the names in sandbox.hosts on 80 and 443 (hosts), every endpoint held to public addresses; a file leaves only as the person's held upload placed by an import_files approval; stopped after idle_minutes, deleted after keep_hours or with its conversation"
     violation_symptoms: [integrity-bypass]
-    x-voided-by: "isolation inside the sandbox is OpenShell's; landlock best_effort runs without Landlock where the kernel lacks it (domain/sandbox.py); whoever reaches the gateway can run sandboxes of their own; what the code prints is third-party text (N-PROMPT)"
+    x-voided-by: "isolation inside the sandbox is OpenShell's; landlock best_effort runs without Landlock where the kernel lacks it (domain/sandbox.py); whoever the gateway lets in (in the sandbox profile, a holder of its client certificate) can run sandboxes of their own; what the code prints is third-party text (N-PROMPT)"
     provenance: {kind: documented, source: 'docs/assistant.md "Code sandbox"'}
   - id: MX-AUTHZ-LIST-CAPS
     kind: resource-bound
