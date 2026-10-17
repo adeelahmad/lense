@@ -678,6 +678,7 @@ The operator (and, for the last rows, integrators that consume Lens output) must
 | Wide `LENS_WEB_NETWORKS` | Editors, and iCal feed redirects, can then reach those networks | List single hosts |
 | Webhook push token in a URL that proxies log | The token is a credential in the path | Use the header form |
 | Pointing the assistant at a hosted model for sensitive archives | Assets' text leaves the machine | Use a local model server |
+| A hosted decision model (Jev) for sensitive archives | Routine choices send it excerpts, notes and the lines that name what analysis can't type | Use Laya, or set Settings › Analysis › Names the rules can't type to Leave them terms |
 
 ## 1.15 Known non-findings
 

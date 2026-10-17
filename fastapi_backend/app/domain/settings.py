@@ -159,6 +159,7 @@ ENUMS = {
     ("speakers", "cross_namespace"): {"suggest", "off"},
     ("analysis", "entities"): {"rules", "spacy"},
     ("analysis", "cleanup_punctuation"): {"off", "missing", "always"},
+    ("analysis", "typing"): {"auto", "model", "rules"},
     ("search", "stemming"): {"english", "none"},
     ("search", "engine"): set(store.SEARCH_ENGINES),
     ("reports", "audio"): {"link", "embed", "none"},

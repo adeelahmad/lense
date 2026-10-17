@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **The decision model types the names the rules can't.** When Jev or Laya is set up, analysis asks it what each new
+  Term of a recording is (a person, an organisation, a product...), with the lines it's said in, in one call per
+  recording, and keeps the types it is sure of. Settings › Analysis › Names the rules can't type (`analysis.typing`)
+  can also let the language model answer, or turn it off; the language model is never asked by default
+  ([Names the rules can't type](docs/processing.md#entities-and-the-graph-explorer)).
 - **Names get their real types, not Term.** The built-in extractor now tells people, places, organisations, events,
   works and dates apart without a model: by a title or role before a name, a given name, the word a name ends or
   starts with (Corp, University of, Summit, Act, River), lists of countries, regions and large cities and of

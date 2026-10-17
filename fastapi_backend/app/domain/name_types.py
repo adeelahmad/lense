@@ -9,7 +9,9 @@ The rules read the name and the few words around it, and need no model:
 - PLACE: countries, regions, states and large cities (lexicon/places.txt); EVENT: holidays; DATE: days and months.
 - ORG, PRODUCT: well-known organisations and products (lexicon/organisations.txt, products.txt), and for PRODUCT a
   name with a number in it (iPhone 16).
-A name none of these place is a TERM: a single unknown word (a brand, a project) needs a model to tell.
+A name none of these place is a TERM: a single unknown word (a brand, a project) needs a model to tell. `ask` gives
+such names to the decision model, with the lines they're said in (Settings › Analysis › Types the rules can't tell,
+`analysis.typing`): by default only when a decision model is set up (Jev or Laya), never the language model.
 
 The given names are mostly the US Census Bureau's frequent first names of 1990 (public domain), with others added by
 hand; the places, organisations and products are written by hand (lexicon/). Words that are names but mostly something else on their own (Will,
@@ -19,10 +21,14 @@ Mark, Rose, Claude) count only as the first of several words.
 from __future__ import annotations
 
 import functools
+import logging
 import pathlib
 import re
 
+from . import decide
+
 HERE = pathlib.Path(__file__).parent / "lexicon"
+log = logging.getLogger("lens")
 TITLES = {
     "Dr",
     "Mr",
@@ -298,3 +304,61 @@ def guess(name, lines=(), people=frozenset()):
         t = kind(words, people=people)
         return t
     return max(votes, key=lambda t: (votes[t], t == "PERSON")) if votes else None
+
+
+# ---------- what the rules can't tell, a model may ----------
+ASKED = ("PERSON", "ORG", "PRODUCT", "PLACE", "EVENT", "WORK", "TERM")  # the types a model picks from
+TYPINGS = ("auto", "model", "rules")
+BATCH = 20  # names in one call
+MOST = 40  # names asked about at once (one recording, or one go of type_terms)
+LINES = 2  # lines a name is said in, given with it
+
+
+def _typing(cfg):
+    return (cfg.get("analysis") or {}).get("typing") or "auto"
+
+
+def asking(cfg):
+    """Which model gives types to the names the rules leave terms (`analysis.typing`), or None: with "auto" (the
+    default) the decision model when one is set up (Jev or Laya), with "model" the language model too when none is,
+    with "rules" none. Decisions turned off (decisions.engine: off) is none either."""
+    want = _typing(cfg)
+    how = decide.engine(cfg)
+    if want == "rules" or how is None:
+        return None
+    return how if how in decide.ENGINES or want == "model" else None
+
+
+def said_in(name, lines, most=LINES):
+    """The first `most` lines `name` is said in, each cut to a sentence's length."""
+    pat = re.compile(rf"(?<!\w){re.escape(name)}(?!\w)", re.I)
+    return [str(t)[:200] for t in lines if t and pat.search(str(t))][:most]
+
+
+def ask(cfg, names):
+    """{key: type} for names the rules left terms ({key: (name, [lines it's said in])}), from the model `asking` picks:
+    only the types it's sure of (decisions.act_above) and not a term. Nothing when no model is set up, or it fails, or
+    the budget's hard limit is reached: the names stay terms."""
+    from .entity_setup import BUILTIN_HELP
+
+    how = asking(cfg)
+    if not how or not names:
+        return {}
+    options = {t: BUILTIN_HELP[t] for t in ASKED}
+    keys = list(names)[:MOST]
+    per = 1 if how == "laya" else BATCH  # Laya reads 512 or 1,024 tokens of state: one name at a time
+    out = {}
+    for i in range(0, len(keys), per):
+        chunk = keys[i : i + per]
+        state = {
+            "about": "Names found in a text, with lines they're said in.",
+            "names": [{"name": names[k][0], "said": list(names[k][1])[:LINES]} for k in chunk],
+        }
+        asks = {k: (f'What kind of thing is "{names[k][0]}"?', options) for k in chunk}
+        try:
+            got = decide.choose_all(cfg, asks, state, language_model=_typing(cfg) == "model")
+        except Exception as e:  # noqa: BLE001 - the rules' types stay when the model can't answer
+            log.warning("name types: the model couldn't be asked (%s); the names stay terms", e)
+            break
+        out.update({k: d["choice"] for k, d in got.items() if d["choice"] != "TERM" and decide.sure(cfg, d)})
+    return out

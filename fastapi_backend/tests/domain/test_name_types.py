@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
-from app.domain import analyze, entities, graph_history, ingest, migrations, name_types, store
+from app.domain import activity, analyze, decide, entities, graph_history, ingest, migrations, name_types, store
+from tests import fake_jev, fake_llm
+from tests.api._assist import start_llm
 from tests.helpers import quiet
 
 
@@ -131,3 +135,105 @@ def test_the_upgrade_types_the_old_terms_and_keeps_what_people_chose(db, cfg, fo
 
 def test_the_upgrade_is_a_named_step(db):
     assert ("entity-types", entities.migrate_types) in migrations.steps()
+
+
+# ---------- what the rules can't tell, a model may ----------
+@pytest.fixture
+def jev(cfg):
+    srv = fake_jev.start(cfg)
+    yield fake_jev.Handler
+    srv.shutdown()
+
+
+@pytest.fixture
+def llm(cfg):
+    srv = start_llm(cfg)
+    yield fake_llm.Handler
+    srv.shutdown()
+
+
+def _quillmark(question, *_):
+    return "PRODUCT" if '"Quillmark"' in question else None
+
+
+def _analysed(db, cfg, folder):
+    p = folder / "talk.txt"
+    p.write_text(TALK)
+    ingest.import_transcript(db, cfg, "pods", p, log=quiet)
+    analyze.analyze_pending(db, cfg, log=quiet)
+    return _types(db, store.ns_id(db, "pods"))
+
+
+def test_the_decision_model_types_what_the_rules_cant(db, cfg, folder, jev):
+    jev.pick, jev.answer = _quillmark, {"type": "choice", "choice": "TERM", "confidence": 1.0, "probabilities": {"TERM": 1.0}}
+    got = _analysed(db, cfg, folder)
+    assert got["Quillmark"] == "PRODUCT" and got["Sarah Johnson"] == "PERSON"  # the rules' types stay
+    (_, body), *more = jev.seen
+    assert not more  # the names of a recording in one call
+    assert [q["instructions"] for q in body["questions"].values()] == ['What kind of thing is "Quillmark"?']
+    assert "Then Quillmark came up" in body["state"] and set(next(iter(body["questions"].values()))["criteria"]) == set(name_types.ASKED)
+    analyze.analyze_pending(db, cfg, force=True, log=quiet)
+    assert len(jev.seen) == 1  # an entity already: not asked again
+
+
+def test_a_term_the_custom_vocabulary_lists_isnt_asked(db, cfg, folder, jev):
+    cfg["analysis"]["gazetteer"] = ["Quillmark"]  # a term, as the vocabulary says
+    jev.pick = _quillmark
+    assert _analysed(db, cfg, folder)["Quillmark"] == "TERM" and not jev.seen
+
+
+def test_a_type_the_model_isnt_sure_of_stays_a_term(db, cfg, folder, jev):
+    jev.answer = {"type": "choice", "choice": "ORG", "confidence": 0.5, "probabilities": {"ORG": 0.5, "PRODUCT": 0.4}}
+    assert _analysed(db, cfg, folder)["Quillmark"] == "TERM"
+
+
+def test_by_default_the_language_model_isnt_asked(db, cfg, folder, llm):
+    llm.pick = _quillmark
+    assert _analysed(db, cfg, folder)["Quillmark"] == "TERM"
+    assert not [b for b in llm.seen if "answers" in json.dumps(b.get("response_format") or {})]
+
+
+def test_with_typing_model_the_language_model_answers(db, cfg, folder, llm):
+    cfg["analysis"]["typing"] = "model"
+    llm.pick = _quillmark
+    assert _analysed(db, cfg, folder)["Quillmark"] == "PRODUCT"
+
+
+def test_with_typing_rules_nothing_is_asked(db, cfg, folder, jev):
+    cfg["analysis"]["typing"] = "rules"
+    jev.pick = _quillmark
+    assert _analysed(db, cfg, folder)["Quillmark"] == "TERM" and not jev.seen
+
+
+def test_when_the_model_fails_the_names_stay_terms(db, cfg, folder, jev, monkeypatch):
+    jev.status = 500
+    assert _analysed(db, cfg, folder)["Quillmark"] == "TERM"  # and the analysis is done
+    monkeypatch.setattr(decide, "choose_all", lambda *a, **k: (_ for _ in ()).throw(activity.OverBudget("the budget is spent")))
+    assert name_types.ask(cfg, {"quillmark": ("Quillmark", ["We run Quillmark."])}) == {}
+
+
+def test_laya_is_asked_one_name_at_a_time(cfg, monkeypatch):
+    cfg["decisions"] = {**cfg.get("decisions", {}), "engine": "laya"}
+    calls = []
+
+    def laya(cfg, questions, state):
+        calls.append(len(questions))
+        return {q: {"choice": "ORG", "confidence": 0.9} for q in questions}
+
+    monkeypatch.setitem(decide.ENGINES, "laya", laya)
+    names = {k: (k.title(), []) for k in ("quillmark", "nomad", "zentry")}
+    assert name_types.ask(cfg, names) == {"quillmark": "ORG", "nomad": "ORG", "zentry": "ORG"}
+    assert calls == [1, 1, 1]
+
+
+def test_several_choices_in_one_call(cfg, jev, llm):
+    asks = {"a": ("Which?", {"x": "X.", "y": "Y."}), "b": ("And this?", {"y": "Y.", "z": "Z."})}
+    jev.pick = lambda q, s: "y"
+    got = decide.choose_all(cfg, asks, {"s": 1})
+    assert {k: (d["choice"], d["by"]) for k, d in got.items()} == {"a": ("y", "jev"), "b": ("y", "jev")} and len(jev.seen) == 1
+    jev.status = 500  # the decision model fails: the language model answers, in one call too
+    llm.pick = lambda q: "z" if q == "And this?" else None
+    got = decide.choose_all(cfg, asks, {"s": 1})
+    assert {k: (d["choice"], d["by"]) for k, d in got.items()} == {"a": ("x", "llm"), "b": ("z", "llm")}
+    with pytest.raises(decide.Undecided):
+        decide.choose_all(cfg, asks, {"s": 1}, language_model=False)
