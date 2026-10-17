@@ -566,6 +566,23 @@ export function ConnectionFields({
           </p>
         </div>
       );
+    case "rss":
+      return (
+        <div className="flex flex-col gap-3">
+          {secret("url", {
+            label: "Feed address",
+            hint: "The RSS or Atom feed’s address, or the site’s: Lens finds the feed a page names. Kept like a password, since a private feed’s address carries its key",
+          })}
+          <div className="grid grid-cols-2 gap-2.5">
+            {text("user", { optional: true })}
+            {secret("pass", { label: "Password", hint: "Only if the feed asks for one" })}
+          </div>
+          <p className="text-[12.5px] leading-normal text-fg-secondary">
+            Each post becomes text: its title, link, author, date and what the feed says of it. Watch the feed to bring
+            in new posts as they’re published.
+          </p>
+        </div>
+      );
     case "gmail": {
       const keyText = form.secrets.service_account_credentials;
       const key = keyText ? parseServiceAccountKey(keyText) : null;

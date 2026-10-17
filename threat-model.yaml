@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:47e72e5916d513061cde36a1db5642a41484f3e8e7e1172a2198f2cfc6806385"
+prose_version: "threat-model.md@sha256:600f15d8e49f41459c4dc75fe143cbf56f405b2387b9acbe3fbbbc7aa157e385"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 204, maintainer: 46, inferred: 91, assumption: 8}
@@ -582,11 +582,20 @@ entry_points:
   - id: "code sandbox"
     component: assistant
     parameters:
-      - name: "assistant run_python, run_bash, sandbox_files and import_sandbox_file: code the model writes, attachment ids, a path in the sandbox; sandbox.* settings (admins)"
+      - name: "assistant run_python, run_bash, sandbox_files, share_sandbox_file and import_sandbox_file: code the model writes, attachment ids, a path in the sandbox; sandbox.* settings (admins)"
         attacker_controllable: true
         x-condition: "the people sandbox.who names (editors and admins by default); indirectly through content the model reads"
         control_kinds: [callback/code, data, x-prompt-injection]
-        caller_must_enforce: "none — off by default; the code runs in the conversation's own OpenShell sandbox with none of Lens's data or keys and no network unless sandbox.network allows it (P-SANDBOX); with the network on, a run after outside text asks first (P-INJECTION-EGRESS); files in only from the person's attachments, out only through an approved import"
+        caller_must_enforce: "none — off by default; the code runs in the conversation's own OpenShell sandbox with none of Lens's data or keys and no network unless sandbox.network allows it (P-SANDBOX); with the network on, a run after outside text asks first (P-INJECTION-EGRESS); files in only from the person's attachments, out only through an approved import or as a download for that person"
+        provenance: {kind: documented, source: 'docs/assistant.md "Code sandbox"'}
+  - id: "code sandbox shared files"
+    component: assistant
+    parameters:
+      - name: "GET /api/v1/chats/{cid}/files/{fid}: a file share_sandbox_file copied out of the conversation's sandbox; its bytes come from code the model wrote"
+        attacker_controllable: true
+        x-condition: "the person whose conversation it is; indirectly through content the model reads"
+        control_kinds: [data, x-prompt-injection]
+        caller_must_enforce: "none — served only to the conversation's person (404 otherwise, or for another conversation's id) as an attachment with nosniff and a sandbox content policy, never rendered; random 96-bit id checked against the conversation; kept AES-256-GCM encrypted with a key derived from the server's secret, bound to the file and conversation; at most 20 a conversation, 25 MB each; deleted with the conversation or the account"
         provenance: {kind: documented, source: 'docs/assistant.md "Code sandbox"'}
   - id: "microsandbox program requests"
     component: authz
@@ -1773,7 +1782,7 @@ properties_claimed:
     kind: integrity
     components: [assistant]
     tier: security-critical
-    conditions: "code the assistant runs (sandbox.enabled, off by default) runs only for people sandbox.who allows, in its conversation's own OpenShell sandbox, never in Lens's processes; the sandbox gets none of Lens's data, keys or database address, only the code and files the person attached to that conversation (25 MB each, 100 MB a run); egress: none (off), PyPI and npm on 443 (packages), or those and the names in sandbox.hosts on 80 and 443 (hosts), every endpoint held to public addresses; a file leaves only as the person's held upload placed by an import_files approval; stopped after idle_minutes, deleted after keep_hours or with its conversation"
+    conditions: "code the assistant runs (sandbox.enabled, off by default) runs only for people sandbox.who allows, in its conversation's own OpenShell sandbox, never in Lens's processes; the sandbox gets none of Lens's data, keys or database address, only the code and files the person attached to that conversation (25 MB each, 100 MB a run); egress: none (off), PyPI and npm on 443 (packages), or those and the names in sandbox.hosts on 80 and 443 (hosts), every endpoint held to public addresses; a file leaves only as the person's held upload placed by an import_files approval, or as a download (share_sandbox_file) kept encrypted with the conversation and served only to its person; stopped after idle_minutes, deleted after keep_hours or with its conversation"
     violation_symptoms: [integrity-bypass]
     x-voided-by: "isolation inside the sandbox is OpenShell's; landlock best_effort runs without Landlock where the kernel lacks it (domain/sandbox.py); whoever the gateway lets in (in the sandbox profile, a holder of its client certificate) can run sandboxes of their own; what the code prints is third-party text (N-PROMPT)"
     provenance: {kind: documented, source: 'docs/assistant.md "Code sandbox"'}
