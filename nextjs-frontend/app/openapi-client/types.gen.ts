@@ -1161,6 +1161,12 @@ export type ApprovalOutcome = {
    */
   batch?: number | null;
   /**
+   * Job
+   *
+   * the job started, for write_spec
+   */
+  job?: number | null;
+  /**
    * Error
    *
    * why an automation's action failed
@@ -21512,6 +21518,107 @@ export type SpeakerSuggestion = {
    */
   score: number;
   [key: string]: unknown;
+};
+
+/**
+ * Spec
+ */
+export type Spec = {
+  /**
+   * Status
+   *
+   * ready: written (note); writing: a job is on it (job); failed: the last job to write it failed (error)
+   */
+  status: "none" | "writing" | "ready" | "failed";
+  /**
+   * Note
+   *
+   * the note it was written to (/notes/{id})
+   */
+  note?: number | null;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Job
+   *
+   * the latest job that was to write it
+   */
+  job?: number | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Written At
+   */
+  written_at?: string | null;
+  /**
+   * Template
+   *
+   * the prompt template it was written with, else the one it would be
+   */
+  template: number;
+  /**
+   * Version
+   */
+  version?: number | null;
+  /**
+   * Model
+   */
+  model?: string | null;
+  /**
+   * Decisions
+   */
+  decisions?: number | null;
+  /**
+   * Rejected
+   *
+   * each no, and each 'not that, this'
+   */
+  rejected?: number | null;
+  /**
+   * Constraints
+   */
+  constraints?: number | null;
+  /**
+   * Gaps
+   *
+   * what the speaker left to decide later
+   */
+  gaps?: number | null;
+  /**
+   * Not Found
+   *
+   * quotes that aren't in the transcript word for word (marked so in the note)
+   */
+  not_found?: number | null;
+  /**
+   * Cut
+   *
+   * the transcript was longer than the model is given (llm.max_chars)
+   */
+  cut?: boolean | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SpecWrite
+ */
+export type SpecWrite = {
+  /**
+   * Template
+   *
+   * another prompt template to write it with (default: Spec from transcript)
+   */
+  template?: number | null;
+  /**
+   * Version
+   *
+   * that template's version (default: its current one)
+   */
+  version?: number | null;
 };
 
 /**
@@ -44084,3 +44191,66 @@ export type RegeneratePodcastResponses = {
 };
 
 export type RegeneratePodcastResponse = RegeneratePodcastResponses[keyof RegeneratePodcastResponses];
+
+export type GetSpecData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/spec";
+};
+
+export type GetSpecErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetSpecError = GetSpecErrors[keyof GetSpecErrors];
+
+export type GetSpecResponses = {
+  /**
+   * Successful Response
+   */
+  200: Spec;
+};
+
+export type GetSpecResponse = GetSpecResponses[keyof GetSpecResponses];
+
+export type WriteSpecData = {
+  /**
+   * Body
+   */
+  body?: SpecWrite | null;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/spec";
+};
+
+export type WriteSpecErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type WriteSpecError = WriteSpecErrors[keyof WriteSpecErrors];
+
+export type WriteSpecResponses = {
+  /**
+   * Successful Response
+   */
+  202: JobQueued;
+};
+
+export type WriteSpecResponse = WriteSpecResponses[keyof WriteSpecResponses];

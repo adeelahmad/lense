@@ -231,7 +231,12 @@ describe("editing a question", () => {
   });
 
   it("can't be edited without a handler, e.g. while an answer is written", () => {
-    render(<UserBubble text="Hi" />);
+    render(
+      <TooltipProvider>
+        <UserBubble text="Hi" />
+      </TooltipProvider>,
+    );
     expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy" })).toBeInTheDocument();
   });
 });

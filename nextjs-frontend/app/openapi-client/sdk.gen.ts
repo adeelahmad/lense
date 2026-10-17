@@ -701,6 +701,9 @@ import type {
   GetSettingsResponses,
   GetSetupData,
   GetSetupResponses,
+  GetSpecData,
+  GetSpecErrors,
+  GetSpecResponses,
   GetTemplateData,
   GetTemplateErrors,
   GetTemplateResponses,
@@ -1807,6 +1810,9 @@ import type {
   VaultOptionsResponses,
   VoiceInfoData,
   VoiceInfoResponses,
+  WriteSpecData,
+  WriteSpecErrors,
+  WriteSpecResponses,
 } from "./types.gen";
 
 export type Options<
@@ -12122,6 +12128,46 @@ export class Podcasts {
     return (options.client ?? client).post<RegeneratePodcastResponses, RegeneratePodcastErrors, ThrowOnError>({
       url: "/api/v1/podcasts/{rid}/regenerate",
       ...options,
+    });
+  }
+}
+
+export class Specs {
+  /**
+   * Get Spec
+   *
+   * What there is of this asset's spec: its note and what it holds when it's written, the job writing it, or why
+   * the last one failed; and the template it was (or would be) written with.
+   */
+  public static getSpec<ThrowOnError extends boolean = false>(
+    options: Options<GetSpecData, ThrowOnError>,
+  ): RequestResult<GetSpecResponses, GetSpecErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetSpecResponses, GetSpecErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/spec",
+      ...options,
+    });
+  }
+
+  /**
+   * Write Spec
+   *
+   * Write a technical spec from this asset's transcript as a note linked to it, in the background: every named
+   * decision, every no and every "not that, this", every constraint, in the speaker's own words with when they said
+   * them, and the gaps they left to decide later, flagged. It's written with the Spec from transcript prompt template
+   * (edited on the Templates page), or `template`; writing it again updates the same note, whose history keeps what it
+   * said before. It runs after what the asset's job still has to do. Needs the right to process the asset and a
+   * language model (400 without one, or with no text and none on the way). Audited as `spec.write`.
+   */
+  public static writeSpec<ThrowOnError extends boolean = false>(
+    options: Options<WriteSpecData, ThrowOnError>,
+  ): RequestResult<WriteSpecResponses, WriteSpecErrors, ThrowOnError> {
+    return (options.client ?? client).post<WriteSpecResponses, WriteSpecErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/spec",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }
