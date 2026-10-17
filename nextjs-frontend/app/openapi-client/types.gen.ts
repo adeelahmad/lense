@@ -18624,6 +18624,27 @@ export type S3Status = {
 };
 
 /**
+ * SandboxFile
+ *
+ * A file the code sandbox handed the person: GET /chats/{cid}/files/{id} downloads it.
+ */
+export type SandboxFile = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Size
+   */
+  size: number;
+  [key: string]: unknown;
+};
+
+/**
  * SandboxGateway
  */
 export type SandboxGateway = {
@@ -18700,6 +18721,37 @@ export type SandboxGatewayRequest = {
    * start (true) or stop (false) the code sandbox's gateway; stopping deletes its sandboxes
    */
   on: boolean;
+};
+
+/**
+ * SandboxOutput
+ *
+ * What a code sandbox run printed, as its step shows it (the start of stdout, the end of stderr).
+ */
+export type SandboxOutput = {
+  /**
+   * Stdout
+   */
+  stdout?: string;
+  /**
+   * Stderr
+   */
+  stderr?: string;
+  /**
+   * Exit Code
+   */
+  exit_code?: number | null;
+  /**
+   * Timed Out
+   */
+  timed_out?: boolean;
+  /**
+   * Cut
+   *
+   * there was more than this
+   */
+  cut?: boolean;
+  [key: string]: unknown;
 };
 
 /**
@@ -22419,6 +22471,14 @@ export type ToolStep = {
    * Summary
    */
   summary?: string;
+  /**
+   * a code sandbox run's output
+   */
+  output?: SandboxOutput | null;
+  /**
+   * a file to download, from share_sandbox_file
+   */
+  file?: SandboxFile | null;
   /**
    * Ms
    *
@@ -40535,6 +40595,91 @@ export type GetMessageResponses = {
 };
 
 export type GetMessageResponse = GetMessageResponses[keyof GetMessageResponses];
+
+export type ExportChatData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+    /**
+     * Fmt
+     */
+    fmt: "md" | "json" | "pdf";
+  };
+  query?: {
+    /**
+     * Message
+     *
+     * one message (an answer comes with the question it answers); else the version showing
+     */
+    message?: number | null;
+    /**
+     * All
+     *
+     * JSON: every version of the conversation, not only the one showing
+     */
+    all?: boolean;
+    /**
+     * Format
+     *
+     * JSON: messages gives the version showing as one {"messages": [...]} line
+     */
+    format?: "tree" | "messages";
+  };
+  url: "/api/v1/chats/{cid}/export.{fmt}";
+};
+
+export type ExportChatErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ExportChatError = ExportChatErrors[keyof ExportChatErrors];
+
+export type ExportChatResponses = {
+  /**
+   * Successful Response
+   */
+  200: unknown;
+};
+
+export type DownloadChatFileData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+    /**
+     * Fid
+     */
+    fid: string;
+  };
+  query?: never;
+  url: "/api/v1/chats/{cid}/files/{fid}";
+};
+
+export type DownloadChatFileErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DownloadChatFileError = DownloadChatFileErrors[keyof DownloadChatFileErrors];
+
+export type DownloadChatFileResponses = {
+  /**
+   * the file
+   */
+  200: Blob | File;
+};
+
+export type DownloadChatFileResponse = DownloadChatFileResponses[keyof DownloadChatFileResponses];
 
 export type SendMessageData = {
   body: MessageCreate;

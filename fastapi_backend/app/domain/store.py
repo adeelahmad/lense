@@ -1478,6 +1478,9 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS browser_action_session ON browser_action FIELDS session, state",
     # each conversation's code sandbox on the OpenShell gateway (sandbox.py): its name, settings and last use
     "DEFINE TABLE IF NOT EXISTS code_sandbox SCHEMALESS",
+    # files a conversation's sandbox handed the person to download (sandbox.share), kept with the conversation
+    "DEFINE TABLE IF NOT EXISTS chat_file SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS chat_file_chat ON chat_file FIELDS chat",
     "DEFINE TABLE IF NOT EXISTS segment_edit SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS segment_edit_rec ON segment_edit FIELDS recording",
     # descriptive metadata history, IIIF change discovery and IIIF authorization
