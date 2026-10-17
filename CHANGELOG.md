@@ -29,6 +29,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   `automation_actions`, `save_automation`, `test_automation` and `run_automation`, with problems in plain words. The
   assistant saves them switched off and asks before switching one on or running it
   ([Agents](docs/automations.md#agents)).
+- **File shares through Remote access.** S3 and WebDAV can now be reached at the web app's own address, `/s3` and
+  `/dav`, so they work through the Cloudflare tunnel and HTTPS as well as on the network, and on Cloudron, which
+  publishes only the web app. It's off until an admin turns on **At the web app's address too** in Settings › File
+  shares; then a new access key's dialog gives those addresses. Signing in is the same: a person's own access key,
+  read-only. MQTT, syslog, SMB and NFS aren't HTTP and stay on their own ports
+  ([The graph as files](docs/file-tree.md#at-the-web-apps-address), [Remote access](docs/remote-access.md#what-it-reaches)).
 - **Versions in conversations.** A conversation is now a tree: editing a question makes a new version beside it
   instead of deleting what followed, regenerating an answer (`regenerate`, with the same model or another) writes one
   beside it, and a question can go on from any message (`parent`). `GET /api/v1/chats/<id>` shows each message's
@@ -57,12 +63,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   registries or the public web. Files attached to the conversation go in; a file it makes reaches a namespace once the
   person approves. Off by default; starting the gateway from Settings is in progress
   ([Code sandbox](docs/assistant.md#code-sandbox)).
-- **File shares through Remote access.** S3 and WebDAV can now be reached at the web app's own address, `/s3` and
-  `/dav`, so they work through the Cloudflare tunnel and HTTPS as well as on the network, and on Cloudron, which
-  publishes only the web app. It's off until an admin turns on **At the web app's address too** in Settings › File
-  shares; then a new access key's dialog gives those addresses. Signing in is the same: a person's own access key,
-  read-only. MQTT, syslog, SMB and NFS aren't HTTP and stay on their own ports
-  ([The graph as files](docs/file-tree.md#at-the-web-apps-address), [Remote access](docs/remote-access.md#what-it-reaches)).
+- **Find anything by who, what and when.** Agents and the API can find assets by the faces seen in them, the people
+  heard, the entities they mention, the topics they're about, their kind and content type, when they were made (a
+  day, a month or a year), tags, language, objects seen, emotions heard, length and words in them, together or alone,
+  naming people and things instead of looking up ids. Each result says why it matched, with moments to cite
+  (`POST /find`, the MCP tool `find`, the assistant's `find_resources`; [Finding by any
+  attribute](docs/processing.md#finding-by-any-attribute)). The Library list takes faces, entities, topics, content
+  types and emotions as filters too.
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 
