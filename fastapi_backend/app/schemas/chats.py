@@ -111,10 +111,30 @@ class AnswerCheck(ResponseModel):
     uncited: list[str] = []
 
 
+class SandboxOutput(ResponseModel):
+    """What a code sandbox run printed, as its step shows it (the start of stdout, the end of stderr)."""
+
+    stdout: str = ""
+    stderr: str = ""
+    exit_code: int | None = None
+    timed_out: bool = False
+    cut: bool = Field(False, description="there was more than this")
+
+
+class SandboxFile(ResponseModel):
+    """A file the code sandbox handed the person: GET /chats/{cid}/files/{id} downloads it."""
+
+    id: str
+    name: str
+    size: int
+
+
 class ToolStep(ResponseModel):
     tool: str
     args: dict[str, Any] = {}
     summary: str = ""
+    output: SandboxOutput | None = Field(None, description="a code sandbox run's output")
+    file: SandboxFile | None = Field(None, description="a file to download, from share_sandbox_file")
     ms: int | None = Field(None, description="how long the tool took")
     failed: bool | None = Field(None, description="the tool failed (or was unknown or blocked); its summary says why")
 

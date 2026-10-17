@@ -968,6 +968,7 @@ def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, set
             t0 = time.monotonic()
             result, summary = toolbox.call(name, args, model=True)
             step = {"tool": name, "args": args, "summary": summary, "ms": int((time.monotonic() - t0) * 1000)}
+            step |= toolbox.take_detail()  # a run's output, a file to download
             yield "step", {**step, "failed": True} if getattr(toolbox, "failed", False) else step
             msgs.append({"role": "tool", "tool_call_id": c.get("id"), "content": result})
         if limit is not None and record.used["tool_calls"] >= limit:  # the calls are used up: it answers from what they found
