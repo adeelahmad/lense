@@ -73,7 +73,8 @@ def test_it_sees_one_namespace(client, env):
     init = rpc(client, h, "initialize", {"protocolVersion": "2025-06-18", "capabilities": {}})["result"]
     assert "one namespace, pods" in init["instructions"]
     names = [t["name"] for t in rpc(client, h, "tools/list")["result"]["tools"]]
-    assert names == [n for n, t in mcp_tools.TOOLS.items() if not t.admin] and "file_storage" not in names
+    assert names == [n for n, t in mcp_tools.TOOLS.items() if not (t.admin or t.personal)] and "file_storage" not in names
+    assert "read_chat" not in names  # conversations are the person's own, not the namespace's
     sparql = next(t for t in rpc(client, h, "tools/list")["result"]["tools"] if t["name"] == "sparql")
     assert sparql["inputSchema"]["required"] == ["query"]  # the namespace is this server's
     assert "pods alone" in sparql["inputSchema"]["properties"]["namespace"]["description"]
