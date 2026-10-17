@@ -30,6 +30,7 @@ in PowerShell; or skip the terminal and double-click the launcher for your syste
 the menu bar (built, early: not signed yet).
 [Deployment](docs/deployment.md) covers servers and Cloudron; there are also packages for
 [Synology](packaging/synology/README.md), [QNAP](packaging/qnap/README.md) and [Proxmox](proxmox/README.md).
+The [checks](docs/requirements.md#install) say which of these CI proves.
 
 To work on the code instead, `make run` builds and runs everything from a checkout, `make setup-code` prints the
 first-admin setup code, and `make dev` runs it with hot reload; see [Get started](docs/get-started.md).
@@ -56,7 +57,9 @@ what their person may read.
 
 ## What you can do with it
 
-Everything below is built and merged. Work that is still in a pull request is listed under [In progress](#in-progress).
+Everything below is built and merged, and each item links to the checks that prove it: tests, clicks journeys and
+measured numbers ([requirements and their checks](docs/requirements.md)). Work that is still in a pull request is
+listed under [In progress](#in-progress), and what comes next under [Planned](#planned).
 
 - **Connect your agents.** Lens is an MCP server (`/mcp`): agents search, read assets' text and notes, cite exact
   moments, find similar content, explore the graph with Cypher or SPARQL or browse it as folders and files, suggest
@@ -68,21 +71,29 @@ Everything below is built and merged. Work that is still in a pull request is li
   scripts read Lens too. The web app runs on the same REST API, so an agent can do what a person can.
   ([MCP](docs/mcp.md), [one namespace's MCP server](docs/mcp.md#one-namespaces-mcp-server),
   [chat completions](docs/api.md#chat-completions-for-any-app), [API](docs/api.md),
-  [the graph as files](docs/file-tree.md), [authentication](docs/authentication.md))
+  [the graph as files](docs/file-tree.md), [authentication](docs/authentication.md);
+  [checks](docs/requirements.md#connect-your-agents))
 - **Ask, and get cited answers.** A chat assistant on every page, and by voice, searches your archive by words (and by
-  meaning, once turned on), reads it, cites it and acts on it with tools: changes wait for your approval. It reads
-  answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine (opt-in), and `/clear` and
-  `/compact` keep long conversations short. Each namespace can have its own assistant with its own name, instructions
-  and memory, answering in Telegram and Slack (built in, with voice notes and files), in Discord, Matrix, WhatsApp
-  and other chat rooms through Matterbridge, and by email at an address of its own that you email or forward things
-  to. ([Chat](docs/assistant.md), [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md),
-  [speech providers](docs/speech-providers.md))
+  meaning, once turned on), reads it, cites it and acts on it with tools: changes wait for your approval. Once an admin
+  turns them on, it also searches the web and reads pages, cited like the archive, and runs Python and bash in a sandbox
+  of each conversation's own. Regenerating an answer or editing a question makes a new version beside the old one, and
+  nothing is lost. Each answer keeps a record of what produced it (the model, its tools, how long it took and what it
+  cost), opened from its header. It reads answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine
+  (opt-in), and `/clear` and `/compact` keep long conversations short. Each namespace can have its own assistant with
+  its own name, instructions and memory, answering in Telegram and Slack (built in, with voice notes and files), in
+  Discord, Matrix, WhatsApp and other chat rooms through Matterbridge, and by email at an address of its own that you
+  email or forward things to. ([Chat](docs/assistant.md), [web search](docs/assistant.md#web-search-and-reading-pages),
+  [code sandbox](docs/assistant.md#code-sandbox), [answer records](docs/assistant.md#what-each-answer-records),
+  [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md), [speech providers](docs/speech-providers.md);
+  [checks](docs/requirements.md#ask-and-get-cited-answers))
 - **Extend the assistant.** Add tools (a prompt, a web request, a graph drawn on the canvas, or sandboxed Python),
   skills, hooks and MCP servers, by code, on the canvas or just by asking. Remote MCP servers connect by address, and
-  ones that run as a program (`npx`, `uvx`) run in a sandboxed container of their own, off until you turn it on.
+  ones that run as a program (`npx`, `uvx`) run in a sandboxed container of their own, off until you turn it on. Add
+  one with a form or by pasting another app's config, its tokens sealed and each of its tools switched on or off.
   Install skills and plugins from marketplaces in the open plugin format, or from a repository or an archive.
   ([Extending the assistant](docs/assistant.md#extending-the-assistant-tools-skills-hooks-and-plugins),
-  [the MCP runner](docs/assistant.md#the-mcp-runner))
+  [adding an MCP server](docs/assistant.md#adding-an-mcp-server), [the MCP runner](docs/assistant.md#the-mcp-runner);
+  [checks](docs/requirements.md#extend-the-assistant))
 - **Bring in everything.** Watched folders on S3, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV or local disks (a
   local folder in four clicks); IMAP mail, Gmail and Google Workspace, iCal calendars and Google Calendar; a built-in
   MQTT broker, syslog and webhook streams; import webhooks for scanners and phone shortcuts. Google accounts connect
@@ -92,30 +103,30 @@ Everything below is built and merged. Work that is still in a pull request is li
   capture web pages one at a time, from a link list or a bookmarks file, by API or by asking the assistant, from private
   networks you allow in Settings too; and import videos and podcasts by their address (off by default).
   ([Sensors](docs/sensors.md), [processing](docs/processing.md), [Apache Tika](docs/configuration.md#apache-tika),
-  [import webhooks](docs/api.md#import-webhooks))
+  [import webhooks](docs/api.md#import-webhooks); [checks](docs/requirements.md#bring-in-everything))
 - **Clip from the browser.** The Lens web clipper for Chrome, Edge, Firefox and Safari turns a page, a selection or a
   part you pick into Markdown, lets you look it over, and sends it to a namespace. New releases reach installed copies
   through the browser's store or a self-hosted update file. In Chrome and Edge, its side panel is a chat with the
   assistant, which can also use that browser on the sites you allow (open, read, click, type), asking before anything
   that sends, deletes, buys or posts. ([Web clipper](docs/web-clipper.md),
-  [the assistant in your browser](docs/browser-assistant.md))
+  [the assistant in your browser](docs/browser-assistant.md); [checks](docs/requirements.md#clip-from-the-browser))
 - **Understand it.** Transcription, people recognised by voice (long recordings go to a speech provider in pieces that
   fit its limits), text on screen and in scans, faces (off by default), NSFW pictures flagged by a model on your own
-  server (off by default, per namespace), entities and topics in a knowledge graph you can explore, query with Cypher
-  or SPARQL, and see as it was at any version. Every entity has its own page at a wiki address
-  (`/wiki/<namespace>/<Name>`), and entities, topics and people are edited and merged from their lists, the graph or
-  an asset, with Undo instead of a confirm. Find what is most like a passage, an asset, a topic or an entity, in a
-  Similar tab on every asset or by selecting text anywhere, and, with anytopdf, photos by what they show.
+  server (off by default, per namespace), entities and topics in a knowledge graph you can explore, query with Cypher or
+  SPARQL, and see as it was at any version. Every entity has its own page at a wiki address
+  (`/wiki/<namespace>/<Name>`), and entities, topics and people are edited and merged from their lists, the graph or an
+  asset, with Undo instead of a confirm. Find what is most like a passage, an asset, a topic or an entity, in a Similar
+  tab on every asset or by selecting text anywhere, and, with anytopdf, photos by what they show.
   ([Graph](docs/graph.md), [entity pages](docs/notes.md#entity-pages),
-  [similar content](docs/processing.md#similar-content),
-  [graph history](docs/graph-history.md), [topics](docs/topics.md), [video](docs/video.md),
-  [NSFW classification](docs/nsfw.md), [long recordings](docs/speech-providers.md#long-recordings))
+  [similar content](docs/processing.md#similar-content), [graph history](docs/graph-history.md),
+  [topics](docs/topics.md), [video](docs/video.md), [NSFW classification](docs/nsfw.md),
+  [long recordings](docs/speech-providers.md#long-recordings); [checks](docs/requirements.md#understand-it))
 - **Learn from it.** Make a two-host podcast episode about what you pick, every claim cited and checked against its
   source, read aloud in two voices. Keep notes beside every asset, entity and topic, written by you or the assistant, in
   a tree where notes are renamed, moved and pinned (pins are your own), with today's note one click away, a search by
   their words, and Undo and Recently deleted instead of a confirm. Export an asset or a collection as an evidence PDF
   with everything Lens found about it, or the parts you pick. ([Podcasts](docs/podcasts.md), [notes](docs/notes.md),
-  [evidence PDFs](docs/api.md#evidence-pdfs))
+  [evidence PDFs](docs/api.md#evidence-pdfs); [checks](docs/requirements.md#learn-from-it))
 - **Automate it.** Pipelines and workflows on a canvas, routines on a schedule, batch runs over a collection, and
   notifications to webhooks, Slack, Discord and Matterbridge. Everything that happens in Lens (new assets, emails,
   calendar events, files, what people say to Lens, sensor readings, notes, graph changes, runs, budget warnings) is kept
@@ -128,20 +139,22 @@ Everything below is built and merged. Work that is still in a pull request is li
   told you in; agents can decline an approval but never give one. Each automation has limits and budgets, and agents
   make, try and run them over MCP and in the assistant, or draft one from a sentence; the studio to draw them in the web
   app is planned. ([Processing](docs/processing.md#workflows-and-the-canvas), [notifications](docs/notifications.md),
-  [automations](docs/automations.md), [approvals](docs/automations.md#approvals), [timeline](docs/timeline.md))
+  [automations](docs/automations.md), [approvals](docs/automations.md#approvals), [timeline](docs/timeline.md);
+  [checks](docs/requirements.md#automate-it))
 - **See what it costs.** An activity ledger of every model call, with reports, charts and budgets that cap spending.
   Setup asks for one overall budget after a cloud model, with a soft limit that warns and a hard limit that stops paid
   calls. A meter in the top bar shows spend against the budget, and the Costs page breaks it down by day, model and
   what cost most. Routine choices go to small decision models, and the LLM only when it adds value.
   ([Activity and costs](docs/activity.md), [budgets](docs/budgets.md#one-budget-for-everything),
-  [the meter](docs/budgets.md#the-meter-and-the-costs-page))
+  [the meter](docs/budgets.md#the-meter-and-the-costs-page); [checks](docs/requirements.md#see-what-it-costs))
 - **Keep it up to date and backed up.** Lens checks for a new release once a day and tells admins by email or a
   notification. One click in Settings › Updates (or one API call) upgrades it through a small agent on the machine,
   showing each step, and rolls back when the new version doesn't start; nothing installs unless an admin says so. The
   same agent changes whether other devices reach Lens and which edition runs, from Settings. Settings › Backups takes,
-  lists, downloads and restores backups of the database and Lens's files (a file that hasn't changed takes no new
-  room), takes them on any schedule, and can copy each one, encrypted, to a storage connection.
-  ([Updates and backups](docs/updates.md), [backups](docs/database.md#backups))
+  lists, downloads and restores backups of the database and Lens's files (a file that hasn't changed takes no new room),
+  takes them on any schedule, and can copy each one, encrypted, to a storage connection.
+  ([Updates and backups](docs/updates.md), [backups](docs/database.md#backups);
+  [checks](docs/requirements.md#keep-it-up-to-date-and-backed-up))
 - **Watch it run.** Structured logs from every process, read in Settings › Logs and optionally sent to a syslog
   server. OpenTelemetry traces and metrics, and a Prometheus `/metrics` endpoint, both off until you turn them on, and
   sending nothing anywhere else. On a Docker install, one switch in the web app (or one API call from an agent) starts
@@ -149,7 +162,7 @@ Everything below is built and merged. Work that is still in a pull request is li
   The Analytics page shows admins active people, churn, retention and which features get used, worked out on this
   machine; the same daily events can also go to a Google Analytics 4 property of your own (off unless you turn it on).
   ([Logging](docs/logging.md), [telemetry](docs/telemetry.md), [Prometheus](docs/prometheus.md),
-  [usage analytics](docs/analytics.md))
+  [usage analytics](docs/analytics.md); [checks](docs/requirements.md#watch-it-run))
 - **Stay private and safe.** Passkeys instead of passwords, encryption at rest with a key per namespace, roles per
   namespace (viewer, editor, owner, or custom roles made of permissions), email invitations, removing someone for
   good, and an audit log. Prompt injection meets several layers: what the assistant reads (recordings,
@@ -162,10 +175,11 @@ Everything below is built and merged. Work that is still in a pull request is li
   domains and, if you choose, only to devices holding a client certificate; or reach it from anywhere through a
   Cloudflare tunnel with nothing opened on your router. ([Encryption](docs/encryption.md), [access](docs/access.md),
   [prompt injection](docs/assistant.md#third-party-content-and-prompt-injection), [HTTPS](docs/https.md),
-  [remote access](docs/remote-access.md))
+  [remote access](docs/remote-access.md); [checks](docs/requirements.md#stay-private-and-safe))
 - **Use open standards.** RDF and Dublin Core for every record, OAuth for apps and OpenID Connect sign-in, MCP, MQTT,
   IIIF for publishing, OpenTelemetry and Prometheus for monitoring, and an optional Fedora mirror.
-  ([Linked data](docs/rdf.md), [IIIF](docs/iiif.md), [Fedora](docs/fedora.md))
+  ([Linked data](docs/rdf.md), [IIIF](docs/iiif.md), [Fedora](docs/fedora.md);
+  [checks](docs/requirements.md#use-open-standards))
 
 ## Light by default
 
@@ -176,7 +190,7 @@ Picking a cloud model provider fills in its address and a model, so only its key
 in the web app, which works on a phone too: settings are in named groups, a search finds any one by name, and the
 options most people leave as they are stay folded. ([Components](docs/components.md),
 [speech providers](docs/speech-providers.md), [local models](docs/local-models.md),
-[cloud model providers](docs/configuration.md#cloud-model-providers))
+[cloud model providers](docs/configuration.md#cloud-model-providers); [checks](docs/requirements.md#light-by-default))
 
 ## In progress
 
@@ -186,12 +200,39 @@ These are open pull requests, not yet part of Lens:
   ([#398](https://github.com/adeelahmad/lense/pull/398)).
 - **The assistant** answering questions about Lens itself, from its docs and this server
   ([#400](https://github.com/adeelahmad/lense/pull/400)).
+- **Chat:** a conversation exported as Markdown, PDF or JSON ([#474](https://github.com/adeelahmad/lense/pull/474)).
 - **Notes:** download a note, or all of a namespace's notes, as Markdown
   ([#419](https://github.com/adeelahmad/lense/pull/419)).
 - **Sources:** RSS and Atom news feeds ([#453](https://github.com/adeelahmad/lense/pull/453)).
+- **Pictures:** described on this machine with Florence-2 ([#477](https://github.com/adeelahmad/lense/pull/477)), and
+  low-quality images enhanced before they're read ([#479](https://github.com/adeelahmad/lense/pull/479)).
+- **Entities:** names given their real types instead of Term ([#395](https://github.com/adeelahmad/lense/pull/395)).
+- **Web clipper:** signing in, or using your API token, not only an import webhook's
+  ([#406](https://github.com/adeelahmad/lense/pull/406)).
 - **Automations:** more operators for conditions ([#434](https://github.com/adeelahmad/lense/pull/434)).
 - **Shares:** S3 and WebDAV reached through remote access ([#402](https://github.com/adeelahmad/lense/pull/402)),
   and files added over them imported ([#408](https://github.com/adeelahmad/lense/pull/408)).
+
+## Planned
+
+Next, and not in a pull request yet; each links to where it is tracked:
+
+- **The automations studio:** drawing automations in the web app, joins, and the decide node, where a decision model
+  picks the branch ([automations](docs/automations.md)).
+- **Timeline:** what each item caused, and Approve and Decline on waiting approvals ([timeline](docs/timeline.md)).
+- **Notes:** nesting a note under its project or area without a click, pages in the graph, and wiki addresses for
+  topics, recordings and the other things that have pages ([notes](docs/notes.md)).
+- **Local models:** GPU builds of llama.cpp fetched by Lens, and local embedding models
+  ([local models](docs/local-models.md)).
+- **Speech providers:** their summaries, chapters and entities as optional imports, and per-minute prices in the
+  activity ledger ([speech providers](docs/speech-providers.md)).
+- **Storage:** uploads and assets' media in the file store, and a storage key to download
+  ([storage](docs/storage.md)).
+- **Logging:** sending straight to Loki or another HTTP endpoint, and client certificates for TLS
+  ([logging](docs/logging.md)).
+- **Proof:** each release tested by upgrading an install of the last one, holding data
+  ([#482](https://github.com/adeelahmad/lense/issues/482)), and the scorecard's install-to-first-answer and Raspberry Pi
+  numbers, not measured yet ([#481](https://github.com/adeelahmad/lense/issues/481)).
 
 ## Stack
 

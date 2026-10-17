@@ -6,7 +6,7 @@ requires-python = ">=3.12,<3.14"
 readme = "README.md"
 license = "MIT"
 dependencies = [
-    "fastapi[standard]>=0.142.2,<0.143",
+    "fastapi[standard]>=0.143.0,<0.144",
     "starlette>=1.8.0", # security floor (Dependabot); fastapi itself allows older
     "pydantic-settings>=2.5.2,<3",
     "pyjwt>=2.9,<3",
@@ -47,6 +47,8 @@ insightface = ["insightface", "onnxruntime"]
 objects = ["onnxruntime"]
 # Punctuation put back in transcripts (analysis.cleanup_punctuation): kredor/punctuate-all on Transformers and PyTorch
 punctuation = ["transformers", "torch"]
+# Named entities found by spaCy (analysis.entities "spacy"); its MIT-licensed models are fetched as pinned wheels
+spacy = ["spacy>=3.8,<3.9"]
 # A local prompt-injection classifier (ai.injection_check "classifier"): ProtectAI's DeBERTa model on ONNX Runtime
 injection = ["onnxruntime", "tokenizers"]
 # Florence-2 (MIT) describing pictures on this machine (llm.describe_engine "florence-2"): its ONNX export on ONNX Runtime

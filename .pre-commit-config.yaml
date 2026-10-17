@@ -80,3 +80,15 @@ repos:
         # Only run frontend client generation if frontend files have changed:
         files: openapi\.json$
         pass_filenames: false
+      - id: requirements
+        name: README requirements name checks that exist (docs/requirements.md)
+        entry: python3 ci/check_requirements.py
+        language: system
+        always_run: true # a test, journey or workflow step can go without the README changing
+        pass_filenames: false
+      - id: requirements-tests
+        name: tests of the requirements check
+        entry: python3 ci/test_check_requirements.py
+        language: system
+        files: ^ci/(check|test_check)_requirements\.py$
+        pass_filenames: false

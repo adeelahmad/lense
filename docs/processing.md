@@ -145,6 +145,16 @@ Nodes are people and named things. Edges are:
 People, organisations, products, places, events, works and topics are extracted from every asset's text. Dates and
 numbers are extracted too, but hidden unless asked for.
 
+**How they're found.** By rules out of the box: capitalised names, titles, organisation endings, dates and numbers,
+after the entities a namespace defines. With `analysis.entities` set to `spacy` (Settings → Analysis → Entity
+extraction), spaCy's small language model finds them instead, after the defined entities, which keep their names and
+types where the two overlap; a lone word like "Okay" isn't taken for a name. Lens fetches spaCy (MIT) and the model
+named in `analysis.spacy_model` the first time an asset needs them ([Components](components.md)): `en_core_web_sm`
+(English, the default), `de_core_news_sm` (German) or `xx_ent_wiki_sm` (many languages; people, organisations and
+places). spaCy's other languages' models carry GPL, LGPL or Creative Commons licenses, so Lens doesn't fetch them; one
+installed by hand works. Until spaCy is there the rules find the entities and the job log says so. The workflows'
+Extract entities (rules) node uses the same extractor.
+
 The **Entities** page in the web app lists a namespace's entities (search, type and collection filters, a Hidden tab).
 An entity's name opens its own page, `/wiki/<namespace>/<Name>`, with its notes, every line that says it and what it
 comes up with ([Entity pages](notes.md#entity-pages)); the rest of its row opens a side panel where editors rename,
@@ -294,6 +304,38 @@ In the web app:
   opens nothing;
 * a topic's and an entity's drawer, and a resource, topic or entity selected on the graph canvas, list similar
   content too.
+
+### Finding by any attribute
+
+The API (`POST /find`), the assistant (`find_resources`) and the MCP server (`find`) find assets by what is known
+about them, one filter for all three:
+
+* who is **seen** in them (`faces`: face identities, [Video](video.md)) and **heard** (`speakers`: people, by voice);
+* the **entities** they mention and the **topics** they were accepted as about (a topic brings its narrower topics);
+* their **kind** (`types`: audio, video, transcript, document, image) and **content type** (`content_types`: podcast,
+  interview, scan, photo, email … [Content types](#content-types));
+* **when** they were made (`date_from`, `date_to`: a day, a month or a year, so `2025` is the whole year) and how
+  long they are;
+* their tags, language, the kinds of object seen in them, the emotions heard, their status, collection and where they
+  came from;
+* and words said or written in them (`text`, matched as a search is, by meaning too when that is set up).
+
+Filters combine with AND, the values of one filter with OR. Faces, people heard, entities and topics take an id or a
+name: a name matches every face, person, entity (or one of the other ways it's said) or topic label called that in the
+namespaces you can read, ignoring case, and `resolved` says what it matched. A name that matches nothing is an error
+that lists the closest names, so an agent can correct itself.
+
+Each asset found says **why** it matched, with up to three moments per reason to cite: where the words are, when the
+face is on screen (or the pages it's on), the person's first lines, the lines that mention the entity, and the topics,
+content type, kinds of object and emotions that matched. With `text`, the asset whose moment matches best comes
+first; otherwise the newest. Nothing here calls a model, apart from `text` searching by meaning when it is set up
+(one embedding request, logged in the activity ledger).
+
+The Library list (`GET /resources`) takes the same attributes as ids: `face`, `entity`, `topic` (as it is, without its
+narrower topics), `content_type` and `emotion`, besides its other filters ([API](api.md#resources)).
+
+Planned, not built yet: these filters in the Library's filter bar and in saved collections, finding by what a photo
+shows (`GET /search/photos`) inside the same filter, and ranking by more than the best matching moment.
 
 ## Background work
 
@@ -520,7 +562,7 @@ A pipeline's steps make derived files (a transcript or a page's text, shots, tex
 workflow is a versioned graph drawn on a canvas (Pipelines → Workflows): it starts from the Asset node, and each
 node passes what it makes along its connections.
 
-- **Entities:** Extract entities (rules) runs the built-in extractor analyze uses, plus your terms (`Name|TYPE`) and
+- **Entities:** Extract entities (rules) runs the extractor analyze uses (the rules, or spaCy), plus your terms (`Name|TYPE`) and
   regular expressions (`TYPE: pattern`); Extract entities (LLM) asks the model for structured entities and keeps,
   corrects or adds to any passed in; Merge joins lists; Save entities makes them the asset's entities (people's
   corrections kept) and redoes keywords and chapters.
