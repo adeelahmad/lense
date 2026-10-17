@@ -2,6 +2,20 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-17 · Kokoro reading aloud on this machine
+
+Adeel: Kokoro v1.0's model and voices for spoken answers and podcasts, so Lens reads aloud fully on its own machine.
+`kokoro.py` runs it through kokoro-onnx on ONNX Runtime, in-process (no service to start, unlike StyleTTS2), as
+`voice.tts_provider` `kokoro`; components.py fetches the `kokoro` extra and the pinned model and voices files once it's
+picked, and podcast jobs wait for them. The voice list is fixed (54 voices), so the picker works before the fetch.
+espeak-ng and phonemizer are GPL-3.0, so the extra is opt-in only (AGENTS.md 13). Measured here on a 4-core x64
+container, one 5-second sentence: fp32 2.8 s, fp16 3.0 s, int8 4.6 s, so fp32 is the default; arm64 not measured
+beyond the kokoro.yml check.
+
+Refine later: misaki's G2P instead of espeak-ng for English (better names and numbers, and no GPL in the path);
+speaking speed (`speed` 0.5 to 2); voice blends (`af_heart:60,am_michael:40`); stream long answers sentence by
+sentence; pick the hosts' voices in the podcast dialog; Japanese and Mandarin through misaki's own G2P.
+
 ## 2026-10-17 · Dates read as days
 
 Adeel: dates extraction. `dates.py` reads the dates each line gives (written out, numeric, and relative to the day)

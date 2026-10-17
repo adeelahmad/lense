@@ -30586,7 +30586,7 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "pattern": "^(openai|elevenlabs|deepgram|gemini|say|styletts2)$"
+                  "pattern": "^(openai|elevenlabs|deepgram|gemini|say|kokoro|styletts2)$"
                 },
                 {
                   "type": "null"

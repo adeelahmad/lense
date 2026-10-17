@@ -719,14 +719,17 @@ def timed(lines, wpm=150, pause_ms=400):
 def voices(cfg, req=None):
     """{a, b}: the hosts' voices for the text-to-speech provider: what the episode asked for, else podcasts.voice_a /
     voice_b, else voice.tts_voice and a second voice of the provider's (say and StyleTTS2 have no second voice they're
-    sure to have, so both hosts get the same one unless podcasts.voice_b names another)."""
-    from . import speech
+    sure to have, so both hosts get the same one unless podcasts.voice_b names another; Kokoro's second voice speaks
+    the first's language)."""
+    from . import kokoro, speech
 
     p = cfg.get("podcasts") or {}
     provider = speech.tts_provider(cfg)
     first = speech.tts_voice(cfg)  # None for say: the Mac's own voice
     asked = (req or {}).get("voices") or {}
-    return {"a": asked.get("a") or p.get("voice_a") or first, "b": asked.get("b") or p.get("voice_b") or SECOND_VOICE.get(provider, first)}
+    a = asked.get("a") or p.get("voice_a") or first
+    second = kokoro.partner(a) if provider == "kokoro" else SECOND_VOICE.get(provider, first)
+    return {"a": a, "b": asked.get("b") or p.get("voice_b") or second}
 
 
 def folder(cfg, rid):
@@ -741,6 +744,8 @@ def audio(db, cfg, rid, say):
     from . import audio_mix, keyring, speech
 
     if not speech.tts_ready(cfg):
+        if speech.tts_provider(cfg) == "kokoro":
+            raise jobs.Skip("Kokoro isn't fetched yet (Settings → Components), so the episode stays a script")
         raise jobs.Skip("no text to speech is set up (Settings → Voice), so the episode stays a script")
     p = get_row(db, rid)
     lines = p.get("lines") or []
@@ -754,7 +759,8 @@ def audio(db, cfg, rid, say):
     clips, made = [], 0
     for k, l in enumerate(lines):
         voice = who[l["speaker"]]
-        key = _hash(f"{provider}|{v.get('tts_model')}|{voice}|{l['text']}")
+        model = v.get("kokoro_model") if provider == "kokoro" else v.get("tts_model")
+        key = _hash(f"{provider}|{model}|{voice}|{l['text']}")
         clip = clips_dir / f"{key}.mp3"
         if clip.is_file():
             data = keyring.read_plain(db, cfg, clip)

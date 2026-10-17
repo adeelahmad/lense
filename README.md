@@ -80,8 +80,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   turns them on, it also searches the web and reads pages, cited like the archive, and runs Python and bash in a sandbox
   of each conversation's own. Regenerating an answer or editing a question makes a new version beside the old one, and
   nothing is lost. Each answer keeps a record of what produced it (the model, its tools, how long it took and what it
-  cost), opened from its header. It reads answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine
-  (opt-in), and `/clear` and `/compact` keep long conversations short. Each namespace can have its own assistant with
+  cost), opened from its header. It reads answers aloud with a speech provider, macOS `say`, or Kokoro (54 voices, fetched
+  once picked) or StyleTTS2 on this machine (opt-in), and `/clear` and `/compact` keep long conversations short. Each namespace can have its own assistant with
   its own name, instructions and memory, answering in Telegram and Slack (built in, with voice notes and files), in
   Discord, Matrix, WhatsApp and other chat rooms through Matterbridge, and by email at an address of its own that you
   email or forward things to. ([Chat](docs/assistant.md), [web search](docs/assistant.md#web-search-and-reading-pages),
@@ -132,7 +132,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [cleaning up transcripts](docs/processing.md#cleaning-up-transcripts), [dates](docs/processing.md#dates);
   [checks](docs/requirements.md#understand-it))
 - **Learn from it.** Make a two-host podcast episode about what you pick, every claim cited and checked against its
-  source, read aloud in two voices. Turn a voice session or a meeting into a technical spec, in a note linked to it,
+  source, read aloud in two voices, by Kokoro on this machine or a speech provider. Turn a voice session or a meeting into a technical spec, in a note linked to it,
   that keeps every decision, every no and every constraint in the speaker's own words, linked to when they said them,
   flags what was left to decide later and marks any quote the transcript doesn't hold. Keep notes beside every asset,
   entity and topic, written by you or the assistant, in a tree where notes are renamed, moved, copied and pinned (pins

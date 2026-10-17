@@ -4,6 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Kokoro reads aloud on this machine.** Pick **Kokoro** as the voice in Settings → AI assistant → Voice, and spoken
+  answers and podcast hosts are read by Kokoro v1.0 on the server's own CPU, in any of its 54 voices across nine
+  languages, with nothing sent anywhere and nothing billed. It's fetched once picked (the `kokoro` extra with
+  kokoro-onnx and ONNX Runtime, the model in `voice.kokoro_model`, full, half or 8-bit, and the voices: about 450 MB,
+  checked against their SHA-256); podcast episodes wait for it, and the browser reads answers until it's here. A
+  podcast's second host gets a voice in the first host's language. Agents pick it through the settings API and list the
+  voices with `GET /api/v1/voice/voices?provider=kokoro` ([Kokoro](docs/speech-providers.md#kokoro)).
 - **Specs from transcripts.** Turn a voice session or a meeting into a technical spec, saved as a note linked to it:
   the model writes the spec, then lists every named decision, every "no" and "not that, this", every constraint and
   every gap the speaker left to decide later, each with its quote and a link to the moment it was said; a quote the

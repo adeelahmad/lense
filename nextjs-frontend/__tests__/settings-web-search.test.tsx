@@ -65,6 +65,7 @@ const web = (values: Record<string, unknown>) =>
         tts_model: null,
         tts_voice: null,
         tts_api_key: { secret: true, set: false },
+        kokoro_model: "fp32",
         styletts2_url: "http://styletts2:8880",
       },
     },
