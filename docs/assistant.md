@@ -153,6 +153,54 @@ When the configured model supports function calling, chat becomes an agent.
   sends, deletes or buys. See [The assistant in your browser](browser-assistant.md).
 - **Python and bash** (off until an admin turns it on): `run_python` and `run_bash` run code in a sandbox of the
   conversation's own, to compute, analyse or convert files. See [Code sandbox](#code-sandbox).
+- **The web:** when an admin turns on web search, `web_search` and `web_read` look up what the archive doesn't hold,
+  cited like excerpts ([below](#web-search-and-reading-pages)).
+
+### Web search and reading pages
+
+Built, off by default. An admin turns it on in Settings → AI assistant → Web search (`web.search`), and the assistant
+gets two more tools, for everyone who may use the assistant:
+
+- **`web_search`** searches the web: each result's title, address, site and snippet, numbered like the archive's
+  excerpts, so an answer cites [n] across both. `time_range` keeps only results from the last day, week, month or
+  year. The step reads 'Searched the web for "solar output": 5 result(s)'.
+- **`web_read`** reads a page or an online PDF by its address: its title and text, numbered to cite. `find` keeps only
+  the paragraphs that mention some words, with the ones around them. It doesn't save the page; `import_urls` captures
+  it into the archive.
+- **Citations:** a cited page's chip shows its site ("example.org · Harbour news") and opens the page in a new tab;
+  the sources list shows it with its site, and a conversation keeps its web citations when it is opened again (they
+  aren't the archive's, so nobody's reads hide them). In [chat rooms](chat-rooms.md) the sources line gives the
+  page's address.
+- **Providers** (`web.search`): `duckduckgo` needs no key or account. DuckDuckGo has no API, so Lens reads its results
+  page with [ddgs](https://pypi.org/project/ddgs/) (MIT), an unofficial client that can stop working when the page
+  changes; it is about 30 MB and is fetched the first time an admin picks it (Settings → Components shows it, as
+  "DuckDuckGo search"). `searxng` asks your own [SearXNG](https://docs.searxng.org/) instance at `web.searxng_url`,
+  whose JSON output must be on (`search.formats: [html, json]` in its `settings.yml`). `brave` and `tavily` use those
+  services' APIs with the key in `web.api_key`, kept encrypted like other secrets; searches past their free
+  allowance are charged by them.
+- **What leaves the server:** what it searches for goes to the provider, and the pages it reads come straight from
+  their sites. Like [captured pages](api.md#web-pages), every request goes through Lens's network guard: public
+  addresses only (plus the networks allowed for pages, `documents.web_networks`), on the web's ports, every redirect
+  checked again, so neither a result nor a redirect reaches this machine's own services. Pages and PDFs are read up
+  to 10 MB, and the model reads at most `web.read_chars` of a page's text (20,000 characters by default; `find` picks
+  the parts that matter in a longer page).
+- **Pages that need scripts:** with `web.render` on (Settings → AI assistant → Web search → Reading pages), a page
+  that comes back nearly empty is loaded in Chromium, its scripts run, and read again. That needs Chromium on the
+  server (the full edition); the light install reads the page as it comes.
+- **Asks first after outside text:** a search or a page read sends words out of Lens, so once an answer has read text
+  from outside Lens ([below](#third-party-content-and-prompt-injection)), one the model wrote itself waits for your
+  approval. Searching for what you typed, and reading an address you wrote or that a search or page gave back, run at
+  once. Once approved, the assistant asks the same thing again and gets what the approved call found, without
+  searching twice.
+- **Cost:** each search and each page read is a row in the activity ledger (`web.search` with the provider and how
+  many results came back, `web.read` with the site), never with the query or the page. Brave and Tavily searches are
+  marked as estimates, since Lens doesn't know your plan's price.
+- **Agents:** an agent turns it on like any setting, with `PUT /api/v1/settings/web` (admins) or by asking the
+  [setup chat](#setting-up-and-running-the-server-by-chat), which waits for your approval before it changes web search.
+  Each tool can be switched off in Tools it may use (`ai.disabled_tools`).
+
+Refine later: an opt-in SearXNG service in the Docker Compose file (SearXNG is AGPL, so it would stay an extra),
+prices per search for the paid providers, web access per namespace, and keeping recent results to search less.
 
 ## Code sandbox
 
@@ -271,8 +319,9 @@ apart from what the person asks:
   other than Lens's own, the page it was asked from, the namespace assistant's memories, a message in a chat room
   open to anyone, or an earlier answer in the conversation that read any of these), anything that could carry what
   it read out of Lens waits for your approval, even where it would otherwise run at once: your own `read` web tools,
-  other servers' MCP tools and Python tools with the network, code in the [code sandbox](#code-sandbox) when its
-  network is on, the changes a setup conversation makes itself, and, in
+  a [web search or page read](#web-search-and-reading-pages) you or a tool didn't give it, other servers' MCP tools
+  and Python tools with the network, code in the [code sandbox](#code-sandbox) when its network is on, the changes a
+  setup conversation makes itself, and, in
   [your browser](browser-assistant.md), opening or downloading an address or typing text you didn't write. The
   approval card says why ("asked first: this answer read text from outside Lens: tool search_transcripts"). Notes and
   memories are still written at once: they stay in Lens, and are marked as data when read back.

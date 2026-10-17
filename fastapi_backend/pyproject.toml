@@ -55,6 +55,9 @@ smb = ["impacket>=0.13"]
 # the assistant's code sandbox (sandbox.py): NVIDIA OpenShell's client (Apache-2.0), to reach its gateway; fetched when
 # Settings › Code sandbox is turned on
 sandbox = ["openshell>=0.1.4,<0.2"]
+# the assistant's web search through DuckDuckGo (web.py): ddgs (MIT), with its Rust HTTP client (primp) and lxml;
+# fetched when DuckDuckGo is picked in Settings › AI assistant › Web search
+web = ["ddgs>=9.16,<10"]
 # Outlook .msg emails (extract-msg is GPL-3.0; .eml needs nothing)
 msg = ["extract-msg"]
 
