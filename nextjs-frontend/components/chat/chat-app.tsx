@@ -19,6 +19,7 @@ import { EmptyChat } from "@/components/chat/empty";
 import { NamespaceOffer, spokenPick } from "@/components/chat/namespace-offer";
 import { fromApiScope, scopeFromParams, toApiScope, type Scope } from "@/components/chat/scope";
 import { CitationSheet, SourcesPanel, SourcesSheet } from "@/components/chat/sources";
+import { ToolsChip, useToolCatalog, type ToolChoice } from "@/components/chat/tools-picker";
 import {
   applyEvent,
   newTurn,
@@ -103,6 +104,7 @@ export function ChatApp() {
   const linkScope = useMemo(() => scopeFromParams(new URLSearchParams(search.toString())), [search]);
   const [draftScope, setDraftScope] = useState<Scope>(() => linkScope);
   const [draftModel, setDraftModel] = useState<string | null>(null); // for the conversation that isn't started yet
+  const [draftTools, setDraftTools] = useState<ToolChoice | null>(null); // and its tools, when picked before it starts
   const [draft, setDraft] = useState(() => search.get("q") ?? "");
   const [composing, setComposing] = useState(() =>
     Boolean(
@@ -320,11 +322,18 @@ export function ChatApp() {
           const created = await data(
             Chats.createChat({
               client,
-              body: kind === "setup" ? { kind } : { scope: toApiScope(draftScope), model: draftModel ?? undefined },
+              body:
+                kind === "setup"
+                  ? { kind }
+                  : { scope: toApiScope(draftScope), model: draftModel ?? undefined, ...(draftTools ?? {}) },
             }),
           );
           cid = created.id;
           qc.invalidateQueries({ queryKey: ["chats"] });
+          if (draftTools) {
+            setDraftTools(null); // it's the latest choice now: the next new conversation starts with it
+            void qc.invalidateQueries({ queryKey: ["chat-tools"] });
+          }
           setComposing(false);
           router.replace(`/chat/${cid}`);
         } catch (e) {
@@ -339,7 +348,7 @@ export function ChatApp() {
       }
       return run(cid, question, model, attached, edit);
     },
-    [activeId, client, draftScope, draftModel, qc, router, run, toast],
+    [activeId, client, draftScope, draftModel, draftTools, qc, router, run, toast],
   );
 
   // What you send while an answer is being written waits its turn, so you never have to wait to type.
@@ -599,6 +608,28 @@ export function ChatApp() {
     }
   };
   const noProvider = llm.known && !llm.configured;
+
+  // what the answers may use: the conversation's choice, else the one picked before it started, else your latest
+  const usesTools = llm.known && llm.configured && llm.tools;
+  const toolCatalog = useToolCatalog(activeId, usesTools);
+  const toolChoice: ToolChoice =
+    activeId != null
+      ? { tools: chat.data?.tools ?? null, max_tool_calls: chat.data?.max_tool_calls ?? null }
+      : (draftTools ?? {
+          tools: toolCatalog.data?.remembered.tools ?? null,
+          max_tool_calls: toolCatalog.data?.remembered.max_tool_calls ?? null,
+        });
+  const pickTools = async (v: ToolChoice) => {
+    if (activeId == null) return setDraftTools(v);
+    try {
+      await data(Chats.updateChat({ client, path: { cid: activeId }, body: v }));
+      await qc.invalidateQueries({ queryKey: ["chat", activeId] });
+      void qc.invalidateQueries({ queryKey: ["chats"] });
+      void qc.invalidateQueries({ queryKey: ["chat-tools"] });
+    } catch (e) {
+      toast({ title: "Couldn’t change the tools", body: e instanceof Error ? e.message : undefined, tone: "red" });
+    }
+  };
   const showThread = activeId != null || liveHere != null;
   // setting the server up doesn't look in the archive: no sources column to fill
   const setupChat = activeId != null && chat.data?.kind === "setup";
@@ -851,6 +882,16 @@ export function ChatApp() {
               models={llm.models}
               onModel={(m) => void pickModel(m)}
               openTick={scopeOpenTick}
+              toolsChip={
+                usesTools && !setupChat ? (
+                  <ToolsChip
+                    value={toolChoice}
+                    onChange={(v) => void pickTools(v)}
+                    catalog={toolCatalog.data}
+                    admin={admin}
+                  />
+                ) : undefined
+              }
             />
             {queue.length > 0 && (
               <ul className="flex flex-col gap-1" aria-label="Waiting to send">
@@ -920,7 +961,7 @@ export function ChatApp() {
 function ScopeBarWithOpen({ openTick, ...props }: Parameters<typeof ScopeBar>[0] & { openTick: number }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (openTick) ref.current?.querySelector<HTMLButtonElement>("button[aria-haspopup='dialog']")?.click();
+    if (openTick) ref.current?.querySelector<HTMLButtonElement>("button[data-scope-open]")?.click();
   }, [openTick]);
   return (
     <div ref={ref}>

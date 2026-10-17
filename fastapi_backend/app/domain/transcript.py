@@ -143,6 +143,7 @@ def _renumber(db, rid, segs, start, merged=None):
     db.run(
         [
             "DELETE mentions WHERE recording = $rid",
+            "DELETE date_said WHERE recording = $rid",
             "FOR $s IN $rows { UPSERT $s.id CONTENT $s; }",
             "DELETE segment WHERE recording = $rid AND idx >= $keep",
             f"UPDATE segment_edit SET idx = idx {sign} 1 WHERE recording = $rid AND idx >= $later",

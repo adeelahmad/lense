@@ -54,6 +54,7 @@ class ShareServer(ResponseModel):
     enabled: bool = Field(description="whether an admin turned it on (shares.enabled and its own switch)")
     port: int = Field(description="the port it listens on in the worker (Docker publishes LENS_S3_PORT, LENS_WEBDAV_PORT)")
     service: S3Service | None = Field(None, description="what the process running it says; none while it's off")
+    add_files: bool = Field(False, description="whether files people add through it are imported (shares.add_files)")
 
 
 class S3Status(ShareServer):
