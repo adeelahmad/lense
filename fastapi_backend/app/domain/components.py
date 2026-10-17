@@ -76,6 +76,34 @@ FILES = {
         89,
     ),
 }
+# Florence-2-base-ft and -large-ft (MIT), the 8-bit ONNX exports at onnx-community, at fixed revisions (florence.py):
+# {size: (revision, {file: (sha256, size in MB)})}
+FLORENCE = {
+    "base": (
+        "e88a44eaf3791a35eae0c5a47b3dbcd36e67eb6f",
+        {
+            "onnx/vision_encoder_int8.onnx": ("d7876c1ab0f7ec11998942ca189e99a775c5a4a912b813c7745d0f6fa9343487", 94),
+            "onnx/embed_tokens_int8.onnx": ("6b2258db1c8ee9b160576ccde3cd3814d83a2edaed0dd1c6ca9ff3c38fa62214", 40),
+            "onnx/encoder_model_int8.onnx": ("f4ad7a68f1fb875d3bcf735ea14a7021b7ba7e83baf7cf10289881b4ed6d9b85", 44),
+            "onnx/decoder_model_merged_int8.onnx": ("f22f52f980c33df0efa15932c2f3db6d9d3595ce6387eca938b8cfe23dc4c641", 99),
+            "tokenizer.json": ("d69dcdb2323e124ac4f800cb9863ddccea0d7bb11e16125e8df3bd60f2f8aeac", 3),
+        },
+    ),
+    "large": (
+        "04ace74913c28d7ec94af32cee5c111a10126b6f",
+        {
+            "onnx/vision_encoder_int8.onnx": ("51d21e33e3b8cd34a9882e0611a2e4e03fb2b26daecea8accd1d4769ea11ba72", 367),
+            "onnx/embed_tokens_int8.onnx": ("dab1d09ab449f1302df6e439b35ec9e93fb037134bf6bed9ffeaa93a5b35d43c", 53),
+            "onnx/encoder_model_int8.onnx": ("9fe30b02cc8c2247631f8f0b9bc4d6613df1c33da0afe4087abff2f940bc2fe0", 153),
+            "onnx/decoder_model_merged_int8.onnx": ("167e7807fb1e5b8d693138f84bc81e1368ea11833264131c1ea96eafc9d13222", 258),
+            "tokenizer.json": ("d69dcdb2323e124ac4f800cb9863ddccea0d7bb11e16125e8df3bd60f2f8aeac", 3),
+        },
+    ),
+}
+for _size, (_rev, _files) in FLORENCE.items():
+    for _path, (_sha, _mb) in _files.items():
+        _url = f"https://huggingface.co/onnx-community/Florence-2-{_size}-ft/resolve/{_rev}/{_path}"
+        FILES[f"florence-2-{_size}-ft/{_path.rsplit('/', 1)[-1]}"] = (_url, _sha, _mb)
 
 
 class Unavailable(RuntimeError):
@@ -474,6 +502,28 @@ class Nsfw(Component):
         fetch_file(cfg, "vit-base-nsfw-detector-int8.onnx", say)
 
 
+class Florence(Component):
+    """Florence-2 and ONNX Runtime (florence.py), when Settings → LLM provider has it describe pictures."""
+
+    kind = "model"
+
+    def needed(self, cfg, m):
+        return (cfg.get("llm") or {}).get("describe_engine") == "florence-2"
+
+    def present(self, cfg):
+        from . import florence
+
+        return florence.ready(cfg)
+
+    def fetch(self, cfg, m, say):
+        from . import florence
+
+        if not importable("onnxruntime", "tokenizers"):
+            pip_install(cfg, "florence", say)
+        for n in florence.files(florence.size(cfg)):
+            fetch_file(cfg, n, say)
+
+
 class InjectionModel(Component):
     """The prompt-injection classifier (injection_model.py), fetched when ai.injection_check asks for it."""
 
@@ -756,6 +806,14 @@ COMPONENTS = [
         steps={"nsfw"},
         size_mb=105,
         license="Apache-2.0",
+    ),
+    Florence(
+        "florence",
+        "Florence-2",
+        "describes pages and shots on this machine (llm.describe_engine florence-2; base about 280 MB, large about 830 MB)",
+        steps={"describe"},
+        size_mb=280,
+        license="MIT",
     ),
     LAYA,
     InjectionModel(

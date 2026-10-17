@@ -1309,14 +1309,16 @@ photo search results carry `nsfw: true` for the ones the web app blurs.
 
 ### Descriptions
 
-The `describe` step has a model that can see images, the one an admin chose as `llm.vision_model`, say in a few
-sentences what each page of a document or an image shows, and each shot of a video (from its keyframe): the setting,
-the people (by what they do and wear, never who they might be), the things and any text in it. It comes after
-`nsfw` in the standard pipeline, and describes at most `llm.describe_max` pages or shots of a resource. Without an
-LLM, or with no `llm.vision_model`, it's skipped, saying why; a model that can't see makes it fail with what the server
-said ([Configuration](configuration.md#descriptions)). The player's `descriptions` lists them in order:
+The `describe` step has a model that can see images say in a few sentences what each page of a document or an image
+shows, and each shot of a video (from its keyframe): the setting, the people (by what they do and wear, never who they
+might be), the things and any text in it. The model is the one an admin chose as `llm.vision_model` on the LLM
+provider, or, with `llm.describe_engine` `florence-2`, Florence-2 on the server itself, which needs no provider. It
+comes after `nsfw` in the standard pipeline, and describes at most `llm.describe_max` pages or shots of a resource.
+Without an LLM, with no `llm.vision_model`, or before Florence-2 is fetched, it's skipped, saying why; a model that
+can't see makes it fail with what the server said ([Configuration](configuration.md#descriptions)). The player's `descriptions` lists them in order:
 `{idx, t0, t1, text, model, frame, paged}`: the shot or page, where it starts and ends (ms; on pages, the page from 0
-and the next), what the model said, which model, and a signed link to the picture it was shown. Search finds them
+and the next), what the model said, which model (such as `Florence-2-base`), and a signed link to the picture it was
+shown. Search finds them
 (`source: described`, [search](#search)). Moving or deleting a resource moves or deletes them; the step run again
 replaces them.
 

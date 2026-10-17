@@ -4,6 +4,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Describe pictures on this machine with Florence-2.** Settings → LLM provider → Describing pictures can now have
+  Microsoft's Florence-2 (MIT) describe each page and shot instead of the provider's model that can see images
+  (`llm.describe_engine` `florence-2`). It runs on the CPU through ONNX Runtime, so no picture leaves the machine and
+  no provider is needed; its 8-bit export is fetched the first time a job waits to describe something, pinned and
+  checked against its SHA-256: base (about 280 MB, `llm.florence_model`) or large (about 830 MB). Each picture is a
+  `model.describe` row in the activity ledger. Agents read and change it with the MCP tools `picture_descriptions` and
+  `set_picture_descriptions`. The default stays the provider's model ([Descriptions](docs/configuration.md#descriptions)).
+
 - **Automations run.** An automation saved over the API (`/api/v1/automations`) now reacts to new assets in its
   namespaces: when its If passes, it runs its workflow as the person who made it, within its limits and budgets, and
   each run shows what its actions did. Try one on an activity without keeping or sending anything, or run it now;

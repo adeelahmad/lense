@@ -20,6 +20,7 @@ never fetch a speech or voice model.
 | Face models | `video.face_engine` is `anytopdf` | SFace, for anytopdf to describe faces with (anytopdf too) |
 | Object model | `video.object_engine` is `yolox` (the default) or `anytopdf` | YOLOX-s, and ONNX Runtime for `yolox` |
 | NSFW model | [NSFW classification](nsfw.md) is on for the archive or a namespace (off by default) | the 8-bit ONNX export of AdamCodd/vit-base-nsfw-detector (Apache-2.0, 88 MB), and ONNX Runtime |
+| Florence-2 | `llm.describe_engine` is `florence-2` | Florence-2-base-ft or -large-ft (MIT, `llm.florence_model`; about 280 or 830 MB), their 8-bit ONNX exports, the tokenizers library and ONNX Runtime, to [describe pictures](configuration.md#descriptions) on this machine |
 | Prompt-injection classifier | `ai.injection_check` is `classifier` | ProtectAI's deberta-v3-base-prompt-injection-v2 (Apache-2.0, about 740 MB), the tokenizers library and ONNX Runtime ([third-party content](assistant.md#third-party-content-and-prompt-injection)) |
 | DuckDuckGo search | `web.search` is `duckduckgo` | ddgs (MIT, about 30 MB with lxml and primp), the client the assistant's [web search](assistant.md#web-search-and-reading-pages) reads DuckDuckGo's results with |
 | yt-dlp | `documents.video_urls` is on | the yt-dlp program, release 2026.08.19 (Unlicense), to download videos and podcasts imported by address |
@@ -29,7 +30,7 @@ never fetch a speech or voice model.
 - Python packages go into `data_dir/python`, at the versions in `uv.lock`. Packages the image already has win.
 - Models go into `data_dir/models`: the Hugging Face, ModelScope and PyTorch caches point there (unless `HF_HOME`,
   `MODELSCOPE_CACHE` or `TORCH_HOME` say otherwise). They outlast container rebuilds and upgrades.
-- Model files fetched by URL (YOLOX, YuNet, SFace, the NSFW model) are checked against their SHA-256.
+- Model files fetched by URL (YOLOX, YuNet, SFace, the NSFW model, Florence-2) are checked against their SHA-256.
 - A job step that needs something still being fetched waits for it instead of falling back or failing. If a fetch fails,
   the step runs as before (for transcription, falling back to another engine), and the fetch is tried again an hour
   later, when the settings change, or on **Check again now**.

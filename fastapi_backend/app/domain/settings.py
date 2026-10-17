@@ -160,6 +160,8 @@ ENUMS = {
     ("search", "stemming"): {"english", "none"},
     ("search", "engine"): set(store.SEARCH_ENGINES),
     ("reports", "audio"): {"link", "embed", "none"},
+    ("llm", "describe_engine"): {"llm", "florence-2"},
+    ("llm", "florence_model"): {"base", "large"},
     ("video", "ocr_engine"): {"auto", "tesseract", "apple-vision", "rapidocr", "doctr", "none"},
     ("video", "face_engine"): {"opencv", "insightface", "anytopdf", "none"},
     ("video", "object_engine"): {"yolox", "ultralytics", "anytopdf", "off"},
