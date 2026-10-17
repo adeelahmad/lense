@@ -105,6 +105,7 @@ def test_base_types_and_default_rules(db, cfg):
     assert sub("/in/meetup 2024.mp4")[1] == "video"
     assert sub("/in/My Podcast Ep 12.mp3")[1] == "podcast"
     assert sub("/in/invite.ics", source="document")[1] == "calendar_event"
+    assert sub("harbour news:9f2c.atom", source="transcript")[1] == "feed_post"
     assert sub("/in/re: contract.eml", source="document")[1] == "email"
 
 

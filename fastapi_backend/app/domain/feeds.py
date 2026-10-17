@@ -1,6 +1,6 @@
-"""Sources that aren't file storage: IMAP mailboxes, Gmail and Google Workspace mailboxes, iCalendar feeds and Google
-Calendar (gcal.py), shown as folders of files so browsing, choosing files, watching and importing work for them as they
-do for rclone's storage (sources.py).
+"""Sources that aren't file storage: IMAP mailboxes, Gmail and Google Workspace mailboxes, iCalendar feeds, Google
+Calendar (gcal.py) and news feeds (RSS and Atom: rss.py), shown as folders of files so browsing, choosing files,
+watching and importing work for them as they do for rclone's storage (sources.py).
 
 - An IMAP account's folders are its mailboxes, and each message is a file, `<mailbox>/<uidvalidity>-<uid>.eml`: a
   UID stands for one message only while the mailbox's UIDVALIDITY stays the same, so a mailbox the server rebuilt
@@ -16,7 +16,7 @@ do for rclone's storage (sources.py).
   read as text: its title, when and where, who, and its description. The address is kept sealed, like a password
   (a private calendar's address is all it takes to read it), and fetched as web pages are captured (netguard.py):
   public addresses only, and the networks in documents.web_networks, on ports 80 and 443. Its password is never sent
-  on to another server it redirects to.
+  on to another server it redirects to (`get`, which news feeds are fetched with too).
 
 Both keep the names of their files (`name`), a `title` and `when` for the resource made from one, beside what rclone's
 listings have (path, rel, size, modified).
@@ -38,10 +38,10 @@ import urllib.parse
 import urllib.request
 from email import policy
 
-from . import calendars, gcal, netguard
+from . import calendars, gcal, netguard, rss
 
 # sources a module of their own handles: browse, list_files, fetch, immutable and test, as below
-OWN = {"gcal": gcal}
+OWN = {"gcal": gcal, "rss": rss}
 TYPES = {
     "imap": {
         "label": "Email (IMAP)",
@@ -455,38 +455,50 @@ def _opener(guard):
     return o
 
 
-def _download(cfg, src):
+def get(cfg, src, url, what, accept, limit, agent, headers=None, auth=True):
+    """GET a source's address (a calendar's, a news feed's) as web pages are captured: through netguard, to public
+    addresses and the networks in documents.web_networks only, on ports 80 and 443. The source's user and password go
+    with it (unless `auth` is False), never on to another server it redirects to; `headers` too (a conditional GET's
+    If-None-Match, say). Returns (status, the response's headers, its bytes, the address it ended at): a 304 answers
+    no bytes. RuntimeError, in words naming `what` ("calendar"), for what went wrong."""
     from . import webcapture  # the networks an admin allowed besides public ones; it imports what imports this
 
-    url = _url(cfg, src)
-    hit = _FEEDS.get(src["id"])
-    if hit and hit[0] == url and time.monotonic() - hit[1] < FEED_SECONDS:
-        return hit[2]
     try:
         webcapture.check_url(cfg, url)
     except ValueError as e:
         if "public address" in str(e):
             host = urllib.parse.urlsplit(url).hostname
             raise RuntimeError(
-                f"that calendar can't be fetched: {host} is on a private network. An admin can allow that network in "
+                f"that {what} can't be fetched: {host} is on a private network. An admin can allow that network in "
                 "Settings → Documents (Private networks Lens may fetch from), e.g. 192.168.1.0/24"
             ) from None
-        raise RuntimeError(f"that calendar can't be fetched: {e}") from None
-    req = urllib.request.Request(url, headers={"User-Agent": "Lens calendar source", "Accept": "text/calendar, */*;q=0.5"})
-    user, pw = _params(src).get("user", ""), _secret(cfg, src, "pass")
+        raise RuntimeError(f"that {what} can't be fetched: {e}") from None
+    req = urllib.request.Request(url, headers={"User-Agent": agent, "Accept": accept, **(headers or {})})
+    user, pw = (_params(src).get("user", ""), _secret(cfg, src, "pass")) if auth else ("", "")
     if user or pw:
         req.add_header("Authorization", "Basic " + base64.b64encode(f"{user}:{pw}".encode()).decode("ascii"))
-    with netguard.Guard(forward=True, networks=webcapture.networks(cfg), max_bytes=MAX_CALENDAR + 65536) as guard:
+    with netguard.Guard(forward=True, networks=webcapture.networks(cfg), max_bytes=limit + 65536) as guard:
         try:
             with _opener(guard).open(req, timeout=60) as r:
-                raw = r.read(MAX_CALENDAR + 1)
+                status, got, raw, final = r.status, r.headers, r.read(limit + 1), r.geturl()
         except urllib.error.HTTPError as e:
-            raise RuntimeError(f"the calendar's server answered {e.code} {e.reason}") from None
+            if e.code == 304:
+                return 304, e.headers, b"", url
+            raise RuntimeError(f"the {what}'s server answered {e.code} {e.reason}") from None
         except (urllib.error.URLError, OSError) as e:
             refused = f"; refused: {guard.refused[0]}" if guard.refused else ""
-            raise RuntimeError(f"couldn't fetch the calendar: {getattr(e, 'reason', e)}{refused}") from None
-    if len(raw) > MAX_CALENDAR:
-        raise RuntimeError("the calendar is larger than 50 MB")
+            raise RuntimeError(f"couldn't fetch the {what}: {getattr(e, 'reason', e)}{refused}") from None
+    if len(raw) > limit:
+        raise RuntimeError(f"the {what} is larger than {limit // 2**20} MB")
+    return status, got, raw, final
+
+
+def _download(cfg, src):
+    url = _url(cfg, src)
+    hit = _FEEDS.get(src["id"])
+    if hit and hit[0] == url and time.monotonic() - hit[1] < FEED_SECONDS:
+        return hit[2]
+    _, _, raw, _ = get(cfg, src, url, "calendar", "text/calendar, */*;q=0.5", MAX_CALENDAR, "Lens calendar source")
     text = raw.decode("utf-8", "replace")
     if "BEGIN:VCALENDAR" not in text[:4096].upper():
         raise RuntimeError("that address doesn't give a calendar (no BEGIN:VCALENDAR)")

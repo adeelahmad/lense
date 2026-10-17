@@ -1,7 +1,7 @@
 /** Where Lens keeps its own files (Settings → Storage, the backend's `files` section: app/domain/blobs.py). */
 
 /** Connections files can't be kept on: email accounts and calendars are read, not written (feeds.py). */
-export const NOT_STORAGE = new Set(["imap", "gmail", "ical"]);
+export const NOT_STORAGE = new Set(["imap", "gmail", "ical", "gcal", "rss"]);
 
 export type FileStoreTry =
   { store: "local"; crypt: false } | { store: "connection"; connection: number | null; folder: string; crypt: boolean };
