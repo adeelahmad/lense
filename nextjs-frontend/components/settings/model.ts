@@ -812,6 +812,27 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "llm",
+    key: "describe_engine",
+    label: "Describe pictures with",
+    kind: "select",
+    options: [
+      { value: "llm", label: "The provider’s model that can see images" },
+      { value: "florence-2", label: "Florence-2 on this server (MIT, runs on the CPU)" },
+    ],
+    hint: "The Describe step says what each page and shot shows. Florence-2 sends no picture anywhere and is fetched the first time it’s needed",
+  },
+  {
+    section: "llm",
+    key: "florence_model",
+    label: "Florence-2 size",
+    kind: "select",
+    options: [
+      { value: "base", label: "Base (about 280 MB, for small machines)" },
+      { value: "large", label: "Large (about 830 MB, more detail, slower)" },
+    ],
+  },
+  {
+    section: "llm",
     key: "vision_model",
     label: "Model that can see images",
     kind: "text",
@@ -827,7 +848,7 @@ export const FIELDS: FieldSpec[] = [
     kind: "int",
     min: 1,
     max: 1000,
-    hint: "Of a resource, in order: each is a request to the model",
+    hint: "Of a resource, in order: each is one call to the model",
   },
   { section: "llm", key: "api_key", label: "API key", kind: "secret" },
   {

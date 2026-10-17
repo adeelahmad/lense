@@ -53105,6 +53105,36 @@
         ],
         "title": "NoteCreate"
       },
+      "NoteCrumb": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "NoteCrumb"
+      },
       "NoteDeleted": {
         "properties": {
           "id": {
@@ -53753,6 +53783,24 @@
             },
             "type": "array",
             "title": "Backlinks",
+            "default": []
+          },
+          "path": {
+            "items": {
+              "$ref": "#/components/schemas/NoteCrumb"
+            },
+            "type": "array",
+            "title": "Path",
+            "description": "the notes it's inside, from the top of the tree down to its parent",
+            "default": []
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/NoteCrumb"
+            },
+            "type": "array",
+            "title": "Children",
+            "description": "the notes inside it, in the tree's order",
             "default": []
           },
           "can_edit": {
