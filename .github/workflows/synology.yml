@@ -30,7 +30,7 @@ jobs:
       matrix:
         arch: [x86_64, armv8]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref }}
       # the architecture that isn't the runner's own (armv8 on GitHub's runners, x86_64 on an Apple silicon Mac)

@@ -23,6 +23,7 @@ Lens is one repository with several projects, and [Nx](https://nx.dev/) runs the
 | `clipper` | `extensions/browser/` | `install` (`npm ci` when the lockfile is newer than `node_modules`), `test`, `build` (every browser target, checked) |
 | `desktop` | `desktop/` | `lint` (`sh -n` and shellcheck on `lens-app.sh`), `test` (`lens-app.sh` checks on Linux; the Mac build stays in the Desktop workflow) |
 | `microsandbox` | `microsandbox/` | `lint` (`sh -n` and shellcheck on its scripts), `test` (`test-dns.sh`, the name-lookup fallback, and `test-programs.sh`, LibreOffice and Chromium on first use, in the base image with Docker; the install itself runs in the Install workflow) |
+| `scorecard` | `ci/scorecard/` | `test` |
 
 ```bash
 pnpm exec nx run backend:test                          # one target (make test-backend)
@@ -117,6 +118,14 @@ pnpm test && pnpm lint && pnpm tsc && pnpm build
 The docs are these Markdown files, built with mkdocs-material: `make docs` serves them, and `make docs-build` builds
 the site the way CI does, failing on broken links.
 
+## Requirements
+
+The README lists what Lens does (built), what is in a pull request (In progress) and what comes next (Planned), and
+[Requirements and checks](requirements.md) backs each built item with the tests, clicks journeys and measured numbers
+that fail when it stops being true. A pull request that builds something adds it to the README and a row there, and
+takes its own line out of In progress. `make requirements` (also a pre-commit hook, so CI runs it on every pull
+request) fails when a check a row names is gone or a measured number is no longer met.
+
 ## Release
 
 The backend and frontend share a [semantic version](https://semver.org/). The changelog is written from the PR titles,
@@ -142,3 +151,32 @@ Proxmox script installs the latest release. If `main` is protected, add a `RELEA
 token with Contents: write on the repository, allowed to push past the protection. The workflow then commits and
 publishes with it, and the package workflows start from the `release: published` event instead of being started
 by the Release workflow.
+
+## Scorecard
+
+`make scorecard` prints one JSON line of the numbers that say whether Lens is meeting its goals, so a turn of work can
+be compared with the one before (AGENTS.md: back gains with before-and-after numbers). Each number is measured, with
+the command or GitHub API call behind it in `cmd`, or says why it isn't in `not_measured`; nothing is estimated. The
+line carries the commit, `git describe` tag and release it was taken at.
+
+| Numbers | Where they come from |
+| --- | --- |
+| Journeys passing, clicks, keys, swipes and passkey touches, on a computer and a phone | The last accepted survey, `ci/clicks/baseline.json` and `baseline-phone.json` (see `ci/clicks/README.md`) |
+| Test functions defined, per project | `def test_*` in `test_*.py`, `it(` and `test(` in `*.test.*`, `*.spec.*` and `__tests__/` |
+| Backend tests collected | `uv run --frozen pytest --collect-only -q`, when `fastapi_backend/.venv` exists |
+| Backend and frontend line coverage | The newest `backend-coverage` and `frontend-coverage` artifacts from CI on `main` (needs a GitHub token) |
+| Red-check rate, ask to merge, CI minutes per merged pull request | Pull requests opened in the last `--days` (7), bots left out: the share whose first push had a failing workflow run (a re-run counts its first attempt), the median hours from the earliest of the pull request and the issues it closes to its merge, and the median wall time of its workflow runs |
+| Failed runs on `main` | Workflow runs on pushes to `main` in the same window that failed or timed out |
+| Stars, forks, and issues and pull requests from outside | The repository, and issues and pull requests whose authors aren't its owner, members or collaborators |
+| Install to first answer, and idle RAM and disk on arm64 (as on a Raspberry Pi) | Not measured yet: there's no timed install on an arm64 runner |
+
+```bash
+make scorecard                                       # print the line
+make scorecard SCORECARD=loop/scorecard.jsonl        # compare with the file's last line, then append to it
+python3 ci/scorecard/scorecard.py --offline          # only what the checkout can tell, no GitHub calls
+```
+
+With `SCORECARD` (`--log`), it prints what changed since the file's last line and exits 1 when a guard trips: journeys
+passing, the number of journeys, tests or coverage went down, a number that was measured isn't any more, or a clicks
+baseline changed without a new survey (its contents changed but not its `surveyed` time). A turn whose guard trips
+doesn't count as better, whatever else improved. GitHub calls use `GITHUB_TOKEN` (or `GH_TOKEN`) when it's set.

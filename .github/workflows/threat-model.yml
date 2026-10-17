@@ -22,7 +22,7 @@ jobs:
     runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
       - name: Validate the threat model
         run: uv run --no-project --python 3.12 --with pyyaml python ci/validate_threat_model.py
