@@ -13,6 +13,9 @@ from __future__ import annotations
 
 import functools
 import ipaddress
+import os
+import socket
+import time
 from typing import NamedTuple
 
 from . import store
@@ -81,6 +84,26 @@ def address(raw):
     except ValueError:
         return None
     return (ip.ipv4_mapped or ip) if isinstance(ip, ipaddress.IPv6Address) else ip
+
+
+_PROXY_HOSTS: dict[str, tuple[float, tuple[str, ...]]] = {}
+
+
+def proxy_hosts() -> tuple[str, ...]:
+    """The addresses of the hosts named in LENS_TRUSTED_PROXY_HOSTS (the web app's container, `frontend` in the
+    Docker Compose files, whose address changes when it's recreated), looked up at most every 30 seconds."""
+    names = [n.strip() for n in os.environ.get("LENS_TRUSTED_PROXY_HOSTS", "").split(",") if n.strip()]
+    out: list[str] = []
+    for name in names:
+        hit = _PROXY_HOSTS.get(name)
+        if not hit or time.monotonic() - hit[0] > 30:
+            try:
+                found = tuple(sorted({str(i[4][0]) for i in socket.getaddrinfo(name, None)}))
+            except OSError:
+                found = ()
+            hit = _PROXY_HOSTS[name] = (time.monotonic(), found)
+        out += hit[1]
+    return tuple(out)
 
 
 @functools.lru_cache(maxsize=256)

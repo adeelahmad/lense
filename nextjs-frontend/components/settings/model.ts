@@ -2702,6 +2702,13 @@ export const FIELDS: FieldSpec[] = [
     hint: "Read-only; mount it as a drive in Finder, Windows Explorer or a file manager",
   },
   { section: "shares", key: "webdav_port", label: "WebDAV port", kind: "int", min: 1, max: 65535 },
+  {
+    section: "shares",
+    key: "remote",
+    label: "At the web app’s address too",
+    kind: "switch",
+    hint: "S3 at /s3 and WebDAV at /dav wherever the web app opens, Remote access and HTTPS included. Off: only on their ports",
+  },
   // Sensors (opt-in)
   {
     section: "sensors",
