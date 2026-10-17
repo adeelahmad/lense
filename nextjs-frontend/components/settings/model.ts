@@ -753,6 +753,13 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "analysis",
+    key: "dates",
+    label: "Read dates as days",
+    kind: "switch",
+    hint: "The dates each line gives (“next Tuesday”, “3 March”, “last week”) become days on the calendar, worked out from the asset's date, for agents and the API to find by day",
+  },
+  {
+    section: "analysis",
     key: "cleanup",
     label: "Clean up transcripts before analysis",
     kind: "switch",
