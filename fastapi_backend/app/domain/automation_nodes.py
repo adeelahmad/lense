@@ -29,7 +29,7 @@ import datetime as dt
 import importlib
 import re
 
-from . import actions, automation_spec, flow, templates, variables
+from . import automation_spec, flow, templates
 
 OWN_NODES = ("action", "decide")
 CONFIG = {"action": {"action", "params", "delay", "when"}, "decide": {"question", "options", "input", "min_confidence"}}
@@ -372,3 +372,8 @@ def finish(trace, box):
         if path in trace:
             trace[path] = {**trace[path], "status": "failed", "error": why}
     return trace
+
+
+# last, because the actions (variables loads them too) load the assistant's tools, which load workflows, which reads
+# this module's nodes above
+from . import actions, variables  # noqa: E402
