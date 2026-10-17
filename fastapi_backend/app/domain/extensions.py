@@ -761,10 +761,13 @@ def _owner_admin(db, g):
 
 class Active:
     """The extensions switched on for one person, plugins opened up: tools and skills by name, hooks by event. Each
-    item knows the extension (and version) it comes from."""
+    item knows the extension (and version) it comes from. `groups`: each extension's tools as a group a question can be
+    given ({mcp:<name> or ext:<name>: {label, tools}}; ai_tools.GROUPS has the built-in ones): an MCP server's tools
+    under mcp:, any other extension's under ext:."""
 
     def __init__(self, db, me):
         self.tools, self.skills, self.hooks = {}, {}, {e: [] for e in EVENTS}
+        self.groups: dict[str, dict] = {}
         for d in db.rows("SELECT record::id(id) AS id FROM extension WHERE deleted_at = NONE AND enabled = true ORDER BY id"):
             g = get(db, d["id"])
             if not can_use(g, me):
@@ -792,6 +795,9 @@ class Active:
                     "spec": spec,
                 }
                 if it["kind"] == "tool":
+                    if it["name"] not in self.tools:
+                        group = ("mcp:" if spec["run"]["type"] == "mcp" else "ext:") + g["name"]
+                        self.groups.setdefault(group, {"label": g.get("title") or g["name"], "tools": []})["tools"].append(it["name"])
                     self.tools.setdefault(it["name"], item)
                 elif it["kind"] == "skill":
                     self.skills.setdefault(it["name"], item)

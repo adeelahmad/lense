@@ -450,6 +450,10 @@ def _check(section, key, value, default):
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 100):
             raise ValueError("ai.browser_steps is a whole number of steps from 1 to 100")
         return value
+    if (section, key) == ("ai", "max_tool_calls"):
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 500):
+            raise ValueError("ai.max_tool_calls is a whole number of tool calls from 1 to 500")
+        return value
     if (section, key) == ("llm", "describe_max"):
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 1000):
             raise ValueError("llm.describe_max is a whole number from 1 to 1000")

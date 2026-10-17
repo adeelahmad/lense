@@ -302,6 +302,7 @@ DEFAULTS = {
         "injection_check": "patterns",  # flag text that reads like instructions to an AI: patterns, classifier, model, off
         "disabled_tools": [],
         "max_steps": 6,
+        "max_tool_calls": 50,  # the most tool calls a question may give one answer (its `max_tool_calls`; chat.tool_answer)
         "max_transcript_reads": 20,
         "confirm_over_recordings": 100,
         "confirm_over_cost": None,
