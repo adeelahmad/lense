@@ -34,7 +34,7 @@ from app.schemas.imports import (
 
 router = APIRouter(prefix="/import", tags=["imports"])
 
-IMPORT_EXT = {".txt", ".md", ".markdown", ".mdx", ".docx", ".doc", ".pdf", ".json", ".jsonl", ".srt", ".vtt", ".eml", ".ics"}
+IMPORT_EXT = {".txt", ".md", ".markdown", ".mdx", ".docx", ".doc", ".pdf", ".json", ".jsonl", ".srt", ".vtt", ".eml", ".ics", ".atom"}
 
 
 def _upload_name(filename: str | None) -> str:

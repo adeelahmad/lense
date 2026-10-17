@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Lens",
-    "version": "0.13.0"
+    "version": "0.14.0"
   },
   "paths": {
     "/api/v1/auth/status": {
@@ -60017,7 +60017,8 @@
                   "imap",
                   "gmail",
                   "ical",
-                  "gcal"
+                  "gcal",
+                  "rss"
                 ]
               },
               {
@@ -67037,7 +67038,8 @@
               "imap",
               "gmail",
               "ical",
-              "gcal"
+              "gcal",
+              "rss"
             ],
             "title": "Type"
           },
@@ -67134,7 +67136,8 @@
               "imap",
               "gmail",
               "ical",
-              "gcal"
+              "gcal",
+              "rss"
             ],
             "title": "Type"
           },
