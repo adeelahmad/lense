@@ -21,6 +21,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   Markdown or plain text and exports it, questions and code blocks have their own copy buttons, and the conversation's
   header has Export; without a PDF printer on the server, the browser prints it instead
   ([Copy and export](docs/assistant.md#copy-and-export)).
+- **Mail, calendars and files in chat.** An admin's assistant can search and read the mailboxes, calendars and
+  storage they connected under Settings → Sources, through the new tools `connections`, `search_mail`, `read_mail`,
+  `calendar_events`, `list_files`, `find_files`, `read_file` and `import_from_connection`; the tool picker shows them as
+  "Mail, calendars and files". Gmail is searched with its own query language and IMAP by words in the newest subjects and
+  senders; Google Calendar gives the events of a window; files are found by name and read when they are text, PDFs or
+  Word files. Answers cite a message or an event with a link that opens it, and bringing things into Lens waits for the
+  person's yes. Nothing is sent, written or deleted yet
+  ([Mail, calendars and files](docs/assistant.md#mail-calendars-and-files)).
 
 ## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
 

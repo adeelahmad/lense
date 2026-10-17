@@ -39,12 +39,16 @@ export function shortTitle(title: string | null | undefined, max = 24): string {
   return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
 }
 
-/** A web page the assistant searched for or read (source "web"), rather than a moment of an asset. */
+/** Sources cited by their address rather than as a moment of an asset: a web page the assistant searched for or read,
+ * and a message ("mail") or event ("event") of an account connected to Lens. */
+const LINKED = new Set(["web", "mail", "event"]);
+
+/** A web page, message or event (opened at its address), rather than a moment of an asset. */
 export function isWeb(p: Pick<Passage, "source" | "url">): boolean {
-  return p.source === "web" && !!p.url;
+  return LINKED.has(p.source ?? "") && !!p.url;
 }
 
-/** A web page's site, as people say it: "example.com". */
+/** A web page's site, as people say it: "example.com"; a message's or event's connection: "Mara's mail". */
 export function siteOf(p: Pick<Passage, "site" | "url">): string {
   if (p.site) return p.site;
   try {
@@ -58,7 +62,7 @@ export function siteOf(p: Pick<Passage, "site" | "url">): string {
 export function passageTime(
   p: Pick<Passage, "t0" | "time"> & Partial<Pick<Passage, "source" | "url" | "site">>,
 ): string {
-  if (p.source === "web") return siteOf(p);
+  if (LINKED.has(p.source ?? "")) return siteOf(p);
   if (p.time) return p.time;
   return tc(typeof p.t0 === "number" ? p.t0 : 0);
 }
@@ -68,7 +72,7 @@ export function citeLabel(
   p: Pick<Passage, "title" | "t0" | "time" | "speaker"> & Partial<Pick<Passage, "source" | "url" | "site">>,
   withSpeaker = true,
 ): string {
-  if (p.source === "web") return [siteOf(p), withSpeaker ? shortTitle(p.title, 32) : null].filter(Boolean).join(" · ");
+  if (LINKED.has(p.source ?? "")) return [siteOf(p), withSpeaker ? shortTitle(p.title, 32) : null].filter(Boolean).join(" · ");
   return [shortTitle(p.title), passageTime(p), withSpeaker ? p.speaker : null].filter(Boolean).join(" · ");
 }
 
@@ -95,11 +99,11 @@ export function quoteOf(p: Pick<Passage, "text" | "speaker">): QuoteLine {
   );
 }
 
-/** Link to the cited moment, or the web page's own address. */
+/** Link to the cited moment, or the web page's, message's or event's own address. */
 export function passageHref(
   p: Pick<Passage, "recording_id" | "t0"> & Partial<Pick<Passage, "source" | "url">>,
 ): string {
-  if (p.source === "web" && p.url) return p.url;
+  if (p.url && LINKED.has(p.source ?? "")) return p.url;
   return recordingHref(p.recording_id ?? 0, typeof p.t0 === "number" ? p.t0 : 0);
 }
 

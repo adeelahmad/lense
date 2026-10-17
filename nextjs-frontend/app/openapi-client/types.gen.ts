@@ -14577,7 +14577,8 @@ export type PageContext = {
 /**
  * Passage
  *
- * A numbered excerpt an answer can cite: a moment of an asset, or a web page (`source` "web", with its `url`).
+ * A numbered excerpt an answer can cite: a moment of an asset, a web page (`source` "web", with its `url`), or a
+ * message or event of a connected account (`source` "mail" or "event", with its `url` in Gmail or Google Calendar).
  */
 export type Passage = {
   /**
@@ -14587,25 +14588,25 @@ export type Passage = {
   /**
    * Recording Id
    *
-   * the asset it's from; none for a web page
+   * the asset it's from; none for a web page, message or event
    */
   recording_id?: number | null;
   /**
    * Source
    *
-   * what it is: said (speech), page (a document's), screen (text shown in a video), memory, or web
+   * what it is: said (speech), page (a document's), screen (text shown in a video), memory, web, mail or event
    */
   source?: string | null;
   /**
    * Url
    *
-   * a web page's address (source web): the citation opens it
+   * a web page's, message's or event's address (no asset): the citation opens it
    */
   url?: string | null;
   /**
    * Site
    *
-   * a web page's site, like example.com
+   * a web page's site, like example.com; a message's or event's connection
    */
   site?: string | null;
   /**

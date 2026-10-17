@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 
 import { Chats } from "@/app/openapi-client";
+import { isWeb } from "@/components/chat/cite";
 import { useStopAnswer } from "@/components/chat/data";
 import { usePlayerApi } from "@/components/player/media";
 import {
@@ -319,9 +320,9 @@ function AnswerView({ text, passages, streaming }: { text: string; passages: Pas
         const label = `${ps.page != null ? (ps.time ?? `p. ${ps.page + 1}`) : tc(ps.t0 ?? 0)}${ps.speaker ? ` · ${ps.speaker}` : ""}`;
         const cls =
           "mx-0.5 inline-flex h-[20px] items-center rounded-pill border border-blue-border bg-blue-surface px-1.5 align-[2px] font-sans text-[11.5px] font-semibold text-blue-dark hover:bg-blue hover:text-white";
-        if (ps.source === "web" && ps.url)
+        if (isWeb(ps))
           return (
-            <a key={i} href={ps.url} target="_blank" rel="noopener noreferrer" className={cls} title={ps.text}>
+            <a key={i} href={ps.url ?? undefined} target="_blank" rel="noopener noreferrer" className={cls} title={ps.text}>
               {ps.site ?? ps.title ?? "Web page"}
             </a>
           );

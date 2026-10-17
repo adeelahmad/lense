@@ -32,18 +32,22 @@ import { plural } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
-/** Where an answer comes from: "3 assets in podcasts", "2 web pages", "3 assets in podcasts and 2 web pages". */
+/** Where an answer comes from: "3 assets in podcasts", "2 web pages", "3 assets in podcasts, 2 emails and 1 event". */
 function fromWhere(passages: Passage[] | null): string | null {
   if (!passages?.length) return null;
   const archive = passages.filter((p) => p.recording_id != null);
-  const pages = new Set(passages.filter((p) => p.source === "web").map((p) => p.url)).size;
+  const linked = (source: string) => new Set(passages.filter((p) => p.source === source).map((p) => p.url)).size;
+  const [pages, emails, events] = [linked("web"), linked("mail"), linked("event")];
   const recs = new Set(archive.map((p) => p.recording_id)).size;
   const nss = [...new Set(archive.map((p) => p.namespace).filter(Boolean))] as string[];
   const parts = [
     recs ? `${plural(recs, "asset")}${nss.length ? ` in ${nss.join(", ")}` : ""}` : null,
     pages ? plural(pages, "web page") : null,
-  ].filter(Boolean);
-  return parts.length ? parts.join(" and ") : null;
+    emails ? plural(emails, "email") : null,
+    events ? plural(events, "event") : null,
+  ].filter(Boolean) as string[];
+  if (!parts.length) return null;
+  return parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
 }
 
 function StateCard({
