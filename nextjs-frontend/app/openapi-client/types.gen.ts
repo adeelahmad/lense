@@ -3642,6 +3642,10 @@ export type ChatMessage = {
    * it and the others said in its place, from regenerating or editing
    */
   versions?: Versions | null;
+  /**
+   * what produced it; none on messages from before it was recorded
+   */
+  meta?: MessageRecord | null;
   [key: string]: unknown;
 };
 
@@ -10861,6 +10865,192 @@ export type MessageCreate = {
    * asked from a browser's Lens side panel: its session (POST /browser/sessions). While it's connected, the assistant can use that browser (docs/browser-assistant.md)
    */
   browser?: string | null;
+  /**
+   * Via
+   *
+   * voice: said in a voice conversation (the question's record keeps it)
+   */
+  via?: "voice" | null;
+};
+
+/**
+ * MessageDetail
+ */
+export type MessageDetail = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Role
+   */
+  role: "user" | "assistant";
+  /**
+   * Content
+   */
+  content: string;
+  /**
+   * a question asked from a page: the page, and any highlighted text
+   */
+  context?: SharedContext | null;
+  /**
+   * Attachments
+   *
+   * files sent with it (POST /uploads with hold)
+   */
+  attachments?: Array<Attachment>;
+  /**
+   * Passages
+   */
+  passages?: Array<Passage> | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Stopped
+   *
+   * the answer was stopped (POST /chats/{cid}/stop): `content` is what came before
+   */
+  stopped?: boolean;
+  /**
+   * Steps
+   *
+   * the tools the assistant used for this answer, in order
+   */
+  steps?: Array<ToolStep>;
+  /**
+   * Notice
+   *
+   * e.g. the model can't use tools, so the answer came from a search
+   */
+  notice?: string | null;
+  /**
+   * Error
+   *
+   * why there's no answer
+   */
+  error?: string | null;
+  /**
+   * its latest source check (POST .../messages/{mid}/check)
+   */
+  check?: AnswerCheck | null;
+  /**
+   * Model
+   *
+   * the model that wrote the answer
+   */
+  model?: string | null;
+  /**
+   * Parent
+   *
+   * the message it follows; null for a first question
+   */
+  parent?: number | null;
+  /**
+   * it and the others said in its place, from regenerating or editing
+   */
+  versions?: Versions | null;
+  /**
+   * what produced it; none on messages from before it was recorded
+   */
+  meta?: MessageRecord | null;
+  /**
+   * Ledger
+   *
+   * its rows in the activity ledger: the model and tool calls made for it, newest first
+   */
+  ledger?: Array<ActivityEntry>;
+  [key: string]: unknown;
+};
+
+/**
+ * MessageRecord
+ *
+ * What produced a message, recorded as it was written (docs/assistant.md, "What each answer records"). A question's
+ * has `via` and `options`; an answer's the rest. Messages from before it was recorded have none.
+ */
+export type MessageRecord = {
+  /**
+   * Via
+   *
+   * a question: how it was sent
+   */
+  via?: "web" | "api" | "room" | "voice" | "automation" | "completions" | null;
+  /**
+   * a question: the options it was asked with
+   */
+  options?: RecordOptions | null;
+  /**
+   * Model
+   *
+   * the model that wrote the answer
+   */
+  model?: string | null;
+  /**
+   * Provider
+   *
+   * the host name of the model server it ran on (never its address or key)
+   */
+  provider?: string | null;
+  tools?: RecordTools | null;
+  /**
+   * Scope
+   *
+   * the scope it answered in, after a conversation over everything was narrowed
+   */
+  scope?: {
+    [key: string]: unknown;
+  } | null;
+  limits?: RecordLimits | null;
+  used?: RecordUse | null;
+  /**
+   * Outcome
+   *
+   * answered (after looking things up), direct (without looking anything up), limit (its rounds ran out, so it answered from what it found), fallback (from a search: the model can't use tools, or none is set up), stopped, or error
+   */
+  outcome?: "answered" | "direct" | "limit" | "fallback" | "stopped" | "error" | null;
+  /**
+   * the tokens of the model calls made for it (the activity ledger)
+   */
+  tokens?: RecordTokens | null;
+  /**
+   * Cost Usd
+   *
+   * what those calls cost, from the prices in Settings
+   */
+  cost_usd?: number | null;
+  /**
+   * Cost Estimated
+   *
+   * some calls had a price but no token counts: the cost is at least this
+   */
+  cost_estimated?: boolean | null;
+  /**
+   * Ms
+   *
+   * how long it took to write, from the question
+   */
+  ms?: number | null;
+  /**
+   * Flagged
+   *
+   * tools whose results read like instructions to an AI
+   */
+  flagged?: Array<string> | null;
+  /**
+   * Research
+   *
+   * the research it belongs to
+   */
+  research?: number | null;
+  /**
+   * Version
+   *
+   * the version of Lens that wrote it
+   */
+  version?: string | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -15654,6 +15844,105 @@ export type Reading = {
    * syslog severity: 0 emergency to 7 debug
    */
   level?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * RecordLimits
+ */
+export type RecordLimits = {
+  /**
+   * Rounds
+   *
+   * rounds of tool calls it had (calls in one round run together)
+   */
+  rounds?: number | null;
+  /**
+   * Tool Calls
+   *
+   * tool calls it had; null: only the rounds limit them
+   */
+  tool_calls?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * RecordOptions
+ *
+ * What a question was asked with (only what it set).
+ */
+export type RecordOptions = {
+  /**
+   * Model
+   */
+  model?: string | null;
+  /**
+   * Tools
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   */
+  max_tool_calls?: number | null;
+  /**
+   * Scope
+   */
+  scope?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Research
+   */
+  research?: boolean | null;
+  [key: string]: unknown;
+};
+
+/**
+ * RecordTokens
+ */
+export type RecordTokens = {
+  /**
+   * In
+   */
+  in?: number;
+  /**
+   * Out
+   */
+  out?: number;
+  [key: string]: unknown;
+};
+
+/**
+ * RecordTools
+ */
+export type RecordTools = {
+  /**
+   * Picked
+   *
+   * the tools or groups the question asked for; null: Auto
+   */
+  picked?: Array<string> | null;
+  /**
+   * Offered
+   *
+   * every tool the model was offered
+   */
+  offered?: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
+ * RecordUse
+ */
+export type RecordUse = {
+  /**
+   * Rounds
+   */
+  rounds?: number;
+  /**
+   * Tool Calls
+   */
+  tool_calls?: number;
   [key: string]: unknown;
 };
 
@@ -20959,6 +21248,18 @@ export type ToolStep = {
    * Summary
    */
   summary?: string;
+  /**
+   * Ms
+   *
+   * how long the tool took
+   */
+  ms?: number | null;
+  /**
+   * Failed
+   *
+   * the tool failed (or was unknown or blocked); its summary says why
+   */
+  failed?: boolean | null;
   [key: string]: unknown;
 };
 
@@ -38671,6 +38972,40 @@ export type SwitchVersionResponses = {
 };
 
 export type SwitchVersionResponse = SwitchVersionResponses[keyof SwitchVersionResponses];
+
+export type GetMessageData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+    /**
+     * Mid
+     */
+    mid: number;
+  };
+  query?: never;
+  url: "/api/v1/chats/{cid}/messages/{mid}";
+};
+
+export type GetMessageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetMessageError = GetMessageErrors[keyof GetMessageErrors];
+
+export type GetMessageResponses = {
+  /**
+   * Successful Response
+   */
+  200: MessageDetail;
+};
+
+export type GetMessageResponse = GetMessageResponses[keyof GetMessageResponses];
 
 export type SendMessageData = {
   body: MessageCreate;

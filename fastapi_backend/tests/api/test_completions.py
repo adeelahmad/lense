@@ -180,6 +180,13 @@ def test_tools_the_owners_offer(client, env, cfg, llm):
     assert got["choices"][0]["message"]["content"].startswith("Dyno Therapeutics comes up on the pods [1].\n\nSources:")
     found = got["lens"]["sources"]
     assert found and {s["recording_id"] for s in found} <= {ep1, ep2}  # the search never left pods
+    record = got["lens"]["record"]  # what produced it, as a chat answer's record (no message keeps it: no tokens)
+    assert (record["outcome"], record["used"], record["tools"]) == (
+        "answered",
+        {"rounds": 1, "tool_calls": 2},
+        {"picked": ["search_transcripts"], "offered": ["search_transcripts"]},
+    )
+    assert record["scope"] == {"namespaces": ["pods"]} and "tokens" not in record
     result = next(m["content"] for m in llm.seen[1]["messages"] if m["role"] == "tool")
     assert "Dyno Therapeutics" in result and "leaves on Friday" not in result  # calls is another namespace
     assert result.startswith("<") and 'source="tool search_transcripts"' in result  # read as data (untrusted.wrap)

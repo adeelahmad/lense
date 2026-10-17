@@ -123,7 +123,13 @@ def create_chat_completion(name: str, body: ChatCompletionRequest, request: Requ
 
     def extras(done: dict[str, Any], steps: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         found = completions.sources(web, done["text"], done["refs"])
-        lens = {"namespace": name, "sources": found, "steps": steps, **({"notice": done["notice"]} if done.get("notice") else {})}
+        lens = {
+            "namespace": name,
+            "sources": found,
+            "steps": steps,
+            "record": done.get("record"),
+            **({"notice": done["notice"]} if done.get("notice") else {}),
+        }
         return found, {"citations": [s["url"] for s in found], "lens": lens}
 
     if not body.stream:

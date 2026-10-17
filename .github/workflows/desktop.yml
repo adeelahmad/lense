@@ -34,7 +34,7 @@ jobs:
     name: Check the desktop app's helper
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Check lens-app.sh
         run: |
           sh -n desktop/resources/lens-app.sh
@@ -49,7 +49,7 @@ jobs:
     permissions:
       contents: write # to attach it to the release
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref }}
       - uses: actions/setup-node@v4
