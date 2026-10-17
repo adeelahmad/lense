@@ -2530,6 +2530,7 @@ const LIMITS = [
   "ai.price_in",
   "ai.price_out",
   "ai.max_steps",
+  "ai.max_tool_calls",
   "ai.browser_steps",
   "ai.max_transcript_reads",
   "ai.compact_model",
@@ -2596,6 +2597,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
           <F ctx={ctx} id="ai.price_in" />
           <F ctx={ctx} id="ai.price_out" />
           <F ctx={ctx} id="ai.max_steps" />
+          <F ctx={ctx} id="ai.max_tool_calls" />
           <F ctx={ctx} id="ai.browser_steps" />
           <F ctx={ctx} id="ai.max_transcript_reads" />
           <F ctx={ctx} id="ai.compact_model" />

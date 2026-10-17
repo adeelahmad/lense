@@ -475,6 +475,117 @@ OWN_RESULTS = {
     "decline_approval",
 } | {t[0] for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS + AUTOMATION_TOOLS if t[4]}
 
+# built-in tools that carry what the model gives them to another host; after an answer read text from outside Lens,
+# they ask first (Toolbox.wary). The side panel's browser tools have their own guard (browser.py): the ones that act
+# on a web site are labelled as sending data out (BROWSER_OUT), and ask as browser.py says.
+SENDS_OUT: set[str] = set()
+BROWSER_OUT = {"browser_open", "browser_click", "browser_type", "browser_press"}
+
+# The groups of tools a question can be given (POST /chats/{cid}/messages `tools`; docs/assistant.md, "Choosing tools,
+# namespaces and a limit"), in the order the web app shows them, each built-in tool in one. Extensions add their own:
+# mcp:<name> for an MCP server's tools, ext:<name> for another extension's (extensions.Active.groups).
+GROUPS = {
+    "archive": {
+        "label": "Archive",
+        "tools": ["search_transcripts", "find_similar", "list_recordings", "read_transcript", "recording_outputs"],
+    },
+    "graph": {
+        "label": "Graph",
+        "tools": [
+            "find_entities",
+            "entity_mentions",
+            "entity_timeline",
+            "find_topics",
+            "topic_recordings",
+            "graph_neighbours",
+            "speaker_stats",
+            "graph_schema",
+            "graph_query",
+            "graph_related",
+            "graph_paths",
+        ],
+    },
+    "notes": {"label": "Notes", "tools": ["find_notes", "read_note", "write_note", "update_note"]},
+    "memory": {"label": "Namespace memory", "tools": [t[0] for t in MEMORY_TOOLS]},
+    "activity": {
+        "label": "Timeline and automations",
+        "tools": ["timeline", "mark_activities", "approvals", "decline_approval", "automations", "test_automation"]
+        + [t[0] for t in AUTOMATION_TOOLS],
+    },
+    "changes": {
+        "label": "Proposed changes",
+        "tools": ["suggest_topic", "propose_entity_change", "propose_topic_change", "entity_setup", "run_template"],
+    },
+    "files": {"label": "Importing files", "tools": [t[0] for t in ops_tools.FILE_TOOLS]},
+    "extensions": {"label": "Extensions and skills", "tools": [t[0] for t in AUTHOR_TOOLS] + ["use_skill"]},
+    "server": {"label": "The server", "tools": [t[0] for t in ops_tools.ADMIN_TOOLS]},
+    "browser": {"label": "Your browser", "tools": [t[0] for t in browsermod.TOOLS]},
+}
+
+
+def _effect(changes, out):
+    """What a tool does, as the tool picker labels it: asks (it waits for the person's yes), out (it sends what it's
+    given to another host) or read."""
+    return "asks" if changes else "out" if out else "read"
+
+
+def _why_missing(group, cfg):
+    """Why none of a built-in group's tools is offered to this person: in words, and the setting that would change it
+    (for admins), if one would."""
+    off = set(cfg["ai"].get("disabled_tools") or [])
+    if group == "browser" and not browsermod.enabled(cfg):
+        return "switched off by an admin", "ai.browser"
+    if group == "extensions" and not cfg["ai"].get("extensions", True):
+        return "switched off by an admin", "ai.extensions"
+    if all(t in off for t in GROUPS[group]["tools"]):
+        return "switched off by an admin", "ai.disabled_tools"
+    if group == "server":
+        return "for admins", None
+    if group == "memory":
+        return "in a conversation about one namespace whose own assistant is on", None
+    return "needs editor access to a namespace", None
+
+
+def _group(name, label, tools, why=None, setting=None):
+    return {
+        "name": name,
+        "label": label,
+        "tools": tools,
+        "asks": any(t["effect"] == "asks" for t in tools),
+        "out": any(t["out"] for t in tools),
+        "available": any(t["available"] for t in tools),
+        "why": why,
+        "setting": setting,
+    }
+
+
+def catalog(box):
+    """The tool groups a question can be given, for the person `box` is for (GET /chats/tools): the built-in ones, then
+    their extensions'. Each has its label and its tools: what each does (read, asks first or out: sends data to
+    another host), whether it sends data out, and whether this person has it now. A group with none has why, and the
+    setting that changes it. The browser's tools count as there while an admin allows them: a question has them while
+    the browser's Lens side panel it's asked from is connected."""
+    offered = {s["function"]["name"] for s in box.specs()}
+    off = set(box.cfg["ai"].get("disabled_tools") or [])
+    if browsermod.enabled(box.cfg):
+        offered |= {t for t in GROUPS["browser"]["tools"] if t not in off}
+    built = {t[0]: t[4] for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS + AUTOMATION_TOOLS}
+    out = []
+    for name, g in GROUPS.items():
+        tools = []
+        for t in g["tools"]:
+            sends = t in SENDS_OUT or t in BROWSER_OUT
+            tools.append({"name": t, "effect": _effect(built.get(t, False), sends), "out": sends, "available": t in offered})
+        out.append(_group(name, g["label"], tools, *(() if any(t["available"] for t in tools) else _why_missing(name, box.cfg))))
+    for name, g in box.ext.groups.items() if box.ext else ():
+        tools = []
+        for t in g["tools"]:
+            spec = box.ext.tools[t]["spec"]
+            sends = extensions.sends_out(spec)
+            tools.append({"name": t, "effect": _effect(spec["effect"] == "change", sends), "out": sends, "available": t in offered})
+        out.append(_group(name, g["label"], tools, None if any(t["available"] for t in tools) else "needs editor access to a namespace"))
+    return out
+
 
 def read_before(history, summary=None):
     """Whether earlier answers in a conversation read text from outside Lens (excerpts, or tools other than Lens's own),
@@ -496,7 +607,8 @@ class Toolbox(ops_tools.OpsTools):
     channels.Channel.acts). `browser`: the person's connected side panel (browser.py), whose browser the assistant can
     then use. `account`: the person an automation acts for, when `user` is the automation itself (automation:<id>,
     the by of what it writes): their approvals, extensions, view of the timeline and marks on it; `origin` ({automation, run,
-    node}) is kept on the approvals it asks for."""
+    node}) is kept on the approvals it asks for. `only`: the groups (GROUPS, an extension's mcp:<name> or ext:<name>)
+    and tools the question was given (None: every tool this person may use; an admin's switch still wins)."""
 
     def __init__(
         self,
@@ -516,8 +628,10 @@ class Toolbox(ops_tools.OpsTools):
         act_on=(),
         account=None,
         origin=None,
+        only=None,
     ):
         self.db, self.cfg, self.user, self.chat, self.said = db, cfg, user, chat_id, said
+        self.only = None if only is None else set(only)
         self.account, self.origin = user["id"] if account is None else account, origin
         # where this answer has read text from outside Lens so far (`outside`: before any tool ran, such as the page it
         # was asked from or a chat room's message): once it has, tools that send data out of Lens or change the server
@@ -622,14 +736,30 @@ class Toolbox(ops_tools.OpsTools):
             tools += browsermod.TOOLS
         if self.ext:
             tools += self.ext.tool_specs(can_act or self.admin)
+        keep = self.chosen()
         return [
             {
                 "type": "function",
                 "function": {"name": n, "description": d, "parameters": {"type": "object", "properties": p, "required": req}},
             }
             for n, d, p, req, _ in tools
-            if n not in off
+            if n not in off and (keep is None or n in keep)
         ]
+
+    def chosen(self):
+        """The tool names `only` keeps (None: every tool): the tools it names, and those of the groups it names."""
+        if self.only is None:
+            return None
+        groups = self.ext.groups if self.ext else {}
+        out = set()
+        for n in self.only:
+            out |= set(GROUPS[n]["tools"] if n in GROUPS else groups[n]["tools"] if n in groups else [n])
+        return out
+
+    def unknown(self, names):
+        """The names in a choice of tools that are no group or tool this person has (built-in, or of their extensions)."""
+        known = builtin_names() | set(GROUPS) | set(self.ext.groups if self.ext else ()) | set(self.ext.tools if self.ext else ())
+        return [n for n in names if n not in known]
 
     def ref(self, rid, t0, text, speaker=None, title=None, source="said", page=None):
         self.refs.append(
