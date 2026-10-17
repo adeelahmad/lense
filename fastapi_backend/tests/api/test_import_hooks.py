@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.domain import convert, import_hooks, store, uploads
+from app.domain import auth, convert, import_hooks, store, uploads
 from tests.helpers import login, make_user, text_pdf, write_wav
 
 R = store.R
@@ -150,3 +150,90 @@ def test_size_limit_and_collection(client, env, db, cfg, monkeypatch):
     monkeypatch.setattr(uploads, "MB", 1)  # files up to 4096 bytes
     r = client.post(f"{PUSH}?filename=other.wav", headers=_bearer(token), content=b"RIFF" + b"\0" * 5000)
     assert r.status_code == 413
+
+
+def _api_token(client, h, scope="write"):
+    r = client.post("/api/v1/tokens", headers=h, json={"name": "Web clipper", "scope": scope})
+    assert r.status_code == 200, r.text
+    return r.json()["token"]
+
+
+def test_people_push_with_their_own_token(client, env, db):
+    """The web clipper (or an agent) with a person's API token, an app's token or the web app's session: the namespace
+    is named, or the only one they can import into; it's audited as theirs."""
+    he, ho = env["he"], env["ho"]
+    key = _api_token(client, he)
+    h = _bearer(key)
+
+    # where it goes, without importing anything
+    got = client.get(PUSH, headers=h).json()
+    assert (got["kind"], got["email"], got["namespace"], got["namespaces"], got["write"]) == ("person", "ed@x.io", "pods", ["pods"], True)
+    hook = _hook(client, ho)["token"]
+    got = client.get(PUSH, headers=_bearer(hook)).json()
+    assert (got["kind"], got["hook"], got["namespace"]) == ("hook", "Scanner", "pods")
+
+    # their only namespace without ?namespace=, or the one named
+    r = client.post(PUSH, headers=h, json={"text": "Clipped from the harbour blog.", "title": "Harbour blog"})
+    assert r.status_code == 202, r.text
+    assert r.json()["namespace"] == "pods" and r.json()["items"][0]["kind"] == "text"
+    r = client.post(f"{PUSH}?namespace=pods", headers=h, files=[("file", ("tide.srt", SRT.encode(), "application/x-subrip"))])
+    assert r.status_code == 202, r.text
+    rid = r.json()["items"][0]["recording"]
+    assert db.one("SELECT path FROM $r", r=R("recording", rid))["path"] == "upload:tide.srt"
+    assert client.post(PUSH, headers=env["he"], json={"text": "From the web app's own session."}).status_code == 202
+
+    # audited as the person, not as a hook
+    by = db.rows("SELECT account, email, detail FROM audit_log WHERE action = 'import.push'")
+    assert len(by) == 3 and {b["email"] for b in by} == {"ed@x.io"} and by[0]["detail"]["namespace"] == "pods"
+
+    # with a choice of namespaces, it has to be named; one they can't import into is refused
+    store.ns_id(db, "calls")
+    store.ns_id(db, "quiet")
+    uid = db.values("SELECT VALUE record::id(id) FROM account WHERE email = 'ed@x.io'")[0]
+    auth.set_role(db, uid, store.ns_id(db, "calls"), "editor")
+    auth.set_role(db, uid, store.ns_id(db, "quiet"), "viewer")
+    assert client.get(PUSH, headers=h).json()["namespaces"] == ["calls", "pods"]
+    r = client.post(PUSH, headers=h, json={"text": "Which one?"})
+    assert r.status_code == 400 and "calls, pods" in r.json()["detail"]
+    assert client.post(f"{PUSH}?namespace=calls", headers=h, json={"text": "Into calls."}).json()["namespace"] == "calls"
+    assert client.post(f"{PUSH}?namespace=quiet", headers=h, json={"text": "x"}).status_code == 403
+    assert client.post(f"{PUSH}?namespace=nowhere", headers=h, json={"text": "x"}).status_code == 404
+
+    # a hook's token goes only into its own namespace
+    assert client.post(f"{PUSH}?namespace=calls", headers=_bearer(hook), json={"text": "x"}).status_code == 400
+
+    # read-only keys can't push; a person's token never goes in the address
+    ro = _bearer(_api_token(client, he, "read"))
+    assert client.get(PUSH, headers=ro).json()["write"] is False
+    r = client.post(PUSH, headers=ro, json={"text": "x"})
+    assert r.status_code == 403 and "read-only" in r.json()["detail"]
+    r = client.post(f"{PUSH}/{key}", json={"text": "x"})
+    assert r.status_code == 401 and "Authorization" in r.json()["detail"]
+
+
+def test_unknown_tokens_say_which_kind(client, env):
+    for token, says in [
+        (None, "import webhook token (lih_...) or your own API token"),
+        ("lih_" + "a" * 32, "import webhook token"),
+        ("la_" + "a" * 32, "API token"),
+        ("lo_" + "a" * 32, "sign in again"),
+        ("t", "sign in again"),
+    ]:
+        h = _bearer(token) if token else {}
+        for r in (client.get(PUSH, headers=h), client.post(PUSH, headers=h, json={"text": "x"})):
+            assert r.status_code == 401 and says in r.json()["detail"], (token, r.text)
+
+
+def test_the_clipper_signed_in_as_the_person(client, env):
+    """The web clipper's sign-in is an OAuth app's token (docs/web-clipper.md): with the write scope it pushes into the
+    person's namespace; a read-only app's can't."""
+    from tests.api.test_oauth import _bearer as app_bearer
+    from tests.api.test_oauth import _grant
+
+    _, tokens = _grant(client, env["he"], scope="read write")
+    h = app_bearer(tokens)
+    assert client.get(PUSH, headers=h).json()["namespaces"] == ["pods"]
+    r = client.post(f"{PUSH}?namespace=pods", headers=h, json={"text": "Clipped while signed in.", "title": "Signed in"})
+    assert r.status_code == 202, r.text
+    _, read_only = _grant(client, env["he"], scope="read")
+    assert client.post(PUSH, headers=app_bearer(read_only), json={"text": "x"}).status_code == 403

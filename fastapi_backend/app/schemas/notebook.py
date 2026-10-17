@@ -154,6 +154,27 @@ class NoteToday(RequestModel):
     date: str | None = Field(None, description="YYYY-MM-DD, your today (default: the server's)")
 
 
+class NoteTemplate(ResponseModel):
+    id: int
+    title: str
+    summary: str | None = None
+
+
+class NoteTemplates(ResponseModel):
+    namespace: str
+    root: int | None = Field(None, description='the "Templates" note: each note inside it is a template; null until made')
+    templates: list[NoteTemplate]
+
+
+class NoteTemplatesCreate(RequestModel):
+    ns: str = Field(description="the namespace whose Templates note to make")
+
+
+class NoteCopy(RequestModel):
+    title: str | None = Field(None, min_length=1, max_length=200, description="its title (default: the page's)")
+    parent: int | None = Field(None, description="put it inside this page (default: the top)")
+
+
 class NotePageMove(RequestModel):
     parent: int | None = Field(None, description="the page to put it inside; null for the top")
     before: int | None = Field(None, description="put it before this sibling; null for the end")

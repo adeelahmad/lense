@@ -31,7 +31,7 @@ it shows in both entities' histories.
 | --- | --- |
 | `version` | The graph's version after this change. |
 | `at` | When. |
-| `op` | What happened: `entity.rename`, `entity.describe`, `entity.retype`, `entity.hide`, `entity.show`, `entity.define`, `entity.undefine`, `entity.aliases`, `entity.delete`, `entity.merge`, `entity.unmerge`, `link.add`, `link.remove`, `distinct.add`, `mention.move`, `mention.remove`, `merge.apply`, `link.apply`, `merge.accept`, `link.accept`, `merge.dismiss`, `merge.undo`, `link.undo`, `analysis`. |
+| `op` | What happened: `entity.rename`, `entity.describe`, `entity.retype`, `entity.typed` (an upgrade gave old Terms a type), `entity.hide`, `entity.show`, `entity.define`, `entity.undefine`, `entity.aliases`, `entity.delete`, `entity.merge`, `entity.unmerge`, `link.add`, `link.remove`, `distinct.add`, `mention.move`, `mention.remove`, `merge.apply`, `link.apply`, `merge.accept`, `link.accept`, `merge.dismiss`, `merge.undo`, `link.undo`, `analysis`. |
 | `actor` | Who: the person's email, `routine:<id>`, `analysis`, or `system`. |
 | `via` | Through what: `web`, `token` (an API token), `oauth` (an app), `assistant`, `mcp`, `routine`, `workflow`, `analysis`, `cli`, `system`. |
 | `why` | The reason given: a graph change's reason, the model's verdict, why an entity was hidden. |
