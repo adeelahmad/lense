@@ -31233,6 +31233,107 @@
           }
         }
       }
+    },
+    "/api/v1/resources/{rid}/spec": {
+      "post": {
+        "tags": [
+          "specs"
+        ],
+        "summary": "Write Spec",
+        "description": "Write a technical spec from this asset's transcript as a note linked to it, in the background: every named\ndecision, every no and every \"not that, this\", every constraint, in the speaker's own words with when they said\nthem, and the gaps they left to decide later, flagged. It's written with the Spec from transcript prompt template\n(edited on the Templates page), or `template`; writing it again updates the same note, whose history keeps what it\nsaid before. It runs after what the asset's job still has to do. Needs the right to process the asset and a\nlanguage model (400 without one, or with no text and none on the way). Audited as `spec.write`.",
+        "operationId": "write_spec",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SpecWrite"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobQueued"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "specs"
+        ],
+        "summary": "Get Spec",
+        "description": "What there is of this asset's spec: its note and what it holds when it's written, the job writing it, or why\nthe last one failed; and the template it was (or would be) written with.",
+        "operationId": "get_spec",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Spec"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -33135,6 +33236,18 @@
             ],
             "title": "Batch",
             "description": "the batch run started, for run_template"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job",
+            "description": "the job started, for write_spec"
           },
           "error": {
             "anyOf": [
@@ -68011,6 +68124,214 @@
           "score"
         ],
         "title": "SpeakerSuggestion"
+      },
+      "Spec": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "none",
+              "writing",
+              "ready",
+              "failed"
+            ],
+            "title": "Status",
+            "description": "ready: written (note); writing: a job is on it (job); failed: the last job to write it failed (error)"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "the note it was written to (/notes/{id})"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job",
+            "description": "the latest job that was to write it"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "written_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Written At"
+          },
+          "template": {
+            "type": "integer",
+            "title": "Template",
+            "description": "the prompt template it was written with, else the one it would be"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "decisions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decisions"
+          },
+          "rejected": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejected",
+            "description": "each no, and each 'not that, this'"
+          },
+          "constraints": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Constraints"
+          },
+          "gaps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gaps",
+            "description": "what the speaker left to decide later"
+          },
+          "not_found": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Found",
+            "description": "quotes that aren't in the transcript word for word (marked so in the note)"
+          },
+          "cut": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cut",
+            "description": "the transcript was longer than the model is given (llm.max_chars)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "status",
+          "template"
+        ],
+        "title": "Spec"
+      },
+      "SpecWrite": {
+        "properties": {
+          "template": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template",
+            "description": "another prompt template to write it with (default: Spec from transcript)"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "that template's version (default: its current one)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SpecWrite"
       },
       "SpeechTestResult": {
         "properties": {
