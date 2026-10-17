@@ -61,6 +61,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   fixed, by rules, on English lines. Every changed line is in Change history with Revert, and lines someone corrected
   are left alone. Reprocess, pipelines, `POST /api/v1/recordings/<id>/reprocess` and `lens clean` run it
   ([Cleaning up transcripts](docs/processing.md#cleaning-up-transcripts)).
+- **Describe pictures on this machine with Moondream.** Settings → LLM provider → Describing pictures can also have
+  M87 Labs' Moondream caption each page and shot (`llm.describe_engine` `moondream`), through transformers and
+  PyTorch, so no picture leaves the machine: Moondream 3 Preview (`llm.moondream_model` `moondream3-preview`, about
+  19 GB, an NVIDIA GPU or a Mac with 32 GB; BSL 1.1, not open source) or Moondream 2 (`moondream2`, Apache-2.0, about
+  3.7 GB, on a CPU, slowly). It's fetched, pinned to a revision, the first time a job waits to describe something, and
+  only where the chosen one can run; elsewhere the step says why. Agents choose it with `set_picture_descriptions`
+  ([Descriptions](docs/configuration.md#descriptions)).
 - **Describe pictures on this machine with Florence-2.** Settings → LLM provider → Describing pictures can now have
   Microsoft's Florence-2 (MIT) describe each page and shot instead of the provider's model that can see images
   (`llm.describe_engine` `florence-2`). It runs on the CPU through ONNX Runtime, so no picture leaves the machine and

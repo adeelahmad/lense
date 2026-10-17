@@ -57,6 +57,7 @@ from app.domain import (
     integrations,
     library,
     monitoring,
+    moondream,
     notebook,
     nsfw,
     rdf,
@@ -2289,7 +2290,8 @@ def read_file(ctx: Context, path: str, offset: int) -> dict[str, Any]:
     "picture_descriptions",
     "Describing pictures",
     "What describes the pages of documents and images and the shots of videos (the describe step; search finds what "
-    "it says): the LLM provider's model that can see images, or Florence-2 on this server. Its model, whether it's "
+    "it says): the LLM provider's model that can see images, or Florence-2 or Moondream on this server. Its model, "
+    "whether it's "
     "ready and why not, how many pages or shots of a resource are described at most, and the engines there are. "
     "Admins only.",
     admin=True,
@@ -2305,12 +2307,14 @@ def picture_descriptions(ctx: Context) -> dict[str, Any]:
     "Change how pictures are described",
     "Choose what describes the pages and shots of new and reprocessed resources: engine llm, the LLM provider's model "
     "that can see images (vision_model), or florence-2, Florence-2 (MIT) on this server's CPU, so no picture leaves it "
-    "(florence_model base, about 280 MB, or large, about 830 MB, fetched the first time a job needs it); and "
-    "describe_max, how many pages or shots of a resource are described at most. Admins only, with a token that has "
-    "the write scope.",
+    "(florence_model base, about 280 MB, or large, about 830 MB, fetched the first time a job needs it), or moondream, "
+    "Moondream on this server (moondream_model moondream3-preview, Moondream 3 under the BSL 1.1, not open source, "
+    "about 19 GB and a GPU; or moondream2, Apache-2.0, about 3.7 GB, on a CPU); and describe_max, how many pages or "
+    "shots of a resource are described at most. Admins only, with a token that has the write scope.",
     Arg("engine", "string", "what describes pictures", enum=tuple(descriptions.ENGINES)),
     Arg("vision_model", "string", "the LLM provider's model that can see images, for engine llm; empty for none", max_length=200),
     Arg("florence_model", "string", "Florence-2's size, for engine florence-2", enum=florence.SIZES),
+    Arg("moondream_model", "string", "which Moondream, for engine moondream", enum=tuple(moondream.MODELS)),
     Arg("describe_max", "integer", "pages or shots of a resource described at most, 1 to 1000"),
     writes=True,
     admin=True,
@@ -2320,6 +2324,7 @@ def set_picture_descriptions(
     engine: str | None = None,
     vision_model: str | None = None,
     florence_model: str | None = None,
+    moondream_model: str | None = None,
     describe_max: int | None = None,
 ) -> dict[str, Any]:
     if not ctx.user.admin:
@@ -2330,11 +2335,12 @@ def set_picture_descriptions(
         ("describe_engine", engine),
         ("vision_model", vision_model),
         ("florence_model", florence_model),
+        ("moondream_model", moondream_model),
         ("describe_max", describe_max),
     )
     changes = {k: v for k, v in given if v is not None}
     if not changes:
-        raise ToolError("say what to change: engine, vision_model, florence_model or describe_max")
+        raise ToolError("say what to change: engine, vision_model, florence_model, moondream_model or describe_max")
     settings.save(ctx.db, ctx.request.app.state.archive.base, "llm", changes, ctx.user.email)
     auth.audit(ctx.db, ctx.user.as_audit(), "settings.save", "llm", sorted(changes) + ["mcp"])
     return {"saved": changes, **descriptions.status(ctx.request.app.state.settings.current())}

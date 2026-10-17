@@ -234,16 +234,31 @@ them. Settings → LLM provider → Describing pictures chooses the model (`llm.
   280 MB; a few seconds a picture on a laptop's CPU, longer on a Raspberry Pi) or large (0.77B, about 830 MB, more
   detail and about three times slower). It says what it sees in its own words: it reads no instructions, so it isn't
   told what the picture is, and it describes, rather than transcribes, the text in it (the OCR step reads that).
+- **Moondream on this server** (`moondream`). M87 Labs' Moondream captions each picture on the worker, through
+  Hugging Face transformers and PyTorch: no picture leaves the machine and no provider is needed. Which one is
+  `llm.moondream_model`:
+    - `moondream3-preview`, Moondream 3 (Preview): 9B parameters (2B active), about 19 GB. It needs an NVIDIA GPU with
+      20 GB or more, or a Mac with 32 GB of memory: not a Raspberry Pi. Its weights and code are under the Business
+      Source License 1.1 (production use is allowed, except offering it to others in competition with M87 Labs' own),
+      which isn't an open-source licence, so Lens fetches it only when you pick it.
+    - `moondream2`, Moondream 2 (Apache-2.0): 1.9B parameters, about 3.7 GB. It runs on a CPU with about 10 GB of
+      memory, slowly: minutes a picture on four cores, against seconds for Florence-2.
+
+    PyTorch (its CPU build without an NVIDIA GPU), transformers and the weights are fetched the first time a job waits
+    to describe something ([Components](components.md)), the weights and the model's own code pinned to a revision;
+    where the chosen one can't run, nothing is fetched and the step says why. Moondream 3.1 runs only on M87 Labs'
+    Photon engine, whose kernels are licensed only under a separate agreement with them, so Lens doesn't offer it.
 
 Each page or shot is a call to the model, so a long document costs as many: `llm.describe_max` caps how many of a
 resource are described. Each call is in the [activity ledger](activity.md) (`model.chat` for the provider's model,
-`model.describe` for Florence-2, with the tokens read and written and the time it took).
+`model.describe` for Florence-2 and Moondream, with the time it took and, for Florence-2, the tokens read and written).
 
 | Setting | Default | |
 |---|---|---|
-| `llm.describe_engine` | `llm` | what describes pages and shots: `llm` (the provider's model below) or `florence-2` (on this server) |
+| `llm.describe_engine` | `llm` | what describes pages and shots: `llm` (the provider's model below), or on this server `florence-2` or `moondream` |
 | `llm.vision_model` | none | the provider's model that describes pages and shots; none (with `llm`): the describe step is skipped |
 | `llm.florence_model` | `base` | Florence-2's size: `base` or `large` |
+| `llm.moondream_model` | `moondream3-preview` | which Moondream: `moondream3-preview` (a GPU) or `moondream2` (a CPU will do) |
 | `llm.describe_max` | 50 | pages or shots of a resource described at most, 1–1000 (in order: the rest aren't) |
 
 Agents read and change these with the MCP tools `picture_descriptions` and `set_picture_descriptions` (admins).
