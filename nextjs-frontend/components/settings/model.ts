@@ -944,6 +944,15 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "ai",
+    key: "max_tool_calls",
+    label: "Most tool calls a question may ask for",
+    kind: "int",
+    hint: "The highest limit a question or a conversation can set on the tool calls of one answer.",
+    min: 1,
+    max: 500,
+  },
+  {
+    section: "ai",
     key: "browser",
     label: "Let the assistant use a connected browser",
     kind: "switch",

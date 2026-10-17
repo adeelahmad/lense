@@ -32,6 +32,7 @@ const web = (values: Record<string, unknown>) =>
         injection_check: "patterns",
         disabled_tools: [],
         max_steps: 6,
+        max_tool_calls: 50,
         browser_steps: 25,
         max_transcript_reads: 20,
         confirm_over_recordings: 100,

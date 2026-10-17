@@ -160,7 +160,8 @@ When the configured model supports function calling, chat becomes an agent.
   (`save_automation` with `enabled`) and running one now wait for the person's approval; switching one off acts at once
   ([Automations](automations.md#agents)).
 - **Limits:** everything is limited to what the person can read and to the conversation's scope, and capped by
-  `ai.max_steps` (Settings → AI assistant, Tool steps per answer; 6 by default) and `ai.max_transcript_reads`.
+  `ai.max_steps` (Settings → AI assistant, Tool steps per answer; 6 by default) and `ai.max_transcript_reads`, or by
+  the tool calls a question allows ([below](#choosing-tools-namespaces-and-a-limit)).
 - **Always an answer:** the model is told its step budget. When the steps run out, or it replies with nothing, it is
   asked once more to answer from what it found, with the tools off, and to say what it didn't get to check. A server
   that calls tools anyway gets the conversation again as plain text, without tools. That last ask is one more model
@@ -238,6 +239,59 @@ gets two more tools, for everyone who may use the assistant:
 
 Refine later: an opt-in SearXNG service in the Docker Compose file (SearXNG is AGPL, so it would stay an extra),
 prices per search for the paid providers, web access per namespace, and keeping recent results to search less.
+
+### Choosing tools, namespaces and a limit
+
+By default (Auto) an answer may use every tool the person has. A conversation, or one question, can instead pick the
+tools it may use, how many tool calls it may make, and which namespaces it reads.
+
+- **Tool groups.** `GET /api/v1/chats/tools` lists the groups and the tools in each that the person has, and why a
+  group isn't there for them:
+    - `archive` (search and read assets);
+    - `graph` (entities, topics, the knowledge graph);
+    - `web` (searching the web and reading pages, once an admin has set up a search);
+    - `notes`;
+    - `memory` (a namespace's own assistant);
+    - `activity` (the timeline, approvals and automations);
+    - `changes` (proposals that become approvals);
+    - `files` (importing files and web pages);
+    - `code` (the [code sandbox](#code-sandbox): Python and bash, once an admin turns it on);
+    - `extensions`;
+    - `server` (admins);
+    - `browser`;
+    - `mcp:<name>` and `ext:<name>`, one for each of the person's extensions.
+
+    Each tool says its `effect`: `read`, `asks` (it waits for the person's approval) or `out` (it sends data out of
+    Lens, as a web search, the browser's open, click and type, and code runs while the sandbox's network is on do). A
+    group that isn't available says why (switched off by an admin, no web search is set up, the code sandbox is off,
+    for admins, or needs editor access to a namespace) and names the setting that switches it back on (`setting`, such
+    as `ai.browser`, `web.search` or `sandbox.enabled`).
+- **Picking.** `tools` (on `POST /chats`, `PATCH /chats/<id>` or one question, `POST /chats/<id>/messages`) is a list
+  of group and tool names. The model is then offered only those tools, and a tool it calls that it wasn't offered isn't
+  run. Null is Auto. An empty list means no tools: the answer is written from a search, as when the model can't use
+  tools. A name that is no group or tool the person has is a 400. An admin's switches (`ai.disabled_tools`,
+  `ai.browser`, `ai.extensions`) still win over any pick.
+- **A limit on tool calls.** `max_tool_calls` (in the same places) caps how many tool calls one answer may make in
+  all. The model is told the budget. Calls past it get a reply saying they weren't made, and then the answer is written
+  from what was found, with outcome `limit`. With a limit, the rounds of calls may go past `ai.max_steps`, up to the
+  limit. It is a whole number from 1 to `ai.max_tool_calls` (Settings → AI assistant, Most tool calls a question may
+  ask for; 50 by default, at most 500). `GET /chats/capabilities` gives it as `max_tool_calls`.
+- **A scope for one answer.** `scope` on `POST /chats/<id>/messages` narrows that answer alone, with the same keys as
+  a conversation's scope. `{}` means everything the person can read, and a namespace they can't read is a 404. The
+  conversation keeps its own scope, and a question with a scope isn't narrowed by the
+  [namespace picker](#picking-the-namespace-for-a-conversation-over-everything).
+- **Remembered.** Each answer records what it was offered and its limits (`tools`, `limits`, `scope`), and each
+  question records the options it was asked with ([What each answer records](#what-each-answer-records)). A
+  conversation keeps its `tools` and `max_tool_calls`. The person's latest choice (the last `POST /chats` or `PATCH
+  /chats/<id>` that set them) is kept on their account, so a new conversation starts with it (`remembered` in `GET
+  /chats/tools`) unless `POST /chats` says otherwise.
+- **Web and MCP tools reach beyond your namespaces.** The namespaces picked narrow the archive's tools only. A web
+  search, an MCP server or the browser reads and sends wherever it reaches.
+
+In the web app, a Tools chip beside the composer's scope picks these (in progress).
+
+Refine later: tool choice in chat rooms and voice mode, a default choice per namespace, and the model suggesting the
+tools a question needs.
 
 ## Code sandbox
 
