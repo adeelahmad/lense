@@ -155,6 +155,34 @@ places). spaCy's other languages' models carry GPL, LGPL or Creative Commons lic
 installed by hand works. Until spaCy is there the rules find the entities and the job log says so. The workflows'
 Extract entities (rules) node uses the same extractor.
 
+**How a name gets its type.** The built-in extractor (`analysis.entities: rules`, the default) needs no model. It
+reads each name and the words around it (`app/domain/name_types.py`):
+
+- **Person:** a title (Dr Lee, President Obama) or a role before it (our CEO Maria Garcia, my colleague Tom); a
+  given name first (Sarah Johnson, Maria); a full name followed by a verb of saying (Sarah Connor said); or one of the
+  namespace's named speakers.
+- **Organisation, event, work, place:** the word it ends or starts with (Acme Corp, University of Oxford; Web Summit,
+  World Cup; Clean Air Act; Hudson River, Mount Fuji), or what it's called (a company called Lumen, an app called
+  Notion, a town called Hope).
+- **Built-in lists:** countries, regions, states and large cities (Place); well-known companies and institutions
+  (Organisation: Google, Anthropic, NASA) and products and tools (Product: ChatGPT, Kubernetes, Excel); holidays
+  (Event); days and months on their own (Date). A name with a number in it is a Product (iPhone 16).
+- **Term:** anything none of these tells, such as a single unknown word (a brand or a project). A Term can be made a
+  topic, or retyped on the Entities page (one at a time or ticked together). Names listed in Settings › Analysis ›
+  Custom vocabulary (`Name | TYPE`) always get the type given there.
+
+A name gets one type per recording, the one most of its lines give it, so "Lee" after "Dr Lee" is a person too. "And"
+no longer joins two names into one ("Kenya and Nigeria" are two places). The given names are mostly the US Census
+Bureau's frequent first names of 1990 (public domain); the other lists are written for Lens. With
+`analysis.entities: spacy`, spaCy's types are used instead, and with
+[Find places and dates](configuration.md#anytopdf) anytopdf's places join them.
+
+Older installs get the same types once, as an upgrade step (`entity-types`, [Upgrades](database.md#upgrades)) when
+they first start on this version: entities analysis left as Terms get the type these rules give them from their names
+and the lines that mention them. Types people or agents set, entities on a fixed list, hidden ones, Unknown and
+Unlabeled stay as they are. The changes are recorded in the graph's history as **Gave a type to** events, so they can
+be rolled back there.
+
 The **Entities** page in the web app lists a namespace's entities (search, type and collection filters, a Hidden tab).
 An entity's name opens its own page, `/wiki/<namespace>/<Name>`, with its notes, every line that says it and what it
 comes up with ([Entity pages](notes.md#entity-pages)); the rest of its row opens a side panel where editors rename,
