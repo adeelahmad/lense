@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Read any message aloud.** Every question and answer in a conversation has a speaker button: one click reads it
+  aloud by the speech model and voice picked in Settings → AI assistant → Voice (else the browser's own speech),
+  another stops it. One message plays at a time, long answers go in pieces under every provider's limit, and each
+  piece's audio is kept in the page, so playing it again doesn't call the model again. Each call is logged in the
+  activity ledger ([Read a message aloud](docs/assistant.md#read-a-message-aloud)).
 - **Specs from transcripts.** Turn a voice session or a meeting into a technical spec, saved as a note linked to it:
   the model writes the spec, then lists every named decision, every "no" and "not that, this", every constraint and
   every gap the speaker left to decide later, each with its quote and a link to the moment it was said; a quote the
