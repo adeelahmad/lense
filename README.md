@@ -141,7 +141,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   templates to start from, a search by their words, a download as Markdown, and Undo and Recently deleted instead of a
   confirm. Export an asset or a collection as an evidence PDF with everything Lens found about it, or the parts you
   pick. Publish a namespace's resources, episodes, timeline activities or text as a private RSS feed or a podcast
-  feed that any feed reader or podcast app follows. ([Podcasts](docs/podcasts.md),
+  feed that any feed reader or podcast app follows, and let a routine fill it on a schedule with what's new, or make
+  an episode about the week's new resources. ([Podcasts](docs/podcasts.md),
   [specs from transcripts](docs/notes.md#specs-from-transcripts), [notes](docs/notes.md),
   [evidence PDFs](docs/api.md#evidence-pdfs), [published feeds](docs/feeds.md);
   [checks](docs/requirements.md#learn-from-it))

@@ -1476,7 +1476,7 @@ properties_claimed:
     tier: security-critical
     conditions: "a published feed's address opens that feed alone, read-only, with no session; only an editor of the namespace makes one; it lists only items whose resource or activity the readers of the feed's namespace can read, never a vault's, and a namespace made a vault stops its feeds; the token is found by its hash, and rotating or deleting the feed stops the old address at once; text in an item cannot add markup to a reader"
     violation_symptoms: [info-leak]
-    x-voided-by: "the token is sealed with the server key, not only hashed, so the namespace's readers and whoever holds secret.key see the address again (domain/syndication.py token_of); anyone given the address reads the feed until it is rotated; editors choose what goes in, and a resource's title and summary show as they are now; the fit is by namespace roles (domain/syndication.py Fit), not per-asset grants"
+    x-voided-by: "the token is sealed with the server key, not only hashed, so the namespace's readers and whoever holds secret.key see the address again (domain/syndication.py token_of); anyone given the address reads the feed until it is rotated; editors choose what goes in, as does a routine (admins make them) whose workflow nodes publish what they pick, bounded the same way; a resource's title and summary show as they are now; the fit is by namespace roles (domain/syndication.py Fit), not per-asset grants"
     provenance: {kind: documented, source: 'docs/feeds.md "Private by default"'}
   - id: P-AUTH-REQ
     kind: authentication
