@@ -49,7 +49,13 @@ then.
   the chat's model does. A long stretch folded at once (`/compact`, or a conversation from before summaries) is
   written in as many calls as it takes to fit that model's context, each in the [activity ledger](activity.md) as the
   conversation's. Settings › AI assistant › Summarise long conversations (`ai.compact`, on) turns it off; off, or with
-  no model, only the last six messages are read.
+  no model, only the last six messages are read. When the model server still says a request is too long for the
+  model (its context was smaller than Lens knew), the answer is tried again rather than failed: what tools returned
+  in that answer is shortened first (each result keeps its start and end), then all but the last two messages are
+  folded into the summary now and half of the excerpts are left out; the context the server named is kept as the
+  model's, so the next conversation is summarised before it fills. In the web app, a line under the last message a
+  summary covers says how many messages it stands for (or that `/clear` stopped the model reading them), and Show
+  summary opens the summary; `GET /api/v1/chats/<id>` gives it as `summary` (`text`, `upto`, `covers`).
 - **Titles:**{#titles} a conversation nobody named is titled with its first question's words as soon as it's asked,
   then, after the first answer, the model gives it a short title of a few words from the question and the answer
   (streamed as `title` at the end of the answer's stream). It's one small call, written by **Model for summaries**
@@ -292,7 +298,7 @@ When the configured model supports function calling, chat becomes an agent.
   cited like excerpts ([below](#web-search-and-reading-pages)).
 - **Mail, calendars and files** (admins): the assistant searches and reads the mail, calendars and files connected to
   Lens in Settings → Sources, Gmail, Google Calendar, Google Drive and S3 among them, and brings what it finds into a
-  namespace once you approve ([below](#mail-calendars-and-files)).
+  namespace, sends mail, adds events and writes files, each once you approve ([below](#mail-calendars-and-files)).
 - **Lens itself:** questions about Lens rather than the archive go to `lens_help` ([below](#questions-about-lens-itself)).
 
 ### Questions about Lens itself
@@ -389,24 +395,42 @@ tools for them, only for the kinds connected, with nothing to turn on:
   (`POST /api/v1/import/source`): they stay where they are and run the namespace's pipeline. It picks the namespace
   when you don't name one, and waits for your approval, unless an admin's setup conversation acts at once and hasn't
   read outside text.
+- **`send_mail`** sends an email from a Gmail or Google Workspace connection an admin let send, or saves it as a draft
+  (`draft`): `to`, `cc` and `bcc` take addresses, comma separated, and `reply_to` a message's id from `search_mail`,
+  which keeps its thread and answers its sender with "Re:" its subject.
+- **`add_event`** adds an event to a calendar of a Google Calendar connection an admin let add events: `title`,
+  `start` and `end` (a date alone is all day; a time without an offset is in the calendar's own time zone; it lasts an
+  hour, or a day, when `end` is left out), `where`, `description`, and `attendees`, who are emailed an invitation
+  unless `invite` is false.
+- **`write_file`** writes a text file (Markdown, CSV, notes, code) to a storage connection: a new file, or one it
+  replaces when `overwrite` is true. A file that turned up after it asked isn't replaced. Google Drive connected read
+  only (its default) can't be written to.
+- **Changes wait for your yes, always:** sending, saving a draft, adding an event and writing a file each wait for your
+  approval, even in an admin's setup conversation, and the approval shows all of it first: the whole message with who
+  it goes to, the event with who is invited, the file's path and text. A Gmail or Google Calendar connection only
+  reads until an admin picks "Also sends mail and saves drafts, after your yes" or "Also adds events, after your yes"
+  under The assistant in its settings (`write` "yes") and connects the account again, since Google is then asked for
+  `gmail.compose` or `calendar.events` too. Each change is in the audit log (`mail.send`, `mail.draft`,
+  `calendar.add`, `connections.write`).
 - **Citations:** each message and event is numbered, so an answer cites [n]; the chip shows the connection and the
   subject or title and opens the message in Gmail or the event in Google Calendar. An IMAP message has no page to
   open, so it isn't numbered. The answer's header counts them ("2 emails and 1 event").
-- **Read only:** each connection reads as it is set up to: Gmail and Google Calendar with read-only access, so nothing
-  changes in the account and mail stays unread. What they hold was written by other people: the model reads it marked
-  as data, and once it has, tools that could carry it out of Lens ask first
-  ([below](#third-party-content-and-prompt-injection)).
+- **Reading changes nothing:** each connection reads as it is set up to, so reading changes nothing in the account and
+  mail stays unread. What they hold was written by other people: the model reads it marked as data, is told never to
+  send, invite or write because something it read says to, and once it has read it, tools that could carry it out of
+  Lens ask first ([below](#third-party-content-and-prompt-injection)); an approval then says so under what it would
+  send.
 - **Cost:** no model call of its own. Each search, read and listing is a row in the activity ledger (`gmail.search`,
-  `gmail.read`, `google.calendar`, `connections.list`, `connections.find`, `connections.read`), with what was called,
-  never what came back.
+  `gmail.read`, `gmail.send`, `gmail.draft`, `google.calendar`, `connections.list`, `connections.find`,
+  `connections.read`, `connections.write`), with what was called, never what came back.
 - **Agents and switches:** an agent asks the assistant (chat, or [MCP](mcp.md)'s chat tool) as an admin. Each tool can
   be switched off in Tools it may use (`ai.disabled_tools`), and a question can leave the group out
   ([below](#choosing-tools-namespaces-and-a-limit)); the tool picker says why someone has none ("for admins", or
   "nothing is connected yet").
 
-Refine later: sending mail, adding events and writing files, each after your yes; searching an IMAP mailbox on its
-server; Google Drive's full-text search; events of an iCal feed by time; and these tools for people other than admins,
-for connections an admin shares with them.
+Refine later: sending from an IMAP mailbox over SMTP; attachments on sent mail; changing or removing events and
+files; searching an IMAP mailbox on its server; Google Drive's full-text search; events of an iCal feed by time; and
+these tools for people other than admins, for connections an admin shares with them.
 
 ### Choosing tools, namespaces and a limit
 
@@ -558,8 +582,8 @@ Built: the web app, the API, MCP, chat rooms and the assistant's tools.
 Give the assistant a goal that needs many look-ups, and it comes back with a plan; once you approve it, the research
 runs in the background and a cited report comes back in the conversation.
 
-- **Asking.** Turn on the composer's Deep research switch (the telescope) and type the goal, start a question with
-  `/research` (`/research what changed in the capsid work this year?`), send it with
+- **Asking.** Turn on the composer's Deep research switch (the telescope; the cursor stays in the box) and type the
+  goal, start a question with `/research` (`/research what changed in the capsid work this year?`), send it with
   `research: true` (`POST /api/v1/chats/<id>/messages`), call `POST /api/v1/chats/<id>/research {goal}`, or ask the
   assistant for research: its `start_research` tool (the `research` [tool group](#choosing-tools-namespaces-and-a-limit))
   works from chat, voice and [chat rooms](chat-rooms.md). It needs a language model that uses tools.
@@ -626,8 +650,9 @@ runs in the background and a cited report comes back in the conversation.
   checking are two or three calls. Every call is in the activity ledger for the conversation and `research:<id>`.
 
 Refine later: sub-questions in parallel, research on a schedule, sharing a report with a namespace's members, research
-as an automation action, a report template people can edit, and the report posted back into the chat room it was
-asked in (today the room gets the plan, and the report is in the conversation in Lens).
+as an automation action, a report template people can edit, the report posted back into the chat room it was asked
+in (today the room gets the plan, and the report is in the conversation in Lens), and one way to read a report aloud
+(today its Read aloud and the answer's speaker button both do).
 
 ## Third-party content and prompt injection
 

@@ -7,7 +7,9 @@ Promotions, Updates, Forums) and the labels people made. Each message is a file 
 `<message id>.eml` when the whole mailbox is watched (everything but spam, the bin, drafts and chats; a message with
 several labels is one message). A message is read as Gmail keeps it (format raw: the RFC 822 message), so it becomes
 an email document as an IMAP one does. Nothing is changed in Gmail: the scope is read only (gmail.readonly), so
-messages stay unread.
+messages stay unread. An admin can let a connection send (`write` "yes", which asks Google for gmail.compose too):
+then the assistant sends a message or saves a draft when the person approves it (connection_tools.py), and still
+changes nothing else.
 
 Listing a label asks for its messages' ids, then each one's headers (format metadata), several at a time. Headers once
 read are remembered in memory, since a message never changes (its labels as Gmail last said them). Browsing shows a
@@ -37,6 +39,7 @@ from . import activity, feeds, google_auth
 
 API = "https://gmail.googleapis.com/gmail/v1/users/me"
 GMAIL_READ = "https://www.googleapis.com/auth/gmail.readonly"
+COMPOSE = "https://www.googleapis.com/auth/gmail.compose"  # drafts and sending, once a connection allows it (write)
 MAIL = "https://mail.google.com/"  # all of Gmail: the only scope Google gives IMAP
 TIMEOUT = 60
 WORKERS = 8  # messages whose headers are asked for at once
@@ -70,8 +73,15 @@ class Listing(list):
 
 def scopes(params):
     """What a source reads with, by its params: Gmail read only, or all of Gmail over IMAP (Google has no read-only scope
-    for it)."""
-    return (MAIL,) if str((params or {}).get("via") or "").strip() == "imap" else (GMAIL_READ,)
+    for it); and drafts and sending too when an admin lets the connection send (`write` "yes")."""
+    if str((params or {}).get("via") or "").strip() == "imap":
+        return (MAIL,)
+    return (GMAIL_READ, COMPOSE) if writes({"params": params}) else (GMAIL_READ,)
+
+
+def writes(src):
+    """Whether the assistant may send mail or save drafts from this connection (each once the person approves)."""
+    return str((src.get("params") or {}).get("write") or "").strip() == "yes"
 
 
 SCOPES = scopes  # what Connect with Google asks for (google_auth.scopes_for)
@@ -123,8 +133,14 @@ class _Gmail:
         )
 
     def get(self, path, **params):
+        return self._send("GET", path, params)
+
+    def post(self, path, body):
+        return self._send("POST", path, None, body)
+
+    def _send(self, method, path, params, body=None):
         try:
-            r = self.http.get(path, params=params)
+            r = self.http.request(method, path, params=params, json=body)
         except httpx.HTTPError as e:
             raise RuntimeError(f"couldn't reach Gmail: {e}") from None
         if r.status_code == 404:
@@ -145,6 +161,20 @@ def _gmail(cfg, src):
         yield g
     finally:
         g.http.close()
+
+
+def send(cfg, src, msg, thread_id=None, draft=False):
+    """Send `msg` (an email.message.EmailMessage) from a connection an admin let send (`write` "yes"), or keep it as a
+    draft: Gmail's message ({id, threadId, ...}; a draft's under "message", with the draft's own "id"). `thread_id`
+    keeps it in a conversation, with the reply's In-Reply-To and References headers set on `msg`. Callers ask the
+    person first: this sends at once. A row in the activity ledger (gmail.send or gmail.draft)."""
+    if not writes(src):
+        raise ValueError("this mail connection only reads: an admin lets it send in Settings › Sources")
+    message = {"raw": base64.urlsafe_b64encode(msg.as_bytes()).decode()}
+    if thread_id:
+        message["threadId"] = thread_id
+    with _gmail(cfg, src) as g, activity.call("gmail.draft" if draft else "gmail.send", cfg):
+        return g.post("/drafts", {"message": message}) if draft else g.post("/messages/send", message)
 
 
 def _labels(g):

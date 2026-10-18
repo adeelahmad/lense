@@ -14,7 +14,7 @@ import urllib.parse
 
 import pytest
 
-from app.domain import ai_tools, components, convert, netguard, settings, store, web
+from app.domain import ai_tools, components, connection_tools, convert, netguard, settings, store, web
 from tests import fake_llm
 from tests.api._assist import Assist, sse, start_llm
 from tests.helpers import text_pdf
@@ -178,7 +178,7 @@ def test_off_by_default_so_the_assistant_has_no_web_tools(app, db, cfg, folder, 
     cfg["web"]["search"] = "duckduckgo"
     box = _box(db, cfg, s)
     assert _names(box) >= web.NAMES and "web_search" in box.system_note()
-    assert web.NAMES <= ai_tools.builtin_names() and ai_tools.SENDS_OUT == web.NAMES
+    assert web.NAMES <= ai_tools.builtin_names() and ai_tools.SENDS_OUT == web.NAMES | connection_tools.SENDS
     cfg["ai"]["disabled_tools"] = ["web_read"]
     assert "web_search" in _names(_box(db, cfg, s)) and "web_read" not in _names(_box(db, cfg, s))
 
