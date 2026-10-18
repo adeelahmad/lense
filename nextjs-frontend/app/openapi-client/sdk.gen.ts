@@ -102,6 +102,9 @@ import type {
   ChangePasswordResponses,
   ChatCapabilitiesData,
   ChatCapabilitiesResponses,
+  ChatToolsData,
+  ChatToolsErrors,
+  ChatToolsResponses,
   CheckComponentsData,
   CheckComponentsResponses,
   CheckManifestData,
@@ -112,9 +115,12 @@ import type {
   CheckMessageResponses,
   CheckUpdatesData,
   CheckUpdatesResponses,
+  ClassifyData,
+  ClassifyErrors,
   ClassifyNamespaceNsfwData,
   ClassifyNamespaceNsfwErrors,
   ClassifyNamespaceNsfwResponses,
+  ClassifyResponses,
   ClearEntitySetupData,
   ClearEntitySetupErrors,
   ClearEntitySetupResponses,
@@ -142,6 +148,9 @@ import type {
   ControlWorkerData,
   ControlWorkerErrors,
   ControlWorkerResponses,
+  CopyPageData,
+  CopyPageErrors,
+  CopyPageResponses,
   CountApprovalsData,
   CountApprovalsResponses,
   CreateAutomationData,
@@ -418,6 +427,9 @@ import type {
   DownloadBackupData,
   DownloadBackupErrors,
   DownloadBackupResponses,
+  DownloadChatFileData,
+  DownloadChatFileErrors,
+  DownloadChatFileResponses,
   DownloadFileData,
   DownloadFileErrors,
   DownloadFileResponses,
@@ -448,6 +460,12 @@ import type {
   ExportBatchResultsData,
   ExportBatchResultsErrors,
   ExportBatchResultsResponses,
+  ExportChatData,
+  ExportChatErrors,
+  ExportChatResponses,
+  ExportNotesData,
+  ExportNotesErrors,
+  ExportNotesResponses,
   ExportRecordingData,
   ExportRecordingErrors,
   ExportRecordingResponses,
@@ -659,6 +677,9 @@ import type {
   GetRecordingWordcloudData,
   GetRecordingWordcloudErrors,
   GetRecordingWordcloudResponses,
+  GetResearchData,
+  GetResearchErrors,
+  GetResearchResponses,
   GetResourceFieldsData,
   GetResourceFieldsErrors,
   GetResourceFieldsResponses,
@@ -671,6 +692,8 @@ import type {
   GetRunData,
   GetRunErrors,
   GetRunResponses,
+  GetSandboxGatewayData,
+  GetSandboxGatewayResponses,
   GetSensorData,
   GetSensorErrors,
   GetSensorResponses,
@@ -681,6 +704,9 @@ import type {
   GetSettingsResponses,
   GetSetupData,
   GetSetupResponses,
+  GetSpecData,
+  GetSpecErrors,
+  GetSpecResponses,
   GetTemplateData,
   GetTemplateErrors,
   GetTemplateResponses,
@@ -771,6 +797,8 @@ import type {
   ImportNamespaceRdfData,
   ImportNamespaceRdfErrors,
   ImportNamespaceRdfResponses,
+  ImportTargetData,
+  ImportTargetResponses,
   ImportTranscriptData,
   ImportTranscriptErrors,
   ImportTranscriptResponses,
@@ -856,6 +884,9 @@ import type {
   ListCustomNodesData,
   ListCustomNodesErrors,
   ListCustomNodesResponses,
+  ListDatesData,
+  ListDatesErrors,
+  ListDatesResponses,
   ListEntitiesData,
   ListEntitiesErrors,
   ListEntitiesResponses,
@@ -975,6 +1006,9 @@ import type {
   ListRecordingsData,
   ListRecordingsErrors,
   ListRecordingsResponses,
+  ListResearchData,
+  ListResearchErrors,
+  ListResearchResponses,
   ListRolesData,
   ListRolesResponses,
   ListRoutinesData,
@@ -1010,7 +1044,10 @@ import type {
   ListTagsData,
   ListTagsErrors,
   ListTagsResponses,
+  ListTemplates2Data,
+  ListTemplates2Responses,
   ListTemplatesData,
+  ListTemplatesErrors,
   ListTemplatesResponses,
   ListTokensData,
   ListTokensResponses,
@@ -1125,9 +1162,17 @@ import type {
   PageHistoryData,
   PageHistoryErrors,
   PageHistoryResponses,
+  PageMarkdownData,
+  PageMarkdownErrors,
+  PageMarkdownResponses,
   PageVersionData,
   PageVersionErrors,
   PageVersionResponses,
+  PasskeyAddressesData,
+  PasskeyAddressesResponses,
+  PasskeyElsewhereData,
+  PasskeyElsewhereErrors,
+  PasskeyElsewhereResponses,
   PasskeyLoginData,
   PasskeyLoginErrors,
   PasskeyLoginResponses,
@@ -1283,6 +1328,12 @@ import type {
   RequestAccessData,
   RequestAccessErrors,
   RequestAccessResponses,
+  ResearchNoteData,
+  ResearchNoteErrors,
+  ResearchNoteResponses,
+  ResearchPodcastData,
+  ResearchPodcastErrors,
+  ResearchPodcastResponses,
   ResetPasswordData,
   ResetPasswordErrors,
   ResetPasswordResponses,
@@ -1307,6 +1358,9 @@ import type {
   RestoreVersionData,
   RestoreVersionErrors,
   RestoreVersionResponses,
+  ResumeResearchData,
+  ResumeResearchErrors,
+  ResumeResearchResponses,
   RetagRecordingsData,
   RetagRecordingsErrors,
   RetagRecordingsResponses,
@@ -1321,6 +1375,9 @@ import type {
   RevertMetadataEditResponses,
   ReviewNewData,
   ReviewNewResponses,
+  ReviseResearchData,
+  ReviseResearchErrors,
+  ReviseResearchResponses,
   RevokeAnyTokenData,
   RevokeAnyTokenErrors,
   RevokeAnyTokenResponses,
@@ -1448,6 +1505,9 @@ import type {
   SetRecordingContentTypeData,
   SetRecordingContentTypeErrors,
   SetRecordingContentTypeResponses,
+  SetSandboxGatewayData,
+  SetSandboxGatewayErrors,
+  SetSandboxGatewayResponses,
   SetServiceData,
   SetServiceErrors,
   SetServiceResponses,
@@ -1485,6 +1545,9 @@ import type {
   StartRcloneSigninData,
   StartRcloneSigninErrors,
   StartRcloneSigninResponses,
+  StartResearchData,
+  StartResearchErrors,
+  StartResearchResponses,
   StartUpgradeData,
   StartUpgradeErrors,
   StartUpgradeResponses,
@@ -1496,6 +1559,9 @@ import type {
   StopAnswerData,
   StopAnswerErrors,
   StopAnswerResponses,
+  StopResearchData,
+  StopResearchErrors,
+  StopResearchResponses,
   StreamEventsData,
   StreamEventsErrors,
   StreamEventsResponses,
@@ -1521,6 +1587,9 @@ import type {
   TelegramStatusResponses,
   TelemetryStatusData,
   TelemetryStatusResponses,
+  TemplatesNoteData,
+  TemplatesNoteErrors,
+  TemplatesNoteResponses,
   TestAnalyticsData,
   TestAnalyticsResponses,
   TestAutomationData,
@@ -1544,6 +1613,7 @@ import type {
   TestFileStoreErrors,
   TestFileStoreResponses,
   TestLlmData,
+  TestLlmErrors,
   TestLlmResponses,
   TestLogsData,
   TestLogsResponses,
@@ -1571,6 +1641,9 @@ import type {
   TestTelemetryResponses,
   TestTikaData,
   TestTikaResponses,
+  TitleChatData,
+  TitleChatErrors,
+  TitleChatResponses,
   TodayPageData,
   TodayPageErrors,
   TodayPageResponses,
@@ -1770,6 +1843,9 @@ import type {
   VaultOptionsResponses,
   VoiceInfoData,
   VoiceInfoResponses,
+  WriteSpecData,
+  WriteSpecErrors,
+  WriteSpecResponses,
 } from "./types.gen";
 
 export type Options<
@@ -2234,6 +2310,41 @@ export class Auth {
   ): RequestResult<RenamePasskeyResponses, RenamePasskeyErrors, ThrowOnError> {
     return (options.client ?? client).patch<RenamePasskeyResponses, RenamePasskeyErrors, ThrowOnError>({
       url: "/api/v1/auth/passkeys/{pid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Passkey Addresses
+   *
+   * The other https:// addresses Lens opens at (Settings › Remote access and HTTPS), and whether you have a passkey
+   * for each: a passkey works only on the address it was made at.
+   */
+  public static passkeyAddresses<ThrowOnError extends boolean = false>(
+    options?: Options<PasskeyAddressesData, ThrowOnError>,
+  ): RequestResult<PasskeyAddressesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<PasskeyAddressesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/auth/passkeys/elsewhere",
+      ...options,
+    });
+  }
+
+  /**
+   * Passkey Elsewhere
+   *
+   * A sign-in link of your own at another address Lens opens at, to sign in there and add a passkey for it, with no
+   * email and no admin. It lasts 15 minutes and works once; links others have are left alone. For people signed in
+   * themselves, not API tokens or apps. Audited as `passkey.elsewhere`.
+   */
+  public static passkeyElsewhere<ThrowOnError extends boolean = false>(
+    options: Options<PasskeyElsewhereData, ThrowOnError>,
+  ): RequestResult<PasskeyElsewhereResponses, PasskeyElsewhereErrors, ThrowOnError> {
+    return (options.client ?? client).post<PasskeyElsewhereResponses, PasskeyElsewhereErrors, ThrowOnError>({
+      url: "/api/v1/auth/passkeys/elsewhere",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -2842,14 +2953,19 @@ export class Admin {
   /**
    * Test Llm
    *
-   * Ask the configured model for one word, to check the address, key and model name.
+   * Ask the model for one word, to check the address, key and model name: what is given (typed, not saved yet),
+   * else what is saved.
    */
   public static testLlm<ThrowOnError extends boolean = false>(
     options?: Options<TestLlmData, ThrowOnError>,
-  ): RequestResult<TestLlmResponses, unknown, ThrowOnError> {
-    return (options?.client ?? client).post<TestLlmResponses, unknown, ThrowOnError>({
+  ): RequestResult<TestLlmResponses, TestLlmErrors, ThrowOnError> {
+    return (options?.client ?? client).post<TestLlmResponses, TestLlmErrors, ThrowOnError>({
       url: "/api/v1/settings/llm/test",
       ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
     });
   }
 
@@ -3713,6 +3829,40 @@ export class Updates {
   ): RequestResult<SetServiceResponses, SetServiceErrors, ThrowOnError> {
     return (options.client ?? client).put<SetServiceResponses, SetServiceErrors, ThrowOnError>({
       url: "/api/v1/admin/services/{profile}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Sandbox Gateway
+   *
+   * Whether the code sandbox's OpenShell gateway runs next to Lens (the sandbox profile), how the machine's last
+   * change went, what stands in the way here, and whether Lens reaches the gateway at sandbox.gateway.
+   */
+  public static getSandboxGateway<ThrowOnError extends boolean = false>(
+    options?: Options<GetSandboxGatewayData, ThrowOnError>,
+  ): RequestResult<GetSandboxGatewayResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetSandboxGatewayResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/sandbox",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Sandbox Gateway
+   *
+   * Have this machine start or stop the code sandbox's gateway. On also turns the sandbox on, at that gateway; off
+   * deletes the conversations' sandboxes first and turns the sandbox off. GET /admin/sandbox follows along.
+   */
+  public static setSandboxGateway<ThrowOnError extends boolean = false>(
+    options: Options<SetSandboxGatewayData, ThrowOnError>,
+  ): RequestResult<SetSandboxGatewayResponses, SetSandboxGatewayErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetSandboxGatewayResponses, SetSandboxGatewayErrors, ThrowOnError>({
+      url: "/api/v1/admin/sandbox",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -5913,6 +6063,40 @@ export class Notes {
   }
 
   /**
+   * List Templates
+   *
+   * The namespace's templates: the notes inside its "Templates" note, in the tree's order. Start a note from one
+   * with `POST /notes/{pid}/copy`.
+   */
+  public static listTemplates<ThrowOnError extends boolean = false>(
+    options: Options<ListTemplatesData, ThrowOnError>,
+  ): RequestResult<ListTemplatesResponses, ListTemplatesErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListTemplatesResponses, ListTemplatesErrors, ThrowOnError>({
+      url: "/api/v1/notes/templates",
+      ...options,
+    });
+  }
+
+  /**
+   * Templates Note
+   *
+   * The namespace's "Templates" note, made the first time it's asked for: each note put inside it is a template.
+   * Needs editor access.
+   */
+  public static templatesNote<ThrowOnError extends boolean = false>(
+    options: Options<TemplatesNoteData, ThrowOnError>,
+  ): RequestResult<TemplatesNoteResponses, TemplatesNoteErrors, ThrowOnError> {
+    return (options.client ?? client).post<TemplatesNoteResponses, TemplatesNoteErrors, ThrowOnError>({
+      url: "/api/v1/notes/templates",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Link Targets
    *
    * What a mention can link to, best matches first: `#` for topics; `@` for pages, assets, named people and other
@@ -5938,6 +6122,21 @@ export class Notes {
   ): RequestResult<SearchPagesResponses, SearchPagesErrors, ThrowOnError> {
     return (options?.client ?? client).get<SearchPagesResponses, SearchPagesErrors, ThrowOnError>({
       url: "/api/v1/notes/search",
+      ...options,
+    });
+  }
+
+  /**
+   * Export Notes
+   *
+   * Every page of the namespace as Markdown files in a zip, for other notes apps (Obsidian and the like): free notes
+   * in folders that follow the tree, the pages of things under "Pages of things".
+   */
+  public static exportNotes<ThrowOnError extends boolean = false>(
+    options: Options<ExportNotesData, ThrowOnError>,
+  ): RequestResult<ExportNotesResponses, ExportNotesErrors, ThrowOnError> {
+    return (options.client ?? client).get<ExportNotesResponses, ExportNotesErrors, ThrowOnError>({
+      url: "/api/v1/notes/export",
       ...options,
     });
   }
@@ -6077,6 +6276,21 @@ export class Notes {
   }
 
   /**
+   * Page Markdown
+   *
+   * The page as a Markdown file of its own: front matter with its title, date, filing and summary, then its text,
+   * with links to other pages as [[Title]] wiki links.
+   */
+  public static pageMarkdown<ThrowOnError extends boolean = false>(
+    options: Options<PageMarkdownData, ThrowOnError>,
+  ): RequestResult<PageMarkdownResponses, PageMarkdownErrors, ThrowOnError> {
+    return (options.client ?? client).get<PageMarkdownResponses, PageMarkdownErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/markdown",
+      ...options,
+    });
+  }
+
+  /**
    * Page History
    *
    * What the page was before each change to its title, summary or text, newest first.
@@ -6128,6 +6342,25 @@ export class Notes {
   ): RequestResult<MovePageResponses, MovePageErrors, ThrowOnError> {
     return (options.client ?? client).post<MovePageResponses, MovePageErrors, ThrowOnError>({
       url: "/api/v1/notes/{pid}/move",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Copy Page
+   *
+   * A new free note with this page's text, drawings, files, filing and view: a note started from a template, or a
+   * copy. Titled `title` (default the page's), inside `parent` (default the top). Needs editor access.
+   */
+  public static copyPage<ThrowOnError extends boolean = false>(
+    options: Options<CopyPageData, ThrowOnError>,
+  ): RequestResult<CopyPageResponses, CopyPageErrors, ThrowOnError> {
+    return (options.client ?? client).post<CopyPageResponses, CopyPageErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/copy",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -7028,6 +7261,28 @@ export class Search {
       },
     });
   }
+
+  /**
+   * Classify
+   *
+   * Which label fits an asset (or a text) best, how sure that is, and every label ranked: the labels given, Lens's
+   * content types (of the asset's kind) or the namespace's topics. The decision model answers when it's set up
+   * (Settings → AI assistant), else the language model; the call is in the activity ledger. With `apply` (editors), a
+   * sure answer is acted on: the content type is set, the topic is suggested for someone to accept, or the label is
+   * added as a tag; one that isn't sure changes nothing. 409 when no model is set up to answer.
+   */
+  public static classify<ThrowOnError extends boolean = false>(
+    options: Options<ClassifyData, ThrowOnError>,
+  ): RequestResult<ClassifyResponses, ClassifyErrors, ThrowOnError> {
+    return (options.client ?? client).post<ClassifyResponses, ClassifyErrors, ThrowOnError>({
+      url: "/api/v1/classify",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
 }
 
 export class Searches {
@@ -7688,6 +7943,24 @@ export class Entities {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+}
+
+export class Dates {
+  /**
+   * List Dates
+   *
+   * The dates the assets you can read give that fall between `start` and `end` (a date that spans days counts when
+   * any of its days does), the earliest first, each with its line. Analysis reads them while Settings → Analysis → Read
+   * dates is on.
+   */
+  public static listDates<ThrowOnError extends boolean = false>(
+    options?: Options<ListDatesData, ThrowOnError>,
+  ): RequestResult<ListDatesResponses, ListDatesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListDatesResponses, ListDatesErrors, ThrowOnError>({
+      url: "/api/v1/dates",
+      ...options,
     });
   }
 }
@@ -9162,9 +9435,9 @@ export class Templates {
    * List Templates
    */
   public static listTemplates<ThrowOnError extends boolean = false>(
-    options?: Options<ListTemplatesData, ThrowOnError>,
-  ): RequestResult<ListTemplatesResponses, unknown, ThrowOnError> {
-    return (options?.client ?? client).get<ListTemplatesResponses, unknown, ThrowOnError>({
+    options?: Options<ListTemplates2Data, ThrowOnError>,
+  ): RequestResult<ListTemplates2Responses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListTemplates2Responses, unknown, ThrowOnError>({
       url: "/api/v1/templates",
       ...options,
     });
@@ -10051,6 +10324,10 @@ export class Chats {
 
   /**
    * Create Chat
+   *
+   * A conversation. Its answers may use what `tools` and `max_tool_calls` say, which become your latest choice;
+   * left out, your latest choice (here or PATCH /chats/{cid}), else Auto: everything you may use, limited by the rounds
+   * alone. A `title` is yours, and kept; without one, Lens titles it after its first answer (ai.auto_title).
    */
   public static createChat<ThrowOnError extends boolean = false>(
     options?: Options<CreateChatData, ThrowOnError>,
@@ -10077,6 +10354,25 @@ export class Chats {
   ): RequestResult<ChatCapabilitiesResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).get<ChatCapabilitiesResponses, unknown, ThrowOnError>({
       url: "/api/v1/chats/capabilities",
+      ...options,
+    });
+  }
+
+  /**
+   * Chat Tools
+   *
+   * The tool groups and tools an answer can be given (`tools` on a question or a conversation), as you have them: each
+   * tool with what it does (read, asks: it waits for your yes, out: it sends what it's given to another host) and
+   * whether you have it now, each group with why you don't when you have none of it, and the setting that changes it.
+   * Built-in groups first, then your extensions' (mcp:<server>, ext:<extension>). With `chat_id`, as in that
+   * conversation's scope (a namespace's own memory is there only in a conversation about that namespace). Also: the most
+   * tool calls an answer may be given, and your latest choice, which new conversations start with.
+   */
+  public static chatTools<ThrowOnError extends boolean = false>(
+    options?: Options<ChatToolsData, ThrowOnError>,
+  ): RequestResult<ChatToolsResponses, ChatToolsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ChatToolsResponses, ChatToolsErrors, ThrowOnError>({
+      url: "/api/v1/chats/tools",
       ...options,
     });
   }
@@ -10114,7 +10410,9 @@ export class Chats {
   /**
    * Update Chat
    *
-   * Rename a conversation, change what it draws on, or the model that answers in it (null: the configured one).
+   * Rename a conversation, change what it draws on, the model that answers in it (null: the configured one), or
+   * what its answers may use (`tools`, null: Auto) and at most how many tool calls each makes (`max_tool_calls`, null:
+   * no limit but the rounds). The choice of tools and limit is also what your new conversations start with.
    */
   public static updateChat<ThrowOnError extends boolean = false>(
     options: Options<UpdateChatData, ThrowOnError>,
@@ -10165,6 +10463,54 @@ export class Chats {
   }
 
   /**
+   * Export Chat
+   *
+   * A conversation as a download: Markdown (citations as footnotes linking back to Lens), PDF (that Markdown
+   * printed: by Chromium, else anytopdf, else LibreOffice; 409 with the reason when none can run here) or JSON
+   * (OpenAI chat messages in a tree, with Dublin Core terms; docs/schemas/chat-export.schema.json). Citations follow
+   * your current access, as in GET /chats/{cid}.
+   */
+  public static exportChat<ThrowOnError extends boolean = false>(
+    options: Options<ExportChatData, ThrowOnError>,
+  ): RequestResult<ExportChatResponses, ExportChatErrors, ThrowOnError> {
+    return (options.client ?? client).get<ExportChatResponses, ExportChatErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/export.{fmt}",
+      ...options,
+    });
+  }
+
+  /**
+   * Title Chat
+   *
+   * Have Lens title a conversation now, from how it starts (the version showing's first messages), even one you
+   * named: the title is Lens's again, as after a first answer. Written by the model for summaries (ai.compact_model)
+   * when set, else the chat's, in one call counted for the conversation in the activity ledger. 409 before the first
+   * question; 400 with no model, or when the model writes no title.
+   */
+  public static titleChat<ThrowOnError extends boolean = false>(
+    options: Options<TitleChatData, ThrowOnError>,
+  ): RequestResult<TitleChatResponses, TitleChatErrors, ThrowOnError> {
+    return (options.client ?? client).post<TitleChatResponses, TitleChatErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/title",
+      ...options,
+    });
+  }
+
+  /**
+   * Download Chat File
+   *
+   * A file the code sandbox handed you in this conversation (share_sandbox_file, the download on its answer).
+   */
+  public static downloadChatFile<ThrowOnError extends boolean = false>(
+    options: Options<DownloadChatFileData, ThrowOnError>,
+  ): RequestResult<DownloadChatFileResponses, DownloadChatFileErrors, ThrowOnError> {
+    return (options.client ?? client).get<DownloadChatFileResponses, DownloadChatFileErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/files/{fid}",
+      ...options,
+    });
+  }
+
+  /**
    * Send Message
    *
    * Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model
@@ -10181,8 +10527,17 @@ export class Chats {
    * text, which isn't kept) unless `context` is given, and streams `branch` first ({message, parent, versions}: the
    * new version, the message it follows and its versions); so does a question beside others under `parent`.
    *
+   * What the answer may use: `tools` (tool groups and tools, GET /chats/tools; [] for none, when it answers from a
+   * search) and `max_tool_calls` (at most that many tool calls, in as many rounds as it takes), else the conversation's
+   * choice (PATCH /chats/{cid}); and `scope`, what this answer alone draws on (the conversation keeps its own). Its
+   * record keeps what it was given and used.
+   *
    * `/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the
    * conversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.
+   *
+   * With `research` (or /research <goal>) the content is a research goal: the answer is a plan to approve (streamed as
+   * `research`, then `approval`), which runs in the background once approved (POST /chats/{cid}/research, GET
+   * /research/{id}).
    *
    * With `browser` (the session of a browser's Lens side panel, POST /browser/sessions), the assistant can use that
    * browser while the side panel is connected: open pages, read them, click, type and download files into the
@@ -10287,6 +10642,148 @@ export class Chats {
   ): RequestResult<DecideApprovalResponses, DecideApprovalErrors, ThrowOnError> {
     return (options.client ?? client).post<DecideApprovalResponses, DecideApprovalErrors, ThrowOnError>({
       url: "/api/v1/approvals/{aid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Research {
+  /**
+   * Start Research
+   *
+   * Start research on a goal in a conversation: the goal is saved as a question and one model call plans it (up to
+   * three follow-up questions with answers to pick, the sub-questions, where it looks, the tool calls it may make, the
+   * report's outline, and an estimate of the cost). The plan waits as an approval (POST /approvals/{id}: approve it as
+   * it is, or with `params` its edits; or decline), or revise it (POST /research/{id}/revise). With `review` false it
+   * starts at once: your own pick when signed in; an API key or an app needs research.agents_skip_review. The same as a
+   * question with `research: true`, or /research <goal>.
+   */
+  public static startResearch<ThrowOnError extends boolean = false>(
+    options: Options<StartResearchData, ThrowOnError>,
+  ): RequestResult<StartResearchResponses, StartResearchErrors, ThrowOnError> {
+    return (options.client ?? client).post<StartResearchResponses, StartResearchErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/research",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Research
+   *
+   * Your research, newest first; with `chat_id`, that conversation's (to show each plan's or run's card).
+   */
+  public static listResearch<ThrowOnError extends boolean = false>(
+    options?: Options<ListResearchData, ThrowOnError>,
+  ): RequestResult<ListResearchResponses, ListResearchErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListResearchResponses, ListResearchErrors, ThrowOnError>({
+      url: "/api/v1/research",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Research
+   *
+   * A research run: its plan, status and stage (gather, write, check, done), progress (sub-questions done, sources
+   * found, tool calls and cost so far, from the activity ledger) and, once it's done, the report's message
+   * (`answer`, in the conversation). What it waits for when a budget holds it (`held`), and why it ended early.
+   */
+  public static getResearch<ThrowOnError extends boolean = false>(
+    options: Options<GetResearchData, ThrowOnError>,
+  ): RequestResult<GetResearchResponses, GetResearchErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetResearchResponses, GetResearchErrors, ThrowOnError>({
+      url: "/api/v1/research/{rid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Revise Research
+   *
+   * Send your answers to the follow-up questions and your edits to the plan back for one more planning call; the
+   * plan and its approval change in place. Only while the plan waits for approval.
+   */
+  public static reviseResearch<ThrowOnError extends boolean = false>(
+    options: Options<ReviseResearchData, ThrowOnError>,
+  ): RequestResult<ReviseResearchResponses, ReviseResearchErrors, ThrowOnError> {
+    return (options.client ?? client).post<ReviseResearchResponses, ReviseResearchErrors, ThrowOnError>({
+      url: "/api/v1/research/{rid}/revise",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Stop Research
+   *
+   * Stop a run: it stops after the step it's on and keeps what it found, saved in the conversation as its answer,
+   * marked stopped (one that hasn't started, or waits on a budget, stops now). Works whichever process runs it.
+   */
+  public static stopResearch<ThrowOnError extends boolean = false>(
+    options: Options<StopResearchData, ThrowOnError>,
+  ): RequestResult<StopResearchResponses, StopResearchErrors, ThrowOnError> {
+    return (options.client ?? client).post<StopResearchResponses, StopResearchErrors, ThrowOnError>({
+      url: "/api/v1/research/{rid}/stop",
+      ...options,
+    });
+  }
+
+  /**
+   * Resume Research
+   *
+   * Let a run that a budget holds go on anyway (your pick, as "run it once" is for a held routine run).
+   */
+  public static resumeResearch<ThrowOnError extends boolean = false>(
+    options: Options<ResumeResearchData, ThrowOnError>,
+  ): RequestResult<ResumeResearchResponses, ResumeResearchErrors, ThrowOnError> {
+    return (options.client ?? client).post<ResumeResearchResponses, ResumeResearchErrors, ThrowOnError>({
+      url: "/api/v1/research/{rid}/resume",
+      ...options,
+    });
+  }
+
+  /**
+   * Research Note
+   *
+   * Save the report as a note: in the namespace it looked in (`namespace` when there are several), its archive
+   * citations as links to the assets they cite, web citations as links, and a link back to the conversation (shown to
+   * you alone). Needs editor access there.
+   */
+  public static researchNote<ThrowOnError extends boolean = false>(
+    options: Options<ResearchNoteData, ThrowOnError>,
+  ): RequestResult<ResearchNoteResponses, ResearchNoteErrors, ThrowOnError> {
+    return (options.client ?? client).post<ResearchNoteResponses, ResearchNoteErrors, ThrowOnError>({
+      url: "/api/v1/research/{rid}/note",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Research Podcast
+   *
+   * Make a podcast episode from the assets the report cites (POST /podcasts with them picked): about the research
+   * goal unless `prompt` says otherwise, titled after the report.
+   */
+  public static researchPodcast<ThrowOnError extends boolean = false>(
+    options: Options<ResearchPodcastData, ThrowOnError>,
+  ): RequestResult<ResearchPodcastResponses, ResearchPodcastErrors, ThrowOnError> {
+    return (options.client ?? client).post<ResearchPodcastResponses, ResearchPodcastErrors, ThrowOnError>({
+      url: "/api/v1/research/{rid}/podcast",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -11378,8 +11875,8 @@ export class Shares {
   /**
    * S3 Status
    *
-   * Whether the S3 server is on and on which port, what the worker running it says, the same for WebDAV, and your
-   * access keys.
+   * Whether the S3 server is on and on which port, what the worker running it says, the same for WebDAV, whether
+   * both are open at the web app's address too (/s3, /dav), and your access keys.
    */
   public static s3Status<ThrowOnError extends boolean = false>(
     options?: Options<S3StatusData, ThrowOnError>,
@@ -11520,9 +12017,27 @@ export class ImportHooks {
   }
 
   /**
+   * Import Target
+   *
+   * Where pushes with this bearer token go, without importing anything: an import webhook's token goes into its
+   * namespace; a person's own token (an API token, an app's, or the web app's) into any namespace they can import into,
+   * named with `?namespace=`. 401 for a token Lens doesn't know, saying which kind it is; 403 while a hook is paused.
+   */
+  public static importTarget<ThrowOnError extends boolean = false>(
+    options?: Options<ImportTargetData, ThrowOnError>,
+  ): RequestResult<ImportTargetResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ImportTargetResponses, unknown, ThrowOnError>({
+      url: "/api/v1/hooks/import",
+      ...options,
+    });
+  }
+
+  /**
    * Push To Import Hook
    *
-   * Push something into an import webhook's namespace, with its token as a bearer token. Three ways:
+   * Push something into an import webhook's namespace, with its token as a bearer token, or into one of your own
+   * namespaces with your own token (an API token with write access, an app's, or the web app's) and `?namespace=`.
+   * Three ways:
    *
    * - a file as the raw body, named by `?filename=`, Content-Disposition or X-Filename: audio, video, documents and
    * images become assets and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as
@@ -11531,8 +12046,9 @@ export class ImportHooks {
    * - JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as text), with an optional
    * `title`.
    *
-   * Each runs the hook's pipeline, or the namespace's. 401 for an unknown token, 403 while the hook is paused, 413 over
-   * uploads.max_mb. Audited as `import.hook`.
+   * Each runs the hook's pipeline, or the namespace's. 401 for an unknown token, saying which kind it is; 403 while the
+   * hook is paused, for a read-only token, or without the import permission; 413 over uploads.max_mb. Audited as
+   * `import.hook` (by the hook) or `import.push` (by the person).
    */
   public static pushToImportHook<ThrowOnError extends boolean = false>(
     options?: Options<PushToImportHookData, ThrowOnError>,
@@ -11550,8 +12066,8 @@ export class ImportHooks {
   /**
    * Push To Import Hook Token
    *
-   * The same, with the token in the address, for services that can only be given a URL. Prefer the bearer token:
-   * addresses end up in logs.
+   * The same, with an import webhook's token in the address, for services that can only be given a URL. Prefer the
+   * bearer token: addresses end up in logs. A person's own token is never taken here.
    */
   public static pushToImportHookToken<ThrowOnError extends boolean = false>(
     options: Options<PushToImportHookTokenData, ThrowOnError>,
@@ -11848,6 +12364,46 @@ export class Podcasts {
     return (options.client ?? client).post<RegeneratePodcastResponses, RegeneratePodcastErrors, ThrowOnError>({
       url: "/api/v1/podcasts/{rid}/regenerate",
       ...options,
+    });
+  }
+}
+
+export class Specs {
+  /**
+   * Get Spec
+   *
+   * What there is of this asset's spec: its note and what it holds when it's written, the job writing it, or why
+   * the last one failed; and the template it was (or would be) written with.
+   */
+  public static getSpec<ThrowOnError extends boolean = false>(
+    options: Options<GetSpecData, ThrowOnError>,
+  ): RequestResult<GetSpecResponses, GetSpecErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetSpecResponses, GetSpecErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/spec",
+      ...options,
+    });
+  }
+
+  /**
+   * Write Spec
+   *
+   * Write a technical spec from this asset's transcript as a note linked to it, in the background: every named
+   * decision, every no and every "not that, this", every constraint, in the speaker's own words with when they said
+   * them, and the gaps they left to decide later, flagged. It's written with the Spec from transcript prompt template
+   * (edited on the Templates page), or `template`; writing it again updates the same note, whose history keeps what it
+   * said before. It runs after what the asset's job still has to do. Needs the right to process the asset and a
+   * language model (400 without one, or with no text and none on the way). Audited as `spec.write`.
+   */
+  public static writeSpec<ThrowOnError extends boolean = false>(
+    options: Options<WriteSpecData, ThrowOnError>,
+  ): RequestResult<WriteSpecResponses, WriteSpecErrors, ThrowOnError> {
+    return (options.client ?? client).post<WriteSpecResponses, WriteSpecErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/spec",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }

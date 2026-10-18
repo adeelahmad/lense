@@ -37,6 +37,7 @@ EDITABLE = {
     "ai": None,
     "sandbox": None,
     "web": None,
+    "research": None,
     "decisions": None,
     "components": None,
     "voice": None,
@@ -65,15 +66,17 @@ EDITABLE = {
     "tunnel": None,
     "https": None,
     # bind is a startup setting only
-    "nfs": ("enabled", "port", "allowed_networks", "account"),
+    "nfs": ("enabled", "port", "allowed_networks", "account", "add_files"),
     # bind is a startup setting only
     # the SMB share of the file tree (smb_share.py): bind and port are startup settings only (Docker publishes the port)
-    "smb": ("enabled", "allowed_networks"),
+    "smb": ("enabled", "allowed_networks", "add_files"),
     "sensors": (
         "enabled",
         "mqtt",
         "mqtt_port",
         "mqtt_anonymous",
+        "mqtt_web",
+        "mqtt_web_port",
         "syslog",
         "syslog_port",
         "syslog_networks",
@@ -86,7 +89,7 @@ EDITABLE = {
         "triage",
     ),
     # bind is a startup setting only
-    "shares": ("enabled", "s3", "s3_port", "webdav", "webdav_port"),
+    "shares": ("enabled", "s3", "s3_port", "webdav", "webdav_port", "add_files", "remote"),
     "video": (
         "sample_seconds",
         "scene_threshold",
@@ -162,6 +165,9 @@ ENUMS = {
     ("search", "stemming"): {"english", "none"},
     ("search", "engine"): set(store.SEARCH_ENGINES),
     ("reports", "audio"): {"link", "embed", "none"},
+    ("llm", "describe_engine"): {"llm", "florence-2", "moondream"},
+    ("llm", "florence_model"): {"base", "large"},
+    ("llm", "moondream_model"): {"moondream3-preview", "moondream2"},
     ("video", "ocr_engine"): {"auto", "tesseract", "apple-vision", "rapidocr", "doctr", "none"},
     ("video", "face_engine"): {"opencv", "insightface", "anytopdf", "none"},
     ("video", "object_engine"): {"yolox", "ultralytics", "anytopdf", "off"},
@@ -450,6 +456,10 @@ def _check(section, key, value, default):
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 100):
             raise ValueError("ai.browser_steps is a whole number of steps from 1 to 100")
         return value
+    if (section, key) == ("ai", "max_tool_calls"):
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 500):
+            raise ValueError("ai.max_tool_calls is a whole number of tool calls from 1 to 500")
+        return value
     if (section, key) == ("llm", "describe_max"):
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 1000):
             raise ValueError("llm.describe_max is a whole number from 1 to 1000")
@@ -503,6 +513,8 @@ def _check(section, key, value, default):
         return _sandbox_setting(key, value)
     if section == "web" and key != "search":
         return _web_setting(key, value)
+    if section == "research":
+        return _research_setting(key, value)
     if section == "components":
         return _component_setting(key, value)
     if section == "nsfw":
@@ -1186,6 +1198,7 @@ def _notify_setting(key, value):
 
 SENSOR_RANGES = {
     "mqtt_port": (1, 65535),
+    "mqtt_web_port": (1, 65535),
     "syslog_port": (1, 65535),
     "max_payload_kb": (1, 16384),
     "raw_days": (1, 36500),
@@ -1196,7 +1209,7 @@ SENSOR_RANGES = {
 
 
 def _sensor_setting(key, value):
-    if key in ("enabled", "mqtt", "mqtt_anonymous", "syslog", "triage"):
+    if key in ("enabled", "mqtt", "mqtt_anonymous", "mqtt_web", "syslog", "triage"):
         if not isinstance(value, bool):
             raise ValueError(f"sensors.{key} is true or false")
         return value
@@ -1271,9 +1284,9 @@ def _logs_setting(key, value):
 
 
 def _nfs_setting(key, value):
-    if key == "enabled":
+    if key in ("enabled", "add_files"):
         if not isinstance(value, bool):
-            raise ValueError("nfs.enabled is true or false")
+            raise ValueError(f"nfs.{key} is true or false")
         return value
     if key == "port":
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 65535):
@@ -1300,9 +1313,9 @@ def _nfs_setting(key, value):
 
 
 def _smb_setting(key, value):
-    if key == "enabled":
+    if key in ("enabled", "add_files"):
         if not isinstance(value, bool):
-            raise ValueError("smb.enabled is true or false")
+            raise ValueError(f"smb.{key} is true or false")
         return value
     if not isinstance(value, list) or len(value) > 100:
         raise ValueError("smb.allowed_networks is a list of networks like 192.168.1.0/24")
@@ -1321,11 +1334,38 @@ SANDBOX_GATEWAY = re.compile(r"^(\[[0-9A-Fa-f:]+\]|[A-Za-z0-9][A-Za-z0-9.-]{0,25
 SANDBOX_IMAGE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/:@+-]{0,254}$")
 SANDBOX_RANGES = {"seconds": (1, 600), "idle_minutes": (1, 1440), "keep_hours": (1, 720)}
 _BYTES = {"": 1, "K": 1000, "M": 1000**2, "G": 1000**3, "Ki": 1024, "Mi": 1024**2, "Gi": 1024**3}
+_LABEL = re.compile(r"^(?!-)[a-z0-9-]{1,63}(?<!-)$")
+
+
+def _sandbox_hosts(value, most):
+    """sandbox.hosts: names the code sandbox may reach with sandbox.network hosts, as OpenShell's policy takes them:
+    api.example.com, or a wildcard first label with at least three labels in all (*.example.com, **.example.com). No
+    addresses: a name is held to public addresses anyway, and an address would skip that."""
+    raw = value.replace(",", " ").split() if isinstance(value, str) else value
+    if not isinstance(raw, list) or len(raw) > most:
+        raise ValueError(f"sandbox.hosts is a list of up to {most} host names, like api.example.com or *.example.com")
+    out = []
+    for v in raw:
+        h = str(v).strip().lower().rstrip(".")
+        labels = h.split(".")
+        first, rest = labels[0], labels[1:]
+        wild = first in ("*", "**")
+        ok = (
+            len(h) <= 253
+            and len(labels) >= (3 if wild else 2)
+            and (wild or _LABEL.match(first))
+            and all(_LABEL.match(x) for x in rest)
+            and not rest[-1].isdigit()
+        )
+        if not ok:
+            raise ValueError(f"sandbox.hosts: {v} isn't a host name like api.example.com or *.example.com")
+        out.append(h)
+    return list(dict.fromkeys(out))
 
 
 def _sandbox_setting(key, value):
     """The code sandbox (sandbox.py): cpu like 1, 0.5 or 500m (up to 64 cores); memory like 512Mi or 2Gi (64Mi to
-    64Gi); the gateway as host:port; the image as an OCI image reference."""
+    64Gi); the gateway as host:port; the image as an OCI image reference; hosts as host names (_sandbox_hosts)."""
     from . import sandbox
 
     if key == "enabled":
@@ -1334,8 +1374,10 @@ def _sandbox_setting(key, value):
         return value
     if key == "network":
         if value not in sandbox.NETWORKS:
-            raise ValueError("sandbox.network is off, packages (PyPI and npm only) or web (public addresses)")
+            raise ValueError("sandbox.network is off, packages (PyPI and npm only) or hosts (those and sandbox.hosts)")
         return value
+    if key == "hosts":
+        return _sandbox_hosts(value, sandbox.HOSTS_MAX)
     if key == "who":
         if value not in sandbox.WHO:
             raise ValueError("sandbox.who is editors (people who can edit a namespace, and admins) or admins")
@@ -1359,7 +1401,7 @@ def _sandbox_setting(key, value):
         return text
     if key == "gateway":
         if not SANDBOX_GATEWAY.match(text) or not 0 < int(text.rsplit(":", 1)[1]) < 65536:
-            raise ValueError("sandbox.gateway is the OpenShell gateway's host:port, like openshell-gateway:8080")
+            raise ValueError("sandbox.gateway is the OpenShell gateway's host:port, like openshell-gateway:17670")
         return text
     if key == "image":
         if not SANDBOX_IMAGE.match(text):
@@ -1389,8 +1431,26 @@ def _web_setting(key, value):
     return value
 
 
+RESEARCH_RANGES = {"max_tool_calls": (1, 500), "max_minutes": (1, 240)}
+
+
+def _research_setting(key, value):
+    if key == "agents_skip_review":
+        if not isinstance(value, bool):
+            raise ValueError("research.agents_skip_review is true or false")
+        return value
+    if key == "model":
+        if value is not None and not (isinstance(value, str) and len(value.strip()) <= 200):
+            raise ValueError("research.model is a model's name")
+        return (value or "").strip() or None
+    lo, hi = RESEARCH_RANGES[key]
+    if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+        raise ValueError(f"research.{key} is a whole number from {lo} to {hi}")
+    return value
+
+
 def _share_setting(key, value):
-    if key in ("enabled", "s3", "webdav"):
+    if key in ("enabled", "s3", "webdav", "add_files", "remote"):
         if not isinstance(value, bool):
             raise ValueError(f"shares.{key} is true or false")
         return value

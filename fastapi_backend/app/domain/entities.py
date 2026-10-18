@@ -989,3 +989,80 @@ def unlink(db, a, b):
     lo, hi = sorted((int(a), int(b)))
     with graph_history.change(db, "link.remove", entities=[lo, hi]):
         db.q("DELETE $r", r=R("entity_link", f"{lo}-{hi}"))
+
+
+# ---------- types the old rules left as terms ----------
+MACHINE_OPS = ("analysis", "entity.found", "entity.builtin", "entity.learned", "entity.typed")
+TYPED_CHUNK = 500  # entities given types in one graph change
+TYPED_LINES = 12  # lines read per entity
+
+
+def typed_by_people(db):
+    """Ids of entities whose type a person or an agent set or chose: from the graph's history, and from the audit log
+    for changes made before there was one."""
+    out = set()
+    for ev in db.rows("SELECT ops FROM graph_event WHERE op NOT IN $m", m=list(MACHINE_OPS)):
+        for o in ev.get("ops") or []:
+            if o.get("t") == "entity" and o.get("a") and (not o.get("b") or o["b"].get("type") != o["a"].get("type")):
+                out.add(int(o["k"]))
+    for r in db.rows("SELECT detail FROM audit_log WHERE action = 'entity.retype'"):
+        out.update(int(i) for i in (r.get("detail") or {}).get("ids") or [] if str(i).isdigit())
+    return out
+
+
+def _lines_of(db, eids):
+    """{entity id: [the text of up to TYPED_LINES lines that mention it]}."""
+    segs = defaultdict(list)
+    for m in db.rows("SELECT entity, record::id(in) AS seg FROM mentions WHERE entity IN $e", e=list(eids)):
+        if len(segs[m["entity"]]) < TYPED_LINES:
+            segs[m["entity"]].append(m["seg"])
+    ids = sorted({s for ss in segs.values() for s in ss})
+    text = (
+        {
+            r["id"]: r.get("text") or ""
+            for r in db.rows("SELECT record::id(id) AS id, text FROM segment WHERE id IN $i", i=[R("segment", i) for i in ids])
+        }
+        if ids
+        else {}
+    )
+    return {e: [text[s] for s in ss if s in text] for e, ss in segs.items()}
+
+
+def migrate_types(db):
+    """Upgrade step: entities analysis made when its rules called most names terms get the type the rules give them
+    now (name_types.py), from their name and the lines that mention them. Types people or agents set, entities on a fixed
+    list, hidden ones and Unknown and Unlabeled are left as they are. Each namespace's changes are recorded in the graph's
+    history (entity.typed), so they can be rolled back. Safe to run twice: an entity given a type is no longer a term,
+    and one the rules can't type stays a term."""
+    from . import name_types
+
+    held = typed_by_people(db)
+    for sid in sorted(store.space_names(db)):
+        setup = entity_setup.effective(db, sid)
+        codes = entity_setup.type_codes(db, sid)
+        ents = [
+            e
+            for e in db.rows(
+                "SELECT record::id(id) AS id, name, defined, builtin, hidden FROM entity WHERE space = $s AND type = 'TERM'", s=sid
+            )
+            if not (e.get("defined") or e.get("builtin") or e.get("hidden")) and e["id"] not in held
+        ]
+        if not ents:
+            continue
+        people = analyze.people_of(db, sid)
+        for k in range(0, len(ents), TYPED_CHUNK):
+            part = ents[k : k + TYPED_CHUNK]
+            lines = _lines_of(db, [e["id"] for e in part])
+            found = defaultdict(list)
+            for e in part:
+                t = name_types.guess(e["name"], lines.get(e["id"]) or [], people)
+                if t and t != "TERM" and t in codes and entity_setup.keeps(setup, t):
+                    found[t].append(e["id"])
+            if not found:
+                continue
+            with (
+                graph_history.acting(actor="system", via="system", why="upgrade: the type analysis's rules now give names it called terms"),
+                graph_history.change(db, "entity.typed", entities=[i for ids in found.values() for i in ids]),
+            ):
+                for t, ids in sorted(found.items()):
+                    db.q("UPDATE $ids SET type = $t", ids=[R("entity", i) for i in ids], t=t)

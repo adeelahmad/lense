@@ -10,6 +10,7 @@ merged is called built.
 | Part | Status |
 | --- | --- |
 | Match trees: one condition language for triggers, an automation's If and workflow nodes | built |
+| Operators for times, lists, text patterns and changes (`in`, `matches`, `within`, `changed`...) | built |
 | Activities, the kinds catalog, the event log, following the stream, timeline reads (`app/domain/events.py`) | built |
 | New assets as `asset.added` (the `recordings` source) | built |
 | New assets by kind: emails received, calendar events, files from storage, uploads, pages saved from the web, imports | built |
@@ -109,6 +110,7 @@ and the paths holding outside text are in `GET /api/v1/activities/kinds` (`event
 | `asset.added` | | `recordings` | `{type: Audio, Video, Image or Document, id: lens:recording/<id>, name: its title, url: /resources/<id>, media: audio, video, image, document or transcript, content_type}` | Lens added “Scan 12” |
 | `email.received` | `asset.added` | `recordings` | `from`, `to`, `cc` (addresses), `subject`, `list`, `mailbox`, `date` (sent), `snippet` (the start of its text), `attachments` (how many) | Work mail received “School trip on Friday” from office@stmarys.org |
 | `calendar_event.added` | `asset.added` | `recordings` | `startTime`, `endTime`, `location`, `organizer`, `attendees` (addresses), `calendar` | Family calendar added the event “Parents' evening” on 2026-10-20 |
+| `feed_post.received` | `asset.added` | `recordings` | `href` (the post's address), `site`, `feed` (its title), `author`, `published`, `categories` | Harbour news received the post “Autumn regatta” from harbour.example.org |
 | `file.added` | `asset.added` | `recordings` | `path` (in its source), `mediaType`, `size` (bytes), `duration` (seconds) | Office share added “Minutes” |
 | `upload.added` | `asset.added` | `recordings` | `path` (the file's name), `mediaType`, `size`, `duration` | Sam uploaded “Call with the school” |
 | `web_page.saved` | `asset.added` | `recordings` | `href` (the page's address), `site` | Sam saved “Museum opening hours” from museum.example.org |
@@ -327,15 +329,57 @@ M := {"all": [M, …]} | {"any": [M, …]} | {"not": M} | {"path": "a.b.0", "op"
 ```
 
 - A test (`{path, op, value}`) reads the part of the value at a dotted path, list items by number
-  (`object.from.0`); no path tests the value itself. The tests are the workflow engine's: `exists`, `empty`,
-  `equals`, `not_equals`, `contains` (text in any case, or an item of a list), `gt` and `lt` (numbers).
+  (`object.from.0`); no path tests the value itself. The tests are in the table below.
 - `all` holds when every condition in it does (an empty `all` always holds), `any` when one does (it needs at least
   one), `not` when its condition doesn't.
 - Values are literals, never templates, so matching stays cheap and safe.
 - A tree nests at most 6 deep and holds at most 50 tests. A problem is named with where it is: `the condition,
   all.1.not: compare with a number`.
-- `match.describe(tree)` reads a tree in words: `object.from contains “@stmarys.org” and (object.subject contains
-  “trip” or object.subject contains “outing”)`.
+- `match.describe(tree, kind=None)` reads a tree in words: `object.from ends with “@stmarys.org” and
+  object.subject matches “trip” or “outing”`. With a kind, fields are named by the titles in its schema.
+
+#### Operators
+
+The first seven are the workflow engine's tests and work exactly as a condition node's always have. The others are
+built in `app/domain/match.py` (`match.OPS` lists them all). When the value tested is a list, those pass when one of
+its items does (as `contains` does), and `not_in` passes when none does. A value of the wrong kind, such as text for
+`between` on numbers, doesn't pass; a test's own value is checked when it is saved, with the problem in words.
+
+| Test | Value | Passes when the value tested |
+| --- | --- | --- |
+| `exists`, `empty` | none | is set; is missing, empty text, `[]` or `{}` |
+| `equals`, `not_equals` | anything | is (or isn't) exactly the value |
+| `contains` | anything | is text holding it in any case, or a list or object holding it |
+| `gt`, `lt` | a number | is a number more (less) than it |
+| `in`, `not_in` | a list of up to 500 values | is (or isn't) one of them; text in any case |
+| `starts_with`, `ends_with` | text (a number is read as text) | is text, or a number, starting (ending) with it, in any case |
+| `matches` | a pattern of up to 200 characters, such as `trip` or `^re:` | is text holding a match, in any case |
+| `between` | two numbers, or two times: `[1, 5]`, `["-1d", "now"]` | is a number, or a time, from the first to the second (both included) |
+| `before`, `after` | a time: `2026-10-16T07:30`, `now`, or from now: `2h`, `-30m` | is a time before (after) it |
+| `within` | a duration: `30m`, `2h`, `1d` | is a time no further than that from now, either way |
+| `weekday` | days: `["sat", "sun"]`, `["monday"]` or ISO numbers (1 is Monday) | is a time on one of those days |
+| `time_between` | two times of day: `["22:00", "06:00"]` | is a time of day from the first up to the second, across midnight when the second is earlier |
+| `changed` | none, or a path to keep values apart by: `actor.id` | differs from the value this test saw last time (the first one seen is no change) |
+
+- **Times** are ISO 8601 times or dates. A time written without a zone (in the value or in what is tested) is in the
+  automation's time zone, and so are `weekday` and `time_between`. Durations are a whole number and `s`, `m`, `h` or
+  `d`; a minus points back (`-2h` is two hours ago).
+- **Patterns** are regular expressions in Python's syntax, read in any case. To keep one pattern from tying up the
+  worker on a crafted email, a pattern that repeats a part that repeats itself (`(a+)+`), repeats alternatives that
+  may start alike (`(a|aa)+`) or refers back to a group (`\1`) is refused when it is saved, a pattern reads at most
+  the first 20,000 characters of a value, and a match that takes over 50 ms counts as no match. Compiled patterns are
+  cached.
+- **`env`**: `match.test(tree, value, env)` reads time and state from `env`, never from globals, so tests and dry
+  runs can fix them: `now` (the clock when not given), `timezone` (UTC when not given) and `state`.
+- **`changed`** compares with the last value the same test saw for the same automation and trigger, kept in
+  `automation_state` (kind `last`) by a `match.State(db, automation, alias, dry=False)` in `env["state"]`. Make one
+  State per activity tested, so the If and a node testing the same thing agree. With `dry` it reads and keeps nothing.
+  Without a State nothing has changed. With a path in `value` (`actor.id`), each sensor or sender keeps its own last
+  value. Like every test, it is only reached when the tests before it in an `all` pass, so `changed` compares with
+  the last value seen when it was reached.
+- **`automation_state`** holds what automations keep between activities. Each automation keeps at most 1000 rows; past
+  that the oldest go and are counted (`match.dropped(db, automation)`). A `last` value is kept 30 days after it was
+  last seen; `match.tidy` drops expired rows once an hour, from the routine schedule.
 
 In a workflow, a condition, filter or switch case takes either one test, as before, or a tree in `match`; with a
 tree, `path` (when given) is the part of the value the tree tests. Graphs saved before keep running unchanged.
@@ -1073,7 +1117,8 @@ held run until you pick.
 
 ## Refine later
 
-- More operators: `in`, `matches` (bounded regular expressions), `between`, times against now, `changed`.
+- Variables inside match values (`{"var": "vars.threshold"}`), once saved variables are built.
+- Statistical conditions, such as a reading above its 7-day average.
 - The canvas shows and edits match trees on condition, filter and switch nodes (today it edits one test; a tree
   saved through the API is kept).
 - A `?format=as2` JSON-LD view and per-actor outboxes for ActivityPub; SurrealDB `DEFINE EVENT` for Update verbs that

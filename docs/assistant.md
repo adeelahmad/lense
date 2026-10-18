@@ -14,7 +14,8 @@ then.
 - **Answers:** the model answers only from those excerpts and cites them as [n]. Each citation carries the asset
   and timestamp.
 - **Streaming:** answers arrive over server-sent events: `passages`, then `token`s, then `meta` (the answer's
-  record, [below](#what-each-answer-records)) and `done`.
+  record, [below](#what-each-answer-records)) and `done`; after a conversation's first answer, `title`
+  ([Titles](#titles)).
 - **Stopping:** Stop asks the server to end the answer after the piece or tool step it's on (whichever server process
   is writing it); what came before is saved, marked stopped. A model call already under way finishes first.
 - **Reopening:** a conversation's answers keep the tools the assistant used (and with what), any notice (the model
@@ -42,6 +43,18 @@ then.
   **Model for summaries** (`ai.compact_model`) writes them with a smaller, cheaper model on the same provider; empty,
   the chat's model does. Settings › AI assistant › Summarise long conversations (`ai.compact`, on) turns it off; off,
   or with no model, only the last six messages are read.
+- **Titles:**{#titles} a conversation nobody named is titled with its first question's words as soon as it's asked,
+  then, after the first answer, the model gives it a short title of a few words from the question and the answer
+  (streamed as `title` at the end of the answer's stream). It's one small call, written by **Model for summaries**
+  (`ai.compact_model`) when set, else the chat's model, and counted in the activity ledger for the conversation
+  (`chat:<id>`), not for the answer. Editing the first question titles it again. A conversation you name, when you
+  start it (`POST /api/v1/chats` with `title`) or later (rename in the list, `PATCH /api/v1/chats/<id>` with `title`),
+  keeps its name; `title_by` on a conversation says which it is (`assistant` or `person`). `POST
+  /api/v1/chats/<id>/title` has Lens title one now from how it starts, even one you named, and the title is Lens's
+  again; agents do both with the MCP tool `rename_chat` (a `title`, or none for Lens's). Settings › AI assistant ›
+  Title conversations (`ai.auto_title`, on) turns the model's titles off: a conversation then keeps its first
+  question's words. Without a model, or when the call fails or the budget's hard limit stops it, the first question's
+  words stay too. Chat rooms, setup conversations and automations' conversations keep the names Lens gives them.
 - **/clear and /compact:** typed as a message, in the app or in a chat room (`Lens /clear`). `/clear` makes the
   assistant start afresh: the messages stay to read, but the model no longer sees them or their summary.
   `/compact` folds the whole conversation into its summary now, and `/compact keep the dates and owners` tells the
@@ -95,6 +108,70 @@ An app's chat completions keep no messages, so their record comes back in the re
 cost ([Chat completions](api.md#chat-completions-for-any-app)). Answers from before Lens kept records have none; Details
 shows what they have and says the rest wasn't recorded.
 
+### Copy and export
+
+A conversation, or one message of it, comes out as a file to keep or hand on: `GET
+/api/v1/chats/<id>/export.md`, `export.pdf` or `export.json`. They hold the version showing; `?message=<mid>` holds
+one message (an answer comes with the question it answers), and the JSON export's `?all=true` holds every version.
+Citations follow the reader's access now, as `GET /api/v1/chats/<id>` does, and no model is called.
+
+- **Markdown:** the title, a short header (the conversation's address in Lens, when it started, what it draws on in
+  words, and the Lens version that exported it), then each question and answer with its time, the model that wrote
+  it and its version (version 2 of 3). An answer's citations become numbered footnotes naming the asset, its time or
+  page and speaker, a short quote and a link back to that moment in Lens; a web page's citation links the page. The
+  tools an answer used are a "Looked up" list with each one's summary.
+- **PDF:** that Markdown on a page, printed by Chromium where it's installed, else by anytopdf (installed, on a
+  conversion node, or fetched on first use, [anytopdf](configuration.md#anytopdf)), else by LibreOffice. When none
+  can run here (Settings › Documents says never to use anytopdf, and nothing else is installed), or printing fails,
+  it answers 409 with the reason; the web app can still print the conversation.
+- **JSON:** the conversation in OpenAI's chat message format, as other tools and trainers read it, with Dublin Core
+  terms (`dc:title`, `dc:created`, `dc:modified`, `dc:creator`, `dc:identifier`, `dc:publisher`). `mapping` holds each
+  message by id with its `parent` and `children` (more than one child where there are versions), and `current_node`
+  is the last message of the version showing. Each node's `message` is `{role, content}`; an answer that used tools
+  has them before it in `tool_messages`: an assistant message with `tool_calls`, then a `tool` message per call
+  carrying the step's summary. What only Lens knows is under `lens`: the citations (`[n]` in the text is `n` there,
+  with a `url` back to Lens or the web page), the answer's record (`meta`, [above](#what-each-answer-records)),
+  `versions`, attached files, and the page a question was asked from. `?format=messages` gives the version showing
+  as one `{"messages": [...]}` line instead, the shape fine-tuning reads. The schema is
+  [chat-export.schema.json](schemas/chat-export.schema.json).
+
+```json
+{
+  "@context": {"dc": "http://purl.org/dc/terms/"},
+  "format": "lens.chat-export/1",
+  "dc:title": "Are ships slow?",
+  "dc:identifier": "https://lens.example/chat/4",
+  "current_node": "2",
+  "mapping": {
+    "1": {"id": "1", "parent": null, "children": ["2"], "message": {"role": "user", "content": "Are ships slow?"}, "lens": {}},
+    "2": {
+      "id": "2", "parent": "1", "children": [],
+      "tool_messages": [
+        {"role": "assistant", "content": null, "tool_calls": [{"id": "call_2_1", "type": "function",
+          "function": {"name": "search_transcripts", "arguments": "{\"query\": \"ships\"}"}}]},
+        {"role": "tool", "tool_call_id": "call_2_1", "content": "2 moments"}
+      ],
+      "message": {"role": "assistant", "content": "Yes, said Ana [1]."},
+      "lens": {"citations": [{"n": 1, "source": "said", "recording_id": 5, "title": "Ep 1", "time": "1:15",
+        "speaker": "Ana", "text": "They are slow.", "url": "https://lens.example/resources/5?t=75"}]}
+    }
+  }
+}
+```
+
+Exports carry each tool call's arguments and summary, never its raw result, which Lens doesn't keep. Agents read and
+export the same way over MCP: `list_chats`, `read_chat` and `export_chat` ([MCP](mcp.md)) work on the person's own
+conversations.
+
+In the web app, an answer's copy button offers **Copy as Markdown** (its citations as footnotes linking back to Lens,
+as in the Markdown export) and **Copy text** (without Markdown or citation numbers), then exports that answer with
+its question as Markdown, PDF or JSON. A question has its own copy button, shown on hover, and each code block in an
+answer has one that copies the code as written. The download icon in a conversation's header exports the whole
+conversation. When the server can't make a PDF, the browser's print dialog opens on the conversation (or that one
+answer), without the app around it, so Save as PDF still works.
+
+Planned: importing a conversation from its JSON, exporting one to a note, and a styled PDF without Chromium.
+
 ### Picking the namespace for a conversation over everything
 
 When a conversation has no scope (the assistant home starts it over everything), its first question goes to the
@@ -129,6 +206,17 @@ Voice goes through one hook, `useVoice()` in `nextjs-frontend/lib/voice.ts` (`li
   or by ElevenLabs, Deepgram, Google Gemini or macOS `say` ([Speech providers](speech-providers.md#voices)); else by
   the browser.
 
+#### Read a message aloud
+
+Every question and answer in a conversation has a speaker button: one click reads it aloud, another stops it. It goes
+through the same `POST /voice/speak` as voice mode, so it uses the speech model and the voice picked in Settings → AI
+assistant → Voice, without citation marks or Markdown, and falls back to the browser's own speech when the server has
+none. One message is read at a time (starting another stops the first, and so does leaving the conversation). Long
+answers are sent in pieces of at most 1,500 characters, cut after a sentence, under every provider's limit; the next
+piece is asked for while one plays. Each piece's audio is kept in the page (the 32 most recently played), so playing
+a message again doesn't call the speech model again. Each call is a `model.speech` row in the
+[activity ledger](activity.md), like voice mode's.
+
 Settings → AI assistant → Voice holds these. The API: `GET /voice` (what the server does; it also starts loading the
 engine), `POST /voice/transcribe` (a clip as the raw body; nothing is kept), `POST /voice/speak` (`{text, voice?}`;
 204 when the browser should read it), `GET /voice/voices` (the voices a provider reads in).
@@ -138,12 +226,15 @@ engine), `POST /voice/transcribe` (a clip as the raw body; nothing is kept), `PO
 When the configured model supports function calling, chat becomes an agent.
 
 - **What it can look things up with:** assets' text (transcripts and documents, and on-screen text), assets, passages,
-  outputs, entities and their mentions and timelines, the knowledge graph, people, and content similar to a text,
+  outputs, entities and their mentions and timelines, dates said as days on the calendar (`find_dates`), the
+  knowledge graph, people, and content similar to a text,
   an asset, a topic or an entity (`find_similar`), and what happened in Lens, newest first (`timeline`, the
   [stream of activities](automations.md#timeline-reads); `unreviewed` for what the person hasn't marked reviewed),
   and assets by any attribute: faces seen, people heard, entities, topics, kind, content type, dates and the rest,
   each with the moments that show why it matched (`find_resources`,
-  [Finding by any attribute](processing.md#finding-by-any-attribute)).
+  [Finding by any attribute](processing.md#finding-by-any-attribute)). It can also ask which of some labels, content
+  types or topics fits an asset or a text, and how sure that is (`classify`, [Classifying](processing.md#classifying));
+  it changes nothing.
 - **The person's review marks:** `mark_activities` marks activities of the timeline reviewed, important or hidden for
   the person ([Timeline](timeline.md#review-marks)). After it has read text from outside Lens, hiding or marking
   reviewed waits for their yes; marking important or bringing things back acts at once.
@@ -158,7 +249,8 @@ When the configured model supports function calling, chat becomes an agent.
   (`save_automation` with `enabled`) and running one now wait for the person's approval; switching one off acts at once
   ([Automations](automations.md#agents)).
 - **Limits:** everything is limited to what the person can read and to the conversation's scope, and capped by
-  `ai.max_steps` (Settings → AI assistant, Tool steps per answer; 6 by default) and `ai.max_transcript_reads`.
+  `ai.max_steps` (Settings → AI assistant, Tool steps per answer; 6 by default) and `ai.max_transcript_reads`, or by
+  the tool calls a question allows ([below](#choosing-tools-namespaces-and-a-limit)).
 - **Always an answer:** the model is told its step budget. When the steps run out, or it replies with nothing, it is
   asked once more to answer from what it found, with the tools off, and to say what it didn't get to check. A server
   that calls tools anyway gets the conversation again as plain text, without tools. That last ask is one more model
@@ -166,7 +258,8 @@ When the configured model supports function calling, chat becomes an agent.
   arguments) isn't run again: the model is pointed at the result it already has.
 - **Citations:** every moment a tool returns is numbered, so answers cite [n] across everything the assistant read.
 - **Visible steps:** each tool call streams as a step, for example 'Searched for "refund": 42 matches'.
-- **Approvals:** running a template on assets, changing entities (merging, renaming, retyping, describing one
+- **Approvals:** running a template on assets, writing a [spec](notes.md#specs-from-transcripts) from an asset's
+  transcript (`write_spec`), changing entities (merging, renaming, retyping, describing one
   and its other names, hiding one, or adding one to a namespace's fixed list) and changing topics (merging,
   renaming, describing or deleting one; [Topics](topics.md)) don't happen directly.
   They become approval cards (with the batch estimate) that the person approves, approves on a sample, or declines
@@ -237,12 +330,71 @@ gets two more tools, for everyone who may use the assistant:
 Refine later: an opt-in SearXNG service in the Docker Compose file (SearXNG is AGPL, so it would stay an extra),
 prices per search for the paid providers, web access per namespace, and keeping recent results to search less.
 
+### Choosing tools, namespaces and a limit
+
+By default (Auto) an answer may use every tool the person has. A conversation, or one question, can instead pick the
+tools it may use, how many tool calls it may make, and which namespaces it reads.
+
+- **Tool groups.** `GET /api/v1/chats/tools` lists the groups and the tools in each that the person has, and why a
+  group isn't there for them:
+    - `archive` (search and read assets);
+    - `graph` (entities, topics, the knowledge graph);
+    - `web` (searching the web and reading pages, once an admin has set up a search);
+    - `notes`;
+    - `memory` (a namespace's own assistant);
+    - `activity` (the timeline, approvals and automations);
+    - `changes` (proposals that become approvals);
+    - `files` (importing files and web pages);
+    - `code` (the [code sandbox](#code-sandbox): Python and bash, once an admin turns it on);
+    - `research` ([deep research](#deep-research): `start_research` plans research that waits for your approval);
+    - `extensions`;
+    - `server` (admins);
+    - `browser`;
+    - `mcp:<name>` and `ext:<name>`, one for each of the person's extensions.
+
+    Each tool says its `effect`: `read`, `asks` (it waits for the person's approval) or `out` (it sends data out of
+    Lens, as a web search, the browser's open, click and type, and code runs while the sandbox's network is on do). A
+    group that isn't available says why (switched off by an admin, no web search is set up, the code sandbox is off,
+    for admins, or needs editor access to a namespace) and names the setting that switches it back on (`setting`, such
+    as `ai.browser`, `web.search` or `sandbox.enabled`).
+- **Picking.** `tools` (on `POST /chats`, `PATCH /chats/<id>` or one question, `POST /chats/<id>/messages`) is a list
+  of group and tool names. The model is then offered only those tools, and a tool it calls that it wasn't offered isn't
+  run. Null is Auto. An empty list means no tools: the answer is written from a search, as when the model can't use
+  tools. A name that is no group or tool the person has is a 400. An admin's switches (`ai.disabled_tools`,
+  `ai.browser`, `ai.extensions`) still win over any pick.
+- **A limit on tool calls.** `max_tool_calls` (in the same places) caps how many tool calls one answer may make in
+  all. The model is told the budget. Calls past it get a reply saying they weren't made, and then the answer is written
+  from what was found, with outcome `limit`. With a limit, the rounds of calls may go past `ai.max_steps`, up to the
+  limit. It is a whole number from 1 to `ai.max_tool_calls` (Settings → AI assistant, Most tool calls a question may
+  ask for; 50 by default, at most 500). `GET /chats/capabilities` gives it as `max_tool_calls`.
+- **A scope for one answer.** `scope` on `POST /chats/<id>/messages` narrows that answer alone, with the same keys as
+  a conversation's scope. `{}` means everything the person can read, and a namespace they can't read is a 404. The
+  conversation keeps its own scope, and a question with a scope isn't narrowed by the
+  [namespace picker](#picking-the-namespace-for-a-conversation-over-everything).
+- **Remembered.** Each answer records what it was offered and its limits (`tools`, `limits`, `scope`), and each
+  question records the options it was asked with ([What each answer records](#what-each-answer-records)). A
+  conversation keeps its `tools` and `max_tool_calls`. The person's latest choice (the last `POST /chats` or `PATCH
+  /chats/<id>` that set them) is kept on their account, so a new conversation starts with it (`remembered` in `GET
+  /chats/tools`) unless `POST /chats` says otherwise.
+- **Web and MCP tools reach beyond your namespaces.** The namespaces picked narrow the archive's tools only. A web
+  search, an MCP server or the browser reads and sends wherever it reaches.
+
+In the web app, the **Tools** chip beside the composer's scope picks these for the conversation (Enter or a tap opens
+it): Auto, a switch for each group (marked "needs approval" or "sends data out"; one you don't have says why, with a
+link to its setting for admins) and a limit on tool calls per answer. A conversation not started yet opens on your
+latest choice. "All my namespaces" at the top of the scope's namespaces goes back to everything in one tap.
+
+Refine later: tool choice in chat rooms and voice mode, a default choice per namespace, and the model suggesting the
+tools a question needs.
+
 ## Code sandbox
 
-Built: an admin turns it on in Settings → Code sandbox (`sandbox.enabled`, off by default) and points Lens at an
-[NVIDIA OpenShell](https://github.com/NVIDIA/OpenShell) gateway (`sandbox.gateway`, `openshell-gateway:8080` by
-default). Then the assistant can run Python and bash for the people it's turned on for: those who can edit a namespace,
-and admins (`sandbox.who`: `editors`), or admins only (`admins`). Viewers never get it.
+Built: an admin turns it on in Settings → Code sandbox with **Run the gateway on this machine**, which starts an
+[NVIDIA OpenShell](https://github.com/NVIDIA/OpenShell) gateway next to Lens and turns the sandbox on
+(`sandbox.enabled`, off by default; see [The gateway](#the-gateway)), or turns it on and points Lens at a gateway they
+run (`sandbox.gateway`, `openshell-gateway:17670` by default). Then the assistant can run Python and bash for the
+people it's turned on for: those who can edit a namespace, and admins (`sandbox.who`: `editors`), or admins only
+(`admins`). Viewers never get it.
 
 - **One sandbox per conversation.** The first run in a conversation creates its sandbox, `lens-chat-<id>`, from
   `sandbox.image` (`python:3.12-slim` by default, about 45 MB to download) with `sandbox.cpu` (1 core) and
@@ -254,35 +406,138 @@ and admins (`sandbox.who`: `editors`), or admins only (`admins`). Viewers never 
 - **The tools.** `run_python` (code) and `run_bash` (a script) each run for at most `sandbox.seconds` (60) and give
   back stdout, stderr and the exit code: the model reads the start of stdout and the end of stderr, up to 10,000
   characters, and is told when more was cut off. `files` copies files attached to the conversation in first, by their
-  own names (25 MB each, 100 MB a run). `sandbox_files` lists what the sandbox holds. `import_sandbox_file` copies a
-  file out (25 MB at most) as if the person had attached it and puts it in a namespace with `import_files`, so it
-  waits for their approval; its type must be one uploads take.
+  own names (25 MB each, 100 MB a run). `sandbox_files` lists what the sandbox holds. `share_sandbox_file` copies a
+  file out (25 MB at most) for the person to download from the answer: a chart, a converted document, a cleaned
+  table. `import_sandbox_file` copies one out as if the person had attached it and puts it in a namespace with
+  `import_files`, so it waits for their approval; its type must be one uploads take.
+- **In the conversation.** Each run is a step under the answer, folded: opening it shows the code, then what it
+  printed (the first 4,000 characters of stdout, the last 4,000 of stderr in red) and how it ended. A file the
+  sandbox shared is a button on the answer that downloads it (`GET /api/v1/chats/{id}/files/{file}`, only for the
+  person whose conversation it is). Lens keeps those files with the conversation, encrypted with a key derived from
+  the server's secret key, at most 20 a conversation, and deletes them with the conversation or the person's account.
 - **Nothing of Lens's inside.** A sandbox holds no keys, no database address and no archive: only the code, and the
   files a run copies in. What it prints reaches the model marked as third-party text, like any tool's result.
 - **Its network** (`sandbox.network`): `off` (the default) allows no traffic in or out at all; `packages` reaches
   only the Python and npm registries (pypi.org, files.pythonhosted.org, registry.npmjs.org), so `pip install` works;
-  `web` reaches public addresses on ports 80 and 443, never private ones (Lens's own services, your home network, the
-  cloud metadata address). With the network on, a run after the answer read text from outside Lens waits for the
-  person's approval (below), since code could carry what it read out.
+  `hosts` reaches those and the names an admin lists in `sandbox.hosts` (Hosts it may reach: `api.example.com`, or
+  `*.example.com` for its subdomains) on ports 80 and 443. OpenShell resolves only names its policy lists, so there is
+  no "any website" setting. Every name is held to public addresses: one that resolves to a private address (Lens's own
+  services, your home network, the cloud metadata address) is refused. The model is told what the network reaches.
+  With the network on, a run after the answer read text from outside Lens waits for the person's approval (below),
+  since code could carry what it read out.
 - **How it's kept apart.** OpenShell runs each sandbox as a container under its supervisor: the code runs as an
   unprivileged user with no capabilities, Landlock lets it write only its working folder and `/tmp` and read the
   image's programs, seccomp filters its system calls, and its egress is denied unless the policy above allows it.
 - **Cost.** It makes no model calls of its own, and the compute is your machine's. Each run is a row in the
   [activity ledger](activity.md) (`sandbox.run`, with its time, language and exit code), counted for the conversation.
-- **The gateway.** It needs Docker 28 or newer and a Linux kernel with Landlock (6.2 or newer, with Landlock turned
-  on); it runs on Linux on amd64 and arm64 and on macOS on Apple silicon. Lens's own client for it (the `sandbox`
-  Python extra, OpenShell's SDK, Apache-2.0) is fetched once the sandbox is on ([Components](components.md)).
+- **Its client.** Lens's own client for the gateway (the `sandbox` Python extra, OpenShell's SDK, Apache-2.0) is
+  fetched once the sandbox is on ([Components](components.md)).
 
-In progress: starting the OpenShell gateway from Settings (a `sandbox` profile of the Docker Compose install, turned
-on like monitoring) with a check that says why it can't run on a machine; until then, run a gateway yourself on a
-network only Lens reaches and set `sandbox.gateway`. Also in progress: the step in the conversation showing the code
-(folded) and its output, and handing a file back as a download on the answer.
+### The gateway
+
+Built: the Docker Compose install has a `sandbox` profile that runs OpenShell's gateway (release 0.1.4) next to Lens.
+**Run the gateway on this machine** (Settings → Code sandbox, admins) has the machine's upgrade agent add `sandbox` to
+`COMPOSE_PROFILES` and start it, as it does for [monitoring](prometheus.md), then turns the sandbox on with
+`sandbox.gateway` set to `openshell-gateway:17670`. Turning it off deletes every conversation's sandbox, files and
+all, turns the sandbox off and stops the gateway. Agents do the same with `PUT /api/v1/admin/sandbox` (`{"on": true}`)
+or the MCP tools `sandbox_gateway` and `set_sandbox_gateway`; `GET /api/v1/admin/sandbox` says how the machine's last
+change went and whether Lens reaches the gateway and is let in. With no upgrade agent, Settings shows the line to run
+on the machine:
+
+```sh
+docker compose -f docker-compose.prod.yml --profile sandbox up -d openshell-gateway
+```
+
+- **What it checks first.** It says why the gateway can't run here, and doesn't start it: Lens isn't running from its
+  Docker Compose install (a [microsandbox](microsandbox.md), say), the machine isn't 64-bit Intel, AMD or ARM, or its
+  Linux kernel has no Landlock 3 (Linux 6.2 or newer, with Landlock turned on). OpenShell also needs Docker 28 or
+  newer, which Lens can't see from its container: the start fails with Docker's own message when it's older.
+- **The containers.** `openshell-init` makes the gateway's certificates once, in `/var/lib/openshell` on the machine
+  (the gateway has Docker mount files from that folder into each sandbox, so it is the same path inside and out);
+  `openshell-key` copies the client's certificate to the `sandbox-key` volume, readable only by Lens's backend and
+  worker. `openshell-gateway` runs as root to drive Docker through its socket, with no capabilities, a read-only image
+  and no telemetry, configured by `sandbox/gateway.toml`. Lens reaches it on a network of their own (`sandbox`) over
+  mutual TLS; each sandbox's supervisor reaches it on the machine's `127.0.0.1:17670`, which isn't published to the
+  network.
+- **Size.** About 300 MB of images on disk (the gateway, the supervisor and the sandbox runtime), downloaded the first
+  time it starts, plus `sandbox.image`. Each sandbox is a container with its own CPU, memory and process limits.
+
+In progress: the upgrade agent that starts the profile ships with the agent's next release; until this machine's agent
+knows the `sandbox` profile, Settings says to start it by hand and shows the line above.
 
 Refine later: automations' agent runs without a conversation get no sandbox yet; running admins' Python extension
-tools in the sandbox so people who aren't admins can write them; installs in a [microsandbox](microsandbox.md) (the
-gateway on the host, or OpenShell's MicroVM driver); the Podman driver for hosts without Docker; GPUs; a direct sandbox
-API for agents (today an agent asks the assistant); one real run against OpenShell in CI (the tests use a fake
-gateway with OpenShell's own client).
+tools in the sandbox so people who aren't admins can write them; asking the person before a run reaches a host that
+isn't listed; the gateway's port (17670) as a setting; the gateway on macOS (Docker Desktop doesn't share
+`/var/lib/openshell`) and in a [microsandbox](microsandbox.md) (the gateway on the host, or OpenShell's MicroVM
+driver); the Podman driver for hosts without Docker; GPUs; a direct sandbox API for agents (today an agent asks the
+assistant); one real run against OpenShell in CI (the tests use a fake gateway with OpenShell's own client); showing
+an image the sandbox shared inline in the answer, not only as a download; the 20-file cap as a setting.
+
+## Deep research
+
+Built in the API, MCP, chat rooms and the assistant's tools; the web app's plan and progress cards are in progress.
+Give the assistant a goal that needs many look-ups, and it comes back with a plan; once you approve it, the research
+runs in the background and a cited report comes back in the conversation.
+
+- **Asking.** Start a question with `/research` (`/research what changed in the capsid work this year?`), send it with
+  `research: true` (`POST /api/v1/chats/<id>/messages`), call `POST /api/v1/chats/<id>/research {goal}`, or ask the
+  assistant for research: its `start_research` tool (the `research` [tool group](#choosing-tools-namespaces-and-a-limit))
+  works from chat, voice and [chat rooms](chat-rooms.md). It needs a language model that uses tools.
+- **The plan.** One model call reads the goal and writes up to three follow-up questions, each with answers to pick
+  from, and a plan: a title, the sub-questions it will answer, where it will look (`archive`, `graph`, `notes`, `web`,
+  `code`: only the sources this person has, and of those only what the conversation's choice of tools keeps), the
+  most tool calls it may make, and the report's outline. With it comes an estimate of what it will cost, always
+  labelled an estimate: from what each tool call of past research runs cost in the activity ledger, else its likely
+  tokens at the model's price in Settings (no figure when the model has no price). The plan is the answer to the
+  question, and it waits as an approval of the assistant's (tool `research`).
+- **Approve, edit or revise.** Approve it as it is, or with your edits (`POST /api/v1/approvals/<id>` with
+  `decision: approve` and `params`: any of `title`, `sub_questions`, `sources`, `max_tool_calls`, `report_outline`), in
+  the conversation or the Approvals page; or send your answers and edits back for one more planning call (`POST
+  /api/v1/research/<id>/revise {answers, plan}`), which changes the plan and its approval in place. In a chat room,
+  "yes" approves the plan as it is. Decline it and nothing runs. `review: false` on `POST /chats/<id>/research` starts
+  it at once, as your own pick.
+- **Agents only decline.** An API key, an app or an agent (MCP, the assistant) can decline a plan but not approve it,
+  as for every approval, unless an admin turns on `research.agents_skip_review` (off by default): then an agent's plan
+  starts without review. The `research` settings are saved with `PUT /api/v1/settings/research`; their place in
+  Settings → AI assistant is in progress.
+- **The run.** Once approved, one process runs it at a time (a claim it keeps with a heartbeat every 10 seconds;
+  another process takes it over after two minutes of silence and goes on from the last finished step), in stages:
+    - *gather*: each sub-question in turn, with the assistant's tool loop, its share of the tool calls that are left,
+      and the plan's sources' tools alone (read tools only). Searches and page reads on the web, and code runs that
+      reach the web, don't ask each time: approving the plan approved them. Any other tool that changes something
+      still asks.
+    - *write*: one call writes the report in Markdown, following the outline, citing [n] across every finding,
+      numbered as one list.
+    - *check*: each cited claim is checked against what it cites ([check the sources](#chat)); one that isn't
+      supported is rewritten once, or marked "(not supported by its sources)".
+    - *done*: the report is an answer in the conversation (`kind: research`), after its last message, with its
+      [record](#what-each-answer-records) (`research` is its id; its tokens and cost are the whole run's).
+- **Limits.** A person has one run going at a time; the next waits its turn. `research.max_tool_calls` (40) caps a
+  plan's tool calls, and `research.max_minutes` (20) a run's time: past it, the report is written from what it found
+  and says which sub-questions it didn't get to (outcome `limit`). `research.model` picks another model for research
+  (empty: the conversation's).
+- **Budgets.** Before each stage the [budgets](budgets.md) of the conversation's namespaces and `all` are checked. One
+  that is over holds the run (`held`, saying why) until the budget allows it, or until you let it go on anyway (`POST
+  /api/v1/research/<id>/resume`); a budget that skips stops it with what it found.
+- **Progress and stopping.** `GET /api/v1/research/<id>` gives its status (planned, declined, queued, running, held,
+  done, stopped, failed), stage, and progress: sub-questions done, sources found, tool calls, minutes, and tokens and
+  cost so far. `GET /api/v1/research?chat_id=<id>` lists a conversation's. `POST /api/v1/research/<id>/stop` stops it
+  after the step it's on (at once while it waits), and what it found so far is saved in the conversation as its
+  answer, marked stopped.
+- **After.** `POST /api/v1/research/<id>/note` saves the report as a [note](notes.md) in the namespace it looked in
+  (`namespace` when there are several), its archive citations as mention links to what they cite, web ones as links,
+  and a link back to the conversation (`@[Research: title](chat:12)`), which only you see named. `POST
+  /api/v1/research/<id>/podcast` makes a [podcast episode](podcasts.md) from the assets the report cites, about its
+  goal. The report reads aloud and exports like any answer.
+- **Agents.** MCP has `start_research` (a new conversation unless `chat_id` is given; `namespaces`, `tools`,
+  `max_tool_calls`) and `research_status` (the plan and progress, and once it's done the report with its sources and
+  their links).
+- **Cost.** Planning is one call; gathering makes at most the plan's tool calls, each round a call; writing and
+  checking are two or three calls. Every call is in the activity ledger for the conversation and `research:<id>`.
+
+Refine later: sub-questions in parallel, research on a schedule, sharing a report with a namespace's members, research
+as an automation action, a report template people can edit, and the report posted back into the chat room it was
+asked in (today the room gets the plan, and the report is in the conversation in Lens).
 
 ## Third-party content and prompt injection
 
@@ -540,8 +795,9 @@ switch shows the line to run on the machine instead. Agents use the same switche
 ## Setting up and running the server by chat
 
 Admins also get the server tools: `server_status` (what's set up and what's missing), `find_model_servers`,
-`read_settings` and `change_settings` (the processing and AI sections, not the server's hosts, cookies or tokens) and
-`create_namespace`, and the people tools: `list_people`, `invite_person` (an account, optionally with a role in one
+`read_settings` and `change_settings` (the processing and AI sections, not the server's hosts, cookies or tokens),
+`create_namespace`, the news feed tools: `news_feeds`, `subscribe_feed` (follow a feed into a namespace in one step,
+[News feeds](processing.md#news-feeds-rss-and-atom)) and `unsubscribe_feed`, and the people tools: `list_people`, `invite_person` (an account, optionally with a role in one
 namespace; Lens emails the sign-in link when mail is set up) and `change_person` (a role in a namespace, or disabling
 and enabling an account). Removing an account for good stays in the web app and the API. In an ordinary conversation
 their changes are approval cards. In a **setup conversation**

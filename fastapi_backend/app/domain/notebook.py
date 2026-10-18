@@ -10,6 +10,8 @@ The body links to anything with mention tokens, which the editor and the assista
     @[Weekly call](recording:12)   @[Ada Lovelace](entity:5)   @[Plans](page:3)   #[Capsid design](topic:9)
 
 @ is for resources, people and other pages; # is for topics, the namespace's vocabulary (topics.py). Links are kept as note_link rows, so a page shows its backlinks and the graph sees them.
+@[Research: capsids](chat:12) links a conversation (a research report's note links back to the one it came from),
+which is named and linked only for the person whose conversation it is.
 
 The editor may also keep its own document state (`doc`, opaque: a BlockSuite/Yjs snapshot) next to the Markdown, which
 holds what Markdown can't, like drawings on the edgeless canvas. A change to the Markdown alone (the assistant's, say)
@@ -27,8 +29,12 @@ from __future__ import annotations
 import base64
 import datetime as dt
 import hashlib
+import json
 import os
 import re
+import shutil
+import tempfile
+import zipfile
 
 from . import activity, store
 
@@ -36,7 +42,9 @@ R = store.R
 PLACES = ("project", "area", "resource", "archive")
 AUTHORS = ("person", "assistant")
 VIEWS = ("page", "edgeless")  # how the editor shows it: a document, or the endless canvas (drawings, diagrams)
-KINDS = ("recording", "entity", "topic", "collection", "speaker", "page")  # what a page can link to
+# what a page can link to; a conversation (chat, as a research report's note links back to it) shows as a link only
+# to the person whose conversation it is
+KINDS = ("recording", "entity", "topic", "collection", "speaker", "page", "chat")
 ABOUT = ("recording", "entity", "topic", "collection", "speaker")  # what can have a page of its own
 TITLE_MAX = 200
 SUMMARY_MAX = 300
@@ -168,6 +176,29 @@ def _check_parent(db, sid, pid, parent):
             raise ValueError(f"Pages go up to {DEPTH_MAX} levels deep.")
         at = row.get("parent")
     return int(parent)
+
+
+def path(db, p):
+    """The notes p is inside, from the top of the tree down to its parent: [{id, title}], for breadcrumbs."""
+    out, at = [], p.get("parent")
+    while at is not None and len(out) <= DEPTH_MAX:
+        row = db.one("SELECT record::id(id) AS id, title, parent FROM $r", r=R("note_page", int(at)))
+        if not row:
+            break
+        out.append({"id": row["id"], "title": row["title"]})
+        at = row.get("parent")
+    return out[::-1]
+
+
+def children(db, p):
+    """The notes inside p, in the tree's order: [{id, title, updated_at}]."""
+    rows = db.rows(
+        "SELECT record::id(id) AS id, title, position, updated_at FROM note_page WHERE space = $s AND parent = $p AND about = NONE",
+        s=p["space"],
+        p=int(p["id"]),
+    )
+    rows.sort(key=lambda r: (r.get("position") or 0, r["id"]))
+    return [{"id": r["id"], "title": r["title"], "updated_at": r.get("updated_at")} for r in rows]
 
 
 def _last_position(db, sid, parent):
@@ -431,6 +462,63 @@ def today(db, sid, account, date=None):
     pid = create(db, sid, account, day, date=day, parent=root)
     db.q("UPDATE $r SET daily = $d", r=R("note_page", pid), d=day)
     return pid
+
+
+TEMPLATES_ROOT = "Templates"
+
+
+def templates_root(db, sid, account=None):
+    """The id of the namespace's "Templates" note, whose notes are its templates; made when `account` is given and
+    there's none yet. None otherwise."""
+    root = db.one("SELECT VALUE record::id(id) FROM note_page WHERE space = $s AND templates_root = true LIMIT 1", s=sid)
+    if root or account is None:
+        return int(root) if root else None
+    root = create(
+        db, sid, account, TEMPLATES_ROOT, "Each note inside this one is a template for new notes.", summary="Notes to start new notes from"
+    )
+    db.q("UPDATE $r SET templates_root = true", r=R("note_page", root))
+    return root
+
+
+def templates(db, sid):
+    """The namespace's templates, the notes inside its "Templates" note, in the tree's order: [{id, title, summary}]."""
+    root = templates_root(db, sid)
+    if root is None:
+        return []
+    rows = db.rows(
+        "SELECT record::id(id) AS id, title, summary, position FROM note_page WHERE space = $s AND parent = $p AND about = NONE",
+        s=sid,
+        p=root,
+    )
+    rows.sort(key=lambda r: (r.get("position") or 0, r["id"]))
+    return [{"id": r["id"], "title": r["title"], "summary": r.get("summary")} for r in rows]
+
+
+def copy(db, cfg, pid, account, title=None, parent=None):
+    """A new free note with page pid's text, drawings, files, filing and view: to start a note from a template, or
+    to make a copy. Titled `title` (default the page's), inside `parent` (default the top), dated today. Its id."""
+    p = get(db, pid)
+    new = create(
+        db,
+        p["space"],
+        account,
+        title or p["title"],
+        p.get("body") or "",
+        place=p.get("place"),
+        parent=parent,
+        doc=p.get("doc"),
+        view=p.get("view"),
+    )
+    # the editor's images and attachments, under the same keys, so the copied drawings and pictures find them
+    to = get(db, new)
+    for f in files(db, pid):
+        _, opened = open_file(db, cfg, pid, f["key"])
+        with opened as src, tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "file")
+            with open(path, "wb") as out:
+                shutil.copyfileobj(src, out)
+            add_file(db, cfg, to, f["key"], path, f.get("name"), f.get("type"), account)
+    return new
 
 
 PINS_MAX = 50  # a person's pinned notes, per namespace
@@ -793,7 +881,8 @@ def backlinks(db, sid, targets):
 
 
 def labels(db, targets):
-    """Current names for link targets: {"recording:12": "Weekly call"}; the ones that are gone are left out."""
+    """Current names for link targets: {"recording:12": "Weekly call"}; the ones that are gone are left out. A
+    conversation's (chat:12) has its `account` instead of a `space`: only that person sees its name."""
     by_kind = {}
     for t in targets:
         kind, _, key = t.partition(":")
@@ -803,11 +892,77 @@ def labels(db, targets):
     for kind, keys in by_kind.items():
         table = "note_page" if kind == "page" else kind
         name = {"recording": "title ?? path", "page": "title", "speaker": "name ?? label", "topic": "label"}.get(kind, "name")
+        if kind == "chat":
+            for r in db.rows(
+                "SELECT record::id(id) AS id, account, title AS name FROM chat WHERE id IN $ids", ids=[R("chat", k) for k in keys]
+            ):
+                out[f"chat:{r['id']}"] = {"name": r.get("name"), "account": r.get("account")}
+            continue
         for r in db.rows(
             f"SELECT record::id(id) AS id, space, {name} AS name FROM {table} WHERE id IN $ids", ids=[R(table, k) for k in keys]
         ):
             out[f"{kind}:{r['id']}"] = {"name": r.get("name"), "space": r.get("space")}
     return out
+
+
+EXPORT_NAME_MAX = 100  # characters of a file's name, from the page's title
+_UNSAFE = re.compile(r'[\\/:*?"<>|\x00-\x1f]+')
+
+
+def file_name(title):
+    """A page's title as a file name that works everywhere: no slashes or other marks file systems refuse."""
+    name = _UNSAFE.sub(" ", str(title or "")).strip(" .")
+    name = " ".join(name.split())[:EXPORT_NAME_MAX].rstrip(" .")
+    return name or "Untitled"
+
+
+def markdown(p, titles=None):
+    """A page as a Markdown file of its own, for other notes apps: YAML front matter (its title, date, where it's
+    filed, its summary, what it's the page of), then its text. Links to other pages become [[Title]] wiki links (their
+    title now, from `titles` by id, else as written); links to anything else become its name."""
+    titles = titles or {}
+
+    def link(m):
+        sign, label, kind, key = m.groups()
+        if kind == "page":
+            return f"[[{titles.get(int(key), label)}]]"
+        return label if sign == "@" else f"#{label}"
+
+    head = {"title": p.get("title"), "date": p.get("date"), "place": p.get("place"), "summary": p.get("summary")}
+    head["page_of"] = p.get("about")
+    lines = ["---", *(f"{k}: {json.dumps(v, ensure_ascii=False)}" for k, v in head.items() if v), "---", ""]
+    return "\n".join(lines) + MENTION.sub(link, p.get("body") or "").strip() + "\n"
+
+
+THINGS = {"recording": "Recordings", "entity": "Entities", "topic": "Topics", "collection": "Collections", "speaker": "Speakers"}
+
+
+def export(db, sid, out):
+    """Every page of the namespace as Markdown files in a zip written to `out`: free notes in folders that follow the
+    tree (a note's notes in a folder named like it), the pages of things under "Pages of things"."""
+    rows = db.rows(f"SELECT {FIELDS}, body FROM note_page WHERE space = $s", s=sid)
+    by_id = {p["id"]: p for p in rows}
+    titles = {i: p["title"] for i, p in by_id.items()}
+
+    def folder(p, seen=()):
+        if p.get("about"):
+            return ["Pages of things", THINGS.get(p["about"].split(":")[0], "Other")]
+        up = by_id.get(p.get("parent")) if p.get("parent") is not None else None
+        if not up or up["id"] in seen or len(seen) > DEPTH_MAX:
+            return []
+        return [*folder(up, (*seen, p["id"])), file_name(up["title"])]
+
+    used = set()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+        for p in sorted(rows, key=lambda r: (r.get("position") or 0, r["id"])):
+            base = "/".join([*folder(p), file_name(p["title"])])
+            path, n = f"{base}.md", 1
+            while path.casefold() in used:  # two pages with one title in one place
+                n += 1
+                path = f"{base} ({n}).md"
+            used.add(path.casefold())
+            z.writestr(path, markdown(p, titles))
+    return len(rows)
 
 
 SNIPPET = 160

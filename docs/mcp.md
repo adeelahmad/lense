@@ -45,8 +45,10 @@ Each namespace can have its own server, at `/mcp/<namespace>` (`https://lens.exa
 that should see that namespace and nothing else: a family assistant, a project's coding agent, a client's app. It
 has the same tools, but sees only that namespace, whatever else the person who signs the agent in can read. Tools
 that take a namespace use this one when none is named, `list_namespaces` and `list_files` show only it, and the tools
-about the server itself (`file_storage`, `monitoring`, `services`, `mcp_servers`, `install_settings` and the ones
-that change them) aren't there, even for admins. An admin counts as an owner of the namespace there.
+about the server itself (`file_storage`, `monitoring`, `services`, `mcp_servers`, `sandbox_gateway`, `install_settings`
+and the ones that change them) aren't there, even for admins. Nor are the person's own conversations (`list_chats`,
+`read_chat`, `rename_chat`, `export_chat`), which belong to no namespace. An admin counts as an owner of the
+namespace there.
 
 It is off until an owner of the namespace turns it on: **Admin → Namespaces →** the namespace **→ Connect apps**, which
 also copies its address, or `PATCH /api/v1/namespaces/<namespace>/integrations` with `{"mcp": true}`, or an agent's
@@ -69,6 +71,7 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `search` | moments where words appear (written, spoken or shown on screen), best first: the asset, person, time, the matching text (matches in **bold**) and a link to that moment. Words, `"phrases"`, `OR`; by namespace, person or asset |
 | `find_similar` | the assets (recordings, documents and images) most like a text, an asset, a topic or an entity: why each is alike (meaning, key words, topics, entities in common) and the moments that show it, with links |
 | `find` | assets by any attribute: faces seen, people heard, entities, topics, kind, content type, dates (a day, month or year), tags, language, objects, emotions, length, collection and words in them; ids or names. Each says why it matched, with moments and links to cite ([Finding by any attribute](processing.md#finding-by-any-attribute)) |
+| `classify` | which of some labels fits an asset or a text, how sure, and every label ranked: labels you give, or Lens's content types or the namespace's topics; the decision model answers, else the language model. Read only: it changes nothing ([Classifying](processing.md#classifying)) |
 | `list_namespaces` | the namespaces you can read, with their assets, hours, people and your role |
 | `list_recordings` | assets, newest first, by namespace, title words, dates, person, tag or kind, and whether they're flagged NSFW (`sensitive`) |
 | `list_speakers` | the people of your namespaces, the ones with the most talk time first |
@@ -78,6 +81,7 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `cite` | a citation for a moment (a line or a second, and a few lines from there): the words, who said or wrote them, the asset and date, the time, the link, and all of it as Markdown |
 | `list_entities` | people, organisations, products, places, events, works and terms mentioned, by name, type, namespace or asset |
 | `get_entity` | one entity: its names, its page's link, how often and when it is mentioned, what it is mentioned with, who mentions it most, and the lines that mention it |
+| `list_dates` | what was said about a day or a range: dates said in assets as days on the calendar ([Dates](processing.md#dates)), each with the words, the line and a link to that moment |
 | `explore_graph` | the knowledge graph around an entity (`e12`) or a person (`s3`), one or two steps out |
 | `find_path` | the shortest chain of links between two of them, with lines that show each link |
 | `sparql` | a read-only SPARQL query (SELECT, ASK, CONSTRUCT or DESCRIBE) over one namespace's linked data ([RDF](rdf.md)): JSON results, or Turtle |
@@ -91,8 +95,14 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `find_notes` | [notes](notes.md) by words in their title, summary or text, or by where they're filed (PARA), with the words around the match and links |
 | `read_note` | a note's Markdown with its links and backlinks, by id or as the page of a thing (`recording:12`) |
 | `write_note` | write a note or a thing's page, marked as written by an assistant. Needs a write-scope token and editor access |
+| `list_chats` | the person's conversations with Lens's [assistant](assistant.md#chat), newest first, by words in their title, each with its link |
+| `read_chat` | one of them: what it draws on, and the version showing (or the one ending at a `message`), each message with its versions, the tools an answer used, its citations with links and its record; `tree` adds every message's parent and role |
+| `rename_chat` | name one of them, or have Lens [title](assistant.md#titles) it from how it starts (no `title`). Needs a write-scope token |
+| `export_chat` | one of them as Markdown or JSON ([Copy and export](assistant.md#copy-and-export)): the version showing, one `message`, every version (`all_versions`) or OpenAI's `{"messages": [...]}` shape (`as_messages`) |
 | `create_podcast` | make a two-host learning [episode](podcasts.md) about assets or lines in them, with an angle, a length and a style; it's made in the background. Needs a write-scope token and editor access where it goes |
 | `get_podcast` | an episode: how far it has got, its script with each line's speaker and the sources it cites (links), and what the fact-check changed |
+| `write_spec` | write a technical [spec](notes.md#specs-from-transcripts) from a recording's transcript as a note linked to it: every decision, no and constraint in the speaker's own words with links to when they said them, and the gaps left to decide later; it's written in the background. Needs a write-scope token and the right to process the recording |
+| `get_spec` | how a recording's spec is coming (`writing`, `ready` or `failed` with why), its note's id and link, and how many decisions, things turned down, constraints and gaps it holds and quotes the transcript doesn't |
 | `nsfw_settings` | how [NSFW classification](nsfw.md) works in a namespace: on or off, the threshold, how flagged resources show, and how many are classified, flagged and not classified yet |
 | `set_nsfw` | turn NSFW classification on or off, set its threshold and display, for a namespace (owners) or the archive (admins), and optionally classify what's there. Needs a write-scope token |
 | `mark_nsfw` | mark a resource NSFW or not by hand, or hand it back to the model's score. Needs a write-scope token and editor access |
@@ -118,10 +128,15 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `set_file_storage` | keep new files on this machine or a storage connection (folder, rclone crypt); checked before it's saved. Admins only, with a write-scope token |
 | `services` | Lens's optional containers ([Optional containers](assistant.md#optional-containers)): the MCP runner, the browser and monitoring, whether each is on and answering, and how the machine's last change went. Admins only |
 | `set_service` | start or stop one of them (`mcp`, `browser` or `monitoring`): the machine's upgrade agent does it. Admins only, with a write-scope token |
+| `picture_descriptions` | what describes the pages and shots of resources ([Descriptions](configuration.md#descriptions)): the LLM provider's model that can see images, or Florence-2 or Moondream on this server, its model, whether it's ready and why not, and the engines there are. Admins only |
+| `set_picture_descriptions` | choose what describes pictures (`engine` `llm`, `florence-2` or `moondream`), the provider's `vision_model`, Florence-2's size (`florence_model`), which Moondream (`moondream_model`) and `describe_max`. Admins only, with a write-scope token |
 | `mcp_servers` | the MCP servers the assistant calls ([Adding an MCP server](assistant.md#adding-an-mcp-server)): each one's address or command, the names of its headers and env (never their values), whether it's on, its tools and those switched off, and its page; and the ready-made ones (browser, github), whether each is added and what it needs. Admins only |
 | `add_mcp_server` | add one: a ready-made one (`preset`, with `values` for its token) or your own (`server`: `{url, headers}` or `{command, args, env}`, with `off`, `ask` and `keep`); Lens lists its tools first, so it must answer, and seals its tokens. Admins only, with an API key that has the write scope (not an app given access) |
 | `install_settings` | whether other devices on the network reach Lens and its edition (full or lean), whether the machine's upgrade agent can change them, and the install line to run when it can't. Admins only |
 | `set_install_settings` | open Lens to the network or keep it to this machine, or change the edition: the machine sets itself up again and Lens restarts ([Updates](updates.md#setting-the-machine-up-again)). Admins only, with a write-scope token |
+| `news_feeds` | the news feeds (RSS or Atom) Lens follows, the namespaces each brings posts into and how the last scan went; addresses stay sealed. Admins only |
+| `subscribe_feed` | follow a news feed into a namespace in one step: its address or a page of the site, read first and kept only if it works; `backfill` also brings in the posts it lists now ([News feeds](processing.md#news-feeds-rss-and-atom)). Admins only, with a write-scope token |
+| `unsubscribe_feed` | stop following a news feed; the posts it brought in stay. Admins only, with a write-scope token |
 | `propose_graph_change` | ask for two entities to be merged or linked; it waits in Proposed changes unless `apply` makes it at once (it can be undone). Needs a write-scope token and editor access |
 | `undo_graph_change` | take back a merge or link `propose_graph_change` made. Needs a write-scope token and editor access |
 | `edit_entity` | rename an entity, change its type, describe it, set the other ways it's said, or hide or show it. Needs a write-scope token and editor access |
@@ -140,10 +155,10 @@ Every tool reads, except `suggest_topic`, which adds suggestions people accept o
 which records an undoable change (proposed by default), `undo_graph_change`, `edit_entity`, `edit_topic`,
 `merge_topics`, `delete_topic` and `undo_topic_change`, which curate entities and topics as an editor does in the web
 app (merges and deletes can be undone), `write_note`, which adds a note, `create_podcast`, which
-queues an episode, `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
-editors), `set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_file_storage`, which changes where new files are kept (admins), `add_mcp_server`, which adds an
-MCP server (admins), and `set_monitoring`, `set_service` and `set_install_settings`, which have the machine change how
-Lens runs (admins).
+queues an episode, `write_spec`, which queues a spec, `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
+editors), `set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_picture_descriptions`, which changes what describes pictures (admins), `set_file_storage`, which changes where new files are kept (admins), `add_mcp_server`, which adds an
+MCP server (admins), `subscribe_feed` and `unsubscribe_feed`, which follow and stop following news feeds (admins), and `set_monitoring`, `set_service`,
+`set_sandbox_gateway` (the [code sandbox](assistant.md#code-sandbox)'s gateway) and `set_install_settings`, which have the machine change how Lens runs (admins).
 Importing stays in the web app and the API.
 
 ### What the archive says is data

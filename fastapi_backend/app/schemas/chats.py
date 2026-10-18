@@ -26,7 +26,7 @@ class ChatScope(RequestModel):
 
 
 class ChatCreate(RequestModel):
-    title: str | None = None
+    title: str | None = Field(None, description="yours, and kept; left out, Lens titles it after its first answer (ai.auto_title)")
     kind: Literal["chat", "setup"] = Field(
         "chat",
         description="setup (admins): the assistant sets the server up with you, and makes the changes it proposes without asking "
@@ -36,24 +36,57 @@ class ChatCreate(RequestModel):
     model: str | None = Field(
         None, description="the model that answers in it (one of GET /chats/capabilities `models`); null: the configured one"
     )
+    tools: list[str] | None = Field(
+        None,
+        max_length=100,
+        description="what its answers may use: tool groups and tools (GET /chats/tools); [] for none; left out: your latest "
+        "choice (PATCH /chats/{cid}), else Auto",
+    )
+    max_tool_calls: int | None = Field(
+        None, ge=1, description="at most this many tool calls in each answer (1 to ai.max_tool_calls); left out: your latest choice"
+    )
 
 
 class ChatUpdate(RequestModel):
-    title: str | None = None
+    title: str | None = Field(None, description="rename it: yours from then on, so Lens doesn't retitle it (POST /chats/{cid}/title does)")
     scope: ChatScope | None = None
     model: str | None = Field(
         None, description="the model that answers in it (one of GET /chats/capabilities `models`); null: the configured one"
     )
+    tools: list[str] | None = Field(
+        None,
+        max_length=100,
+        description="what its answers may use: tool groups and tools (GET /chats/tools); [] for none; null: Auto (everything "
+        "you may use). Your new conversations start with it too",
+    )
+    max_tool_calls: int | None = Field(
+        None, ge=1, description="at most this many tool calls in each answer (1 to ai.max_tool_calls); null: no limit but the rounds"
+    )
+
+
+TitleBy = Literal["assistant", "person"]
+TITLE_BY = (
+    "who titled it: assistant (Lens, from its first question and answer; it titles it again when the first question is "
+    "edited) or person (named by someone, so Lens leaves it); null: from before Lens kept who titled it"
+)
 
 
 class ChatSummary(ResponseModel):
     id: int
     title: str
+    title_by: TitleBy | None = Field(None, description=TITLE_BY)
     kind: Literal["chat", "setup", "bridge"] = Field("chat", description="bridge: a conversation in a chat room, through Matterbridge")
     scope: dict[str, Any] = {}
     model: str | None = Field(None, description="the model chosen for this conversation; null: the configured one")
+    tools: list[str] | None = Field(None, description="the tool groups and tools its answers may use; null: Auto")
+    max_tool_calls: int | None = Field(None, description="at most this many tool calls in each answer; null: no limit but the rounds")
     created_at: str | None = None
     updated_at: str | None = None
+
+
+class ChatTitle(ResponseModel):
+    title: str
+    title_by: TitleBy = Field(description=TITLE_BY)
 
 
 class Passage(ResponseModel):
@@ -85,10 +118,30 @@ class AnswerCheck(ResponseModel):
     uncited: list[str] = []
 
 
+class SandboxOutput(ResponseModel):
+    """What a code sandbox run printed, as its step shows it (the start of stdout, the end of stderr)."""
+
+    stdout: str = ""
+    stderr: str = ""
+    exit_code: int | None = None
+    timed_out: bool = False
+    cut: bool = Field(False, description="there was more than this")
+
+
+class SandboxFile(ResponseModel):
+    """A file the code sandbox handed the person: GET /chats/{cid}/files/{id} downloads it."""
+
+    id: str
+    name: str
+    size: int
+
+
 class ToolStep(ResponseModel):
     tool: str
     args: dict[str, Any] = {}
     summary: str = ""
+    output: SandboxOutput | None = Field(None, description="a code sandbox run's output")
+    file: SandboxFile | None = Field(None, description="a file to download, from share_sandbox_file")
     ms: int | None = Field(None, description="how long the tool took")
     failed: bool | None = Field(None, description="the tool failed (or was unknown or blocked); its summary says why")
 
@@ -208,6 +261,9 @@ class ChatMessage(ResponseModel):
     parent: int | None = Field(None, description="the message it follows; null for a first question")
     versions: Versions | None = Field(None, description="it and the others said in its place, from regenerating or editing")
     meta: MessageRecord | None = Field(None, description="what produced it; none on messages from before it was recorded")
+    kind: Literal["research", "research_plan"] | None = Field(
+        None, description="research: a deep research report; research_plan: the plan it waits on (GET /research/{meta.research})"
+    )
 
 
 class MessageDetail(ChatMessage):
@@ -229,7 +285,8 @@ class ChatCapabilities(ResponseModel):
     configured: bool = Field(description="a language model is set up; without one, answers are the best-matching passages")
     model: str | None = Field(None, description="the model answers come from")
     tools: bool = Field(description="the assistant looks things up with tools (and may propose work for approval)")
-    max_steps: int = Field(description="the most tool calls it makes for one answer")
+    max_steps: int = Field(description="the most rounds of tool calls it makes for one answer (a round makes one call or more)")
+    max_tool_calls: int = Field(50, description="the most tool calls a question may give one answer (`max_tool_calls`)")
     check: bool = Field(description="answers can be checked against their sources")
     models: list[str] = Field(
         default_factory=list, description="the models people may pick, the configured one first (llm.chat_models, else the server's list)"
@@ -283,6 +340,60 @@ class MessageCreate(RequestModel):
         "assistant can use that browser (docs/browser-assistant.md)",
     )
     via: Literal["voice"] | None = Field(None, description="voice: said in a voice conversation (the question's record keeps it)")
+    tools: list[str] | None = Field(
+        None,
+        max_length=100,
+        description="what this answer may use: tool groups (archive, notes, mcp:tracker) and tools, as GET /chats/tools lists "
+        "them; [] for none (it answers from a search); null: the conversation's choice, else Auto (everything you may use). An "
+        "admin's switch still wins",
+    )
+    max_tool_calls: int | None = Field(
+        None, ge=1, description="at most this many tool calls in this answer (1 to ai.max_tool_calls); null: the conversation's"
+    )
+    scope: ChatScope | None = Field(
+        None,
+        description="what this answer draws on, instead of the conversation's scope (which stays as it is); {} for everything you can read",
+    )
+    research: bool | None = Field(
+        None,
+        description="the content is a research goal: the reply is a plan to approve (streams `research`, then `approval`), "
+        "as /research <goal> and POST /chats/{cid}/research do",
+    )
+
+
+class ToolInfo(ResponseModel):
+    name: str
+    effect: Literal["read", "asks", "out"] = Field(
+        description="read: it looks things up; asks: it waits for your yes; out: it sends what it's given to another host"
+    )
+    out: bool = Field(False, description="it sends what it's given to another host (and asks first after outside text)")
+    available: bool = Field(description="you have it now")
+
+
+class ToolGroup(ResponseModel):
+    name: str = Field(description="what `tools` names it by: a built-in group, mcp:<server> or ext:<extension>")
+    label: str
+    tools: list[ToolInfo]
+    asks: bool = Field(description="one of its tools waits for your yes")
+    out: bool = Field(description="one of its tools sends data to another host")
+    available: bool = Field(description="you have one of its tools now")
+    why: str | None = Field(None, description="why you don't, when you have none")
+    setting: str | None = Field(None, description="the setting that would change that (section.key), for admins")
+
+
+class ToolChoice(ResponseModel):
+    tools: list[str] | None = None
+    max_tool_calls: int | None = None
+
+
+class ChatTools(ResponseModel):
+    groups: list[ToolGroup] = Field(description="the built-in groups, then your extensions' (mcp:<server>, ext:<extension>)")
+    max_tool_calls: int = Field(description="the most tool calls one answer may be given (ai.max_tool_calls)")
+    remembered: ToolChoice = Field(description="your latest choice, which new conversations start with")
+    namespaces_note: str = Field(
+        "Web and MCP tools reach beyond your namespaces: the namespaces you pick narrow the archive's tools only.",
+        description="what the choice of namespaces doesn't narrow",
+    )
 
 
 class ApprovalOrigin(ResponseModel):
@@ -370,6 +481,7 @@ class ApprovalDecision(RequestModel):
 class ApprovalOutcome(ResponseModel):
     status: str
     batch: int | None = Field(default=None, description="the batch run started, for run_template")
+    job: int | None = Field(default=None, description="the job started, for write_spec")
     error: str | None = Field(default=None, description="why an automation's action failed")
     result: Any = Field(default=None, description="what an automation's action gave back")
     always: bool | None = Field(default=None, description="that node runs without asking from now on")

@@ -40,6 +40,7 @@ export const OPS: Record<string, string> = {
   "entity.rename": "Renamed",
   "entity.describe": "Described",
   "entity.retype": "Changed the type of",
+  "entity.typed": "Gave a type to",
   "entity.hide": "Hid",
   "entity.show": "Showed",
   "entity.define": "Put on the list",

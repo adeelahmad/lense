@@ -13,6 +13,9 @@ from __future__ import annotations
 
 import functools
 import ipaddress
+import os
+import socket
+import time
 from typing import NamedTuple
 
 from . import store
@@ -83,6 +86,26 @@ def address(raw):
     return (ip.ipv4_mapped or ip) if isinstance(ip, ipaddress.IPv6Address) else ip
 
 
+_PROXY_HOSTS: dict[str, tuple[float, tuple[str, ...]]] = {}
+
+
+def proxy_hosts() -> tuple[str, ...]:
+    """The addresses of the hosts named in LENS_TRUSTED_PROXY_HOSTS (the web app's container, `frontend` in the
+    Docker Compose files, whose address changes when it's recreated), looked up at most every 30 seconds."""
+    names = [n.strip() for n in os.environ.get("LENS_TRUSTED_PROXY_HOSTS", "").split(",") if n.strip()]
+    out: list[str] = []
+    for name in names:
+        hit = _PROXY_HOSTS.get(name)
+        if not hit or time.monotonic() - hit[0] > 30:
+            try:
+                found = tuple(sorted({str(i[4][0]) for i in socket.getaddrinfo(name, None)}))
+            except OSError:
+                found = ()
+            hit = _PROXY_HOSTS[name] = (time.monotonic(), found)
+        out += hit[1]
+    return tuple(out)
+
+
 @functools.lru_cache(maxsize=256)
 def _networks(values):
     out = []
@@ -127,6 +150,18 @@ def client_address(peer, port, forwarded, trusted):
         if not within(addr, trusted):
             return addr
     return None
+
+
+LOOPBACK = ("127.0.0.0/8", "::1/128")
+
+
+def visitor(cfg, peer, port, forwarded):
+    """The address a connection to one of Lens's own servers (the file shares, MQTT over WebSockets) comes from, for
+    throttles: what the web app relaying it (and proxies it trusts: server.trusted_proxies, LENS_TRUSTED_PROXY_HOSTS,
+    this machine) report in X-Forwarded-For, else the connection's peer."""
+    trusted = tuple((cfg.get("server") or {}).get("trusted_proxies") or ()) + proxy_hosts() + LOOPBACK
+    addr = client_address(peer, port or 1, forwarded or "", trusted)
+    return str(addr) if addr else peer
 
 
 # ---------- what an address opens ----------

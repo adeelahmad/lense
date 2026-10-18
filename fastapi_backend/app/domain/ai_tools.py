@@ -13,7 +13,10 @@ import logging
 from . import (
     auth,
     batches,
+    classify as classifymod,
     cypher,
+    dates,
+    decide,
     entities,
     event_marks,
     extensions,
@@ -24,16 +27,19 @@ from . import (
     graph_model,
     entity_setup,
     graph_history,
+    llm,
     notebook,
     ns_assistant,
     ops_tools,
     recsets,
     render,
+    research as researchmod,
     sandbox as sandboxmod,
     search as searchmod,
     browser as browsermod,
     similar,
     speakers as spk,
+    specs,
     store,
     templates,
     topics,
@@ -118,6 +124,23 @@ TOOLS = [
             "unreviewed": {"type": "boolean"},
             "before": _S,
             "limit": _I,
+        },
+        [],
+        False,
+    ),
+    (
+        "classify",
+        "Classify an asset (or a text): which of some labels fits best, how sure, and every label ranked. Give "
+        'labels (names, or "name: what it means"), or a vocabulary: content_type (Lens\'s content types, such '
+        "as podcast, interview, scan, email) or topic (the namespace's topics). It changes nothing; sure says whether "
+        "the answer is sure enough to act on.",
+        {
+            "recording_id": _I,
+            "text": _S,
+            "labels": {"type": "array", "items": _S},
+            "vocabulary": {"type": "string", "enum": list(classifymod.VOCABULARIES)},
+            "namespace": _S,
+            "question": _S,
         },
         [],
         False,
@@ -209,6 +232,14 @@ TOOLS = [
     ),
     ("entity_timeline", "How often an entity was mentioned per month.", {"entity_id": _I}, ["entity_id"], False),
     (
+        "find_dates",
+        'What was said about a day or a range: dates said in assets, read as days on the calendar ("next Tuesday" '
+        "in a recording is worked out from its date), each with its line. start and end are YYYY-MM-DD, YYYY-MM or YYYY.",
+        {"start": _S, "end": _S, "namespace": _S, "recording_id": _I, "query": _S, "limit": _I},
+        [],
+        False,
+    ),
+    (
         "find_topics",
         "Find topics: each namespace's controlled vocabulary of what assets are about, with other labels, a "
         "definition, broader topics and how many assets are about each.",
@@ -256,7 +287,8 @@ TOOLS = [
     ),
     (
         "read_note",
-        "Read a note's Markdown, with its links and the notes linking to it: by note_id, or the page of a thing "
+        "Read a note's Markdown, with its links, the notes linking to it, the notes it's inside (path) and the notes "
+        "inside it: by note_id, or the page of a thing "
         '(about, like "recording:12" or "entity:5").',
         {"note_id": _I, "about": _S},
         [],
@@ -338,6 +370,16 @@ TOOLS = [
         "Run a template (such as meeting notes) on assets. Needs the person's approval.",
         {"template_id": _I, "recording_ids": {"type": "array", "items": _I}, "collection_id": _I},
         ["template_id"],
+        True,
+    ),
+    (
+        "write_spec",
+        "Write a technical spec from an asset's transcript (a voice session, a meeting, a memo) as a note linked to it: "
+        'every named decision, every no and every "not that, this", every constraint the speaker stated, in their own '
+        "words with when they said them, and the gaps they left to decide later, flagged. It runs in the background with "
+        "the Spec from transcript template; writing it again updates the same note. Needs the person's approval.",
+        {"recording_id": _I},
+        ["recording_id"],
         True,
     ),
     (
@@ -500,6 +542,7 @@ def builtin_names():
         + AUTOMATION_TOOLS
         + browsermod.TOOLS
         + sandboxmod.TOOLS
+        + researchmod.TOOLS
     )
     return {t[0] for t in every + webmod.TOOLS} | {"use_skill"}
 
@@ -523,9 +566,163 @@ OWN_RESULTS = {
     "decline_approval",
 } | {
     t[0]
-    for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS + AUTOMATION_TOOLS + sandboxmod.TOOLS
+    for t in TOOLS
+    + ops_tools.ADMIN_TOOLS
+    + ops_tools.FILE_TOOLS
+    + AUTHOR_TOOLS
+    + MEMORY_TOOLS
+    + AUTOMATION_TOOLS
+    + sandboxmod.TOOLS
+    + researchmod.TOOLS
     if t[4]
 }
+
+# The side panel's browser tools have their own guard (browser.py): the ones that act on a web site are labelled as
+# sending data out (BROWSER_OUT) in the tool picker, and ask as browser.py says.
+BROWSER_OUT = {"browser_open", "browser_click", "browser_type", "browser_press"}
+
+# The groups of tools a question can be given (POST /chats/{cid}/messages `tools`; docs/assistant.md, "Choosing tools,
+# namespaces and a limit"), in the order the web app shows them, each built-in tool in one: a new tool joins one here
+# (test_chat_tools checks). Extensions add their own: mcp:<name> for an MCP server's tools, ext:<name> for another
+# extension's (extensions.Active.groups).
+GROUPS = {
+    "archive": {
+        "label": "Archive",
+        "tools": [
+            "search_transcripts",
+            "find_resources",
+            "find_similar",
+            "list_recordings",
+            "read_transcript",
+            "recording_outputs",
+            "classify",
+        ],
+    },
+    "graph": {
+        "label": "Graph",
+        "tools": [
+            "find_entities",
+            "entity_mentions",
+            "entity_timeline",
+            "find_dates",
+            "find_topics",
+            "topic_recordings",
+            "graph_neighbours",
+            "speaker_stats",
+            "graph_schema",
+            "graph_query",
+            "graph_related",
+            "graph_paths",
+        ],
+    },
+    "web": {"label": "The web", "tools": [t[0] for t in webmod.TOOLS]},
+    "notes": {"label": "Notes", "tools": ["find_notes", "read_note", "write_note", "update_note", "write_spec"]},
+    "memory": {"label": "Namespace memory", "tools": [t[0] for t in MEMORY_TOOLS]},
+    "activity": {
+        "label": "Timeline and automations",
+        "tools": ["timeline", "mark_activities", "approvals", "decline_approval", "automations", "test_automation"]
+        + [t[0] for t in AUTOMATION_TOOLS],
+    },
+    "changes": {
+        "label": "Proposed changes",
+        "tools": ["suggest_topic", "propose_entity_change", "propose_topic_change", "entity_setup", "run_template"],
+    },
+    "files": {"label": "Importing files", "tools": [t[0] for t in ops_tools.FILE_TOOLS]},
+    "code": {"label": "Code sandbox", "tools": [t[0] for t in sandboxmod.TOOLS]},
+    "research": {"label": "Deep research", "tools": [t[0] for t in researchmod.TOOLS]},
+    "extensions": {"label": "Extensions and skills", "tools": [t[0] for t in AUTHOR_TOOLS] + ["use_skill"]},
+    "server": {"label": "The server", "tools": [t[0] for t in ops_tools.ADMIN_TOOLS]},
+    "browser": {"label": "Your browser", "tools": [t[0] for t in browsermod.TOOLS]},
+}
+
+
+def _effect(changes, out):
+    """What a tool does, as the tool picker labels it: asks (it waits for the person's yes), out (it sends what it's
+    given to another host) or read."""
+    return "asks" if changes else "out" if out else "read"
+
+
+def _why_missing(group, cfg):
+    """Why none of a built-in group's tools is offered to this person: in words, and the setting that would change it
+    (for admins), if one would."""
+    off = set(cfg["ai"].get("disabled_tools") or [])
+    if group == "browser" and not browsermod.enabled(cfg):
+        return "switched off by an admin", "ai.browser"
+    if group == "web" and not webmod.enabled(cfg):
+        return "no web search is set up", "web.search"
+    if group == "code" and not sandboxmod.enabled(cfg):
+        return "the code sandbox is off", "sandbox.enabled"
+    if group == "code" and sandboxmod.settings(cfg)["who"] == "admins":
+        return "for admins", "sandbox.who"
+    if group == "research" and researchmod.unavailable(cfg):
+        return researchmod.unavailable(cfg)
+    if group == "extensions" and not cfg["ai"].get("extensions", True):
+        return "switched off by an admin", "ai.extensions"
+    if all(t in off for t in GROUPS[group]["tools"]):
+        return "switched off by an admin", "ai.disabled_tools"
+    if group == "server":
+        return "for admins", None
+    if group == "memory":
+        return "in a conversation about one namespace whose own assistant is on", None
+    return "needs editor access to a namespace", None
+
+
+def _group(name, label, tools, why=None, setting=None):
+    return {
+        "name": name,
+        "label": label,
+        "tools": tools,
+        "asks": any(t["effect"] == "asks" for t in tools),
+        "out": any(t["out"] for t in tools),
+        "available": any(t["available"] for t in tools),
+        "why": why,
+        "setting": setting,
+    }
+
+
+def catalog(box):
+    """The tool groups a question can be given, for the person `box` is for (GET /chats/tools): the built-in ones, then
+    their extensions'. Each has its label and its tools: what each does (read, asks first or out: sends data to
+    another host), whether it sends data out, and whether this person has it now. A group with none has why, and the
+    setting that changes it. The browser's tools count as there while an admin allows them: a question has them while
+    the browser's Lens side panel it's asked from is connected."""
+    offered = {s["function"]["name"] for s in box.specs()}
+    off = set(box.cfg["ai"].get("disabled_tools") or [])
+    if browsermod.enabled(box.cfg):
+        offered |= {t for t in GROUPS["browser"]["tools"] if t not in off}
+    if sandboxmod.offered(box.cfg, box.admin, bool(box.editable)):  # every conversation of theirs has its sandbox
+        offered |= {t for t in GROUPS["code"]["tools"] if t not in off}
+    if researchmod.available(box.cfg):  # every conversation of theirs can start research
+        offered |= {t for t in GROUPS["research"]["tools"] if t not in off}
+    # code that can reach another host can carry out what it's given
+    runs_out = {"run_python", "run_bash"} if sandboxmod.sends_out(box.cfg) else set()
+    built = {
+        t[0]: t[4]
+        for t in TOOLS
+        + ops_tools.ADMIN_TOOLS
+        + ops_tools.FILE_TOOLS
+        + AUTHOR_TOOLS
+        + MEMORY_TOOLS
+        + AUTOMATION_TOOLS
+        + sandboxmod.TOOLS
+        + webmod.TOOLS
+        + researchmod.TOOLS
+    }
+    out = []
+    for name, g in GROUPS.items():
+        tools = []
+        for t in g["tools"]:
+            sends = t in SENDS_OUT or t in BROWSER_OUT or t in runs_out
+            tools.append({"name": t, "effect": _effect(built.get(t, False), sends), "out": sends, "available": t in offered})
+        out.append(_group(name, g["label"], tools, *(() if any(t["available"] for t in tools) else _why_missing(name, box.cfg))))
+    for name, g in box.ext.groups.items() if box.ext else ():
+        tools = []
+        for t in g["tools"]:
+            spec = box.ext.tools[t]["spec"]
+            sends = extensions.sends_out(spec)
+            tools.append({"name": t, "effect": _effect(spec["effect"] == "change", sends), "out": sends, "available": t in offered})
+        out.append(_group(name, g["label"], tools, None if any(t["available"] for t in tools) else "needs editor access to a namespace"))
+    return out
 
 
 def read_before(history, summary=None):
@@ -549,7 +746,10 @@ class Toolbox(ops_tools.OpsTools):
     then use. The conversation's code sandbox (sandbox.py) is there when an admin turned it on and the person may use it.
     `account`: the person an automation acts for, when `user` is the automation itself (automation:<id>,
     the by of what it writes): their approvals, extensions, view of the timeline and marks on it; `origin` ({automation, run,
-    node}) is kept on the approvals it asks for."""
+    node}) is kept on the approvals it asks for. `only`: the groups (GROUPS, an extension's mcp:<name> or ext:<name>)
+    and tools the question was given (None: every tool this person may use; an admin's switch still wins).
+    `allowed_out`: tools that send data out of Lens and don't ask first even after the answer read outside text,
+    because the person already approved them for this work (an approved research plan's web search, research.py)."""
 
     def __init__(
         self,
@@ -569,14 +769,19 @@ class Toolbox(ops_tools.OpsTools):
         act_on=(),
         account=None,
         origin=None,
+        only=None,
+        allowed_out=(),
     ):
         self.db, self.cfg, self.user, self.chat, self.said = db, cfg, user, chat_id, said
+        self.only = None if only is None else set(only)
+        self.allowed_out = set(allowed_out or ())
         self.account, self.origin = user["id"] if account is None else account, origin
         # where this answer has read text from outside Lens so far (`outside`: before any tool ran, such as the page it
         # was asked from or a chat room's message): once it has, tools that send data out of Lens or change the server
         # ask first, even where they'd act at once (wary)
         self.outside = list(dict.fromkeys(outside))
         self.links = set()  # web addresses the tools gave back, as written (untrusted.defang)
+        self.detail = None  # what the last tool adds to its step for the person (a run's output, a file to download)
         self.base, self.admin, self.act, self.act_on = base or cfg, admin, act, set(act_on or ())
         self.scope = scope or {}
         self.readable, self.editable = set(readable), set(editable)
@@ -606,7 +811,7 @@ class Toolbox(ops_tools.OpsTools):
         for this question."""
         out = self._home_note() + (browsermod.NOTE if self.browser else "")
         if self.sandbox:
-            out += sandboxmod.NOTE.format(network=sandboxmod.NETWORK_NOTE[sandboxmod.settings(self.cfg)["network"]])
+            out += sandboxmod.NOTE.format(network=sandboxmod.network_note(self.cfg))
         if self.web and webmod.NAMES & {s["function"]["name"] for s in self.specs()}:
             out += webmod.NOTE
         if not self.ext:
@@ -684,16 +889,34 @@ class Toolbox(ops_tools.OpsTools):
             tools += sandboxmod.TOOLS
         if self.web:
             tools += webmod.TOOLS
+        if self.chat is not None and researchmod.available(self.cfg):
+            tools += researchmod.TOOLS
         if self.ext:
             tools += self.ext.tool_specs(can_act or self.admin)
+        keep = self.chosen()
         return [
             {
                 "type": "function",
                 "function": {"name": n, "description": d, "parameters": {"type": "object", "properties": p, "required": req}},
             }
             for n, d, p, req, _ in tools
-            if n not in off
+            if n not in off and (keep is None or n in keep)
         ]
+
+    def chosen(self):
+        """The tool names `only` keeps (None: every tool): the tools it names, and those of the groups it names."""
+        if self.only is None:
+            return None
+        groups = self.ext.groups if self.ext else {}
+        out = set()
+        for n in self.only:
+            out |= set(GROUPS[n]["tools"] if n in GROUPS else groups[n]["tools"] if n in groups else [n])
+        return out
+
+    def unknown(self, names):
+        """The names in a choice of tools that are no group or tool this person has (built-in, or of their extensions)."""
+        known = builtin_names() | set(GROUPS) | set(self.ext.groups if self.ext else ()) | set(self.ext.tools if self.ext else ())
+        return [n for n in names if n not in known]
 
     def ref(self, rid, t0, text, speaker=None, title=None, source="said", page=None):
         self.refs.append(
@@ -749,10 +972,16 @@ class Toolbox(ops_tools.OpsTools):
         words = " ".join(str(text or "").split()).casefold()
         return bool(words) and words in " ".join(str(self.said or "").split()).casefold()
 
+    def take_detail(self):
+        """What the last tool added to its step for the person ({} when nothing), once."""
+        got, self.detail = self.detail or {}, None
+        return got
+
     def call(self, name, args, model=False):
         """A tool's result (JSON) and the step's summary. `model`: the result as the model reads it, third-party text
         marked as data (untrusted), with what hooks add after it, unmarked."""
         offered = {s["function"]["name"] for s in self.specs()}
+        self.detail = None
         self.failed = True  # until it runs: a tool that's unknown or blocked failed
         try:
             if name not in offered:
@@ -894,15 +1123,16 @@ class Toolbox(ops_tools.OpsTools):
     def _sandbox_run(self, kind, source, files):
         source = str(source or "")
         files = [str(f) for f in ([files] if isinstance(files, str) else files or [])]
-        if sandboxmod.sends_out(self.cfg) and self.wary():
+        if sandboxmod.sends_out(self.cfg) and self.wary() and f"run_{kind}" not in self.allowed_out:
             # code that reaches another host can carry out what the answer read: after text from outside Lens, which
             # may have put it there, a run asks first
             first = next((x.strip() for x in source.splitlines() if x.strip()), "")[:80]
             args = store.clean({"code" if kind == "python" else "command": source, "files": files or None})
             lang = "Python" if kind == "python" else "bash"
-            where = "the package registries" if sandboxmod.settings(self.cfg)["network"] == "packages" else "the web"
+            where = sandboxmod.reaches(self.cfg)
             return self._approval(f"run_{kind}", args, f"Run {lang} in the code sandbox, which can reach {where}: {first}" + self.why())
         out = self._sandbox(sandboxmod.run, self.account, kind, source, files)
+        self.detail = sandboxmod.shown(out)  # the output under the code, on the step the person sees
         return out, sandboxmod.summary(kind, source, out)
 
     def t_run_python(self, code, files=None):
@@ -916,6 +1146,14 @@ class Toolbox(ops_tools.OpsTools):
         n = len(out.get("files") or []) + int(out.get("more") or 0)
         return out, f"Looked at the sandbox's files ({n})"
 
+    def t_share_sandbox_file(self, path):
+        got = self._sandbox(sandboxmod.share, self.account, path)
+        self.detail = {"file": got}  # a download on the answer
+        return (
+            {"shared": got["name"], "size": got["size"], "note": "the person downloads it from your answer"},
+            f"Shared {got['name']} to download",
+        )
+
     def t_import_sandbox_file(self, path, namespace=None):
         # out of the sandbox as one of the person's held uploads, then imported as a file they attached would be
         up = self._sandbox(sandboxmod.hold, self.user, path)
@@ -925,8 +1163,9 @@ class Toolbox(ops_tools.OpsTools):
     def _web(self, tool, args, what, own):
         """A web search or page read, as (what it found, None), or (None, the approval it waits for): the words or the
         address leave the machine, so once this answer has read text from outside Lens, which may have put them there,
-        it asks first, unless the person wrote them (`own`) or already approved the same call in this conversation."""
-        if own or not self.wary():
+        it asks first, unless the person wrote them (`own`), already approved the same call in this conversation, or
+        approved this tool for the work it's doing (allowed_out: an approved research plan's)."""
+        if own or not self.wary() or tool in self.allowed_out:
             return webmod.run(self.cfg, tool, args), None
         rows = (
             self.db.rows(
@@ -983,6 +1222,25 @@ class Toolbox(ops_tools.OpsTools):
         return {"ref": self.web_ref(out["url"], out.get("title"), out.get("site"), excerpt, out.get("fetched_at")), **out}, webmod.summary(
             "web_read", args, out
         )
+
+    # ---- deep research (research.py): a plan to approve, then a run in the background ----
+    def t_start_research(self, goal):
+        goal = " ".join(str(goal or "").split())
+        if not goal:
+            raise ValueError("give the goal to research")
+        if self.chat is None:
+            raise ValueError("research runs in a conversation")
+        model = researchmod.model_for(self.cfg, (self.db.one("SELECT model FROM $r", r=R("chat", self.chat)) or {}).get("model"))
+        r = researchmod.propose(self.db, self.cfg, self, goal, model)
+        out = {
+            "status": "waiting for the person's approval",
+            "research": r["id"],
+            "approval": r["approval"],
+            "plan": r["plan"],
+            "questions": r["questions"],
+            "estimate": r["estimate"],
+        }
+        return out, f"Planned {researchmod.summary(r['plan'])}; it waits for the person's approval"
 
     # ---- extensions, from chat ----
     def _ext_named(self, name):
@@ -1408,6 +1666,21 @@ class Toolbox(ops_tools.OpsTools):
             )
         return {"total": res["total"], "resolved": res["resolved"] or None, "results": out}, f"Found {res['total']} asset(s)"
 
+    def t_classify(self, recording_id=None, text=None, labels=None, vocabulary=None, namespace=None, question=None):
+        space = None
+        if recording_id is not None:
+            self._ok(recording_id)
+        elif namespace:
+            space = self._space(namespace)
+        try:
+            res = classifymod.classify(
+                self.db, self.cfg, rid=recording_id, text=text, labels=labels, vocab=vocabulary, question=question, space=space
+            )
+        except decide.Undecided as e:
+            raise ValueError(f"nothing could answer: {e}") from None
+        out = {k: res[k] for k in ("choice", "confidence", "sure", "ranked", "by", "key", "id") if res.get(k) is not None}
+        return out, f"Classified as {res['choice']} ({round(res['confidence'] * 100)}% sure)"
+
     def t_read_transcript(self, recording_id, start_seconds=0, end_seconds=None, max_lines=60):
         cap = self.cfg["ai"].get("max_transcript_reads") or 20
         if self.reads >= cap:
@@ -1478,6 +1751,34 @@ class Toolbox(ops_tools.OpsTools):
 
     def t_entity_timeline(self, entity_id):
         return entities.timeline(self.db, [int(entity_id)], self.readable), "Counted mentions by month"
+
+    def t_find_dates(self, start=None, end=None, namespace=None, recording_id=None, query=None, limit=10):
+        spaces = {s for s in self.readable if namespace is None or store.space_names(self.db).get(s) == namespace}
+        res = dates.said(
+            self.db,
+            spaces,
+            day_from=dates.day_bound(start),
+            day_to=dates.day_bound(end, last=True),
+            recording=recording_id,
+            q=(query or "").strip() or None,
+            limit=200,
+        )
+        out = [
+            {
+                "ref": self.ref(d["recording_id"], d.get("t0") or 0, d.get("text") or d["said"], d.get("speaker"), d.get("title")),
+                "day": d["day"] if d["until"] == d["day"] else f"{d['day']} to {d['until']}",
+                "said": d["said"],
+                **({"worked_out_from_the_asset_date": d.get("recorded_at")} if d.get("relative") else {}),
+                "title": d.get("title"),
+                "time": d.get("time"),
+                "text": d.get("text"),
+            }
+            for d in res["items"]
+            if self.allowed is None or d["recording_id"] in self.allowed
+        ][: min(int(limit), 30)]
+        if not out and not (self.cfg.get("analysis") or {}).get("dates"):
+            return {"dates": [], "note": "reading dates is off (Settings → Analysis → Read dates)"}, "Dates aren't read here"
+        return {"dates": out}, f"Found {len(out)} date(s)"
 
     def t_find_topics(self, query=None, namespace=None, limit=20):
         spaces = self.readable
@@ -1648,6 +1949,16 @@ class Toolbox(ops_tools.OpsTools):
         est = batches.estimate(self.db, self.cfg, ids, steps)
         return self._approval("run_template", {"template_id": t["id"], "recordings": ids}, f"Run {label} on {len(ids)} asset(s)", est)
 
+    def t_write_spec(self, recording_id):
+        row = self._ok(recording_id)
+        if row["space"] not in self.editable:
+            raise ValueError(f"asset {recording_id} isn't yours to write a spec for")
+        if not llm.configured(self.cfg):
+            raise ValueError("no language model is configured (Settings → LLM provider)")
+        est = batches.estimate(self.db, self.cfg, [int(recording_id)], [{"type": "spec"}])
+        title = row.get("title") or f"asset {recording_id}"
+        return self._approval("write_spec", {"recording_id": int(recording_id)}, f"Write a spec from {title}", est)
+
     # ---- notes (notebook.py): the assistant reads and writes them at once; they're its notebook ----
     def _note(self, note_id, edit=False):
         try:
@@ -1718,6 +2029,8 @@ class Toolbox(ops_tools.OpsTools):
                 "body": (p.get("body") or "")[:20_000],
                 "links": notebook.links(self.db, p["id"]),
                 "linked_from": [b for b in notebook.backlinks(self.db, p["space"], targets) if b["page"] != p["id"]],
+                "path": [{"id": x["id"], "title": x["title"]} for x in notebook.path(self.db, p)] or None,
+                "notes_inside": [{"id": x["id"], "title": x["title"]} for x in notebook.children(self.db, p)] or None,
                 "could_link": [f"{x['sign']}[{x['label']}]({x['target']})" for x in notebook.suggest_links(self.db, p)] or None,
                 "files": [{"name": f.get("name"), "type": f["type"], "size": f["size"]} for f in notebook.files(self.db, p["id"])] or None,
                 "could_go_in": [
@@ -1876,7 +2189,8 @@ class Toolbox(ops_tools.OpsTools):
 
 def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=False, readable=None, params=None, via="web"):
     """Carry out an approved action: a batch run (or a sample of it), an entity change, a note an automation's agent
-    proposed, or a change to the server (ops_tools.py: settings, a namespace, importing attached files or web pages).
+    proposed, or a change to the server (ops_tools.py: settings, a namespace, importing attached files or web pages,
+    following a news feed).
     An automation's action (an approval with an intent) is decided by approvals.decide: `params` are an edit's, `via`
     where the pick was made (web, chat, token, oauth or agent; only the person, signed in or in their own chat,
     approves it)."""
@@ -1885,6 +2199,8 @@ def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=F
     a = approvals.get(db, aid)
     if not a or a["status"] != "pending":
         raise ValueError("nothing to approve")
+    if a["tool"] == "research":  # a research plan: approved (as it is, or with `params` its edits) or declined
+        return researchmod.decide(db, cfg, a, user, decision, params, via)
     if via == "agent" and decision != "decline":
         raise PermissionError("approving is the person's own pick: an agent can only decline")
     if a.get("intent"):
@@ -1926,7 +2242,16 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
             result = {"result": sandboxmod.run(db, cfg, a["chat"], a.get("account") or user["id"], kind, source, args.get("files") or [])}
         except sandboxmod.SandboxError as e:
             raise ValueError(str(e)) from None
-    elif a["tool"] in ("change_settings", "create_namespace", "import_files", "import_urls", "invite_person", "change_person"):
+    elif a["tool"] in (
+        "change_settings",
+        "create_namespace",
+        "import_files",
+        "import_urls",
+        "invite_person",
+        "change_person",
+        "subscribe_feed",
+        "unsubscribe_feed",
+    ):
         result = ops_tools.apply(db, cfg, base or cfg, a["tool"], args, user, editable, admin)
     elif a["tool"] == "decline_approval":  # the person's yes to declining another of their approvals
         from . import approvals
@@ -1952,6 +2277,14 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
             raise PermissionError("you can't change what that namespace's assistant remembers")
         ns_assistant.forget(db, sid, args["memory_id"])
         result = {"forgot": args["memory_id"]}
+    elif a["tool"] == "write_spec":
+        rid = int(args["recording_id"])
+        if (db.one("SELECT space FROM $r", r=R("recording", rid)) or {}).get("space") not in editable:
+            raise PermissionError("you can't write a spec for that asset")
+        try:
+            result = {"job": specs.queue(db, cfg, rid, by=user["email"])}
+        except specs.Problem as e:
+            raise ValueError(str(e)) from None
     elif a["tool"] == "run_template":
         steps, label = batches.steps_for(db, {"template": args["template_id"]})
         ids = [i for i in args["recordings"] if (db.one("SELECT space FROM $r", r=R("recording", i)) or {}).get("space") in editable]

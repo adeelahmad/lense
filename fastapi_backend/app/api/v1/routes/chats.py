@@ -2,7 +2,7 @@
 
 A question streams back server-sent events: ``branch`` (a new version: regenerated, edited, or beside others),
 ``scoped`` (the namespace a conversation over everything was narrowed
-to) or ``suggested`` (namespaces to offer when it isn't clear, new ones included), ``step`` (a tool the assistant used), ``approval`` (work it proposed that waits for you), ``notice``, ``passages`` (the numbered excerpts), ``token`` (answer text), ``error``, ``meta`` (the answer's record) and ``done``.
+to) or ``suggested`` (namespaces to offer when it isn't clear, new ones included), ``step`` (a tool the assistant used), ``research`` (a research goal's plan, research.py), ``approval`` (work it proposed that waits for you), ``notice``, ``passages`` (the numbered excerpts), ``token`` (answer text), ``error``, ``meta`` (the answer's record), ``done`` and, after a first answer, ``title`` (the title Lens gave the conversation).
 The assistant only ever sees, and cites, what the asker can read.
 """
 
@@ -10,17 +10,37 @@ from __future__ import annotations
 
 import json
 import logging
+import urllib.error
+import urllib.parse
 from collections.abc import Iterator
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer
 from app.api.media import sign_urls
 from app.api.v1.routes.collections import own_collection
-from app.domain import activity, ai_tools, approvals, auth, auto_scope, browser, chat, llm, sandbox, store, uploads
+from app.api.v1.routes.oauth import web_app_base
+from app.domain import (
+    activity,
+    ai_tools,
+    anytopdf,
+    approvals,
+    auth,
+    auto_scope,
+    browser,
+    chat,
+    chat_export,
+    convert,
+    llm,
+    research,
+    sandbox,
+    store,
+    uploads,
+)
+from app.domain import files as resource_files
 from app.domain.store import DB
 from app.schemas.chats import (
     AnswerCheck,
@@ -33,6 +53,8 @@ from app.schemas.chats import (
     ChatCreate,
     ChatScope,
     ChatSummary,
+    ChatTitle,
+    ChatTools,
     ChatUpdate,
     HeadUpdate,
     MessageCreate,
@@ -75,8 +97,8 @@ def _own_chat(db: DB, cid: int, user: Principal) -> dict[str, Any]:
 def list_chats(user: CurrentUser, db: Db) -> list[ChatSummary]:
     """Your conversations, most recent first."""
     return db.rows(
-        "SELECT record::id(id) AS id, title, scope, model, kind ?? 'chat' AS kind, created_at, updated_at FROM chat WHERE account = $a "
-        "ORDER BY updated_at DESC LIMIT 200",
+        "SELECT record::id(id) AS id, title, title_by, scope, model, kind ?? 'chat' AS kind, tools, max_tool_calls, created_at, "
+        "updated_at FROM chat WHERE account = $a ORDER BY updated_at DESC LIMIT 200",
         a=user.id,
     )
 
@@ -92,8 +114,33 @@ def chat_capabilities(user: CurrentUser, cfg: Cfg) -> ChatCapabilities:
         model=cfg["llm"].get("model") if on else None,
         tools=on and bool(cfg["ai"].get("tools")),
         max_steps=int(cfg["ai"].get("max_steps") or 6),
+        max_tool_calls=int(cfg["ai"].get("max_tool_calls") or 50),
         check=on,
         models=chat.model_choices(cfg),
+    )
+
+
+def _box(db: DB, cfg: dict[str, Any], user: Principal, acl: Access, scope: dict[str, Any] | None, request: Request) -> ai_tools.Toolbox:
+    """The assistant's tools as this person has them, in `scope`, before anything is asked."""
+    return ai_tools.Toolbox(
+        db, cfg, user.as_audit(), set(acl.roles), set(acl.editable()), scope, None, request.app.state.archive.base, user.admin
+    )
+
+
+@router.get("/chats/tools")
+def chat_tools(user: CurrentUser, acl: Acl, db: Db, cfg: Cfg, request: Request, chat_id: int | None = None) -> ChatTools:
+    """The tool groups and tools an answer can be given (`tools` on a question or a conversation), as you have them: each
+    tool with what it does (read, asks: it waits for your yes, out: it sends what it's given to another host) and
+    whether you have it now, each group with why you don't when you have none of it, and the setting that changes it.
+    Built-in groups first, then your extensions' (mcp:<server>, ext:<extension>). With `chat_id`, as in that
+    conversation's scope (a namespace's own memory is there only in a conversation about that namespace). Also: the most
+    tool calls an answer may be given, and your latest choice, which new conversations start with."""
+    scope = _own_chat(db, chat_id, user).get("scope") if chat_id is not None else None
+    box = _box(db, cfg, user, acl, scope, request)
+    return ChatTools(
+        groups=ai_tools.catalog(box),
+        max_tool_calls=int(cfg["ai"].get("max_tool_calls") or 50),
+        remembered=chat.remembered_tools(db, user.id),
     )
 
 
@@ -104,12 +151,44 @@ def _model(cfg: dict[str, Any], model: str | None) -> str | None:
         raise HTTPException(400, str(e)) from None
 
 
+def _tools(box: ai_tools.Toolbox, tools: list[str] | None) -> list[str] | None:
+    """A choice of tools, each a group or tool this person has (400 otherwise)."""
+    if tools is None:
+        return None
+    bad = box.unknown(tools)
+    if bad:
+        raise HTTPException(400, f"no tool or tool group {bad[0]!r} (GET /chats/tools lists them)")
+    return list(dict.fromkeys(tools))
+
+
+def _limit(cfg: dict[str, Any], n: int | None) -> int | None:
+    try:
+        return chat.tool_calls_allowed(cfg, n)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+
+
 @router.post("/chats")
-def create_chat(user: Writer, acl: Acl, db: Db, cfg: Cfg, body: ChatCreate | None = None) -> Created:
+def create_chat(user: Writer, acl: Acl, db: Db, cfg: Cfg, request: Request, body: ChatCreate | None = None) -> Created:
+    """A conversation. Its answers may use what `tools` and `max_tool_calls` say, which become your latest choice;
+    left out, your latest choice (here or PATCH /chats/{cid}), else Auto: everything you may use, limited by the rounds
+    alone. A `title` is yours, and kept; without one, Lens titles it after its first answer (ai.auto_title)."""
     body = body or ChatCreate()
     if body.kind == "setup" and not user.admin:
         raise HTTPException(403, "only admins set up the server")
-    return Created(id=chat.create(db, user.id, body.title, _scope(acl, db, body.scope), _model(cfg, body.model), body.kind))
+    # setting the server up keeps every tool: your latest choice is for conversations about the archive
+    last = chat.remembered_tools(db, user.id) if body.kind == "chat" else {"tools": None, "max_tool_calls": None}
+    tools = _tools(_box(db, cfg, user, acl, None, request), body.tools) if "tools" in body.model_fields_set else last["tools"]
+    limit = _limit(cfg, body.max_tool_calls) if "max_tool_calls" in body.model_fields_set else _most(cfg, last["max_tool_calls"])
+    cid = chat.create(db, user.id, body.title, _scope(acl, db, body.scope), _model(cfg, body.model), body.kind, tools, limit, "person")
+    if body.kind == "chat" and {"tools", "max_tool_calls"} & body.model_fields_set:
+        chat.remember_tools(db, user.id, tools, limit)
+    return Created(id=cid)
+
+
+def _most(cfg: dict[str, Any], n: int | None) -> int | None:
+    """A limit kept from before, within ai.max_tool_calls as it is now."""
+    return None if n is None else max(1, min(int(n), int(cfg["ai"].get("max_tool_calls") or 50)))
 
 
 @router.get("/chats/{cid}")
@@ -172,17 +251,131 @@ def get_message(cid: int, mid: int, user: CurrentUser, acl: Acl, db: Db) -> Mess
     return MessageDetail.model_validate({**sign_urls(msgs[0], full=True), "ledger": activity.history(db, f"chat_message:{mid}", 200)})
 
 
+EXPORTS = {"md": "text/markdown", "json": "application/json", "pdf": "application/pdf"}
+
+
+def export_view(db: DB, acl: Access, c: dict[str, Any], message: int | None = None, every: bool = False) -> list[dict[str, Any]]:
+    """The messages an export holds, oldest first, each with its `versions`, citations the reader can no longer read
+    left out: the version showing, every version (`every`), or one message with the question it answers (`message`)."""
+    nodes = chat.tree(db, c["id"])
+    if message is not None:
+        node = next((n for n in nodes if n["id"] == message), None)
+        if node is None:
+            raise HTTPException(404, "no such message in this conversation")
+        msgs = chat.history(db, c["id"], [node["parent"], message] if node["role"] == "assistant" and node.get("parent") else [message])
+    elif every:
+        msgs = chat.history(db, c["id"])
+    else:
+        msgs = chat.path(db, c["id"], c.get("head"), nodes)
+    versions = chat.versions(nodes)
+    for m in msgs:
+        m["versions"] = versions.get(m["id"])
+    _readable_citations(db, acl, msgs)
+    return msgs
+
+
+def exported(
+    db: DB,
+    cfg: dict[str, Any],
+    acl: Access,
+    user: Principal,
+    cid: int,
+    fmt: str,
+    web: str,
+    message: int | None = None,
+    every: bool = False,
+    shape: str = "tree",
+) -> tuple[bytes, str, str]:
+    """One of your conversations as a file: (its bytes, its media type, its file name). Also the MCP server's
+    export_chat."""
+    if fmt not in EXPORTS:
+        raise HTTPException(404, f"exports: {', '.join(EXPORTS)}")
+    if every and (fmt != "json" or message is not None or shape == "messages"):
+        raise HTTPException(400, "only the JSON tree holds every version (all), and only of the whole conversation")
+    if shape == "messages" and fmt != "json":
+        raise HTTPException(400, "format=messages is a JSON export")
+    c = _own_chat(db, cid, user)
+    msgs = export_view(db, acl, c, message, every)
+    name = chat_export.file_name(c.get("title"), fmt, message)
+    if fmt == "json":
+        if shape == "messages":
+            return json.dumps(chat_export.messages(msgs), ensure_ascii=False).encode() + b"\n", EXPORTS[fmt], name
+        doc = chat_export.document(c, msgs, web, user.name or user.email)
+        return json.dumps(doc, ensure_ascii=False, indent=2).encode(), EXPORTS[fmt], name
+    text = chat_export.markdown(c, msgs, web, one=message is not None)
+    if fmt == "md":
+        return text.encode(), EXPORTS[fmt], name
+    try:
+        return chat_export.pdf(cfg, c.get("title") or "Conversation", text), EXPORTS[fmt], name
+    except (chat_export.Unavailable, anytopdf.Unavailable, convert.Unavailable) as e:
+        raise HTTPException(409, str(e)) from None
+    except (urllib.error.URLError, OSError, RuntimeError, ValueError) as e:  # fetching anytopdf, or printing, failed
+        raise HTTPException(409, f"the PDF couldn't be made here ({getattr(e, 'reason', e)}); print it from the web app instead") from None
+
+
+@router.get("/chats/{cid}/export.{fmt}", response_class=Response, responses={200: {"content": {t: {} for t in EXPORTS.values()}}})
+def export_chat(
+    cid: int,
+    fmt: Literal["md", "json", "pdf"],
+    request: Request,
+    user: CurrentUser,
+    acl: Acl,
+    db: Db,
+    cfg: Cfg,
+    message: int | None = Query(None, description="one message (an answer comes with the question it answers); else the version showing"),
+    every: bool = Query(False, alias="all", description="JSON: every version of the conversation, not only the one showing"),
+    shape: Literal["tree", "messages"] = Query(
+        "tree", alias="format", description='JSON: messages gives the version showing as one {"messages": [...]} line'
+    ),
+) -> Response:
+    """A conversation as a download: Markdown (citations as footnotes linking back to Lens), PDF (that Markdown
+    printed: by Chromium, else anytopdf, else LibreOffice; 409 with the reason when none can run here) or JSON
+    (OpenAI chat messages in a tree, with Dublin Core terms; docs/schemas/chat-export.schema.json). Citations follow
+    your current access, as in GET /chats/{cid}."""
+    data, media, name = exported(db, cfg, acl, user, cid, fmt, web_app_base(request), message, every, shape)
+    return Response(
+        data,
+        media_type=media + ("; charset=utf-8" if fmt != "pdf" else ""),
+        headers={"Content-Disposition": f'attachment; filename="{name}"', "Cache-Control": "private, no-store"},
+    )
+
+
 @router.patch("/chats/{cid}")
-def update_chat(cid: int, body: ChatUpdate, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> Ok:
-    """Rename a conversation, change what it draws on, or the model that answers in it (null: the configured one)."""
-    _own_chat(db, cid, user)
+def update_chat(cid: int, body: ChatUpdate, user: Writer, acl: Acl, db: Db, cfg: Cfg, request: Request) -> Ok:
+    """Rename a conversation, change what it draws on, the model that answers in it (null: the configured one), or
+    what its answers may use (`tools`, null: Auto) and at most how many tool calls each makes (`max_tool_calls`, null:
+    no limit but the rounds). The choice of tools and limit is also what your new conversations start with."""
+    c = _own_chat(db, cid, user)
     if "model" in body.model_fields_set:
         db.q("UPDATE $r SET model = $m", r=R("chat", cid), m=_model(cfg, body.model))
-    if body.title:
-        db.q("UPDATE $r SET title = $t", r=R("chat", cid), t=body.title[:120])
+    if body.title:  # yours from now on: Lens doesn't retitle it (POST /chats/{cid}/title has it title it again)
+        chat.rename(db, cid, body.title)
     if "scope" in body.model_fields_set:  # replaces the scope as a whole, so narrowing can also be removed
         db.q("UPDATE $r SET scope = $s", r=R("chat", cid), s=_scope(acl, db, body.scope))
+    chose = {"tools", "max_tool_calls"} & body.model_fields_set
+    if chose:
+        tools = _tools(_box(db, cfg, user, acl, c.get("scope"), request), body.tools) if "tools" in chose else c.get("tools")
+        limit = _limit(cfg, body.max_tool_calls) if "max_tool_calls" in chose else c.get("max_tool_calls")
+        db.q("UPDATE $r SET tools = $t, max_tool_calls = $n", r=R("chat", cid), t=tools, n=limit)
+        if c.get("kind") == "chat":
+            chat.remember_tools(db, user.id, tools, limit)
     return Ok()
+
+
+@router.post("/chats/{cid}/title")
+def title_chat(cid: int, user: Writer, db: Db, cfg: Cfg) -> ChatTitle:
+    """Have Lens title a conversation now, from how it starts (the version showing's first messages), even one you
+    named: the title is Lens's again, as after a first answer. Written by the model for summaries (ai.compact_model)
+    when set, else the chat's, in one call counted for the conversation in the activity ledger. 409 before the first
+    question; 400 with no model, or when the model writes no title."""
+    _own_chat(db, cid, user)
+    try:
+        title = chat.retitle(db, cfg, cid)
+    except ValueError as e:
+        raise HTTPException(409, str(e)) from None
+    except (llm.LLMError, activity.OverBudget) as e:
+        raise HTTPException(400, str(e)) from None
+    return ChatTitle(title=title, title_by="assistant")
 
 
 @router.delete("/chats/{cid}")
@@ -192,6 +385,27 @@ def delete_chat(cid: int, user: Writer, db: Db, cfg: Cfg) -> Ok:
     db.run(["DELETE chat_message WHERE chat = $c", "DELETE $r"], c=cid, r=R("chat", cid))
     sandbox.forget(db, cfg, cid)
     return Ok()
+
+
+@router.get(
+    "/chats/{cid}/files/{fid}",
+    response_class=Response,
+    responses={200: {"content": {"application/octet-stream": {}}, "description": "the file"}},
+)
+def download_chat_file(cid: int, fid: str, user: CurrentUser, db: Db, cfg: Cfg) -> Response:
+    """A file the code sandbox handed you in this conversation (share_sandbox_file, the download on its answer)."""
+    _own_chat(db, cid, user)
+    try:
+        name, body = sandbox.shared(db, cfg, cid, fid)
+    except KeyError:
+        raise HTTPException(404, "no such file in this conversation") from None
+    ascii_name = name.encode("ascii", "replace").decode().replace('"', "").replace("?", "_")
+    headers = {
+        **resource_files.HEADERS,
+        "Content-Disposition": f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{urllib.parse.quote(name)}",
+        "Cache-Control": "private, no-store",
+    }
+    return Response(body, media_type="application/octet-stream", headers=headers)
 
 
 def _attachments(db: DB, ids: list[str], user: Principal) -> list[dict[str, Any]]:
@@ -214,6 +428,71 @@ def _ev(name: str, data: Any) -> str:
     return f"event: {name}\ndata: {json.dumps(sign_urls(data, full=True), default=str)}\n\n"
 
 
+def _research_reply(
+    cid: int,
+    c: dict[str, Any],
+    goal: str,
+    said: str,
+    under: Any,
+    model: str | None,
+    tools: list[str] | None,
+    body: MessageCreate,
+    own_scope: dict[str, Any] | None,
+    user: Principal,
+    acl: Access,
+    db: DB,
+    cfg: dict[str, Any],
+    request: Request,
+) -> StreamingResponse:
+    """A question that is a research goal (`research: true`, or /research <goal>): its answer is a plan to approve
+    (research.start). Streams research (the plan, as GET /research/{id}), approval, passages, token (the plan as
+    text), meta and done; error when the plan couldn't be made."""
+    if not research.available(cfg):
+        raise HTTPException(400, "research needs a language model that uses tools (Settings › AI assistant)")
+    scope = own_scope if own_scope is not None else c.get("scope")
+
+    def run() -> Iterator[str]:
+        box = ai_tools.Toolbox(
+            db,
+            cfg,
+            user.as_audit(),
+            set(acl.roles),
+            set(acl.editable()),
+            scope,
+            cid,
+            request.app.state.archive.base,
+            user.admin,
+            only=tools,
+        )
+        if c["title"] == "New conversation":
+            db.q("UPDATE $r SET title = $t", r=R("chat", cid), t=goal[:80])
+        via = "voice" if body.via == "voice" else "web" if user.via == "access" else "api"
+        options = {"model": body.model, "tools": body.tools, "max_tool_calls": body.max_tool_calls, "scope": own_scope}
+        out = research.start(
+            db,
+            cfg,
+            box,
+            goal,
+            via,
+            said=said,
+            parent=under,
+            model=research.model_for(cfg, model),
+            max_tool_calls=body.max_tool_calls,
+            options=options,
+        )
+        if out.get("error"):
+            yield _ev("error", {"message": out["error"]})
+        else:
+            yield _ev("research", research.view(db, out["research"]))
+            yield _ev("approval", out["approval"])
+            yield _ev("passages", [])
+            yield _ev("token", {"text": out["text"]})
+        yield _ev("meta", out["meta"])
+        yield _ev("done", {"message": out["message"]})
+
+    return StreamingResponse(run(), media_type="text/event-stream", headers=SSE_HEADERS)
+
+
 @router.post(
     "/chats/{cid}/messages",
     response_class=StreamingResponse,
@@ -234,8 +513,17 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
     text, which isn't kept) unless `context` is given, and streams `branch` first ({message, parent, versions}: the
     new version, the message it follows and its versions); so does a question beside others under `parent`.
 
+    What the answer may use: `tools` (tool groups and tools, GET /chats/tools; [] for none, when it answers from a
+    search) and `max_tool_calls` (at most that many tool calls, in as many rounds as it takes), else the conversation's
+    choice (PATCH /chats/{cid}); and `scope`, what this answer alone draws on (the conversation keeps its own). Its
+    record keeps what it was given and used.
+
     `/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the
     conversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.
+
+    With `research` (or /research <goal>) the content is a research goal: the answer is a plan to approve (streamed as
+    `research`, then `approval`), which runs in the background once approved (POST /chats/{cid}/research, GET
+    /research/{id}).
 
     With `browser` (the session of a browser's Lens side panel, POST /browser/sessions), the assistant can use that
     browser while the side panel is connected: open pages, read them, click, type and download files into the
@@ -282,8 +570,19 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
     model = await run_in_threadpool(_model, cfg, body.model) if body.model else c.get("model")
     if model and not body.model and model not in await run_in_threadpool(chat.model_choices, cfg):
         model = None
-    record = chat.Record(cfg, model)  # what produced the answer, kept with it (from here: it times the answer)
-    title = c["title"]
+    # what this answer may use: its tools and at most how many calls (the conversation's, unless the question says), and
+    # what it draws on, when the question gives it a scope of its own (the conversation keeps its scope)
+    if body.tools is not None:
+        tools = await run_in_threadpool(lambda: _tools(_box(db, cfg, user, acl, c.get("scope"), request), body.tools))
+    else:
+        tools = c.get("tools")
+    limit = _limit(cfg, body.max_tool_calls) if body.max_tool_calls is not None else _most(cfg, c.get("max_tool_calls"))
+    own_scope = await run_in_threadpool(_scope, acl, db, body.scope) if body.scope is not None else None
+    goal = (q if body.research else research.command(q)) if not files and body.edit is None and again is None else None
+    if goal:  # a research goal: the answer is a plan to approve (research.py)
+        return _research_reply(cid, c, goal, q, under, model, tools, body, own_scope, user, acl, db, cfg, request)
+    record = chat.Record(cfg, model, picked=tools, tool_calls=limit)  # what produced the answer (from here: it times it)
+    retitle = chat.lens_titles(c)  # whether a first question titles the conversation (nobody has named it)
     page = body.context.model_dump() if body.context else None
     kept = chat.shared_context(page)  # what the question keeps of the page
     if again is not None:
@@ -296,8 +595,8 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         except KeyError:
             raise HTTPException(404, "no such question in this conversation") from None
         under = old.get("parent")
-        if title == old["content"][:80]:  # titled after the question being edited: retitle it after the edit
-            title = "New conversation"
+        if c.get("title_by") is None and c["title"] == old["content"][:80]:  # from before Lens kept who titled it
+            retitle = True
         if page is None and old.get("context"):
             page = kept = old["context"]
     # what the model reads: the question with the page it was asked from, and the files it can import
@@ -319,7 +618,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         summary = chat.memory(db, cfg, cid, past)
         if again is None:
             via = "voice" if body.via == "voice" else "web" if user.via == "access" else "api"
-            meta = chat.question_record(via, model=body.model)
+            meta = chat.question_record(via, model=body.model, tools=tools, max_tool_calls=limit, scope=own_scope)
             question = chat.add(db, cid, "user", q, attachments=files, context=kept, parent=under, meta=meta)
         answer_id = db.next_id("chat_message")
         if again is not None:
@@ -332,8 +631,10 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
             return draw_on(past)
 
     def draw_on(past: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], Any]:
-        if not past and again is None and title == "New conversation":
-            db.q("UPDATE $r SET title = $t", r=R("chat", cid), t=q[:80])
+        if not past and again is None and retitle:  # its first words, until the model's title comes after the answer
+            chat.title_from_question(db, cid, q)
+        if own_scope is not None:  # this answer's own scope, as asked: nothing is narrowed for it
+            return past, chat.retrieve(db, q, readable, own_scope, cfg=cfg), None
         # A conversation over everything gets the namespace its first question is about, when that's clear.
         if past or c.get("kind") == "setup" or c.get("scope"):
             return past, chat.retrieve(db, q, readable, c.get("scope"), cfg=cfg), None
@@ -346,7 +647,8 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         return past, chat.retrieve(db, q, readable, c["scope"], cfg=cfg), placed
 
     past, passages, placed = await run_in_threadpool(prepare)
-    record.scope = c.get("scope") or {}  # after a conversation over everything was narrowed to what it's about
+    scope = own_scope if own_scope is not None else c.get("scope")  # after one over everything was narrowed to what it's about
+    record.scope = scope or {}
     picked = placed[1] if placed and placed[0] == "scoped" else None
     suggested = placed[1] if placed and placed[0] == "suggest" else None
 
@@ -360,10 +662,12 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
             }
         )
     notice: str | None = None
+    answered: dict[str, Any] = {}  # the answer as saved: its text and outcome
 
     def save(text: str, cited: list[dict[str, Any]], outcome: str = "answered", **kw: Any) -> Iterator[str]:
         """The answer saved with its record: `meta`, then `done` (its id)."""
         wrote = (model or cfg["llm"].get("model")) if llm.configured(cfg) else None
+        answered.update(text=text, outcome=outcome)
         meta = record.meta(db, outcome, f"chat_message:{answer_id}")
         chat.add(
             db, cid, "assistant", text, cited, steps=steps, notice=notice, model=wrote, parent=question, mid=answer_id, meta=meta, **kw
@@ -377,7 +681,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
 
     def answer(on: chat.Answering) -> Iterator[str]:
         nonlocal notice
-        if llm.configured(cfg) and cfg["ai"].get("tools"):
+        if llm.configured(cfg) and cfg["ai"].get("tools") and tools != []:  # given no tools, it answers from a search
             setup = c.get("kind") == "setup"
             box = ai_tools.Toolbox(
                 db,
@@ -385,7 +689,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                 user.as_audit(),
                 readable,
                 set(acl.editable()),
-                c.get("scope"),
+                scope,
                 cid,
                 request.app.state.archive.base,
                 user.admin,
@@ -394,12 +698,16 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                 # what it read before any tool ran: the page it was asked from, and earlier answers' excerpts and tools
                 outside=(["page"] if page else []) + ai_tools.read_before(past, summary),
                 browser=body.browser,
+                only=tools,
             )
             try:
                 answer, how = "", "answered"
                 # setting the server up, or working in the person's browser, takes more steps than looking things up
                 steps_max = max(cfg["ai"].get("max_steps") or 6, 12 if setup else 0, browser.steps(cfg) if box.browser else 0)
-                for kind, data in chat.tool_answer(cfg, box, asked, past, steps_max, model, setup=setup, summary=summary, record=record):
+                answering = chat.tool_answer(
+                    cfg, box, asked, past, steps_max, model, setup=setup, summary=summary, record=record, max_tool_calls=limit
+                )
+                for kind, data in answering:
                     if kind == "step":
                         steps.append(data)
                         yield _ev("step", data)
@@ -478,6 +786,10 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                 chat.compact(db, cfg, cid)
             except Exception:  # noqa: BLE001 - tried again after the next answer
                 log.warning("chat %s: couldn't update the summary", cid, exc_info=True)
+        # a first answer titles the conversation: a cheap model call, counted for the conversation, not the answer
+        if not past and again is None and retitle and answered.get("outcome") not in (None, "error"):
+            if titled := chat.title_soon(db, cfg, cid, q, answered["text"]):
+                yield _ev("title", {"title": titled})
 
     # A sync generator: Starlette iterates it in the threadpool, so the domain calls inside don't block the loop.
     return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
@@ -511,15 +823,16 @@ def _via(user: Principal) -> str:
     return "web" if user.via == "access" else user.via
 
 
-def approval_view(a: dict, via: str = "web") -> Any:
+def approval_view(a: dict, via: str = "web", cfg: dict[str, Any] | None = None) -> Any:
     """An approval as the API shows it: an automation's intent with credentials hidden, and what `via` can do."""
-    return {**a, "intent": approvals.shown(a.get("intent")), "told": a.get("told") or [], "can": approvals.can(a, via)}
+    return {**a, "intent": approvals.shown(a.get("intent")), "told": a.get("told") or [], "can": approvals.can(a, via, cfg)}
 
 
 @router.get("/approvals")
 def list_approvals(
     user: CurrentUser,
     db: Db,
+    cfg: Cfg,
     chat_id: int | None = None,
     status: Literal["pending", "running", "done", "failed", "declined", "expired"] | None = None,
     origin: Literal["automation", "chat"] | None = None,
@@ -531,7 +844,7 @@ def list_approvals(
     actions. Filter by `status` (pending is waiting), `origin` (automation or chat), one `automation` or one chat
     (`chat_id`); page with `before`."""
     rows = approvals.listing(db, user.id, status, origin, automation, chat_id, before, limit)
-    return [approval_view(a, _via(user)) for a in rows]
+    return [approval_view(a, _via(user), cfg) for a in rows]
 
 
 @router.get("/approvals/count")
@@ -541,12 +854,12 @@ def count_approvals(user: CurrentUser, db: Db) -> ApprovalCount:
 
 
 @router.get("/approvals/{aid}")
-def get_approval(aid: int, user: CurrentUser, db: Db) -> Approval:
+def get_approval(aid: int, user: CurrentUser, db: Db, cfg: Cfg) -> Approval:
     """One of your approvals."""
     a = approvals.get(db, aid)
     if not a or a["account"] != user.id:
         raise HTTPException(404, "not found")
-    return approval_view(a, _via(user))
+    return approval_view(a, _via(user), cfg)
 
 
 @router.post("/approvals/{aid}")

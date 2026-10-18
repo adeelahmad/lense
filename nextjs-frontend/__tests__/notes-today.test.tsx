@@ -5,6 +5,7 @@ import "@testing-library/jest-dom";
 import { Notes } from "@/app/openapi-client";
 import { NotesHome } from "@/components/notes/notes-home";
 import { TodayNote, localDay } from "@/components/notes/today";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 jest.mock("@/app/openapi-client", () => ({
   Notes: {
@@ -17,7 +18,10 @@ jest.mock("@/app/openapi-client", () => ({
 }));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
 const replace = jest.fn();
-jest.mock("next/navigation", () => ({ useRouter: () => ({ replace, push: jest.fn() }) }));
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ replace, push: jest.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
 jest.mock("@/components/ui/toast", () => ({ useToast: () => jest.fn() }));
 let roles: Record<string, string> = { home: "editor", pods: "viewer" };
 let picked: string | null = "home";
@@ -35,7 +39,7 @@ const m = (f: unknown) => f as jest.Mock;
 const show = (ui: React.ReactNode) =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      {ui}
+      <TooltipProvider>{ui}</TooltipProvider>
     </QueryClientProvider>,
   );
 

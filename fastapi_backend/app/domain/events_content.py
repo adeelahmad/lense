@@ -3,8 +3,8 @@
 nothing is stored twice.
 
 Each new asset is one activity, `create-recording-<id>`, the same every time it's read, of the most specific kind its
-row tells: an email received from a mailbox (`email.received`), a calendar event (`calendar_event.added`), a file
-from storage or Drive (`file.added`), an upload (`upload.added`), a page or video saved from the web
+row tells: an email received from a mailbox (`email.received`), a calendar event (`calendar_event.added`), a news
+feed's post (`feed_post.received`), a file from storage or Drive (`file.added`), an upload (`upload.added`), a page or video saved from the web
 (`web_page.saved`), something imported (pasted text, a transcript, an import hook's: `import.received`), else
 `asset.added`, their parent. The kind is read from the row's content type, where it came from and who brought it,
 never from its file.
@@ -14,8 +14,8 @@ or mailbox it came from, an import hook, the person whose upload, clip or import
 scan). Labels like `watch:<id>`, a person's email or `routine:<id>` are looked up a page at a time, a few queries for
 all of them, and their names kept for NAME_SECONDS (`actors`), so other sources name their actors the same way.
 
-Mail addressing and an event's times are stored on the recording when it's made (`mail`, `event`: sources.py) and
-read from there; an email's own details (`email`: subject, who, a snippet, its attachments) once it's been read.
+Mail addressing, an event's times and a feed post's address and author are stored on the recording when it's made
+(`mail`, `event`, `post`: sources.py) and read from there; an email's own details (`email`: subject, who, a snippet, its attachments) once it's been read.
 Older rows without them are read without those fields.
 """
 
@@ -31,11 +31,12 @@ import urllib.parse
 import weakref
 
 from . import events, store
+from .events import _s, _sample
 
 R = store.R
 FIELDS = (
     "id AS rid, record::id(id) AS id, space, title, source, media, remote, content_type, created_at, path, web, engine, "
-    "created_by, mail, event, email, size, duration_ms, attached_to, sensor, form"
+    "created_by, mail, event, post, email, size, duration_ms, attached_to, sensor, form"
 )
 TYPES = {"audio": "Audio", "video": "Video", "image": "Image", "document": "Document", "transcript": "Document"}
 AUTOMATION_RX = re.compile(r"^automation:(\d+)$")
@@ -45,6 +46,7 @@ KEY_RX = re.compile(r"^[A-Za-z0-9_.:@+-]{1,200}$")
 UPLOAD_RX = re.compile(r"/uploads/[^/]+/[0-9a-f]{24}/[^/]+$")  # uploads.py keeps each upload in <ns>/<upload id>/<name>
 MAIL_SOURCES = {"imap", "gmail"}
 CALENDAR_SOURCES = {"ical", "gcal"}
+FEED_SOURCES = {"rss"}
 NAME_SECONDS = 30  # how long a looked-up name is used before it's read again
 APPS = {
     "assistant": {"type": "Application", "id": "lens:assistant", "name": "Assistant"},
@@ -286,6 +288,23 @@ def _event(r):
     )
 
 
+def _feed_post(r):
+    """A feed post's fields: its address, site, feed, author, date and categories, as its feed listed them (`post`)."""
+    p = r.get("post") if isinstance(r.get("post"), dict) else {}
+    href = str(p.get("href") or "")[:2000]
+    site = urllib.parse.urlsplit(href or str(p.get("site") or "")).hostname
+    return store.clean(
+        {
+            "href": href or None,
+            "site": site or None,
+            "feed": _text(p.get("feed"), 300),
+            "author": _text(p.get("author"), 200),
+            "published": p.get("published"),
+            "categories": [str(c)[:100] for c in p.get("categories") or []][:10] or None,
+        }
+    )
+
+
 def _file(r, kind):
     """A file's fields: its name in its source (or the name it was uploaded with), media type, size and length."""
     remote = r.get("remote") or {}
@@ -322,6 +341,8 @@ def _kind(r, ctype, source_type, actor):
         return "email.received"
     if ctype == "calendar_event" or source_type in CALENDAR_SOURCES:
         return "calendar_event.added"
+    if ctype == "feed_post" or source_type in FEED_SOURCES:
+        return "feed_post.received"
     if actor["id"].startswith("lens:import_hook"):
         return "import.received"
     if (r.get("web") or {}).get("url"):
@@ -343,6 +364,8 @@ def _summary(kind, actor, obj):
     if kind == "calendar_event.added":
         start = str(obj.get("startTime") or "")
         return f"{who} added the event “{title}”" + (f" on {start[:10]}" if start else "")
+    if kind == "feed_post.received":
+        return f"{who} received the post “{title}”" + (f" from {obj['site']}" if obj.get("site") else "")
     if kind == "upload.added":
         return f"{who} uploaded “{title}”"
     if kind == "web_page.saved":
@@ -414,6 +437,8 @@ def _activities(db, rows):
             obj.update(_mail(r))
         elif kind == "calendar_event.added":
             obj.update(_event(r))
+        elif kind == "feed_post.received":
+            obj.update(_feed_post(r))
         elif kind in ("file.added", "upload.added"):
             obj.update(_file(r, kind))
         elif kind == "web_page.saved":
@@ -518,10 +543,6 @@ events.register_source(RecordingsSource())
 
 
 # ---------- the kinds ----------
-def _s(title, typ="string", **more):
-    return {"type": typ, "title": title, **more}
-
-
 def _addrs(title, item="Address"):
     return {"type": "array", "title": title, "items": {"type": "string", "title": item}}
 
@@ -616,6 +637,33 @@ _child(
         "calendar": "Family calendar",
     },
     "Family calendar added the event “Parents' evening” on 2026-10-20",
+)
+_child(
+    "feed_post.received",
+    "Feed post received",
+    {
+        "href": _s("Post address"),
+        "site": _s("Site"),
+        "feed": _s("Feed"),
+        "author": _s("Author"),
+        "published": _s("Published", format="date-time"),
+        "categories": {"type": "array", "title": "Categories", "items": {"type": "string", "title": "Category"}},
+    },
+    ("object.name", "object.href", "object.site", "object.feed", "object.author", "object.categories"),
+    {"type": "Service", "id": "lens:source/15", "name": "Harbour news"},
+    {
+        "type": "Document",
+        "name": "Autumn regatta",
+        "media": "transcript",
+        "content_type": "feed_post",
+        "href": "https://harbour.example.org/posts/regatta",
+        "site": "harbour.example.org",
+        "feed": "Harbour news",
+        "author": "Mara Keane",
+        "published": "2026-10-15T08:00:00+00:00",
+        "categories": ["Harbour"],
+    },
+    "Harbour news received the post “Autumn regatta” from harbour.example.org",
 )
 _child(
     "file.added",
@@ -882,22 +930,6 @@ _ASSET = {
     "media": _s("Media", enum=["audio", "video", "image", "document", "transcript"]),
     "content_type": _s("Content type"),
 }
-
-
-def _sample(aid, kind, typ, source, pos, actor, obj, summary, untrusted, tag=()):
-    return {
-        "id": aid,
-        "type": typ,
-        "kind": kind,
-        "published": "2026-10-15T16:24:10.000Z",
-        "actor": actor,
-        "object": obj,
-        "target": None,
-        "tag": list(tag),
-        "summary": summary,
-        "space": 3,
-        "lens": {"source": source, "pos": pos, "untrusted": list(untrusted), "cause": None},
-    }
 
 
 WORK_GMAIL = {"type": "Service", "id": "lens:source/12", "name": "Work Gmail"}

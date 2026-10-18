@@ -51,6 +51,9 @@ x-backend: &backend
     LENS_MCP_TOKEN_FILE: /mcp-key/token
     # the assistant's browser (the optional `browser` service, docs/assistant.md): Playwright MCP
     LENS_BROWSER_URL: http://browser:8931
+    # the code sandbox's gateway (the optional `sandbox` profile, docs/assistant.md#code-sandbox): the client
+    # certificate Lens signs in to it with
+    LENS_SANDBOX_TLS_DIR: /sandbox-key
   volumes:
     - ./fastapi_backend:/app
     # the image's own packages, not the source tree's: anonymous, so `make dev` (up --build --renew-anon-volumes)
@@ -61,10 +64,11 @@ x-backend: &backend
     - ${AUDIO_DIR:-./local-audio}:/audio:ro
     - matterbridge-data:/matterbridge
     - mcp-key:/mcp-key:ro
+    - sandbox-key:/sandbox-key:ro
   depends_on:
     surrealdb:
       condition: service_healthy
-  networks: [lens, mcp, browser]
+  networks: [lens, mcp, browser, sandbox]
 
 services:
   surrealdb:
@@ -120,6 +124,12 @@ services:
       AUTH_TRUST_HOST: "true"
       # no AUTH_URL: sign-in follows the address the browser is on (its LAN name, https:// address or Cloudflare tunnel)
       OPENAPI_OUTPUT_FILE: ./shared-data/openapi.json
+      # the file shares at the web app's address, /s3 and /dav, once allowed in Settings › File shares, and MQTT over
+      # WebSockets at /mqtt, once allowed in Settings › Sensors (lens-relay.js)
+      NODE_OPTIONS: --require /app/lens-relay.js
+      LENS_S3_URL: http://worker:9555
+      LENS_WEBDAV_URL: http://worker:9556
+      LENS_MQTT_WS_URL: http://worker:9883
     volumes:
       - ./nextjs-frontend:/app
       - /app/node_modules       # the image's, renewed with it (see the backend's /opt/venv)
@@ -199,7 +209,7 @@ services:
     security_opt: ["no-new-privileges:true"]
     cap_drop: [ALL]
     read_only: true
-    tmpfs: [/tmp, /home/node]
+    tmpfs: [/tmp, "/home/node:uid=1000,gid=1000"]  # the image runs as node (1000); its profile lives in its home
     mem_limit: 1g
     pids_limit: 512
     volumes:
@@ -220,6 +230,82 @@ services:
     volumes:
       - ./fastapi_backend/app/domain/netguard.py:/netguard/netguard.py:ro
     networks: [browser, browser-out]
+
+  # The code sandbox's NVIDIA OpenShell gateway (docs/assistant.md#code-sandbox): Python and bash for the assistant, one
+  # sandbox container per conversation, made through this machine's Docker. Opt-in: Settings → Code sandbox → Start
+  # the gateway (the upgrade agent adds `sandbox` to COMPOSE_PROFILES and starts these), or
+  # `docker compose --profile sandbox up -d openshell-gateway`. Linux only, with Landlock (Linux 6.2 or newer).
+  # openshell-init makes the gateway's certificates once, in /var/lib/openshell on this machine (the gateway has
+  # Docker mount files from it into the sandboxes, so it is the same folder inside and out); openshell-key copies the
+  # client's to the sandbox-key volume, readable by Lens only. Lens reaches the gateway on the sandbox network over
+  # mutual TLS; each sandbox's supervisor reaches it on this machine's 127.0.0.1:17670.
+  openshell-init:
+    image: ghcr.io/nvidia/openshell/gateway:0.1.4
+    profiles: [sandbox]
+    user: "0"
+    network_mode: none
+    command: ["generate-certs", "--output-dir", "/var/lib/openshell/tls", "--server-san", "openshell-gateway"]
+    environment:
+      HOME: /var/lib/openshell
+    volumes:
+      - &openshell-data
+        type: bind
+        source: /var/lib/openshell
+        target: /var/lib/openshell
+        bind:
+          create_host_path: true
+    restart: "no"
+
+  openshell-key:
+    image: python:3.12-slim  # the sandboxes' default image too, so nothing extra is downloaded
+    profiles: [sandbox]
+    user: "0"
+    network_mode: none
+    depends_on:
+      openshell-init:
+        condition: service_completed_successfully
+    command:
+      - python3
+      - -c
+      - |
+        import os, shutil
+        for src, dst in (("ca.crt", "ca.crt"), ("client/tls.crt", "tls.crt"), ("client/tls.key", "tls.key")):
+            shutil.copyfile("/tls/" + src, "/key/" + dst + ".new")
+            os.chown("/key/" + dst + ".new", 1000, 1000)
+            os.chmod("/key/" + dst + ".new", 0o400)
+            os.replace("/key/" + dst + ".new", "/key/" + dst)
+    volumes:
+      - /var/lib/openshell/tls:/tls:ro
+      - sandbox-key:/key
+    restart: "no"
+
+  openshell-gateway:
+    image: ghcr.io/nvidia/openshell/gateway:0.1.4
+    profiles: [sandbox]
+    user: "0"  # it drives Docker through its socket
+    command: ["--bind-address", "0.0.0.0", "--port", "17670"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs: [/tmp]
+    depends_on:
+      openshell-key:
+        condition: service_completed_successfully
+    environment:
+      OPENSHELL_GATEWAY_CONFIG: /etc/openshell/gateway.toml
+      OPENSHELL_DB_URL: "sqlite:/var/lib/openshell/gateway.db?mode=rwc"
+      OPENSHELL_LOCAL_TLS_DIR: /var/lib/openshell/tls
+      OPENSHELL_TELEMETRY_ENABLED: "false"
+      XDG_DATA_HOME: /var/lib/openshell
+      HOME: /var/lib/openshell
+    ports:
+      - "127.0.0.1:17670:17670"  # this machine only: the sandboxes' supervisors, on the host's network
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - *openshell-data
+      - ./sandbox/gateway.toml:/etc/openshell/gateway.toml:ro
+    restart: unless-stopped
+    networks: [sandbox]
 
   # StyleTTS2 (docs/speech-providers.md#styletts2): spoken answers and podcasts read on this machine, in a voice like a
   # short clip you put in its voices volume. Heavy (PyTorch and a 1 GB model, fetched on first use), so opt-in:
@@ -254,6 +340,7 @@ volumes:
   matterbridge-data:
   mcp-data:
   mcp-key:
+  sandbox-key:
   styletts2-data:
   styletts2-voices:
   archive-data:
@@ -268,4 +355,6 @@ networks:
     driver: bridge
     internal: true  # no way out but browser-proxy
   browser-out:
+    driver: bridge
+  sandbox:
     driver: bridge

@@ -6,7 +6,7 @@ import { useState } from "react";
 
 import { Shares } from "@/app/openapi-client";
 import type { S3Key, S3KeyCreated } from "@/app/openapi-client/types.gen";
-import { rcloneConfig, webdavText } from "@/components/account/s3-model";
+import { rcloneConfig, shareAddresses, webdavText } from "@/components/account/s3-model";
 import { tokenExpiry } from "@/components/account/token-model";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -54,9 +54,15 @@ export function S3Keys() {
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <h2 className="text-[18px] font-bold leading-[1.2] text-fg">File share access keys</h2>
           <p className="text-[13.5px] leading-[1.4] text-fg-secondary">
-            Read the archive as folders and files from any S3 client (rclone, Cyberduck, the AWS CLI). A key reads as
-            you; nothing can be changed through it.
+            Read the archive as folders and files from any S3 client (rclone, Cyberduck, the AWS CLI), or mount it as a
+            drive over WebDAV. A key acts as you
+            {status.data?.add_files
+              ? ": files you copy into a collection’s folder are imported there, where you may add files."
+              : "; nothing can be changed through it."}
             {status.data && !status.data.enabled && " An admin turns sharing on in Settings, File shares."}
+            {status.data?.enabled &&
+              status.data.remote &&
+              " Both also open at this page’s address, wherever you reach it."}
           </p>
         </div>
         {keys.length > 0 && newKey}
@@ -113,7 +119,7 @@ export function S3Keys() {
           </Table>
         </div>
       )}
-      <ShownOnce created={created} onClose={() => setCreated(null)} />
+      <ShownOnce created={created} remote={Boolean(status.data?.remote)} onClose={() => setCreated(null)} />
     </section>
   );
 }
@@ -151,8 +157,17 @@ function Copyable({ label, text }: { label: string; text: string }) {
   );
 }
 
-function ShownOnce({ created, onClose }: { created: S3KeyCreated | null; onClose: () => void }) {
-  const host = typeof window === "undefined" ? "localhost" : window.location.hostname;
+function ShownOnce({
+  created,
+  remote,
+  onClose,
+}: {
+  created: S3KeyCreated | null;
+  remote: boolean;
+  onClose: () => void;
+}) {
+  const page = typeof window === "undefined" ? { origin: "http://localhost", hostname: "localhost" } : window.location;
+  const at = created && shareAddresses(page, created, remote);
   return (
     <Dialog
       open={Boolean(created)}
@@ -167,10 +182,10 @@ function ShownOnce({ created, onClose }: { created: S3KeyCreated | null; onClose
         </Button>
       }
     >
-      {created && (
+      {created && at && (
         <div className="flex flex-col gap-3">
-          <Copyable label="S3, as an rclone remote" text={rcloneConfig(host, created)} />
-          <Copyable label="WebDAV, to mount as a drive" text={webdavText(host, created)} />
+          <Copyable label="S3, as an rclone remote" text={rcloneConfig(at.s3, created)} />
+          <Copyable label="WebDAV, to mount as a drive" text={webdavText(at.webdav, created)} />
         </div>
       )}
     </Dialog>

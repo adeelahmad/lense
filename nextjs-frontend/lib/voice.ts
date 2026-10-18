@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 
 import { Voice as VoiceApi } from "@/app/openapi-client";
 import type { Client } from "@/app/openapi-client/client";
@@ -10,7 +10,8 @@ import { data, useApiClient } from "@/lib/api/browser";
  * Voice for chat: hear one thing said, and say an answer aloud. This is the one seam the UI talks to. When the server
  * has a speech-to-text engine (GET /voice), what's said is recorded here and turned into text there, so it stays on
  * the server, with what's been heard so far shown while talking; else the browser's own speech recognition listens.
- * Answers are read by the server's speech model when it has one, else by the browser.
+ * Answers are read by the server's speech model when it has one, else by the browser. `useReadAloud()` is the play
+ * button on a chat message: one message at a time on the page, its audio kept so playing it again costs nothing.
  */
 
 type Recognition = {
@@ -379,4 +380,176 @@ export function useVoice(): Voice {
   );
 
   return { supported, listening, speaking, heard, listen, speak, stop };
+}
+
+/** The longest piece of text sent to be read aloud at once: under every provider's limit (Deepgram's is 2000
+ * characters), and short enough that the first piece starts soon. */
+export const PIECE_CHARS = 1500;
+
+/** Text to read aloud in pieces of at most `max` characters, cut after a sentence (else a word) where it can be. */
+export function pieces(text: string, max = PIECE_CHARS): string[] {
+  const out: string[] = [];
+  let rest = text.trim();
+  while (rest.length > max) {
+    const head = rest.slice(0, max + 1);
+    const ends = [...head.matchAll(/[.!?…](?=\s)/g)].map((m) => (m.index ?? 0) + 1);
+    let at = ends.length ? ends[ends.length - 1] : head.lastIndexOf(" ");
+    if (at < max / 3) at = head.lastIndexOf(" ") > max / 3 ? head.lastIndexOf(" ") : max;
+    out.push(rest.slice(0, at).trim());
+    rest = rest.slice(at).trim();
+  }
+  if (rest) out.push(rest);
+  return out;
+}
+
+/** How many pieces of audio are kept in this page, the most recently played first. */
+export const CLIPS_KEPT = 32;
+const clips = new Map<string, Promise<Blob | null>>();
+
+/** The server's audio for a piece of text, asked once and kept (null when the browser should read it). */
+function clipOf(client: Client, text: string): Promise<Blob | null> {
+  const kept = clips.get(text);
+  if (kept) {
+    clips.delete(text);
+    clips.set(text, kept);
+    return kept;
+  }
+  const asked = VoiceApi.speakText({ client, body: { text }, parseAs: "blob" })
+    .then((r) => (r.response?.status === 200 && r.data instanceof Blob && r.data.size ? r.data : null))
+    .catch(() => null)
+    .then((b) => {
+      if (!b) clips.delete(text); // asked again next time
+      return b;
+    });
+  clips.set(text, asked);
+  while (clips.size > CLIPS_KEPT) clips.delete(clips.keys().next().value as string);
+  return asked;
+}
+
+/** Forget the kept audio and what the server does, as a fresh page would (tests). */
+export function forgetVoice(): void {
+  clips.clear();
+  serverVoice = null;
+}
+
+type Reading = { key: string | null; phase: "loading" | "playing" | null };
+let reading: Reading = { key: null, phase: null };
+let hush: (() => void) | null = null;
+const watchers = new Set<() => void>();
+const show = (r: Reading) => {
+  reading = r;
+  watchers.forEach((w) => w());
+};
+const watch = (w: () => void) => {
+  watchers.add(w);
+  return () => watchers.delete(w);
+};
+const NOBODY: Reading = { key: null, phase: null };
+
+/** Stops whatever message is being read aloud. */
+export function stopReading(): void {
+  hush?.();
+  hush = null;
+  if (reading.key) show(NOBODY);
+}
+
+/** Plays a clip; resolves when it ends, fails or is stopped. */
+function playClip(clip: Blob, onStop: (f: () => void) => void): Promise<void> {
+  const url = URL.createObjectURL(clip);
+  return new Promise<void>((resolve) => {
+    const a = new Audio(url);
+    const done = () => {
+      URL.revokeObjectURL(url);
+      resolve();
+    };
+    onStop(() => {
+      a.pause();
+      done();
+    });
+    a.onended = done;
+    a.onerror = done;
+    a.play().catch(done);
+  });
+}
+
+/** The browser reads a piece; resolves when it's done or stopped. */
+function sayHere(words: string, onStop: (f: () => void) => void): Promise<void> {
+  const synth = typeof window !== "undefined" ? window.speechSynthesis : undefined;
+  if (!synth || typeof SpeechSynthesisUtterance === "undefined") return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    const u = new SpeechSynthesisUtterance(words);
+    u.lang = navigator.language || "en-US";
+    onStop(() => {
+      synth.cancel();
+      resolve();
+    });
+    u.onend = () => resolve();
+    u.onerror = () => resolve();
+    synth.speak(u);
+  });
+}
+
+/** Reads one message aloud by the server's speech model (in the voice picked in Settings), else the browser: piece by
+ * piece, the next one asked for while this one plays. Whatever was being read stops first. */
+async function read(client: Client, key: string, text: string): Promise<void> {
+  stopReading();
+  const parts = pieces(speakable(text));
+  if (!parts.length) return;
+  let stopped = false;
+  let cut: (() => void) | null = null;
+  const onStop = (f: () => void) => {
+    cut = f;
+  };
+  const mine = () => {
+    stopped = true;
+    cut?.();
+  };
+  hush = mine;
+  show({ key, phase: "loading" });
+  const server = (await askServer(client)).speak;
+  for (let i = 0; i < parts.length && !stopped; i++) {
+    const clip = server ? await clipOf(client, parts[i]) : null;
+    if (stopped) return;
+    if (server && i + 1 < parts.length) void clipOf(client, parts[i + 1]);
+    show({ key, phase: "playing" });
+    await (clip ? playClip(clip, onStop) : sayHere(parts[i], onStop));
+    cut = null;
+  }
+  if (hush === mine) {
+    hush = null;
+    show(NOBODY);
+  }
+}
+
+export type ReadAloud = {
+  /** Asking for the audio, before it plays. */
+  loading: boolean;
+  /** This message is being read aloud (or its audio asked for). */
+  on: boolean;
+  /** Plays it, or stops it when it's on. */
+  toggle: () => void;
+};
+
+/** The play button on one chat message: reads `text` aloud (no citation marks or Markdown), or stops it. Starting
+ * another message stops this one, and leaving the page stops it too. */
+export function useReadAloud(text: string): ReadAloud {
+  const client = useApiClient();
+  const key = useId();
+  const now = useSyncExternalStore(
+    watch,
+    () => reading,
+    () => NOBODY,
+  );
+  useEffect(
+    () => () => {
+      if (reading.key === key) stopReading();
+    },
+    [key],
+  );
+  const on = now.key === key;
+  const toggle = useCallback(() => {
+    if (reading.key === key) stopReading();
+    else void read(client, key, text);
+  }, [client, key, text]);
+  return { loading: on && now.phase === "loading", on, toggle };
 }

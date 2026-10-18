@@ -153,7 +153,8 @@ DEFAULTS = {
         "sample_seconds": 60,
         "cross_namespace": "suggest",
     },
-    # anytopdf: the places and dates anytopdf (run here) finds, as hints for the extractor (enrich.py); cleanup: the
+    # anytopdf: the places and dates anytopdf (run here) finds, as hints for the extractor (enrich.py); dates: the dates
+    # each line gives kept as days on the calendar (dates.py); cleanup: the
     # clean step tidies transcripts before analysis (cleanup.py), cleanup_fillers taking out "um" and "uh" too, and
     # cleanup_punctuation (off, missing, always) putting marks back with a local model
     "analysis": {
@@ -161,6 +162,7 @@ DEFAULTS = {
         "spacy_model": "en_core_web_sm",
         "gazetteer": [],
         "anytopdf": False,
+        "dates": False,
         "cleanup": False,
         "cleanup_fillers": True,
         "cleanup_punctuation": "off",
@@ -176,6 +178,11 @@ DEFAULTS = {
         # a model the admin knows can see images: it describes pages and shots (the describe step); none, none are
         "vision_model": None,
         "describe_max": 50,  # pages or shots of a resource described at most
+        # what describes them: "llm" (vision_model, above), or on this machine "florence-2" (florence.py) or
+        # "moondream" (moondream.py)
+        "describe_engine": "llm",
+        "florence_model": "base",  # Florence-2 base (about 280 MB) or large (about 830 MB)
+        "moondream_model": "moondream3-preview",  # Moondream 3 Preview (BSL 1.1, a GPU) or moondream2 (Apache-2.0)
     },
     "graph": {"max_nodes": 150, "min_edge_weight": 2},
     "search": {
@@ -292,7 +299,8 @@ DEFAULTS = {
         "extensions": True,  # tools, skills, hooks and plugins people add (extensions.py)
         "refine_notes": True,  # the model keeps notes' titles and one-line summaries true to the whole note (notebook.py)
         "compact": True,  # a long conversation keeps a summary of the messages the model no longer sees (chat.compact)
-        "compact_model": None,  # a cheaper model to write those summaries (None: the chat's model)
+        "compact_model": None,  # a cheaper model to write those summaries and titles (None: the chat's model)
+        "auto_title": True,  # a conversation nobody named is titled by the model after its first answer (chat.auto_title)
         "context_tokens": None,  # the chat model's context window; summarised early before it fills (None: 16000)
         "organise_notes": True,  # notes nobody filed are filed in PARA, or a suggestion waits on them (notebook.py)
         "untrusted_marking": True,  # third-party text reaches the model marked as data, not instructions (untrusted.py)
@@ -302,6 +310,7 @@ DEFAULTS = {
         "injection_check": "patterns",  # flag text that reads like instructions to an AI: patterns, classifier, model, off
         "disabled_tools": [],
         "max_steps": 6,
+        "max_tool_calls": 50,  # the most tool calls a question may give one answer (its `max_tool_calls`; chat.tool_answer)
         "max_transcript_reads": 20,
         "confirm_over_recordings": 100,
         "confirm_over_cost": None,
@@ -313,6 +322,10 @@ DEFAULTS = {
     # searxng_url; brave and tavily need api_key. results: per search; read_chars: of a page's text the model reads;
     # render: a page that comes back nearly empty is loaded with Chromium (scripts run), when Chromium is installed
     "web": {"search": "off", "searxng_url": None, "api_key": None, "results": 5, "read_chars": 20000, "render": False},
+    # deep research (research.py, docs/assistant.md#deep-research): the most tool calls a plan may make, the minutes
+    # a run may take before it writes its report with what it found, a model for it (null: the conversation's), and
+    # whether an agent (an API key, an app, MCP) may start a run without the person reviewing its plan
+    "research": {"max_tool_calls": 40, "max_minutes": 20, "model": None, "agents_skip_review": False},
     # talking to Lens (voice.py): input auto uses the server's speech-to-text engine when it has one, else the
     # browser's; spoken answers come from tts_model (an OpenAI-compatible /audio/speech), else the browser reads them
     # stt: the engine that hears voice chat ("same": the transcription engine); tts_provider: who reads answers aloud
@@ -539,16 +552,19 @@ DEFAULTS = {
         "bind": os.environ.get("LENS_SMB_LISTEN") or "127.0.0.1",
         "port": int(os.environ.get("LENS_SMB_LISTEN_PORT") or 4445),
         "allowed_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "100.64.0.0/10", "fc00::/7", "::1/128"],
+        "add_files": True,  # files people copy in are imported (share_import.py); off: read-only
     },
     # the assistant's code sandbox (sandbox.py, docs/assistant.md#code-sandbox): off until an admin turns it on. Then
     # each conversation's Python and bash run in a sandbox of its own on the OpenShell gateway at `gateway`, made from
     # `image` with `cpu` and `memory`, stopped after idle_minutes and deleted keep_hours after its last run. network:
-    # off (none), packages (PyPI and npm) or web (public addresses). who: editors (and admins), or admins only.
+    # off (none), packages (PyPI and npm) or hosts (those and `hosts`). who: editors (and admins), or admins only. The
+    # gateway's address is the one the Compose profile `sandbox` runs.
     "sandbox": {
         "enabled": False,
-        "gateway": "openshell-gateway:8080",
+        "gateway": "openshell-gateway:17670",
         "image": "python:3.12-slim",
         "network": "off",
+        "hosts": [],
         "who": "editors",
         "cpu": "1",
         "memory": "512Mi",
@@ -559,13 +575,16 @@ DEFAULTS = {
     # sensors (sensors.py, docs/sensors.md): off until an admin turns them on. Then the MQTT hub and the syslog listener
     # run in the process that runs routines (`lens worker`), on these ports; syslog is taken only from syslog_networks.
     # store, raw_days, rollup_days, important_days and max_per_minute are what a stream sensor gets unless it has its own.
-    # bind is a startup setting only.
+    # bind is a startup setting only. mqtt_web: the broker over WebSockets too, on mqtt_web_port, which the web app
+    # relays at /mqtt (so Remote access and HTTPS reach it), for clients with a hub login only.
     "sensors": {
         "enabled": False,
         "bind": "0.0.0.0",
         "mqtt": True,
         "mqtt_port": 1883,
         "mqtt_anonymous": False,
+        "mqtt_web": False,
+        "mqtt_web_port": 9883,
         "syslog": True,
         "syslog_port": 5514,
         "syslog_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "fc00::/7", "::1/128"],
@@ -585,10 +604,22 @@ DEFAULTS = {
         "port": 2049,
         "allowed_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "fc00::/7", "::1/128"],
         "account": None,
+        "add_files": True,  # files written to the share are imported, as `account` (share_import.py); off: read-only
     },
     # the graph as files over S3 and WebDAV (shares.py, docs/file-tree.md): off until an admin turns it on. Then the process
-    # that runs routines (`lens worker`) serves it, read-only, on these ports. bind is a startup setting only.
-    "shares": {"enabled": False, "bind": "0.0.0.0", "s3": True, "s3_port": 9555, "webdav": True, "webdav_port": 9556},
+    # that runs routines (`lens worker`) serves it on these ports; add_files imports the files people add to it
+    # (share_import.py), off: read-only. bind is a startup setting only. remote: also at the web app's address (/s3, /dav),
+    # so through Settings › Remote access and HTTPS too; off until an admin turns it on.
+    "shares": {
+        "enabled": False,
+        "bind": "0.0.0.0",
+        "s3": True,
+        "s3_port": 9555,
+        "webdav": True,
+        "webdav_port": 9556,
+        "add_files": True,
+        "remote": False,
+    },
     # notifications to webhooks and Matterbridge (docs/notifications.md): targets reach public addresses only, and the
     # private networks listed here (a Matterbridge on the LAN or the Docker network); app_url is where links in messages
     # point (null: FRONTEND_URL)
@@ -914,6 +945,7 @@ class DB:
         self._all = []
         # one connection now, the rest of the pool as concurrent queries need them: each server sign-in costs time
         self._size, self._grow_lock = size, threading.Lock()
+        self._held = threading.local()  # the connection the current thread is using, if any (conn)
         try:
             c = self._open()
             self._all.append(c)
@@ -980,17 +1012,25 @@ class DB:
     def conn(self):
         """A connection from the pool. A server connection that has dropped (the server restarted, or a keepalive
         ping went unanswered while the machine slept) is replaced: without that, every query sent on it fails until
-        the process restarts."""
+        the process restarts. A thread already using a connection gets that one again: the garbage collector closes an
+        abandoned streamed answer (its reader left) on whatever thread it runs on, mid-query, and that answer's cleanup
+        queries too; with the embedded engine's one connection held by that very thread, waiting for it would hang the
+        whole server."""
+        if (held := getattr(self._held, "c", None)) is not None:
+            yield held
+            return
         c = self._take()
         try:
             if _closed(c):
                 c = self._replace(c)
+            self._held.c = c
             yield c
         except Exception as e:
             if not self.embedded and _lost(e):
                 c = self._replace(c)
             raise
         finally:
+            self._held.c = None
             self._pool.put(c)
 
     def _take(self):
@@ -1166,6 +1206,10 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS merge SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS section SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS section_rec ON section FIELDS recording",
+    # the dates a recording's lines give, as days on the calendar (dates.py)
+    "DEFINE TABLE IF NOT EXISTS date_said SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS date_said_rec ON date_said FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS date_said_day ON date_said FIELDS space, day",
     "DEFINE TABLE IF NOT EXISTS entity SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS entity_space ON entity FIELDS space",
     "DEFINE INDEX IF NOT EXISTS entity_key ON entity FIELDS ekey UNIQUE",
@@ -1309,6 +1353,12 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS event_cursor SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS event_claim SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS event_claim_at ON event_claim FIELDS at",
+    # what automations keep between activities (domain/match.py): the last value a `changed` test saw, joins waiting
+    # for their other triggers and decide answers (automation_state:<hash>), and how many went to make room
+    "DEFINE TABLE IF NOT EXISTS automation_state SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS automation_state_automation ON automation_state FIELDS automation, at",
+    "DEFINE INDEX IF NOT EXISTS automation_state_expires ON automation_state FIELDS expires_at",
+    "DEFINE TABLE IF NOT EXISTS automation_state_dropped SCHEMALESS",
     # an automation trigger's webhook (domain/automation_hooks.py): automation_hook:<n>, the token kept only as a hash
     "DEFINE TABLE IF NOT EXISTS automation_hook SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS automation_hook_token ON automation_hook FIELDS token_hash UNIQUE",
@@ -1453,6 +1503,15 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS browser_action_session ON browser_action FIELDS session, state",
     # each conversation's code sandbox on the OpenShell gateway (sandbox.py): its name, settings and last use
     "DEFINE TABLE IF NOT EXISTS code_sandbox SCHEMALESS",
+    # deep research (research.py): a goal's plan, its run's progress and report; research_run:<id> is the claim of
+    # the process carrying a run out, with its heartbeat
+    "DEFINE TABLE IF NOT EXISTS research SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS research_account ON research FIELDS account, status",
+    "DEFINE INDEX IF NOT EXISTS research_chat ON research FIELDS chat",
+    "DEFINE TABLE IF NOT EXISTS research_run SCHEMALESS",
+    # files a conversation's sandbox handed the person to download (sandbox.share), kept with the conversation
+    "DEFINE TABLE IF NOT EXISTS chat_file SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS chat_file_chat ON chat_file FIELDS chat",
     "DEFINE TABLE IF NOT EXISTS segment_edit SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS segment_edit_rec ON segment_edit FIELDS recording",
     # descriptive metadata history, IIIF change discovery and IIIF authorization
@@ -1761,6 +1820,7 @@ DOWNSTREAM = [
     "DELETE mentions WHERE recording = $rid",
     "DELETE term WHERE recording = $rid",
     "DELETE section WHERE recording = $rid",
+    "DELETE date_said WHERE recording = $rid",
     "DELETE appearance WHERE recording = $rid",
     "DELETE segment WHERE recording = $rid AND idx >= $keep",
     "DELETE passage WHERE recording = $rid",

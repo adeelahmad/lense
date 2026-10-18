@@ -6,10 +6,15 @@
  * sign-in throttles. Here a request's X-Forwarded-For is dropped before Next sees it, unless it came from a proxy
  * known to set it: any peer with TRUST_PROXY_HEADERS=true (a reverse proxy in front), or one of the hosts named in
  * LENS_WEB_PROXY_HOSTS (the containers running the Cloudflare tunnel), looked up every 30 seconds.
+ *
+ * Requests for the file shares (/s3 and /dav) and the MQTT broker (/mqtt, over WebSockets) then go to those servers
+ * rather than to Next (lens-relay.js).
  */
 /* eslint-disable @typescript-eslint/no-require-imports */
 const http = require("node:http");
 const dns = require("node:dns");
+
+const relay = require("./lens-relay.js");
 
 const truthy = (v) => ["1", "true", "yes"].includes((v || "").trim().toLowerCase());
 const plain = (address) => (address || "").replace(/^::ffff:/, "");
@@ -43,9 +48,13 @@ function start() {
     setInterval(refresh, 30_000).unref();
   }
   const emit = http.Server.prototype.emit;
-  http.Server.prototype.emit = function (event, req, ...rest) {
-    if (event === "request") scrubForwardedFor(req.headers, req.socket && req.socket.remoteAddress, trustAll, proxies);
-    return emit.call(this, event, req, ...rest);
+  http.Server.prototype.emit = function (event, req, res, ...rest) {
+    if (event === "request" || event === "upgrade") {
+      scrubForwardedFor(req.headers, req.socket && req.socket.remoteAddress, trustAll, proxies);
+      if (event === "request" && relay.route(req, res)) return true;
+      if (event === "upgrade" && relay.upgrade(req, res, rest[0])) return true;
+    }
+    return emit.call(this, event, req, res, ...rest);
   };
   require("./server.js");
 }

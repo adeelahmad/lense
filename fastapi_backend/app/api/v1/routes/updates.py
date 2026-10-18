@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import FileResponse
 
 from app.api.deps import AdminReader, AdminWriter, Cfg, Db, domain_errors
-from app.domain import auth, backups, monitoring, services, updates
+from app.domain import auth, backups, monitoring, sandbox, services, updates
 from app.schemas.backups import BackupSchedule, RestoreWork
 from app.schemas.common import Ok
 from app.schemas.updates import (
@@ -19,6 +19,8 @@ from app.schemas.updates import (
     InstallStatus,
     Monitoring,
     MonitoringRequest,
+    SandboxGateway,
+    SandboxGatewayRequest,
     Service,
     ServiceRequest,
     Services,
@@ -127,6 +129,25 @@ def set_service(profile: str, body: ServiceRequest, user: AdminWriter, request: 
     action = "lens.monitoring" if profile == "monitoring" else "lens.services"
     auth.audit(db, user.as_audit(), action, None, {"profile": profile, "on": body.on})
     return Service.model_validate(services.view(db, profile))
+
+
+@router.get("/admin/sandbox")
+def get_sandbox_gateway(user: AdminReader, db: Db, cfg: Cfg) -> SandboxGateway:
+    """Whether the code sandbox's OpenShell gateway runs next to Lens (the sandbox profile), how the machine's last
+    change went, what stands in the way here, and whether Lens reaches the gateway at sandbox.gateway."""
+    return SandboxGateway.model_validate(sandbox.gateway_view(db, cfg))
+
+
+@router.put("/admin/sandbox", status_code=202)
+def set_sandbox_gateway(body: SandboxGatewayRequest, user: AdminWriter, request: Request, db: Db, cfg: Cfg) -> SandboxGateway:
+    """Have this machine start or stop the code sandbox's gateway. On also turns the sandbox on, at that gateway; off
+    deletes the conversations' sandboxes first and turns the sandbox off. GET /admin/sandbox follows along."""
+    try:
+        got = sandbox.turn(db, request.app.state.archive.base, cfg, body.on, by=user.email)
+    except sandbox.GatewayError as e:
+        raise HTTPException(409, str(e)) from None
+    auth.audit(db, user.as_audit(), "lens.sandbox", None, {"on": body.on})
+    return SandboxGateway.model_validate(got)
 
 
 @router.get("/admin/backups")

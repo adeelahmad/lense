@@ -1,0 +1,692 @@
+# Countries, regions, states and large cities, one per line: names analysis types as PLACE (name_types.py).
+# Written by hand for Lens (MIT). A name here is a place wherever it's said on its own.
+Afghanistan
+Albania
+Algeria
+Andorra
+Angola
+Antigua
+Argentina
+Armenia
+Australia
+Austria
+Azerbaijan
+Bahamas
+Bahrain
+Bangladesh
+Barbados
+Belarus
+Belgium
+Belize
+Benin
+Bhutan
+Bolivia
+Bosnia
+Herzegovina
+Botswana
+Brazil
+Brunei
+Bulgaria
+Burkina Faso
+Burundi
+Cambodia
+Cameroon
+Canada
+Cape Verde
+Chile
+China
+Colombia
+Comoros
+Congo
+Costa Rica
+Croatia
+Cuba
+Cyprus
+Czechia
+Czech Republic
+Denmark
+Djibouti
+Dominica
+Dominican Republic
+Ecuador
+Egypt
+El Salvador
+Eritrea
+Estonia
+Eswatini
+Ethiopia
+Fiji
+Finland
+France
+Gabon
+Gambia
+Georgia
+Germany
+Ghana
+Greece
+Grenada
+Guatemala
+Guinea
+Guyana
+Haiti
+Honduras
+Hungary
+Iceland
+India
+Indonesia
+Iran
+Iraq
+Ireland
+Israel
+Italy
+Ivory Coast
+Jamaica
+Japan
+Jordan
+Kazakhstan
+Kenya
+Kiribati
+Kosovo
+Kuwait
+Kyrgyzstan
+Laos
+Latvia
+Lebanon
+Lesotho
+Liberia
+Libya
+Liechtenstein
+Lithuania
+Luxembourg
+Madagascar
+Malawi
+Malaysia
+Maldives
+Mali
+Malta
+Mauritania
+Mauritius
+Mexico
+Moldova
+Monaco
+Mongolia
+Montenegro
+Morocco
+Mozambique
+Myanmar
+Burma
+Namibia
+Nauru
+Nepal
+Netherlands
+Holland
+New Zealand
+Nicaragua
+Niger
+Nigeria
+North Korea
+North Macedonia
+Macedonia
+Norway
+Oman
+Pakistan
+Palau
+Palestine
+Panama
+Papua New Guinea
+Paraguay
+Peru
+Philippines
+Poland
+Portugal
+Qatar
+Romania
+Russia
+Rwanda
+Samoa
+San Marino
+Saudi Arabia
+Senegal
+Serbia
+Seychelles
+Sierra Leone
+Singapore
+Slovakia
+Slovenia
+Somalia
+South Africa
+South Korea
+Korea
+South Sudan
+Spain
+Sri Lanka
+Sudan
+Suriname
+Sweden
+Switzerland
+Syria
+Taiwan
+Tajikistan
+Tanzania
+Thailand
+Togo
+Tonga
+Trinidad
+Tobago
+Tunisia
+Turkey
+Türkiye
+Turkmenistan
+Tuvalu
+Uganda
+Ukraine
+United Arab Emirates
+UAE
+United Kingdom
+Britain
+Great Britain
+England
+Scotland
+Wales
+Northern Ireland
+United States
+United States of America
+USA
+America
+Uruguay
+Uzbekistan
+Vanuatu
+Vatican
+Venezuela
+Vietnam
+Yemen
+Zambia
+Zimbabwe
+Greenland
+Puerto Rico
+Hong Kong
+Macau
+Tibet
+Kurdistan
+Catalonia
+Bavaria
+Siberia
+Patagonia
+Kashmir
+Punjab
+Sindh
+Balochistan
+Khyber Pakhtunkhwa
+Gilgit
+Baltistan
+Bengal
+Gujarat
+Maharashtra
+Kerala
+Tamil Nadu
+Karnataka
+Rajasthan
+Goa
+Africa
+Antarctica
+Asia
+Europe
+North America
+South America
+Latin America
+Central America
+Oceania
+Australasia
+Eurasia
+Middle East
+Near East
+Far East
+Southeast Asia
+South Asia
+East Asia
+Central Asia
+Western Europe
+Eastern Europe
+Scandinavia
+Balkans
+Baltics
+Caribbean
+Mediterranean
+Arctic
+Pacific
+Atlantic
+Persian Gulf
+Silicon Valley
+Bay Area
+Midwest
+New England
+West Coast
+East Coast
+Levant
+Maghreb
+Gaza
+West Bank
+Crimea
+Donbas
+Sinai
+Himalayas
+Alps
+Andes
+Rockies
+Sahara
+Nile
+Danube
+Rhine
+Thames
+Ganges
+Indus
+Yangtze
+Everest
+Kilimanjaro
+Alabama
+Alaska
+Arizona
+Arkansas
+California
+Colorado
+Connecticut
+Delaware
+Florida
+Hawaii
+Idaho
+Illinois
+Indiana
+Iowa
+Kansas
+Kentucky
+Louisiana
+Maine
+Maryland
+Massachusetts
+Michigan
+Minnesota
+Mississippi
+Missouri
+Montana
+Nebraska
+Nevada
+New Hampshire
+New Jersey
+New Mexico
+New York
+North Carolina
+North Dakota
+Ohio
+Oklahoma
+Oregon
+Pennsylvania
+Rhode Island
+South Carolina
+South Dakota
+Tennessee
+Texas
+Utah
+Vermont
+Virginia
+Washington
+West Virginia
+Wisconsin
+Wyoming
+Ontario
+Quebec
+British Columbia
+Alberta
+Manitoba
+Saskatchewan
+Nova Scotia
+New Brunswick
+Newfoundland
+Labrador
+Prince Edward Island
+Yukon
+Nunavut
+New South Wales
+Victoria
+Queensland
+Tasmania
+Western Australia
+South Australia
+Northern Territory
+Yorkshire
+Lancashire
+Cornwall
+Devon
+Kent
+Surrey
+Essex
+Sussex
+Cumbria
+Midlands
+Tokyo
+Delhi
+New Delhi
+Shanghai
+Beijing
+Mumbai
+Bombay
+Kolkata
+Calcutta
+Chennai
+Madras
+Bangalore
+Bengaluru
+Hyderabad
+Ahmedabad
+Pune
+Jaipur
+Lucknow
+Karachi
+Lahore
+Islamabad
+Rawalpindi
+Peshawar
+Faisalabad
+Multan
+Quetta
+Sialkot
+Gujranwala
+Dhaka
+Kathmandu
+Colombo
+Kabul
+Tehran
+Baghdad
+Riyadh
+Jeddah
+Mecca
+Makkah
+Medina
+Dubai
+Abu Dhabi
+Sharjah
+Doha
+Muscat
+Kuwait City
+Manama
+Amman
+Beirut
+Damascus
+Jerusalem
+Tel Aviv
+Ankara
+Istanbul
+Cairo
+Alexandria
+Casablanca
+Marrakesh
+Rabat
+Tunis
+Algiers
+Tripoli
+Khartoum
+Addis Ababa
+Nairobi
+Mombasa
+Kampala
+Kigali
+Dar es Salaam
+Zanzibar
+Lagos
+Abuja
+Accra
+Dakar
+Kinshasa
+Luanda
+Johannesburg
+Cape Town
+Durban
+Pretoria
+Harare
+Lusaka
+Maputo
+Moscow
+Saint Petersburg
+St Petersburg
+Kyiv
+Kiev
+Kharkiv
+Odesa
+Odessa
+Minsk
+Warsaw
+Krakow
+Kraków
+Prague
+Vienna
+Budapest
+Bucharest
+Belgrade
+Zagreb
+Athens
+Rome
+Milan
+Naples
+Turin
+Florence
+Venice
+Madrid
+Barcelona
+Valencia
+Seville
+Malaga
+Lisbon
+Porto
+Paris
+Lyon
+Marseille
+Toulouse
+Bordeaux
+Strasbourg
+Brussels
+Antwerp
+Amsterdam
+Rotterdam
+The Hague
+Utrecht
+Eindhoven
+Berlin
+Hamburg
+Munich
+Frankfurt
+Cologne
+Stuttgart
+Düsseldorf
+Dusseldorf
+Leipzig
+Dresden
+Zurich
+Zürich
+Geneva
+Basel
+Bern
+Copenhagen
+Stockholm
+Gothenburg
+Oslo
+Bergen
+Helsinki
+Reykjavik
+Dublin
+Cork
+Belfast
+London
+Manchester
+Birmingham
+Liverpool
+Leeds
+Glasgow
+Edinburgh
+Bristol
+Oxford
+Cambridge
+Cardiff
+Newcastle
+Sheffield
+Nottingham
+Brighton
+Tallinn
+Riga
+Vilnius
+Ljubljana
+Bratislava
+Sarajevo
+Skopje
+Tirana
+Tbilisi
+Yerevan
+Baku
+Almaty
+Astana
+Tashkent
+Bishkek
+Ulaanbaatar
+Seoul
+Busan
+Pyongyang
+Osaka
+Kyoto
+Yokohama
+Nagoya
+Sapporo
+Hiroshima
+Fukuoka
+Taipei
+Shenzhen
+Guangzhou
+Chengdu
+Wuhan
+Hangzhou
+Nanjing
+Tianjin
+Chongqing
+Xi'an
+Kuala Lumpur
+Penang
+Jakarta
+Bali
+Bangkok
+Phuket
+Hanoi
+Ho Chi Minh City
+Saigon
+Manila
+Phnom Penh
+Yangon
+Sydney
+Melbourne
+Brisbane
+Perth
+Adelaide
+Canberra
+Auckland
+Wellington
+Christchurch
+Toronto
+Montreal
+Vancouver
+Ottawa
+Calgary
+Edmonton
+Winnipeg
+Quebec City
+Halifax
+New York City
+NYC
+Manhattan
+Brooklyn
+Queens
+Bronx
+Los Angeles
+Chicago
+Houston
+Phoenix
+Philadelphia
+San Antonio
+San Diego
+Dallas
+San Jose
+Austin
+Jacksonville
+Fort Worth
+Columbus
+Charlotte
+San Francisco
+Indianapolis
+Seattle
+Denver
+Washington DC
+Boston
+El Paso
+Nashville
+Detroit
+Oklahoma City
+Portland
+Las Vegas
+Memphis
+Louisville
+Baltimore
+Milwaukee
+Albuquerque
+Tucson
+Fresno
+Sacramento
+Kansas City
+Atlanta
+Miami
+Orlando
+Tampa
+Raleigh
+Minneapolis
+Cleveland
+Pittsburgh
+Cincinnati
+St Louis
+Saint Louis
+New Orleans
+Honolulu
+Anchorage
+Salt Lake City
+Palo Alto
+Mountain View
+Cupertino
+Menlo Park
+Redmond
+Oakland
+Berkeley
+Santa Clara
+Santa Monica
+Sunnyvale
+Hollywood
+Mexico City
+Guadalajara
+Monterrey
+Cancun
+Cancún
+Havana
+Bogota
+Bogotá
+Medellin
+Medellín
+Lima
+Quito
+Caracas
+Santiago
+Buenos Aires
+Montevideo
+Asuncion
+Asunción
+La Paz
+Sao Paulo
+São Paulo
+Rio de Janeiro
+Brasilia
+Brasília
+Panama City
+San Juan
+Kingston
+Nassau

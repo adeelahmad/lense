@@ -1161,6 +1161,12 @@ export type ApprovalOutcome = {
    */
   batch?: number | null;
   /**
+   * Job
+   *
+   * the job started, for write_spec
+   */
+  job?: number | null;
+  /**
    * Error
    *
    * why an automation's action failed
@@ -3366,6 +3372,12 @@ export type Chat = {
    */
   title: string;
   /**
+   * Title By
+   *
+   * who titled it: assistant (Lens, from its first question and answer; it titles it again when the first question is edited) or person (named by someone, so Lens leaves it); null: from before Lens kept who titled it
+   */
+  title_by?: "assistant" | "person" | null;
+  /**
    * Kind
    *
    * bridge: a conversation in a chat room, through Matterbridge
@@ -3383,6 +3395,18 @@ export type Chat = {
    * the model chosen for this conversation; null: the configured one
    */
   model?: string | null;
+  /**
+   * Tools
+   *
+   * the tool groups and tools its answers may use; null: Auto
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in each answer; null: no limit but the rounds
+   */
+  max_tool_calls?: number | null;
   /**
    * Created At
    */
@@ -3441,9 +3465,15 @@ export type ChatCapabilities = {
   /**
    * Max Steps
    *
-   * the most tool calls it makes for one answer
+   * the most rounds of tool calls it makes for one answer (a round makes one call or more)
    */
   max_steps: number;
+  /**
+   * Max Tool Calls
+   *
+   * the most tool calls a question may give one answer (`max_tool_calls`)
+   */
+  max_tool_calls?: number;
   /**
    * Check
    *
@@ -3547,6 +3577,8 @@ export type ChatCompletionRequest = {
 export type ChatCreate = {
   /**
    * Title
+   *
+   * yours, and kept; left out, Lens titles it after its first answer (ai.auto_title)
    */
   title?: string | null;
   /**
@@ -3562,6 +3594,18 @@ export type ChatCreate = {
    * the model that answers in it (one of GET /chats/capabilities `models`); null: the configured one
    */
   model?: string | null;
+  /**
+   * Tools
+   *
+   * what its answers may use: tool groups and tools (GET /chats/tools); [] for none; left out: your latest choice (PATCH /chats/{cid}), else Auto
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in each answer (1 to ai.max_tool_calls); left out: your latest choice
+   */
+  max_tool_calls?: number | null;
 };
 
 /**
@@ -3646,6 +3690,12 @@ export type ChatMessage = {
    * what produced it; none on messages from before it was recorded
    */
   meta?: MessageRecord | null;
+  /**
+   * Kind
+   *
+   * research: a deep research report; research_plan: the plan it waits on (GET /research/{meta.research})
+   */
+  kind?: "research" | "research_plan" | null;
   [key: string]: unknown;
 };
 
@@ -3725,6 +3775,12 @@ export type ChatSummary = {
    */
   title: string;
   /**
+   * Title By
+   *
+   * who titled it: assistant (Lens, from its first question and answer; it titles it again when the first question is edited) or person (named by someone, so Lens leaves it); null: from before Lens kept who titled it
+   */
+  title_by?: "assistant" | "person" | null;
+  /**
    * Kind
    *
    * bridge: a conversation in a chat room, through Matterbridge
@@ -3743,6 +3799,18 @@ export type ChatSummary = {
    */
   model?: string | null;
   /**
+   * Tools
+   *
+   * the tool groups and tools its answers may use; null: Auto
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in each answer; null: no limit but the rounds
+   */
+  max_tool_calls?: number | null;
+  /**
    * Created At
    */
   created_at?: string | null;
@@ -3754,11 +3822,59 @@ export type ChatSummary = {
 };
 
 /**
+ * ChatTitle
+ */
+export type ChatTitle = {
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Title By
+   *
+   * who titled it: assistant (Lens, from its first question and answer; it titles it again when the first question is edited) or person (named by someone, so Lens leaves it); null: from before Lens kept who titled it
+   */
+  title_by: "assistant" | "person";
+  [key: string]: unknown;
+};
+
+/**
+ * ChatTools
+ */
+export type ChatTools = {
+  /**
+   * Groups
+   *
+   * the built-in groups, then your extensions' (mcp:<server>, ext:<extension>)
+   */
+  groups: Array<ToolGroup>;
+  /**
+   * Max Tool Calls
+   *
+   * the most tool calls one answer may be given (ai.max_tool_calls)
+   */
+  max_tool_calls: number;
+  /**
+   * your latest choice, which new conversations start with
+   */
+  remembered: ToolChoice;
+  /**
+   * Namespaces Note
+   *
+   * what the choice of namespaces doesn't narrow
+   */
+  namespaces_note?: string;
+  [key: string]: unknown;
+};
+
+/**
  * ChatUpdate
  */
 export type ChatUpdate = {
   /**
    * Title
+   *
+   * rename it: yours from then on, so Lens doesn't retitle it (POST /chats/{cid}/title does)
    */
   title?: string | null;
   scope?: ChatScope | null;
@@ -3768,6 +3884,136 @@ export type ChatUpdate = {
    * the model that answers in it (one of GET /chats/capabilities `models`); null: the configured one
    */
   model?: string | null;
+  /**
+   * Tools
+   *
+   * what its answers may use: tool groups and tools (GET /chats/tools); [] for none; null: Auto (everything you may use). Your new conversations start with it too
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in each answer (1 to ai.max_tool_calls); null: no limit but the rounds
+   */
+  max_tool_calls?: number | null;
+};
+
+/**
+ * ClassifyRequest
+ *
+ * Give a `recording` or a `text`, and `labels` or a `vocabulary`.
+ */
+export type ClassifyRequest = {
+  /**
+   * Recording
+   *
+   * the asset to classify
+   */
+  recording?: number | null;
+  /**
+   * Text
+   *
+   * text to classify instead
+   */
+  text?: string | null;
+  /**
+   * Labels
+   *
+   * the labels to choose from (2 to 60): names, or {name: what it means}
+   */
+  labels?:
+    | {
+        [key: string]: string;
+      }
+    | Array<string>
+    | null;
+  /**
+   * Vocabulary
+   *
+   * choose from Lens's content types (of the asset's kind), or the namespace's topics
+   */
+  vocabulary?: "content_type" | "topic" | null;
+  /**
+   * Namespace
+   *
+   * whose topics, when classifying a text by topic
+   */
+  namespace?: string | null;
+  /**
+   * Question
+   *
+   * what to ask (default: which label fits best)
+   */
+  question?: string | null;
+  /**
+   * Apply
+   *
+   * act on a sure answer: set the content type, suggest the topic, or add the label as a tag (editors)
+   */
+  apply?: boolean;
+};
+
+/**
+ * ClassifyResult
+ */
+export type ClassifyResult = {
+  /**
+   * Choice
+   *
+   * the label that fits best
+   */
+  choice: string;
+  /**
+   * Confidence
+   *
+   * how sure, from 0 to 1
+   */
+  confidence: number;
+  /**
+   * Sure
+   *
+   * sure enough to act on without asking (decisions.act_above)
+   */
+  sure: boolean;
+  /**
+   * Ranked
+   *
+   * every label, the likeliest first
+   */
+  ranked: Array<RankedLabel>;
+  /**
+   * By
+   *
+   * what answered: jev, laya, llm, or only option
+   */
+  by: string;
+  /**
+   * Vocabulary
+   */
+  vocabulary?: string | null;
+  /**
+   * Question
+   */
+  question: string;
+  /**
+   * Applied
+   *
+   * what was done with a sure answer, when apply was asked
+   */
+  applied?: "content_type" | "topic_suggested" | "tag" | null;
+  /**
+   * Key
+   *
+   * content_type: the chosen content type's key
+   */
+  key?: string | null;
+  /**
+   * Id
+   *
+   * topic: the chosen topic's id
+   */
+  id?: number | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -5299,6 +5545,114 @@ export type CustomNodeVersionCreate = {
    * Notes
    */
   notes?: string | null;
+};
+
+/**
+ * DateList
+ */
+export type DateList = {
+  /**
+   * Total
+   */
+  total: number;
+  /**
+   * Items
+   */
+  items: Array<DateSaid>;
+  /**
+   * Reading
+   *
+   * whether analysis reads dates (Settings → Analysis → Read dates); off, nothing new is read
+   */
+  reading: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * DateSaid
+ *
+ * A date an asset's line gives, as days on the calendar.
+ */
+export type DateSaid = {
+  /**
+   * Day
+   *
+   * the first day it means, YYYY-MM-DD
+   */
+  day: string;
+  /**
+   * Until
+   *
+   * the last day it means: the same day for a day, the Sunday for a week, the 31st for a month
+   */
+  until: string;
+  /**
+   * Period
+   *
+   * day, weekend, week, month or year
+   */
+  period: string;
+  /**
+   * Said
+   *
+   * the words that give it, like "next Tuesday" or "3 March 2024"
+   */
+  said: string;
+  /**
+   * Relative
+   *
+   * worked out from the asset's own date (recorded_at): a day said relative to it, or without its year
+   */
+  relative: boolean;
+  /**
+   * Recording Id
+   */
+  recording_id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Recorded At
+   */
+  recorded_at?: string | null;
+  /**
+   * Segment
+   *
+   * the line's id
+   */
+  segment: number;
+  /**
+   * Idx
+   *
+   * the line's place in the asset's text
+   */
+  idx: number;
+  /**
+   * T0
+   *
+   * ms
+   */
+  t0?: number | null;
+  /**
+   * Time
+   */
+  time?: string | null;
+  /**
+   * Speaker
+   */
+  speaker?: string | null;
+  /**
+   * Text
+   *
+   * the line
+   */
+  text?: string | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -8950,6 +9304,12 @@ export type HubStatus = {
    */
   mqtt_port?: number | null;
   /**
+   * Mqtt Web
+   *
+   * the broker over WebSockets too, which the web app relays at /mqtt
+   */
+  mqtt_web?: boolean;
+  /**
    * Syslog
    */
   syslog: boolean;
@@ -9367,6 +9727,51 @@ export type ImportResult = {
    * Job
    */
   job: number;
+  [key: string]: unknown;
+};
+
+/**
+ * ImportTarget
+ *
+ * Where pushes with a token go (GET /hooks/import).
+ */
+export type ImportTarget = {
+  /**
+   * Kind
+   *
+   * an import webhook's token, or a person's own
+   */
+  kind: "hook" | "person";
+  /**
+   * Hook
+   *
+   * the hook's name
+   */
+  hook?: string | null;
+  /**
+   * Email
+   *
+   * whom a person's own token acts as
+   */
+  email?: string | null;
+  /**
+   * Namespace
+   *
+   * where a push goes without ?namespace=; null when there's a choice
+   */
+  namespace?: string | null;
+  /**
+   * Namespaces
+   *
+   * every namespace this token can push into
+   */
+  namespaces?: Array<string>;
+  /**
+   * Write
+   *
+   * false for a read-only API token, which can't push
+   */
+  write: boolean;
   [key: string]: unknown;
 };
 
@@ -10184,6 +10589,32 @@ export type LlmTestResult = {
    */
   model?: string | null;
   [key: string]: unknown;
+};
+
+/**
+ * LlmTry
+ *
+ * What to test before saving it (Settings → LLM provider); anything left out is taken from what is saved.
+ */
+export type LlmTry = {
+  /**
+   * Base Url
+   *
+   * the server's address, as typed
+   */
+  base_url?: string | null;
+  /**
+   * Model
+   *
+   * the model name, as typed
+   */
+  model?: string | null;
+  /**
+   * Api Key
+   *
+   * a key typed but not saved; the saved key is used only at the saved address
+   */
+  api_key?: string | null;
 };
 
 /**
@@ -11381,6 +11812,28 @@ export type MessageCreate = {
    * voice: said in a voice conversation (the question's record keeps it)
    */
   via?: "voice" | null;
+  /**
+   * Tools
+   *
+   * what this answer may use: tool groups (archive, notes, mcp:tracker) and tools, as GET /chats/tools lists them; [] for none (it answers from a search); null: the conversation's choice, else Auto (everything you may use). An admin's switch still wins
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * at most this many tool calls in this answer (1 to ai.max_tool_calls); null: the conversation's
+   */
+  max_tool_calls?: number | null;
+  /**
+   * what this answer draws on, instead of the conversation's scope (which stays as it is); {} for everything you can read
+   */
+  scope?: ChatScope | null;
+  /**
+   * Research
+   *
+   * the content is a research goal: the reply is a plan to approve (streams `research`, then `approval`), as /research <goal> and POST /chats/{cid}/research do
+   */
+  research?: boolean | null;
 };
 
 /**
@@ -11465,6 +11918,12 @@ export type MessageDetail = {
    * what produced it; none on messages from before it was recorded
    */
   meta?: MessageRecord | null;
+  /**
+   * Kind
+   *
+   * research: a deep research report; research_plan: the plan it waits on (GET /research/{meta.research})
+   */
+  kind?: "research" | "research_plan" | null;
   /**
    * Ledger
    *
@@ -12330,6 +12789,12 @@ export type NfsStatus = {
    * whether rclone is installed here
    */
   rclone: boolean;
+  /**
+   * Add Files
+   *
+   * whether files written to the share are imported (nfs.add_files); off: read-only
+   */
+  add_files?: boolean;
   [key: string]: unknown;
 };
 
@@ -12557,6 +13022,24 @@ export type NoteBacklink = {
 };
 
 /**
+ * NoteCopy
+ */
+export type NoteCopy = {
+  /**
+   * Title
+   *
+   * its title (default: the page's)
+   */
+  title?: string | null;
+  /**
+   * Parent
+   *
+   * put it inside this page (default: the top)
+   */
+  parent?: number | null;
+};
+
+/**
  * NoteCreate
  */
 export type NoteCreate = {
@@ -12588,6 +13071,25 @@ export type NoteCreate = {
    * share it with everyone who can read the asset (needs editor access)
    */
   shared?: boolean;
+};
+
+/**
+ * NoteCrumb
+ */
+export type NoteCrumb = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -12853,7 +13355,7 @@ export type NotePage = {
    *
    * who wrote the summary
    */
-  summary_by?: "person" | "assistant" | null;
+  summary_by?: "assistant" | "person" | null;
   /**
    * Date
    */
@@ -12869,7 +13371,7 @@ export type NotePage = {
    *
    * who filed it
    */
-  place_by?: "person" | "assistant" | null;
+  place_by?: "assistant" | "person" | null;
   /**
    * where the assistant would file it, when it wasn't sure
    */
@@ -12954,6 +13456,18 @@ export type NotePage = {
    * Backlinks
    */
   backlinks?: Array<NoteBacklink>;
+  /**
+   * Path
+   *
+   * the notes it's inside, from the top of the tree down to its parent
+   */
+  path?: Array<NoteCrumb>;
+  /**
+   * Children
+   *
+   * the notes inside it, in the tree's order
+   */
+  children?: Array<NoteCrumb>;
   /**
    * Can Edit
    */
@@ -13075,7 +13589,7 @@ export type NotePageItem = {
    *
    * who wrote the summary
    */
-  summary_by?: "person" | "assistant" | null;
+  summary_by?: "assistant" | "person" | null;
   /**
    * Date
    */
@@ -13091,7 +13605,7 @@ export type NotePageItem = {
    *
    * who filed it
    */
-  place_by?: "person" | "assistant" | null;
+  place_by?: "assistant" | "person" | null;
   /**
    * where the assistant would file it, when it wasn't sure
    */
@@ -13218,6 +13732,58 @@ export type NoteSearch = {
    */
   pages: Array<NoteHit>;
   [key: string]: unknown;
+};
+
+/**
+ * NoteTemplate
+ */
+export type NoteTemplate = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Summary
+   */
+  summary?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * NoteTemplates
+ */
+export type NoteTemplates = {
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Root
+   *
+   * the "Templates" note: each note inside it is a template; null until made
+   */
+  root?: number | null;
+  /**
+   * Templates
+   */
+  templates: Array<NoteTemplate>;
+  [key: string]: unknown;
+};
+
+/**
+ * NoteTemplatesCreate
+ */
+export type NoteTemplatesCreate = {
+  /**
+   * Ns
+   *
+   * the namespace whose Templates note to make
+   */
+  ns: string;
 };
 
 /**
@@ -14271,6 +14837,37 @@ export type Passkey = {
    */
   last_used_at?: string | null;
   [key: string]: unknown;
+};
+
+/**
+ * PasskeyAddress
+ */
+export type PasskeyAddress = {
+  /**
+   * Url
+   *
+   * an https:// address Lens opens at besides this one (Remote access, HTTPS)
+   */
+  url: string;
+  /**
+   * Passkey
+   *
+   * whether you have a passkey for it: a passkey works only where it was made
+   */
+  passkey: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * PasskeyAddressAsk
+ */
+export type PasskeyAddressAsk = {
+  /**
+   * Url
+   *
+   * one of GET /auth/passkeys/elsewhere's addresses
+   */
+  url: string;
 };
 
 /**
@@ -16115,6 +16712,35 @@ export type Pushed = {
 };
 
 /**
+ * RankedLabel
+ */
+export type RankedLabel = {
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * P
+   *
+   * how likely, from 0 to 1
+   */
+  p: number;
+  /**
+   * Key
+   *
+   * content_type: the content type's key
+   */
+  key?: string | null;
+  /**
+   * Id
+   *
+   * topic: the topic's id
+   */
+  id?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * RcloneSignIn
  */
 export type RcloneSignIn = {
@@ -16177,6 +16803,7 @@ export type RcloneSignInStart = {
     | "gmail"
     | "ical"
     | "gcal"
+    | "rss"
     | null;
   /**
    * Source
@@ -17238,6 +17865,442 @@ export type ReprocessRequest = {
 };
 
 /**
+ * Research
+ */
+export type Research = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Chat
+   */
+  chat: number;
+  /**
+   * Message
+   *
+   * the question that asked for it
+   */
+  message?: number | null;
+  /**
+   * Plan Message
+   *
+   * the answer that shows the plan
+   */
+  plan_message?: number | null;
+  /**
+   * Answer
+   *
+   * the report, once saved in the conversation
+   */
+  answer?: number | null;
+  /**
+   * Approval
+   *
+   * the plan's approval (POST /approvals/{id}: approve, with `params` its edits, or decline)
+   */
+  approval?: number | null;
+  /**
+   * Status
+   *
+   * planned (waiting for approval), declined, queued (approved, waiting its turn), running, held (by a budget), done, stopped or failed
+   */
+  status: "planned" | "declined" | "queued" | "running" | "held" | "done" | "stopped" | "failed";
+  /**
+   * Stage
+   */
+  stage?: "gather" | "write" | "check" | "done" | null;
+  /**
+   * Goal
+   */
+  goal?: string | null;
+  plan: ResearchPlan;
+  /**
+   * Questions
+   *
+   * follow-up questions; answer them with revise
+   */
+  questions?: Array<ResearchQuestion>;
+  /**
+   * Answers
+   *
+   * the answers given to them
+   */
+  answers?: {
+    [key: string]: string;
+  };
+  /**
+   * Scope
+   */
+  scope?: {
+    [key: string]: unknown;
+  };
+  estimate?: ResearchEstimate | null;
+  progress: ResearchProgress;
+  /**
+   * Findings
+   *
+   * the sub-questions answered so far
+   */
+  findings?: Array<ResearchFinding>;
+  held?: ResearchHeld | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Ended
+   *
+   * why it ended early: stopped, out of time (research.max_minutes), or a budget
+   */
+  ended?: "stopped" | "timeout" | "budget" | null;
+  /**
+   * Revisions
+   */
+  revisions?: number;
+  /**
+   * Notes
+   *
+   * notes made from the report
+   */
+  notes?: Array<number>;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Started At
+   */
+  started_at?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ResearchEstimate
+ */
+export type ResearchEstimate = {
+  /**
+   * Usd
+   *
+   * what it will likely cost, from the prices in Settings; null without a price
+   */
+  usd?: number | null;
+  /**
+   * Tokens
+   */
+  tokens?: number | null;
+  /**
+   * Tool Calls
+   */
+  tool_calls?: number | null;
+  /**
+   * Basis
+   *
+   * what the estimate is drawn from
+   */
+  basis?: string | null;
+  /**
+   * Estimate
+   */
+  estimate?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * ResearchFinding
+ */
+export type ResearchFinding = {
+  /**
+   * Question
+   */
+  question: string;
+  /**
+   * Tool Calls
+   */
+  tool_calls?: number;
+  [key: string]: unknown;
+};
+
+/**
+ * ResearchHeld
+ */
+export type ResearchHeld = {
+  /**
+   * Why
+   */
+  why: string;
+  /**
+   * Budget
+   *
+   * the budget it waits for (all, space:<id>)
+   */
+  budget?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ResearchNote
+ */
+export type ResearchNote = {
+  /**
+   * Namespace
+   *
+   * where the note goes; needed when the research looked in several
+   */
+  namespace?: string | null;
+};
+
+/**
+ * ResearchNoteMade
+ */
+export type ResearchNoteMade = {
+  /**
+   * Page
+   */
+  page: number;
+  /**
+   * Namespace
+   */
+  namespace: string;
+  [key: string]: unknown;
+};
+
+/**
+ * ResearchPlan
+ */
+export type ResearchPlan = {
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Goal
+   */
+  goal: string;
+  /**
+   * Sub Questions
+   *
+   * what it answers, one look-up at a time, in order
+   */
+  sub_questions: Array<string>;
+  /**
+   * Sources
+   *
+   * where it looks: the archive, the graph, notes, the web, the code sandbox
+   */
+  sources: Array<"archive" | "graph" | "notes" | "web" | "code">;
+  /**
+   * Max Tool Calls
+   *
+   * the most tool calls the run makes in all (research.max_tool_calls at most)
+   */
+  max_tool_calls: number;
+  /**
+   * Report Outline
+   *
+   * the report's sections
+   */
+  report_outline?: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
+ * ResearchPodcast
+ */
+export type ResearchPodcast = {
+  /**
+   * Prompt
+   *
+   * an angle; else the research goal
+   */
+  prompt?: string | null;
+  /**
+   * Length
+   *
+   * minutes (up to podcasts.max_minutes)
+   */
+  length?: number;
+  /**
+   * Style
+   */
+  style?: "deep-dive" | "recap" | "debate" | "beginner";
+  /**
+   * Title
+   *
+   * else the report's title
+   */
+  title?: string | null;
+};
+
+/**
+ * ResearchProgress
+ */
+export type ResearchProgress = {
+  /**
+   * Sub Questions
+   */
+  sub_questions?: number;
+  /**
+   * Done
+   *
+   * sub-questions answered
+   */
+  done?: number;
+  /**
+   * Sources
+   *
+   * sources found so far
+   */
+  sources?: number;
+  /**
+   * Tool Calls
+   */
+  tool_calls?: number;
+  /**
+   * Cost Usd
+   *
+   * spent so far (the activity ledger rows of research:<id>)
+   */
+  cost_usd?: number;
+  /**
+   * Tokens
+   */
+  tokens?: number;
+  /**
+   * Cost Estimated
+   */
+  cost_estimated?: boolean;
+  /**
+   * Minutes
+   *
+   * how long it has run
+   */
+  minutes?: number;
+  [key: string]: unknown;
+};
+
+/**
+ * ResearchQuestion
+ */
+export type ResearchQuestion = {
+  /**
+   * Question
+   */
+  question: string;
+  /**
+   * Answers
+   *
+   * suggested answers to pick from
+   */
+  answers?: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
+ * ResearchRevise
+ */
+export type ResearchRevise = {
+  /**
+   * Answers
+   *
+   * the follow-up questions' answers, by question
+   */
+  answers?: {
+    [key: string]: string;
+  };
+  /**
+   * Plan
+   *
+   * the plan as edited: any of title, sub_questions, sources, max_tool_calls, report_outline
+   */
+  plan?: {
+    [key: string]: unknown;
+  } | null;
+};
+
+/**
+ * ResearchStart
+ */
+export type ResearchStart = {
+  /**
+   * Goal
+   *
+   * what to research
+   */
+  goal: string;
+  /**
+   * Tools
+   *
+   * what it may use (GET /chats/tools); null: the conversation's choice
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   *
+   * the most tool calls the plan may make (research.max_tool_calls at most)
+   */
+  max_tool_calls?: number | null;
+  /**
+   * what it draws on, instead of the conversation's scope
+   */
+  scope?: ChatScope | null;
+  /**
+   * Review
+   *
+   * false: start the run at once, without the plan waiting for review (signed in; an API key or an app only with research.agents_skip_review)
+   */
+  review?: boolean;
+};
+
+/**
+ * ResearchStarted
+ */
+export type ResearchStarted = {
+  research: Research;
+  /**
+   * Question
+   *
+   * the question saved in the conversation
+   */
+  question: number;
+  /**
+   * Message
+   *
+   * the answer that shows the plan
+   */
+  message: number;
+  /**
+   * Text
+   *
+   * the plan as the conversation shows it
+   */
+  text: string;
+  meta?: MessageRecord | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ResearchStop
+ */
+export type ResearchStop = {
+  /**
+   * Ok
+   */
+  ok?: boolean;
+  /**
+   * Stopping
+   *
+   * it stops after the step it's on (or now, when it hadn't started or waited on a budget)
+   */
+  stopping: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * ResetPasswordRequest
  */
 export type ResetPasswordRequest = {
@@ -18156,13 +19219,156 @@ export type S3Status = {
    * what the process running it says; none while it's off
    */
   service?: S3Service | null;
+  /**
+   * Add Files
+   *
+   * whether files people add through it are imported (shares.add_files)
+   */
+  add_files?: boolean;
   webdav: ShareServer;
+  /**
+   * Remote
+   *
+   * whether an admin opened both at the web app's address too, /s3 and /dav (shares.remote), so remote access reaches them
+   */
+  remote?: boolean;
   /**
    * Keys
    *
    * your access keys
    */
   keys: Array<S3Key>;
+  [key: string]: unknown;
+};
+
+/**
+ * SandboxFile
+ *
+ * A file the code sandbox handed the person: GET /chats/{cid}/files/{id} downloads it.
+ */
+export type SandboxFile = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Size
+   */
+  size: number;
+  [key: string]: unknown;
+};
+
+/**
+ * SandboxGateway
+ */
+export type SandboxGateway = {
+  /**
+   * On
+   *
+   * the sandbox profile (the code sandbox's OpenShell gateway) as last asked
+   */
+  on: boolean;
+  /**
+   * State
+   *
+   * how the machine's last change went
+   */
+  state?: "queued" | "running" | "done" | "failed" | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Asked At
+   */
+  asked_at?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Agent
+   *
+   * what changes it on this machine (systemd, launchd); none: run `manual` there
+   */
+  agent?: string | null;
+  /**
+   * Manual
+   *
+   * the line that starts it by hand, on the machine Lens runs on
+   */
+  manual: string;
+  /**
+   * Preflight
+   *
+   * what stands in the way of running it on this machine, a sentence each
+   */
+  preflight: Array<string>;
+  /**
+   * Address
+   *
+   * where Lens reaches the gateway (sandbox.gateway)
+   */
+  address: string;
+  /**
+   * Reachable
+   *
+   * whether the gateway answered and let Lens in; null: not checked
+   */
+  reachable?: boolean | null;
+  /**
+   * Problem
+   *
+   * why it didn't, when it didn't
+   */
+  problem?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SandboxGatewayRequest
+ */
+export type SandboxGatewayRequest = {
+  /**
+   * On
+   *
+   * start (true) or stop (false) the code sandbox's gateway; stopping deletes its sandboxes
+   */
+  on: boolean;
+};
+
+/**
+ * SandboxOutput
+ *
+ * What a code sandbox run printed, as its step shows it (the start of stdout, the end of stderr).
+ */
+export type SandboxOutput = {
+  /**
+   * Stdout
+   */
+  stdout?: string;
+  /**
+   * Stderr
+   */
+  stderr?: string;
+  /**
+   * Exit Code
+   */
+  exit_code?: number | null;
+  /**
+   * Timed Out
+   */
+  timed_out?: boolean;
+  /**
+   * Cut
+   *
+   * there was more than this
+   */
+  cut?: boolean;
   [key: string]: unknown;
 };
 
@@ -19759,6 +20965,12 @@ export type ShareServer = {
    * what the process running it says; none while it's off
    */
   service?: S3Service | null;
+  /**
+   * Add Files
+   *
+   * whether files people add through it are imported (shares.add_files)
+   */
+  add_files?: boolean;
   [key: string]: unknown;
 };
 
@@ -20212,6 +21424,12 @@ export type SmbStatus = {
    * the command that mounts it on Linux
    */
   mount: string;
+  /**
+   * Add Files
+   *
+   * whether files people copy in are imported (smb.add_files); off: read-only
+   */
+  add_files?: boolean;
   [key: string]: unknown;
 };
 
@@ -20231,7 +21449,19 @@ export type Source = {
    * Type
    */
   type:
-    "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "gmail" | "ical" | "gcal";
+    | "s3"
+    | "dropbox"
+    | "drive"
+    | "onedrive"
+    | "sftp"
+    | "smb"
+    | "webdav"
+    | "local"
+    | "imap"
+    | "gmail"
+    | "ical"
+    | "gcal"
+    | "rss";
   /**
    * Label
    */
@@ -20276,7 +21506,19 @@ export type SourceCreate = {
    * Type
    */
   type:
-    "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "gmail" | "ical" | "gcal";
+    | "s3"
+    | "dropbox"
+    | "drive"
+    | "onedrive"
+    | "sftp"
+    | "smb"
+    | "webdav"
+    | "local"
+    | "imap"
+    | "gmail"
+    | "ical"
+    | "gcal"
+    | "rss";
   /**
    * Params
    */
@@ -20838,6 +22080,107 @@ export type SpeakerSuggestion = {
    */
   score: number;
   [key: string]: unknown;
+};
+
+/**
+ * Spec
+ */
+export type Spec = {
+  /**
+   * Status
+   *
+   * ready: written (note); writing: a job is on it (job); failed: the last job to write it failed (error)
+   */
+  status: "none" | "writing" | "ready" | "failed";
+  /**
+   * Note
+   *
+   * the note it was written to (/notes/{id})
+   */
+  note?: number | null;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Job
+   *
+   * the latest job that was to write it
+   */
+  job?: number | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Written At
+   */
+  written_at?: string | null;
+  /**
+   * Template
+   *
+   * the prompt template it was written with, else the one it would be
+   */
+  template: number;
+  /**
+   * Version
+   */
+  version?: number | null;
+  /**
+   * Model
+   */
+  model?: string | null;
+  /**
+   * Decisions
+   */
+  decisions?: number | null;
+  /**
+   * Rejected
+   *
+   * each no, and each 'not that, this'
+   */
+  rejected?: number | null;
+  /**
+   * Constraints
+   */
+  constraints?: number | null;
+  /**
+   * Gaps
+   *
+   * what the speaker left to decide later
+   */
+  gaps?: number | null;
+  /**
+   * Not Found
+   *
+   * quotes that aren't in the transcript word for word (marked so in the note)
+   */
+  not_found?: number | null;
+  /**
+   * Cut
+   *
+   * the transcript was longer than the model is given (llm.max_chars)
+   */
+  cut?: boolean | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SpecWrite
+ */
+export type SpecWrite = {
+  /**
+   * Template
+   *
+   * another prompt template to write it with (default: Spec from transcript)
+   */
+  template?: number | null;
+  /**
+   * Version
+   *
+   * that template's version (default: its current one)
+   */
+  version?: number | null;
 };
 
 /**
@@ -21827,6 +23170,101 @@ export type TokenPair = {
 };
 
 /**
+ * ToolChoice
+ */
+export type ToolChoice = {
+  /**
+   * Tools
+   */
+  tools?: Array<string> | null;
+  /**
+   * Max Tool Calls
+   */
+  max_tool_calls?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ToolGroup
+ */
+export type ToolGroup = {
+  /**
+   * Name
+   *
+   * what `tools` names it by: a built-in group, mcp:<server> or ext:<extension>
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Tools
+   */
+  tools: Array<ToolInfo>;
+  /**
+   * Asks
+   *
+   * one of its tools waits for your yes
+   */
+  asks: boolean;
+  /**
+   * Out
+   *
+   * one of its tools sends data to another host
+   */
+  out: boolean;
+  /**
+   * Available
+   *
+   * you have one of its tools now
+   */
+  available: boolean;
+  /**
+   * Why
+   *
+   * why you don't, when you have none
+   */
+  why?: string | null;
+  /**
+   * Setting
+   *
+   * the setting that would change that (section.key), for admins
+   */
+  setting?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ToolInfo
+ */
+export type ToolInfo = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Effect
+   *
+   * read: it looks things up; asks: it waits for your yes; out: it sends what it's given to another host
+   */
+  effect: "read" | "asks" | "out";
+  /**
+   * Out
+   *
+   * it sends what it's given to another host (and asks first after outside text)
+   */
+  out?: boolean;
+  /**
+   * Available
+   *
+   * you have it now
+   */
+  available: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * ToolStep
  */
 export type ToolStep = {
@@ -21844,6 +23282,14 @@ export type ToolStep = {
    * Summary
    */
   summary?: string;
+  /**
+   * a code sandbox run's output
+   */
+  output?: SandboxOutput | null;
+  /**
+   * a file to download, from share_sandbox_file
+   */
+  file?: SandboxFile | null;
   /**
    * Ms
    *
@@ -24944,6 +26390,49 @@ export type RenamePasskeyResponses = {
 
 export type RenamePasskeyResponse = RenamePasskeyResponses[keyof RenamePasskeyResponses];
 
+export type PasskeyAddressesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/passkeys/elsewhere";
+};
+
+export type PasskeyAddressesResponses = {
+  /**
+   * Response Auth-Passkey Addresses
+   *
+   * Successful Response
+   */
+  200: Array<PasskeyAddress>;
+};
+
+export type PasskeyAddressesResponse = PasskeyAddressesResponses[keyof PasskeyAddressesResponses];
+
+export type PasskeyElsewhereData = {
+  body: PasskeyAddressAsk;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/passkeys/elsewhere";
+};
+
+export type PasskeyElsewhereErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PasskeyElsewhereError = PasskeyElsewhereErrors[keyof PasskeyElsewhereErrors];
+
+export type PasskeyElsewhereResponses = {
+  /**
+   * Successful Response
+   */
+  200: SigninLink;
+};
+
+export type PasskeyElsewhereResponse = PasskeyElsewhereResponses[keyof PasskeyElsewhereResponses];
+
 export type ExternalProvidersData = {
   body?: never;
   path?: never;
@@ -25800,11 +27289,23 @@ export type GetEncryptionResponses = {
 export type GetEncryptionResponse = GetEncryptionResponses[keyof GetEncryptionResponses];
 
 export type TestLlmData = {
-  body?: never;
+  /**
+   * Body
+   */
+  body?: LlmTry | null;
   path?: never;
   query?: never;
   url: "/api/v1/settings/llm/test";
 };
+
+export type TestLlmErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TestLlmError = TestLlmErrors[keyof TestLlmErrors];
 
 export type TestLlmResponses = {
   /**
@@ -27023,6 +28524,47 @@ export type SetServiceResponses = {
 };
 
 export type SetServiceResponse = SetServiceResponses[keyof SetServiceResponses];
+
+export type GetSandboxGatewayData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/sandbox";
+};
+
+export type GetSandboxGatewayResponses = {
+  /**
+   * Successful Response
+   */
+  200: SandboxGateway;
+};
+
+export type GetSandboxGatewayResponse = GetSandboxGatewayResponses[keyof GetSandboxGatewayResponses];
+
+export type SetSandboxGatewayData = {
+  body: SandboxGatewayRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/sandbox";
+};
+
+export type SetSandboxGatewayErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetSandboxGatewayError = SetSandboxGatewayErrors[keyof SetSandboxGatewayErrors];
+
+export type SetSandboxGatewayResponses = {
+  /**
+   * Successful Response
+   */
+  202: SandboxGateway;
+};
+
+export type SetSandboxGatewayResponse = SetSandboxGatewayResponses[keyof SetSandboxGatewayResponses];
 
 export type ListBackupsData = {
   body?: never;
@@ -31400,6 +32942,61 @@ export type TodayPageResponses = {
 
 export type TodayPageResponse = TodayPageResponses[keyof TodayPageResponses];
 
+export type ListTemplatesData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Ns
+     */
+    ns: string;
+  };
+  url: "/api/v1/notes/templates";
+};
+
+export type ListTemplatesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListTemplatesError = ListTemplatesErrors[keyof ListTemplatesErrors];
+
+export type ListTemplatesResponses = {
+  /**
+   * Successful Response
+   */
+  200: NoteTemplates;
+};
+
+export type ListTemplatesResponse = ListTemplatesResponses[keyof ListTemplatesResponses];
+
+export type TemplatesNoteData = {
+  body: NoteTemplatesCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/notes/templates";
+};
+
+export type TemplatesNoteErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TemplatesNoteError = TemplatesNoteErrors[keyof TemplatesNoteErrors];
+
+export type TemplatesNoteResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type TemplatesNoteResponse = TemplatesNoteResponses[keyof TemplatesNoteResponses];
+
 export type LinkTargetsData = {
   body?: never;
   path?: never;
@@ -31497,6 +33094,36 @@ export type SearchPagesResponses = {
 };
 
 export type SearchPagesResponse = SearchPagesResponses[keyof SearchPagesResponses];
+
+export type ExportNotesData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Ns
+     */
+    ns: string;
+  };
+  url: "/api/v1/notes/export";
+};
+
+export type ExportNotesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ExportNotesError = ExportNotesErrors[keyof ExportNotesErrors];
+
+export type ExportNotesResponses = {
+  /**
+   * a zip of Markdown files
+   */
+  200: Blob | File;
+};
+
+export type ExportNotesResponse = ExportNotesResponses[keyof ExportNotesResponses];
 
 export type DeletedPagesData = {
   body?: never;
@@ -31782,6 +33409,34 @@ export type HomeSuggestionsResponses = {
 
 export type HomeSuggestionsResponse = HomeSuggestionsResponses[keyof HomeSuggestionsResponses];
 
+export type PageMarkdownData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/markdown";
+};
+
+export type PageMarkdownErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PageMarkdownError = PageMarkdownErrors[keyof PageMarkdownErrors];
+
+export type PageMarkdownResponses = {
+  /**
+   * the page as a Markdown file
+   */
+  200: unknown;
+};
+
 export type PageHistoryData = {
   body?: never;
   path: {
@@ -31914,6 +33569,36 @@ export type MovePageResponses = {
 };
 
 export type MovePageResponse = MovePageResponses[keyof MovePageResponses];
+
+export type CopyPageData = {
+  body: NoteCopy;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/copy";
+};
+
+export type CopyPageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CopyPageError = CopyPageErrors[keyof CopyPageErrors];
+
+export type CopyPageResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type CopyPageResponse = CopyPageResponses[keyof CopyPageResponses];
 
 export type UnpinPageData = {
   body?: never;
@@ -33659,6 +35344,31 @@ export type FindResourcesResponses = {
 
 export type FindResourcesResponse = FindResourcesResponses[keyof FindResourcesResponses];
 
+export type ClassifyData = {
+  body: ClassifyRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/classify";
+};
+
+export type ClassifyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ClassifyError = ClassifyErrors[keyof ClassifyErrors];
+
+export type ClassifyResponses = {
+  /**
+   * Successful Response
+   */
+  200: ClassifyResult;
+};
+
+export type ClassifyResponse = ClassifyResponses[keyof ClassifyResponses];
+
 export type ListSearchesData = {
   body?: never;
   path?: never;
@@ -34826,6 +36536,70 @@ export type FindGraphPathResponses = {
 };
 
 export type FindGraphPathResponse = FindGraphPathResponses[keyof FindGraphPathResponses];
+
+export type ListDatesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Start
+     *
+     * from this day on: YYYY-MM-DD, or YYYY-MM or YYYY for its first day
+     */
+    start?: string;
+    /**
+     * End
+     *
+     * up to this day: YYYY-MM-DD, or YYYY-MM or YYYY for its last day
+     */
+    end?: string;
+    /**
+     * Ns
+     *
+     * one namespace
+     */
+    ns?: string | null;
+    /**
+     * Recording
+     *
+     * one asset
+     */
+    recording?: number | null;
+    /**
+     * Q
+     *
+     * only dates whose words or line have this text
+     */
+    q?: string;
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+  };
+  url: "/api/v1/dates";
+};
+
+export type ListDatesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListDatesError = ListDatesErrors[keyof ListDatesErrors];
+
+export type ListDatesResponses = {
+  /**
+   * Successful Response
+   */
+  200: DateList;
+};
+
+export type ListDatesResponse = ListDatesResponses[keyof ListDatesResponses];
 
 export type ListTopicsData = {
   body?: never;
@@ -37978,14 +39752,14 @@ export type ScanWatchResponses = {
 
 export type ScanWatchResponse = ScanWatchResponses[keyof ScanWatchResponses];
 
-export type ListTemplatesData = {
+export type ListTemplates2Data = {
   body?: never;
   path?: never;
   query?: never;
   url: "/api/v1/templates";
 };
 
-export type ListTemplatesResponses = {
+export type ListTemplates2Responses = {
   /**
    * Response Templates-List Templates
    *
@@ -37994,7 +39768,7 @@ export type ListTemplatesResponses = {
   200: Array<TemplateSummary>;
 };
 
-export type ListTemplatesResponse = ListTemplatesResponses[keyof ListTemplatesResponses];
+export type ListTemplates2Response = ListTemplates2Responses[keyof ListTemplates2Responses];
 
 export type CreateTemplateData = {
   body: TemplateCreate;
@@ -39566,6 +41340,36 @@ export type ChatCapabilitiesResponses = {
 
 export type ChatCapabilitiesResponse = ChatCapabilitiesResponses[keyof ChatCapabilitiesResponses];
 
+export type ChatToolsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Chat Id
+     */
+    chat_id?: number | null;
+  };
+  url: "/api/v1/chats/tools";
+};
+
+export type ChatToolsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ChatToolsError = ChatToolsErrors[keyof ChatToolsErrors];
+
+export type ChatToolsResponses = {
+  /**
+   * Successful Response
+   */
+  200: ChatTools;
+};
+
+export type ChatToolsResponse = ChatToolsResponses[keyof ChatToolsResponses];
+
 export type DeleteChatData = {
   body?: never;
   path: {
@@ -39719,6 +41523,121 @@ export type GetMessageResponses = {
 };
 
 export type GetMessageResponse = GetMessageResponses[keyof GetMessageResponses];
+
+export type ExportChatData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+    /**
+     * Fmt
+     */
+    fmt: "md" | "json" | "pdf";
+  };
+  query?: {
+    /**
+     * Message
+     *
+     * one message (an answer comes with the question it answers); else the version showing
+     */
+    message?: number | null;
+    /**
+     * All
+     *
+     * JSON: every version of the conversation, not only the one showing
+     */
+    all?: boolean;
+    /**
+     * Format
+     *
+     * JSON: messages gives the version showing as one {"messages": [...]} line
+     */
+    format?: "tree" | "messages";
+  };
+  url: "/api/v1/chats/{cid}/export.{fmt}";
+};
+
+export type ExportChatErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ExportChatError = ExportChatErrors[keyof ExportChatErrors];
+
+export type ExportChatResponses = {
+  /**
+   * Successful Response
+   */
+  200: unknown;
+};
+
+export type TitleChatData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/chats/{cid}/title";
+};
+
+export type TitleChatErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TitleChatError = TitleChatErrors[keyof TitleChatErrors];
+
+export type TitleChatResponses = {
+  /**
+   * Successful Response
+   */
+  200: ChatTitle;
+};
+
+export type TitleChatResponse = TitleChatResponses[keyof TitleChatResponses];
+
+export type DownloadChatFileData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+    /**
+     * Fid
+     */
+    fid: string;
+  };
+  query?: never;
+  url: "/api/v1/chats/{cid}/files/{fid}";
+};
+
+export type DownloadChatFileErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DownloadChatFileError = DownloadChatFileErrors[keyof DownloadChatFileErrors];
+
+export type DownloadChatFileResponses = {
+  /**
+   * the file
+   */
+  200: Blob | File;
+};
+
+export type DownloadChatFileResponse = DownloadChatFileResponses[keyof DownloadChatFileResponses];
 
 export type SendMessageData = {
   body: MessageCreate;
@@ -39941,6 +41860,258 @@ export type DecideApprovalResponses = {
 };
 
 export type DecideApprovalResponse = DecideApprovalResponses[keyof DecideApprovalResponses];
+
+export type StartResearchData = {
+  body: ResearchStart;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/chats/{cid}/research";
+};
+
+export type StartResearchErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type StartResearchError = StartResearchErrors[keyof StartResearchErrors];
+
+export type StartResearchResponses = {
+  /**
+   * Successful Response
+   */
+  200: ResearchStarted;
+};
+
+export type StartResearchResponse = StartResearchResponses[keyof StartResearchResponses];
+
+export type ListResearchData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Chat Id
+     */
+    chat_id?: number | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/research";
+};
+
+export type ListResearchErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListResearchError = ListResearchErrors[keyof ListResearchErrors];
+
+export type ListResearchResponses = {
+  /**
+   * Response Research-List Research
+   *
+   * Successful Response
+   */
+  200: Array<Research>;
+};
+
+export type ListResearchResponse = ListResearchResponses[keyof ListResearchResponses];
+
+export type GetResearchData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/research/{rid}";
+};
+
+export type GetResearchErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetResearchError = GetResearchErrors[keyof GetResearchErrors];
+
+export type GetResearchResponses = {
+  /**
+   * Successful Response
+   */
+  200: Research;
+};
+
+export type GetResearchResponse = GetResearchResponses[keyof GetResearchResponses];
+
+export type ReviseResearchData = {
+  body: ResearchRevise;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/research/{rid}/revise";
+};
+
+export type ReviseResearchErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ReviseResearchError = ReviseResearchErrors[keyof ReviseResearchErrors];
+
+export type ReviseResearchResponses = {
+  /**
+   * Successful Response
+   */
+  200: Research;
+};
+
+export type ReviseResearchResponse = ReviseResearchResponses[keyof ReviseResearchResponses];
+
+export type StopResearchData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/research/{rid}/stop";
+};
+
+export type StopResearchErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type StopResearchError = StopResearchErrors[keyof StopResearchErrors];
+
+export type StopResearchResponses = {
+  /**
+   * Successful Response
+   */
+  200: ResearchStop;
+};
+
+export type StopResearchResponse = StopResearchResponses[keyof StopResearchResponses];
+
+export type ResumeResearchData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/research/{rid}/resume";
+};
+
+export type ResumeResearchErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ResumeResearchError = ResumeResearchErrors[keyof ResumeResearchErrors];
+
+export type ResumeResearchResponses = {
+  /**
+   * Successful Response
+   */
+  200: Research;
+};
+
+export type ResumeResearchResponse = ResumeResearchResponses[keyof ResumeResearchResponses];
+
+export type ResearchNoteData = {
+  /**
+   * Body
+   */
+  body?: ResearchNote | null;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/research/{rid}/note";
+};
+
+export type ResearchNoteErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ResearchNoteError = ResearchNoteErrors[keyof ResearchNoteErrors];
+
+export type ResearchNoteResponses = {
+  /**
+   * Successful Response
+   */
+  200: ResearchNoteMade;
+};
+
+export type ResearchNoteResponse = ResearchNoteResponses[keyof ResearchNoteResponses];
+
+export type ResearchPodcastData = {
+  /**
+   * Body
+   */
+  body?: ResearchPodcast | null;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/research/{rid}/podcast";
+};
+
+export type ResearchPodcastErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ResearchPodcastError = ResearchPodcastErrors[keyof ResearchPodcastErrors];
+
+export type ResearchPodcastResponses = {
+  /**
+   * Successful Response
+   */
+  202: PodcastStarted;
+};
+
+export type ResearchPodcastResponse = ResearchPodcastResponses[keyof ResearchPodcastResponses];
 
 export type ListSessionsData = {
   body?: never;
@@ -42289,6 +44460,22 @@ export type NewImportHookTokenResponses = {
 
 export type NewImportHookTokenResponse = NewImportHookTokenResponses[keyof NewImportHookTokenResponses];
 
+export type ImportTargetData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/hooks/import";
+};
+
+export type ImportTargetResponses = {
+  /**
+   * Successful Response
+   */
+  200: ImportTarget;
+};
+
+export type ImportTargetResponse = ImportTargetResponses[keyof ImportTargetResponses];
+
 export type PushToImportHookData = {
   /**
    * HookPush
@@ -42327,6 +44514,12 @@ export type PushToImportHookData = {
      * its title (default: the file's name, or the page's)
      */
     title?: string | null;
+    /**
+     * Namespace
+     *
+     * with your own token: the namespace it goes into (default: the only one you can import into)
+     */
+    namespace?: string | null;
   };
   url: "/api/v1/hooks/import";
 };
@@ -42897,3 +45090,66 @@ export type RegeneratePodcastResponses = {
 };
 
 export type RegeneratePodcastResponse = RegeneratePodcastResponses[keyof RegeneratePodcastResponses];
+
+export type GetSpecData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/spec";
+};
+
+export type GetSpecErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetSpecError = GetSpecErrors[keyof GetSpecErrors];
+
+export type GetSpecResponses = {
+  /**
+   * Successful Response
+   */
+  200: Spec;
+};
+
+export type GetSpecResponse = GetSpecResponses[keyof GetSpecResponses];
+
+export type WriteSpecData = {
+  /**
+   * Body
+   */
+  body?: SpecWrite | null;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/spec";
+};
+
+export type WriteSpecErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type WriteSpecError = WriteSpecErrors[keyof WriteSpecErrors];
+
+export type WriteSpecResponses = {
+  /**
+   * Successful Response
+   */
+  202: JobQueued;
+};
+
+export type WriteSpecResponse = WriteSpecResponses[keyof WriteSpecResponses];

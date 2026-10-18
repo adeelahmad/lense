@@ -7,6 +7,7 @@ import {
   handlingText,
   hubText,
   lastText,
+  mqttWebUrl,
   parseDays,
   pushUrl,
   sparkPath,
@@ -62,6 +63,10 @@ describe("sensor model", () => {
 
   it("tells devices where to send", () => {
     expect(connectText("mqtt", "lens.local", { mqtt_port: 1883 })).toBe("mqtt://lens.local:1883");
+    expect(connectText("mqtt", "lens.example.com", { mqtt_web: true }, null, "https://lens.example.com")).toBe(
+      "mqtt://lens.example.com:1883 or wss://lens.example.com/mqtt",
+    );
+    expect(mqttWebUrl("http://lens.local:3000/")).toBe("ws://lens.local:3000/mqtt");
     expect(connectText("syslog", "lens.local", {})).toBe("lens.local:5514 (UDP or TCP)");
     expect(pushUrl("https://lens.example/", "abc")).toBe("https://lens.example/api/v1/sensors/push/abc");
     expect(pushUrl("lens.example", "abc")).toBe("https://lens.example/api/v1/sensors/push/abc");
@@ -99,5 +104,15 @@ describe("sensor model", () => {
     expect(
       hubText({ ...base, enabled: true, processes: [{ mqtt: { running: false, error: "port 1883: in use" } }] }),
     ).toEqual({ tone: "error", title: "The hub couldn’t start everything.", body: "MQTT: port 1883: in use" });
+    expect(
+      hubText({
+        ...base,
+        enabled: true,
+        processes: [{ mqtt: { running: true, port: 1883 }, mqtt_web: { running: true, port: 9883 } }],
+      }).body,
+    ).toBe("MQTT on port 1883 · MQTT over WebSockets on port 9883 (/mqtt)");
+    expect(
+      hubText({ ...base, enabled: true, processes: [{ syslog: { running: false, error: "port 5514: in use" } }] }).body,
+    ).toBe("Syslog: port 5514: in use");
   });
 });

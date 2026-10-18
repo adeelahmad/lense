@@ -18,7 +18,11 @@ tags: {tags|list}
 `;
 
 export const DEFAULTS = {
-  destinations: [], // [{id, name, server}]; each one's token is in local storage under token:<id>
+  // [{id, name, server, kind, namespace?, namespaces?, email?}], kind "signin" (the person's sign-in, account.js),
+  // "key" (their API token) or "hook" (an import webhook's token; destinations from before kinds are hooks). A key or
+  // a hook's token is in local storage under token:<id>. As the person, clips go into `namespace` (one of
+  // `namespaces`); with a hook's token, into the hook's namespace.
+  destinations: [],
   defaultDestination: "",
   template: DEFAULT_TEMPLATE,
   titleTemplate: "{title}",
@@ -58,6 +62,22 @@ export async function setToken(id, value) {
 export function destination(settings, id) {
   const all = settings.destinations ?? [];
   return all.find((d) => d.id === (id || settings.defaultDestination)) ?? all[0] ?? null;
+}
+
+/** Whether clips to a destination go as the person, into a namespace they pick (not a hook's own). */
+export const asPerson = (d) => d?.kind === "signin" || d?.kind === "key";
+
+/** Every place a clip can go, for the popup: one per namespace of each destination, the default one first-chosen. */
+export function choices(settings) {
+  const fallback = destination(settings)?.id;
+  return (settings.destinations ?? []).flatMap((d) => {
+    const names = d.namespaces?.length ? d.namespaces : [d.namespace ?? ""];
+    return names.map((ns) => ({
+      value: JSON.stringify([d.id, ns]),
+      label: ns ? `${d.name || d.server} · ${ns}` : d.name || d.server,
+      selected: d.id === fallback && (ns === (d.namespace ?? "") || names.length === 1),
+    }));
+  });
 }
 
 // plain http is fine on this computer or the local network, nowhere else

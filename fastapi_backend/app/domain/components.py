@@ -69,6 +69,24 @@ FILES = {
         "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79",
         39,
     ),
+    # spaCy's MIT-licensed small models (analysis.spacy_model), as the wheels spaCy publishes for 3.8; installed with
+    # no dependencies into the packages folder. Its other languages' models carry GPL, LGPL or Creative Commons
+    # licenses, so they're for people to install themselves.
+    "en_core_web_sm-3.8.0-py3-none-any.whl": (
+        "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
+        "1932429db727d4bff3deed6b34cfc05df17794f4a52eeb26cf8928f7c1a0fb85",
+        13,
+    ),
+    "de_core_news_sm-3.8.0-py3-none-any.whl": (
+        "https://github.com/explosion/spacy-models/releases/download/de_core_news_sm-3.8.0/de_core_news_sm-3.8.0-py3-none-any.whl",
+        "fec69fec52b1780f2d269d5af7582a5e28028738bd3190532459aeb473bfa3e7",
+        15,
+    ),
+    "xx_ent_wiki_sm-3.8.0-py3-none-any.whl": (
+        "https://github.com/explosion/spacy-models/releases/download/xx_ent_wiki_sm-3.8.0/xx_ent_wiki_sm-3.8.0-py3-none-any.whl",
+        "6f3c4b853852ea9e9d2dc76cc950dddb10a7e4c42d813308caefe6c5e8be2f0a",
+        11,
+    ),
     # AdamCodd/vit-base-nsfw-detector (Apache-2.0), its author's 8-bit ONNX export, at a fixed revision (nsfw.py)
     "vit-base-nsfw-detector-int8.onnx": (
         "https://huggingface.co/AdamCodd/vit-base-nsfw-detector/resolve/8587de998f441aac03fdd57a85d2e4cb808c7d64/onnx/model_quantized.onnx",
@@ -76,6 +94,34 @@ FILES = {
         89,
     ),
 }
+# Florence-2-base-ft and -large-ft (MIT), the 8-bit ONNX exports at onnx-community, at fixed revisions (florence.py):
+# {size: (revision, {file: (sha256, size in MB)})}
+FLORENCE = {
+    "base": (
+        "e88a44eaf3791a35eae0c5a47b3dbcd36e67eb6f",
+        {
+            "onnx/vision_encoder_int8.onnx": ("d7876c1ab0f7ec11998942ca189e99a775c5a4a912b813c7745d0f6fa9343487", 94),
+            "onnx/embed_tokens_int8.onnx": ("6b2258db1c8ee9b160576ccde3cd3814d83a2edaed0dd1c6ca9ff3c38fa62214", 40),
+            "onnx/encoder_model_int8.onnx": ("f4ad7a68f1fb875d3bcf735ea14a7021b7ba7e83baf7cf10289881b4ed6d9b85", 44),
+            "onnx/decoder_model_merged_int8.onnx": ("f22f52f980c33df0efa15932c2f3db6d9d3595ce6387eca938b8cfe23dc4c641", 99),
+            "tokenizer.json": ("d69dcdb2323e124ac4f800cb9863ddccea0d7bb11e16125e8df3bd60f2f8aeac", 3),
+        },
+    ),
+    "large": (
+        "04ace74913c28d7ec94af32cee5c111a10126b6f",
+        {
+            "onnx/vision_encoder_int8.onnx": ("51d21e33e3b8cd34a9882e0611a2e4e03fb2b26daecea8accd1d4769ea11ba72", 367),
+            "onnx/embed_tokens_int8.onnx": ("dab1d09ab449f1302df6e439b35ec9e93fb037134bf6bed9ffeaa93a5b35d43c", 53),
+            "onnx/encoder_model_int8.onnx": ("9fe30b02cc8c2247631f8f0b9bc4d6613df1c33da0afe4087abff2f940bc2fe0", 153),
+            "onnx/decoder_model_merged_int8.onnx": ("167e7807fb1e5b8d693138f84bc81e1368ea11833264131c1ea96eafc9d13222", 258),
+            "tokenizer.json": ("d69dcdb2323e124ac4f800cb9863ddccea0d7bb11e16125e8df3bd60f2f8aeac", 3),
+        },
+    ),
+}
+for _size, (_rev, _files) in FLORENCE.items():
+    for _path, (_sha, _mb) in _files.items():
+        _url = f"https://huggingface.co/onnx-community/Florence-2-{_size}-ft/resolve/{_rev}/{_path}"
+        FILES[f"florence-2-{_size}-ft/{_path.rsplit('/', 1)[-1]}"] = (_url, _sha, _mb)
 
 
 class Unavailable(RuntimeError):
@@ -474,6 +520,52 @@ class Nsfw(Component):
         fetch_file(cfg, "vit-base-nsfw-detector-int8.onnx", say)
 
 
+class Florence(Component):
+    """Florence-2 and ONNX Runtime (florence.py), when Settings → LLM provider has it describe pictures."""
+
+    kind = "model"
+
+    def needed(self, cfg, m):
+        return (cfg.get("llm") or {}).get("describe_engine") == "florence-2"
+
+    def present(self, cfg):
+        from . import florence
+
+        return florence.ready(cfg)
+
+    def fetch(self, cfg, m, say):
+        from . import florence
+
+        if not importable("onnxruntime", "tokenizers"):
+            pip_install(cfg, "florence", say)
+        for n in florence.files(florence.size(cfg)):
+            fetch_file(cfg, n, say)
+
+
+class Moondream(Component):
+    """PyTorch, transformers and the chosen Moondream (moondream.py), when Settings → LLM provider has it describe
+    pictures and this machine can run it (Moondream 3 needs a GPU: 19 GB isn't fetched where it can't run)."""
+
+    kind = "model"
+
+    def needed(self, cfg, m):
+        from . import moondream
+
+        return (cfg.get("llm") or {}).get("describe_engine") == "moondream" and not moondream.cannot_run(cfg, m)
+
+    def present(self, cfg):
+        from . import moondream
+
+        return moondream.ready(cfg)
+
+    def fetch(self, cfg, m, say):
+        from . import moondream
+
+        if not importable("torch", "transformers"):
+            pip_install(cfg, "moondream", say)
+        moondream.fetch(cfg, say)
+
+
 class InjectionModel(Component):
     """The prompt-injection classifier (injection_model.py), fetched when ai.injection_check asks for it."""
 
@@ -494,6 +586,50 @@ class InjectionModel(Component):
             pip_install(cfg, "injection", say)
         for n in (injection_model.TOKENIZER, injection_model.MODEL):
             fetch_file(cfg, n, say)
+
+
+SPACY_MODELS = {"en_core_web_sm": "en_core_web_sm-3.8.0-py3-none-any.whl", "de_core_news_sm": "de_core_news_sm-3.8.0-py3-none-any.whl", "xx_ent_wiki_sm": "xx_ent_wiki_sm-3.8.0-py3-none-any.whl"}  # fmt: skip
+
+
+class Spacy(Component):
+    """spaCy and its model (analysis.spacy_model), when Settings → Analysis finds entities with spaCy."""
+
+    kind = "model"
+
+    def _model(self, cfg):
+        return (cfg.get("analysis") or {}).get("spacy_model") or "en_core_web_sm"
+
+    def needed(self, cfg, m):
+        return (cfg.get("analysis") or {}).get("entities") == "spacy"
+
+    def present(self, cfg):
+        return importable("spacy", self._model(cfg))
+
+    def fetch(self, cfg, m, say):
+        if not importable("spacy"):
+            pip_install(cfg, "spacy", say)
+        model = self._model(cfg)
+        if importable(model):
+            return
+        if model not in SPACY_MODELS:
+            raise Unavailable(f"{model} isn't one Lens fetches ({', '.join(SPACY_MODELS)}); install it with pip")
+        wheel = fetch_file(cfg, SPACY_MODELS[model], say)
+        if say:
+            say(f"installing the spaCy model {model}")
+        target = packages_dir(cfg)
+        target.mkdir(parents=True, exist_ok=True)
+        uv = shutil.which("uv")
+        if not uv:
+            raise Unavailable(f"needs uv to install {model}; install it yourself with: pip install {wheel}")
+        _run(
+            [uv, "pip", "install", "--python", sys.executable, "--target", str(target), "--no-deps", "--quiet", wheel],
+            env={**os.environ, "UV_NO_CACHE": "1"},
+        )
+        pathlib.Path(wheel).unlink(missing_ok=True)  # installed: the wheel would only take up the disk
+        activate(cfg)
+
+    def detail(self, cfg):
+        return self._model(cfg)
 
 
 class Punctuation(Component):
@@ -800,7 +936,32 @@ COMPONENTS = [
         size_mb=105,
         license="Apache-2.0",
     ),
+    Florence(
+        "florence",
+        "Florence-2",
+        "describes pages and shots on this machine (llm.describe_engine florence-2; base about 280 MB, large about 830 MB)",
+        steps={"describe"},
+        size_mb=280,
+        license="MIT",
+    ),
+    Moondream(
+        "moondream",
+        "Moondream",
+        "describes pages and shots on this machine (llm.describe_engine moondream): Moondream 3 Preview, about 19 GB and "
+        "a GPU, or Moondream 2, about 3.7 GB, with PyTorch and transformers",
+        steps={"describe"},
+        size_mb=19000,
+        license="BSL-1.1 (Moondream 3 Preview) or Apache-2.0 (Moondream 2)",
+    ),
     LAYA,
+    Spacy(
+        "spacy",
+        "spaCy",
+        "finds people, organisations, places, dates and more in text with a small language model (analysis.entities spacy)",
+        steps={"analyze", "workflow"},
+        size_mb=60,
+        license="MIT",
+    ),
     Punctuation(
         "punctuation",
         "Punctuation model",

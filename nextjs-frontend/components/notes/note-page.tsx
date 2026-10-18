@@ -1,22 +1,39 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUpRight, FileText, History, Link2, Shapes, Sparkles, Trash2 } from "lucide-react";
+import {
+  ArrowUpRight,
+  ChevronRight,
+  Download,
+  Ellipsis,
+  FileText,
+  History,
+  Link2,
+  Pin,
+  PinOff,
+  Plus,
+  Shapes,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Notes } from "@/app/openapi-client";
-import type { NotePage as Page, NotePageDraft as PageDraft } from "@/app/openapi-client/types.gen";
+import type { NoteCrumb, NotePage as Page, NotePageDraft as PageDraft } from "@/app/openapi-client/types.gen";
 import { ActivityPanel } from "@/components/costs/costs";
 import type { EditorBlobs, EditorChange, LinkTarget } from "@/components/notes/block-editor";
 import { useDeleteNote } from "@/components/notes/delete";
+import { useNoteDownloads } from "@/components/notes/download";
 import { HomeSuggestion } from "@/components/notes/home-suggestions";
 import { LinkSuggestions } from "@/components/notes/link-suggestions";
 import { NoteHistory } from "@/components/notes/note-history";
 import { PLACES, hrefFor } from "@/components/notes/links";
-import { Button } from "@/components/ui/button";
+import { usePin } from "@/components/notes/pin";
+import { Button, IconButton } from "@/components/ui/button";
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
 import { EmptyState, Skeleton } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
@@ -67,6 +84,7 @@ export function NotePage({ id, about, embedded = false }: { id?: number; about?:
   const [restored, setRestored] = useState(0); // a restore (or an added link) brings the editor back with the new text
   const [linking, setLinking] = useState(false);
   const [view, setView] = useState<View>("page");
+  const [words, setWords] = useState(0);
   const loadedFor = useRef<string | null>(null);
   // Just made with New note (?new=1): the title takes the focus with "Untitled" selected, so typing names it
   const fresh = useRef(useSearchParams().get("new") === "1");
@@ -81,6 +99,7 @@ export function NotePage({ id, about, embedded = false }: { id?: number; about?:
     setDate(saved?.date ?? "");
     setPlace(saved?.place ?? "");
     setView((saved?.view as View | null) ?? "page");
+    setWords(wordCount(page.body ?? ""));
   }, [page, saved]);
   useEffect(() => {
     const el = titleRef.current;
@@ -219,6 +238,30 @@ export function NotePage({ id, about, embedded = false }: { id?: number; about?:
     [router, page?.namespace],
   );
 
+  // A new note inside this one, opened with its title ready to type
+  const [adding, setAdding] = useState(false);
+  const addInside = async () => {
+    if (savedId.current == null || !page) return;
+    setAdding(true);
+    try {
+      const p = await data(
+        Notes.createPage({ client, body: { ns: page.namespace, title: "Untitled", parent: savedId.current } }),
+      );
+      qc.invalidateQueries({ queryKey: ["notes-tree"] });
+      router.push(`/notes/${p.id}?new=1`);
+    } catch (err) {
+      toast({
+        title: "Couldn’t add a note",
+        body: err instanceof ApiError ? err.message : "Please try again.",
+        tone: "red",
+      });
+    } finally {
+      setAdding(false);
+    }
+  };
+  const pin = usePin();
+  const downloads = useNoteDownloads();
+
   // No question first: the notice has Undo, and the note waits in recently deleted
   const deleteNote = useDeleteNote();
   const remove = async () => {
@@ -280,7 +323,7 @@ export function NotePage({ id, about, embedded = false }: { id?: number; about?:
   return (
     <article className={cn("flex w-full flex-col gap-3", !embedded && "mx-auto max-w-[860px] px-6 py-8")}>
       <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-fg-muted">
-        {!embedded && <span>{page.namespace}</span>}
+        {!embedded && <Breadcrumbs namespace={page.namespace} path={saved?.path ?? []} />}
         {aboutHref && (
           <Link href={aboutHref} className="inline-flex items-center gap-1 text-fg-accent hover:underline">
             Open {page.about?.split(":")[0]} <ArrowUpRight className="size-3.5" />
@@ -293,20 +336,47 @@ export function NotePage({ id, about, embedded = false }: { id?: number; about?:
         )}
         <span className="flex-1" />
         {embedded && views}
+        {view === "page" && words > 0 && <span>{words === 1 ? "1 word" : `${words.toLocaleString()} words`}</span>}
         {canEdit && (
           <span aria-live="polite">
             {state === "saving" ? "Saving…" : state === "error" ? "Not saved" : saved ? "Saved" : "Draft"}
           </span>
         )}
         {saved && (
-          <Button variant="ghost" size="xs" icon={<History />} onClick={() => setShowHistory(true)}>
-            History
-          </Button>
-        )}
-        {canEdit && saved && (
-          <Button variant="danger-ghost" size="xs" icon={<Trash2 />} onClick={remove}>
-            Delete
-          </Button>
+          <Menu>
+            <MenuTrigger asChild>
+              <IconButton label="More on this note" size={28}>
+                <Ellipsis />
+              </IconButton>
+            </MenuTrigger>
+            <MenuContent align="end">
+              {canEdit && !saved.about && (
+                <MenuItem icon={<Plus />} disabled={adding} onSelect={() => void addInside()}>
+                  Add a note inside
+                </MenuItem>
+              )}
+              <MenuItem
+                icon={saved.pinned ? <PinOff /> : <Pin />}
+                onSelect={() => void pin(page.namespace, saved.id, !saved.pinned)}
+              >
+                {saved.pinned ? "Unpin" : "Pin"}
+              </MenuItem>
+              <MenuItem icon={<History />} onSelect={() => setShowHistory(true)}>
+                History
+              </MenuItem>
+              <MenuItem icon={<Download />} onSelect={() => void downloads.note(saved.id, title.trim() || saved.title)}>
+                Download as Markdown
+              </MenuItem>
+              {canEdit && (
+                <>
+                  <MenuSeparator />
+                  <MenuItem icon={<Trash2 />} danger onSelect={() => void remove()}>
+                    Delete
+                  </MenuItem>
+                </>
+              )}
+            </MenuContent>
+          </Menu>
         )}
       </div>
       {!embedded && (
@@ -438,7 +508,10 @@ export function NotePage({ id, about, embedded = false }: { id?: number; about?:
         readOnly={!canEdit}
         view={view}
         stale={Boolean(saved?.doc_stale)}
-        onChange={(c: EditorChange) => change({ body: c.markdown, doc: c.doc })}
+        onChange={(c: EditorChange) => {
+          setWords(wordCount(c.markdown));
+          change({ body: c.markdown, doc: c.doc });
+        }}
         search={search}
         onOpenLink={openLink}
         blobs={blobs}
@@ -470,6 +543,14 @@ export function NotePage({ id, about, embedded = false }: { id?: number; about?:
           }}
         />
       )}
+      {saved && !saved.about && !embedded && (
+        <Inside
+          items={saved.children ?? []}
+          canEdit={Boolean(canEdit)}
+          adding={adding}
+          onAdd={() => void addInside()}
+        />
+      )}
       <Backlinks items={page.backlinks ?? []} />
       {showHistory && saved && (
         <NoteHistory
@@ -488,8 +569,94 @@ export function NotePage({ id, about, embedded = false }: { id?: number; about?:
           }}
         />
       )}
-      {saved && !embedded && <ActivityPanel resource={`note_page:${saved.id}`} title="Costs and activity" />}
+      {saved && !embedded && <CostsFold resource={`note_page:${saved.id}`} />}
     </article>
+  );
+}
+
+/** Words as a reader counts them: the text of links, not their addresses, list numbers or Markdown's marks. */
+export function wordCount(markdown: string): number {
+  const text = markdown
+    .replace(/^\s*(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?/gm, "")
+    .replace(/[@#]?\[([^\]\n]*)\]\([^)\n]*\)/g, "$1")
+    .replace(/<[^>\n]+>/g, " ");
+  return text.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+}
+
+/** Notes › namespace › the notes this one is inside, each a link. */
+function Breadcrumbs({ namespace, path }: { namespace: string; path: NoteCrumb[] }) {
+  const sep = <ChevronRight aria-hidden className="size-3.5 shrink-0" />;
+  return (
+    <nav aria-label="Where this note is" className="flex min-w-0 flex-wrap items-center gap-1">
+      <Link href="/notes" className="hover:text-fg hover:underline">
+        Notes
+      </Link>
+      {sep}
+      <span>{namespace}</span>
+      {path.map((c) => (
+        <span key={c.id} className="inline-flex min-w-0 items-center gap-1">
+          {sep}
+          <Link href={`/notes/${c.id}`} className="max-w-[24ch] truncate hover:text-fg hover:underline">
+            {c.title}
+          </Link>
+        </span>
+      ))}
+    </nav>
+  );
+}
+
+/** The notes inside this one, in the tree's order, with Add. */
+function Inside({
+  items,
+  canEdit,
+  adding,
+  onAdd,
+}: {
+  items: NoteCrumb[];
+  canEdit: boolean;
+  adding: boolean;
+  onAdd: () => void;
+}) {
+  if (!items.length && !canEdit) return null;
+  return (
+    <section className="mt-6 border-t border-border pt-4">
+      <h2 className="mb-2 flex items-center gap-1.5 text-[13px] font-bold text-fg-strong">
+        <FileText className="size-4" /> Inside this note
+        {items.length > 0 && <span className="font-normal text-fg-muted">{items.length}</span>}
+      </h2>
+      {items.length > 0 && (
+        <ul className="mb-2 flex flex-col gap-1">
+          {items.map((c) => (
+            <li key={c.id} className="flex items-baseline gap-2">
+              <Link href={`/notes/${c.id}`} className="text-[14px] text-fg-accent hover:underline">
+                {c.title}
+              </Link>
+              {c.updated_at && <span className="text-[12px] text-fg-muted">{shortDate(c.updated_at)}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+      {canEdit && (
+        <Button variant="ghost" size="xs" icon={<Plus />} onClick={onAdd} disabled={adding} className="-ml-3">
+          Add a note inside
+        </Button>
+      )}
+    </section>
+  );
+}
+
+/** Costs and activity, folded: most people never open it, so it loads only when they do. */
+function CostsFold({ resource }: { resource: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details className="mt-6 border-t border-border pt-3" onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary className="cursor-pointer text-[13px] font-bold text-fg-strong">Costs and activity</summary>
+      {open && (
+        <div className="mt-3">
+          <ActivityPanel resource={resource} title="Costs and activity" />
+        </div>
+      )}
+    </details>
   );
 }
 
