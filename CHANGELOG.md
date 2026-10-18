@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Choose the content type as it comes in.** `POST /uploads`, `POST /import`, `POST /import/web` and
+  `/import/web/links` take a `content_type`, and the assistant's `import_files` and `import_urls` take one when you
+  say what the files or pages are: the asset is that content type from the start, so its pipeline runs the first time,
+  not after a change and a rerun. One of another base type (a podcast for a photo) is refused before anything is
+  saved, naming the ones that fit. Without one, nothing changes: it's recognised from the file
+  ([Content types](docs/processing.md#content-types)).
 - **The upgrade agent starts the code sandbox's gateway.** Settings → Code sandbox → Run the gateway on this machine
   now works on installs with an upgrade agent: the agent knows the `sandbox` profile and starts or stops its three
   containers, as it does the MCP runner, the browser and monitoring. An older agent still says to run the line by hand

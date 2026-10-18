@@ -974,6 +974,12 @@ namespace to put the assets in (default: its default collection; 404 for one of 
 transcribe and its speakers came with it, so its pipeline's transcribe and diarize steps are left out and no speech or
 voice model is fetched for it.
 
+`POST /import`, `POST /import/web`, `POST /import/web/links` and `POST /uploads` also take a `content_type`: the
+[content type](processing.md#content-types) the asset is (a key from `GET /content-types`), instead of the one its
+file is recognised as, so that content type's pipeline runs from the start. It has to be one of the asset's base type
+(text for the imports here; for an upload, the file's: audio, video, image or text), else 400, naming the ones that
+fit, before anything is saved. The asset's Details tab shows it as chosen, and it can be changed there later.
+
 `POST /api/v1/import/source {source, paths, namespace, pipeline?, collection?, documents_as?}` imports chosen files of
 a storage source now, rather than watching their folder (admins, like sources; up to 500 paths, as
 `GET /sources/{sid}/browse` lists them). Audio, video, documents and images stay on the source and run the namespace's
@@ -1104,12 +1110,14 @@ DELETE /api/v1/uploads/{uid}
 (`uploads.max_mb`), the piece size the web app sends (`uploads.chunk_mb`) and the largest text or transcript file for
 `POST /import` (`server.max_upload_mb`).
 
-`POST /uploads {namespace, filename, size, title?, modified?, pipeline?, collection?, recording?}` starts one (editors of the namespace; admins
+`POST /uploads {namespace, filename, size, title?, modified?, pipeline?, content_type?, collection?, recording?}` starts one (editors of the namespace; admins
 may name a new namespace, created when the upload finishes). With `recording`, a text-only asset, the file
 becomes that asset's audio instead of an asset of its own (editors of its namespace; `namespace` can then be left
 out; 409 when it has audio already; 400 for anything but audio or video). [Processing](processing.md#importing-transcripts) says what runs then. `pipeline`
-runs instead of the namespace's once a new asset is made, and `collection` is where it goes (neither with
-`recording`, which stays in its collection). The name loses any folders and its extension is lowercased; `modified`
+runs instead of the namespace's once a new asset is made, `content_type` is the asset's [content
+type](processing.md#content-types) (one of the file's base type, else 400; its pipeline runs) and `collection` is
+where it goes (none of them with `recording`, which keeps its own). The same file uploaded again with a content type
+gives the asset it already is that one. The name loses any folders and its extension is lowercased; `modified`
 (the file's last-modified time in milliseconds) dates the asset when its name doesn't. 400 for a type not in
 `uploads.extensions`, 413 over `uploads.max_mb`, 507 when the server's disk can't hold it with 512 MB to spare.
 
