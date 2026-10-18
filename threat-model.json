@@ -73,7 +73,7 @@
         "News feed sources",
         "Connect with Google",
         "POST /imports/web, extension http tools, notification targets",
-        "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search)",
+        "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search, LanguageTool server)",
         "replies from remote servers",
         ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY"
       ],
@@ -494,7 +494,7 @@
       "source": "docs/assistant.md \"Mail, calendars and files\""
     },
     {
-      "entry_point": "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search)",
+      "entry_point": "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search, LanguageTool server)",
       "parameter": "URL, credentials, api_key_env",
       "attacker_controllable": "no",
       "component": "outbound",
@@ -1546,7 +1546,7 @@
     },
     {
       "property": "N-EGRESS",
-      "reason": "an egress firewall; netguard guards web import, iCal and news feeds, extension http tools, notifications, the assistant's web search and page reads, Chromium and the opt-in browser container (as browser-proxy), nothing else; admin-set URLs other than iCal and news feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded",
+      "reason": "an egress firewall; netguard guards web import, iCal and news feeds, extension http tools, notifications, the assistant's web search and page reads, Chromium and the opt-in browser container (as browser-proxy), nothing else; admin-set URLs other than iCal and news feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search, LanguageTool server) are unguarded",
       "false_friend": true,
       "provenance": "documented",
       "source": "maintainer ruling, 2026-10"

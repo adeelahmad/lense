@@ -45,8 +45,8 @@ the [activity ledger](activity.md) says how many it was given. Run Transcribe ag
 
 Speech comes out of transcription as it was said, and the extractor, chapters, keywords and search all read it. With
 `analysis.cleanup` on (Settings → Analysis → Clean up transcripts before analysis; off by default), the `clean` step,
-which the standard pipeline runs just before `analyze`, tidies each line of a transcript with rules. It needs no model,
-fetches nothing and sends nothing out:
+which the standard pipeline runs just before `analyze`, tidies each line of a transcript with rules. The rules need no
+model, fetch nothing and send nothing out:
 
 - a word said three times or more in a row is kept once ("I I I looked" → "I looked"), and a doubled pronoun, article
   or conjunction ("the the", "I, I") once; "had had", "that that" and "very very" stay;
@@ -62,6 +62,14 @@ fetches nothing and sends nothing out:
   each line marks once. The model, Transformers and PyTorch (about 2 GB) are fetched the first time a clean step
   needs them ([Components](components.md)); until then, and in other languages, the rules run alone and the job's
   log says why.
+- grammar (`analysis.cleanup_grammar_url`, LanguageTool server; none): a [LanguageTool](https://languagetool.org)
+  server's grammar and punctuation fixes are made too ("he go" → "he goes", "a apple" → "an apple"), and only those:
+  spelling, style, wording and repeated-word ("very very") suggestions are left out, and so is any fix to a word
+  with a capital in it, so names stay as they were said. Start one with the compose files' `languagetool` profile
+  (`docker compose --profile languagetool up -d`, about 1 GB of memory) and set `http://languagetool:8010`. The
+  transcript's lines go to that address and nowhere else (no redirect is followed), so a server outside your network
+  sees them; each call is in the activity ledger. When it doesn't answer, the rules' changes stand and the job's log
+  says so.
 
 These are English rules ("um" is a word in German and Portuguese), so they apply to English lines: the line's or the
 asset's language when transcription gave one, else when the text reads as English. In other languages only a word

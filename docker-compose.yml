@@ -176,6 +176,18 @@ services:
       JAVA_TOOL_OPTIONS: -Xmx${TIKA_HEAP:-512m}
     networks: [lens]
 
+  # LanguageTool (docs/processing.md#cleaning-up-transcripts): grammar and punctuation fixes for the clean step. Opt-in,
+  # about 1 GB of memory: `docker compose --profile languagetool up -d` (or COMPOSE_PROFILES=languagetool in .env), then
+  # Settings → Analysis → LanguageTool server: http://languagetool:8010. Reachable only inside Lens's network.
+  languagetool:
+    image: erikvl87/languagetool:${LANGUAGETOOL_VERSION:-6.8}
+    profiles: [languagetool]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      Java_Xms: 256m
+      Java_Xmx: ${LANGUAGETOOL_HEAP:-768m}
+    networks: [lens]
+
   # The MCP runner (mcp-runner/runner.py, docs/assistant.md): MCP servers that run as a program (stdio, usually npx or
   # uvx), which admins add as extensions. Opt-in: `docker compose --profile mcp up -d`, or COMPOSE_PROFILES=mcp in .env.
   # The sandbox: none of Lens's data or keys, no capabilities, a read-only image, and a network shared only with the

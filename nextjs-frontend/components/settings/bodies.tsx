@@ -256,6 +256,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             <div className="grid gap-3.5 sm:grid-cols-2">
               <F ctx={ctx} id="analysis.cleanup_fillers" />
               <F ctx={ctx} id="analysis.cleanup_punctuation" />
+              <F ctx={ctx} id="analysis.cleanup_grammar_url" />
             </div>
           )}
           <F ctx={ctx} id="analysis.entities" />
