@@ -2,7 +2,7 @@
 
 /**
  * The builder: When (triggers and the join line), If (conditions on the run) and Then (actions in order), read top to
- * bottom, with "Describe it in words" on a new one, a test panel, and Save and turn on. Ctrl/Cmd+Enter saves; Enter
+ * bottom, with "Describe it in words" and the starters on a new one, a test panel, and Save and turn on. Ctrl/Cmd+Enter saves; Enter
  * on the last row adds the next.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -12,7 +12,7 @@ import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 
 import { Automations } from "@/app/openapi-client";
 import type { Automation } from "@/app/openapi-client/types.gen";
-import { useActions, useKinds } from "@/components/automations/data";
+import { useActions, useKinds, useStarters } from "@/components/automations/data";
 import {
   CLOCK,
   draftProblems,
@@ -79,6 +79,7 @@ export function AutomationBuilder({
   const toast = useToast();
   const actions = useActions();
   const kinds = useKinds();
+  const starters = useStarters(!automation);
   const acts = actions.data;
   const [draft, setDraft] = useState<Draft>(() => (automation ? fromApi(automation as never, acts) : BLANK));
   const [policy, setPolicy] = useState<Record<string, string>>(() => ({ ...(automation?.policy ?? {}) }));
@@ -147,6 +148,12 @@ export function AutomationBuilder({
     },
     onError: (e: Error) => toast({ tone: "red", title: "Couldn’t draft it", body: e.message }),
   });
+  const start = (draftFrom: unknown, about: string) => {
+    const d = fromApi(draftFrom as never, acts);
+    setError(null);
+    setDraft({ ...d, steps: d.steps ?? [] });
+    setNotes([about]);
+  };
 
   const save = useMutation({
     mutationFn: async (turnOn: boolean) => {
@@ -230,8 +237,18 @@ export function AutomationBuilder({
             <p className="text-[12.5px] text-fg-muted">
               The model fills the builder in; nothing is saved until you save.
             </p>
+            {(starters.data ?? []).length > 0 && (
+              <div className="mt-1 flex flex-wrap items-center gap-1.5" role="group" aria-label="Starters">
+                <span className="text-[12.5px] text-fg-secondary">Or start from:</span>
+                {starters.data!.map((st) => (
+                  <Button key={st.id} size="sm" variant="secondary" onClick={() => start(st.draft, st.description)}>
+                    {st.name}
+                  </Button>
+                ))}
+              </div>
+            )}
             {notes.length > 0 && (
-              <ul aria-label="What the draft left out" className="list-disc pl-5 text-[12.5px] text-fg-secondary">
+              <ul aria-label="About this draft" className="list-disc pl-5 text-[12.5px] text-fg-secondary">
                 {notes.map((n) => (
                   <li key={n}>{n}</li>
                 ))}

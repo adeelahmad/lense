@@ -23,6 +23,7 @@ jest.mock("@/app/openapi-client", () => ({
     variableCatalog: jest.fn(),
     testDraft: jest.fn(),
     draftAutomation: jest.fn(),
+    listStarters: jest.fn(),
     setPolicy: jest.fn(),
   },
   Activities: { listActivityKinds: jest.fn(), listActivities: jest.fn() },
@@ -123,6 +124,7 @@ function wrap(ui: ReactNode) {
 }
 
 beforeEach(() => {
+  m(Automations.listStarters).mockReturnValue(ok({ starters: [] }));
   m(Automations.listActions).mockReturnValue(ok(ACTIONS));
   m(Activities.listActivityKinds).mockReturnValue(ok(KINDS));
   m(Automations.variableCatalog).mockReturnValue(
@@ -230,6 +232,38 @@ test("Describe it in words fills the builder and says what it left out", async (
   expect(await screen.findByDisplayValue("Tell me about school emails")).toBeInTheDocument();
   expect(screen.getByText("Not done: when both arrive")).toBeInTheDocument();
   expect(Automations.createAutomation).not.toHaveBeenCalled();
+});
+
+test("a starter fills the builder, and Save and turn on saves it switched on", async () => {
+  m(Automations.listStarters).mockReturnValue(
+    ok({
+      starters: [
+        {
+          id: "school-emails",
+          name: "Tell me about school emails",
+          description: "Change “school” to your school’s address before turning it on.",
+          draft: {
+            name: "Tell me about school emails",
+            enabled: false,
+            join: { mode: "any" },
+            triggers: [{ as: "mail", on: "event", kinds: ["email.received"] }],
+            graph: ROW.graph,
+          },
+        },
+      ],
+    }),
+  );
+  m(Automations.createAutomation).mockReturnValue(ok({ id: 9, hooks: [] }));
+  wrap(<AutomationBuilder />);
+  const starters = await screen.findByRole("group", { name: "Starters" });
+  fireEvent.click(within(starters).getByRole("button", { name: "Tell me about school emails" }));
+  expect(await screen.findByDisplayValue("Tell me about school emails")).toBeInTheDocument();
+  expect(screen.getByText("Change “school” to your school’s address before turning it on.")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Save and turn on" }));
+  await waitFor(() => expect(Automations.createAutomation).toHaveBeenCalled());
+  const body = m(Automations.createAutomation).mock.calls[0][0].body;
+  expect(body).toMatchObject({ name: "Tell me about school emails", enabled: true });
+  expect(body.triggers[0].kinds).toEqual(["email.received"]);
 });
 
 test("the test panel runs the draft on a recent activity and says what it would do", async () => {
