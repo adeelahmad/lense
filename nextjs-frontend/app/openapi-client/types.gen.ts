@@ -9443,6 +9443,12 @@ export type Group = {
    */
   waiting_for?: string | null;
   /**
+   * Unit Steps
+   *
+   * the steps its units run, which its queue metrics count (None: every step); on a machine elsewhere, only a worker node's
+   */
+  unit_steps?: Array<string> | null;
+  /**
    * Last Out At
    */
   last_out_at?: string | null;
@@ -13536,6 +13542,43 @@ export type MeshTokenCreated = {
    * the line to run on the machine: install.sh with LENS_JOIN and LENS_JOIN_TOKEN
    */
   install_line: string;
+  [key: string]: unknown;
+};
+
+/**
+ * MeshWorkerAccess
+ */
+export type MeshWorkerAccess = {
+  /**
+   * Url
+   *
+   * the database through the mesh: ws://<the primary's mesh address>:8000
+   */
+  url: string;
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Database
+   */
+  database: string;
+  /**
+   * User
+   *
+   * the node's own user of this database (removed with the node)
+   */
+  user: string;
+  /**
+   * Password
+   */
+  password: string;
+  /**
+   * Steps
+   *
+   * the steps a worker node runs unless LENS_WORKER_STEPS says otherwise
+   */
+  steps: Array<string>;
   [key: string]: unknown;
 };
 
@@ -49979,6 +50022,50 @@ export type RenewNodeResponses = {
 };
 
 export type RenewNodeResponse = RenewNodeResponses[keyof RenewNodeResponses];
+
+export type NodeWorkerData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/mesh/node/worker";
+};
+
+export type NodeWorkerResponses = {
+  /**
+   * Successful Response
+   */
+  200: MeshWorkerAccess;
+};
+
+export type NodeWorkerResponse = NodeWorkerResponses[keyof NodeWorkerResponses];
+
+export type NodeMediaData = {
+  body?: never;
+  path: {
+    /**
+     * Recording Id
+     */
+    recording_id: number;
+  };
+  query?: never;
+  url: "/api/v1/mesh/node/media/{recording_id}";
+};
+
+export type NodeMediaErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type NodeMediaError = NodeMediaErrors[keyof NodeMediaErrors];
+
+export type NodeMediaResponses = {
+  /**
+   * Successful Response
+   */
+  200: unknown;
+};
 
 export type NodeBeatData = {
   body: MeshBeat;

@@ -246,6 +246,11 @@ def unlocked_until(db, sid):
     return _until(db).get(int(sid))
 
 
+def is_vault(db, sid):
+    """Whether namespace `sid` is a vault (its key opens with a passkey only)."""
+    return bool(db.values("SELECT VALUE space FROM data_key WHERE space = $s AND vault = true", s=int(sid)))
+
+
 def locked_vaults(db):
     """The vault namespaces nobody has unlocked in this process: their work waits."""
     out = set()

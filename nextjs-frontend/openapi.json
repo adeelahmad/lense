@@ -34902,6 +34902,64 @@
         }
       }
     },
+    "/api/v1/mesh/node/worker": {
+      "get": {
+        "tags": [
+          "mesh"
+        ],
+        "summary": "Node Worker",
+        "description": "What the calling worker node's `lens worker` signs in to the database with: its own user of it. 403 for a node\nof another role, 409 where the database is embedded.",
+        "operationId": "node_worker",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshWorkerAccess"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mesh/node/media/{recording_id}": {
+      "get": {
+        "tags": [
+          "mesh"
+        ],
+        "summary": "Node Media",
+        "description": "A recording's file, plain, for a job on the calling worker node (a vault's never). Its ETag is its size and\ntime: a node that has it sends If-None-Match and gets 304.",
+        "operationId": "node_media",
+        "parameters": [
+          {
+            "name": "recording_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Recording Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/mesh/node/beat": {
       "post": {
         "tags": [
@@ -51398,6 +51456,21 @@
             "title": "Waiting For",
             "description": "why it launches nothing now, when it doesn't"
           },
+          "unit_steps": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Steps",
+            "description": "the steps its units run, which its queue metrics count (None: every step); on a machine elsewhere, only a worker node's"
+          },
           "last_out_at": {
             "anyOf": [
               {
@@ -58241,6 +58314,51 @@
           "install_line"
         ],
         "title": "MeshTokenCreated"
+      },
+      "MeshWorkerAccess": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "the database through the mesh: ws://<the primary's mesh address>:8000"
+          },
+          "namespace": {
+            "type": "string",
+            "title": "Namespace"
+          },
+          "database": {
+            "type": "string",
+            "title": "Database"
+          },
+          "user": {
+            "type": "string",
+            "title": "User",
+            "description": "the node's own user of this database (removed with the node)"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Steps",
+            "description": "the steps a worker node runs unless LENS_WORKER_STEPS says otherwise"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "url",
+          "namespace",
+          "database",
+          "user",
+          "password",
+          "steps"
+        ],
+        "title": "MeshWorkerAccess"
       },
       "MessageCreate": {
         "properties": {

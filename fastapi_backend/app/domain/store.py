@@ -994,6 +994,8 @@ class DB:
             "password": os.environ.get("SURREAL_PASS") or d.get("password") or "root",
         }
         self._target = (os.environ.get("SURREAL_NS") or d["namespace"], os.environ.get("SURREAL_DB") or d["database"])
+        if os.environ.get("SURREAL_AUTH") == "database":  # a user of this one database (a worker node's: docs/mesh.md)
+            self._creds.update(namespace=self._target[0], database=self._target[1])
         size = 1 if self.embedded else max(1, int(pool_size or os.environ.get("SURREAL_POOL_SIZE") or d.get("pool_size") or 8))
         self.fulltext = None  # FULLTEXT (3.x), SEARCH (2.x) or None; set by connect()
         self.textindex = None  # the SQLite full-text index (textindex.py) when search.engine is sqlite

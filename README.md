@@ -203,8 +203,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   schedule rules, within min and max and a monthly budget, with every launch, join and hour of cost in the activity
   ledger. A group launches nothing until you approve its terms in Settings › Auto scaling; agents propose and manage
   groups over the API, MCP and the assistant, and never approve one. It runs more workers on this machine today;
-  AWS EC2 (spot or on demand), DigitalOcean, Hetzner Cloud and Proxmox VE providers are in progress (built, launching
-  once the mesh's install line lands), and Linux and model hosts are planned. ([Auto scaling](docs/scaling.md);
+  AWS EC2 (spot or on demand), DigitalOcean, Hetzner Cloud and Proxmox VE providers are in progress (built, with
+  machines that join over the mesh to transcribe and tell voices apart, not yet tried on a real cloud), and Linux and
+  model hosts are planned. ([Auto scaling](docs/scaling.md);
   [checks](docs/requirements.md#scale-out))
 - **Keep it up to date and backed up.** Lens checks for a new release once a day and tells admins by email or a
   notification. One click in Settings › Updates (or one API call) upgrades it through a small agent on the machine,
@@ -269,7 +270,7 @@ These are open pull requests, not yet part of Lens:
   ([#406](https://github.com/adeelahmad/lense/pull/406)).
 - **Automations:** more operators for conditions ([#434](https://github.com/adeelahmad/lense/pull/434)).
 - **Nodes:** Lens's own private network between the machines it runs on, a Nebula mesh it issues the certificates
-  for ([#591](https://github.com/adeelahmad/lense/pull/591)).
+  for ([#595](https://github.com/adeelahmad/lense/pull/595)).
 
 ## Planned
 

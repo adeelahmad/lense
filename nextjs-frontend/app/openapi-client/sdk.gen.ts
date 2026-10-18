@@ -1258,6 +1258,11 @@ import type {
   NodeBeatResponses,
   NodeConfigData,
   NodeConfigResponses,
+  NodeMediaData,
+  NodeMediaErrors,
+  NodeMediaResponses,
+  NodeWorkerData,
+  NodeWorkerResponses,
   NotSameSpeakerData,
   NotSameSpeakerErrors,
   NotSameSpeakerResponses,
@@ -13636,6 +13641,36 @@ export class Mesh {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Node Worker
+   *
+   * What the calling worker node's `lens worker` signs in to the database with: its own user of it. 403 for a node
+   * of another role, 409 where the database is embedded.
+   */
+  public static nodeWorker<ThrowOnError extends boolean = false>(
+    options?: Options<NodeWorkerData, ThrowOnError>,
+  ): RequestResult<NodeWorkerResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<NodeWorkerResponses, unknown, ThrowOnError>({
+      url: "/api/v1/mesh/node/worker",
+      ...options,
+    });
+  }
+
+  /**
+   * Node Media
+   *
+   * A recording's file, plain, for a job on the calling worker node (a vault's never). Its ETag is its size and
+   * time: a node that has it sends If-None-Match and gets 304.
+   */
+  public static nodeMedia<ThrowOnError extends boolean = false>(
+    options: Options<NodeMediaData, ThrowOnError>,
+  ): RequestResult<NodeMediaResponses, NodeMediaErrors, ThrowOnError> {
+    return (options.client ?? client).get<NodeMediaResponses, NodeMediaErrors, ThrowOnError>({
+      url: "/api/v1/mesh/node/media/{recording_id}",
+      ...options,
     });
   }
 
