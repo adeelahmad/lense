@@ -203,6 +203,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   server. OpenTelemetry traces and metrics, and a Prometheus `/metrics` endpoint, both off until you turn them on, and
   sending nothing anywhere else. On a Docker install, one switch in the web app (or one API call from an agent) starts
   Prometheus, node-exporter and Grafana next to Lens, already connected, with the Lens dashboard as Grafana's home.
+  The job queue can be cleared, reordered and its failed runs retried at once, through the API and MCP.
   The Analytics page shows admins active people, churn, retention and which features get used, worked out on this
   machine; the same daily events can also go to a Google Analytics 4 property of your own (off unless you turn it on).
   ([Logging](docs/logging.md), [telemetry](docs/telemetry.md), [Prometheus](docs/prometheus.md),

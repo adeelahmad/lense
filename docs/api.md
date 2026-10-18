@@ -1431,8 +1431,11 @@ POST   /api/v1/jobs
 GET    /api/v1/jobs/{jid}
 GET    /api/v1/jobs/{jid}/log
 POST   /api/v1/jobs/steps/{step}
+POST   /api/v1/jobs/cancel
+POST   /api/v1/jobs/retry
 POST   /api/v1/jobs/{jid}/cancel
 POST   /api/v1/jobs/{jid}/retry
+POST   /api/v1/jobs/{jid}/move
 GET    /api/v1/workers
 POST   /api/v1/workers/{name}/pause
 POST   /api/v1/workers/{name}/drain
@@ -1458,6 +1461,21 @@ Every job names its asset (`title`) and the pipeline it runs with the version it
 `worker`, `log_from`/`log_to` (its lines of the whole log) and `outputs` (`[{key, template, version, model}]`, saved as
 `outputs.<key>`). It also adds `estimates`, how long each step usually takes on this asset in seconds (from the
 last 25 runs of that step or template; null with none), and while the job is queued or running `eta_seconds`.
+
+`GET /jobs?status=queued&order=queue` lists queued jobs in the order workers take them, the next first (each job
+carries its `priority`: the highest is taken first, among the jobs a worker can run). `POST /jobs/{jid}/move` moves a
+queued job: `{to: "top"}` or `{to: "bottom"}`, or `{before: <jid>}` or `{after: <jid>}` another queued job you can
+see. The queue is numbered again around it, so the others keep their order, and jobs queued later join the back. It
+returns `position` (1 is next) and `queued`, both among the jobs you can see.
+
+Bulk changes work in every namespace where you may process (or `namespace`), or on `jobs` (ids, each checked):
+`POST /jobs/cancel {jobs?, namespace?, status?}` clears the queue, cancelling queued and held jobs; with `running` in
+`status`, running jobs stop after the step they're on (`stopping`). `POST /jobs/retry {jobs?, namespace?, status?}`
+retries the failed jobs (the dead letter queue; `status: ["failed", "cancelled"]` takes cancelled ones too), each
+from the step it stopped at and at the back of the queue; a job whose asset was deleted, or whose asset already has a
+job queued or running, is left alone (`skipped`). So `POST /jobs/retry {jobs: <the ids cancel returned>, status:
+["cancelled"]}` undoes clearing the queue. Both return the ids they changed (`jobs`) and are audited as `jobs.cancel`
+and `jobs.retry`. Retrying one job puts it at the back of the queue too.
 
 A run keeps its whole log (up to 100,000 lines); the job itself carries its last 200 lines (`log`) and how many there
 are (`log_total`). `GET /jobs/{jid}/log?after=&limit=` pages through it: `{start, lines, total, more}`, up to 5,000

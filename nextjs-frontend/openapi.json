@@ -21880,7 +21880,7 @@
           "jobs"
         ],
         "summary": "List Jobs",
-        "description": "Recent jobs, newest first, with counts by status and by namespace (of the jobs in `namespace` and `batch`, of\nany status), plus the latest job's step and log (for the progress bar). With `recording`, that asset's runs,\nalso for someone who sees it through a role on its collection (then the counts are of those runs only).",
+        "description": "Recent jobs, newest first (or with `order=queue` in the order workers take them), with counts by status and by\nnamespace (of the jobs in `namespace` and `batch`, of any status), plus the latest job's step and log (for the\nprogress bar). With `recording`, that asset's runs, also for someone who sees it through a role on its\ncollection (then the counts are of those runs only).",
         "operationId": "list_jobs",
         "parameters": [
           {
@@ -21964,6 +21964,22 @@
               "default": 100,
               "title": "Limit"
             }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "newest",
+                "queue"
+              ],
+              "type": "string",
+              "description": "queue: in the order workers take them, the next first",
+              "default": "newest",
+              "title": "Order"
+            },
+            "description": "queue: in the order workers take them, the next first"
           }
         ],
         "responses": {
@@ -22167,6 +22183,143 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StepQueued"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/cancel": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Cancel Jobs",
+        "description": "Clear the queue: cancel every queued and held run in the namespaces you may process in (or `namespace`), or\njust `jobs`. With `running` in `status`, running runs stop after the step they're on. POST /jobs/retry with the\nids it returns queues them again. Audited as ``jobs.cancel``.",
+        "operationId": "cancel_jobs",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobsPick"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobsChanged"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/retry": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Retry Jobs",
+        "description": "Retry in bulk: every failed run (the dead letter queue; cancelled ones too with `status`) in the namespaces you\nmay process in (or `namespace`), or just `jobs`, each from the step it stopped at, at the back of the queue. A run\nwhose asset was deleted or already has a run queued or running is skipped. Audited as ``jobs.retry``.",
+        "operationId": "retry_jobs",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobsPick"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobsChanged"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/{jid}/move": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Move Job",
+        "description": "Reprioritise a queued run: move it to the `top` (next) or `bottom` of the queue, or just `before` or `after`\nanother queued run (one you can see). Workers take queued runs in this order, when they can run their step.",
+        "operationId": "move_job",
+        "parameters": [
+          {
+            "name": "jid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Jid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobMove"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobMoved"
                 }
               }
             }
@@ -53435,6 +53588,18 @@
             "title": "Cost Estimate",
             "description": "true: some calls had no price or token counts, so cost_usd is a floor"
           },
+          "priority": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority",
+            "description": "its place among queued runs: the highest is taken first (POST /jobs/{jid}/move sets it)"
+          },
           "hold": {
             "anyOf": [
               {
@@ -53635,6 +53800,79 @@
         ],
         "title": "JobLog"
       },
+      "JobMove": {
+        "properties": {
+          "to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "top",
+                  "bottom"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To",
+            "description": "the front of the queue (next) or its back"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before",
+            "description": "just before this queued run"
+          },
+          "after": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After",
+            "description": "just after this queued run"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "JobMove"
+      },
+      "JobMoved": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position",
+            "description": "its place now among the queued runs you can see: 1 is next"
+          },
+          "queued": {
+            "type": "integer",
+            "title": "Queued",
+            "description": "how many runs you can see are queued"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "position",
+          "queued"
+        ],
+        "title": "JobMoved"
+      },
       "JobPipeline": {
         "properties": {
           "id": {
@@ -53691,6 +53929,43 @@
           "job"
         ],
         "title": "JobQueued"
+      },
+      "JobsChanged": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "jobs": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Jobs",
+            "description": "the runs cancelled, or queued again"
+          },
+          "stopping": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Stopping",
+            "description": "running runs asked to stop after the step they're on"
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped",
+            "description": "runs retry left alone: their asset was deleted, or already has a run queued or running",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "jobs"
+        ],
+        "title": "JobsChanged"
       },
       "JobsCreate": {
         "properties": {
@@ -53750,6 +54025,63 @@
         "additionalProperties": false,
         "type": "object",
         "title": "JobsCreate"
+      },
+      "JobsPick": {
+        "properties": {
+          "jobs": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array",
+                "maxItems": 5000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jobs",
+            "description": "these runs; leave out for every run with `status`"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "only this namespace's runs (default: every one you can process in)"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "queued",
+                    "held",
+                    "running",
+                    "failed",
+                    "cancelled"
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status",
+            "description": "POST /jobs/cancel: default queued and held (clearing the queue), running too to stop those after their step; POST /jobs/retry: default failed (the dead letter queue), cancelled too"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "JobsPick"
       },
       "JobsQueued": {
         "properties": {

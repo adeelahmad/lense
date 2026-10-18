@@ -33,6 +33,7 @@ from app.api.v1.routes import chats as chat_routes
 from app.api.v1.routes import dates as date_routes
 from app.api.v1.routes import entities as entity_routes
 from app.api.v1.routes import graph as graph_routes
+from app.api.v1.routes import jobs as job_routes
 from app.api.v1.routes import namespaces as namespace_routes
 from app.api.v1.routes import notebook as note_routes
 from app.api.v1.routes import recordings as recording_routes
@@ -99,6 +100,7 @@ from app.schemas.automations import (
 )
 from app.schemas.chats import ChatScope, ChatSummary
 from app.schemas.entities import EntityHide, EntityList, EntityRename, EntityRetype, EntityUpdate
+from app.schemas.jobs import JobMove, JobsPick
 from app.schemas.notebook import NotePage
 from app.schemas.schedules import ScheduleChange, ScheduleRun
 from app.schemas.search import SearchResults
@@ -3695,6 +3697,93 @@ def set_schedule(
 def run_schedule(ctx: Context, schedule_id: str) -> dict[str, Any]:
     _writer(ctx, "run schedules")
     return schedule_routes.run_schedule(schedule_id, ctx.user, ctx.acl, ctx.db, ctx.cfg, ScheduleRun()).model_dump(exclude_none=True)
+
+
+# ---------- the job queue ----------
+@tool(
+    "runs",
+    "The job queue",
+    "Runs of pipelines on assets (Activity in Lens): the queued ones in the order workers take them (the next first), "
+    "or by status, such as failed (the dead letter queue) or running, newest first; each with its asset, its step, "
+    "its error and its link, and how many runs there are of each status.",
+    Arg("status", "string", "queued (default), held, running, failed, cancelled or succeeded; comma separated for several", max_length=80),
+    Arg("namespace", "string", "only this namespace's runs"),
+    Arg("limit", "integer", "how many", default=50, minimum=1, maximum=500),
+)
+def runs(ctx: Context, status: str | None, namespace: str | None, limit: int) -> dict[str, Any]:
+    status = status or "queued"
+    order = "queue" if status == "queued" else "newest"
+    out = job_routes.list_jobs(ctx.acl, ctx.user, ctx.db, status, None, None, namespace, limit, order)
+    rows = [
+        {
+            "job_id": j.id,
+            "recording_id": j.recording,
+            "title": j.title,
+            "status": j.status,
+            "step": j.next_step,
+            "error": j.error,
+            "attempts": j.attempts,
+            "queued_at": j.created_at,
+            "url": f"{ctx.web}/activity/{j.id}",
+        }
+        for j in out.jobs
+    ]
+    return {"runs": rows, "order": "the next first" if order == "queue" else "newest first", "counts": out.counts}
+
+
+@tool(
+    "clear_queue",
+    "Clear the job queue",
+    "Cancel every queued and held run in the namespaces you may process in (or one namespace), or only job_ids; with "
+    "include_running, running runs also stop after the step they're on. Returns the ids cancelled: retry_runs with "
+    "those ids and include_cancelled puts them back. Needs a token with the write scope.",
+    Arg("namespace", "string", "only this namespace's runs"),
+    Arg("job_ids", "integer[]", "only these runs", maximum=5000),
+    Arg("include_running", "boolean", "also stop running runs after their step", default=False),
+    writes=True,
+)
+def clear_queue(ctx: Context, namespace: str | None, job_ids: list[int] | None, include_running: bool) -> dict[str, Any]:
+    _writer(ctx, "clear the queue")
+    body = JobsPick(jobs=job_ids, namespace=namespace, status=["queued", "held", "running"] if include_running else None)
+    return job_routes.cancel_jobs(body, ctx.acl, ctx.user, ctx.db).model_dump(exclude_none=True)
+
+
+@tool(
+    "retry_runs",
+    "Retry failed runs",
+    "Retry failed runs in bulk (the dead letter queue): every failed run in the namespaces you may process in (or one "
+    "namespace), or only job_ids, each from the step it stopped at, at the back of the queue. include_cancelled "
+    "retries cancelled runs too. A run whose asset was deleted or already has a run queued or running is skipped. "
+    "Needs a token with the write scope.",
+    Arg("namespace", "string", "only this namespace's runs"),
+    Arg("job_ids", "integer[]", "only these runs", maximum=5000),
+    Arg("include_cancelled", "boolean", "also retry cancelled runs", default=False),
+    writes=True,
+)
+def retry_runs(ctx: Context, namespace: str | None, job_ids: list[int] | None, include_cancelled: bool) -> dict[str, Any]:
+    _writer(ctx, "retry runs")
+    body = JobsPick(jobs=job_ids, namespace=namespace, status=["failed", "cancelled"] if include_cancelled else None)
+    return job_routes.retry_jobs(body, ctx.acl, ctx.user, ctx.db).model_dump(exclude_none=True)
+
+
+@tool(
+    "move_run",
+    "Reprioritise a queued run",
+    "Move a queued run to the top (next) or bottom of the queue, or just before or after another queued run; workers "
+    "take queued runs in that order when they can run their step. Give exactly one of to, before and after. Needs a "
+    "token with the write scope.",
+    Arg("job_id", "integer", "the queued run (from runs)", required=True),
+    Arg("to", "string", "top or bottom", enum=("top", "bottom")),
+    Arg("before", "integer", "just before this queued run"),
+    Arg("after", "integer", "just after this queued run"),
+    writes=True,
+)
+def move_run(ctx: Context, job_id: int, to: str | None, before: int | None, after: int | None) -> dict[str, Any]:
+    _writer(ctx, "reorder the queue")
+    if sum(x is not None for x in (to, before, after)) != 1:
+        raise ToolError("give exactly one of to, before and after")
+    body = JobMove(to=to, before=before, after=after)  # type: ignore[arg-type]
+    return job_routes.move_job(job_id, body, ctx.acl, ctx.user, ctx.db).model_dump()
 
 
 # ---------- Lens itself: its docs and this server ----------

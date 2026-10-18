@@ -418,3 +418,96 @@ def test_a_pasted_transcript_never_waits_for_a_speech_model(db, cfg):
     w = jobs.Worker(db, lambda: cfg, name="small")
     w.keeper = type("Fetching", (), {"blocked": lambda self: {"transcribe", "diarize"}})()
     assert w.run_once() and db.one("SELECT status FROM $j", j=store.R("job", jid))["status"] == "succeeded"
+
+
+def test_clearing_reordering_and_retrying_the_queue(client, db, cfg, folder):
+    a, b, call = seed(db, cfg, folder)
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
+    hr = login(client, "root@x.io", "root password 1")
+    he = login(client, "ed@x.io", "editor password 1")
+    hv = login(client, "vi@x.io", "viewer password 1")
+    ja, jb, jc = (jobs.enqueue(db, r, ["analyze"]) for r in (a, b, call))
+
+    def order(h):
+        return [j["id"] for j in client.get("/api/v1/jobs", params={"status": "queued", "order": "queue"}, headers=h).json()["jobs"]]
+
+    assert order(hr) == jobs.queue(db) and set(order(hr)) == {ja, jb, jc}
+    # drag and drop: before, after, top, bottom; the queue keeps its order around the moved run
+    r = client.post(f"/api/v1/jobs/{jc}/move", json={"to": "top"}, headers=hr)
+    assert r.status_code == 200 and r.json()["position"] == 1 and order(hr)[0] == jc
+    assert client.post(f"/api/v1/jobs/{ja}/move", json={"before": jc}, headers=hr).json()["position"] == 1
+    assert order(hr)[:2] == [ja, jc]
+    assert client.post(f"/api/v1/jobs/{ja}/move", json={"after": jb}, headers=hr).status_code == 200
+    assert order(hr)[-1] == ja
+    assert client.post(f"/api/v1/jobs/{jb}/move", json={"to": "bottom"}, headers=he).json() == {"ok": True, "position": 2, "queued": 2}
+    assert order(he) == [ja, jb]  # the editor sees only pods' runs
+    later = jobs.enqueue(db, a, ["report"])  # a's run is live: the same job
+    assert later == ja
+    # workers take them in that order
+    assert jobs.claim(db, "w", {"analyze"})["id"] == jc
+    db.q("UPDATE $j SET status = 'queued', worker = NONE", j=store.R("job", jc))
+    # say exactly one place; only queued runs move; viewers and other namespaces can't
+    assert client.post(f"/api/v1/jobs/{ja}/move", json={}, headers=he).status_code == 422
+    assert client.post(f"/api/v1/jobs/{ja}/move", json={"to": "top", "before": jb}, headers=he).status_code == 422
+    assert client.post(f"/api/v1/jobs/{ja}/move", json={"to": "top"}, headers=hv).status_code == 403
+    assert client.post(f"/api/v1/jobs/{jc}/move", json={"to": "top"}, headers=he).status_code == 404
+    assert client.post(f"/api/v1/jobs/{ja}/move", json={"before": jc}, headers=he).status_code == 404
+    # clearing the queue: the editor's namespaces only; a viewer clears nothing
+    assert client.post("/api/v1/jobs/cancel", json={}, headers=hv).json()["jobs"] == []
+    assert client.post("/api/v1/jobs/cancel", json={"namespace": "calls"}, headers=he).status_code == 404
+    assert client.post("/api/v1/jobs/cancel", json={"jobs": [jc]}, headers=he).status_code == 404
+    r = client.post("/api/v1/jobs/cancel", json={}, headers=he).json()
+    assert sorted(r["jobs"]) == sorted([ja, jb]) and r["stopping"] == []
+    assert order(hr) == [jc]
+    assert client.post(f"/api/v1/jobs/{ja}/move", json={"to": "top"}, headers=he).status_code == 400
+    # undo: retry the ids it returned, cancelled ones included; they join the back of the queue
+    r = client.post("/api/v1/jobs/retry", json={"jobs": r["jobs"], "status": ["cancelled"]}, headers=he).json()
+    assert sorted(r["jobs"]) == sorted([ja, jb]) and order(hr)[0] == jc
+    # running runs stop after their step only when asked
+    db.q("UPDATE $j SET status = 'running'", j=store.R("job", jc))
+    r = client.post("/api/v1/jobs/cancel", json={"status": ["queued", "running"]}, headers=hr).json()
+    assert r["stopping"] == [jc] and sorted(r["jobs"]) == sorted([ja, jb])
+    assert jobs.get(db, jc)["cancel_requested"] is True
+    # the dead letter queue: failed runs retried in bulk, one per asset, newest first, deleted assets skipped
+    db.q("UPDATE job SET status = 'failed', error = 'boom'")
+    older = db.next_id("job")
+    db.q(
+        "CREATE $j CONTENT $d",
+        j=store.R("job", older),
+        d={
+            **{k: v for k, v in jobs.get(db, ja).items() if k not in ("id", "title", "progress")},
+            "created_at": "2000-01-01T00:00:00+00:00",
+        },
+    )
+    assert client.post("/api/v1/jobs/retry", json={}, headers=hv).json()["jobs"] == []
+    r = client.post("/api/v1/jobs/retry", json={}, headers=he).json()
+    assert sorted(r["jobs"]) == sorted([ja, jb]) and r["skipped"] == 1
+    assert jobs.get(db, older)["status"] == "failed" and jobs.get(db, jc)["status"] == "failed"
+    db.q("DELETE $r", r=store.R("recording", call))
+    r = client.post("/api/v1/jobs/retry", json={"namespace": "calls"}, headers=hr).json()
+    assert r["jobs"] == [] and r["skipped"] == 1
+    assert set(db.values("SELECT VALUE action FROM audit_log")) >= {"jobs.cancel", "jobs.retry"}
+
+
+def test_agents_work_the_queue_over_mcp(client, db, cfg, folder):
+    from tests.api.test_mcp import tool, tool_error
+
+    a, b, call = seed(db, cfg, folder)
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    he = login(client, "ed@x.io", "editor password 1")
+    ja, jb, jc = (jobs.enqueue(db, r, ["analyze"]) for r in (a, b, call))
+    listed = tool(client, he, "runs")
+    assert [r["job_id"] for r in listed["runs"]] == [ja, jb] and listed["order"] == "the next first"
+    assert listed["runs"][0]["url"].endswith(f"/activity/{ja}")
+    assert tool(client, he, "move_run", job_id=jb, to="top") == {"ok": True, "position": 1, "queued": 2}
+    assert [r["job_id"] for r in tool(client, he, "runs")["runs"]] == [jb, ja]
+    assert "exactly one" in tool_error(client, he, "move_run", job_id=jb)
+    assert "not found" in tool_error(client, he, "move_run", job_id=jc, to="top")
+    cleared = tool(client, he, "clear_queue")
+    assert sorted(cleared["jobs"]) == sorted([ja, jb]) and jobs.get(db, jc)["status"] == "queued"
+    assert sorted(tool(client, he, "retry_runs", job_ids=cleared["jobs"], include_cancelled=True)["jobs"]) == sorted([ja, jb])
+    db.q("UPDATE $j SET status = 'failed'", j=store.R("job", ja))
+    assert [r["job_id"] for r in tool(client, he, "runs", status="failed")["runs"]] == [ja]
+    assert tool(client, he, "retry_runs")["jobs"] == [ja]

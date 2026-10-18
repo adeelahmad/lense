@@ -94,6 +94,9 @@ import type {
   CancelJobData,
   CancelJobErrors,
   CancelJobResponses,
+  CancelJobsData,
+  CancelJobsErrors,
+  CancelJobsResponses,
   CancelRcloneSigninData,
   CancelRcloneSigninErrors,
   CancelRcloneSigninResponses,
@@ -1209,6 +1212,9 @@ import type {
   MetricsData,
   MetricsErrors,
   MetricsResponses,
+  MoveJobData,
+  MoveJobErrors,
+  MoveJobResponses,
   MoveMentionData,
   MoveMentionErrors,
   MoveMentionResponses,
@@ -1489,6 +1495,9 @@ import type {
   RetryJobData,
   RetryJobErrors,
   RetryJobResponses,
+  RetryJobsData,
+  RetryJobsErrors,
+  RetryJobsResponses,
   RetypeEntitiesData,
   RetypeEntitiesErrors,
   RetypeEntitiesResponses,
@@ -9152,9 +9161,10 @@ export class Jobs {
   /**
    * List Jobs
    *
-   * Recent jobs, newest first, with counts by status and by namespace (of the jobs in `namespace` and `batch`, of
-   * any status), plus the latest job's step and log (for the progress bar). With `recording`, that asset's runs,
-   * also for someone who sees it through a role on its collection (then the counts are of those runs only).
+   * Recent jobs, newest first (or with `order=queue` in the order workers take them), with counts by status and by
+   * namespace (of the jobs in `namespace` and `batch`, of any status), plus the latest job's step and log (for the
+   * progress bar). With `recording`, that asset's runs, also for someone who sees it through a role on its
+   * collection (then the counts are of those runs only).
    */
   public static listJobs<ThrowOnError extends boolean = false>(
     options?: Options<ListJobsData, ThrowOnError>,
@@ -9225,6 +9235,65 @@ export class Jobs {
     return (options.client ?? client).post<QueueStepResponses, QueueStepErrors, ThrowOnError>({
       url: "/api/v1/jobs/steps/{step}",
       ...options,
+    });
+  }
+
+  /**
+   * Cancel Jobs
+   *
+   * Clear the queue: cancel every queued and held run in the namespaces you may process in (or `namespace`), or
+   * just `jobs`. With `running` in `status`, running runs stop after the step they're on. POST /jobs/retry with the
+   * ids it returns queues them again. Audited as ``jobs.cancel``.
+   */
+  public static cancelJobs<ThrowOnError extends boolean = false>(
+    options: Options<CancelJobsData, ThrowOnError>,
+  ): RequestResult<CancelJobsResponses, CancelJobsErrors, ThrowOnError> {
+    return (options.client ?? client).post<CancelJobsResponses, CancelJobsErrors, ThrowOnError>({
+      url: "/api/v1/jobs/cancel",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Retry Jobs
+   *
+   * Retry in bulk: every failed run (the dead letter queue; cancelled ones too with `status`) in the namespaces you
+   * may process in (or `namespace`), or just `jobs`, each from the step it stopped at, at the back of the queue. A run
+   * whose asset was deleted or already has a run queued or running is skipped. Audited as ``jobs.retry``.
+   */
+  public static retryJobs<ThrowOnError extends boolean = false>(
+    options: Options<RetryJobsData, ThrowOnError>,
+  ): RequestResult<RetryJobsResponses, RetryJobsErrors, ThrowOnError> {
+    return (options.client ?? client).post<RetryJobsResponses, RetryJobsErrors, ThrowOnError>({
+      url: "/api/v1/jobs/retry",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Move Job
+   *
+   * Reprioritise a queued run: move it to the `top` (next) or `bottom` of the queue, or just `before` or `after`
+   * another queued run (one you can see). Workers take queued runs in this order, when they can run their step.
+   */
+  public static moveJob<ThrowOnError extends boolean = false>(
+    options: Options<MoveJobData, ThrowOnError>,
+  ): RequestResult<MoveJobResponses, MoveJobErrors, ThrowOnError> {
+    return (options.client ?? client).post<MoveJobResponses, MoveJobErrors, ThrowOnError>({
+      url: "/api/v1/jobs/{jid}/move",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 

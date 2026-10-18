@@ -18,7 +18,19 @@ from app.api.deps import Access, Acl, AdminReader, AdminWriter, Cfg, CurrentUser
 from app.domain import auth, ingest, jobs, store
 from app.domain.store import DB
 from app.schemas.common import Ok
-from app.schemas.jobs import Job, JobList, JobLog, JobsCreate, JobsQueued, StepQueued, WorkerInfo
+from app.schemas.jobs import (
+    Job,
+    JobList,
+    JobLog,
+    JobMove,
+    JobMoved,
+    JobsChanged,
+    JobsCreate,
+    JobsPick,
+    JobsQueued,
+    StepQueued,
+    WorkerInfo,
+)
 from app.schemas.routines import HeldRunDecision
 
 router = APIRouter(tags=["jobs"])
@@ -44,19 +56,21 @@ def list_jobs(
     batch: int | None = Query(None, description="only this batch run's jobs"),
     namespace: str | None = Query(None, description="only this namespace's jobs (404 when you can't read it)"),
     limit: int = Query(100, ge=1, le=2000),
+    order: Literal["newest", "queue"] = Query("newest", description="queue: in the order workers take them, the next first"),
 ) -> JobList:
-    """Recent jobs, newest first, with counts by status and by namespace (of the jobs in `namespace` and `batch`, of
-    any status), plus the latest job's step and log (for the progress bar). With `recording`, that asset's runs,
-    also for someone who sees it through a role on its collection (then the counts are of those runs only)."""
+    """Recent jobs, newest first (or with `order=queue` in the order workers take them), with counts by status and by
+    namespace (of the jobs in `namespace` and `batch`, of any status), plus the latest job's step and log (for the
+    progress bar). With `recording`, that asset's runs, also for someone who sees it through a role on its
+    collection (then the counts are of those runs only)."""
     statuses = status.split(",") if status else None
     rec = acl.recording(recording) if recording is not None and not namespace else None
     if rec and not auth.allows(acl.roles, rec["space"]):
-        rows = jobs.list_jobs(db, {rec["space"]}, statuses, recording, limit, batch)
+        rows = jobs.list_jobs(db, {rec["space"]}, statuses, recording, limit, batch, order)
         counts: dict[str, int] = dict(Counter(r["status"] for r in rows))
         by_ns: dict[str, int] = {}
     else:
         sp = {acl.namespace(namespace)} if namespace else acl.readable()
-        rows = jobs.list_jobs(db, sp, statuses, recording, limit, batch)
+        rows = jobs.list_jobs(db, sp, statuses, recording, limit, batch, order)
         counts = jobs.counts(db, sp, batch)
         names = store.space_names(db)
         by_ns = {names[k]: n for k, n in jobs.per_space(db, acl.readable(), batch).items() if k in names}
@@ -130,6 +144,59 @@ def queue_step(step: str, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> StepQueue
     rows = db.rows(f"SELECT record::id(id) AS id FROM recording WHERE {where}", sp=acl.editable(), st=STEP_STATUS[step])
     queued = [jobs.enqueue(db, r["id"], [step], by=user.email) for r in rows]
     return StepQueued(queued=len(queued))
+
+
+def _processable(acl: Access, namespace: str | None) -> list[int]:
+    """The namespaces a bulk action works in: `namespace`, or every one this person may process in."""
+    if namespace:
+        return [acl.namespace(namespace, "process")]
+    return sorted(s for s in acl.roles if acl.can(s, "process"))
+
+
+def _picked(db: DB, acl: Access, ids: list[int] | None) -> None:
+    """Runs named one by one are each checked, so a run that isn't theirs is a 404 or a 403, never quietly left out."""
+    for jid in ids or []:
+        _job(db, acl, jid, "process")
+
+
+@router.post("/jobs/cancel")
+def cancel_jobs(body: JobsPick, acl: Acl, user: Writer, db: Db) -> JobsChanged:
+    """Clear the queue: cancel every queued and held run in the namespaces you may process in (or `namespace`), or
+    just `jobs`. With `running` in `status`, running runs stop after the step they're on. POST /jobs/retry with the
+    ids it returns queues them again. Audited as ``jobs.cancel``."""
+    _picked(db, acl, body.jobs)
+    spaces = _processable(acl, body.namespace)
+    done, stopping = jobs.cancel_many(db, spaces, body.jobs, body.status or ["queued", "held"])
+    auth.audit(db, user.as_audit(), "jobs.cancel", body.namespace or "jobs", {"cancelled": len(done), "stopping": len(stopping)})
+    return JobsChanged(jobs=done, stopping=stopping)
+
+
+@router.post("/jobs/retry")
+def retry_jobs(body: JobsPick, acl: Acl, user: Writer, db: Db) -> JobsChanged:
+    """Retry in bulk: every failed run (the dead letter queue; cancelled ones too with `status`) in the namespaces you
+    may process in (or `namespace`), or just `jobs`, each from the step it stopped at, at the back of the queue. A run
+    whose asset was deleted or already has a run queued or running is skipped. Audited as ``jobs.retry``."""
+    _picked(db, acl, body.jobs)
+    spaces = _processable(acl, body.namespace)
+    done, skipped = jobs.retry_many(db, spaces, body.jobs, body.status or ["failed"])
+    auth.audit(db, user.as_audit(), "jobs.retry", body.namespace or "jobs", {"retried": len(done), "skipped": skipped})
+    return JobsChanged(jobs=done, skipped=skipped)
+
+
+@router.post("/jobs/{jid}/move")
+def move_job(jid: int, body: JobMove, acl: Acl, user: Writer, db: Db) -> JobMoved:
+    """Reprioritise a queued run: move it to the `top` (next) or `bottom` of the queue, or just `before` or `after`
+    another queued run (one you can see). Workers take queued runs in this order, when they can run their step."""
+    if sum(x is not None for x in (body.to, body.before, body.after)) != 1:
+        raise HTTPException(422, "say one of: to (top or bottom), before, after")
+    _job(db, acl, jid, "process")
+    ref = body.before if body.before is not None else body.after
+    if ref is not None:
+        _job(db, acl, ref)
+    with domain_errors():
+        jobs.move(db, jid, body.to, body.before, body.after)
+    seen = jobs.queue(db, acl.readable())  # its place among the runs this person can see
+    return JobMoved(position=seen.index(jid) + 1, queued=len(seen))
 
 
 @router.post("/jobs/{jid}/cancel")
