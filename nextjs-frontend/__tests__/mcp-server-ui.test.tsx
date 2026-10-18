@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { Extensions, Updates } from "@/app/openapi-client";
 import { ExtensionEditor } from "@/components/extensions/extension-editor";
 import { McpServerForm } from "@/components/extensions/mcp-server-form";
+import { McpServers, toolCount } from "@/components/settings/mcp-servers";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 jest.mock("@/app/openapi-client", () => ({
@@ -19,6 +20,7 @@ jest.mock("@/app/openapi-client", () => ({
     updateExtension: jest.fn(),
     deleteExtension: jest.fn(),
     mcpPresets: jest.fn(),
+    listExtensions: jest.fn(),
   },
   Updates: { listServices: jest.fn(), setService: jest.fn() },
 }));
@@ -273,5 +275,49 @@ describe("adding an MCP server", () => {
     // tried by the name the assistant calls it, only the tools that are on
     expect(screen.getByRole("button", { name: "Run" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Tool")).not.toBeInTheDocument();
+  });
+});
+
+describe("MCP servers in Settings", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("lists each server with its tools, and the containers' switches", async () => {
+    const spec = (n: number, off: string[] = []) => ({
+      tools: Array.from({ length: n }, (_, i) => ({ name: `t${i}` })),
+      off,
+    });
+    m(Extensions.listExtensions).mockReturnValue(
+      ok([
+        { id: 3, kind: "mcp", name: "tracker", title: "Tracker", enabled: true, spec: spec(2, ["t1"]) },
+        { id: 4, kind: "mcp", name: "browser", enabled: false, spec: spec(1) },
+        { id: 5, kind: "skill", name: "notes", enabled: true, spec: {} },
+      ]),
+    );
+    m(Updates.listServices).mockReturnValue(
+      ok({
+        services: [
+          { ...service, profile: "mcp", label: "MCP runner" },
+          { ...service, on: true, running: true, state: "done" },
+        ],
+      }),
+    );
+    wrap(<McpServers />);
+    const tracker = await screen.findByRole("link", { name: "Tracker" });
+    expect(tracker).toHaveAttribute("href", "/extensions/3");
+    expect(screen.getByText("1 of 2 tools")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "browser" })).toHaveAttribute("href", "/extensions/4");
+    expect(screen.getByText("1 tool, switched off")).toBeInTheDocument();
+    expect(screen.queryByText("notes")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Add MCP server" })).toHaveAttribute("href", "/extensions/new/mcp");
+    expect(await screen.findByRole("switch", { name: "Run the MCP runner on this machine" })).not.toBeChecked();
+    expect(screen.getByRole("switch", { name: "Run the browser on this machine" })).toBeChecked();
+  });
+
+  it("says when there are none", async () => {
+    m(Extensions.listExtensions).mockReturnValue(ok([]));
+    m(Updates.listServices).mockReturnValue(ok({ services: [] }));
+    wrap(<McpServers />);
+    expect(await screen.findByText("None yet.")).toBeInTheDocument();
+    expect(toolCount(12, 0)).toBe("12 tools");
   });
 });

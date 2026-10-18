@@ -12,6 +12,7 @@ import { BackupsPanel } from "@/components/settings/backups-panel";
 import { ComponentsStatus } from "@/components/settings/components-status";
 import { EditionChoice, NetworkReach } from "@/components/settings/install-settings";
 import { LogViewer } from "@/components/settings/log-viewer";
+import { McpServers } from "@/components/settings/mcp-servers";
 import { AllTokens } from "@/components/account/all-tokens";
 import { ACCESS } from "@/components/iiif/metadata-model";
 import { RIGHTS } from "@/components/iiif/rights";
@@ -25,6 +26,7 @@ import {
   type ModelProvider,
 } from "@/components/settings/model-providers";
 import { SandboxGatewaySwitch } from "@/components/settings/sandbox-gateway";
+import { ScalingGroups } from "@/components/settings/scaling-panel";
 import { SignInProviders } from "@/components/settings/sign-in-providers";
 import { UpdatesPanel } from "@/components/settings/updates-panel";
 import { VoicePicker } from "@/components/settings/voice-picker";
@@ -541,6 +543,31 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
             Agents read the same stream with the timeline tool (MCP and the assistant) or GET /api/v1/activities, and
             manage automations over /api/v1/automations.
+          </p>
+        </>
+      );
+    case "scaling":
+      return (
+        <>
+          <F ctx={ctx} id="scaling.enabled" />
+          <Sub>Groups</Sub>
+          <ScalingGroups />
+          <More
+            ctx={ctx}
+            ids={["scaling.tick_seconds", "scaling.join_minutes", "scaling.accrue_minutes", "scaling.tag"]}
+            title="How often it looks, joining and counting costs"
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <F ctx={ctx} id="scaling.tick_seconds" />
+              <F ctx={ctx} id="scaling.join_minutes" />
+              <F ctx={ctx} id="scaling.accrue_minutes" />
+              <F ctx={ctx} id="scaling.tag" />
+            </div>
+          </More>
+          <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+            A group launches nothing until you approve its terms here; agents (the assistant, MCP and API keys) make and
+            manage groups but can’t approve them. Costs are estimates from list prices, counted against each group’s
+            budget. Today groups run more workers on this machine; cloud providers are planned.
           </p>
         </>
       );
@@ -2623,6 +2650,7 @@ const LIMITS = [
   "ai.max_transcript_reads",
   "ai.compact_model",
   "ai.context_tokens",
+  "ai.compact_at",
 ];
 
 function AiBody({ ctx }: { ctx: BodyCtx }) {
@@ -2680,6 +2708,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
         </ul>
       </More>
       <WebSearch ctx={ctx} />
+      <McpServers />
       <More
         ctx={ctx}
         ids={["research.max_tool_calls", "research.max_minutes", "research.model", "research.agents_skip_review"]}
@@ -2708,6 +2737,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
           <F ctx={ctx} id="ai.max_transcript_reads" />
           <F ctx={ctx} id="ai.compact_model" />
           <F ctx={ctx} id="ai.context_tokens" />
+          <F ctx={ctx} id="ai.compact_at" />
         </div>
       </More>
       <div className="flex flex-col gap-3">

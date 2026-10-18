@@ -304,7 +304,8 @@ DEFAULTS = {
         "compact": True,  # a long conversation keeps a summary of the messages the model no longer sees (chat.compact)
         "compact_model": None,  # a cheaper model to write those summaries and titles (None: the chat's model)
         "auto_title": True,  # a conversation nobody named is titled by the model after its first answer (chat.auto_title)
-        "context_tokens": None,  # the chat model's context window; summarised early before it fills (None: 16000)
+        "context_tokens": None,  # the chat model's context window (None: what its server says, else 16000; chat.window)
+        "compact_at": 50,  # a conversation filling this % of that window is summarised early, before the next answer
         "organise_notes": True,  # notes nobody filed are filed in PARA, or a suggestion waits on them (notebook.py)
         "untrusted_marking": True,  # third-party text reaches the model marked as data, not instructions (untrusted.py)
         "untrusted_asks": True,  # after reading it, tools that send data out or change the server ask first (ai_tools.py)
@@ -641,6 +642,22 @@ DEFAULTS = {
     # tunnel and DNS record for hostname with api_token). origin: the web app as this server reaches it (default
     # LENS_TUNNEL_ORIGIN, else FRONTEND_URL). token and api_token are secrets.
     "tunnel": {"mode": "off", "hostname": "", "token": None, "api_token": None, "origin": ""},
+    # Lens's own private network between its machines, a Nebula mesh (domain/mesh.py, docs/mesh.md). Off until an admin
+    # adds a node. network: the mesh's addresses (the primary is the first); port: the UDP port the primary listens on;
+    # hosts: where other machines reach that port from outside the mesh (host or host:port; none: the address each
+    # joined at); cipher: aes or chachapoly, the same on every machine; cert_days: how long a machine's certificate
+    # lasts (renewed at two thirds); relay: the primary relays for machines that can't reach each other directly
+    "mesh": {
+        "enabled": False,
+        "network": "10.73.0.0/16",
+        "port": 4242,
+        "hosts": [],
+        "cipher": "aes",
+        "cert_days": 30,
+        "relay": True,
+        "mtu": 1300,
+        "log_level": "info",
+    },
     # HTTPS with certificates from Let's Encrypt or ZeroSSL, got and renewed by Caddy run by Lens (domain/https.py). Off
     # by default. domains: the names to serve (and get certificates for); ca: letsencrypt, zerossl, both (Let's Encrypt
     # then ZeroSSL) or custom (ca_url, an ACME directory); challenge: http (ports 80 and 443 reach this machine), tls-alpn
@@ -705,6 +722,11 @@ DEFAULTS = {
     # for none; the newest `keep` scheduled backups are kept. connection: a storage connection (sources.py) every new
     # backup is also copied to, under folder, encrypted with a key from secret.key first (none: kept here only)
     "backups": {"schedule": None, "timezone": "UTC", "keep": 7, "connection": None, "folder": "lens-backups"},
+    # auto scaling (domain/scaling.py, docs/scaling.md): off by default, and a group launches nothing until a person
+    # approves its terms in the web app. tick_seconds: how often the scaler looks; join_minutes: how long a launched
+    # unit may take to join before it's given up on; accrue_minutes: how often a running unit's price goes into the
+    # ledger; tag: the prefix of units' names (and the tag they carry at the provider)
+    "scaling": {"enabled": False, "tick_seconds": 30, "join_minutes": 15, "accrue_minutes": 5, "tag": "lens"},
     "telemetry": {
         "enabled": False,
         "endpoint": None,
@@ -1251,6 +1273,12 @@ SCHEMA = [
     # the Cloudflare tunnel: which process runs cloudflared, and what it's doing (app/domain/tunnel.py); HTTPS: which
     # process runs Caddy (app/domain/https.py)
     "DEFINE TABLE IF NOT EXISTS app_service SCHEMALESS",
+    # the mesh between Lens's machines (domain/mesh.py, docs/mesh.md): its CA (mesh_ca:current, the key sealed), each
+    # machine on it (mesh_node:<n>, the primary among them) and the tokens machines join with (mesh_token:<n>, sealed)
+    "DEFINE TABLE IF NOT EXISTS mesh_ca SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS mesh_node SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS mesh_node_role ON mesh_node FIELDS role",
+    "DEFINE TABLE IF NOT EXISTS mesh_token SCHEMALESS",
     # each namespace's data key, wrapped by the keys that can open it (app/domain/keyring.py)
     "DEFINE TABLE IF NOT EXISTS data_key SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS account SCHEMALESS",
@@ -1333,6 +1361,14 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS activity_resources ON activity FIELDS resources",
     # caps on what a routine, pipeline, workflow or namespace may cost (domain/budgets.py): budget:<table>_<id>
     "DEFINE TABLE IF NOT EXISTS budget SCHEMALESS",
+    # auto scaling (domain/scaling.py): providers with their credentials sealed, groups with their rules and approval,
+    # and each unit launched (a worker machine or a model endpoint), alive or gone
+    "DEFINE TABLE IF NOT EXISTS scale_provider SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS scale_group SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS scale_group_provider ON scale_group FIELDS provider",
+    "DEFINE TABLE IF NOT EXISTS scale_node SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS scale_node_group ON scale_node FIELDS group",
+    "DEFINE INDEX IF NOT EXISTS scale_node_state ON scale_node FIELDS state",
     # background work
     "DEFINE TABLE IF NOT EXISTS job SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_status ON job FIELDS status",

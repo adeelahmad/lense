@@ -17,6 +17,16 @@ const PAGE: Passage = {
   recording_id: null,
   used: true,
 };
+const MAIL: Passage = {
+  n: 3,
+  source: "mail",
+  url: "https://mail.google.com/mail/u/mara@harbour.example/#all/18f2a",
+  site: "Mara's mail",
+  title: "Harbour report",
+  text: "The harbour reopens on Monday.",
+  recording_id: null,
+  used: true,
+};
 const CLIP: Passage = { n: 1, recording_id: 7, title: "Episode 12 — X", t0: 65000, text: "Welcome back.", used: true };
 
 describe("web citations", () => {
@@ -53,5 +63,17 @@ describe("web citations", () => {
     expect(card).toHaveAttribute("target", "_blank");
     expect(card).toHaveTextContent("example.org");
     expect(card).toHaveTextContent("Output doubled over the year.");
+  });
+
+  it("a message from a connected mailbox", () => {
+    expect(isWeb(MAIL)).toBe(true);
+    expect(citeLabel(MAIL)).toBe("Mara's mail · Harbour report");
+    expect(passageHref(MAIL)).toBe("https://mail.google.com/mail/u/mara@harbour.example/#all/18f2a");
+    render(
+      <TooltipProvider>
+        <CitationChip passage={MAIL} n={3} />
+      </TooltipProvider>,
+    );
+    expect(screen.getByRole("link", { name: /Mara's mail · Harbour report/ })).toHaveAttribute("target", "_blank");
   });
 });

@@ -70,6 +70,7 @@ nav:
       - Updates and backups: updates.md
       - Remote access: remote-access.md
       - HTTPS: https.md
+      - Nodes and the mesh: mesh.md
   - Agents and apps:
       - MCP server: mcp.md
       - API: api.md
@@ -106,6 +107,7 @@ nav:
       - Speech providers: speech-providers.md
       - Activity and costs: activity.md
       - Budgets: budgets.md
+      - Auto scaling: scaling.md
   - Operate:
       - Encryption: encryption.md
       - Storage: storage.md

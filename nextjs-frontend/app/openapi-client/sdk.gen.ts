@@ -34,6 +34,9 @@ import type {
   AddPasskeyOptionsData,
   AddPasskeyOptionsResponses,
   AddPasskeyResponses,
+  AddProviderData,
+  AddProviderErrors,
+  AddProviderResponses,
   AddRecordingPermissionData,
   AddRecordingPermissionErrors,
   AddRecordingPermissionResponses,
@@ -59,6 +62,9 @@ import type {
   ApproveAccessRequestData,
   ApproveAccessRequestErrors,
   ApproveAccessRequestResponses,
+  ApproveGroupData,
+  ApproveGroupErrors,
+  ApproveGroupResponses,
   AskGraphData,
   AskGraphErrors,
   AskGraphResponses,
@@ -94,12 +100,21 @@ import type {
   CancelUploadData,
   CancelUploadErrors,
   CancelUploadResponses,
+  ChangeGroupData,
+  ChangeGroupErrors,
+  ChangeGroupResponses,
   ChangeLoginProviderData,
   ChangeLoginProviderErrors,
   ChangeLoginProviderResponses,
+  ChangeNodeData,
+  ChangeNodeErrors,
+  ChangeNodeResponses,
   ChangePasswordData,
   ChangePasswordErrors,
   ChangePasswordResponses,
+  ChangeProviderData,
+  ChangeProviderErrors,
+  ChangeProviderResponses,
   ChatCapabilitiesData,
   ChatCapabilitiesResponses,
   ChatToolsData,
@@ -113,6 +128,9 @@ import type {
   CheckMessageData,
   CheckMessageErrors,
   CheckMessageResponses,
+  CheckProviderData,
+  CheckProviderErrors,
+  CheckProviderResponses,
   CheckUpdatesData,
   CheckUpdatesResponses,
   ClassifyData,
@@ -195,6 +213,9 @@ import type {
   CreateFieldData,
   CreateFieldErrors,
   CreateFieldResponses,
+  CreateGroupData,
+  CreateGroupErrors,
+  CreateGroupResponses,
   CreateHighlightData,
   CreateHighlightErrors,
   CreateHighlightResponses,
@@ -594,6 +615,9 @@ import type {
   GetGraphData,
   GetGraphErrors,
   GetGraphResponses,
+  GetGroupData,
+  GetGroupErrors,
+  GetGroupResponses,
   GetHealthData,
   GetHealthResponses,
   GetInstallData,
@@ -657,6 +681,9 @@ import type {
   GetPodcastData,
   GetPodcastErrors,
   GetPodcastResponses,
+  GetProviderData,
+  GetProviderErrors,
+  GetProviderResponses,
   GetPublicCollectionData,
   GetPublicCollectionErrors,
   GetPublicCollectionResponses,
@@ -778,6 +805,9 @@ import type {
   GraphVerifyFixData,
   GraphVerifyFixResponses,
   GraphVerifyResponses,
+  GroupHistoryData,
+  GroupHistoryErrors,
+  GroupHistoryResponses,
   HideEntityData,
   HideEntityErrors,
   HideEntityResponses,
@@ -826,6 +856,9 @@ import type {
   InstallMarketplacePluginData,
   InstallMarketplacePluginErrors,
   InstallMarketplacePluginResponses,
+  JoinMeshData,
+  JoinMeshErrors,
+  JoinMeshResponses,
   LinkEntityData,
   LinkEntityErrors,
   LinkEntityResponses,
@@ -896,6 +929,8 @@ import type {
   ListDatesData,
   ListDatesErrors,
   ListDatesResponses,
+  ListDriversData,
+  ListDriversResponses,
   ListEntitiesData,
   ListEntitiesErrors,
   ListEntitiesResponses,
@@ -936,6 +971,8 @@ import type {
   ListGraphChangesData,
   ListGraphChangesErrors,
   ListGraphChangesResponses,
+  ListGroupsData,
+  ListGroupsResponses,
   ListHighlightsData,
   ListHighlightsErrors,
   ListHighlightsResponses,
@@ -1006,6 +1043,8 @@ import type {
   ListPodcastsData,
   ListPodcastsErrors,
   ListPodcastsResponses,
+  ListProvidersData,
+  ListProvidersResponses,
   ListReadingsData,
   ListReadingsErrors,
   ListReadingsResponses,
@@ -1072,6 +1111,9 @@ import type {
   ListTopicsData,
   ListTopicsErrors,
   ListTopicsResponses,
+  ListUnitsData,
+  ListUnitsErrors,
+  ListUnitsResponses,
   ListUploadsData,
   ListUploadsResponses,
   ListUsersData,
@@ -1108,6 +1150,9 @@ import type {
   LostPasskeyResponses,
   MailboxStatusData,
   MailboxStatusResponses,
+  MakeMeshTokenData,
+  MakeMeshTokenErrors,
+  MakeMeshTokenResponses,
   MakeSigninLinkData,
   MakeSigninLinkErrors,
   MakeSigninLinkResponses,
@@ -1142,6 +1187,15 @@ import type {
   MergeTopicsData,
   MergeTopicsErrors,
   MergeTopicsResponses,
+  MeshNodesData,
+  MeshNodesResponses,
+  MeshStatusData,
+  MeshStatusResponses,
+  MeshTokensData,
+  MeshTokensResponses,
+  MetricsData,
+  MetricsErrors,
+  MetricsResponses,
   MoveMentionData,
   MoveMentionErrors,
   MoveMentionResponses,
@@ -1159,6 +1213,11 @@ import type {
   NewTokenResponses,
   NfsStatusData,
   NfsStatusResponses,
+  NodeBeatData,
+  NodeBeatErrors,
+  NodeBeatResponses,
+  NodeConfigData,
+  NodeConfigResponses,
   NotSameSpeakerData,
   NotSameSpeakerErrors,
   NotSameSpeakerResponses,
@@ -1168,6 +1227,8 @@ import type {
   OpenRecordingToIpGroupData,
   OpenRecordingToIpGroupErrors,
   OpenRecordingToIpGroupResponses,
+  OverviewData,
+  OverviewResponses,
   PageAboutData,
   PageAboutErrors,
   PageAboutResponses,
@@ -1199,6 +1260,9 @@ import type {
   PasskeySetupOptionsErrors,
   PasskeySetupOptionsResponses,
   PasskeySetupResponses,
+  PauseGroupData,
+  PauseGroupErrors,
+  PauseGroupResponses,
   PinPageData,
   PinPageErrors,
   PinPageResponses,
@@ -1235,6 +1299,9 @@ import type {
   ProposeGraphChangeData,
   ProposeGraphChangeErrors,
   ProposeGraphChangeResponses,
+  ProtectUnitData,
+  ProtectUnitErrors,
+  ProtectUnitResponses,
   PublishToFeedData,
   PublishToFeedErrors,
   PublishToFeedResponses,
@@ -1316,15 +1383,24 @@ import type {
   RemoveFeedItemData,
   RemoveFeedItemErrors,
   RemoveFeedItemResponses,
+  RemoveGroupData,
+  RemoveGroupErrors,
+  RemoveGroupResponses,
   RemoveLocalModelData,
   RemoveLocalModelErrors,
   RemoveLocalModelResponses,
   RemoveLoginProviderData,
   RemoveLoginProviderErrors,
   RemoveLoginProviderResponses,
+  RemoveNodeData,
+  RemoveNodeErrors,
+  RemoveNodeResponses,
   RemovePasskeyData,
   RemovePasskeyErrors,
   RemovePasskeyResponses,
+  RemoveProviderData,
+  RemoveProviderErrors,
+  RemoveProviderResponses,
   RemoveRecordingPermissionData,
   RemoveRecordingPermissionErrors,
   RemoveRecordingPermissionResponses,
@@ -1349,6 +1425,9 @@ import type {
   RenameTokenData,
   RenameTokenErrors,
   RenameTokenResponses,
+  RenewNodeData,
+  RenewNodeErrors,
+  RenewNodeResponses,
   ReprocessRecordingData,
   ReprocessRecordingErrors,
   ReprocessRecordingResponses,
@@ -1382,6 +1461,9 @@ import type {
   RestoreDeletedData,
   RestoreDeletedErrors,
   RestoreDeletedResponses,
+  RestoreNodeData,
+  RestoreNodeErrors,
+  RestoreNodeResponses,
   RestoreVersionData,
   RestoreVersionErrors,
   RestoreVersionResponses,
@@ -1517,6 +1599,9 @@ import type {
   SetCollectionMemberData,
   SetCollectionMemberErrors,
   SetCollectionMemberResponses,
+  SetDesiredData,
+  SetDesiredErrors,
+  SetDesiredResponses,
   SetInstallData,
   SetInstallErrors,
   SetInstallResponses,
@@ -1620,6 +1705,9 @@ import type {
   TemplatesNoteData,
   TemplatesNoteErrors,
   TemplatesNoteResponses,
+  TerminateUnitData,
+  TerminateUnitErrors,
+  TerminateUnitResponses,
   TestAnalyticsData,
   TestAnalyticsResponses,
   TestAutomationData,
@@ -1671,6 +1759,8 @@ import type {
   TestTelemetryResponses,
   TestTikaData,
   TestTikaResponses,
+  TickData,
+  TickResponses,
   TitleChatData,
   TitleChatErrors,
   TitleChatResponses,
@@ -1876,6 +1966,9 @@ import type {
   VaultOptionsResponses,
   VoiceInfoData,
   VoiceInfoResponses,
+  WithdrawMeshTokenData,
+  WithdrawMeshTokenErrors,
+  WithdrawMeshTokenResponses,
   WriteSpecData,
   WriteSpecErrors,
   WriteSpecResponses,
@@ -12604,6 +12697,534 @@ export class Specs {
   ): RequestResult<WriteSpecResponses, WriteSpecErrors, ThrowOnError> {
     return (options.client ?? client).post<WriteSpecResponses, WriteSpecErrors, ThrowOnError>({
       url: "/api/v1/resources/{rid}/spec",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Scaling {
+  /**
+   * Overview
+   *
+   * Everything at a glance: the switch, providers, groups with their units, the drivers on offer, the metrics now.
+   */
+  public static overview<ThrowOnError extends boolean = false>(
+    options?: Options<OverviewData, ThrowOnError>,
+  ): RequestResult<OverviewResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<OverviewResponses, unknown, ThrowOnError>({
+      url: "/api/v1/scaling",
+      ...options,
+    });
+  }
+
+  /**
+   * List Drivers
+   *
+   * The kinds of provider Lens can launch on, with the settings each asks for.
+   */
+  public static listDrivers<ThrowOnError extends boolean = false>(
+    options?: Options<ListDriversData, ThrowOnError>,
+  ): RequestResult<ListDriversResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListDriversResponses, unknown, ThrowOnError>({
+      url: "/api/v1/scaling/drivers",
+      ...options,
+    });
+  }
+
+  /**
+   * Metrics
+   *
+   * The values rules can watch, now.
+   */
+  public static metrics<ThrowOnError extends boolean = false>(
+    options?: Options<MetricsData, ThrowOnError>,
+  ): RequestResult<MetricsResponses, MetricsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<MetricsResponses, MetricsErrors, ThrowOnError>({
+      url: "/api/v1/scaling/metrics",
+      ...options,
+    });
+  }
+
+  /**
+   * List Providers
+   */
+  public static listProviders<ThrowOnError extends boolean = false>(
+    options?: Options<ListProvidersData, ThrowOnError>,
+  ): RequestResult<ListProvidersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListProvidersResponses, unknown, ThrowOnError>({
+      url: "/api/v1/scaling/providers",
+      ...options,
+    });
+  }
+
+  /**
+   * Add Provider
+   *
+   * Add a provider. Its credentials are sealed (never shown again, only whether they're set) and checked with a
+   * read-only call; its library is fetched the first time.
+   */
+  public static addProvider<ThrowOnError extends boolean = false>(
+    options: Options<AddProviderData, ThrowOnError>,
+  ): RequestResult<AddProviderResponses, AddProviderErrors, ThrowOnError> {
+    return (options.client ?? client).post<AddProviderResponses, AddProviderErrors, ThrowOnError>({
+      url: "/api/v1/scaling/providers",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove Provider
+   */
+  public static removeProvider<ThrowOnError extends boolean = false>(
+    options: Options<RemoveProviderData, ThrowOnError>,
+  ): RequestResult<RemoveProviderResponses, RemoveProviderErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveProviderResponses, RemoveProviderErrors, ThrowOnError>({
+      url: "/api/v1/scaling/providers/{pid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Provider
+   */
+  public static getProvider<ThrowOnError extends boolean = false>(
+    options: Options<GetProviderData, ThrowOnError>,
+  ): RequestResult<GetProviderResponses, GetProviderErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetProviderResponses, GetProviderErrors, ThrowOnError>({
+      url: "/api/v1/scaling/providers/{pid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Change Provider
+   */
+  public static changeProvider<ThrowOnError extends boolean = false>(
+    options: Options<ChangeProviderData, ThrowOnError>,
+  ): RequestResult<ChangeProviderResponses, ChangeProviderErrors, ThrowOnError> {
+    return (options.client ?? client).patch<ChangeProviderResponses, ChangeProviderErrors, ThrowOnError>({
+      url: "/api/v1/scaling/providers/{pid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Check Provider
+   *
+   * Prove the provider's credentials with a read-only call: {ok, error?}.
+   */
+  public static checkProvider<ThrowOnError extends boolean = false>(
+    options: Options<CheckProviderData, ThrowOnError>,
+  ): RequestResult<CheckProviderResponses, CheckProviderErrors, ThrowOnError> {
+    return (options.client ?? client).post<CheckProviderResponses, CheckProviderErrors, ThrowOnError>({
+      url: "/api/v1/scaling/providers/{pid}/check",
+      ...options,
+    });
+  }
+
+  /**
+   * List Groups
+   */
+  public static listGroups<ThrowOnError extends boolean = false>(
+    options?: Options<ListGroupsData, ThrowOnError>,
+  ): RequestResult<ListGroupsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListGroupsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/scaling/groups",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Group
+   *
+   * Make a group. From the web app it's approved as it's made (that is your pick); from a token or an app it
+   * waits for a person's approval before it launches anything.
+   */
+  public static createGroup<ThrowOnError extends boolean = false>(
+    options: Options<CreateGroupData, ThrowOnError>,
+  ): RequestResult<CreateGroupResponses, CreateGroupErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateGroupResponses, CreateGroupErrors, ThrowOnError>({
+      url: "/api/v1/scaling/groups",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove Group
+   *
+   * Remove a group: its units are terminated first.
+   */
+  public static removeGroup<ThrowOnError extends boolean = false>(
+    options: Options<RemoveGroupData, ThrowOnError>,
+  ): RequestResult<RemoveGroupResponses, RemoveGroupErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveGroupResponses, RemoveGroupErrors, ThrowOnError>({
+      url: "/api/v1/scaling/groups/{gid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Group
+   */
+  public static getGroup<ThrowOnError extends boolean = false>(
+    options: Options<GetGroupData, ThrowOnError>,
+  ): RequestResult<GetGroupResponses, GetGroupErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetGroupResponses, GetGroupErrors, ThrowOnError>({
+      url: "/api/v1/scaling/groups/{gid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Change Group
+   *
+   * Change a group. A change that widens its approved terms (another provider or unit, a higher max or budget)
+   * takes the approval away until a person gives it again, unless it's made from the web app.
+   */
+  public static changeGroup<ThrowOnError extends boolean = false>(
+    options: Options<ChangeGroupData, ThrowOnError>,
+  ): RequestResult<ChangeGroupResponses, ChangeGroupErrors, ThrowOnError> {
+    return (options.client ?? client).patch<ChangeGroupResponses, ChangeGroupErrors, ThrowOnError>({
+      url: "/api/v1/scaling/groups/{gid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Approve Group
+   *
+   * Approve the group's terms as they stand: a person's pick, from a signed-in session only (403 otherwise).
+   */
+  public static approveGroup<ThrowOnError extends boolean = false>(
+    options: Options<ApproveGroupData, ThrowOnError>,
+  ): RequestResult<ApproveGroupResponses, ApproveGroupErrors, ThrowOnError> {
+    return (options.client ?? client).post<ApproveGroupResponses, ApproveGroupErrors, ThrowOnError>({
+      url: "/api/v1/scaling/groups/{gid}/approve",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Desired
+   *
+   * Ask for a number of units now, within the group's min and max.
+   */
+  public static setDesired<ThrowOnError extends boolean = false>(
+    options: Options<SetDesiredData, ThrowOnError>,
+  ): RequestResult<SetDesiredResponses, SetDesiredErrors, ThrowOnError> {
+    return (options.client ?? client).post<SetDesiredResponses, SetDesiredErrors, ThrowOnError>({
+      url: "/api/v1/scaling/groups/{gid}/desired",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Pause Group
+   *
+   * Pause a group (nothing new launches; what runs stays) or resume it.
+   */
+  public static pauseGroup<ThrowOnError extends boolean = false>(
+    options: Options<PauseGroupData, ThrowOnError>,
+  ): RequestResult<PauseGroupResponses, PauseGroupErrors, ThrowOnError> {
+    return (options.client ?? client).post<PauseGroupResponses, PauseGroupErrors, ThrowOnError>({
+      url: "/api/v1/scaling/groups/{gid}/pause",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Group History
+   *
+   * What happened to the group: launches, joins, terminations, changes and the cost it accrued (the ledger).
+   */
+  public static groupHistory<ThrowOnError extends boolean = false>(
+    options: Options<GroupHistoryData, ThrowOnError>,
+  ): RequestResult<GroupHistoryResponses, GroupHistoryErrors, ThrowOnError> {
+    return (options.client ?? client).get<GroupHistoryResponses, GroupHistoryErrors, ThrowOnError>({
+      url: "/api/v1/scaling/groups/{gid}/history",
+      ...options,
+    });
+  }
+
+  /**
+   * List Units
+   */
+  public static listUnits<ThrowOnError extends boolean = false>(
+    options?: Options<ListUnitsData, ThrowOnError>,
+  ): RequestResult<ListUnitsResponses, ListUnitsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListUnitsResponses, ListUnitsErrors, ThrowOnError>({
+      url: "/api/v1/scaling/units",
+      ...options,
+    });
+  }
+
+  /**
+   * Protect Unit
+   *
+   * Keep a unit out of scale-in (or let it go again).
+   */
+  public static protectUnit<ThrowOnError extends boolean = false>(
+    options: Options<ProtectUnitData, ThrowOnError>,
+  ): RequestResult<ProtectUnitResponses, ProtectUnitErrors, ThrowOnError> {
+    return (options.client ?? client).post<ProtectUnitResponses, ProtectUnitErrors, ThrowOnError>({
+      url: "/api/v1/scaling/units/{nid}/protect",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Terminate Unit
+   *
+   * Let a unit go now: a running worker drains first, so its job is handed back.
+   */
+  public static terminateUnit<ThrowOnError extends boolean = false>(
+    options: Options<TerminateUnitData, ThrowOnError>,
+  ): RequestResult<TerminateUnitResponses, TerminateUnitErrors, ThrowOnError> {
+    return (options.client ?? client).post<TerminateUnitResponses, TerminateUnitErrors, ThrowOnError>({
+      url: "/api/v1/scaling/units/{nid}/terminate",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Tick
+   *
+   * Run one pass of the scaler now, in this process (the scheduled one carries on): what it did.
+   */
+  public static tick<ThrowOnError extends boolean = false>(
+    options?: Options<TickData, ThrowOnError>,
+  ): RequestResult<TickResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TickResponses, unknown, ThrowOnError>({
+      url: "/api/v1/scaling/tick",
+      ...options,
+    });
+  }
+}
+
+export class Mesh {
+  /**
+   * Mesh Status
+   *
+   * Whether the mesh is on, its network and port, where other machines reach it, its CA and how many machines are
+   * on it.
+   */
+  public static meshStatus<ThrowOnError extends boolean = false>(
+    options?: Options<MeshStatusData, ThrowOnError>,
+  ): RequestResult<MeshStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<MeshStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/mesh",
+      ...options,
+    });
+  }
+
+  /**
+   * Mesh Nodes
+   *
+   * Every machine: this one (the primary) first, then each node with its role, address, certificate, last report
+   * and the workers running on it. Removed nodes are listed too, with when.
+   */
+  public static meshNodes<ThrowOnError extends boolean = false>(
+    options?: Options<MeshNodesData, ThrowOnError>,
+  ): RequestResult<MeshNodesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<MeshNodesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/mesh/nodes",
+      ...options,
+    });
+  }
+
+  /**
+   * Remove Node
+   *
+   * Take a node off the mesh: its certificates go on every machine's blocklist and its credentials stop working.
+   * POST /mesh/nodes/{id}/restore undoes it while its certificate is good.
+   */
+  public static removeNode<ThrowOnError extends boolean = false>(
+    options: Options<RemoveNodeData, ThrowOnError>,
+  ): RequestResult<RemoveNodeResponses, RemoveNodeErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveNodeResponses, RemoveNodeErrors, ThrowOnError>({
+      url: "/api/v1/mesh/nodes/{node_id}",
+      ...options,
+    });
+  }
+
+  /**
+   * Change Node
+   *
+   * Rename a node, or change the namespaces it serves (its certificate's groups follow when it next renews).
+   */
+  public static changeNode<ThrowOnError extends boolean = false>(
+    options: Options<ChangeNodeData, ThrowOnError>,
+  ): RequestResult<ChangeNodeResponses, ChangeNodeErrors, ThrowOnError> {
+    return (options.client ?? client).patch<ChangeNodeResponses, ChangeNodeErrors, ThrowOnError>({
+      url: "/api/v1/mesh/nodes/{node_id}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Restore Node
+   *
+   * Undo removing a node.
+   */
+  public static restoreNode<ThrowOnError extends boolean = false>(
+    options: Options<RestoreNodeData, ThrowOnError>,
+  ): RequestResult<RestoreNodeResponses, RestoreNodeErrors, ThrowOnError> {
+    return (options.client ?? client).post<RestoreNodeResponses, RestoreNodeErrors, ThrowOnError>({
+      url: "/api/v1/mesh/nodes/{node_id}/restore",
+      ...options,
+    });
+  }
+
+  /**
+   * Mesh Tokens
+   *
+   * Join tokens that can still be used (their secrets are shown only when made).
+   */
+  public static meshTokens<ThrowOnError extends boolean = false>(
+    options?: Options<MeshTokensData, ThrowOnError>,
+  ): RequestResult<MeshTokensResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<MeshTokensResponses, unknown, ThrowOnError>({
+      url: "/api/v1/mesh/tokens",
+      ...options,
+    });
+  }
+
+  /**
+   * Make Mesh Token
+   *
+   * Add a node: a token another machine joins the mesh with, shown this once. Makes the mesh's CA the first time,
+   * and turns the mesh on.
+   */
+  public static makeMeshToken<ThrowOnError extends boolean = false>(
+    options: Options<MakeMeshTokenData, ThrowOnError>,
+  ): RequestResult<MakeMeshTokenResponses, MakeMeshTokenErrors, ThrowOnError> {
+    return (options.client ?? client).post<MakeMeshTokenResponses, MakeMeshTokenErrors, ThrowOnError>({
+      url: "/api/v1/mesh/tokens",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Withdraw Mesh Token
+   *
+   * Withdraw a join token: no machine can join with it any more (those that did stay).
+   */
+  public static withdrawMeshToken<ThrowOnError extends boolean = false>(
+    options: Options<WithdrawMeshTokenData, ThrowOnError>,
+  ): RequestResult<WithdrawMeshTokenResponses, WithdrawMeshTokenErrors, ThrowOnError> {
+    return (options.client ?? client).delete<WithdrawMeshTokenResponses, WithdrawMeshTokenErrors, ThrowOnError>({
+      url: "/api/v1/mesh/tokens/{token_id}",
+      ...options,
+    });
+  }
+
+  /**
+   * Join Mesh
+   *
+   * A machine joins the mesh with a join token, without sending it: the token's id, the machine's public key, and
+   * an HMAC of the request keyed with the token's secret. The answer is sealed with a key from that secret
+   * (docs/mesh.md, Joining). Too many wrong tries from one address are turned away for a while.
+   */
+  public static joinMesh<ThrowOnError extends boolean = false>(
+    options: Options<JoinMeshData, ThrowOnError>,
+  ): RequestResult<JoinMeshResponses, JoinMeshErrors, ThrowOnError> {
+    return (options.client ?? client).post<JoinMeshResponses, JoinMeshErrors, ThrowOnError>({
+      url: "/api/v1/mesh/join",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Node Config
+   *
+   * The calling node's Nebula config as it is now (the blocklist, the lighthouse's addresses): it reloads when the
+   * version changes.
+   */
+  public static nodeConfig<ThrowOnError extends boolean = false>(
+    options?: Options<NodeConfigData, ThrowOnError>,
+  ): RequestResult<NodeConfigResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<NodeConfigResponses, unknown, ThrowOnError>({
+      url: "/api/v1/mesh/node/config",
+      ...options,
+    });
+  }
+
+  /**
+   * Renew Node
+   *
+   * A new certificate for the calling node's public key, with the groups it has now.
+   */
+  public static renewNode<ThrowOnError extends boolean = false>(
+    options: Options<RenewNodeData, ThrowOnError>,
+  ): RequestResult<RenewNodeResponses, RenewNodeErrors, ThrowOnError> {
+    return (options.client ?? client).post<RenewNodeResponses, RenewNodeErrors, ThrowOnError>({
+      url: "/api/v1/mesh/node/renew",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Node Beat
+   *
+   * The calling node's report, every minute: Nebula, its peers, its machine.
+   */
+  public static nodeBeat<ThrowOnError extends boolean = false>(
+    options: Options<NodeBeatData, ThrowOnError>,
+  ): RequestResult<NodeBeatResponses, NodeBeatErrors, ThrowOnError> {
+    return (options.client ?? client).post<NodeBeatResponses, NodeBeatErrors, ThrowOnError>({
+      url: "/api/v1/mesh/node/beat",
       ...options,
       headers: {
         "Content-Type": "application/json",

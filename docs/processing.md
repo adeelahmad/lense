@@ -793,3 +793,31 @@ Every change is recorded (`GET /api/v1/graph-changes`): editors of the namespace
 proposals (dismissing says the two are different, so the pair isn't suggested again) and undo applied changes; an
 admin can undo everything a run applied at once (`POST /api/v1/routine-runs/{id}/undo`). Merges are undone exactly as
 from an entity's page.
+
+### Publishing from the graph
+
+Graph workflows also publish, so a routine fills a [feed](feeds.md) or makes a [podcast episode](podcasts.md) on a
+schedule. Their nodes:
+
+- **Select assets** passes on the resources in the routine's namespaces (or the *namespaces* named), newest first,
+  *limit* at most (50, up to 500): those that came in *since* the routine's last run (the default; on its first run,
+  the past week), or in the past *day*, *week* or *month*, or *all* of them; matching *q* (words in the title),
+  *topics*, *entities* and *status*. Podcast episodes are left out unless *include episodes* is on, so an episode about
+  the week's resources isn't a source for the next one.
+- **Select activities** passes on the [timeline](timeline.md)'s activities in those namespaces, of the *kinds* named
+  (with their descendants), *since* the same choices, matching *q* and a *where* match tree, newest first, *limit* at
+  most (50, up to 200). Only what everyone who reads the namespace sees, never someone's own.
+- **Publish to feed** adds what comes in to the *feed*: resources and episodes, activities, or text (a template
+  node's output becomes a text item, with the node's *title*). What's in the feed already isn't added again, so a
+  routine that runs again adds only what's new; what the feed's readers couldn't read is refused and said in the run's
+  log. The feed's namespace is one the routine covers.
+- **Podcast episode** makes an episode about the resources that come in (*max sources*, 10, of those with text; none
+  under *min sources*), with the *title*, *prompt*, *length* and *style* of [Podcasts](podcasts.md), placed in the
+  *namespace* named, else the *feed*'s, else where an admin's episode goes; a source its readers couldn't read is left
+  out. With a *feed*, the episode is added to it and listed once it's made.
+
+A run's result counts what was `published` and the `episodes` made, and its log says what each node did. Try on the
+canvas runs a graph workflow over the namespaces you pick and says what each node would do, without publishing. So
+Select assets → Podcast episode (feed *Weekly*, length 10) on a routine that runs every Monday makes an episode about
+the week's new resources and puts it in your podcast app; Select activities (kinds `asset.added`) → Publish to feed
+puts the timeline in your feed reader.
