@@ -151,6 +151,8 @@ def _table(parts, i):
         return "note_page"
     if parts[i] == "runs" and i and parts[i - 1] == "automations":
         return "automation_run"
+    if i and parts[i - 1] == "scaling" and parts[i] in ("providers", "groups", "units"):  # auto scaling (scaling.py)
+        return {"providers": "scale_provider", "groups": "scale_group", "units": "scale_node"}[parts[i]]
     return TABLES.get(parts[i])
 
 
