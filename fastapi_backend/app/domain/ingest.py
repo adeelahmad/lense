@@ -351,14 +351,18 @@ class Whisper:
             raise EngineMissing(f"{name} isn't installed: uv sync --extra {'mlx' if mlx else 'whisper'}") from e
 
     def transcribe(self, audio, terms=()):
-        """The segments; `terms` (vocabulary.py) go in as the prompt, the names Whisper should expect."""
+        """The segments, in the language set in Settings or, with none set, the one Whisper heard (so the recording's
+        language is kept either way); `terms` (vocabulary.py) go in as the prompt, the names Whisper should expect."""
         hint = {"initial_prompt": vocabulary.prompt(terms)} if terms else {}
         if self.mlx:
-            segs = self.m.transcribe(audio, path_or_hf_repo=self.repo, word_timestamps=True, language=self.lang, **hint)["segments"]
+            got = self.m.transcribe(audio, path_or_hf_repo=self.repo, word_timestamps=True, language=self.lang, **hint)
+            heard, segs = got.get("language"), got["segments"]
             rows = [(s["start"], s["end"], s["text"], [(w["word"], w["start"], w["end"]) for w in s.get("words") or []]) for s in segs]
         else:
-            segs, _ = self.m.transcribe(audio, vad_filter=True, word_timestamps=True, language=self.lang, **hint)
+            segs, info = self.m.transcribe(audio, vad_filter=True, word_timestamps=True, language=self.lang, **hint)
+            heard = getattr(info, "language", None)
             rows = [(s.start, s.end, s.text, [(w.word, w.start, w.end) for w in (s.words or [])]) for s in segs]
+        lang = self.lang or (str(heard).lower() if heard else None)
         return [
             {
                 "t0": int(a * 1000),
@@ -367,7 +371,7 @@ class Whisper:
                 "raw_text": None,
                 "emotion": None,
                 "event": None,
-                "lang": self.lang,
+                "lang": lang,
                 "words": json.dumps([[w.strip(), int(p * 1000), int(q * 1000)] for w, p, q in ws]),
             }
             for a, b, x, ws in rows
