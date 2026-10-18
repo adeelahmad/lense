@@ -176,6 +176,7 @@ class NfsStatus(ResponseModel):
     process: str | None = Field(None, description="the worker running it")
     mount: str = Field(description="the command that mounts it on Linux")
     rclone: bool = Field(description="whether rclone is installed here")
+    add_files: bool = Field(False, description="whether files written to the share are imported (nfs.add_files); off: read-only")
 
 
 class Removed(ResponseModel):

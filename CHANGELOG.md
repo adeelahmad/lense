@@ -11,6 +11,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   one stops the old address at once, and the feed asks directories and search engines not to list it. Editors make and
   fill feeds with `POST /api/v1/feeds` and `POST /api/v1/feeds/{id}/items`; agents use the MCP tools `list_feeds`,
   `create_feed` and `publish_to_feed` ([Published feeds](docs/feeds.md)).
+- **Deep research.** Give the assistant a goal (`/research <goal>`, `research: true` on a question, `POST
+  /api/v1/chats/<id>/research`, its `start_research` tool, or MCP) and it plans the research: up to three follow-up
+  questions, the sub-questions, where it looks (the archive, the graph, notes, the web, the code sandbox), the tool
+  calls it may make, the report's outline, and a labelled cost estimate. Approve the plan as it is or edited, revise
+  it, or say "yes" in a chat room; an API key or an app only declines it unless `research.agents_skip_review` is on.
+  It runs in the background, one run per person at a time, within its tool calls, `research.max_minutes` and your
+  budgets, survives a restart, and stops when asked; the cited report comes back in the conversation, its claims
+  checked against their sources, and saves as a note or makes a podcast episode. The web app's plan and progress
+  cards are in progress ([Deep research](docs/assistant.md#deep-research)).
 - **Read any message aloud.** Every question and answer in a conversation has a speaker button: one click reads it
   aloud by the speech model and voice picked in Settings → AI assistant → Voice (else the browser's own speech),
   another stops it. One message plays at a time, long answers go in pieces under every provider's limit, and each
@@ -22,6 +31,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   question's words. A title someone gives it is kept. `title_by` says who titled it, `POST /api/v1/chats/<id>/title`
   and the MCP tool `rename_chat` (without a title) have Lens title it again, and `rename_chat` with a title renames it.
   Settings → AI assistant → Title conversations (on) turns it off ([Titles](docs/assistant.md#titles)).
+- **More tests for automations' conditions.** An If, a trigger's where and a condition node can now test that text
+  starts or ends with something or matches a pattern, that a value is in a list, that a number or a time is between
+  two, before or after a time or within a duration, falls on certain days or times of day, and whether a value changed
+  since the last activity. Each value is checked when it's saved, and patterns that could tie up the worker are refused
+  ([Operators](docs/automations.md#operators)).
 - **Specs from transcripts.** Turn a voice session or a meeting into a technical spec, saved as a note linked to it:
   the model writes the spec, then lists every named decision, every "no" and "not that, this", every constraint and
   every gap the speaker left to decide later, each with its quote and a link to the moment it was said; a quote the
@@ -41,6 +55,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   sign-in link from email or an admin. Now Profile and sign-in › Passkeys lists Lens's other addresses with **Open
   signed in**, which opens one with a 15-minute sign-in link of your own, where one fingerprint adds a passkey for it
   ([Authentication](docs/authentication.md#signing-in-passkeys)).
+- **Files added over NFS are imported.** A file copied into a collection's folder on the NFS share is imported a moment
+  after it's closed, as the account the share shows the tree as (`nfs.account`), with the same checks as an upload.
+  rclone keeps files being written in a cache on Lens's disk and puts them to Lens once they're closed; a file Lens
+  can't take shows in the share's log. **Import files people add** in Settings, NFS share (`nfs.add_files`, on) turns it
+  off and serves the share read-only again ([Adding files](docs/file-shares.md#adding-files)).
 - **Export a conversation.** `GET /api/v1/chats/<id>/export.md`, `.pdf` or `.json` gives the version showing, one
   message (`?message=`) or, as JSON, every version (`?all=true`). The Markdown has each question and answer, its
   citations as footnotes linking back to the moment in Lens and the tools it used; the PDF is that Markdown printed by

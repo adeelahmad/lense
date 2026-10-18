@@ -322,6 +322,10 @@ DEFAULTS = {
     # searxng_url; brave and tavily need api_key. results: per search; read_chars: of a page's text the model reads;
     # render: a page that comes back nearly empty is loaded with Chromium (scripts run), when Chromium is installed
     "web": {"search": "off", "searxng_url": None, "api_key": None, "results": 5, "read_chars": 20000, "render": False},
+    # deep research (research.py, docs/assistant.md#deep-research): the most tool calls a plan may make, the minutes
+    # a run may take before it writes its report with what it found, a model for it (null: the conversation's), and
+    # whether an agent (an API key, an app, MCP) may start a run without the person reviewing its plan
+    "research": {"max_tool_calls": 40, "max_minutes": 20, "model": None, "agents_skip_review": False},
     # talking to Lens (voice.py): input auto uses the server's speech-to-text engine when it has one, else the
     # browser's; spoken answers come from tts_model (an OpenAI-compatible /audio/speech), else the browser reads them
     # stt: the engine that hears voice chat ("same": the transcription engine); tts_provider: who reads answers aloud
@@ -600,6 +604,7 @@ DEFAULTS = {
         "port": 2049,
         "allowed_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "fc00::/7", "::1/128"],
         "account": None,
+        "add_files": True,  # files written to the share are imported, as `account` (share_import.py); off: read-only
     },
     # the graph as files over S3 and WebDAV (shares.py, docs/file-tree.md): off until an admin turns it on. Then the process
     # that runs routines (`lens worker`) serves it on these ports; add_files imports the files people add to it
@@ -1339,6 +1344,12 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS event_cursor SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS event_claim SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS event_claim_at ON event_claim FIELDS at",
+    # what automations keep between activities (domain/match.py): the last value a `changed` test saw, joins waiting
+    # for their other triggers and decide answers (automation_state:<hash>), and how many went to make room
+    "DEFINE TABLE IF NOT EXISTS automation_state SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS automation_state_automation ON automation_state FIELDS automation, at",
+    "DEFINE INDEX IF NOT EXISTS automation_state_expires ON automation_state FIELDS expires_at",
+    "DEFINE TABLE IF NOT EXISTS automation_state_dropped SCHEMALESS",
     # an automation trigger's webhook (domain/automation_hooks.py): automation_hook:<n>, the token kept only as a hash
     "DEFINE TABLE IF NOT EXISTS automation_hook SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS automation_hook_token ON automation_hook FIELDS token_hash UNIQUE",
@@ -1491,6 +1502,12 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS browser_action_session ON browser_action FIELDS session, state",
     # each conversation's code sandbox on the OpenShell gateway (sandbox.py): its name, settings and last use
     "DEFINE TABLE IF NOT EXISTS code_sandbox SCHEMALESS",
+    # deep research (research.py): a goal's plan, its run's progress and report; research_run:<id> is the claim of
+    # the process carrying a run out, with its heartbeat
+    "DEFINE TABLE IF NOT EXISTS research SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS research_account ON research FIELDS account, status",
+    "DEFINE INDEX IF NOT EXISTS research_chat ON research FIELDS chat",
+    "DEFINE TABLE IF NOT EXISTS research_run SCHEMALESS",
     # files a conversation's sandbox handed the person to download (sandbox.share), kept with the conversation
     "DEFINE TABLE IF NOT EXISTS chat_file SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS chat_file_chat ON chat_file FIELDS chat",

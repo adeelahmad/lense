@@ -17,7 +17,7 @@ from app.domain import nfs_share, settings, share_relay
 FAKE_RCLONE = """#!{python}
 import socketserver, sys
 args = sys.argv[1:]
-assert args[:2] == ["serve", "nfs"] and "--read-only" in args, args
+assert args[:2] == ["serve", "nfs"], args
 host, port = args[args.index("--addr") + 1].rsplit(":", 1)
 
 class Echo(socketserver.BaseRequestHandler):
@@ -86,7 +86,7 @@ def test_settings_are_checked(db, cfg):
     settings.save(db, cfg, "nfs", {"enabled": True, "allowed_networks": ["192.168.1.7", "192.168.1.0/24", "192.168.1.7/32"]}, "t")
     assert settings.Settings(db, cfg).current()["nfs"]["allowed_networks"] == ["192.168.1.7/32", "192.168.1.0/24"]
     for bad in ({"allowed_networks": []}, {"allowed_networks": ["0.0.0.0/0"]}, {"allowed_networks": ["nope"]},
-                {"port": 0}, {"enabled": "yes"}, {"account": "me"}, {"bind": "0.0.0.0"}):  # fmt: skip
+                {"port": 0}, {"enabled": "yes"}, {"account": "me"}, {"bind": "0.0.0.0"}, {"add_files": "yes"}):  # fmt: skip
         with pytest.raises(ValueError):
             settings.save(db, cfg, "nfs", bad, "t")
 
@@ -116,9 +116,16 @@ def test_the_runner_follows_the_setting(db, cfg, folder, monkeypatch):
         assert run.phase == "running", (run.error, run.lines)
         assert seen["account"] == "ad@x.io"  # nobody picked: the first admin
         assert "s3cret" not in " ".join(run.proc.args)  # the key isn't on the command line
+        assert "--read-only" not in run.proc.args and "writes" in run.proc.args  # files written to it are imported
+        assert ",ro " not in nfs_share.status(db, s.current())["mount"]
         assert echo(port) == b"ping"
         st = nfs_share.status(db, s.current())
         assert st["phase"] == "running" and st["account"] == "ad@x.io" and st["process"] == "test"
+
+        settings.save(db, cfg, "nfs", {"add_files": False}, "t")  # read-only: rclone starts again without writes
+        run.tick()
+        assert run.phase == "running" and "--read-only" in run.proc.args and nfs_share.status(db, s.current())["add_files"] is False
+        assert echo(port) == b"ping"
 
         settings.save(db, cfg, "nfs", {"allowed_networks": ["10.0.0.0/8"]}, "t")
         run.tick()
@@ -129,7 +136,7 @@ def test_the_runner_follows_the_setting(db, cfg, folder, monkeypatch):
         settings.save(db, cfg, "nfs", {"enabled": False}, "t")
         run.tick()
         assert run.proc is None and run.relay is None
-        assert len(revoked) == 1  # its S3 key goes once the share stops
+        assert len(revoked) == 2  # its S3 key goes when it starts again read-only, and once the share stops
         assert nfs_share.status(db, s.current())["phase"] == "off"
         with pytest.raises(OSError):
             socket.create_connection(("127.0.0.1", port), timeout=1).close()

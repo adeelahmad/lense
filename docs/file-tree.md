@@ -3,14 +3,14 @@
 Lens shows its graph as an ordinary tree of folders and files: graph nodes (collections, topics, entities) are
 folders, nested along the graph's links, and every asset (a recording, document or image) is a few files inside the
 folders it belongs to, its metadata in a sidecar beside it. Agents and tools that already understand files can read
-Lens without learning its API, and add to it the same way: a file copied into a collection's folder over S3, WebDAV or
-SMB is imported there ([Adding files](#adding-files)).
+Lens without learning its API, and add to it the same way: a file copied into a collection's folder over S3, WebDAV,
+SMB or NFS is imported there ([Adding files](#adding-files)).
 
 | Where | Status |
 | --- | --- |
 | The API (`GET /api/v1/tree`, `GET /api/v1/tree/file`) and the MCP tools `list_files` and `read_file` | built |
 | An [S3 server](#s3) and a [WebDAV server](#webdav) (off until turned on); files added through them are imported | built |
-| An [NFS share](file-shares.md) (read-only, off until turned on, allowed networks only) | built |
+| An [NFS share](file-shares.md) (off until turned on, allowed networks only); files added through it are imported | built |
 | An [SMB share](smb.md) (off until turned on); files added through it are imported | built |
 
 Every way in serves the same tree, built by `app/domain/filetree.py`.
@@ -47,7 +47,8 @@ Names are made safe for every file system: `/ \ : * ? " < > |` and control chara
 Exactly what the web app shows them ([Access](access.md)): an admin sees every namespace; others see the namespaces
 they have a role in, and in a namespace where they only have roles on some collections, those collections and the
 topics and entities of the assets in them (with the topics broader than those). Anything else answers "not found". The API only
-reads; files are added through the [S3](#s3) and [WebDAV](#webdav) servers and the [SMB share](smb.md).
+reads; files are added through the [S3](#s3) and [WebDAV](#webdav) servers and the [SMB](smb.md) and
+[NFS](file-shares.md) shares.
 
 ## The API
 
@@ -118,7 +119,8 @@ behind TLS on a network you don't trust.
 
 ## Adding files
 
-A file copied into the tree over S3, WebDAV or [SMB](smb.md) is imported, as an upload in the web app is: the same checks of its type
+A file copied into the tree over S3, WebDAV, [SMB](smb.md) or [NFS](file-shares.md) is imported, as an upload in the
+web app is: the same checks of its type
 and size (Settings, Uploads), the namespace's pipeline, and the same file twice is added once. Where it's put decides
 where it goes:
 
@@ -144,7 +146,8 @@ kept on the uploads disk, in memory per worker, so a restart forgets them.
 
 Adding files is on whenever the shares are; turn it off in Settings, File shares (**Import files people add**,
 `shares.add_files`) and they're read-only again. `GET /api/v1/shares/s3` says whether it's on (`add_files`). The SMB
-share has its own switch (`smb.add_files`, on). The [NFS](file-shares.md) share stays read-only for now.
+and NFS shares have their own switches (`smb.add_files` and `nfs.add_files`, on); NFS adds files as the account it
+shows the tree as, since NFS has no login.
 
 ## At the web app's address
 

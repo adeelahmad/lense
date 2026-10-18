@@ -33,6 +33,7 @@ from . import (
     ops_tools,
     recsets,
     render,
+    research as researchmod,
     sandbox as sandboxmod,
     search as searchmod,
     browser as browsermod,
@@ -541,6 +542,7 @@ def builtin_names():
         + AUTOMATION_TOOLS
         + browsermod.TOOLS
         + sandboxmod.TOOLS
+        + researchmod.TOOLS
     )
     return {t[0] for t in every + webmod.TOOLS} | {"use_skill"}
 
@@ -564,7 +566,14 @@ OWN_RESULTS = {
     "decline_approval",
 } | {
     t[0]
-    for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS + AUTOMATION_TOOLS + sandboxmod.TOOLS
+    for t in TOOLS
+    + ops_tools.ADMIN_TOOLS
+    + ops_tools.FILE_TOOLS
+    + AUTHOR_TOOLS
+    + MEMORY_TOOLS
+    + AUTOMATION_TOOLS
+    + sandboxmod.TOOLS
+    + researchmod.TOOLS
     if t[4]
 }
 
@@ -620,6 +629,7 @@ GROUPS = {
     },
     "files": {"label": "Importing files", "tools": [t[0] for t in ops_tools.FILE_TOOLS]},
     "code": {"label": "Code sandbox", "tools": [t[0] for t in sandboxmod.TOOLS]},
+    "research": {"label": "Deep research", "tools": [t[0] for t in researchmod.TOOLS]},
     "extensions": {"label": "Extensions and skills", "tools": [t[0] for t in AUTHOR_TOOLS] + ["use_skill"]},
     "server": {"label": "The server", "tools": [t[0] for t in ops_tools.ADMIN_TOOLS]},
     "browser": {"label": "Your browser", "tools": [t[0] for t in browsermod.TOOLS]},
@@ -644,6 +654,8 @@ def _why_missing(group, cfg):
         return "the code sandbox is off", "sandbox.enabled"
     if group == "code" and sandboxmod.settings(cfg)["who"] == "admins":
         return "for admins", "sandbox.who"
+    if group == "research" and researchmod.unavailable(cfg):
+        return researchmod.unavailable(cfg)
     if group == "extensions" and not cfg["ai"].get("extensions", True):
         return "switched off by an admin", "ai.extensions"
     if all(t in off for t in GROUPS[group]["tools"]):
@@ -680,6 +692,8 @@ def catalog(box):
         offered |= {t for t in GROUPS["browser"]["tools"] if t not in off}
     if sandboxmod.offered(box.cfg, box.admin, bool(box.editable)):  # every conversation of theirs has its sandbox
         offered |= {t for t in GROUPS["code"]["tools"] if t not in off}
+    if researchmod.available(box.cfg):  # every conversation of theirs can start research
+        offered |= {t for t in GROUPS["research"]["tools"] if t not in off}
     # code that can reach another host can carry out what it's given
     runs_out = {"run_python", "run_bash"} if sandboxmod.sends_out(box.cfg) else set()
     built = {
@@ -692,6 +706,7 @@ def catalog(box):
         + AUTOMATION_TOOLS
         + sandboxmod.TOOLS
         + webmod.TOOLS
+        + researchmod.TOOLS
     }
     out = []
     for name, g in GROUPS.items():
@@ -732,7 +747,9 @@ class Toolbox(ops_tools.OpsTools):
     `account`: the person an automation acts for, when `user` is the automation itself (automation:<id>,
     the by of what it writes): their approvals, extensions, view of the timeline and marks on it; `origin` ({automation, run,
     node}) is kept on the approvals it asks for. `only`: the groups (GROUPS, an extension's mcp:<name> or ext:<name>)
-    and tools the question was given (None: every tool this person may use; an admin's switch still wins)."""
+    and tools the question was given (None: every tool this person may use; an admin's switch still wins).
+    `allowed_out`: tools that send data out of Lens and don't ask first even after the answer read outside text,
+    because the person already approved them for this work (an approved research plan's web search, research.py)."""
 
     def __init__(
         self,
@@ -753,9 +770,11 @@ class Toolbox(ops_tools.OpsTools):
         account=None,
         origin=None,
         only=None,
+        allowed_out=(),
     ):
         self.db, self.cfg, self.user, self.chat, self.said = db, cfg, user, chat_id, said
         self.only = None if only is None else set(only)
+        self.allowed_out = set(allowed_out or ())
         self.account, self.origin = user["id"] if account is None else account, origin
         # where this answer has read text from outside Lens so far (`outside`: before any tool ran, such as the page it
         # was asked from or a chat room's message): once it has, tools that send data out of Lens or change the server
@@ -870,6 +889,8 @@ class Toolbox(ops_tools.OpsTools):
             tools += sandboxmod.TOOLS
         if self.web:
             tools += webmod.TOOLS
+        if self.chat is not None and researchmod.available(self.cfg):
+            tools += researchmod.TOOLS
         if self.ext:
             tools += self.ext.tool_specs(can_act or self.admin)
         keep = self.chosen()
@@ -1102,7 +1123,7 @@ class Toolbox(ops_tools.OpsTools):
     def _sandbox_run(self, kind, source, files):
         source = str(source or "")
         files = [str(f) for f in ([files] if isinstance(files, str) else files or [])]
-        if sandboxmod.sends_out(self.cfg) and self.wary():
+        if sandboxmod.sends_out(self.cfg) and self.wary() and f"run_{kind}" not in self.allowed_out:
             # code that reaches another host can carry out what the answer read: after text from outside Lens, which
             # may have put it there, a run asks first
             first = next((x.strip() for x in source.splitlines() if x.strip()), "")[:80]
@@ -1142,8 +1163,9 @@ class Toolbox(ops_tools.OpsTools):
     def _web(self, tool, args, what, own):
         """A web search or page read, as (what it found, None), or (None, the approval it waits for): the words or the
         address leave the machine, so once this answer has read text from outside Lens, which may have put them there,
-        it asks first, unless the person wrote them (`own`) or already approved the same call in this conversation."""
-        if own or not self.wary():
+        it asks first, unless the person wrote them (`own`), already approved the same call in this conversation, or
+        approved this tool for the work it's doing (allowed_out: an approved research plan's)."""
+        if own or not self.wary() or tool in self.allowed_out:
             return webmod.run(self.cfg, tool, args), None
         rows = (
             self.db.rows(
@@ -1200,6 +1222,25 @@ class Toolbox(ops_tools.OpsTools):
         return {"ref": self.web_ref(out["url"], out.get("title"), out.get("site"), excerpt, out.get("fetched_at")), **out}, webmod.summary(
             "web_read", args, out
         )
+
+    # ---- deep research (research.py): a plan to approve, then a run in the background ----
+    def t_start_research(self, goal):
+        goal = " ".join(str(goal or "").split())
+        if not goal:
+            raise ValueError("give the goal to research")
+        if self.chat is None:
+            raise ValueError("research runs in a conversation")
+        model = researchmod.model_for(self.cfg, (self.db.one("SELECT model FROM $r", r=R("chat", self.chat)) or {}).get("model"))
+        r = researchmod.propose(self.db, self.cfg, self, goal, model)
+        out = {
+            "status": "waiting for the person's approval",
+            "research": r["id"],
+            "approval": r["approval"],
+            "plan": r["plan"],
+            "questions": r["questions"],
+            "estimate": r["estimate"],
+        }
+        return out, f"Planned {researchmod.summary(r['plan'])}; it waits for the person's approval"
 
     # ---- extensions, from chat ----
     def _ext_named(self, name):
@@ -2158,6 +2199,8 @@ def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=F
     a = approvals.get(db, aid)
     if not a or a["status"] != "pending":
         raise ValueError("nothing to approve")
+    if a["tool"] == "research":  # a research plan: approved (as it is, or with `params` its edits) or declined
+        return researchmod.decide(db, cfg, a, user, decision, params, via)
     if via == "agent" and decision != "decline":
         raise PermissionError("approving is the person's own pick: an agent can only decline")
     if a.get("intent"):

@@ -38,7 +38,21 @@ import re
 import urllib.error
 import urllib.request
 
-from . import activity, ai_tools, auth, auto_scope, channels, chat, graph_history, llm, matterbridge, ns_assistant, store, untrusted
+from . import (
+    activity,
+    ai_tools,
+    auth,
+    auto_scope,
+    channels,
+    chat,
+    graph_history,
+    llm,
+    matterbridge,
+    ns_assistant,
+    research,
+    store,
+    untrusted,
+)
 from .store import R
 
 log = logging.getLogger(__name__)
@@ -330,6 +344,25 @@ def _answer(db, cfg, base, account, cid, q, files, act_on, outside):
     past = chat.path(db, cid)  # a room goes on from the head (the version showing, should it be switched in the app)
     summary = chat.memory(db, cfg, cid, past)
     scope = (db.one("SELECT scope FROM $r", r=R("chat", cid)) or {}).get("scope") or None
+    goal = research.command(q) if not files else None
+    if goal and research.available(cfg):  # /research <goal>: a plan, approved with a "yes" here
+        box = ai_tools.Toolbox(
+            db,
+            cfg,
+            {"id": account["id"], "email": account["email"]},
+            readable,
+            editable,
+            scope,
+            cid,
+            base,
+            account["admin"],
+            said=q,
+            outside=list(outside) + ai_tools.read_before(past, summary),
+        )
+        out = research.start(db, cfg, box, goal, "room", said=q)
+        if out.get("error"):
+            return "I couldn't plan that: " + out["error"], [], set()
+        return out["text"], [out["approval"]], set()
     chat.add(db, cid, "user", q, attachments=list(files) or None, meta=chat.question_record("room"))
     # the answer's id up front: every call made for it names it in the ledger, and its record sums them
     mid = db.next_id("chat_message")
@@ -392,9 +425,9 @@ def _answer(db, cfg, base, account, cid, q, files, act_on, outside):
 
 # ---------- approving in the room ----------
 # what can be approved by a reply in the room: changes to the entities and topics (history keeps them, and merges and
-# deletes can be undone) and new namespaces; settings, imports, batch runs, extensions and forgetting are approved in
-# the web app
-ROOM_SAFE = {"propose_entity_change", "propose_topic_change", "create_namespace"}
+# deletes can be undone), new namespaces and a research plan as it is (it only reads, within the plan, and can be
+# stopped); settings, imports, batch runs, extensions and forgetting are approved in the web app
+ROOM_SAFE = {"propose_entity_change", "propose_topic_change", "create_namespace", "research"}
 YES_RX = re.compile(r"^(?:yes|y|yep|approve|approved|ok|okay|do it|go ahead)(?:\s+#?(\d+|all))?\s*[.!]*$", re.I)
 NO_RX = re.compile(r"^(?:no|n|nope|decline|cancel|don't)(?:\s+#?(\d+|all))?\s*[.!]*$", re.I)
 

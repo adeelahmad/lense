@@ -341,7 +341,7 @@ export const SECTIONS: SectionSpec[] = [
     label: "NFS share",
     backend: ["nfs"],
     description:
-      "Off unless you turn it on. The archive as folders and files over NFS, read-only: namespaces, collections, topics and entities as folders, assets as files, for machines on the networks you allow.",
+      "Off unless you turn it on. The archive as folders and files over NFS: namespaces, collections, topics and entities as folders, assets as files, for machines on the networks you allow; files copied into a collection’s folder are imported there.",
   },
   {
     id: "smb",
@@ -2594,7 +2594,14 @@ export const FIELDS: FieldSpec[] = [
     key: "enabled",
     label: "Share the file tree over NFS",
     kind: "switch",
-    hint: "Read-only. Off: nothing listens",
+    hint: "Off: nothing listens",
+  },
+  {
+    section: "nfs",
+    key: "add_files",
+    label: "Import files people add",
+    kind: "switch",
+    hint: "A file copied into a collection’s folder is imported there, as the account below adds it (NFS has no login). Off: read-only",
   },
   {
     section: "nfs",
@@ -2603,7 +2610,7 @@ export const FIELDS: FieldSpec[] = [
     kind: "select",
     nullable: true,
     options: [],
-    hint: "The share shows what this person sees in the web app, and nothing else",
+    hint: "The share shows what this person sees in the web app, and nothing else; files added to it are added as them",
   },
   {
     section: "nfs",
