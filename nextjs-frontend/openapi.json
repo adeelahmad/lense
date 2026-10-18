@@ -36891,7 +36891,31 @@
               }
             ],
             "title": "Next At",
-            "description": "in lists: when it runs next, from its schedules (coming soon)"
+            "description": "in lists: when it runs next, from its schedule, at and relative triggers and its joins' timers"
+          },
+          "runs_today": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runs Today",
+            "description": "in lists: its runs since midnight (UTC), tries left out"
+          },
+          "reads": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reads",
+            "description": "in lists: what sets it off, in words: each trigger, then its join (match.describe_triggers)"
           }
         },
         "additionalProperties": true,
