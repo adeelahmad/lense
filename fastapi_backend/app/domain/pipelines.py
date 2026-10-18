@@ -70,8 +70,10 @@ KEYS = {
     "to",
     "format",
     "pipeline",
+    "converter",
 }
-ONLY = {"to": "convert", "format": "convert", "pipeline": "convert"}  # settings only one type of step has
+ONLY = {"to": "convert", "format": "convert", "pipeline": "convert", "converter": "read"}  # settings only one type of step has
+CONVERTERS = ("auto", "anytopdf", "lens")  # what a read step makes PDFs with, as documents.converter says
 NODE_RX = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
 WHEN = {"min_minutes": (int, float), "max_minutes": (int, float), "source": str, "languages": list}
 KEY_RX = re.compile(r"^[a-z][a-z0-9_]{0,40}$")
@@ -111,6 +113,8 @@ def validate_steps(db, steps):
                     get(db, s["pipeline"])
                 except KeyError:
                     raise ValueError("convert step: choose a pipeline for the new assets") from None
+        if t == "read" and s.get("converter") is not None and s["converter"] not in CONVERTERS:
+            raise ValueError(f"read step: the converter is one of {', '.join(CONVERTERS)}")
         need = {"llm": "prompt", "spec": "prompt", "reply": "prompt", "export": "export", "report": "report"}.get(t)
         if need and (s.get("template") or t not in ("report", "spec", "reply")):  # these have a built-in one
             try:

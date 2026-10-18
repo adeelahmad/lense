@@ -69,7 +69,23 @@ def _read(db, cfg, rid, say, spec=None):
         raise Skip("only documents and images are read; audio and video are transcribed")
     from . import documents
 
-    return documents.transcribe(db, cfg, rid, say)
+    return documents.transcribe(db, _converter(cfg, spec, say), rid, say)
+
+
+def _converter(cfg, spec, say):
+    """The settings a read step runs with: its own `converter` (auto, anytopdf or lens) in place of documents.converter,
+    so one pipeline can make its PDFs with anytopdf while the rest keep the server's choice."""
+    how = (spec or {}).get("converter")
+    if how is None:
+        return cfg
+    if how not in pipelines.CONVERTERS:
+        raise ValueError(f"read step: the converter is one of {', '.join(pipelines.CONVERTERS)}")
+    if how == "anytopdf":
+        from . import anytopdf
+
+        if not anytopdf.available(cfg):
+            say("this step asks for anytopdf, but it isn't installed here and no conversion node is set: Lens converts it")
+    return {**cfg, "documents": {**(cfg.get("documents") or {}), "converter": how}}
 
 
 def _transcribe(db, cfg, rid, say, spec=None):

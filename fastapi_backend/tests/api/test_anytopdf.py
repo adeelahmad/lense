@@ -260,6 +260,41 @@ def test_with_anytopdf_chosen_it_reads_images_too(here, client, env, db, cfg, fo
     assert any("read without anytopdf: anytopdf couldn't read it (error: it broke)" in x for x in log), log
 
 
+def test_a_read_step_picks_its_own_converter(here, client, env, db, cfg):
+    """A pipeline's read step can name its converter: one pipeline makes its PDFs with anytopdf (a photographed page
+    flattened) while the server's choice (auto here) stays as it is for the rest."""
+    he, ha = env["he"], env["ha"]
+    for bad in ({"type": "read", "converter": "pdf"}, {"type": "analyze", "converter": "anytopdf"}):
+        r = client.post("/api/v1/pipelines", headers=ha, json={"name": "x", "steps": [bad]})
+        assert r.status_code == 400, bad
+    up = _upload(client, he, _png(scan(["Galway harbour"])), "receipt.png")
+    drain(db, settings.effective(db, cfg))
+    assert _rec(db, up["recording"])["rendition"] is None  # auto: an image Lens reads itself
+    assert fake_anytopdf.runs(here) == []
+
+    step = {"type": "read", "converter": "anytopdf"}
+    r = client.post("/api/v1/pipelines", headers=ha, json={"name": "Scans", "steps": [step]})
+    assert r.status_code == 200, r.text
+    pid = r.json()["id"]
+    assert client.get(f"/api/v1/pipelines/{pid}", headers=ha).json()["steps"] == [step]
+    r = client.post(f"/api/v1/pipelines/{pid}/run", headers=ha, json={"recording": up["recording"]})
+    assert r.status_code == 200, r.text
+    drain(db, settings.effective(db, cfg))
+    rec = _rec(db, up["recording"])
+    assert rec["rendition"] == {"from": ".png", "by": "anytopdf"}, rec.get("error")
+    assert "--scan-mode" in fake_anytopdf.runs(here)[-1]["args"]
+    assert client.get("/api/v1/settings", headers=ha).json()["documents"]["values"]["converter"] == "auto"
+
+    # asked for where anytopdf isn't: Lens reads it, and the run says why
+    cfg["documents"]["anytopdf"] = None
+    r = client.post("/api/v1/jobs", headers=ha, json={"recordings": [up["recording"]], "steps": [step]})
+    assert r.status_code == 200, r.text
+    drain(db, settings.effective(db, cfg))
+    assert _rec(db, up["recording"])["rendition"] is None
+    log = client.get(f"/api/v1/jobs/{r.json()['jobs'][0]}/log", headers=he).json()["lines"]
+    assert any("asks for anytopdf, but it isn't installed here" in x for x in log), log
+
+
 def test_camera_raw_photos_are_read_by_anytopdf(here, client, env, db, cfg):
     """A RAW photo is one Lens can't open: anytopdf reads it, whatever documents.converter says but `lens`."""
     from app.domain import content_types

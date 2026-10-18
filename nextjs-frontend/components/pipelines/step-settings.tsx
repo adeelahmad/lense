@@ -7,7 +7,7 @@ import { Sources, Templates, Workflows } from "@/app/openapi-client";
 import type { TemplateSummary } from "@/app/openapi-client/types.gen";
 import { stepLabel } from "@/components/activity/job-model";
 import { usePipelineCatalog } from "@/components/pipelines/catalog-header";
-import { AUDIO_FORMATS, DESCRIBE, PROVIDES, type StepSpec } from "@/components/pipelines/pipeline-model";
+import { AUDIO_FORMATS, CONVERTERS, DESCRIBE, PROVIDES, type StepSpec } from "@/components/pipelines/pipeline-model";
 import { Checkbox, Field, Input, Select } from "@/components/ui/field";
 import { data, useApiClient } from "@/lib/api/browser";
 import { useArchive } from "@/lib/hooks/session";
@@ -147,6 +147,22 @@ export function StepSettings({
                     label: `${w.name} · v${w.current}`,
                   })),
                 ]}
+              />
+            )}
+          </Field>
+        )}
+        {step.type === "read" && (
+          <Field
+            label="Make PDFs with"
+            hint="Office files, emails, web pages and photographed pages are made into PDFs first"
+          >
+            {({ id, describedBy }) => (
+              <Select
+                id={id}
+                aria-describedby={describedBy}
+                value={step.converter ?? ""}
+                onChange={(e) => set({ converter: (e.target.value || undefined) as StepSpec["converter"] })}
+                options={[{ value: "", label: "As Settings › Documents says" }, ...CONVERTERS]}
               />
             )}
           </Field>
