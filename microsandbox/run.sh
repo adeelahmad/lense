@@ -108,11 +108,10 @@ if [ ! -x "$OPT/node/bin/node" ]; then
   tar -xJf "/tmp/lens/$file" -C "$OPT/node" --strip-components 1
   rm "/tmp/lens/$file"
 fi
-if [ ! -x "$OPT/bin/uv" ] || [ ! -x "$OPT/bin/uvx" ]; then # uvx: the MCP runner's, for servers from PyPI
-  log "Getting uv..."
-  python3 -m pip install -q --no-cache-dir --target /tmp/lens/uv "uv>=0.8,<0.9"
-  cp /tmp/lens/uv/bin/uv /tmp/lens/uv/bin/uvx "$OPT/bin/" && rm -rf /tmp/lens/uv
-fi
+# uv, and uvx: the MCP runner's, for servers from PyPI
+# shellcheck source=SCRIPTDIR/uv.sh
+. "$CODE/microsandbox/uv.sh"
+get_uv "$OPT/bin"
 
 # --- Build: the backend and the web app, again only when the code changed (the edition doesn't change them) -------
 build_id="$(cat "$CODE/.lens-build" 2>/dev/null || echo unknown)"
@@ -136,7 +135,7 @@ if [ "$(cat "$OPT/build-id" 2>/dev/null)" != "$build_id" ]; then
   (cd "$OPT/backend" &&
     export UV_PROJECT_ENVIRONMENT="$OPT/venv" UV_PYTHON_DOWNLOADS=never UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy \
       UV_HTTP_TIMEOUT=300 UV_HTTP_RETRIES=5 UV_CACHE_DIR="$OPT/uv-cache" &&
-    retry uv sync --frozen --no-dev --python "$(command -v python3)" \
+    retry uv sync --frozen --no-dev --python "$(image_python)" \
       $(for e in ${EXTRAS:-}; do printf -- '--extra %s ' "$e"; done))
 
   web() { (cd "$WEB_SRC" && exec env COREPACK_ENABLE_DOWNLOAD_PROMPT=0 COREPACK_HOME="$OPT/corepack" "$@"); }
