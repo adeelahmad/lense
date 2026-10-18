@@ -15106,19 +15106,19 @@ export type Passage = {
   /**
    * Recording Id
    *
-   * the asset it's from; none for a web page
+   * the asset it's from; none for a web page, Lens's docs or this server's facts
    */
   recording_id?: number | null;
   /**
    * Source
    *
-   * what it is: said (speech), page (a document's), screen (text shown in a video), memory, or web
+   * what it is: said (speech), page (a document's), screen (text shown in a video), memory, web, docs (Lens's docs) or server (this server's facts)
    */
   source?: string | null;
   /**
    * Url
    *
-   * a web page's address (source web): the citation opens it
+   * where it is when it isn't the archive's: a web page (web), a page of Lens's docs (docs) or this server (server); the citation opens it
    */
   url?: string | null;
   /**
