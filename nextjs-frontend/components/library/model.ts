@@ -559,3 +559,19 @@ export function catalogueRows(rows: RecordingSummary[], origin: string): string[
     ]);
   return out;
 }
+
+/**
+ * The rows grouped by who may see them now ({public: [ids], private: [ids]}), leaving out those already at `to`: what
+ * a bulk visibility change touches, and how its Undo puts each back.
+ */
+export function visibilityGroups(
+  rows: readonly { id: number; access?: string | null }[],
+  to: string,
+): Record<string, number[]> {
+  const out: Record<string, number[]> = {};
+  for (const r of rows) {
+    const was = r.access ?? "private";
+    if (was !== to) (out[was] ??= []).push(r.id);
+  }
+  return out;
+}
