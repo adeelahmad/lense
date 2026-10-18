@@ -13106,7 +13106,7 @@ export type MeshBeat = {
   /**
    * Sandbox
    *
-   * the sandboxes it can run
+   * a compute node's sandbox gateway, when it answers: {gateway}
    */
   sandbox?: {
     [key: string]: unknown;
@@ -13375,6 +13375,30 @@ export type MeshRenew = {
    * its Nebula public key, the same or a new one
    */
   public_key: string;
+};
+
+/**
+ * MeshSandboxGateway
+ */
+export type MeshSandboxGateway = {
+  /**
+   * Ca
+   *
+   * the gateway's CA certificate, PEM
+   */
+  ca: string;
+  /**
+   * Cert
+   *
+   * the client certificate Lens shows the gateway, PEM
+   */
+  cert: string;
+  /**
+   * Key
+   *
+   * its private key, PEM: kept sealed
+   */
+  key: string;
 };
 
 /**
@@ -50499,6 +50523,31 @@ export type NodeMediaResponses = {
    */
   200: unknown;
 };
+
+export type NodeSandboxData = {
+  body: MeshSandboxGateway;
+  path?: never;
+  query?: never;
+  url: "/api/v1/mesh/node/sandbox";
+};
+
+export type NodeSandboxErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type NodeSandboxError = NodeSandboxErrors[keyof NodeSandboxErrors];
+
+export type NodeSandboxResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type NodeSandboxResponse = NodeSandboxResponses[keyof NodeSandboxResponses];
 
 export type NodeBeatData = {
   body: MeshBeat;

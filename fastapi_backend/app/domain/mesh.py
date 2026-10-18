@@ -564,9 +564,10 @@ def make_token(db, cfg, by=None, role="worker", name=None, namespaces=None, hour
     return _token_view(row), f"{TOKEN_PREFIX}{tid}.{secret}"
 
 
-def join_line(cfg, token, url=None):
+def join_line(cfg, token, url=None, role=None):
     """The install line another machine joins with (docs/mesh.md, Joining): install.sh with this install's address
-    (the web app's: `url`, else FRONTEND_URL) and the token. Shown once, with the token."""
+    (the web app's: `url`, else FRONTEND_URL) and the token, and for a compute node LENS_NODE_SANDBOX=1, which starts
+    its sandbox gateway too. Shown once, with the token."""
     from app.config import settings as env
 
     repo = cfg["updates"].get("repo") or "adeelahmad/lense"
@@ -574,7 +575,8 @@ def join_line(cfg, token, url=None):
     if not re.fullmatch(r"https?://[A-Za-z0-9.\-\[\]:]+(/[A-Za-z0-9._~/-]*)?", url):
         raise ValueError(f"{url!r} isn't an address a machine can join at")
     parse_token(token)
-    return f"curl -fsSL https://raw.githubusercontent.com/{repo}/main/install.sh | LENS_JOIN={url} LENS_JOIN_TOKEN={token} sh"
+    extra = " LENS_NODE_SANDBOX=1" if role == "compute" else ""
+    return f"curl -fsSL https://raw.githubusercontent.com/{repo}/main/install.sh | LENS_JOIN={url} LENS_JOIN_TOKEN={token}{extra} sh"
 
 
 def revoke_token(db, tid):
@@ -828,6 +830,74 @@ def media(db, cfg, row, rid):
     return path
 
 
+# ---------- compute nodes: the assistant's sandboxes run there ----------
+# A compute node runs its own OpenShell gateway (docker-compose.node.yml, profile `sandbox`), which makes sandboxes in
+# that machine's Docker, and the mesh container relays AGENT_PORT on its mesh address (open to the primary only) to it.
+# The node hands Lens the gateway's client certificate once (sandbox_gateway), which is kept sealed in its row: Lens
+# then reaches the gateway over the mesh with mutual TLS, checking the gateway's certificate against the name it was
+# made for (SANDBOX_NAME). The sandbox registers the install's nodes once one has a gateway (offer_sandboxes), so the
+# assistant can run code there; a compute node gets nothing of Lens's in return.
+SANDBOX_NAME = "openshell-gateway"
+PEM_BYTES = 16_384
+
+
+def _pems(bundle):
+    """{ca, cert, key} as PEM text, each loaded to be sure it is one; ValueError otherwise."""
+    from cryptography import x509
+    from cryptography.hazmat.primitives import serialization
+
+    out = {}
+    for k in ("ca", "cert", "key"):
+        v = str((bundle or {}).get(k) or "").strip()
+        if not v or len(v) > PEM_BYTES:
+            raise ValueError(f"the gateway's {k} is missing or too long")
+        try:
+            if k == "key":
+                serialization.load_pem_private_key(v.encode(), password=None)
+            else:
+                x509.load_pem_x509_certificate(v.encode())
+        except (ValueError, TypeError):
+            raise ValueError(f"the gateway's {k} isn't PEM") from None
+        out[k] = v + "\n"
+    return out
+
+
+def sandbox_gateway(db, cfg, row, bundle):
+    """Keep the client certificate of a compute node's gateway, sealed in its row, and offer the assistant its
+    sandboxes. PermissionError for a node of another role; ValueError for what isn't a certificate and key."""
+    if row["role"] != "compute":
+        raise PermissionError("only a compute node runs sandboxes: this one is a " + row["role"])
+    pems = _pems(bundle)
+    sealed = settings.seal(cfg, json.dumps(pems), f"mesh:sandbox.{int(row['id'])}")
+    db.q("UPDATE $r SET sandbox_tls = $s", r=R("mesh_node", int(row["id"])), s=sealed)
+    offer_sandboxes(db)
+
+
+def gateway_driver(db, cfg, node_):
+    """The sandbox's Driver for a compute node's gateway, at its mesh address; None until the node gave Lens its
+    certificate."""
+    from . import sandbox
+
+    sealed = (db.one("SELECT sandbox_tls FROM $r", r=R("mesh_node", int(node_["id"]))) or {}).get("sandbox_tls")
+    if not sealed or not node_.get("ip"):
+        return None
+    pem = json.loads(settings.unseal(cfg, sealed, f"mesh:sandbox.{int(node_['id'])}"))
+    return sandbox.OpenShell(cfg, endpoint=f"{node_['ip']}:{AGENT_PORT}", pem=pem, server_name=SANDBOX_NAME)
+
+
+def offer_sandboxes(db):
+    """Let the assistant's code run on compute nodes while one on the mesh has a gateway, and not otherwise (the
+    sandbox then has no node to pick, and no sandbox_nodes tool)."""
+    from . import sandbox
+
+    has = db.one("SELECT count() AS n FROM mesh_node WHERE role = 'compute' AND revoked_at = NONE AND sandbox_tls != NONE GROUP ALL")
+    if (has or {}).get("n"):
+        if not sandbox.nodes_on():
+            sandbox.register_nodes(lambda d: nodes(d, revoked=False), gateway_driver)
+    elif sandbox.nodes_on():
+        sandbox.register_nodes(None, None)
+
+
 # ---------- the admin's changes ----------
 def update(db, nid, name=None, namespaces=None):
     """Rename a node, or change the namespaces it serves (its certificate's groups follow when it next renews, which
@@ -862,6 +932,8 @@ def remove(db, nid, by=None):
     db.q("UPDATE $r SET revoked_at = $t, revoked_by = $b", r=R("mesh_node", int(nid)), t=store.now(), b=by)
     if n["role"] == "worker":
         revoke_database(db, nid)
+    if n["role"] == "compute":
+        offer_sandboxes(db)
     return node(db, nid)
 
 
@@ -874,6 +946,8 @@ def undo_remove(db, nid, cfg):
     db.q("UPDATE $r SET revoked_at = NONE, revoked_by = NONE", r=R("mesh_node", int(nid)))
     if n["role"] == "worker":
         grant_database(db, cfg, nid)  # a new password: the node fetches it with its next worker_access
+    if n["role"] == "compute":
+        offer_sandboxes(db)
     return node(db, nid)
 
 

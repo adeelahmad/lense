@@ -77,7 +77,9 @@ def test_adding_a_node_makes_the_ca_a_token_and_turns_the_mesh_on(client, db, cf
     assert r.status_code == 200, r.text
     made = r.json()
     assert made["secret"].startswith(mesh.TOKEN_PREFIX) and made["join_url"].startswith("http://")
-    assert made["install_line"].endswith(f"install.sh | LENS_JOIN={made['join_url']} LENS_JOIN_TOKEN={made['secret']} sh")
+    assert made["install_line"].endswith(
+        f"install.sh | LENS_JOIN={made['join_url']} LENS_JOIN_TOKEN={made['secret']} LENS_NODE_SANDBOX=1 sh"
+    )  # a compute node's
     assert made["token"]["role"] == "compute" and made["token"]["uses"] == 1 and made["token"]["used"] == 0
 
     after = client.get("/api/v1/mesh", headers=h).json()

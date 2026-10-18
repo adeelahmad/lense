@@ -35041,13 +35041,55 @@
         }
       }
     },
+    "/api/v1/mesh/node/sandbox": {
+      "put": {
+        "tags": [
+          "mesh"
+        ],
+        "summary": "Node Sandbox",
+        "description": "The client certificate of the calling compute node's sandbox gateway, which Lens keeps sealed and reaches that\ngateway over the mesh with. 403 for a node of another role, 400 for what isn't a certificate and key.",
+        "operationId": "node_sandbox",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MeshSandboxGateway"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/mesh/node/beat": {
       "post": {
         "tags": [
           "mesh"
         ],
         "summary": "Node Beat",
-        "description": "The calling node's report, every minute: Nebula, its peers, its machine.",
+        "description": "The calling node's report, every minute: Nebula, its peers, its machine, its sandbox gateway.",
         "operationId": "node_beat",
         "requestBody": {
           "content": {
@@ -58002,7 +58044,7 @@
               }
             ],
             "title": "Sandbox",
-            "description": "the sandboxes it can run"
+            "description": "a compute node's sandbox gateway, when it answers: {gateway}"
           },
           "error": {
             "anyOf": [
@@ -58414,6 +58456,36 @@
           "public_key"
         ],
         "title": "MeshRenew"
+      },
+      "MeshSandboxGateway": {
+        "properties": {
+          "ca": {
+            "type": "string",
+            "maxLength": 16384,
+            "title": "Ca",
+            "description": "the gateway's CA certificate, PEM"
+          },
+          "cert": {
+            "type": "string",
+            "maxLength": 16384,
+            "title": "Cert",
+            "description": "the client certificate Lens shows the gateway, PEM"
+          },
+          "key": {
+            "type": "string",
+            "maxLength": 16384,
+            "title": "Key",
+            "description": "its private key, PEM: kept sealed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ca",
+          "cert",
+          "key"
+        ],
+        "title": "MeshSandboxGateway"
       },
       "MeshService": {
         "properties": {
