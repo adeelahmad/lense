@@ -87,7 +87,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   nothing is lost. Each answer keeps a record of what produced it (the model, its tools, how long it took and what it
   cost), opened from its header. It reads answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine
   (opt-in), any message in one click. Long conversations are summarised before they fill the model's context, and
-  `/clear` and `/compact` start afresh or summarise now. Conversations title themselves after their first answer, unless
+  `/clear` and `/compact` start afresh or summarise now. It answers questions about Lens itself, from its docs and this
+  server, and agents ask the same over MCP. Conversations title themselves after their first answer, unless
   you name them. Each namespace can have its own assistant with
   its own name, instructions and memory, answering in Telegram and Slack (built in, with voice notes and files), in
   Discord, Matrix, WhatsApp and other chat rooms through Matterbridge, and by email at an address of its own that you
@@ -241,8 +242,6 @@ still loading. ([Components](docs/components.md),
 
 These are open pull requests, not yet part of Lens:
 
-- **The assistant** answering questions about Lens itself, from its docs and this server
-  ([#400](https://github.com/adeelahmad/lense/pull/400)).
 - **Chat:** a conversation exported as Markdown, PDF or JSON ([#474](https://github.com/adeelahmad/lense/pull/474)).
 - **Pictures:** low-quality images enhanced before they're read ([#479](https://github.com/adeelahmad/lense/pull/479)).
 - **Web clipper:** signing in, or using your API token, not only an import webhook's
