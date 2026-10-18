@@ -1,10 +1,11 @@
 """Google's token endpoint and Calendar API, enough for tests: a service account signs in with a JWT (checked against
 its public key: issuer, audience, scope, and the user it acts as) and a connected account with its refresh token; the
-access tokens they get read the calendars and events the test sets up, in pages."""
+access tokens they get read the calendars and events the test sets up, in pages, or one time span's (singleEvents)."""
 
 from __future__ import annotations
 
 import base64
+import datetime as dt
 import hashlib
 import http.server
 import json
@@ -163,6 +164,8 @@ class Google:
                         return self._error(404, "notFound", "Not Found")
                     if len(parts) == 2:
                         return self._json({"id": parts[1], "summary": cal["summary"], "timeZone": cal["timeZone"]})
+                    if parts[2:] == ["events"] and q.get("singleEvents") == "true":
+                        return self._json({"summary": cal["summary"], "timeZone": cal["timeZone"], **google.occurrences(cal, q)})
                     if parts[2:] == ["events"]:
                         assert q.get("singleEvents") == "false" and q.get("showDeleted") == "false"
                         items = [
@@ -202,6 +205,27 @@ class Google:
             "granted": q["scope"] if granted is None else granted,
         }
         return q["redirect_uri"] + "?" + urllib.parse.urlencode({"code": code, "state": q["state"]})
+
+    def occurrences(self, cal, q):
+        """events.list with singleEvents: the events from timeMin to timeMax with q's words, by when they start. Unlike
+        Google, a repeating event is only its first time."""
+
+        def at(v):
+            v = v.get("dateTime") or v.get("date") if isinstance(v, dict) else v
+            t = dt.datetime.fromisoformat(str(v).replace("Z", "+00:00"))
+            return t if t.tzinfo else t.replace(tzinfo=dt.UTC)
+
+        words = str(q.get("q") or "").casefold().split()
+        out = [
+            e
+            for e in cal["events"]
+            if e.get("status") != "cancelled"
+            and at(e["end"]) > at(q["timeMin"])
+            and at(e["start"]) < at(q["timeMax"])
+            and all(w in " ".join(str(e.get(k) or "") for k in ("summary", "description", "location")).casefold() for w in words)
+        ]
+        out.sort(key=lambda e: at(e["start"]))
+        return {"items": out[: int(q.get("maxResults") or 250)]}
 
     def api_calls(self, what=None):
         return [c for c in self.calls if c[0] != "token" and (what is None or c[0].endswith(what))]

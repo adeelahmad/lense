@@ -81,6 +81,12 @@ four-colour loop (Transcribe blue, Diarize red, Analyze green, Summarize and Rep
 * Client components use `useApiClient()` with React Query and the generated SDK; `data()` unwraps a call and throws
   `ApiError` with the API's message, and `page()` unwraps a list call into `{items, total}` (the total comes from the
   `X-Total-Count` header). Server components use `getApiClient()`.
+* **The loading bar** along the top (NProgress, `lib/progress.ts`) runs while a page or its first data loads, as in
+  Gmail. `instrumentation-client.ts` starts it on every page change (a link, `router.push`, back and forward) and
+  finishes it when Next writes the new address into the browser's history, which it does for every page change that
+  lands, even a redirect back to the page showing. `DataProgress` in the providers runs it while a query has no answer
+  yet. Refreshing data already on screen (polling, refetching after a change) and anything quicker than 150 ms don't
+  show it.
 * Streams (job events, chat answers) use `streamSSE()` with the session's access token.
 * Media links in API responses are signed relative URLs; the proxy serves them from the app's origin, so they work in
   `<audio>`, `<video>` and `<img>`.

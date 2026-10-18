@@ -481,3 +481,47 @@ def test_the_browser_preset_keeps_one_session(app, db, cfg, folder, new_client, 
     monkeypatch.setattr(mcp_client, "_kept", {})
     plain = {**tools["browser__browser_snapshot"]["spec"]["run"], "keep": None}
     assert len({mcp_client.call(plain, {})["text"].split()[0] for _ in range(2)}) == 2 and not mcp_client._kept
+
+
+def test_agents_list_and_add_servers(app, db, cfg, folder, new_client, server, monkeypatch):
+    """Over MCP, an admin's agent lists the servers and the ready-made ones, and adds one: its own, or GitHub with its
+    token typed in, checked as the web app's form is (it must answer, its token sealed and never shown)."""
+    from app.domain import services
+    from tests.api.test_mcp import rpc
+
+    s = Assist(app, db, cfg, folder, new_client)
+
+    def mcp(who, tool, **args):
+        c, h = s.cl[who]
+        res = rpc(c, h, "tools/call", {"name": tool, "arguments": args})["result"]
+        return json.loads(res["content"][0]["text"]) if res["isError"] else res["structuredContent"]
+
+    assert "only admins" in mcp("editor", "mcp_servers")["error"]
+    assert "only admins" in mcp("editor", "add_mcp_server", preset="github", values={"GITHUB_TOKEN": "t0ken"})["error"]
+    got = mcp("admin", "mcp_servers")
+    assert got["servers"] == [] and got["add"].endswith("/extensions/new/mcp")
+    browser, github = got["ready_made"]
+    assert (browser["preset"], browser["added"], browser["service"]["profile"]) == ("browser", False, "browser")
+    assert (github["preset"], github["values"], "service" in github) == ("github", ["GITHUB_TOKEN"], False)
+
+    # its own server, with a value typed in for its ${TOKEN}
+    spec = {"url": "https://mcp.example.com/mcp", "headers": {"Authorization": "Bearer ${TOKEN}"}, "off": ["create-issue"]}
+    assert "type in TOKEN in values" in mcp("admin", "add_mcp_server", name="tracker", server=spec)["error"]
+    added = mcp("admin", "add_mcp_server", name="tracker", server=spec, values={"TOKEN": "t0ken"}, description="Issues")
+    assert (added["tools"], added["off"], added["headers"]) == (["search", "create-issue"], ["create-issue"], ["Authorization"])
+    assert added["enabled"] is True and added["page"].endswith(f"/extensions/{added['id']}")
+    assert mcp_servers.is_sealed(extensions.get(db, added["id"])["spec"]["headers"]["Authorization"])
+    assert "t0ken" not in json.dumps(mcp("admin", "mcp_servers"))
+    again = mcp("admin", "add_mcp_server", name="tracker", server=spec, values={"TOKEN": "t0ken"})
+    assert "already called" in again["error"]
+    assert "answered 401" in mcp("admin", "add_mcp_server", name="wrong", server=spec, values={"TOKEN": "nope"})["error"]
+
+    # GitHub, ready-made: its name, address and description come with it
+    gh = mcp("admin", "add_mcp_server", preset="github", values={"GITHUB_TOKEN": "t0ken"})
+    assert (gh["name"], gh["url"]) == ("github", "https://api.githubcopilot.com/mcp/")
+    assert [p["added"] for p in mcp("admin", "mcp_servers")["ready_made"]] == [False, True]
+    # the browser waits for its container
+    assert "isn't running yet" in mcp("admin", "add_mcp_server", preset="browser")["error"]
+    monkeypatch.setattr(services, "running", lambda profile: True)
+    assert "isn't running yet" not in mcp("admin", "add_mcp_server", preset="browser")["error"]  # on to the server
+    assert "give a preset" in mcp("admin", "add_mcp_server", name="x")["error"]
