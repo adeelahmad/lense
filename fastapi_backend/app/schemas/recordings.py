@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import datetime as dt
 from typing import Any, Literal
 
 from pydantic import Field
 
-from app.schemas.common import AccessLevel, AccessPart, Ok, RequestModel, ResponseModel, Role
+from app.schemas.common import GRANT_END, AccessLevel, AccessPart, GrantState, Ok, RequestModel, ResponseModel, Role
 from app.schemas.hierarchy import CollectionStep
 
 # Recording statuses, plus two job states: a job queued or running (processing), the latest job failed (failed).
@@ -480,7 +481,7 @@ class RecordingAccessUpdate(RequestModel):
     featured: bool | None = None
 
 
-class Permission(ResponseModel):
+class Permission(GrantState):
     """Someone given permission on an asset (docs/access.md): they see all of it on the pages visitors see and in
     IIIF, whatever its access."""
 
@@ -538,6 +539,11 @@ class RecordingMoved(Ok):
 
 class PermissionAdd(RequestModel):
     email: str = Field(min_length=3, max_length=320, description="the address of an account in this archive")
+    expires_at: dt.datetime | None = Field(None, description=GRANT_END)
+
+
+class PermissionChange(RequestModel):
+    expires_at: dt.datetime | None = Field(None, description=GRANT_END)
 
 
 class ReprocessRequest(RequestModel):

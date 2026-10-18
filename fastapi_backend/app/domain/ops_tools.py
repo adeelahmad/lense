@@ -337,13 +337,18 @@ ADMIN_TOOLS = [
     ),
     (
         "change_person",
-        "Change someone's access: their role in one namespace (role none takes it away), or disable or enable their "
-        "account (disabling signs them out everywhere and can be undone). Removing an account for good is for the web "
-        "app or the API.",
+        "Change someone's access: their role in one namespace (role none takes it away), until when it holds, or "
+        "disable or enable their account (disabling signs them out everywhere and can be undone). Removing an account "
+        "for good is for the web app or the API.",
         {
             "email": _S,
             "namespace": _S,
             "role": {"type": "string", "description": "viewer, editor, owner, a custom role, or none"},
+            "until": {
+                "type": "string",
+                "description": "when the role ends (ISO date and time, UTC unless it says otherwise); empty: no end; "
+                "left out: the end it had",
+            },
             "disabled": {"type": "boolean"},
         },
         ["email"],
@@ -557,7 +562,9 @@ def people(db):
     """Everyone with an account, for the assistant."""
     names = store.space_names(db)
     roles = {}
-    for m in db.rows("SELECT account, space, role FROM membership"):
+    for m in db.rows("SELECT account, space, role, expires_at FROM membership"):
+        if not auth.live(m):  # an ended role opens nothing
+            continue
         roles.setdefault(m["account"], {})[names.get(m["space"], str(m["space"]))] = m["role"]
     rows = db.rows(
         "SELECT record::id(id) AS id, email, name, admin, disabled, last_login_at FROM account WHERE removed_at = NONE ORDER BY id"
@@ -616,9 +623,13 @@ def _people(db, cfg, tool, args, user):
     if args.get("namespace") and args.get("role"):
         sid = _space(db, args["namespace"])
         role = None if args["role"] == "none" else args["role"]
-        auth.set_role(db, u["id"], sid, role)
-        auth.audit(db, user, "member.set", f"space:{sid}", {"account": u["id"], "role": role, "assistant": True})
+        end = auth.until(args.get("until")) if "until" in args else auth.KEEP
+        auth.set_role(db, u["id"], sid, role, end)
+        detail = {"account": u["id"], "role": role, "assistant": True} | ({} if end is auth.KEEP else {"expires_at": end})
+        auth.audit(db, user, "member.set", f"space:{sid}", detail)
         out["role"] = {args["namespace"]: role}
+        if role and end is not auth.KEEP:
+            out["until"] = end
     if args.get("disabled") is not None:
         auth.update_account(db, u["id"], disabled=bool(args["disabled"]))
         auth.audit(db, user, "user.update", f"account:{u['id']}", {"disabled": bool(args["disabled"]), "assistant": True})
@@ -900,7 +911,7 @@ class OpsTools:
         args = store.clean({"email": email, "name": name, "namespace": namespace, "role": (role or "viewer") if namespace else None})
         return self._change("invite_person", args, f"Invite {email}{where}")
 
-    def t_change_person(self, email, namespace=None, role=None, disabled=None):
+    def t_change_person(self, email, namespace=None, role=None, disabled=None, until=None):
         u = auth.find_account(self.db, email)
         if not u:
             raise ValueError(f"there's no account {email}")
@@ -910,10 +921,13 @@ class OpsTools:
             _space(self.db, namespace)
         if role and role != "none" and not roles.exists(self.db, role):
             raise ValueError(f"there's no role called {role}")
+        end = auth.until(until) if until is not None else None  # a date that has passed fails now, not on approval
         parts = [f"{'no role' if role == 'none' else role} in {namespace}"] if namespace and role else []
+        if parts and until is not None and role != "none":
+            parts[0] += f" until {end[:10]}" if end else ", without an end"
         if disabled is not None:
             parts.append("disable the account" if disabled else "enable the account")
-        args = store.clean({"email": u["email"], "namespace": namespace, "role": role, "disabled": disabled})
+        args = store.clean({"email": u["email"], "namespace": namespace, "role": role, "disabled": disabled, "until": until})
         return self._change("change_person", args, f"{u['email']}: {', '.join(parts)}")
 
     def _where_to(self, files):

@@ -1176,6 +1176,14 @@
       "source": "docs/authentication.md \"give read-only access to one asset's player and embed\""
     },
     {
+      "property": "P-GRANT-END",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "a role in a namespace, a role on a collection or permission on an asset given with an end date opens nothing after it, on every route; every check reads grants through auth.permissions, hierarchy.roles_of and access.granted / has_permission, which leave ended ones out; only someone who may give the grant changes its end",
+      "provenance": "documented",
+      "source": "docs/access.md \"After its end a grant opens nothing\""
+    },
+    {
       "property": "P-FEEDS",
       "violation_symptom": "info-leak",
       "severity_tier": "security",

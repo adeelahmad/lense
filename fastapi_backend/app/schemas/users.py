@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import datetime as dt
 from typing import Annotated
 
 from pydantic import Field
 
 from app.schemas.auth import UserPublic
-from app.schemas.common import RequestModel, ResponseModel
+from app.schemas.common import GRANT_END, GrantState, RequestModel, ResponseModel
 
 RoleName = Annotated[str, Field(min_length=1, max_length=40, description="viewer, editor, owner or a custom role's name")]
 
@@ -32,7 +33,7 @@ class UserUpdate(RequestModel):
     password: str | None = Field(default=None, description="a new password; signs the person out everywhere")
 
 
-class Member(ResponseModel):
+class Member(GrantState):
     account: int
     role: str
     email: str | None = None
@@ -45,6 +46,7 @@ class MemberSet(RequestModel):
     email: str | None = None
     account: int | None = None
     role: RoleName | None = None
+    expires_at: dt.datetime | None = Field(None, description=GRANT_END)
 
 
 class RolePermission(ResponseModel):

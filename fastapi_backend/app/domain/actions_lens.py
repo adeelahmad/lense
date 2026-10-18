@@ -58,7 +58,7 @@ def _newcomers(db, rec, cid):
     gets = {m["account"]: m for m in hierarchy.members(db, cid)}
     if not gets:
         return []
-    have = set(db.values("SELECT VALUE account FROM membership WHERE space = $s", s=rec["space"]))
+    have = {r["account"] for r in db.rows("SELECT account, expires_at FROM membership WHERE space = $s", s=rec["space"]) if auth.live(r)}
     if rec.get("collection") is not None:
         have |= {m["account"] for m in hierarchy.members(db, rec["collection"])}
     admins = set(db.values("SELECT VALUE record::id(id) FROM account WHERE admin = true"))

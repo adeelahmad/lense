@@ -2293,7 +2293,7 @@
           "users"
         ],
         "summary": "Set Member",
-        "description": "Give someone a role in this namespace (built-in or custom), change it, or (role null) remove them. Needs the\nmembers permission; someone who isn't an admin gives only roles they hold every permission of, and changes only\npeople whose role they hold every permission of.",
+        "description": "Give someone a role in this namespace (built-in or custom), change it, or (role null) remove them. Needs the\nmembers permission; someone who isn't an admin gives only roles they hold every permission of, and changes only\npeople whose role they hold every permission of. `expires_at` ends the role on that date (docs/access.md).",
         "operationId": "set_member",
         "parameters": [
           {
@@ -9618,7 +9618,7 @@
           "namespaces"
         ],
         "summary": "Set Collection Member",
-        "description": "Give someone a role on the collection (and the collections inside it), change it, or (role null) take it away.\nThey needn't have a role in the namespace: then they see just this collection. Owners of the namespace and admins\nof the collection. Answers with the members; audited as `collection.member`.",
+        "description": "Give someone a role on the collection (and the collections inside it), change it, or (role null) take it away.\nThey needn't have a role in the namespace: then they see just this collection. Owners of the namespace and admins\nof the collection. `expires_at` ends the role on that date (docs/access.md). Answers with the members; audited as\n`collection.member`.",
         "operationId": "set_collection_member",
         "parameters": [
           {
@@ -11079,7 +11079,7 @@
           "resources"
         ],
         "summary": "Add Recording Permission",
-        "description": "Give someone with an account permission on the asset (owners): they see all of it on the pages visitors see\nand in IIIF, whatever its access; members of its namespace already do. Answers with everyone who has permission.",
+        "description": "Give someone with an account permission on the asset (owners): they see all of it on the pages visitors see\nand in IIIF, whatever its access; members of its namespace already do. `expires_at` ends it on that date\n(docs/access.md); giving it again changes the end. Answers with everyone who has permission.",
         "operationId": "add_recording_permission",
         "parameters": [
           {
@@ -11131,6 +11131,70 @@
       }
     },
     "/api/v1/resources/{rid}/permissions/{account}": {
+      "patch": {
+        "tags": [
+          "resources"
+        ],
+        "summary": "Change Recording Permission",
+        "description": "Change when someone's permission on the asset ends (owners): `expires_at` a date, or null for no end. An\nended permission given a new end holds again. Answers with everyone who has permission.",
+        "operationId": "change_recording_permission",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "account",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Account"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PermissionChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Permission"
+                  },
+                  "title": "Response Recordings-Change Recording Permission"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "tags": [
           "resources"
@@ -45594,6 +45658,24 @@
       },
       "CollectionMember": {
         "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At",
+            "description": "when it ends (UTC); null: no end"
+          },
+          "expired": {
+            "type": "boolean",
+            "title": "Expired",
+            "description": "it has ended: it opens nothing until it's given again",
+            "default": false
+          },
           "account": {
             "type": "integer",
             "title": "Account"
@@ -45711,6 +45793,19 @@
               }
             ],
             "title": "Role"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At",
+            "description": "when it ends (UTC unless the time says otherwise): after that it opens nothing, and lists show it as expired. null: no end. Left out: the end it had, unless that has passed (given again, it starts over without one)."
           }
         },
         "additionalProperties": false,
@@ -60607,6 +60702,24 @@
       },
       "Member": {
         "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At",
+            "description": "when it ends (UTC); null: no end"
+          },
+          "expired": {
+            "type": "boolean",
+            "title": "Expired",
+            "description": "it has ended: it opens nothing until it's given again",
+            "default": false
+          },
           "account": {
             "type": "integer",
             "title": "Account"
@@ -60683,6 +60796,19 @@
               }
             ],
             "title": "Role"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At",
+            "description": "when it ends (UTC unless the time says otherwise): after that it opens nothing, and lists show it as expired. null: no end. Left out: the end it had, unless that has passed (given again, it starts over without one)."
           }
         },
         "additionalProperties": false,
@@ -67797,6 +67923,24 @@
       },
       "Permission": {
         "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At",
+            "description": "when it ends (UTC); null: no end"
+          },
+          "expired": {
+            "type": "boolean",
+            "title": "Expired",
+            "description": "it has ended: it opens nothing until it's given again",
+            "default": false
+          },
           "account": {
             "type": "integer",
             "title": "Account"
@@ -67857,6 +68001,19 @@
             "minLength": 3,
             "title": "Email",
             "description": "the address of an account in this archive"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At",
+            "description": "when it ends (UTC unless the time says otherwise): after that it opens nothing, and lists show it as expired. null: no end. Left out: the end it had, unless that has passed (given again, it starts over without one)."
           }
         },
         "additionalProperties": false,
@@ -67865,6 +68022,26 @@
           "email"
         ],
         "title": "PermissionAdd"
+      },
+      "PermissionChange": {
+        "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At",
+            "description": "when it ends (UTC unless the time says otherwise): after that it opens nothing, and lists show it as expired. null: no end. Left out: the end it had, unless that has passed (given again, it starts over without one)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PermissionChange"
       },
       "Person": {
         "properties": {

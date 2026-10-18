@@ -24,7 +24,7 @@ from __future__ import annotations
 import hashlib
 import pathlib
 
-from . import chat, jobs, llm, render, store, templates
+from . import auth, chat, jobs, llm, render, store, templates
 
 R = store.R
 STAGES = ("gather", "plan", "write", "check", "audio", "publish")
@@ -107,11 +107,12 @@ def hosts(cfg):
 def _readers(db, sid, collections=True):
     """Who besides admins can read namespace `sid`: its members and, with `collections`, people given a role on one of
     its collections."""
-    out = set(db.values("SELECT VALUE account FROM membership WHERE space = $s", s=sid))
+    out = {r["account"] for r in db.rows("SELECT account, expires_at FROM membership WHERE space = $s", s=sid) if auth.live(r)}
     if collections:
         cids = db.values("SELECT VALUE record::id(id) FROM collection WHERE space = $s", s=sid)
         if cids:
-            out |= set(db.values("SELECT VALUE account FROM collection_role WHERE collection IN $c", c=cids))
+            rows = db.rows("SELECT account, expires_at FROM collection_role WHERE collection IN $c", c=cids)
+            out |= {r["account"] for r in rows if auth.live(r)}
     return out
 
 

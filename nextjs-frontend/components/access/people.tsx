@@ -11,6 +11,9 @@ import {
   useTakePermission,
 } from "@/components/access/hooks";
 import { permissionLine } from "@/components/access/model";
+import { ended, untilLine } from "@/components/access/until";
+import { UntilInput } from "@/components/access/until-field";
+import { Badge } from "@/components/ui/badge";
 import { Button, IconButton } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/states";
@@ -25,10 +28,11 @@ export function PeopleWithPermission({ rid, ns }: { rid: number; ns: string }) {
   const give = useGivePermission(rid);
   const take = useTakePermission(rid);
   const [email, setEmail] = useState("");
+  const [until, setUntil] = useState("");
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!email.trim()) return;
-    give.mutate(email, { onSuccess: () => setEmail("") });
+    give.mutate({ email, until }, { onSuccess: () => (setEmail(""), setUntil("")) });
   };
   return (
     <section
@@ -40,11 +44,12 @@ export function PeopleWithPermission({ rid, ns }: { rid: number; ns: string }) {
           People with permission
         </h3>
         <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
-          They see all of it on the pages visitors see and in IIIF, whatever its access. Members of{" "}
-          <b className="font-semibold text-fg">{ns}</b> already do.
+          They see all of it on the pages visitors see and in IIIF, whatever its access, until the day you pick (leave
+          it empty for no end; give it again to change it). Members of <b className="font-semibold text-fg">{ns}</b>{" "}
+          already do.
         </p>
       </div>
-      <form onSubmit={submit} className="flex gap-2">
+      <form onSubmit={submit} className="flex flex-wrap gap-2">
         <Input
           type="email"
           aria-label="Their email address"
@@ -56,8 +61,9 @@ export function PeopleWithPermission({ rid, ns }: { rid: number; ns: string }) {
             give.reset();
           }}
           aria-invalid={give.isError || undefined}
-          className="min-w-0 flex-1"
+          className="min-w-[180px] flex-1"
         />
+        <UntilInput value={until} onChange={setUntil} className="h-9" />
         <Button
           type="submit"
           size="sm"
@@ -85,10 +91,18 @@ export function PeopleWithPermission({ rid, ns }: { rid: number; ns: string }) {
                 <UserRound aria-hidden className="size-3.5" />
               </span>
               <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-[13px] font-semibold text-fg">{p.name || p.email}</span>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <span className={`truncate text-[13px] font-semibold ${ended(p) ? "text-fg-muted" : "text-fg"}`}>
+                    {p.name || p.email}
+                  </span>
+                  {ended(p) && (
+                    <Badge tone="neutral" className="shrink-0">
+                      Expired
+                    </Badge>
+                  )}
+                </span>
                 <span className="truncate text-[12px] text-fg-muted">
-                  {p.name ? `${p.email} · ` : ""}
-                  {permissionLine(p)}
+                  {[p.name ? p.email : "", permissionLine(p), untilLine(p)].filter(Boolean).join(" · ")}
                 </span>
               </span>
               <IconButton

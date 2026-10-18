@@ -123,6 +123,23 @@ counted over the assets they see; the namespace's lists of people and faces stay
 or merging people and faces (which are the namespace's) needs editor access to the namespace. For the pages
 visitors see and IIIF, a role on a collection is permission on its assets.
 
+## Grants that end
+
+A role in a namespace, a role on a collection and permission on an asset can each hold **until** a date: pick the day
+in the form that gives it (the asset's Access dialog, a collection's People, a namespace's members in Admin →
+Namespaces), or send `expires_at` ([API](api.md#collections-of-a-namespace)); the assistant's `change_person` takes
+`until` for a namespace role. The field starts empty, which means no end, so nothing changes for grants given before
+or without one. The grant holds through the end of the day picked.
+
+After its end a grant opens nothing, wherever access is checked: the workspace, the pages visitors see, search, IIIF
+and its Authorization Flow, the file tree, MCP and the API. Every check reads grants through the same three lookups
+(a person's namespace roles, their collection roles, their permissions on assets), which leave out the ones that have
+ended, so no background job is needed and an end takes effect on the next request. Ended grants stay in the lists,
+marked **Expired**, until someone gives them again or takes them away. Giving a grant again with a new date changes its
+end; given again without one, a grant that hasn't ended keeps its end and one that has ended starts over without an
+end. Approving a request for access gives permission without an end. Ends are audited with the grant
+(`member.set`, `collection.member`, `recording.permission.give` and `recording.permission.change`).
+
 ## Asking for access
 
 Someone signed in without permission can ask an asset's owners for access: to the closed parts of a public

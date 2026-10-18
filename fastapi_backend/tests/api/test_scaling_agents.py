@@ -29,6 +29,7 @@ def llm(cfg):
 def app(cfg, db, llm):
     from app.main import create_app
 
+    cfg["ai"]["context_tokens"] = 64000  # the admin's whole toolbox fits beside the scaling read, so it is never cut
     return create_app(cfg, db, background=False)
 
 

@@ -127,6 +127,9 @@ import type {
   ChangeProviderData,
   ChangeProviderErrors,
   ChangeProviderResponses,
+  ChangeRecordingPermissionData,
+  ChangeRecordingPermissionErrors,
+  ChangeRecordingPermissionResponses,
   ChangeScheduleData,
   ChangeScheduleErrors,
   ChangeScheduleResponses,
@@ -3008,7 +3011,7 @@ export class Users {
    *
    * Give someone a role in this namespace (built-in or custom), change it, or (role null) remove them. Needs the
    * members permission; someone who isn't an admin gives only roles they hold every permission of, and changes only
-   * people whose role they hold every permission of.
+   * people whose role they hold every permission of. `expires_at` ends the role on that date (docs/access.md).
    */
   public static setMember<ThrowOnError extends boolean = false>(
     options: Options<SetMemberData, ThrowOnError>,
@@ -5847,7 +5850,8 @@ export class Namespaces {
    *
    * Give someone a role on the collection (and the collections inside it), change it, or (role null) take it away.
    * They needn't have a role in the namespace: then they see just this collection. Owners of the namespace and admins
-   * of the collection. Answers with the members; audited as `collection.member`.
+   * of the collection. `expires_at` ends the role on that date (docs/access.md). Answers with the members; audited as
+   * `collection.member`.
    */
   public static setCollectionMember<ThrowOnError extends boolean = false>(
     options: Options<SetCollectionMemberData, ThrowOnError>,
@@ -6177,7 +6181,8 @@ export class Resources {
    * Add Recording Permission
    *
    * Give someone with an account permission on the asset (owners): they see all of it on the pages visitors see
-   * and in IIIF, whatever its access; members of its namespace already do. Answers with everyone who has permission.
+   * and in IIIF, whatever its access; members of its namespace already do. `expires_at` ends it on that date
+   * (docs/access.md); giving it again changes the end. Answers with everyone who has permission.
    */
   public static addRecordingPermission<ThrowOnError extends boolean = false>(
     options: Options<AddRecordingPermissionData, ThrowOnError>,
@@ -6207,6 +6212,29 @@ export class Resources {
       RemoveRecordingPermissionErrors,
       ThrowOnError
     >({ url: "/api/v1/resources/{rid}/permissions/{account}", ...options });
+  }
+
+  /**
+   * Change Recording Permission
+   *
+   * Change when someone's permission on the asset ends (owners): `expires_at` a date, or null for no end. An
+   * ended permission given a new end holds again. Answers with everyone who has permission.
+   */
+  public static changeRecordingPermission<ThrowOnError extends boolean = false>(
+    options: Options<ChangeRecordingPermissionData, ThrowOnError>,
+  ): RequestResult<ChangeRecordingPermissionResponses, ChangeRecordingPermissionErrors, ThrowOnError> {
+    return (options.client ?? client).patch<
+      ChangeRecordingPermissionResponses,
+      ChangeRecordingPermissionErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/resources/{rid}/permissions/{account}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
   }
 
   /**

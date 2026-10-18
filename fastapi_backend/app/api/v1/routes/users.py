@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
@@ -37,7 +38,9 @@ def list_users(user: AdminReader, db: Db) -> list[UserWithRoles]:
         keys[a] += 1
     roles: dict[int, dict[str, str]] = defaultdict(dict)
     names = store.space_names(db)
-    for m in db.rows("SELECT account, space, role FROM membership"):
+    for m in db.rows("SELECT account, space, role, expires_at FROM membership"):
+        if not auth.live(m):  # an ended role opens nothing
+            continue
         roles[m["account"]][names.get(m["space"], str(m["space"]))] = m["role"]
     return [UserWithRoles.model_validate({**p, "roles": roles.get(p["id"], {}), "passkeys": keys[p["id"]]}) for p in people]
 
@@ -105,7 +108,7 @@ def list_members(name: str, user: CurrentUser, acl: Acl, db: Db) -> list[Member]
 def set_member(name: str, body: MemberSet, user: Writer, acl: Acl, db: Db) -> Ok:
     """Give someone a role in this namespace (built-in or custom), change it, or (role null) remove them. Needs the
     members permission; someone who isn't an admin gives only roles they hold every permission of, and changes only
-    people whose role they hold every permission of."""
+    people whose role they hold every permission of. `expires_at` ends the role on that date (docs/access.md)."""
     sid = acl.namespace(name, "members")
     acct = auth.find_account(db, body.email) if body.email else auth.get_account(db, body.account or 0)
     if not acct or acct.get("removed_at"):
@@ -117,9 +120,13 @@ def set_member(name: str, body: MemberSet, user: Writer, acl: Acl, db: Db) -> Ok
         for r in (body.role, now):
             if r and not table.get(r, roles.ALL) <= mine:
                 raise HTTPException(403, f"the {r} role can do more than yours here")
+    end = body.expires_at if "expires_at" in body.model_fields_set else auth.KEEP
     with domain_errors():
-        auth.set_role(db, acct["id"], sid, body.role)
-    auth.audit(db, user.as_audit(), "member.set", f"space:{sid}", {"account": acct["id"], "role": body.role})
+        auth.set_role(db, acct["id"], sid, body.role, end)
+    detail: dict[str, Any] = {"account": acct["id"], "role": body.role}
+    if end is not auth.KEEP:
+        detail["expires_at"] = body.expires_at.isoformat() if body.expires_at else None
+    auth.audit(db, user.as_audit(), "member.set", f"space:{sid}", detail)
     return Ok()
 
 

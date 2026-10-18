@@ -495,30 +495,84 @@ def permissions(db, user):
         return {}
     if user.get("admin"):
         return {sid: rl.ALL for sid in db.values("SELECT VALUE record::id(id) FROM space")}
-    rows = db.rows("SELECT space, role FROM membership WHERE account = $a", a=user["id"])
+    rows = [r for r in db.rows("SELECT space, role, expires_at FROM membership WHERE account = $a", a=user["id"]) if live(r)]
     table = rl.table(db) if any(r["role"] not in rl.BUILTIN for r in rows) else rl.BUILTIN
     return {r["space"]: table[r["role"]] for r in rows if r["role"] in table}
+
+
+# ---------- grants that end ----------
+# A role in a namespace, a role on a collection and permission on an asset can each have an end date (`expires_at`,
+# UTC ISO text). Every check of them reads them through permissions(), hierarchy.roles_of() or access.granted() and
+# has_permission(), which leave out the grants that have ended, so an ended grant opens nothing anywhere. The rows
+# stay (lists show them as expired) until someone gives the grant again or takes it away.
+KEEP = object()  # set_role, hierarchy.give, access.give: leave the grant's end date as it is
+
+
+def _when(v):
+    t = v if isinstance(v, dt.datetime) else dt.datetime.fromisoformat(str(v))
+    return t if t.tzinfo else t.replace(tzinfo=dt.timezone.utc)
+
+
+def live(row, now=None):
+    """Whether a grant still holds: it has no end date, or its end hasn't come. An end that can't be read has ended."""
+    end = (row or {}).get("expires_at")
+    if not end:
+        return True
+    try:
+        return _when(end) > (now or dt.datetime.now(dt.timezone.utc))
+    except (TypeError, ValueError):
+        return False
+
+
+def until(value):
+    """A grant's end date as stored, from a datetime or ISO text (one without a time zone is UTC); None for no end.
+    ValueError for a date that has passed: take the grant away instead."""
+    if value is None or value == "":
+        return None
+    try:
+        t = _when(value).astimezone(dt.timezone.utc)
+    except (TypeError, ValueError):
+        raise ValueError("expires_at is a date and time, like 2026-12-31T23:59:59Z") from None
+    if t <= dt.datetime.now(dt.timezone.utc):
+        raise ValueError("that end date has passed: take the access away instead")
+    return t.isoformat(timespec="seconds")
+
+
+def next_end(before, value=KEEP):
+    """The end date a grant gets when it's given or changed: the one sent (None: no end), else the one it had while
+    that hasn't come; a grant given again after it ended starts over without one."""
+    if value is not KEEP:
+        return until(value)
+    return before.get("expires_at") if before and before.get("expires_at") and live(before) else None
+
+
+def grant_state(row):
+    """What a list says about a grant's end: {expires_at, expired}."""
+    end = (row or {}).get("expires_at") or None
+    return {"expires_at": end, "expired": bool(end) and not live(row)}
 
 
 def allows(role_map, sid, need="viewer"):
     return ROLES.get(role_map.get(sid), 0) >= ROLES[need]
 
 
-def set_role(db, uid, sid, role):
-    """Give someone a role in a namespace (built-in or custom), or take it away (None)."""
+def set_role(db, uid, sid, role, expires_at=KEEP):
+    """Give someone a role in a namespace (built-in or custom), or take it away (None). `expires_at` ends it on that
+    date (None: no end; left out: the end it had, unless that has passed: next_end)."""
     from . import roles as rl
 
     rid = R("membership", f"{uid}-{sid}")
     if role is None:
         db.q("DELETE $r", r=rid)
     elif rl.exists(db, role):
-        db.q("UPSERT $r CONTENT $d", r=rid, d={"account": uid, "space": sid, "role": role})
+        end = next_end(db.one("SELECT expires_at FROM $r", r=rid), expires_at)
+        db.q("UPSERT $r CONTENT $d", r=rid, d=store.clean({"account": uid, "space": sid, "role": role, "expires_at": end}))
     else:
         raise ValueError(f"there's no role called {role}")
 
 
 def members(db, sid):
-    rows = db.rows("SELECT account, role FROM membership WHERE space = $s", s=sid)
+    rows = db.rows("SELECT account, role, expires_at FROM membership WHERE space = $s", s=sid)
     people = (
         {
             u["id"]: u
@@ -535,6 +589,7 @@ def members(db, sid):
             "role": r["role"],
             "email": people.get(r["account"], {}).get("email"),
             "name": people.get(r["account"], {}).get("name"),
+            **grant_state(r),
         }
         for r in rows
     ]
