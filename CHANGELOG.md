@@ -44,6 +44,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   a time (for the same sender, say), when one came a number of times, when one didn't come in time after another (no
   reply within two days), or once for a batch collected over a time. What it waits on outlasts a restart, and switching
   the automation off drops it ([Joins](docs/automations.md#joins)).
+- **A decide node for judgement calls.** An automation's workflow can ask the decision model a question with a few
+  options ("Does this need me today?") and go on along the option it picked, or along `unsure` when it isn't sure
+  enough, none is set up or the budget is spent. The email it reads is marked as outside text, the answer is kept per
+  activity so a retry doesn't pay again, and the call shows in the activity ledger under the run
+  ([The decide node](docs/automations.md#the-decide-node)).
 - **Specs from transcripts.** Turn a voice session or a meeting into a technical spec, saved as a note linked to it:
   the model writes the spec, then lists every named decision, every "no" and "not that, this", every constraint and
   every gap the speaker left to decide later, each with its quote and a link to the moment it was said; a quote the
