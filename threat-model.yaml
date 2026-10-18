@@ -8,7 +8,7 @@ project: lens
 prose_version: "threat-model.md@same-commit"
 model_status: under-review
 triage_policy: strict
-confidence: {documented: 205, maintainer: 46, inferred: 91, assumption: 8}
+confidence: {documented: 208, maintainer: 46, inferred: 91, assumption: 8}
 
 generation:
   model: "Claude Opus 5.5 (claude-opus-5-5)"
@@ -477,6 +477,16 @@ entry_points:
         obligation_id: keep-hook-addresses-secret
         caller_must_enforce: "the person keeps the address and secret to the services that call it; Lens keeps the token hashed, caps size and rate, checks signatures sent, and treats what was sent as outside text"
         provenance: {kind: documented, source: 'docs/automations.md "No webhook exists until an automation with such a trigger is saved"'}
+  - id: "GET /feeds/public/{token}, /feeds/public/{token}/items/{item}/audio (a published feed)"
+    component: optional
+    parameters:
+      - name: "token in the path, Range, If-None-Match"
+        attacker_controllable: true
+        x-condition: "anyone given the address, once an editor of a namespace makes a feed"
+        control_kinds: [x-credential, resource-name]
+        obligation_id: keep-feed-addresses-secret
+        caller_must_enforce: "the person shares the address as a password; Lens finds the token by its hash, stops the old address when a new one is made, and lists only what the namespace's readers can read"
+        provenance: {kind: documented, source: 'docs/feeds.md "Private by default"'}
   - id: "automations' params and prompts, POST /automations/preview and /automations/variables"
     component: optional
     parameters:
@@ -918,6 +928,16 @@ outputs:
       - {id: inv-share-uniform-410, statement: "a dead link answers the same 410 whatever went wrong", property_id: P-SHARE, provenance: {kind: documented, source: 'docs/authentication.md "the same whatever went wrong"'}}
     downstream_must_not_assume:
       - {id: dmna-410-meaningful, statement: "that a 410 says anything about the asset", provenance: {kind: documented, source: 'docs/authentication.md "the same whatever went wrong"'}}
+  - component: optional
+    channel: "Published feeds (GET /feeds/public/{token}: RSS and podcast XML, items' audio; domain/syndication.py)"
+    taint: same-as-input
+    x-taint-note: "titles, summaries, episode outlines and activity summaries as they are now, escaped for the XML and again for readers that render descriptions as HTML; only items the feed's namespace readers can read; itunes:block, podcast:locked and X-Robots-Tag ask directories and crawlers to keep out"
+    taint_provenance: {kind: documented, source: 'docs/feeds.md "Private by default"'}
+    invariants:
+      - {id: inv-feed-bounded-by-namespace, statement: "a feed lists only what the readers of its namespace can read, never a vault's", property_id: P-FEEDS, provenance: {kind: documented, source: 'docs/feeds.md "Private by default"'}}
+    downstream_must_not_assume:
+      - {id: dmna-feed-address-private, statement: "that the address stays private once shared: it is a bearer credential until rotated", provenance: {kind: documented, source: 'docs/feeds.md "Private by default"'}}
+      - {id: dmna-feed-directories-keep-out, statement: "that a directory or crawler honours the request to keep out", provenance: {kind: documented, source: 'docs/feeds.md "Private by default"'}}
 
 # ---------------------------------------------------------------- §1.10
 adversaries:
@@ -1450,6 +1470,14 @@ properties_claimed:
     violation_symptoms: [integrity-bypass]
     x-voided-by: "liveness plus asset match only (domain/auth.py:441-444); ?s= routes (api/deps.py:252, Q7)"
     provenance: {kind: documented, source: 'docs/authentication.md "give read-only access to one asset''s player and embed"'}
+  - id: P-FEEDS
+    kind: confidentiality
+    components: [authz, optional]
+    tier: security-critical
+    conditions: "a published feed's address opens that feed alone, read-only, with no session; only an editor of the namespace makes one; it lists only items whose resource or activity the readers of the feed's namespace can read, never a vault's, and a namespace made a vault stops its feeds; the token is found by its hash, and rotating or deleting the feed stops the old address at once; text in an item cannot add markup to a reader"
+    violation_symptoms: [info-leak]
+    x-voided-by: "the token is sealed with the server key, not only hashed, so the namespace's readers and whoever holds secret.key see the address again (domain/syndication.py token_of); anyone given the address reads the feed until it is rotated; editors choose what goes in, and a resource's title and summary show as they are now; the fit is by namespace roles (domain/syndication.py Fit), not per-asset grants"
+    provenance: {kind: documented, source: 'docs/feeds.md "Private by default"'}
   - id: P-AUTH-REQ
     kind: authentication
     components: [web, identity]

@@ -2075,6 +2075,102 @@ def get_podcast(ctx: Context, episode_id: int) -> dict[str, Any]:
     )
 
 
+# ---------- published feeds (docs/feeds.md) ----------
+def _feed_out(ctx: Context, row: dict[str, Any]) -> dict[str, Any]:
+    from app.domain import syndication
+
+    f = syndication.view(ctx.db, ctx.cfg, row, ctx.web)
+    keep = ("id", "kind", "title", "namespace", "description", "url", "page", "items", "last_item_at", "fetched_at")
+    return store.clean({("feed_id" if k == "id" else k): f.get(k) for k in keep})
+
+
+@tool(
+    "list_feeds",
+    "List published feeds",
+    "The RSS and podcast feeds the person's namespaces publish (docs/feeds.md): each one's kind, title, namespace, how "
+    "many items it holds, and its private address, which feed readers and podcast apps subscribe to. Anyone with the "
+    "address can read the feed, so give it only to the person. With feed_id, one feed and its newest items.",
+    Arg("namespace", "string", "only this namespace's feeds"),
+    Arg("feed_id", "integer", "one feed, with its newest items"),
+)
+def list_feeds(ctx: Context, namespace: str | None, feed_id: int | None) -> dict[str, Any]:
+    from app.domain import syndication
+
+    if feed_id is not None:
+        row = syndication.get(ctx.db, feed_id)  # KeyError: not found
+        ctx.acl.need(row["space"])
+        shown = [
+            store.clean({k: i.get(k) for k in ("id", "kind", "title", "summary", "link", "published_at", "recording")})
+            | ({"url": ctx.link(i["recording"])} if i.get("recording") is not None else {})
+            for i in syndication.items(ctx.db, feed_id, 20)
+        ]
+        return {**_feed_out(ctx, row), "newest": shown}
+    spaces = {ctx.acl.namespace(namespace)} if namespace else ctx.acl.readable()
+    return {"feeds": [_feed_out(ctx, f) for f in syndication.list_feeds(ctx.db, spaces)]}
+
+
+@tool(
+    "create_feed",
+    "Make a published feed",
+    "Make an RSS feed (any items) or a podcast feed (items with audio, with Apple Podcasts' tags) in a namespace, for "
+    "feed readers and podcast apps to follow at its private address; fill it with publish_to_feed, or with a routine "
+    "whose workflow publishes to it. Needs a write-scope token and editor access to the namespace.",
+    Arg("namespace", "string", "the namespace it belongs to", required=True),
+    Arg("title", "string", "its title", required=True, max_length=200),
+    Arg("kind", "string", "rss or podcast", enum=("rss", "podcast"), default="rss"),
+    Arg("description", "string", "what it's about", max_length=2000),
+    writes=True,
+)
+def create_feed(ctx: Context, namespace: str, title: str, kind: str, description: str | None) -> dict[str, Any]:
+    from app.domain import syndication
+
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to make feeds")
+    sid = ctx.acl.namespace(namespace, "editor")
+    fid = syndication.create(ctx.db, ctx.cfg, sid, title, kind, by=ctx.user.email, description=description)
+    auth.audit(ctx.db, ctx.user.as_audit(), "feed.create", f"feed:{fid}", {"kind": kind, "via": "mcp"})
+    return _feed_out(ctx, syndication.get(ctx.db, fid))
+
+
+@tool(
+    "publish_to_feed",
+    "Add to a published feed",
+    "Add resources (podcast episodes too: a podcast feed lists them once their audio is made), timeline activities "
+    "(by id, as timeline gives them) and a text item (title, text, link) to a feed made with create_feed. What's in "
+    "it already isn't added twice; what may not show there (it's in a namespace not everyone who reads the feed can "
+    "read) comes back in `refused`, with why. Needs a write-scope token and editor access to the feed's namespace.",
+    Arg("feed_id", "integer", "the feed", required=True),
+    Arg("recording_ids", "integer[]", "resources or episodes to list", maximum=200),
+    Arg("activity_ids", "string[]", "timeline activities to list"),
+    Arg("title", "string", "a text item's title", max_length=200),
+    Arg("text", "string", "a text item's text", max_length=4000),
+    Arg("link", "string", "a text item's link (http or https)", max_length=2000),
+    writes=True,
+)
+def publish_to_feed(
+    ctx: Context,
+    feed_id: int,
+    recording_ids: list[int] | None,
+    activity_ids: list[str] | None,
+    title: str | None,
+    text: str | None,
+    link: str | None,
+) -> dict[str, Any]:
+    from app.api.v1.routes import feeds as feed_routes
+    from app.schemas.feeds import FeedPublish
+
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to add to feeds")
+    texts = [store.clean({"title": title, "summary": text, "link": link})] if title or text else []
+    if not recording_ids and not activity_ids and not texts:
+        raise ToolError("give recording_ids, activity_ids, or a title or text to add")
+    try:
+        body = FeedPublish(recordings=recording_ids or [], activities=activity_ids or [], texts=texts)
+    except ValueError as e:
+        raise ToolError(str(e)) from None
+    return feed_routes.publish(ctx.acl, ctx.user, ctx.db, ctx.cfg, feed_id, body).model_dump()
+
+
 # ---------- specs from transcripts (docs/notes.md#specs-from-transcripts) ----------
 @tool(
     "write_spec",
