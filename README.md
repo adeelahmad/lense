@@ -306,7 +306,8 @@ swapped for a cloud provider instead. Setup asks only what has no default: the m
 Picking a cloud model provider fills in its address and a model, so only its key is left to paste. Every setting lives
 in the web app, which works on a phone too: settings are in named groups, a search finds any one by name, and the
 options most people leave as they are stay folded. A thin bar along the top of the web app shows a page or its data is
-still loading. ([Components](docs/components.md),
+still loading. Heavy steps can be kept to the night, or to so many at a time (off by default).
+([Components](docs/components.md), [quiet processing](docs/architecture.md#background-work),
 [speech providers](docs/speech-providers.md), [local models](docs/local-models.md),
 [cloud model providers](docs/configuration.md#cloud-model-providers); [checks](docs/requirements.md#light-by-default))
 

@@ -492,6 +492,15 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             </div>
             <F ctx={ctx} id="workers.steps" />
           </More>
+          <Sub>Quiet processing</Sub>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <F ctx={ctx} id="workers.heavy_hours" />
+            <F ctx={ctx} id="workers.timezone" />
+            <F ctx={ctx} id="workers.heavy_at_once" />
+          </div>
+          <More ctx={ctx} ids={["workers.heavy_steps"]} title="Which steps are heavy">
+            <F ctx={ctx} id="workers.heavy_steps" />
+          </More>
           <p className="text-[12.5px] leading-[1.45] text-fg-muted">
             The number of built-in workers and their steps take effect when the server restarts. See which workers are
             alive in{" "}
