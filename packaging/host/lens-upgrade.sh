@@ -29,6 +29,7 @@ services_of() {
     mcp) echo "mcp" ;;
     browser) echo "browser browser-proxy" ;;
     sandbox) echo "openshell-init openshell-key openshell-gateway" ;; # the certificates, the client's key, the gateway
+    mesh) echo "mesh" ;;
   esac
 }
 

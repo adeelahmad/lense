@@ -17,7 +17,8 @@ a topic to edit it in a drawer: its labels, definition, broader and related topi
 assets about it, where suggested ones can be accepted or removed. **Merge** in the drawer opens a find box: type
 part of a label and pick (or press Enter) to merge that topic into this one at once. **Delete** deletes it at once.
 Both say what they did with **Undo** on the message, so there is no confirm step. Editors add topics at the top or
-under another with **+**.
+under another with **+**. A graph workflow can also group a flat vocabulary under broader topics on a routine,
+proposing or making the groups it finds ([Organising the graph](processing.md#organising-the-graph)).
 
 An asset's **Entities** tab starts with its topics: editors add one from the vocabulary, take one off, or accept
 or dismiss a suggestion. An entity of type Term has **Make a topic** in its drawer. On the graph canvas topics are

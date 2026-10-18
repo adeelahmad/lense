@@ -111,6 +111,7 @@ EDITABLE = {
         "object_min_score",
     ),
     "nsfw": None,
+    "enhance": None,
     "server": ("embed_frame_ancestors", "max_upload_mb", "allowed_hosts", "session_hours", "secure_cookies", "trusted_proxies"),
     "uploads": None,
     "files": None,
@@ -176,6 +177,7 @@ ENUMS = {
     ("video", "ocr_engine"): {"auto", "tesseract", "apple-vision", "rapidocr", "doctr", "none"},
     ("video", "face_engine"): {"opencv", "insightface", "anytopdf", "none"},
     ("video", "object_engine"): {"yolox", "ultralytics", "anytopdf", "off"},
+    ("enhance", "image_engine"): {"classic", "realesrgan"},
     ("decisions", "engine"): {"auto", "jev", "laya", "llm", "off"},
     ("voice", "input"): {"auto", "server", "browser"},
     ("voice", "stt"): {"same", "sensevoice", "whisper", "mlx-whisper", "openai", "elevenlabs", "assemblyai", "deepgram"},
@@ -579,6 +581,10 @@ def _check(section, key, value, default):
         return _component_setting(key, value)
     if section == "nsfw":
         return _nsfw_setting(key, value)
+    if section == "enhance" and key != "image_engine":
+        from . import enhance
+
+        return enhance.check(key, value)
     if section == "mail" and key != "security":
         return _mail_setting(key, value)
     if section == "bridge" and key not in ("answer", "enabled", "approve"):
@@ -631,6 +637,15 @@ def _check(section, key, value, default):
             return None
         if not (isinstance(value, str) and VIEWER_URL.match(value.strip())):
             raise ValueError("documents.anytopdf_url is a conversion node's http(s) address, such as https://convert.home:8640")
+        return value.strip().rstrip("/")
+    if (section, key) == ("analysis", "cleanup_grammar_url"):
+        if value in (None, ""):
+            return None
+        u = urllib.parse.urlsplit(value.strip()) if isinstance(value, str) else None
+        if not (u and VIEWER_URL.match(value.strip()) and u.hostname and u.username is None and u.password is None):
+            raise ValueError(
+                "analysis.cleanup_grammar_url is a LanguageTool server's http(s) address with no password in it, such as http://languagetool:8010"
+            )
         return value.strip().rstrip("/")
     if (section, key) == ("documents", "tika_url"):
         if value in (None, ""):

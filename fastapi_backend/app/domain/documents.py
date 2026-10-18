@@ -19,7 +19,7 @@ import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
 
-from . import anytopdf, convert, ingest, keyring, store, tika, video, webcapture
+from . import anytopdf, convert, enhance, ingest, keyring, store, tika, video, webcapture
 
 R = store.R
 TYPES = {
@@ -503,6 +503,9 @@ def transcribe(db, cfg, rid, say):
         path = ingest.audio_path(db, cfg, rec)
     if not path or not os.path.exists(path):
         raise FileNotFoundError(f"its file isn't there ({rec.get('path')})")
+    if rec["source"] == "image" and (better := enhance.picture(db, cfg, rid, path)) != path:
+        path = better  # the enhance step's copy of a low quality image; the original stays as it was
+        say("read from its enhanced copy")
     opts, (engine, why) = cfg["documents"], video.ocr_engine_why(cfg)
     learnt, pdf, source, read = {}, path, rec["source"], None
     pushed = (rec.get("rendition") or {}).get("by") == "pushed" and convert.rendition_path(cfg, rid).is_file()

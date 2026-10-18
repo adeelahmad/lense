@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Podcast as PodcastIcon } from "lucide-react";
+import { Podcast as PodcastIcon, Rss } from "lucide-react";
 import Link from "next/link";
 
 import { Podcasts } from "@/app/openapi-client";
@@ -25,7 +25,16 @@ export function PodcastsScreen() {
   const nsOf = (space: number) => namespaces.find((n) => n.id === space)?.name;
   return (
     <div className="flex flex-col gap-4 px-4 py-5 md:px-6">
-      <PageHeader className="mb-0" title="Podcasts" meta="Two hosts talk through what you pick, citing every claim." />
+      <PageHeader
+        className="mb-0"
+        title="Podcasts"
+        meta="Two hosts talk through what you pick, citing every claim."
+        actions={
+          <Button asChild variant="secondary" icon={<Rss />}>
+            <Link href="/feeds">Feeds</Link>
+          </Button>
+        }
+      />
       {q.isPending ? (
         <SkeletonRows rows={5} />
       ) : q.isError ? (

@@ -285,25 +285,34 @@ def kind(words, before="", after="", people=frozenset()):
     return None
 
 
-def guess(name, lines=(), people=frozenset()):
-    """The type rules give `name` from what it is and the lines it's said in: the type most of them agree on, else
-    None."""
+def votes(name, lines=(), people=frozenset()):
+    """({type: how many of the lines `name` is said in give it that type}, how many lines say it)."""
     words = WORD.findall(name) or [name]
-    votes = {}
-    found = False
+    out, said = {}, 0
     for line in lines:
         text = line or ""
         m = re.search(rf"(?<!\w){re.escape(name)}(?!\w)", text, re.I)
         if not m:
             continue
-        found = True
+        said += 1
         t = kind(words, text[: m.start()], text[m.end() :], people)
         if t:
-            votes[t] = votes.get(t, 0) + 1
-    if not found:
-        t = kind(words, people=people)
-        return t
-    return max(votes, key=lambda t: (votes[t], t == "PERSON")) if votes else None
+            out[t] = out.get(t, 0) + 1
+    return out, said
+
+
+def best(counts):
+    """The type most lines give, a person when it's a tie with one; None for no votes."""
+    return max(counts, key=lambda t: (counts[t], t == "PERSON")) if counts else None
+
+
+def guess(name, lines=(), people=frozenset()):
+    """The type rules give `name` from what it is and the lines it's said in: the type most of them agree on, else
+    None."""
+    counts, said = votes(name, lines, people)
+    if not said:
+        return kind(WORD.findall(name) or [name], people=people)
+    return best(counts)
 
 
 # ---------- what the rules can't tell, a model may ----------

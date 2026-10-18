@@ -18,15 +18,27 @@ from . import activity, analyze, ingest, keyring, pipelines, render, speakers as
 
 R = store.R
 PIPELINE = [
-    "transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "clean", "analyze", "embed", "summarize", "report",
+    "enhance", "transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "clean", "analyze", "embed", "summarize",
+    "report",
 ]  # fmt: skip
 AFTER_IMPORT = ["clean", "analyze", "embed", "summarize", "report"]
 ACTIVE = ["queued", "running", "held"]  # held: over budget, waiting for someone to pick (budgets.py)
 FIELDS = (
     "record::id(id) AS id, recording, space, batch, pipeline, steps, step_index, next_step, status, worker, error, attempts, "
-    "created_by, created_at, started_at, finished_at, updated_at, cancel_requested, log_total, cost_usd, tokens, cost_estimate, hold"
+    "created_by, created_at, started_at, finished_at, updated_at, cancel_requested, log_total, cost_usd, tokens, cost_estimate, hold, "
+    "priority ?? 0 AS priority"
 )
-MEDIA_STEPS = {"transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe"}  # they take longer the longer the recording
+MEDIA_STEPS = {
+    "enhance",
+    "transcribe",
+    "diarize",
+    "shots",
+    "ocr",
+    "faces",
+    "objects",
+    "nsfw",
+    "describe",
+}  # they take longer the longer the recording
 FILED = ("audio", "document", "image")  # sources with a file of their own for the steps to work on
 TIMINGS = 25  # recent timings kept per kind of step, for estimates
 
@@ -41,6 +53,13 @@ def _source(db, rid):
 
 def _spec(s):
     return {"type": s} if isinstance(s, str) else dict(s)
+
+
+def _enhance(db, cfg, rid, say, spec=None):
+    """A low quality image's enhanced copy, which the steps after it read (enhance.py)."""
+    from . import enhance
+
+    enhance.step(db, cfg, rid, say, spec)
 
 
 def _read(db, cfg, rid, say, spec=None):
@@ -169,6 +188,14 @@ def _write_spec(db, cfg, rid, say, spec=None):
     specs.write(db, cfg, rid, say, spec)
 
 
+def _draft_reply(db, cfg, rid, say, spec=None):
+    from . import responder
+
+    if not (cfg["llm"].get("base_url") and cfg["llm"].get("model")):
+        raise Skip("no LLM is configured")
+    responder.draft(db, cfg, rid, say, spec)
+
+
 def _shots(db, cfg, rid, say, spec=None):
     from . import video
 
@@ -214,6 +241,7 @@ def _describe(db, cfg, rid, say, spec=None):
 
 VIDEO_STEPS = {"shots", "ocr", "faces", "objects", "describe"}  # added after workers.steps lists were first written
 STEPS = {
+    "enhance": _enhance,
     "transcribe": _transcribe,
     "read": _read,
     "diarize": _diarize,
@@ -234,14 +262,22 @@ STEPS = {
     "workflow": _workflow,
     "podcast": _podcast,
     "spec": _write_spec,
+    "reply": _draft_reply,
 }
+
+
+# The sources the enhance step works on (docs/enhance.md).
+ENHANCED = {"image"}
 
 
 def for_source(steps, source):
     """A pipeline's steps as they run on a resource of this source: a document or an image is read, not transcribed,
     and has no voices to tell apart, so a speech or voice model is never fetched for it. An imported transcript has
     nothing to transcribe and its speakers came with it, so it skips both steps too (unless they're all that was asked
-    for: those still run, to say why there's nothing to do)."""
+    for: those still run, to say why there's nothing to do). Only images are enhanced so far, so the others skip enhance
+    the same way."""
+    if source not in ENHANCED:
+        steps = [s for s in steps if s.get("type") != "enhance"] or steps
     if source == "transcript":
         return [s for s in steps if s.get("type") not in ("transcribe", "diarize")] or steps
     if source not in ("document", "image"):
@@ -342,13 +378,27 @@ def enqueue_pending(db, space=None, by=None):
     return out
 
 
+def node_spaces(db):
+    """On a worker node that serves some namespaces only (docs/mesh.md), their ids; else None (every namespace)."""
+    if MESH_NODE is None:
+        return None
+    names = (db.one("SELECT namespaces FROM $r", r=R("mesh_node", MESH_NODE)) or {}).get("namespaces") or []
+    if not names:
+        return None
+    return sorted(sid for sid, name in store.space_names(db).items() if name in names)
+
+
 def claim(db, worker, can):
     locked = keyring.locked_vaults(db)  # a vault's work waits until someone unlocks it here
+    only = node_spaces(db)
     for r in db.rows(
         "SELECT record::id(id) AS id, space, priority, created_at, started_at FROM job WHERE status = 'queued' AND next_step IN $can "
-        "AND space NOTINSIDE $locked ORDER BY priority DESC, created_at ASC LIMIT 10",
+        "AND space NOTINSIDE $locked"
+        + ("" if only is None else " AND space INSIDE $only")
+        + " ORDER BY priority DESC, created_at ASC, id ASC LIMIT 10",
         can=sorted(can),
         locked=sorted(locked),
+        only=only,
     ):
         t = store.now()
         try:
@@ -771,10 +821,10 @@ def migrate_document_steps(db):
         a=ACTIVE,
     )
     for j in rows:
-        if _source(db, j["recording"]) not in ("document", "image"):
+        if (src := _source(db, j["recording"])) not in ("document", "image"):
             continue
         i, steps = j.get("step_index") or 0, [_spec(s) for s in j.get("steps") or []]
-        left = for_source(steps[i:], "document")
+        left = for_source(steps[i:], src)
         if left == steps[i:] or not left:
             continue
         db.q(
@@ -799,13 +849,118 @@ def retry(db, jid):
     i = min(j.get("step_index") or 0, len(j["steps"]) - 1)
     db.q(
         "UPDATE $j SET status = 'queued', next_step = $s, step_index = $i, error = NONE, cancel_requested = false, finished_at = NONE, "
-        "step_runs = $sr, updated_at = $t",
+        "step_runs = $sr, priority = 0, updated_at = $t",  # it joins the back of the queue
         j=R("job", jid),
         s=_spec(j["steps"][i])["type"],
         i=i,
         sr=(j.get("step_runs") or [])[:i],  # the steps it runs again start over
         t=store.now(),
     )
+
+
+BULK_MAX = 5000  # runs one bulk cancel or retry changes
+
+
+def _picked(db, spaces, statuses, ids=None):
+    """The runs a bulk action works on: those with these statuses in these namespaces (only `ids`, when given),
+    newest first."""
+    where, p = _where(spaces, statuses)
+    if ids is not None:
+        where += " AND id IN $ids"
+        p["ids"] = [R("job", int(i)) for i in ids]
+    return db.rows(
+        f"SELECT record::id(id) AS id, recording, status, created_at FROM job{where} ORDER BY created_at DESC LIMIT {BULK_MAX}", **p
+    )
+
+
+def cancel_many(db, spaces, ids=None, statuses=("queued", "held")):
+    """Clear the queue: cancel the queued and held runs in these namespaces (only `ids`, when given). With "running"
+    among `statuses`, running ones are asked to stop after the step they're on. Returns (cancelled, stopping) ids."""
+    cancelled, stopping, t = [], [], store.now()
+    statuses = [s for s in statuses if s in ACTIVE]
+    if not statuses:
+        return cancelled, stopping
+    for j in _picked(db, spaces, statuses, ids):
+        if j["status"] == "running":
+            db.q("UPDATE $j SET cancel_requested = true, updated_at = $t WHERE status = 'running'", j=R("job", j["id"]), t=t)
+            stopping.append(j["id"])
+        elif db.rows(
+            "UPDATE $j SET status = 'cancelled', finished_at = $t, updated_at = $t WHERE status IN ['queued', 'held'] RETURN AFTER",
+            j=R("job", j["id"]),
+            t=t,
+        ):
+            cancelled.append(j["id"])
+    return cancelled, stopping
+
+
+def retry_many(db, spaces, ids=None, statuses=("failed",)):
+    """Retry the failed runs (the dead letter queue; cancelled ones too, when asked) in these namespaces (only `ids`,
+    when given), each from the step it stopped at. A run whose asset was deleted, or whose asset already has a run
+    queued or running (a newer one, or a newer failed run retried first), is skipped. Returns (retried, skipped)."""
+    statuses = [s for s in statuses if s in ("failed", "cancelled")]
+    if not statuses:
+        return [], 0
+    picked = _picked(db, spaces, statuses, ids)
+    recs = {j["recording"] for j in picked}
+    busy = set(db.values("SELECT VALUE recording FROM job WHERE recording IN $r AND status IN $a", r=sorted(recs), a=ACTIVE))
+    retried, skipped = [], 0
+    for j in picked:
+        if j["recording"] in busy:
+            skipped += 1
+            continue
+        try:
+            retry(db, j["id"])
+        except ValueError:
+            skipped += 1
+            continue
+        busy.add(j["recording"])
+        retried.append(j["id"])
+    return retried, skipped
+
+
+def queue(db, spaces=None):
+    """Queued runs' ids (in these namespaces), in the order workers take them; one a worker can't run yet, or in a
+    locked vault, waits where it is."""
+    where, p = _where(spaces, "queued")
+    q = f"SELECT record::id(id) AS id, priority ?? 0 AS p, created_at FROM job{where} ORDER BY p DESC, created_at ASC, id ASC"
+    return [r["id"] for r in db.rows(q, **p)]
+
+
+def move(db, jid, to=None, before=None, after=None):
+    """Move a queued run to the top or bottom of the queue, or just before or after another queued run. The queue's
+    runs are numbered again (priority, highest first) so they keep their order around it; runs queued later join the
+    back."""
+    order = queue(db)
+    if jid not in order:
+        raise ValueError("only a queued run can be moved")
+    order.remove(jid)
+    ref = before if before is not None else after
+    if to == "top":
+        i = 0
+    elif to == "bottom":
+        i = len(order)
+    elif ref is not None and ref in order:
+        i = order.index(ref) + (1 if before is None else 0)
+    elif ref is not None:
+        raise ValueError("the run to move it next to isn't queued")
+    else:
+        raise ValueError("say where: to (top or bottom), before or after")
+    order.insert(i, jid)
+    _renumber(db, order)
+
+
+def _renumber(db, order):
+    """Priorities that put the queue in this order: the first highest. Only the runs whose number changes are written."""
+    have = {r["id"]: r["p"] for r in db.rows("SELECT record::id(id) AS id, priority ?? 0 AS p FROM job WHERE status = 'queued'")}
+    n, t = len(order), store.now()
+    changed = [(jid, n - k) for k, jid in enumerate(order) if have.get(jid) != n - k]
+    for k in range(0, len(changed), 200):
+        part = changed[k : k + 200]
+        db.run(
+            [f"UPDATE $j{x} SET priority = {p}, updated_at = $t WHERE status = 'queued'" for x, (_, p) in enumerate(part)],
+            t=t,
+            **{f"j{x}": R("job", jid) for x, (jid, _) in enumerate(part)},
+        )
 
 
 def reap(db, stale_minutes=15, max_attempts=3):
@@ -861,10 +1016,12 @@ def _where(spaces=None, status=None, recording=None, batch=None):
     return (" WHERE " + " AND ".join(where) if where else ""), p
 
 
-def list_jobs(db, spaces=None, status=None, recording=None, limit=100, batch=None):
-    """The newest jobs (in these namespaces, with these statuses, of this recording or batch run)."""
+def list_jobs(db, spaces=None, status=None, recording=None, limit=100, batch=None, order="newest"):
+    """The newest jobs (in these namespaces, with these statuses, of this recording or batch run); with
+    order="queue", in the order workers take them (the next first)."""
     where, p = _where(spaces, status, recording, batch)
-    return _decorate(db, db.rows(f"SELECT {FIELDS} FROM job{where} ORDER BY created_at DESC LIMIT {int(limit)}", **p))
+    by = "priority DESC, created_at ASC, id ASC" if order == "queue" else "created_at DESC"
+    return _decorate(db, db.rows(f"SELECT {FIELDS} FROM job{where} ORDER BY {by} LIMIT {int(limit)}", **p))
 
 
 def changes(db, since, spaces=None, only=None):
@@ -943,8 +1100,8 @@ class Worker:
         self.can = set(steps or cfg_fn()["workers"]["steps"]) & set(STEPS)
         if not steps and "transcribe" in self.can:  # reading documents moved out of transcribe; older lists run it too
             self.can.add("read")
-        if "llm" in self.can:  # a workflow, a podcast or a spec needs what an llm step needs; older lists run them too
-            self.can |= {"workflow", "podcast", "spec"}
+        if "llm" in self.can:  # a workflow, a podcast, a spec or a reply needs what an llm step needs; older lists run them too
+            self.can |= {"workflow", "podcast", "spec", "reply"}
         if not steps and "transcribe" in self.can and not self.can & VIDEO_STEPS:
             # a workers.steps list written before the video steps existed (archive.yaml copied from an older example):
             # without them every import would wait for a worker that can run shots
@@ -957,6 +1114,8 @@ class Worker:
             self.can.add("convert")
         if not steps and "objects" in self.can:  # NSFW classification runs on ONNX Runtime too; older lists run it as well
             self.can.add("nsfw")
+        if not steps and self.can & {"transcribe", "read"}:  # enhancing comes first; lists written before it run it too
+            self.can.add("enhance")
         if not steps and log and (missing := sorted(set(STEPS) - self.can)):
             log(f"worker {self.name}: workers.steps leaves out {', '.join(missing)}; jobs with those steps wait for another worker")
         self.was_paused = False

@@ -11119,6 +11119,49 @@
         }
       }
     },
+    "/api/v1/resources/{rid}/enhance": {
+      "post": {
+        "tags": [
+          "resources"
+        ],
+        "summary": "Enhance Recording",
+        "description": "Enhance an image whatever the settings and its quality (docs/enhance.md): an enhanced copy is made, and its\npipeline's steps after enhance (reading its text, faces, objects, \u2026) run again on that copy. The original stays as\nit is. 400 for anything but an image. Audited as `recording.enhance`.",
+        "operationId": "enhance_recording",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobQueued"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/resources/{rid}/share": {
       "post": {
         "tags": [
@@ -14927,7 +14970,7 @@
           "imports"
         ],
         "summary": "Import Transcript",
-        "description": "Import a transcript into a namespace (editors; admins may name a new namespace). The namespace's pipeline, or\nthe one chosen (`pipeline`), is queued as a job.",
+        "description": "Import a transcript into a namespace (editors; admins may name a new namespace). The namespace's pipeline, or\nthe one chosen (`pipeline`), is queued as a job; `content_type` (a text one) is the asset's instead of the one\nrecognised from it, so its pipeline runs.",
         "operationId": "import_transcript",
         "requestBody": {
           "content": {
@@ -14969,7 +15012,7 @@
           "imports"
         ],
         "summary": "Import Web Page",
-        "description": "Capture a web page as a document (editors; admins may name a new namespace): the namespace's pipeline, or\n`pipeline`, keeps the page as it is now, as a PDF (a link to a PDF is kept as it is; other pages are printed by\nheadless Chromium), and reads it page by page. Only public addresses on ports 80 and 443 can be captured (and the\nnetworks in documents.web_networks). Audited as `import.web`.",
+        "description": "Capture a web page as a document (editors; admins may name a new namespace): the namespace's pipeline, or\n`pipeline`, keeps the page as it is now, as a PDF (a link to a PDF is kept as it is; other pages are printed by\nheadless Chromium), and reads it page by page. Only public addresses on ports 80 and 443 can be captured (and the\nnetworks in documents.web_networks). `content_type` (a text one) is the page's instead of the one recognised from it. Audited as\n`import.web`.",
         "operationId": "import_web_page",
         "requestBody": {
           "content": {
@@ -15053,7 +15096,7 @@
           "imports"
         ],
         "summary": "Import Web Links",
-        "description": "Capture one or many web pages at once (editors; admins may name a new namespace): pasted addresses, one per\nline, a JSON list of them (`urls`), or a file: a list of addresses, a browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON). Each link becomes\na page captured as a document, as `POST /import/web` does, tagged with the bookmark folders it was in\n(`folders_as_tags`). At most 500 links; a link already captured in the namespace isn't captured again, and one that\ncan't be is skipped, saying why. Audited as `import.web` once, with how many were queued.",
+        "description": "Capture one or many web pages at once (editors; admins may name a new namespace): pasted addresses, one per\nline, a JSON list of them (`urls`), or a file: a list of addresses, a browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON). Each link becomes\na page captured as a document, as `POST /import/web` does, tagged with the bookmark folders it was in\n(`folders_as_tags`), of `content_type` when one (a text one) is chosen. At most 500 links; a link already captured\nin the namespace isn't captured again, and one that can't be is skipped, saying why. Audited as `import.web` once,\nwith how many were queued.",
         "operationId": "import_web_links",
         "requestBody": {
           "content": {
@@ -15225,7 +15268,7 @@
           "uploads"
         ],
         "summary": "Start Upload",
-        "description": "Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of\na text-only asset (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the\nnamespace's. Then send the file with PUT /uploads/{uid}.\n400 for a type not in uploads.extensions, 409 when the asset has audio already, 413 over uploads.max_mb, 507\nwhen the server's disk can't hold it.",
+        "description": "Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of\na text-only asset (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the\nnamespace's; `content_type` (one of the file's base type) is the asset's instead of the one recognised from its\nfile, so that content type's pipeline runs. Then send the file with PUT /uploads/{uid}.\n400 for a type not in uploads.extensions, 409 when the asset has audio already, 413 over uploads.max_mb, 507\nwhen the server's disk can't hold it.",
         "operationId": "start_upload",
         "requestBody": {
           "content": {
@@ -21057,6 +21100,55 @@
         }
       }
     },
+    "/api/v1/resources/{rid}/enhanced": {
+      "get": {
+        "tags": [
+          "video"
+        ],
+        "summary": "Get Enhanced",
+        "description": "The enhanced copy the enhance step made of a low quality image (docs/enhance.md), to save. Members of its\nnamespace only (a bearer token, or a signed link the API gave one): visitors get its pages, with faces pixelated\nwhere the namespace does that.",
+        "operationId": "get_enhanced",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "s",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "image/jpeg": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/resources/{rid}/frames/{name}": {
       "get": {
         "tags": [
@@ -21880,7 +21972,7 @@
           "jobs"
         ],
         "summary": "List Jobs",
-        "description": "Recent jobs, newest first, with counts by status and by namespace (of the jobs in `namespace` and `batch`, of\nany status), plus the latest job's step and log (for the progress bar). With `recording`, that asset's runs,\nalso for someone who sees it through a role on its collection (then the counts are of those runs only).",
+        "description": "Recent jobs, newest first (or with `order=queue` in the order workers take them), with counts by status and by\nnamespace (of the jobs in `namespace` and `batch`, of any status), plus the latest job's step and log (for the\nprogress bar). With `recording`, that asset's runs, also for someone who sees it through a role on its\ncollection (then the counts are of those runs only).",
         "operationId": "list_jobs",
         "parameters": [
           {
@@ -21964,6 +22056,22 @@
               "default": 100,
               "title": "Limit"
             }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "newest",
+                "queue"
+              ],
+              "type": "string",
+              "description": "queue: in the order workers take them, the next first",
+              "default": "newest",
+              "title": "Order"
+            },
+            "description": "queue: in the order workers take them, the next first"
           }
         ],
         "responses": {
@@ -22167,6 +22275,143 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StepQueued"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/cancel": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Cancel Jobs",
+        "description": "Clear the queue: cancel every queued and held run in the namespaces you may process in (or `namespace`), or\njust `jobs`. With `running` in `status`, running runs stop after the step they're on. POST /jobs/retry with the\nids it returns queues them again. Audited as ``jobs.cancel``.",
+        "operationId": "cancel_jobs",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobsPick"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobsChanged"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/retry": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Retry Jobs",
+        "description": "Retry in bulk: every failed run (the dead letter queue; cancelled ones too with `status`) in the namespaces you\nmay process in (or `namespace`), or just `jobs`, each from the step it stopped at, at the back of the queue. A run\nwhose asset was deleted or already has a run queued or running is skipped. Audited as ``jobs.retry``.",
+        "operationId": "retry_jobs",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobsPick"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobsChanged"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/{jid}/move": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Move Job",
+        "description": "Reprioritise a queued run: move it to the `top` (next) or `bottom` of the queue, or just `before` or `after`\nanother queued run (one you can see). Workers take queued runs in this order, when they can run their step.",
+        "operationId": "move_job",
+        "parameters": [
+          {
+            "name": "jid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Jid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobMove"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobMoved"
                 }
               }
             }
@@ -25554,6 +25799,87 @@
         }
       }
     },
+    "/api/v1/marketplaces/plugins": {
+      "get": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Find Marketplace Plugins",
+        "description": "Plugins across every marketplace added, to find one to install or see which have updates.",
+        "operationId": "find_marketplace_plugins",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "words its name, description, category or author has",
+              "title": "Q"
+            },
+            "description": "words its name, description, category or author has"
+          },
+          {
+            "name": "updates",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "only plugins you installed that their marketplace lists another version of",
+              "default": false,
+              "title": "Updates"
+            },
+            "description": "only plugins you installed that their marketplace lists another version of"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MarketplacePluginFound"
+                  },
+                  "title": "Response Extensions-Find Marketplace Plugins"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/marketplaces/{mid}/refresh": {
       "post": {
         "tags": [
@@ -26724,7 +27050,7 @@
           "chats"
         ],
         "summary": "Decide Approval",
-        "description": "Approve (or run a sample of, or decline) something the assistant proposed or an automation's action. Each\napproval is decided once. An automation's action can also be edited (`params`) and then carried out, or allowed\nfrom now on for that automation (`always`); approving one needs you signed in, since it's your pick: an API key\nor an app can only decline it.",
+        "description": "Approve (or run a sample of, or decline) something the assistant proposed or an automation's action. Each\napproval is decided once. An automation's action can also be edited (`params`) and then carried out, or allowed\nfrom now on for that automation (`always`). Approving is your pick, so it needs you signed in: an API key or an\napp can only decline (403 otherwise).",
         "operationId": "decide_approval",
         "parameters": [
           {
@@ -26754,6 +27080,455 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApprovalOutcome"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "List Projects",
+        "description": "Your projects, the most recently changed first (not archived ones, unless asked).",
+        "operationId": "list_projects",
+        "parameters": [
+          {
+            "name": "archived",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "true: only archived ones; left out: every one",
+              "default": false,
+              "title": "Archived"
+            },
+            "description": "true: only archived ones; left out: every one"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectSummary"
+                  },
+                  "title": "Response Projects-List Projects"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Create Project",
+        "description": "A project: its name, goal, instructions and the namespaces it draws on, with its coordinator conversation.",
+        "operationId": "create_project",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{pid}": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get Project",
+        "description": "A project with its threads, the most recently added to first.",
+        "operationId": "get_project",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Update Project",
+        "description": "Rename it, change its goal, instructions or namespaces (its conversations draw on the new ones), or archive it.",
+        "operationId": "update_project",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Delete Project",
+        "description": "Delete a project. Its conversations stay, as ordinary ones in Chat.",
+        "operationId": "delete_project",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{pid}/threads": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "List Threads",
+        "description": "The project's threads, the most recently added to first, the coordinator among them.",
+        "operationId": "list_threads",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectThread"
+                  },
+                  "title": "Response Projects-List Threads"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Start Thread",
+        "description": "A new thread: a conversation in the project's namespaces (ask in it with POST /chats/{id}/messages). With a\n`brief`, it is asked there at once and answered in the background, as you, with your tools and approvals: GET\n/chats/{id} shows the answer once it's written (the thread is `answering` until then). With `chat`, one of your\nconversations joins the project instead, drawing on its namespaces from then on (with a brief, asked there next).",
+        "operationId": "start_thread",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ThreadCreate"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{pid}/threads/{cid}": {
+      "patch": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Update Thread",
+        "description": "Mark a thread done (it stays to read and to go on with), or not done.",
+        "operationId": "update_thread",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          },
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ThreadUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Release Thread",
+        "description": "Take a thread out of the project: the conversation stays in Chat (DELETE /chats/{id} deletes it).",
+        "operationId": "release_thread",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          },
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
                 }
               }
             }
@@ -34246,6 +35021,64 @@
         }
       }
     },
+    "/api/v1/mesh/node/worker": {
+      "get": {
+        "tags": [
+          "mesh"
+        ],
+        "summary": "Node Worker",
+        "description": "What the calling worker node's `lens worker` signs in to the database with: its own user of it. 403 for a node\nof another role, 409 where the database is embedded.",
+        "operationId": "node_worker",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshWorkerAccess"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mesh/node/media/{recording_id}": {
+      "get": {
+        "tags": [
+          "mesh"
+        ],
+        "summary": "Node Media",
+        "description": "A recording's file, plain, for a job on the calling worker node (a vault's never). Its ETag is its size and\ntime: a node that has it sends If-None-Match and gets 304.",
+        "operationId": "node_media",
+        "parameters": [
+          {
+            "name": "recording_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Recording Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/mesh/node/beat": {
       "post": {
         "tags": [
@@ -34271,6 +35104,241 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/replies": {
+      "get": {
+        "tags": [
+          "replies"
+        ],
+        "summary": "List Replies",
+        "description": "Email in the namespaces you can read (or `namespace`), newest first, each with its reply. `waiting` (the default)\nis mail that may need an answer (not a mailing list's, a no-reply sender's or your own) with no reply yet, and every\ndraft; or one status, `none` (no reply yet, automatic mail too) or `all`.",
+        "operationId": "list_replies",
+        "parameters": [
+          {
+            "name": "show",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "waiting",
+                "draft",
+                "drafting",
+                "skipped",
+                "dismissed",
+                "sent",
+                "failed",
+                "none",
+                "all"
+              ],
+              "type": "string",
+              "default": "waiting",
+              "title": "Show"
+            }
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Namespace"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplyList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{rid}/reply": {
+      "post": {
+        "tags": [
+          "replies"
+        ],
+        "summary": "Draft Reply",
+        "description": "Draft a reply to this email in the background, from what its namespace holds, each fact cited to its excerpt\nand what the archive doesn't say marked [to confirm: \u2026]; `instructions` says what it should say. It's drafted with\nthe Reply to an email prompt template (edited on the Templates page), or `template`, and drafting again keeps the\ndraft before as `previous`. Nothing is sent. Needs the right to process the email and a language model (400 without\none, or when it isn't an email). Audited as `reply.draft`.",
+        "operationId": "draft_reply",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ReplyDraft"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobQueued"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "replies"
+        ],
+        "summary": "Get Reply",
+        "description": "This email's reply: its status, the draft with its sources, and what's left to confirm.",
+        "operationId": "get_reply",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "replies"
+        ],
+        "summary": "Edit Reply",
+        "description": "Change a draft: its text, who it goes to, its subject; or set it aside (`status` dismissed) and bring it back\n(`status` draft), which undoes that. Needs the right to process the email. Audited as `reply.edit`.",
+        "operationId": "edit_reply",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplyEdit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reply"
                 }
               }
             }
@@ -40236,6 +41304,24 @@
             "title": "Max Tool Calls",
             "description": "at most this many tool calls in each answer; null: no limit but the rounds"
           },
+          "project": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project",
+            "description": "the project it's in (GET /projects/{id}): one of its threads, or its coordinator"
+          },
+          "done": {
+            "type": "boolean",
+            "title": "Done",
+            "description": "a project's thread marked done",
+            "default": false
+          },
           "created_at": {
             "anyOf": [
               {
@@ -40261,6 +41347,12 @@
           "account": {
             "type": "integer",
             "title": "Account"
+          },
+          "answering": {
+            "type": "boolean",
+            "title": "Answering",
+            "description": "an answer is being written in it now: streamed, or a brief's in the background",
+            "default": false
           },
           "head": {
             "anyOf": [
@@ -41016,6 +42108,24 @@
             ],
             "title": "Max Tool Calls",
             "description": "at most this many tool calls in each answer; null: no limit but the rounds"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project",
+            "description": "the project it's in (GET /projects/{id}): one of its threads, or its coordinator"
+          },
+          "done": {
+            "type": "boolean",
+            "title": "Done",
+            "description": "a project's thread marked done",
+            "default": false
           },
           "created_at": {
             "anyOf": [
@@ -45022,6 +46132,197 @@
         "title": "EncryptionProgress",
         "description": "Converting the files already kept after encryption.files changed: `to` \"encrypted\" or \"plain\" (vaults stay\nencrypted), how many changed and how many were skipped (a locked vault, a damaged file), and why a run stopped\nearly."
       },
+      "EnhanceMeasured": {
+        "properties": {
+          "width": {
+            "type": "integer",
+            "title": "Width"
+          },
+          "height": {
+            "type": "integer",
+            "title": "Height"
+          },
+          "sharpness": {
+            "type": "number",
+            "title": "Sharpness",
+            "description": "the variance of its Laplacian: how sharply its tones change"
+          },
+          "noise": {
+            "type": "number",
+            "title": "Noise",
+            "description": "its estimated noise, in levels out of 255"
+          },
+          "contrast": {
+            "type": "number",
+            "title": "Contrast",
+            "description": "the standard deviation of its tones (0 to 255)"
+          },
+          "brightness": {
+            "type": "number",
+            "title": "Brightness",
+            "description": "the mean of its tones (0 to 255)"
+          },
+          "faces": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Faces",
+            "description": "how many faces it has, where they were looked for"
+          },
+          "smallest_face": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smallest Face",
+            "description": "the height of its smallest face, in pixels"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "width",
+          "height",
+          "sharpness",
+          "noise",
+          "contrast",
+          "brightness"
+        ],
+        "title": "EnhanceMeasured",
+        "description": "How good a picture looked to the enhance step (docs/enhance.md)."
+      },
+      "Enhanced": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "image",
+            "title": "Kind"
+          },
+          "low": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "small",
+                "blurry",
+                "noisy",
+                "dull",
+                "small_faces"
+              ]
+            },
+            "type": "array",
+            "title": "Low",
+            "description": "why it looked low quality; empty when it looked good enough"
+          },
+          "measured": {
+            "$ref": "#/components/schemas/EnhanceMeasured"
+          },
+          "enhanced": {
+            "type": "boolean",
+            "title": "Enhanced",
+            "description": "an enhanced copy was made, and the steps after it read that"
+          },
+          "engine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine",
+            "description": "what enhanced it: classic, or realesr-general-x4v3 (Real-ESRGAN)"
+          },
+          "scale": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scale",
+            "description": "how many times bigger the copy is"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width",
+            "description": "the copy's width in pixels"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "forced": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forced",
+            "description": "enhanced on request, whatever the settings and its quality"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "download": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Download",
+            "description": "a signed link to save the enhanced copy"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "kind",
+          "measured",
+          "enhanced"
+        ],
+        "title": "Enhanced",
+        "description": "What the enhance step found and did (docs/enhance.md): whether the picture looked low quality and why, and the\nenhanced copy it's read from, if one was made. The original stays as it is."
+      },
       "EnrichedDate": {
         "properties": {
           "text": {
@@ -46165,7 +47466,9 @@
               "batch.finished",
               "recording.added",
               "lens.release",
-              "approval.waiting"
+              "approval.waiting",
+              "routine.failed",
+              "routine.proposed"
             ],
             "title": "Type"
           },
@@ -50027,19 +51330,98 @@
             "type": "string",
             "enum": [
               "merge",
-              "link"
+              "link",
+              "retype",
+              "hide",
+              "cluster"
             ],
             "title": "Kind"
           },
           "a": {
             "additionalProperties": true,
             "type": "object",
-            "title": "A"
+            "title": "A",
+            "description": "the entity changed, the first of a pair, or a group's broader topic (no id when new)"
           },
           "b": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "B"
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "B",
+            "description": "a merge's or link's other entity"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To",
+            "description": "a retype's new type"
+          },
+          "topics": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topics",
+            "description": "a group's topics, to put under its broader topic"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "an applied group's broader topic"
+          },
+          "created": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created",
+            "description": "the broader topic an applied group made"
+          },
+          "grouped": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grouped",
+            "description": "the topics an applied group put under its broader topic"
           },
           "spaces": {
             "items": {
@@ -50176,7 +51558,6 @@
           "id",
           "kind",
           "a",
-          "b",
           "spaces",
           "status"
         ],
@@ -50195,6 +51576,32 @@
             ],
             "title": "Keep",
             "description": "for a merge: the entity to keep (default: the one proposed)"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To",
+            "description": "for a retype: the type to give (default: the one proposed)"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "for a group under a new topic: its label (default: the one proposed)"
           }
         },
         "additionalProperties": false,
@@ -50439,6 +51846,21 @@
             ],
             "title": "Waiting For",
             "description": "why it launches nothing now, when it doesn't"
+          },
+          "unit_steps": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Steps",
+            "description": "the steps its units run, which its queue metrics count (None: every step); on a machine elsewhere, only a worker node's"
           },
           "last_out_at": {
             "anyOf": [
@@ -52806,6 +54228,18 @@
             ],
             "title": "Collection",
             "description": "a collection of the namespace to put it in; default: its default collection"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type",
+            "description": "a text content type (GET /content-types), e.g. transcript, instead of the one recognised from it"
           }
         },
         "additionalProperties": false,
@@ -53536,6 +54970,18 @@
             "title": "Cost Estimate",
             "description": "true: some calls had no price or token counts, so cost_usd is a floor"
           },
+          "priority": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority",
+            "description": "its place among queued runs: the highest is taken first (POST /jobs/{jid}/move sets it)"
+          },
           "hold": {
             "anyOf": [
               {
@@ -53736,6 +55182,79 @@
         ],
         "title": "JobLog"
       },
+      "JobMove": {
+        "properties": {
+          "to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "top",
+                  "bottom"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To",
+            "description": "the front of the queue (next) or its back"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before",
+            "description": "just before this queued run"
+          },
+          "after": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After",
+            "description": "just after this queued run"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "JobMove"
+      },
+      "JobMoved": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position",
+            "description": "its place now among the queued runs you can see: 1 is next"
+          },
+          "queued": {
+            "type": "integer",
+            "title": "Queued",
+            "description": "how many runs you can see are queued"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "position",
+          "queued"
+        ],
+        "title": "JobMoved"
+      },
       "JobPipeline": {
         "properties": {
           "id": {
@@ -53792,6 +55311,43 @@
           "job"
         ],
         "title": "JobQueued"
+      },
+      "JobsChanged": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "jobs": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Jobs",
+            "description": "the runs cancelled, or queued again"
+          },
+          "stopping": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Stopping",
+            "description": "running runs asked to stop after the step they're on"
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped",
+            "description": "runs retry left alone: their asset was deleted, or already has a run queued or running",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "jobs"
+        ],
+        "title": "JobsChanged"
       },
       "JobsCreate": {
         "properties": {
@@ -53851,6 +55407,63 @@
         "additionalProperties": false,
         "type": "object",
         "title": "JobsCreate"
+      },
+      "JobsPick": {
+        "properties": {
+          "jobs": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array",
+                "maxItems": 5000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jobs",
+            "description": "these runs; leave out for every run with `status`"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "only this namespace's runs (default: every one you can process in)"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "queued",
+                    "held",
+                    "running",
+                    "failed",
+                    "cancelled"
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status",
+            "description": "POST /jobs/cancel: default queued and held (clearing the queue), running too to stop those after their step; POST /jobs/retry: default failed (the dead letter queue), cancelled too"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "JobsPick"
       },
       "JobsQueued": {
         "properties": {
@@ -54216,6 +55829,18 @@
             ],
             "title": "Collection",
             "description": "a collection of the namespace to put them in; default: its default collection"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type",
+            "description": "a text content type (GET /content-types) for each page instead of the one recognised from it"
           }
         },
         "additionalProperties": false,
@@ -55436,6 +57061,24 @@
             ],
             "title": "Installed",
             "description": "your extension installed from it, if you installed it"
+          },
+          "installed_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installed Version",
+            "description": "the version you installed, when the marketplace gave one"
+          },
+          "update": {
+            "type": "boolean",
+            "title": "Update",
+            "description": "the marketplace lists another version than the one you installed",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -55445,6 +57088,133 @@
           "installable"
         ],
         "title": "MarketplacePlugin"
+      },
+      "MarketplacePluginFound": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "homepage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Homepage"
+          },
+          "installable": {
+            "type": "boolean",
+            "title": "Installable",
+            "description": "whether Lens can read it (why_not says why when it can't)"
+          },
+          "why_not": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why Not"
+          },
+          "installed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installed",
+            "description": "your extension installed from it, if you installed it"
+          },
+          "installed_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installed Version",
+            "description": "the version you installed, when the marketplace gave one"
+          },
+          "update": {
+            "type": "boolean",
+            "title": "Update",
+            "description": "the marketplace lists another version than the one you installed",
+            "default": false
+          },
+          "marketplace": {
+            "type": "integer",
+            "title": "Marketplace",
+            "description": "the marketplace that lists it"
+          },
+          "marketplace_name": {
+            "type": "string",
+            "title": "Marketplace Name"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "installable",
+          "marketplace",
+          "marketplace_name"
+        ],
+        "title": "MarketplacePluginFound"
       },
       "MarketplaceSuggestion": {
         "properties": {
@@ -56687,6 +58457,49 @@
         ],
         "title": "MeshNodeConfig"
       },
+      "MeshRelay": {
+        "properties": {
+          "port": {
+            "type": "integer",
+            "title": "Port",
+            "description": "the port on this machine's mesh address"
+          },
+          "to": {
+            "type": "string",
+            "title": "To",
+            "description": "the container it passes connections to"
+          },
+          "listening": {
+            "type": "boolean",
+            "title": "Listening"
+          },
+          "open": {
+            "type": "integer",
+            "title": "Open",
+            "description": "connections through it now",
+            "default": 0
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "port",
+          "to",
+          "listening"
+        ],
+        "title": "MeshRelay"
+      },
       "MeshRenew": {
         "properties": {
           "public_key": {
@@ -56703,6 +58516,101 @@
         ],
         "title": "MeshRenew"
       },
+      "MeshService": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available",
+            "description": "this install runs the primary's Nebula in the `mesh` container (Docker installs)"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State",
+            "description": "off, waiting (for its key to be signed), starting, running or error"
+          },
+          "nebula": {
+            "type": "boolean",
+            "title": "Nebula",
+            "description": "Nebula runs on this machine now",
+            "default": false
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since",
+            "description": "when Nebula last started"
+          },
+          "restarts": {
+            "type": "integer",
+            "title": "Restarts",
+            "default": 0
+          },
+          "relays": {
+            "items": {
+              "$ref": "#/components/schemas/MeshRelay"
+            },
+            "type": "array",
+            "title": "Relays",
+            "description": "what the mesh reaches on this machine"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "log": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Log",
+            "description": "Nebula's last lines"
+          },
+          "seen_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seen At",
+            "description": "when the container last said how it runs"
+          },
+          "manual": {
+            "type": "string",
+            "title": "Manual",
+            "description": "the line that starts the container on this machine, where there's no upgrade agent"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "available",
+          "manual"
+        ],
+        "title": "MeshService"
+      },
       "MeshStatus": {
         "properties": {
           "enabled": {
@@ -56718,7 +58626,7 @@
           "port": {
             "type": "integer",
             "title": "Port",
-            "description": "the UDP port the primary listens on (mesh.port)"
+            "description": "the UDP port other machines reach the primary at (mesh.port)"
           },
           "hosts": {
             "items": {
@@ -56768,6 +58676,10 @@
             "type": "boolean",
             "title": "Tools",
             "description": "Nebula's programs are on this server (else they're fetched when first needed)"
+          },
+          "service": {
+            "$ref": "#/components/schemas/MeshService",
+            "description": "Nebula on this machine, in the `mesh` container"
           }
         },
         "additionalProperties": true,
@@ -56782,7 +58694,8 @@
           "removed",
           "tokens",
           "nebula",
-          "tools"
+          "tools",
+          "service"
         ],
         "title": "MeshStatus"
       },
@@ -56953,6 +58866,11 @@
             "type": "string",
             "title": "Join Url",
             "description": "this install's address the machine joins at"
+          },
+          "install_line": {
+            "type": "string",
+            "title": "Install Line",
+            "description": "the line to run on the machine: install.sh with LENS_JOIN and LENS_JOIN_TOKEN"
           }
         },
         "additionalProperties": true,
@@ -56960,9 +58878,55 @@
         "required": [
           "token",
           "secret",
-          "join_url"
+          "join_url",
+          "install_line"
         ],
         "title": "MeshTokenCreated"
+      },
+      "MeshWorkerAccess": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "the database through the mesh: ws://<the primary's mesh address>:8000"
+          },
+          "namespace": {
+            "type": "string",
+            "title": "Namespace"
+          },
+          "database": {
+            "type": "string",
+            "title": "Database"
+          },
+          "user": {
+            "type": "string",
+            "title": "User",
+            "description": "the node's own user of this database (removed with the node)"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Steps",
+            "description": "the steps a worker node runs unless LENS_WORKER_STEPS says otherwise"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "url",
+          "namespace",
+          "database",
+          "user",
+          "password",
+          "steps"
+        ],
+        "title": "MeshWorkerAccess"
       },
       "MessageCreate": {
         "properties": {
@@ -57326,7 +59290,8 @@
                   "room",
                   "voice",
                   "automation",
-                  "completions"
+                  "completions",
+                  "project"
                 ]
               },
               {
@@ -57334,7 +59299,7 @@
               }
             ],
             "title": "Via",
-            "description": "a question: how it was sent"
+            "description": "a question: how it was sent (project: a brief a project's coordinator wrote)"
           },
           "options": {
             "anyOf": [
@@ -60982,7 +62947,9 @@
                 "batch.finished",
                 "recording.added",
                 "lens.release",
-                "approval.waiting"
+                "approval.waiting",
+                "routine.failed",
+                "routine.proposed"
               ]
             },
             "type": "array",
@@ -61132,7 +63099,9 @@
                     "batch.finished",
                     "recording.added",
                     "lens.release",
-                    "approval.waiting"
+                    "approval.waiting",
+                    "routine.failed",
+                    "routine.proposed"
                   ]
                 },
                 "type": "array"
@@ -61263,7 +63232,9 @@
                     "batch.finished",
                     "recording.added",
                     "lens.release",
-                    "approval.waiting"
+                    "approval.waiting",
+                    "routine.failed",
+                    "routine.proposed"
                   ]
                 },
                 "type": "array"
@@ -64443,6 +66414,387 @@
         "title": "PrimaryFile",
         "description": "The audio, video, document or image the resource's pipeline runs on."
       },
+      "Project": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "goal": {
+            "type": "string",
+            "title": "Goal",
+            "default": ""
+          },
+          "namespaces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Namespaces",
+            "description": "the namespaces it draws on, which its conversations are scoped to"
+          },
+          "coordinator": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coordinator",
+            "description": "the project's own conversation (a chat)"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived",
+            "default": false
+          },
+          "threads": {
+            "type": "integer",
+            "title": "Threads",
+            "description": "how many threads it has, besides the coordinator",
+            "default": 0
+          },
+          "open": {
+            "type": "integer",
+            "title": "Open",
+            "description": "how many of them aren't done",
+            "default": 0
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "instructions": {
+            "type": "string",
+            "title": "Instructions",
+            "description": "what its owner tells the assistant in every one of its conversations",
+            "default": ""
+          },
+          "thread_list": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectThread"
+            },
+            "type": "array",
+            "title": "Thread List",
+            "description": "its threads, the most recently added to first"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Project"
+      },
+      "ProjectCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "title": "Name"
+          },
+          "goal": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Goal",
+            "description": "what the project is for, in your words: every answer in it reads it",
+            "default": ""
+          },
+          "instructions": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Instructions",
+            "description": "how the assistant should work in it",
+            "default": ""
+          },
+          "namespaces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Namespaces",
+            "description": "the namespaces it draws on (ones you can read)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "namespaces"
+        ],
+        "title": "ProjectCreate"
+      },
+      "ProjectSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "goal": {
+            "type": "string",
+            "title": "Goal",
+            "default": ""
+          },
+          "namespaces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Namespaces",
+            "description": "the namespaces it draws on, which its conversations are scoped to"
+          },
+          "coordinator": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coordinator",
+            "description": "the project's own conversation (a chat)"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived",
+            "default": false
+          },
+          "threads": {
+            "type": "integer",
+            "title": "Threads",
+            "description": "how many threads it has, besides the coordinator",
+            "default": 0
+          },
+          "open": {
+            "type": "integer",
+            "title": "Open",
+            "description": "how many of them aren't done",
+            "default": 0
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ProjectSummary"
+      },
+      "ProjectThread": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "the conversation (GET /chats/{id}, POST /chats/{id}/messages)"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "title_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title By"
+          },
+          "coordinator": {
+            "type": "boolean",
+            "title": "Coordinator",
+            "description": "the project's own conversation, about the project as a whole",
+            "default": false
+          },
+          "done": {
+            "type": "boolean",
+            "title": "Done",
+            "description": "marked done: it stays to read and to go on with",
+            "default": false
+          },
+          "answering": {
+            "type": "boolean",
+            "title": "Answering",
+            "description": "an answer is being written in it now",
+            "default": false
+          },
+          "messages": {
+            "type": "integer",
+            "title": "Messages",
+            "description": "how many messages it has, every version's",
+            "default": 0
+          },
+          "last": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ThreadLast"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "its last message, of the version showing"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "ProjectThread"
+      },
+      "ProjectUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "goal": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal"
+          },
+          "instructions": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instructions"
+          },
+          "namespaces": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 20,
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespaces",
+            "description": "its conversations draw on these from now on"
+          },
+          "archived": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived",
+            "description": "archived projects are listed apart; nothing in them changes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ProjectUpdate",
+        "description": "Only the fields you send change."
+      },
       "Protected": {
         "properties": {
           "protected": {
@@ -66835,6 +69187,17 @@
               }
             ],
             "description": "NSFW classification, where it's on in its namespace and it was classified"
+          },
+          "enhanced": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Enhanced"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "an image the enhance step looked at: what it found, and its enhanced copy"
           }
         },
         "additionalProperties": true,
@@ -67889,6 +70252,672 @@
         ],
         "title": "Rendition",
         "description": "How a document that isn't a PDF (or an image anytopdf read) was made into one."
+      },
+      "Reply": {
+        "properties": {
+          "recording": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording",
+            "description": "the email it answers"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "none",
+              "drafting",
+              "draft",
+              "skipped",
+              "dismissed",
+              "sent",
+              "failed"
+            ],
+            "title": "Status",
+            "description": "draft: waiting for the person; drafting: a job is on it (job); skipped: mail not to answer (why); failed: the last job to draft it failed (error)"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          },
+          "cc": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cc"
+          },
+          "others": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Others",
+            "description": "the email's other recipients, to answer all of them"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From",
+            "description": "the address it answers from: the one the email came in to"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "in_reply_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Reply To",
+            "description": "the email's Message-ID, which threads the reply"
+          },
+          "references": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "References"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "the draft, with [n] after each fact taken from source n"
+          },
+          "plain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plain",
+            "description": "the draft as it would be sent, without its citations"
+          },
+          "gaps": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gaps",
+            "description": "what the archive doesn't say, marked [to confirm: \u2026] in the draft"
+          },
+          "unconfirmed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unconfirmed",
+            "description": "how many [to confirm: \u2026] marks are still in the draft"
+          },
+          "sources": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ReplySource"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sources"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "template": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "instructions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instructions"
+          },
+          "edited": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edited",
+            "description": "someone changed the draft's text"
+          },
+          "previous": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReplyBefore"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the text it had before the last edit or draft, to undo it"
+          },
+          "drafted_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drafted At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "Reply"
+      },
+      "ReplyBefore": {
+        "properties": {
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "ReplyBefore"
+      },
+      "ReplyDraft": {
+        "properties": {
+          "instructions": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instructions",
+            "description": "what the reply should say, in the person's words"
+          },
+          "template": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template",
+            "description": "another prompt template to draft it with (default: Reply to an email)"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "that template's version (default: its current one)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ReplyDraft"
+      },
+      "ReplyEdit": {
+        "properties": {
+          "text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "the reply, as it will be sent (its [n] citations are left out)"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          },
+          "cc": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cc"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "draft",
+                  "dismissed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status",
+            "description": "dismissed sets it aside; draft brings it back (undo)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ReplyEdit"
+      },
+      "ReplyEmail": {
+        "properties": {
+          "recording": {
+            "type": "integer",
+            "title": "Recording"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "received_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received At"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From"
+          },
+          "sender": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sender",
+            "description": "who sent it, as its From says"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject",
+            "default": ""
+          },
+          "snippet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snippet"
+          },
+          "automatic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Automatic",
+            "description": "why it looks like mail not to answer"
+          },
+          "reply": {
+            "$ref": "#/components/schemas/Reply"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "recording",
+          "reply"
+        ],
+        "title": "ReplyEmail"
+      },
+      "ReplyList": {
+        "properties": {
+          "emails": {
+            "items": {
+              "$ref": "#/components/schemas/ReplyEmail"
+            },
+            "type": "array",
+            "title": "Emails"
+          },
+          "drafts": {
+            "type": "integer",
+            "title": "Drafts",
+            "description": "drafts waiting in these namespaces"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "emails",
+          "drafts"
+        ],
+        "title": "ReplyList"
+      },
+      "ReplySource": {
+        "properties": {
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "recording_id": {
+            "type": "integer",
+            "title": "Recording Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "t0": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T0"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "used": {
+            "type": "boolean",
+            "title": "Used",
+            "description": "the draft cites it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "n",
+          "recording_id",
+          "text",
+          "used"
+        ],
+        "title": "ReplySource"
       },
       "ReprocessRequest": {
         "properties": {
@@ -77694,6 +80723,98 @@
         "type": "object",
         "title": "Terminate"
       },
+      "ThreadCreate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "left out, Lens titles it after its first answer"
+          },
+          "chat": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chat",
+            "description": "bring in one of your conversations instead of starting a new one"
+          },
+          "brief": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brief",
+            "description": "what to do: asked as the thread's first question and answered in the background, with your tools and approvals (follow it with GET /chats/{id})"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ThreadCreate"
+      },
+      "ThreadLast": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "title": "Role",
+            "description": "user (a question) or assistant (an answer)"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "its first 300 characters"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "role",
+          "text"
+        ],
+        "title": "ThreadLast"
+      },
+      "ThreadUpdate": {
+        "properties": {
+          "done": {
+            "type": "boolean",
+            "title": "Done",
+            "description": "mark it done, or not done"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "done"
+        ],
+        "title": "ThreadUpdate"
+      },
       "TicketRequest": {
         "properties": {
           "ticket": {
@@ -79574,6 +82695,18 @@
             "title": "Pipeline",
             "description": "the pipeline chosen to run once it's here (default: the namespace's)"
           },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type",
+            "description": "the content type chosen for its asset (default: recognised from the file)"
+          },
           "recording": {
             "anyOf": [
               {
@@ -79724,6 +82857,18 @@
             ],
             "title": "Pipeline",
             "description": "run this pipeline once it's here instead of the namespace's (not with `recording`)"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type",
+            "description": "the asset's content type (GET /content-types), one of its file's base type, instead of the one recognised from the file; its pipeline runs (not with `recording`)"
           },
           "collection": {
             "anyOf": [
@@ -81570,6 +84715,18 @@
             ],
             "title": "Collection",
             "description": "a collection of the namespace to put it in; default: its default collection"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type",
+            "description": "a text content type (GET /content-types) for the page instead of the one recognised from it"
           }
         },
         "additionalProperties": false,

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { Activities, Automations, Fields, Workflows } from "@/app/openapi-client";
+import { Activities, Automations, Feeds, Fields, Workflows } from "@/app/openapi-client";
 import type { TemplateSummary, Workflow, WorkflowTry } from "@/app/openapi-client/types.gen";
 import { useTemplateList, useWorkflowCatalog } from "@/components/pipelines/catalog-header";
 import { RunDialog } from "@/components/pipelines/pipeline-editor";
@@ -120,6 +120,13 @@ export function WorkflowEditor({ id }: { id?: number }) {
   );
   const named = name.trim() || guess;
   const problems = findProblems(graph, (tid) => tpl.get(tid)?.kind, scope, "workflow", customOf, actionDefs);
+  // The feeds a Publish to feed or Podcast episode node can add to, named on the canvas (graph workflows only).
+  const feeds = useQuery({
+    queryKey: ["feeds", "list", null],
+    queryFn: () => data(Feeds.listFeeds({ client })),
+    enabled: scope === "graph",
+    staleTime: 60_000,
+  });
   const firstProblem = Object.entries(problems)[0];
   const nextV = latest + 1;
   const publishReason =
@@ -453,6 +460,8 @@ export function WorkflowEditor({ id }: { id?: number }) {
         fields={fields}
         trace={tried?.trace}
         onSaveAsCustom={saveAsCustom}
+        feeds={scope === "graph" ? (feeds.data ?? []) : undefined}
+        namespaces={scope === "graph" ? namespaces.map((n) => n.name) : undefined}
         actions={actionDefs}
         emptyPanel={
           scope === "event" ? (
@@ -476,9 +485,13 @@ export function WorkflowEditor({ id }: { id?: number }) {
             <div className="flex flex-col gap-2 text-[13px] text-fg-secondary">
               <h2 className="text-[15px] font-bold text-fg">How graph workflows run</h2>
               <p>
-                A graph workflow starts from the namespaces a routine runs it over. Look-alike entities finds pairs that
-                may be one thing, Ask the model judges each pair, and Apply changes merges or links the sure ones and
-                proposes the rest.
+                A graph workflow starts from the namespaces a routine runs it over. Find what to tidy finds look-alike
+                entities, entities whose type looks wrong, noise, or topics to group; Ask the model judges each one, and
+                Apply changes makes the sure ones and proposes the rest.
+              </p>
+              <p>
+                It also publishes: Select assets or Select activities picks what came in since the routine last ran,
+                Publish to feed adds it to a feed, and Podcast episode makes an episode about it.
               </p>
               <p>
                 Run it from a routine. Proposed changes wait in Routines → Proposed changes, and every change can be

@@ -244,7 +244,14 @@ export function ImportScreen() {
           };
           const twin = pairs.get(it.id);
           return isUpload(it.kind)
-            ? { ...base, kind: "media", file: it.file, pipeline: pipelineId, collection: collectionId }
+            ? {
+                ...base,
+                kind: "media",
+                file: it.file,
+                pipeline: pipelineId,
+                collection: collectionId,
+                contentType: it.contentType ?? null,
+              }
             : {
                 ...base,
                 kind: "file",
@@ -343,6 +350,7 @@ export function ImportScreen() {
                       format: "auto" as const,
                       pipeline: pipelineId,
                       collection: collectionId,
+                      content_type: b.contentType,
                     }),
                     audio: b.audio ?? undefined,
                   },

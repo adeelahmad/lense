@@ -267,7 +267,7 @@ export function SettingsSection({
         <div className="flex flex-col gap-1.5">
           <h2 className="text-[22px] font-bold leading-[1.2] text-fg">{spec.label}</h2>
           <p className="text-[14px] leading-normal text-fg-secondary">{spec.description}</p>
-          {id !== "startup" && (
+          {spec.backend.length > 0 && (
             <span className="text-[12.5px] text-fg-muted">
               {updatedAt
                 ? `Last saved by ${updatedBy ?? "someone"} on ${absolute(updatedAt)}`
