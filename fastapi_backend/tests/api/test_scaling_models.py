@@ -139,3 +139,62 @@ def test_runpod_says_why_it_made_no_pod(client, db, cfg, h, pods):
     drv.terminate(opened, {"external_id": got["id"]})
     assert drv.describe(opened, {"external_id": got["id"]}) == {"state": "gone"}
     drv.terminate(opened, {"external_id": got["id"]})  # already gone: no error
+
+
+def test_a_running_model_unit_serves_lenss_model_calls_until_none_runs(client, db, cfg, h, pods):
+    base = cfg
+    settings.save(db, base, "scaling", {"enabled": True}, "root@x.io")
+    settings.save(db, base, "llm", {"base_url": "http://old.home:8080/v1", "model": "big", "api_key": "old-key"}, "root@x.io")
+    llm = lambda: settings.effective(db, base)["llm"]  # noqa: E731
+    scaler = scaling.Scaler(db, lambda: settings.effective(db, base), "test")
+    body = {"name": "GPUs", "driver": "runpod", "settings": {}, "secrets": {"token": "rp"}}
+    p = client.post("/api/v1/scaling/providers", headers=h, json=body).json()
+    g = client.post(
+        "/api/v1/scaling/groups",
+        headers=h,
+        json={"name": "Qwen", "provider": p["id"], "min": 1, "max": 1, "budget": 50, "template": {"model": "Qwen/Qwen3-8B"}},
+    ).json()
+    assert g["template"]["use_as_provider"] is True
+
+    scaler.tick(now=NOW, lease=False)
+    (pod,) = pods.pods.values()
+    assert llm()["base_url"] == "http://old.home:8080/v1"  # nothing serves until the model is loaded
+    pods.loaded.add(pod["id"])
+    scaler.tick(now=NOW + dt.timedelta(minutes=1), lease=False)
+    now_llm = llm()
+    assert now_llm["base_url"] == f"https://{pod['id']}-8000.proxy.runpod.net/v1" and now_llm["model"] == "Qwen/Qwen3-8B"
+    assert now_llm["api_key"] == pod["body"]["env"]["VLLM_API_KEY"]
+    assert "old-key" not in str(db.one("SELECT previous FROM $r", r=scaling.ROW))  # the old key waits sealed
+
+    pod["desiredStatus"] = "EXITED"
+    client.patch(f"/api/v1/scaling/groups/{g['id']}", headers=h, json={"min": 0, "desired": 0})
+    scaler.tick(now=NOW + dt.timedelta(minutes=2), lease=False)
+    back = llm()
+    assert (back["base_url"], back["model"], back["api_key"]) == ("http://old.home:8080/v1", "big", "old-key")  # as it was
+    assert not (db.one("SELECT serving FROM $r", r=scaling.ROW) or {}).get("serving")
+
+
+def test_a_provider_a_person_picks_while_a_unit_serves_stays(client, db, cfg, h, pods):
+    base = cfg
+    settings.save(db, base, "scaling", {"enabled": True}, "root@x.io")
+    settings.save(db, base, "llm", {"base_url": "http://old.home:8080/v1", "model": "big"}, "root@x.io")
+    llm = lambda: settings.effective(db, base)["llm"]  # noqa: E731
+    scaler = scaling.Scaler(db, lambda: settings.effective(db, base), "test")
+    p = client.post("/api/v1/scaling/providers", headers=h, json={"name": "G", "driver": "runpod", "secrets": {"token": "rp"}}).json()
+    g = client.post(
+        "/api/v1/scaling/groups",
+        headers=h,
+        json={"name": "Q", "provider": p["id"], "min": 1, "max": 1, "budget": 50, "template": {"model": "m"}},
+    ).json()
+    scaler.tick(now=NOW, lease=False)
+    pods.loaded.update(pods.pods)
+    scaler.tick(now=NOW + dt.timedelta(minutes=1), lease=False)
+    assert llm()["model"] == "m"
+    settings.save(db, base, "llm", {"base_url": "http://mine.home/v1", "model": "mine"}, "root@x.io")
+    scaler.tick(now=NOW + dt.timedelta(minutes=2), lease=False)
+    assert llm()["base_url"] == "http://mine.home/v1"  # the person's pick stays while the unit runs
+    client.patch(f"/api/v1/scaling/groups/{g['id']}", headers=h, json={"min": 0, "desired": 0})
+    for pod in pods.pods.values():
+        pod["desiredStatus"] = "EXITED"
+    scaler.tick(now=NOW + dt.timedelta(minutes=3), lease=False)
+    assert llm()["base_url"] == "http://mine.home/v1" and not (db.one("SELECT serving FROM $r", r=scaling.ROW) or {}).get("serving")

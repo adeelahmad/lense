@@ -1042,8 +1042,12 @@ class Scaler:
         """One pass over every group. Returns what it did: {launched, terminated, groups}."""
         now = now or _now()
         cfg = self.cfg_fn()
-        if not enabled(cfg) and not self.db.values("SELECT VALUE id FROM scale_node WHERE state IN $s LIMIT 1", s=list(ALIVE)):
-            return None  # off, with nothing left to let go: not even the lease is written
+        if (
+            not enabled(cfg)
+            and not self.db.values("SELECT VALUE id FROM scale_node WHERE state IN $s LIMIT 1", s=list(ALIVE))
+            and not (self.db.one("SELECT serving FROM $r", r=ROW) or {}).get("serving")
+        ):
+            return None  # off, with nothing left to let go or put back: not even the lease is written
         if lease and not self._lease(now):
             return None
         did = {"launched": 0, "terminated": 0, "groups": 0}
@@ -1055,8 +1059,57 @@ class Scaler:
                 err = f"{type(e).__name__}: {e}"[:300]
                 self.db.q("UPDATE $r SET error = $e", r=R("scale_group", g["id"]), e=err)
                 self.log(f"scaling: group {g['id']}: {err}")
+        try:
+            self._serve(cfg)
+        except Exception as e:  # noqa: BLE001 - judged again next tick
+            self.log(f"scaling: couldn't point model calls at a model unit: {type(e).__name__}: {e}")
         self.db.q("UPDATE $r MERGE {ticked_at: $t, running: true} WHERE owner = $me", r=ROW, t=_iso(now), me=self.name)
         return did
+
+    def _serve(self, cfg):
+        """While a model group that serves model calls (its template's `use_as_provider`) has a running unit, Lens's
+        LLM provider is that unit; once none runs, the provider that was there before comes back. A person who
+        changes the provider meanwhile keeps their pick: Lens points at a unit again only after none ran."""
+        db = self.db
+        row = db.one("SELECT serving, previous FROM $r", r=ROW) or {}
+        serving, llm = row.get("serving") or {}, cfg.get("llm") or {}
+        units = [
+            n
+            for g in db.rows(f"SELECT {GROUP_FIELDS} FROM scale_group WHERE kind = 'model' ORDER BY id")
+            if (g.get("template") or {}).get("use_as_provider", True)
+            for n in _alive(db, g["id"])
+            if n.get("state") == "running" and isinstance(n.get("endpoint"), dict) and n["endpoint"].get("base_url")
+        ]
+        if not units:
+            if serving.get("base_url") and llm.get("base_url") == serving["base_url"]:
+                prev = row.get("previous") or {}
+                key = settings.unseal(cfg, prev["api_key"], "scaling.previous_llm") if prev.get("api_key") else ""
+                settings.save(
+                    db, cfg, "llm", {"base_url": prev.get("base_url"), "model": prev.get("model"), "api_key": key}, "auto scaling"
+                )
+                activity.record("run", "scaling.serve.end", [], cfg, db, detail={"back_to": prev.get("base_url")})
+                self.log("scaling: no model unit runs; the LLM provider is the one from before again")
+            if serving or row.get("previous"):
+                db.q("UPSERT $r SET serving = NONE, previous = NONE", r=ROW)
+            return
+        if serving.get("base_url") and llm.get("base_url") != serving["base_url"]:
+            if not serving.get("held"):  # a person picked another provider: theirs stays
+                db.q("UPSERT $r SET serving.held = true, previous = NONE", r=ROW)
+            return
+        if serving.get("base_url") in {n["endpoint"]["base_url"] for n in units}:
+            return  # still served by a unit that runs
+        n = units[0]
+        e = endpoint_of(cfg, n)
+        if not serving:
+            prev = {"base_url": llm.get("base_url"), "model": llm.get("model")}
+            if llm.get("api_key"):
+                prev["api_key"] = settings.seal(cfg, llm["api_key"], "scaling.previous_llm")
+            db.q("UPSERT $r SET previous = $p", r=ROW, p=store.clean(prev))
+        settings.save(db, cfg, "llm", {"base_url": e["base_url"], "model": e["model"], "api_key": e.get("api_key") or ""}, "auto scaling")
+        db.q("UPSERT $r SET serving = $s", r=ROW, s={"base_url": e["base_url"], "unit": n["id"], "group": n["group"]})
+        refs = [_ref("scale_node", n["id"]), _ref("scale_group", n["group"])]
+        activity.record("run", "scaling.serve", refs, cfg, db, detail={"unit": n["name"], "model": e["model"]})
+        self.log(f"scaling: model calls go to {n['name']} ({e['model']})")
 
     def _group(self, cfg, g, now, did):
         db = self.db
