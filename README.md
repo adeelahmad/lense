@@ -87,15 +87,14 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   nothing is lost. Each answer keeps a record of what produced it (the model, its tools, how long it took and what it
   cost), opened from its header. It reads answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine
   (opt-in), any message in one click. Long conversations are summarised before they fill the model's context, and
-  `/clear` and `/compact` start afresh or summarise now. Questions about Lens itself (how do I back up, is Telegram
-  on) are answered from its docs and this server, cited. Conversations title themselves after their first answer, unless
+  `/clear` and `/compact` start afresh or summarise now. It answers questions about Lens itself (how to back up,
+  whether Telegram is on) from its docs and this server, citing both. Conversations title themselves after their first answer, unless
   you name them. Each namespace can have its own assistant with
   its own name, instructions and memory, answering in Telegram and Slack (built in, with voice notes and files), in
   Discord, Matrix, WhatsApp and other chat rooms through Matterbridge, and by email at an address of its own that you
   email or forward things to. ([Chat](docs/assistant.md), [web search](docs/assistant.md#web-search-and-reading-pages),
   [mail, calendars and files](docs/assistant.md#mail-calendars-and-files), [code sandbox](docs/assistant.md#code-sandbox), [answer records](docs/assistant.md#what-each-answer-records),
-  [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md), [speech providers](docs/speech-providers.md),
-  [questions about Lens itself](docs/assistant.md#questions-about-lens-itself);
+  [questions about Lens](docs/assistant.md#questions-about-lens-itself), [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md), [speech providers](docs/speech-providers.md);
   [checks](docs/requirements.md#ask-and-get-cited-answers))
 - **Extend the assistant.** Add tools (a prompt, a web request, a graph drawn on the canvas, or sandboxed Python),
   skills, hooks and MCP servers, by code, on the canvas or just by asking. Remote MCP servers connect by address, and
@@ -124,20 +123,20 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [the assistant in your browser](docs/browser-assistant.md); [checks](docs/requirements.md#clip-from-the-browser))
 - **Understand it.** Transcription, people recognised by voice (long recordings go to a speech provider in pieces that
   fit its limits), text on screen and in scans, faces (off by default), NSFW pictures flagged by a model on your own
-  server (off by default, per namespace), low quality images enhanced before they're read (off by default), entities and
-  topics in a knowledge graph you can explore, query with Cypher or SPARQL, and see as it was at any version. Every
-  entity has its own page at a wiki address (`/wiki/<namespace>/<Name>`), and entities, topics and people are edited and
-  merged from their lists, the graph or an asset, with Undo instead of a confirm. Names get their real types (people,
-  places, organisations, events, works) by rules, without a model, and a decision model types the ones the rules can't.
-  Find what is most like a passage, an asset, a topic or an entity, in a Similar tab on every asset or by selecting text
-  anywhere, and, with anytopdf, photos by what they show. Pages and shots are described in words by the model provider's
-  vision model or, off by default, by Florence-2 or Moondream on your own server. Transcripts can be cleaned up before
-  analysis (stutters, "um"s, spacing and, with a local model, punctuation put back), entities found by spaCy instead of
-  the rules, and the dates people say read as days on the calendar, each off by default.
+  server (off by default, per namespace), entities and topics in a knowledge graph you can explore, query with Cypher or
+  SPARQL, and see as it was at any version. Every entity has its own page at a wiki address
+  (`/wiki/<namespace>/<Name>`), and entities, topics and people are edited and merged from their lists, the graph or an
+  asset, with Undo instead of a confirm. Names get their real types (people, places, organisations, events, works) by
+  rules, without a model, and a decision model types the ones the rules can't. Find what is most like a passage, an
+  asset, a topic or an entity, in a Similar tab on every asset or by selecting text anywhere, and, with anytopdf, photos
+  by what they show. Pages and shots are described in words by the model provider's vision model or, off by default, by
+  Florence-2 or Moondream on your own server. Transcripts can be cleaned up before analysis (stutters, "um"s, spacing
+  and, with a local model, punctuation put back), entities found by spaCy instead of the rules, and the dates people say
+  read as days on the calendar, each off by default.
   ([Graph](docs/graph.md), [entity pages](docs/notes.md#entity-pages),
   [similar content](docs/processing.md#similar-content), [graph history](docs/graph-history.md),
   [topics](docs/topics.md), [video](docs/video.md), [NSFW classification](docs/nsfw.md),
-  [enhancing images](docs/enhance.md), [long recordings](docs/speech-providers.md#long-recordings),
+  [long recordings](docs/speech-providers.md#long-recordings),
   [cleaning up transcripts](docs/processing.md#cleaning-up-transcripts), [dates](docs/processing.md#dates);
   [checks](docs/requirements.md#understand-it))
 - **Learn from it.** Make a two-host podcast episode about what you pick, every claim cited and checked against its
@@ -169,8 +168,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   content types or topics, acting only on a sure answer, and an Entity filter node keeps the entities you want. Anything that reaches outside Lens or changes more than what
   set it off asks first, until you let it run on its own: on the Approvals page or, for a change inside Lens, with a yes
   in the chat it told you in; agents can decline an approval but never give one. Each automation has limits and budgets,
-  and agents make, try and run them over MCP and in the assistant, or draft one from a sentence; the studio to draw them
-  in the web app is planned. ([Processing](docs/processing.md#workflows-and-the-canvas),
+  and agents make, try and run them over MCP and in the assistant, or draft one from a sentence. An automation's
+  workflow is drawn and tried on the workflow canvas, with its actions in the palette; the studio's builder is
+  planned. ([Processing](docs/processing.md#workflows-and-the-canvas),
   [converting assets](docs/processing.md#converting-assets), [notifications](docs/notifications.md),
   [automations](docs/automations.md),
   [approvals](docs/automations.md#approvals), [timeline](docs/timeline.md); [checks](docs/requirements.md#automate-it))
@@ -244,6 +244,7 @@ still loading. ([Components](docs/components.md),
 These are open pull requests, not yet part of Lens:
 
 - **Chat:** a conversation exported as Markdown, PDF or JSON ([#474](https://github.com/adeelahmad/lense/pull/474)).
+- **Pictures:** low-quality images enhanced before they're read ([#479](https://github.com/adeelahmad/lense/pull/479)).
 - **Web clipper:** signing in, or using your API token, not only an import webhook's
   ([#406](https://github.com/adeelahmad/lense/pull/406)).
 - **Automations:** more operators for conditions ([#434](https://github.com/adeelahmad/lense/pull/434)).
@@ -254,7 +255,8 @@ These are open pull requests, not yet part of Lens:
 
 Next, and not in a pull request yet; each links to where it is tracked:
 
-- **The automations studio:** drawing automations in the web app ([automations](docs/automations.md)).
+- **The automations studio:** a When, If and Then builder for automations, with their runs and costs, in the web app
+  ([automations](docs/automations.md)).
 - **Timeline:** what each item caused, and Approve and Decline on waiting approvals ([timeline](docs/timeline.md)).
 - **Notes:** nesting a note under its project or area without a click, pages in the graph, and wiki addresses for
   topics, recordings and the other things that have pages ([notes](docs/notes.md)).
@@ -298,8 +300,8 @@ The guides are on the [docs site](https://adeelahmad.github.io/lense/) and in th
   [the assistant by email](docs/assistant-email.md), [podcasts](docs/podcasts.md), [notes](docs/notes.md),
   [web clipper](docs/web-clipper.md), [the assistant in your browser](docs/browser-assistant.md),
   [sensors](docs/sensors.md), [processing](docs/processing.md), [video](docs/video.md),
-  [NSFW classification](docs/nsfw.md), [enhancing images](docs/enhance.md), [notifications](docs/notifications.md),
-  [automations](docs/automations.md), [timeline](docs/timeline.md)
+  [NSFW classification](docs/nsfw.md), [notifications](docs/notifications.md), [automations](docs/automations.md),
+  [timeline](docs/timeline.md)
 - **Knowledge:** [graph and Cypher](docs/graph.md), [graph history](docs/graph-history.md), [topics](docs/topics.md),
   [the graph as files](docs/file-tree.md), [NFS share](docs/file-shares.md), [SMB share](docs/smb.md),
   [linked data (RDF)](docs/rdf.md), [IIIF](docs/iiif.md), [Fedora](docs/fedora.md)

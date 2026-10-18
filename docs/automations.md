@@ -26,6 +26,7 @@ merged is called built.
 | The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
 | The event workflow scope: what an automation does, drawn with action nodes and tried on an activity (`app/domain/automation_nodes.py`) | built |
 | The decide node: the decision model picks a branch, one port per option and `unsure` ([The decide node](#the-decide-node)) | built |
+| Drawing an automation's workflow on the canvas: the actions in the palette, their settings from each action's params, Decide's ports, the leaf rule and a try on a kind's sample ([On the canvas](#on-the-canvas)) | built |
 | The action registry with risk from each action's effect, and one action, `log_line` (`app/domain/actions.py`) | built |
 | Telling a person: the `notify` action and `channels.tell` (their own chat, a notification target, a Matterbridge room) | built |
 | The model and the agent: the `ask_model`, `call_tool` and `ask_agent` actions, and prompts with outside text marked | built |
@@ -566,6 +567,19 @@ sent: each action says what it would do (`would write “New: Call with the scho
 lists each one with its params, effect, risk, status (`done`, `waiting`, `scheduled` or `failed`) and what it gave
 back. Text from outside Lens (`lens.untrusted` on the activity, or what a node passed on when its output says
 `untrusted`, like a web page's answer) that reaches an action's params marks its intent `untrusted`.
+
+#### On the canvas
+
+Built: an event workflow opens on the workflow canvas (`/workflows/<id>`) like any other. It starts from **What
+happened**, the run context. The palette lists every action in the catalog under **Actions**; dropping one adds an
+action node set to it, and its settings are a form drawn from the action's params (a template field takes `{{ }}`),
+with a badge saying whether it runs on its own or asks you first, and **Wait first** for a delay. **Decide** sits
+under AI: write its question and its options one a line as `name: what it means`, and each option becomes an output
+port, with `unsure` last. The canvas says what the backend would refuse before you publish: an action not chosen or
+a required param left empty, a wait that isn't like `30m`, a decide node without a question or with fewer than two
+options, and the leaf rule (nothing connected after an action that reaches outside Lens or waits). **Try on a
+sample** runs the graph on the sample of the kind you pick: nothing is kept or sent, each node shows what it passed
+on, and each action says what it would do (run at once, ask you first or wait for its time).
 
 #### The decide node
 
@@ -1246,7 +1260,6 @@ held run until you pick.
   channel; web push; private chats through Matterbridge (it can't tell them from rooms); with several people let in,
   "me" is whoever last wrote privately, until each chat user has a Lens account of their own; telling which links in a
   message the person's template wrote, so they stay when the run read outside text.
-- The canvas draws and edits event workflows (today they are saved and tried through the API).
 - Variables and templates: secrets as variables (sealed, never rendered into prompts); typed variable declarations
   with defaults per automation; a time zone of each person's own, rather than the triggers'; wrapping outside text
   the same way in `tool_nodes.ask_model` (pipeline workflows) and extensions' prompt tools; variables in the
