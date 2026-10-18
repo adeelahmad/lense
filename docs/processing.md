@@ -23,6 +23,24 @@ How assets move through Lens: where they come from, what each step does, and how
 
 Every step takes `--ns`, `--limit` and `--force`; `run` does them all, and a lock stops two runs overlapping.
 
+### Your own names in transcription
+
+Speech-to-text gets wrong the names only you use: family, colleagues, places, projects. With `transcribe.vocabulary`
+on (Settings → Transcription → Expect your own names; off by default), each recording is transcribed knowing up to 60
+words its namespace already knows, in this order:
+
+- the custom vocabulary in Settings → Analysis (`analysis.gazetteer`), as written there;
+- the names of the namespace's named people;
+- its defined entities ([Entity setup](#entity-setup));
+- the words people put in when they corrected its transcripts, the capitalised ones a line didn't have before (the
+  text cleanup's own changes don't count), most often first.
+
+Whisper (faster-whisper and mlx-whisper) and OpenAI-compatible servers get them as the prompt, a line of the names (the
+diarizing models take none); Deepgram as key terms with Nova-3, or keywords with the models before it; AssemblyAI as
+key terms with Universal-3 and Slam-1, or boosted words with the others. SenseVoice and ElevenLabs take no hints, so
+they transcribe as before. The words go only to the engine the recording was going to anyway, and a provider's row in
+the [activity ledger](activity.md) says how many it was given. Run Transcribe again on an asset to use new names.
+
 ### Cleaning up transcripts
 
 Speech comes out of transcription as it was said, and the extractor, chapters, keywords and search all read it. With

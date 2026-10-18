@@ -125,8 +125,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   assistant, which can also use that browser on the sites you allow (open, read, click, type), asking before anything
   that sends, deletes, buys or posts. ([Web clipper](docs/web-clipper.md),
   [the assistant in your browser](docs/browser-assistant.md); [checks](docs/requirements.md#clip-from-the-browser))
-- **Understand it.** Transcription, people recognised by voice (long recordings go to a speech provider in pieces that
-  fit its limits), text on screen and in scans, faces (off by default), NSFW pictures flagged by a model on your own
+- **Understand it.** Transcription, which can expect the names your namespace knows (off by default), people
+  recognised by voice (long recordings go to a speech provider in pieces that fit its limits), text on screen and in scans, faces (off by default), NSFW pictures flagged by a model on your own
   server (off by default, per namespace), entities and topics in a knowledge graph you can explore, query with Cypher or
   SPARQL, and see as it was at any version. Every entity has its own page at a wiki address
   (`/wiki/<namespace>/<Name>`), and entities, topics and people are edited and merged from their lists, the graph or an
@@ -141,6 +141,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [similar content](docs/processing.md#similar-content), [graph history](docs/graph-history.md),
   [topics](docs/topics.md), [video](docs/video.md), [NSFW classification](docs/nsfw.md),
   [long recordings](docs/speech-providers.md#long-recordings),
+  [your own names](docs/processing.md#your-own-names-in-transcription),
   [cleaning up transcripts](docs/processing.md#cleaning-up-transcripts), [dates](docs/processing.md#dates);
   [checks](docs/requirements.md#understand-it))
 - **Learn from it.** Make a two-host podcast episode about what you pick, every claim cited and checked against its
