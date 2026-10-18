@@ -22,6 +22,7 @@ import {
   Wallet,
   Waypoints,
   Workflow,
+  Zap,
 } from "lucide-react";
 
 export type NavItem = {
@@ -74,6 +75,7 @@ export const NAV: NavItem[] = [
     whileCounted: true,
     group: "Automate",
   },
+  { label: "Automations", href: "/automations", icon: Zap, group: "Automate" },
   { label: "Pipelines", href: "/pipelines", icon: Workflow, group: "Automate" },
   // Everything that runs on a clock in one list: everyone has it, for the schedules of their own automations. It
   // takes the row Routines had (the Routines page opens from it), so the nav fits a phone screen as before.
