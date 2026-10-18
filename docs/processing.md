@@ -794,6 +794,9 @@ log. A run that fails, or leaves graph changes to review, can be sent to a chat 
 Matterbridge or to a webhook: pick `routine.failed` or `routine.proposed` for a namespace's target
 ([Notifications](notifications.md#events)).
 
+The [Schedules](schedules.md) page (Automate › Schedules) lists every routine next to the automations' schedules and
+the backup, to switch, re-time and run each from one place; the Routines page and New routine open from its top.
+
 ### Organising the graph
 
 A workflow's scope is assets (above), the graph, or an event: an automation's workflow, run by its automation

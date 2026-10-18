@@ -4,11 +4,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
-- **Routine run alerts.** A routine's run that fails (all its actions, some of them, or one that stops without
-  finishing) or leaves graph changes to review can now be sent through Matterbridge, to a signed webhook, or to Slack
-  and Discord: pick the new `routine.failed` and `routine.proposed` events for a namespace's notification target. Each
-  namespace the routine runs over gets its own message, linking the routine or the run's changes; new targets' default
-  events are unchanged ([Notifications](docs/notifications.md#events)).
+## 0.16.0 <small>October 18, 2026</small> {id="0.16.0"}
+
+### Features
+
+- **web:** SchemaForm, a form generated from a JSON Schema with a variable picker ([#566](https://github.com/adeelahmad/lense/pull/566))
+- **chat:** recover when the model's context is full, and show what a summary covers ([#558](https://github.com/adeelahmad/lense/pull/558))
+- **pipelines:** convert steps that make a video's soundtrack an audio asset and a document's pages image assets ([#568](https://github.com/adeelahmad/lense/pull/568))
+- **scaling:** DigitalOcean and Hetzner Cloud providers ([#573](https://github.com/adeelahmad/lense/pull/573))
+- **workflows:** draw an automation's workflow on the canvas, with action and decide nodes ([#576](https://github.com/adeelahmad/lense/pull/576))
 
 ## 0.15.0 <small>October 18, 2026</small> {id="0.15.0"}
 

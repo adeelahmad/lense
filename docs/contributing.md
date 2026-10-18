@@ -133,7 +133,10 @@ request) fails when a check a row names is gone or a measured number is no longe
 
 The backend and frontend share a [semantic version](https://semver.org/). The changelog is written from the PR titles,
 so a PR needs no `CHANGELOG.md` edit. When a change deserves more than its title (what users notice, what to do when
-upgrading), write it under `## Unreleased`; that text goes at the top of the next version's section.
+upgrading), add a Markdown fragment under `changelog.d/` named after the branch (its README says how); the release
+folds the fragments, oldest commit first, into the top of the next version's section and deletes them. Fragments
+replaced writing under `## Unreleased`, where every pull request conflicted with every other; that text, when any,
+still goes first.
 
 To release, run the Release workflow on `main` (Actions > Release > Run workflow, or `gh workflow run release.yml`).
 It first upgrades the last release, holding data, to `main` and checks that nothing was lost
@@ -141,13 +144,14 @@ It first upgrades the last release, holding data, to `main` and checks that noth
 changed after it ran, nothing is cut.
 With `auto` it picks the version from the PR titles merged since the last release: a breaking change bumps major
 (minor before 1.0), a `feat` minor, anything else patch; give `patch`, `minor`, `major` or an exact version to
-override. It writes the new section (the Unreleased text, then the changes grouped into features, fixes,
-performance, reverts, dependencies and other changes; `docs`, `refactor`, `test`, `build`, `ci`, `chore` and
-`style` are left out, and so is a PR that wrote its own Unreleased entry, unless it's breaking), sets the version in `fastapi_backend/pyproject.toml`, `uv.lock`,
+override. It writes the new section (the Unreleased text, the `changelog.d/` fragments, then the changes grouped into
+features, fixes, performance, reverts, dependencies and other changes; `docs`, `refactor`, `test`, `build`, `ci`,
+`chore` and `style` are left out, and so is a PR that wrote a fragment or an Unreleased entry, unless it's
+breaking), sets the version in `fastapi_backend/pyproject.toml`, `uv.lock`,
 `nextjs-frontend/package.json`, the API schema `nextjs-frontend/openapi.json`, `app/domain/__init__.py` and
 `CloudronManifest.json`, commits that to `main` as `chore(release): vX.Y.Z`, tags
 it and publishes the GitHub release with that section as its notes. Pushing a `vX.Y.Z` tag yourself publishes it the
-same way, without the commit. `python3 .github/scripts/release.py cut auto` shows locally what it would write.
+same way, without the commit. `python3 .github/scripts/release.py cut auto` shows locally what it would write (undo with `git checkout -- .`).
 An exact version must be newer than the current one, and only the newest version is marked Latest. If a run pushed its
 commit and tag but failed before publishing, run it again (or re-run it): it publishes that version instead of
 cutting another.

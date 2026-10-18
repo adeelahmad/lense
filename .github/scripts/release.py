@@ -3,9 +3,10 @@
 pre-commit hook; needs only Python and git.
 
     release.py cut auto|patch|minor|major|X.Y.Z [--date YYYY-MM-DD]
-        Writes the new version's CHANGELOG.md section: the "## Unreleased" text, when there is any, then the changes
-        merged since the last release, listed from their Conventional Commit titles (except those that wrote their
-        own Unreleased entry, unless breaking). Sets the version in pyproject.toml, uv.lock, package.json, the API
+        Writes the new version's CHANGELOG.md section: the "## Unreleased" text, when there is any, then the
+        changelog.d/*.md fragments in the order they were committed (and deletes them), then the changes merged since
+        the last release, listed from their Conventional Commit titles (except those that wrote a fragment or an
+        Unreleased entry, unless breaking). Sets the version in pyproject.toml, uv.lock, package.json, the API
         schema (openapi.json) and CloudronManifest.json (when present) and prints it. `auto` picks the bump from those titles and any
         BREAKING CHANGE footers: a breaking change is major (minor before 1.0), a feat minor, anything else patch.
     release.py notes X.Y.Z
@@ -26,6 +27,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 CHANGELOG = ROOT / "CHANGELOG.md"
+# one Markdown file per pull request, folded into the next version's section; its README.md explains and stays
+FRAGMENTS = ROOT / "changelog.d"
 SEMVER = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 HEADING = re.compile(r"^## (\S+)", re.M)
 
@@ -229,12 +232,19 @@ def changes_since(base: str | None) -> list[dict]:
         else:
             kind = "deps" if DEPENDABOT.match(subject) else "other"
             scope, description = None, subject
-        # a change that wrote its own CHANGELOG.md entry is described there, not listed again
+        # a change that wrote its own CHANGELOG.md entry or changelog.d fragment is described there, not listed again
         first_parent = parents[0] if parents else None
         documented = bool(
             first_parent
             and git(
-                "diff", "--numstat", first_parent, commit, "--", "CHANGELOG.md"
+                "diff",
+                "--numstat",
+                first_parent,
+                commit,
+                "--",
+                "CHANGELOG.md",
+                "changelog.d/*.md",
+                ":(exclude)changelog.d/README.md",
             ).strip()
         )
         changes.append(
@@ -287,20 +297,47 @@ def sections(text: str) -> dict[str, str]:
     return found
 
 
+def fragments() -> list[Path]:
+    """The changelog.d/*.md fragments, oldest commit first (one not committed yet last), then by name."""
+    if not FRAGMENTS.is_dir():
+        return []
+
+    def added(path: Path) -> int:
+        when = git(
+            "log",
+            "-1",
+            "--format=%ct",
+            "--diff-filter=A",
+            "--",
+            str(path.relative_to(ROOT)),
+        ).strip()
+        return int(when) if when else 2**62
+
+    paths = [
+        path
+        for path in FRAGMENTS.glob("*.md")
+        if path.name != "README.md" and not path.name.startswith(".")
+    ]
+    return sorted(paths, key=lambda path: (added(path), path.name))
+
+
 def cut(bump: str, date: datetime.date) -> str:
     old = current_version()
     changes = changes_since(last_release(old))
     text = CHANGELOG.read_text()
     unreleased = sections(text).get("Unreleased", "").strip()
-    if not changes and not unreleased:
+    pieces = fragments()
+    folded = [piece.read_text().strip() for piece in pieces]
+    if not changes and not unreleased and not any(folded):
         fail("Nothing to release: no changes since the last release")
     new = next_version(old, auto_bump(old, changes) if bump == "auto" else bump)
     if new in sections(text):
         fail(f"CHANGELOG.md already has a {new} section")
 
     listed = changes_markdown(changes)
-    body = "\n\n".join(part for part in (unreleased, listed) if part) or (
-        "Maintenance only: nothing users see changed."
+    body = (
+        "\n\n".join(part for part in (unreleased, *folded, listed) if part)
+        or "Maintenance only: nothing users see changed."
     )
     day = f"{date:%B} {date.day}, {date.year}"
     section = (
@@ -315,6 +352,8 @@ def cut(bump: str, date: datetime.date) -> str:
         flags=re.M | re.S,
     )
     CHANGELOG.write_text(text.rstrip("\n") + "\n")
+    for piece in pieces:  # folded in; `git commit -a` records the deletions
+        piece.unlink()
 
     for name, pattern in VERSION_FILES.items():
         path = ROOT / name
