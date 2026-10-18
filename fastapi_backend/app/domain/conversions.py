@@ -177,11 +177,16 @@ def _keep(db, cfg, rid, rec, dest, source, title, link, old, spec, more):
         **more,
     }
     if old:
+        was = (db.one("SELECT path FROM $r", r=R("recording", old)) or {}).get("path")
         db.q("UPDATE $r MERGE $d", r=R("recording", old), d={**row, "status": "new"})
+        if was and was != str(dest) and keyring.owned(cfg, was):  # made again in another format: the old file goes
+            pathlib.Path(was).unlink(missing_ok=True)
         new = old
     else:
-        known = db.one("SELECT record::id(id) AS id FROM recording WHERE fp_key = $k", k=row["fp_key"])
-        if known:  # the same file is an asset here already
+        known = db.one("SELECT record::id(id) AS id, path FROM recording WHERE fp_key = $k", k=row["fp_key"])
+        if known:  # the same file is an asset here already: the copy just made isn't kept
+            if known.get("path") != str(dest):
+                dest.unlink(missing_ok=True)
             return known["id"]
         new = db.next_id("recording")
         db.q(

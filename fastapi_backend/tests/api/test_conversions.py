@@ -97,6 +97,7 @@ def test_a_videos_soundtrack_becomes_an_audio_asset(client, h, db, cfg, folder):
     assert "audio asset (mp3, encoded)" in log
     [b] = _made(db, rid)
     assert b["id"] == a["id"] and b["path"].endswith(".mp3")  # forced: the same asset, its file made again
+    assert not pathlib.Path(a["path"]).exists()  # the m4a it replaced is gone
     # with no pipeline named, the new asset runs the one its content type gives it, as an upload does
     assert db.values("SELECT VALUE id FROM job WHERE recording = $r", r=b["id"])
 
