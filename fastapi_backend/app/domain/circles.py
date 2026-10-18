@@ -249,13 +249,14 @@ def _from_recording(db, me, who, rid):
 
 
 def _recipients(db, me, circle_ids, people_ids):
-    """(member ids, circle names) for a share: every member of `me`'s circles named, and people in any of their
-    circles. Problem when that's nobody."""
+    """(member ids, circle names) for a share: every member of `me`'s circles named (by id, or by name as automations
+    name them), and people in any of their circles. Problem when that's nobody."""
     rows = db.rows("SELECT record::id(id) AS id, name, members FROM circle WHERE owner = $o", o=me["id"])
     mine = {r["id"]: r for r in rows}
     out, names = [], []
+    by_name = {str(r["name"]).casefold(): r for r in rows}
     for c in circle_ids or []:
-        r = mine.get(int(c)) if str(c).strip().isdigit() else None
+        r = mine.get(int(c)) if str(c).strip().isdigit() else by_name.get(str(c).strip().casefold())
         if r is None:
             raise KeyError(f"circle {c}")
         names.append(r["name"])

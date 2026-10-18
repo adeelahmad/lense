@@ -11,7 +11,7 @@ Status: in progress. Circles are built in steps; only what is merged is called b
 | --- | --- |
 | Circles of people on the same Lens, sharing an activity or a resource with them and a note, with the item or without, undo; API, MCP and the assistant | built |
 | Circles under Profile in the web app, and a Share action on timeline items and resource pages | built |
-| Rules per circle: what your agent shares without asking (kinds, entities, a match tree) and what it asks you first about | planned |
+| Rules: an automation shares what you pick (by kind, sender, entity or the decision model) with a circle, asking you first or on its own | built |
 | Asking someone's agent (when are they free, what does the trip need), answered only from what they let that circle see, with citations | planned |
 | Circles across Lens servers over ActivityPub: a signed inbox, an outbox and WebFinger handles like `sam@lens.example` | planned |
 
@@ -55,6 +55,17 @@ back. Deleting a circle doesn't take back what was shared with it.
 
 **Vaults.** Nothing in a [vault](encryption.md#vaults) can be shared: what's in a vault stays in it.
 
+## Rules
+
+Rules are [automations](automations.md) with the **Share with a circle** action (`share_with_circle`): pick what to
+follow with the automation's triggers and conditions (the school's emails, a calendar's events, a sensor's alerts, an
+entity), the circles by name, and a note that can say what came in (`New from school: {{ event.object.name }}`).
+
+Sharing reaches other people, so a rule asks you first: the share waits in [Approvals](automations.md#approvals) until
+you say yes. Let its node run on its own (only you can, signed in) and it shares as soon as the activity comes in. It
+shares as you, only what you can see in the automation's namespaces, never from a vault, and is audited as by the
+automation; its share says `via: automation`.
+
 ## For agents
 
 Everything here works for agents as it does for people.
@@ -69,6 +80,7 @@ Everything here works for agents as it does for people.
   are about the person, so a namespace's own MCP server doesn't offer them.
 - **The assistant:** `circles` reads them, and `share_with_circle` asks the person first: telling other people is
   always their pick.
+- **Automations:** the `share_with_circle` action ([Rules](#rules)), which agents can add with the automation tools.
 
 ## What keeps it safe
 

@@ -511,7 +511,7 @@ entry_points:
         obligation_id: keep-feed-addresses-secret
         caller_must_enforce: "the person shares the address as a password; Lens finds the token by its hash, stops the old address when a new one is made, and lists only what the namespace's readers can read"
         provenance: {kind: documented, source: 'docs/feeds.md "Private by default"'}
-  - id: "POST /circles and /circles/shares, MCP save_circle and share_with_circle, the assistant's share_with_circle (circles and sharing with them)"
+  - id: "POST /circles and /circles/shares, MCP save_circle and share_with_circle, the assistant's and automations' share_with_circle (circles and sharing with them)"
     component: authz
     parameters:
       - name: "circle members, an activity or resource id, a note, with_item"
@@ -1644,7 +1644,7 @@ properties_claimed:
     kind: confidentiality
     components: [authz, assistant]
     tier: security-critical
-    conditions: "a share goes only to people in the sharer's circles, who are people they share a namespace with, who have them in a circle, or anyone for an admin; it carries only an activity or resource the sharer can read, never one in a vault; with the item, it gives each recipient permission on that one resource only when the sharer holds publish in its namespace; undo deletes the share from every timeline and takes back the permissions it gave; a received share is seen only by its recipient and belongs to no namespace; the assistant always asks before sharing; read-only tokens can't share"
+    conditions: "a share goes only to people in the sharer's circles, who are people they share a namespace with, who have them in a circle, or anyone for an admin; it carries only an activity or resource the sharer can read, never one in a vault; with the item, it gives each recipient permission on that one resource only when the sharer holds publish in its namespace; undo deletes the share from every timeline and takes back the permissions it gave; a received share is seen only by its recipient and belongs to no namespace; the assistant always asks before sharing, an automation's share_with_circle asks too unless its person let that node run on its own; read-only tokens can't share"
     violation_symptoms: [info-leak]
     x-voided-by: "the snapshot (name, summary, entities, note) is kept as it was when shared, so an edit or deletion of the item later doesn't reach it; deleting a circle doesn't take back what was shared with it; a recipient keeps what they read before an undo (domain/circles.py)"
     provenance: {kind: documented, source: 'docs/circles.md "What keeps it safe"'}
