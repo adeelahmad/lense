@@ -355,6 +355,32 @@ test("filters in the address make the query, and an empty address brings back th
   expect(replace).not.toHaveBeenCalled();
 });
 
+test("For you: the toggle goes in the address, each placed line says why, and Latest stays the default", async () => {
+  const first = wrap(<TimelinePage />);
+  await screen.findByRole("list", { name: "Timeline" });
+  expect(m(Activities.listActivities).mock.calls[0][0].query.order).toBeUndefined();
+  expect(screen.queryAllByTestId("why")).toHaveLength(0);
+  await act(async () => fireEvent.click(screen.getByRole("radio", { name: "For you" })));
+  expect(replace).toHaveBeenLastCalledWith("/timeline?order=for_you");
+  first.unmount();
+  // in that order the page comes ranked, with why on what the person's signals placed
+  search = "order=for_you";
+  m(Activities.listActivities).mockImplementation(({ query }) =>
+    ok(
+      query.since
+        ? { items: [], next: null, namespaces: {}, marks: {} }
+        : { ...PAGE, items: [ITEMS[3], ...ITEMS.slice(0, 3)], why: { u1: "You often react to Adeel" } },
+    ),
+  );
+  wrap(<TimelinePage />);
+  const list = await screen.findByRole("list", { name: "Timeline" });
+  expect(m(Activities.listActivities).mock.calls.at(-1)?.[0].query.order).toBe("for_you");
+  const rows = within(list).getAllByTestId("timeline-row");
+  expect(rows[0]).toHaveTextContent("You often react to Adeel");
+  expect(within(rows[1]).queryByTestId("why")).not.toBeInTheDocument();
+  expect(screen.getByRole("radio", { name: "For you" })).toHaveAttribute("aria-checked", "true");
+});
+
 test("Home's Latest card lists what you haven't reviewed", async () => {
   m(Activities.listActivities).mockReturnValue(
     ok({ items: ITEMS.slice(0, 2), next: null, namespaces: { "3": "family" } }),

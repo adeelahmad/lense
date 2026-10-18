@@ -24,6 +24,7 @@ from . import (
     extensions,
     entity_map,
     events,
+    for_you,
     find as findmod,
     graph_ask,
     graph_model,
@@ -129,6 +130,7 @@ TOOLS = [
         "What happened in Lens, newest first (new assets, and every other kind of activity there is): who did it, what "
         "it is about, when, and a one-line summary. Optionally by kinds (such as asset.added), namespace, entity tag, "
         "time (since, until: ISO 8601), words in the summary, unreviewed (those the person hasn't marked reviewed); "
+        "order for_you puts what the person reacts to, comments on and marks important first (each with why); "
         "give next as before for more.",
         {
             "kinds": {"type": "array", "items": _S},
@@ -138,6 +140,7 @@ TOOLS = [
             "until": _S,
             "q": _S,
             "unreviewed": {"type": "boolean"},
+            "order": {"type": "string", "enum": ["latest", "for_you"]},
             "before": _S,
             "limit": _I,
         },
@@ -1651,7 +1654,9 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
         """Whether an activity is about the assets of a conversation about some assets (any, in one that isn't)."""
         return self.allowed is None or events.ref_id((a.get("object") or {}).get("id"), "recording") in self.allowed
 
-    def t_timeline(self, kinds=None, namespace=None, tag=None, since=None, until=None, q=None, unreviewed=None, before=None, limit=20):
+    def t_timeline(
+        self, kinds=None, namespace=None, tag=None, since=None, until=None, q=None, unreviewed=None, order=None, before=None, limit=20
+    ):
         names = store.space_names(self.db)
         spaces = self.readable
         if namespace:
@@ -1660,7 +1665,14 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
                 raise ValueError(f"namespace {namespace} isn't in this conversation")
         flt = {"kinds": kinds or None, "tag": tag, "since": since, "until": until, "q": q, "spaces": sorted(spaces) if namespace else None}
         keep = event_marks.keeper(self.db, self.account, {"reviewed": False} if unreviewed else None)
-        page = events.page(self.db, self.cfg, self._viewer(), before, {k: v for k, v in flt.items() if v}, min(int(limit or 20), 50), keep)
+        flt, limit = {k: v for k, v in flt.items() if v}, min(int(limit or 20), 50)
+        if order and order not in for_you.ORDERS:
+            raise ValueError(f"order is {' or '.join(for_you.ORDERS)}")
+        if order == "for_you":
+            page = for_you.page(self.db, self.cfg, self._viewer(), flt, before, limit, keep)
+        else:
+            page = events.page(self.db, self.cfg, self._viewer(), before, flt, limit, keep)
+        why = page.get("why") or {}
         items = [a for a in page["items"] if self._about_allowed(a)]  # a conversation about some assets: only what is about them
         marks = event_marks.of(self.db, self.account, [a["id"] for a in items])
         out = [
@@ -1673,6 +1685,7 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
                 "object": a["object"],
                 "namespace": names.get(a.get("space")),
                 **({"marked": [f for f in event_marks.FLAGS if marks[a["id"]][f]]} if a["id"] in marks else {}),
+                **({"why": why[a["id"]]} if a["id"] in why else {}),
             }
             for a in items
         ]

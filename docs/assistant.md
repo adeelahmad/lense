@@ -247,7 +247,7 @@ When the configured model supports function calling, chat becomes an agent.
   outputs, entities and their mentions and timelines, dates said as days on the calendar (`find_dates`), the
   knowledge graph, people, and content similar to a text,
   an asset, a topic or an entity (`find_similar`), and what happened in Lens, newest first (`timeline`, the
-  [stream of activities](automations.md#timeline-reads); `unreviewed` for what the person hasn't marked reviewed),
+  [stream of activities](automations.md#timeline-reads); `unreviewed` for what the person hasn't marked reviewed, `order: for_you` for the [For you](timeline.md#for-you) order with each item's `why`),
   and assets by any attribute: faces seen, people heard, entities, topics, kind, content type, dates and the rest,
   each with the moments that show why it matched (`find_resources`,
   [Finding by any attribute](processing.md#finding-by-any-attribute)). It can also ask which of some labels, content

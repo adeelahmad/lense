@@ -56,13 +56,23 @@ describe("filters in the address", () => {
       q: "school trip",
       unreviewed: true,
       important: true,
+      order: "for_you" as const,
     };
     const p = toParams(f);
     expect(p.toString()).toBe(
-      "kinds=email.received%2Cfile.added&actor=lens%3Asource%2F12&ns=family&tag=St+Mary%27s+School&from=2026-10-01&to=2026-10-15&automation=4&q=school+trip&unreviewed=1&important=1",
+      "kinds=email.received%2Cfile.added&actor=lens%3Asource%2F12&ns=family&tag=St+Mary%27s+School&from=2026-10-01&to=2026-10-15&automation=4&q=school+trip&unreviewed=1&important=1&order=for_you",
     );
     expect(fromParams(p)).toEqual(f);
     expect(filterCount(f)).toBe(10);
+  });
+
+  it("keep the For you order as a view, not a filter", () => {
+    const f = { ...NO_FILTERS, order: "for_you" as const };
+    expect(toParams(f).toString()).toBe("order=for_you");
+    expect(isFiltered(f)).toBe(false);
+    expect(filterCount(f)).toBe(0);
+    expect(toQuery(f)).toEqual({ hidden: false, order: "for_you" });
+    expect(fromParams(new URLSearchParams("order=best")).order).toBe("latest");
   });
 
   it("leave out what isn't set, and drop what is malformed", () => {
