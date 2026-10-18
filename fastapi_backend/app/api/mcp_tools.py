@@ -61,6 +61,7 @@ from app.domain import (
     nsfw,
     rdf,
     render,
+    rss,
     settings,
     sources,
     store,
@@ -2557,6 +2558,69 @@ def set_install_settings(ctx: Context, public: bool | None = None, target: str |
     if asked:
         auth.audit(ctx.db, ctx.user.as_audit(), "lens.install", None, asked | {"via": "mcp"})
     return updates.install_view(ctx.db, ctx.cfg) | {"changing": asked}
+
+
+# ---------- news feeds (admins) ----------
+def _feeds_admin(ctx: Context, write: bool = False) -> None:
+    if not ctx.user.admin:
+        raise ToolError("only admins see or change the news feeds Lens follows")
+    if write and not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to change news feeds")
+
+
+@tool(
+    "news_feeds",
+    "News feeds",
+    "The news feeds (RSS or Atom) Lens follows: each one's id (feed), name, the feed's own title, whether it could be "
+    "read last time (health), and the namespaces it brings new posts into, with how each one's last scan went. Their "
+    "addresses stay sealed. Each post comes in as text with its link, author and date; a new one is a "
+    "feed_post.received activity. Admins only.",
+    admin=True,
+)
+def news_feeds(ctx: Context) -> dict[str, Any]:
+    _feeds_admin(ctx)
+    return {"feeds": rss.subscriptions(ctx.db), "settings": f"{ctx.web}/sources"}
+
+
+@tool(
+    "subscribe_feed",
+    "Subscribe to a news feed",
+    "Follow a news feed (RSS or Atom) into a namespace: url is the feed's address, or a page of the site that names its "
+    "feed. It's read first and kept only if it works; it's named by the feed's title unless name says. Each new post "
+    "then comes in as text, and with backfill also the posts the feed lists now. The namespace is made if it's new. "
+    "A feed already followed is reused. Feeds that need a password are added in the web app (Sources). Admins only, "
+    "with a token that has the write scope.",
+    Arg("url", "string", "the feed's address, or a page of the site", required=True, max_length=2000),
+    Arg("namespace", "string", "the namespace its posts go in", required=True, max_length=41),
+    Arg("name", "string", "what to call it (else the feed's title)", max_length=80),
+    Arg("backfill", "boolean", "also bring in the posts the feed lists now", default=False),
+    writes=True,
+    admin=True,
+)
+def subscribe_feed(ctx: Context, url: str, namespace: str, name: str | None = None, backfill: bool = False) -> dict[str, Any]:
+    _feeds_admin(ctx, write=True)
+    out = rss.subscribe(ctx.db, ctx.cfg, url, namespace, name, bool(backfill), by=ctx.user.email)
+    if out["added"]:
+        auth.audit(ctx.db, ctx.user.as_audit(), "source.create", f"storage_source:{out['feed']}", ["mcp"])
+    if not out["already"]:
+        auth.audit(ctx.db, ctx.user.as_audit(), "watch.create", f"watch_path:{out['watch']}", ["mcp"])
+    return out
+
+
+@tool(
+    "unsubscribe_feed",
+    "Stop following a news feed",
+    "Stop following a news feed (its id from news_feeds): no more posts come in from it. The posts it brought in stay. "
+    "Admins only, with a token that has the write scope.",
+    Arg("feed", "integer", "the feed's id, from news_feeds", required=True),
+    writes=True,
+    admin=True,
+)
+def unsubscribe_feed(ctx: Context, feed: int) -> dict[str, Any]:
+    _feeds_admin(ctx, write=True)
+    rss.unsubscribe(ctx.db, feed)
+    auth.audit(ctx.db, ctx.user.as_audit(), "source.delete", f"storage_source:{feed}", ["mcp"])
+    return {"unsubscribed": feed}
 
 
 # ---------- the stream of activities ----------

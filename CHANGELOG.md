@@ -34,6 +34,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Automations on feed posts.** Each new post of a news feed is a `feed_post.received` activity with its address,
   site, feed, author, date and categories, so an automation can start on posts from one feed, author or category
   ([Kinds](docs/automations.md#kinds)).
+- **Agents follow news feeds.** `subscribe_feed` (MCP and the assistant, admins) follows a feed into a namespace in one
+  step, checked before it's kept; `news_feeds` lists them and `unsubscribe_feed` stops one
+  ([News feeds](docs/processing.md#news-feeds-rss-and-atom)).
 
 ## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
 

@@ -661,8 +661,9 @@ and stops after 15 idle minutes. Installs that don't run on Docker don't have th
 ## Setting up and running the server by chat
 
 Admins also get the server tools: `server_status` (what's set up and what's missing), `find_model_servers`,
-`read_settings` and `change_settings` (the processing and AI sections, not the server's hosts, cookies or tokens) and
-`create_namespace`, and the people tools: `list_people`, `invite_person` (an account, optionally with a role in one
+`read_settings` and `change_settings` (the processing and AI sections, not the server's hosts, cookies or tokens),
+`create_namespace`, the news feed tools: `news_feeds`, `subscribe_feed` (follow a feed into a namespace in one step,
+[News feeds](processing.md#news-feeds-rss-and-atom)) and `unsubscribe_feed`, and the people tools: `list_people`, `invite_person` (an account, optionally with a role in one
 namespace; Lens emails the sign-in link when mail is set up) and `change_person` (a role in a namespace, or disabling
 and enabling an account). Removing an account for good stays in the web app and the API. In an ordinary conversation
 their changes are approval cards. In a **setup conversation**

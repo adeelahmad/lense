@@ -518,6 +518,9 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
   { name: "read_settings", label: "Read settings (admins)", acts: false },
   { name: "change_settings", label: "Change settings (admins)", acts: true },
   { name: "create_namespace", label: "Create namespaces (admins)", acts: true },
+  { name: "news_feeds", label: "List the news feeds Lens follows (admins)", acts: false },
+  { name: "subscribe_feed", label: "Follow news feeds (admins)", acts: true },
+  { name: "unsubscribe_feed", label: "Stop following news feeds (admins)", acts: true },
 ];
 
 /** The speech providers (the backend's app/domain/speech.py), in the order Settings shows them. */
