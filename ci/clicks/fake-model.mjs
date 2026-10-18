@@ -1,7 +1,8 @@
 // A stand-in OpenAI-compatible model server, so the journeys that need a model (the install wizard finding one, the
 // setup wizard testing one, the assistant answering) run without a real one. Every answer is the same short reply,
-// except that the assistant asked the same again (an answer regenerated) says which version it's writing, and a
-// conversation's title (asked for after its first answer) is its first question's words, as a real model's would be.
+// except that the assistant asked the same again (an answer regenerated) says which version it's writing, a
+// conversation's title (asked for after its first answer) is its first question's words, as a real model's would be,
+// and deep research gets a plan for its goal.
 import http from "node:http";
 
 const REPLY = "This is the survey's stand-in model answering.";
@@ -18,6 +19,26 @@ function title(payload) {
   const said = payload.messages.find((m) => m.role === "user")?.content ?? "";
   const question = String(said).match(/^Person: (.*)$/m)?.[1] ?? said;
   return question.trim().replace(/[?.!]+$/, "").split(/\s+/).slice(0, 8).join(" ") || "A conversation";
+}
+
+/** Structured output: a research plan for a deep research goal ("Goal: ..."), with no questions to answer first, so
+ * it can be approved as it is; an empty object for anything else, which satisfies most schemas' optional fields. */
+function structured(payload) {
+  const system = (payload.messages ?? []).find((m) => m.role === "system")?.content;
+  if (typeof system !== "string" || !system.startsWith("You plan deep research")) return "{}";
+  const said = String((payload.messages ?? []).find((m) => m.role === "user")?.content ?? "");
+  const goal = said.match(/^Goal: (.*)$/m)?.[1]?.trim() || "Research";
+  return JSON.stringify({
+    questions: [],
+    plan: {
+      title: goal.replace(/[?.!]+$/, ""),
+      goal,
+      sub_questions: ["What was said about it?", "Who said it?", "What is still open?"],
+      sources: ["archive"],
+      max_tool_calls: 3,
+      report_outline: ["What was said", "What is still open"],
+    },
+  });
 }
 
 function reply(payload) {
@@ -72,8 +93,7 @@ export function startFakeModel(port) {
           res.write(chunk({}, "stop"));
           return res.end("data: [DONE]\n\n");
         }
-        // structured output: an empty object satisfies most schemas' optional fields
-        const content = payload.response_format ? "{}" : reply(payload);
+        const content = payload.response_format ? structured(payload) : reply(payload);
         return json(200, {
           id: "survey",
           object: "chat.completion",
