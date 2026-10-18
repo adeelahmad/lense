@@ -1,6 +1,7 @@
 // A stand-in OpenAI-compatible model server, so the journeys that need a model (the install wizard finding one, the
 // setup wizard testing one, the assistant answering) run without a real one. Every answer is the same short reply,
-// except that the assistant asked the same again (an answer regenerated) says which version it's writing.
+// except that the assistant asked the same again (an answer regenerated) says which version it's writing, and a
+// conversation's title (asked for after its first answer) is its first question's words, as a real model's would be.
 import http from "node:http";
 
 const REPLY = "This is the survey's stand-in model answering.";
@@ -10,7 +11,18 @@ const MODELS = ["survey-chat", "survey-embed"];
  * the same again is an answer regenerated, whose reply reads "...answering, version 2." so the versions differ. Other
  * calls get REPLY. */
 const asked = new Map();
+
+/** A title for a conversation: the first question's words, as Lens sends them ("Person: ...") without the question
+ * mark, so the journeys find the conversation by what was asked, as a person would. */
+function title(payload) {
+  const said = payload.messages.find((m) => m.role === "user")?.content ?? "";
+  const question = String(said).match(/^Person: (.*)$/m)?.[1] ?? said;
+  return question.trim().replace(/[?.!]+$/, "").split(/\s+/).slice(0, 8).join(" ") || "A conversation";
+}
+
 function reply(payload) {
+  const system = (payload.messages ?? []).find((m) => m.role === "system")?.content;
+  if (typeof system === "string" && system.startsWith("You title conversations")) return title(payload);
   if (!payload.tools && !payload.stream) return REPLY;
   // what was said, without the system prompt or the excerpts sent with the question ("Excerpts: ... Question: ..."),
   // which are marked afresh on each call and grow as more is imported

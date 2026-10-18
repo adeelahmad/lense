@@ -81,6 +81,9 @@ async function save({ page, meter, phone }) {
 
 /** The model-backed answer the stand-in model gives (fake-model.mjs). */
 const ANSWER = /stand-in model answering/;
+/** The stand-in model's answer, in the newest answer on the page: not anywhere on it, where the list of conversations
+ * beside it carries titles, and an earlier answer may read the same. */
+const answered = (page) => page.getByRole("article", { name: "Answer" }).last().getByText(ANSWER);
 
 const TRANSCRIPT = [
   "Host A: Welcome back. Today we talk about local models on small computers.",
@@ -169,11 +172,11 @@ export const JOURNEYS = [
       // The tour opens Chat with the question in the composer, not sent
       const composer = page.getByRole("textbox", { name: "Your question" });
       await composer.waitFor();
-      if (!(await page.getByText(ANSWER).first().isVisible().catch(() => false))) {
+      if (!(await answered(page).isVisible().catch(() => false))) {
         await page.waitForTimeout(1500);
         if ((await composer.inputValue()).trim()) await meter.press("Enter", "Enter again: the question waits in Chat's composer");
       }
-      await page.getByText(ANSWER).first().waitFor({ timeout: 60000 });
+      await answered(page).waitFor({ timeout: 60000 });
     },
   },
 
@@ -248,7 +251,7 @@ export const JOURNEYS = [
         await meter.click(page.getByRole("button", { name: "New conversation" }), "New conversation");
       await meter.type(question, "Who said what about Raspberry Pi?", "question");
       await meter.press("Enter", "Enter to send");
-      await page.getByText(ANSWER).first().waitFor({ timeout: 60000 });
+      await answered(page).waitFor({ timeout: 60000 });
     },
   },
   {
@@ -715,15 +718,16 @@ export const JOURNEYS = [
       const { page, meter } = ctx;
       await go(ctx, "Chat");
       await page.waitForURL(/\/chat$/);
-      // a computer's Chat lists the conversations beside a new one; a phone's opens on the list
+      // a computer's Chat lists the conversations beside a new one; a phone's opens on the list. Lens titles each
+      // after its first answer (the stand-in model from the question, fake-model.mjs)
       const conversation = page
         .getByRole("navigation", { name: "Conversations" })
         .getByRole("link", { name: /Who said what about Raspberry Pi/ })
         .first();
       await meter.click(conversation, "the conversation");
       await page.waitForURL(/\/chat\/\d+/);
+      await answered(page).waitFor();
       const answer = page.getByRole("article", { name: "Answer" }).last();
-      await answer.getByText(ANSWER).waitFor();
       await meter.click(answer.getByRole("button", { name: "Regenerate", exact: true }), "Regenerate");
       // the stand-in model says which version it's writing (fake-model.mjs)
       await page.getByRole("article", { name: "Answer" }).last().getByText(/answering, version 2/).waitFor({ timeout: 60000 });
