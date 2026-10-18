@@ -927,6 +927,70 @@ def calendar_moved(db, rid, space, src, title, before, after):
     )
 
 
+def moved(db, rid, rec, by, from_name, to_name, collection=None):
+    """Log that an asset was moved to another namespace (moving.py's caller, the move route, calls it once it is
+    there): asset.moved, a Move by `by` (an email, `automation:<id>`, ...), seen in the namespace it is in now."""
+    from . import render
+
+    actor = actors(db, [(by, rec.get("space"))])[(by, rec.get("space"))]
+    title = " ".join(str(rec.get("title") or "").split()) or "Untitled"
+    media = render.kind(rec)
+    obj = store.clean(
+        {
+            "type": TYPES.get(media, "Document"),
+            "id": f"lens:recording/{int(rid)}",
+            "name": title,
+            "url": f"/resources/{int(rid)}",
+            "media": media,
+            "from": from_name,
+            "to": to_name,
+            "collection": collection,
+        }
+    )
+    return events.emit(
+        db,
+        "asset.moved",
+        actor=actor,
+        obj=obj,
+        space=rec.get("space"),
+        summary=f"{actor['name']} moved “{title[:200]}” to {to_name}",
+    )
+
+
+SENSOR_STATUS_SAID = {"active": "resumed", "paused": "paused", "ignored": "ignored", "new": "set back to new"}
+
+
+def sensor_changed(db, sensor, status, by):
+    """Log that a person switched a sensor on or off (the sensors route calls it when a status change is saved):
+    sensor.changed, an Update by `by` (an email), with the status it had before, seen in the sensor's namespace, else
+    by admins alone. None when the status is what it was."""
+    before = sensor.get("status") or "active"
+    if status not in SENSOR_STATUS_SAID or status == before:
+        return None
+    space = sensor.get("space") if isinstance(sensor.get("space"), int) and not isinstance(sensor.get("space"), bool) else None
+    actor = actors(db, [(by, space)])[(by, space)]
+    name = " ".join(str(sensor.get("name") or "").split())[:200] or f"Sensor {sensor['id']}"
+    obj = {
+        "type": "Service",
+        "id": f"lens:sensor/{int(sensor['id'])}",
+        "name": name,
+        "url": f"/sensors/{int(sensor['id'])}",
+        "status": status,
+        "before": before,
+    }
+    said = SENSOR_STATUS_SAID[status]
+    summary = f"{actor['name']} {said} {name}" if status != "new" else f"{actor['name']} set {name} back to new"
+    return events.emit(
+        db,
+        "sensor.changed",
+        actor=actor,
+        obj=obj,
+        space=space,
+        summary=summary,
+        audience=None if space is not None else "admins",
+    )
+
+
 # ---------- their kinds ----------
 JOB_OBJECT = {
     "job": _s("Run"),
@@ -1022,6 +1086,83 @@ events.kind(
         {"type": "Person", "id": "lens:account/1", "name": "Sam"},
         {"type": "Document", "id": "lens:recording/7", "name": "Old minutes", "media": "document"},
         "Sam deleted “Old minutes”",
+        ("object.name",),
+    ),
+)
+events.kind(
+    "asset.moved",
+    label="Asset moved",
+    source="log",
+    as_type="Move",
+    object_type="Document",
+    fields={
+        "object": {
+            "type": "object",
+            "properties": {
+                **{k: _ASSET[k] for k in ("type", "id", "name", "url", "media")},
+                "from": _s("From (namespace)"),
+                "to": _s("To (namespace)"),
+                "collection": _s("Collection it is in now"),
+            },
+        }
+    },
+    untrusted=("object.name",),
+    sample=_sample(
+        "log-14",
+        "asset.moved",
+        "Move",
+        "log",
+        ["2026-10-15T16:25:02+00:00", 14],
+        {"type": "Person", "id": "lens:account/1", "name": "Sam"},
+        {
+            "type": "Document",
+            "id": "lens:recording/7",
+            "name": "Old minutes",
+            "url": "/resources/7",
+            "media": "document",
+            "from": "family",
+            "to": "work",
+            "collection": "Minutes",
+        },
+        "Sam moved “Old minutes” to work",
+        ("object.name",),
+    ),
+)
+events.kind(
+    "sensor.changed",
+    label="Sensor switched",
+    source="log",
+    as_type="Update",
+    object_type="Service",
+    fields={
+        "object": {
+            "type": "object",
+            "properties": {
+                "id": _s("Sensor"),
+                "name": _s("Name"),
+                "url": _s("Link"),
+                "status": _s("Status now", enum=["new", "active", "paused", "ignored"]),
+                "before": _s("Status before", enum=["new", "active", "paused", "ignored"]),
+            },
+        }
+    },
+    untrusted=("object.name",),
+    sample=_sample(
+        "log-15",
+        "sensor.changed",
+        "Update",
+        "log",
+        ["2026-10-15T16:26:40+00:00", 15],
+        {"type": "Person", "id": "lens:account/1", "name": "Sam"},
+        {
+            "type": "Service",
+            "id": "lens:sensor/5",
+            "name": "Kitchen sensor",
+            "url": "/sensors/5",
+            "status": "paused",
+            "before": "active",
+        },
+        "Sam paused Kitchen sensor",
         ("object.name",),
     ),
 )

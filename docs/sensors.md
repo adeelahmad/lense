@@ -120,8 +120,9 @@ pattern, never per line. A label it wasn't sure of (below `decisions.act_above`)
 settle.
 
 Automations see sensors too ([Automations](automations.md#sensors-as-activities)): the readings a sensor keeps as
-`sensor.reading`, a pattern labelled alert or notable as `sensor.alert` (once an hour while lines fit it), and a device
-that reports for the first time as `sensor.joined`.
+`sensor.reading`, a pattern labelled alert or notable as `sensor.alert` (once an hour while lines fit it), a device
+that reports for the first time as `sensor.joined`, and a sensor a person pauses, ignores, resumes or sets back to new
+as `sensor.changed`, with the status it had before.
 
 ## Daily digests
 

@@ -19,6 +19,7 @@ Status: in progress. The studio's timeline is built in steps; only what is merge
 | Sources, sensors, people and agents as actors in the graph: a Source node with ADDED links, on the canvas, in the explorer and in Cypher | built |
 | A For you order learned from what each person reacts to, comments on, marks important and hides, each item saying why | built |
 | Muting a source, person or kind, for good or until a time, for yourself alone; `mute_activities` for agents | built |
+| Moves and switches as their own verbs: an asset moved to another namespace (`asset.moved`, a Move) and a sensor paused, ignored or resumed (`sensor.changed`, an Update with what it was) | built |
 
 ## What shows
 
@@ -226,6 +227,8 @@ per source page; they go when the person is removed. Nothing of this costs a mod
 - For you counts opens too, once the page reports them, and could cache each person's affinity for a minute rather
   than summing it on every read.
 - Muting a kind, or for a day, from the page (a menu on Mute), and a muted actor's own line in the Filters.
+- A file changed in its source and read again is `asset.added` once more; linking the new activity to the
+  asset's earlier one as a `file.changed` Update, rather than a second Create, is to come.
 - Saved filter views.
 - A daily digest of unreviewed items, as an automation starter.
 - Marks on activities whose rows are gone (an event log entry past `events.keep_days`, a deleted asset) stay until
