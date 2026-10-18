@@ -1,60 +1,78 @@
 # Automations
 
-Automations are the workflow studio: Lens follows what happens in every source as a stream of time-coded activities,
-and an automation watches that stream and the clock, tests its conditions, and acts (directly for routine things,
-through the agent, or by asking you first). The timeline is the same stream, filtered and reviewed.
+Automations let Lens act when something happens. Lens follows what happens in every source (an email arrives, a file
+is added, a sensor raises an alert, someone writes to Lens in chat) as a stream of time-coded activities. An
+automation watches that stream and the clock, tests its conditions, and acts: on its own for routine things, through
+the agent, or by asking you first. The [timeline](timeline.md) is the same stream, filtered and reviewed.
 
-Status: in progress. The studio is built in modules; this page labels each part built or planned, and only what is
-merged is called built.
+The workflow studio is where you make them: **Automations**, under Automate in the nav. Describe what you want in
+words, start from a starter, or build it yourself in When, If and Then; test it on something that happened, then save
+it and turn it on. Agents do the same through the API, MCP and the assistant.
 
-| Part | Status |
-| --- | --- |
-| Match trees: one condition language for triggers, an automation's If and workflow nodes | built |
-| Operators for times, lists, text patterns and changes (`in`, `matches`, `within`, `changed`...) | built |
-| Looking back over the stream in an automation's If (`seen`) | built |
-| Joins: `all`, `count`, `absent` and `batch`, completed as the stream brings each trigger's activities and as their timers fire ([Joins](#joins)) | built |
-| Activities, the kinds catalog, the event log, following the stream, timeline reads (`app/domain/events.py`) | built |
-| New assets as `asset.added` (the `recordings` source) | built |
-| New assets by kind: emails received, calendar events, files from storage, uploads, pages saved from the web, imports | built |
-| Runs that finished or failed, deletions and calendar events that moved | built |
-| Comments, notes written and saved, and changes to the entity graph | built |
-| Sensors: readings a sensor keeps, alert and notable log patterns, devices that report for the first time ([Sensors](#sensors-as-activities)) | built |
-| What people say to Lens, in the web app and chat apps, as `chat.message` ([Chat](#chat-as-activities)) | built |
-| Lens itself: routine runs, budget warnings, backups and new releases ([Lens itself](#lens-itself-as-activities)) | built |
-| The timeline API (`GET /api/v1/activities`), the MCP tools `timeline` and `event_kinds`, the assistant's `timeline` | built |
-| Review marks on the timeline (reviewed, important, hidden), their filters and `mark_activities` ([Timeline](timeline.md)) | built |
-| Reactions and comments on activities, as `reaction.added` and `comment.added` ([Timeline](timeline.md#reactions-and-comments)) | built |
-| The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
-| The event workflow scope: what an automation does, drawn with action nodes and tried on an activity (`app/domain/automation_nodes.py`) | built |
-| The decide node: the decision model picks a branch, one port per option and `unsure` ([The decide node](#the-decide-node)) | built |
-| Drawing an automation's workflow on the canvas: the actions in the palette, their settings from each action's params, Decide's ports, the leaf rule and a try on a kind's sample ([On the canvas](#on-the-canvas)) | built |
-| The action registry with risk from each action's effect, and one action, `log_line` (`app/domain/actions.py`) | built |
-| Telling a person: the `notify` action and `channels.tell` (their own chat, a notification target, a Matterbridge room) | built |
-| The model and the agent: the `ask_model`, `call_tool` and `ask_agent` actions, and prompts with outside text marked | built |
-| Templates in params and prompts: the run context, one expression keeping its type, errors that name the nearest variable, saved prompt templates, filters for times, text and addresses ([Variables and templates](#variables-and-templates)) | built |
-| Saved variables: `vars` in the run context, the `set_variable` action, the API and MCP tools ([Saved variables](#saved-variables)) | built |
-| The variable picker's catalog and a preview of what a template gives, through the API and MCP ([The variable picker and preview](#the-variable-picker-and-preview)) | built |
-| Calling a web address: the `http_request` action, with credentials in headers kept sealed | built |
-| Running Lens work: the `run_workflow`, `run_pipeline` and `run_routine` actions | built |
-| Changing assets and writing notes: the `set_field`, `add_to_collection` and `write_note` actions | built |
-| Settings → Automations: whether automations run, their limits, how long runs are kept and how late a timer may fire; how often followers look and how long the event log is kept | built |
-| A webhook address per automation trigger, and calls to it as `webhook.received` ([Webhook trigger](#webhook-trigger)) | built |
-| Timers that outlast a restart and fire once across the API and the worker (`app/domain/timers.py`, [Time](#time)) | built |
-| The timers behind schedule, `at` and `relative` triggers, the `clock.tick` kind and what's coming ([Time](#time)), set when an automation is saved | built |
-| Actions that wait (`delay`, `when`): kept as timers, carried out at their time, asking first when they should then ([Time](#time)) | built |
-| The Timeline page with filters, grouping, review keys and new items, and Home's Latest card ([Timeline](timeline.md)) | built |
-| Approvals: an automation's action that asks first waits for your pick (approve, decline, edit, allow from now on), told once in your chat app, capped and expiring (`app/domain/approvals.py`) | built |
-| Deciding an automation's action with a yes in the chat it told you in | built |
-| Approvals as activities (`approval.waiting`, `approval.decided`) and the `approval.waiting` notification | built |
-| Agents' approval tools: `approvals` and `decline_approval` over MCP and in the assistant, and no way for an agent to approve | built |
-| The Approvals page (`/approvals`), its badge in the top bar and nav, and Home's Needs attention row | built |
-| Saving automations: checks, namespaces, switching on and off, delete and restore, the policy, the API (`app/domain/automations.py`) | built |
-| Running automations: following the stream, limits, budgets, runs as `automation.ran`, trying and running now, the API (`app/domain/automations.py`) | built |
-| Automations for agents: the MCP tools and the assistant's, switching on and running now by approval | built |
-| Describing an automation in words: a draft from a sentence (`POST /api/v1/automations/draft`) | built |
-| The studio: the list at `/automations` and the When, If and Then builder, with a test panel ([The studio](#the-studio)) | built |
-| An automation's page: its runs, what's coming up, its variables and its costs, in tabs ([An automation's page](#an-automations-page)) | built |
-| Starters: five ready-made drafts, switched off, to open, change and save (`GET /api/v1/automations/starters`, [Starters](#starters)) | built |
+Status: in progress. The studio is built in modules, and only what is merged is called built: see
+[Built, in progress, planned](#built-in-progress-planned).
+
+In this guide:
+
+1. [Five minutes: tell me when the school emails](#five-minutes-tell-me-when-the-school-emails): a first automation,
+   from the starter to its run on your timeline.
+2. [The studio](#the-studio): the list, the When, If and Then builder, and [an automation's
+   page](#an-automations-page).
+3. **Triggers and kinds**: everything that happens is an [activity](#activities) of a [kind](#kinds) (an email
+   received, a sensor alert, a chat message), and a [trigger](#automations-triggers-and-joins) listens for kinds, a
+   schedule, a time, a [webhook](#webhook-trigger) or a click.
+4. **Joins**: [triggers that wait for each other](#joins): all of them, a number of times, one that doesn't come in
+   time, or a batch.
+5. **Conditions**: [match trees](#match-trees) for a trigger's Only when and an automation's If, their
+   [operators](#operators), [looking back](#looking-back) over what happened, and the [decide node](#the-decide-node)
+   for a judgement call.
+6. **Actions and risk**: [what an automation can do](#actions-and-intents), and which actions run on their own and
+   which ask first.
+7. [Approvals](#approvals): what waits for your pick, on the Approvals page or with a yes in your chat app.
+8. [Time](#time): schedules, set times, times relative to an activity, and actions that wait.
+9. [Variables and templates](#variables-and-templates): filling actions in from what happened, and values kept
+   between runs.
+10. [Limits and costs](#limits-and-costs): how often an automation may run, and what it spends.
+11. [The API and MCP tools](#the-api-and-mcp-tools): all of it for agents.
+12. [Built, in progress, planned](#built-in-progress-planned), and what to [refine later](#refine-later).
+
+How Lens reads the stream underneath (sources, following it, timeline reads) is at the end of the
+[Contract](#contract), after the actions; [saving](#saving-automations) and [running](#running-automations)
+automations come after variables and templates.
+
+## Five minutes: tell me when the school emails
+
+How do I make Lens tell me when the school emails? Start from the **Tell me about school emails** starter, change
+“school” to the school's address, press **Test**, then **Save and turn on**.
+
+You need two things first: the mailbox the school writes to, read by Lens (an email source, [IMAP or
+Gmail](processing.md#email-imap-calendar-feeds-ical-and-google-calendar)), and a chat app you talk to Lens in
+([Telegram or Slack](chat-rooms.md)), where it tells you.
+
+1. Open **Automations › New automation**. The cursor is in **Describe it in words**.
+2. Pick the starter **Tell me about school emails** under it. Or say it in words ("when the school emails me, tell
+   me") and press Enter: the model fills the builder in and says what it left out. The starter's When is an email
+   received from an address with “school” in it; its Then tells you in your chat app, then posts the subject to the
+   `family` Matterbridge room.
+3. Change “school” to the school's address. In When, the **Only when** row tests the sender: write the school's
+   address (`office@stmarys.org`) or the end of it (`@stmarys.org`). No family room? Remove that action.
+4. Press **Test**. It runs the draft on a recent email, or on a sample one, and lists what each action would do:
+   tell you at once, and ask you first before posting to the family room. Nothing is sent.
+5. Press **Save and turn on**. From now on each email from the school sets it off; emails that came before aren't
+   replayed.
+
+When the school's next email arrives:
+
+- You are told in your chat app: “School email: Trip on Friday”.
+- Posting to the family room reaches other people, so it waits for your pick on the [Approvals](#approvals) page
+  (`/approvals`; a badge in the top bar counts what waits), and your chat app gets a message with a link to it.
+  Approve, edit or decline it there. A yes in your chat app decides only actions that stay inside Lens, so for a post
+  to a room the reply points you to the page.
+- The run shows on the [Timeline](timeline.md) (filter it by the automation to see what it did and caused) and on
+  the automation's **Runs** tab, with what each action did and what it cost.
+
+Everything else in this guide builds on this one: more [triggers](#automations-triggers-and-joins), sharper
+[conditions](#match-trees), other [actions](#actions-and-intents), and [time](#time).
 
 ## The studio
 
@@ -106,6 +124,12 @@ An automation's page has its switch, Run now and five tabs (`?tab=` in the addre
 
 Every part of the studio builds on the shapes below. A change to one of them comes in a small pull request of its
 own that changes the code, this section and the tests together.
+
+They come in the order you meet them when you build one: what happens ([activities](#activities) and their
+[kinds](#kinds)), [triggers and joins](#automations-triggers-and-joins), conditions ([match trees](#match-trees)),
+what a run sees ([run context](#run-context)), and what it does ([the event workflow
+scope](#the-event-workflow-scope), [actions and intents](#actions-and-intents)). The last three parts are how Lens
+reads the stream underneath, for the timeline and the automations that follow it.
 
 ### Activities
 
@@ -284,191 +308,6 @@ assistant for its own approvals); of `approval.decided`, the person who decided,
 automation's approval carries its run as `lens.cause`, so a follower reacting to one can't loop for ever. What it would
 do (`object.name`) and why it failed hold text the run read from outside Lens, and are listed in `lens.untrusted`.
 
-### Sources and the event log
-
-Built. A source (`events.Source`, added with `events.register_source`) reads rows Lens already keeps as activities,
-so nothing is stored twice:
-
-- `read(db, cfg, pos, spaces, limit, hint)`: activities strictly after `pos` (`[time, id]`, or `[time, null]` for
-  after every row at that time), oldest first, at most `limit`, of the namespaces in `spaces` (null: all). `hint`
-  is narrowing a source may use, like `{"actors": ["lens:sensor/5"]}`: what the triggers that want its kinds let
-  through.
-- `page(db, cfg, before, viewer, flt, limit)`: newest first, strictly before `before` (`key` of the last one shown),
-  with what the viewer may see and the filters it can apply cheaply (the stream checks every filter again).
-- `get(db, cfg, activity_id)`: one activity by its id, or null; `now(db)`, `back(db, seconds)`: positions of now and of
-  `seconds` ago; `key(a)`: the position `page` orders by.
-
-A kind belongs to the source named in its `source`, and a source may list more in `kinds`. These are built:
-
-- `recordings` (`app/domain/events_content.py`) reads `recording` by `created_at`, the id breaking ties, as
-  `asset.added` and its children (Kinds, above). The actor is whoever added it: an automation (its first job was
-  queued by `automation:<id>`), the storage source or mailbox it came from (`Service`, `lens:source/<id>`), an import
-  hook (`Service`, `lens:import_hook/<id>`), the person whose upload, clip or import it was (`Person`,
-  `lens:account/<id>`, or `lens:email/<address>` for someone who isn't an account), a sensor's digest (`Service`,
-  `lens:sensor/<id>`), or Lens (a folder scan). `events_content.actors(db, labels)` names them the way Lens writes
-  them down (an account id, an email, `watch:<id>`, `routine:<id>`, `import_hook:<id>`, `automation:<id>`, ...),
-  in a few queries for a whole page, and keeps names for 30 seconds.
-- `jobs` (`app/domain/events_content.py`) reads `job` by `finished_at`, the id breaking ties, as `asset.processed`
-  and `asset.failed`; their ids carry the time they finished (`processed-job-51-1792081450`), so a run tried again
-  is a new activity.
-- `comments` reads `comment` by `created_at`; `note_pages` reads `note_page` by `created_at`; `note_versions` reads
-  `note_version` by `at` (to the millisecond) and keeps one version for each page and window; `graph` reads
-  `graph_event` by `at`, the event number breaking ties (numbers are given out in order, so the two agree).
-- `sensor_readings` (`app/domain/events_streams.py`) reads `sensor_reading` by `at` (microseconds), the id breaking
-  ties, one sensor at a time, as `sensor.reading`; `sensors` reads the `storage_source` rows discovery made by
-  `created_at`, as `sensor.joined`.
-- `routine_runs` (`app/domain/events_streams.py`) reads `routine_run` rows that ended by `finished_at`, the id
-  breaking ties, as `routine.ran`.
-- `chat_messages` (`app/domain/events_streams.py`) reads `chat_message` rows with role user by `created_at` over the
-  index on (role, created_at), the id breaking ties, as `chat.message`.
-- `approvals` (`app/domain/events_approvals.py`) reads `approval` by `created_at`, the id breaking ties, as
-  `approval.waiting`; `approval_decisions` reads the decided ones by `decided_at`, as `approval.decided`. Both page
-  only the viewer's own approvals.
-- `log` reads `event_log`: activities no row of their own records (a deletion, a webhook call), written by
-  `events.emit(db, kind, *, actor, obj, space, summary, target=None, tag=None, key=None, published=None, spaces=None,
-  audience=None, owner=None, untrusted=None)`, which gives the id (`log-<n>`). Emitting a `key` again changes
-  nothing and gives the first id, so a retry never doubles an activity. Inside `with events.caused_by({"automation":
-  4, "run": 51, "depth": 1}):` what is emitted carries that cause. It is read by `(logged_at, id)` and paged by
-  `published`, and its rows are kept for `events.keep_days` (30; Settings → Automations).
-- `automations` (`app/domain/events_automations.py`) reads `automation_run` by `finished_at`, the id breaking ties,
-  as `automation.ran`: a run that ran its graph (done, partly, failed or waiting), with the automation as its actor
-  (`Application`, `lens:automation/<id>`), the run and what its actions did as its object, and what started it as its
-  `lens.cause` when that was another automation's run. An automation over a limit is logged as `automation.limited`,
-  at most once an hour each.
-
-### Following the stream
-
-Built. The API and `lens worker` are separate processes on one database, so following works the way notifications
-do: `events.follow(db, cfg, consumer, kinds=None, spaces=None, limit=500, hint=None)` gives `(activities, commit)`,
-the activities since the consumer's last commit, oldest first. Handle them in order, then call `commit()` to save
-where the next look starts (`event_cursor:<consumer>`, a position per source).
-
-- A consumer seen for the first time starts at now: nothing that happened before replays, not even through the
-  lookback. What happens in the second it starts in isn't seen.
-- `hint` gives each source its own narrowing, by source name: `{"sensor_readings": {"actors": ["lens:sensor/5"]}}`
-  (`match.compile_triggers` makes it, as [Running automations](#running-automations) says).
-- Only `kinds` (and their descendants; null: every kind) in `spaces` (null: every namespace and none). A source that
-  makes none of the kinds wanted isn't read, and its cursor moves to now, so a kind listened to later doesn't replay
-  a backlog. `events.idle(db, consumer)` moves every cursor to now.
-- A source with more waiting gives `limit` at a time. Once caught up, a look also reads the last 60 seconds again,
-  for a row written as the last look ran, minus what this process already handled. So claim each activity before
-  acting on it: `events.claim(db, consumer, key)` is true for the one process, and the one time, that claims `key`
-  (an activity's id, say), with a `CREATE` of `event_claim:<hash>` only one process wins. `events.unclaimed(db,
-  consumer, keys)` lists the keys nobody has claimed yet, in one query. Claims go after a day.
-- `events.emit` wakes the followers in its process; a follower waits between looks with `g = events.generation()`
-  before the look and `events.wait(events.poll_seconds(cfg), stop, since=g)` after it (`events.poll_seconds`, 5;
-  Settings → Automations).
-
-### Timeline reads
-
-Built. `events.page(db, cfg, viewer, before=None, flt=None, limit=50)` reads the stream newest first for a viewer
-(`events.viewer(account, spaces, admin)`, spaces null for every one): `{"items": [...], "next": ...}`, where `next` (an
-opaque cursor, null at the end) goes in `before` for the page after. It merges every source's `page` by `published`
-(each source's own position breaking ties), applies who may see what, and when filters thin a page out it reads on, up
-to five pages from each source. `events.get(db, cfg, id, viewer)` reads one activity, null when there is none or it
-isn't the viewer's to see.
-
-- Who sees what: `lens.audience` `owner` is its owner alone; `admins` is admins; `space` is everyone who reads one of
-  its namespaces (`space` or `lens.spaces`); admins read every namespace, and an activity of no namespace is for
-  admins. People who were given only some collections of a namespace don't see its activities yet.
-- Filters: `kinds` (with their descendants; a noisy kind only when named), `actor` (an actor's id, or several),
-  `spaces` (namespace ids), `tag` (an entity's id or name), `since` (published after) and `until` (at or before),
-  `q` (words in the summary) and `where` (a match tree on the activity, below).
-- `events.tidy(db, cfg)` drops event log rows past `events.keep_days` and claims past a day; the routine scheduler
-  runs it once an hour.
-
-### Match trees
-
-Built (`app/domain/match.py`). One condition language for a trigger's `where`, an automation's `if`, and the
-condition, filter and switch nodes of a workflow:
-
-```
-M := {"all": [M, …]} | {"any": [M, …]} | {"not": M} | {"path": "a.b.0", "op": OP, "value": V}
-```
-
-- A test (`{path, op, value}`) reads the part of the value at a dotted path, list items by number
-  (`object.from.0`); no path tests the value itself. The tests are in the table below.
-- `all` holds when every condition in it does (an empty `all` always holds), `any` when one does (it needs at least
-  one), `not` when its condition doesn't.
-- Values are literals, never templates, so matching stays cheap and safe.
-- A tree nests at most 6 deep and holds at most 50 tests. A problem is named with where it is: `the condition,
-  all.1.not: compare with a number`.
-- `match.describe(tree, kind=None)` reads a tree in words: `object.from ends with “@stmarys.org” and
-  object.subject matches “trip” or “outing”`. With a kind, fields are named by the titles in its schema.
-
-#### Operators
-
-The first seven are the workflow engine's tests and work exactly as a condition node's always have. The others are
-built in `app/domain/match.py` (`match.OPS` lists them all). When the value tested is a list, those pass when one of
-its items does (as `contains` does), and `not_in` passes when none does. A value of the wrong kind, such as text for
-`between` on numbers, doesn't pass; a test's own value is checked when it is saved, with the problem in words.
-
-| Test | Value | Passes when the value tested |
-| --- | --- | --- |
-| `exists`, `empty` | none | is set; is missing, empty text, `[]` or `{}` |
-| `equals`, `not_equals` | anything | is (or isn't) exactly the value |
-| `contains` | anything | is text holding it in any case, or a list or object holding it |
-| `gt`, `lt` | a number | is a number more (less) than it |
-| `in`, `not_in` | a list of up to 500 values | is (or isn't) one of them; text in any case |
-| `starts_with`, `ends_with` | text (a number is read as text) | is text, or a number, starting (ending) with it, in any case |
-| `matches` | a pattern of up to 200 characters, such as `trip` or `^re:` | is text holding a match, in any case |
-| `between` | two numbers, or two times: `[1, 5]`, `["-1d", "now"]` | is a number, or a time, from the first to the second (both included) |
-| `before`, `after` | a time: `2026-10-16T07:30`, `now`, or from now: `2h`, `-30m` | is a time before (after) it |
-| `within` | a duration: `30m`, `2h`, `1d` | is a time no further than that from now, either way |
-| `weekday` | days: `["sat", "sun"]`, `["monday"]` or ISO numbers (1 is Monday) | is a time on one of those days |
-| `time_between` | two times of day: `["22:00", "06:00"]` | is a time of day from the first up to the second, across midnight when the second is earlier |
-| `changed` | none, or a path to keep values apart by: `actor.id` | differs from the value this test saw last time (the first one seen is no change) |
-
-- **Times** are ISO 8601 times or dates. A time written without a zone (in the value or in what is tested) is in the
-  automation's time zone, and so are `weekday` and `time_between`. Durations are a whole number and `s`, `m`, `h` or
-  `d`; a minus points back (`-2h` is two hours ago).
-- **Patterns** are regular expressions in Python's syntax, read in any case. To keep one pattern from tying up the
-  worker on a crafted email, a pattern that repeats a part that repeats itself (`(a+)+`), repeats alternatives that
-  may start alike (`(a|aa)+`) or refers back to a group (`\1`) is refused when it is saved, a pattern reads at most
-  the first 20,000 characters of a value, and a match that takes over 50 ms counts as no match. Compiled patterns are
-  cached.
-- **`env`**: `match.test(tree, value, env)` reads time and state from `env`, never from globals, so tests and dry
-  runs can fix them: `now` (the clock when not given), `timezone` (UTC when not given) and `state`.
-- **`changed`** compares with the last value the same test saw for the same automation and trigger, kept in
-  `automation_state` (kind `last`) by a `match.State(db, automation, alias, dry=False)` in `env["state"]`. Make one
-  State per activity tested, so the If and a node testing the same thing agree. With `dry` it reads and keeps nothing.
-  Without a State nothing has changed. With a path in `value` (`actor.id`), each sensor or sender keeps its own last
-  value. Like every test, it is only reached when the tests before it in an `all` pass, so `changed` compares with
-  the last value seen when it was reached.
-- **`automation_state`** holds what automations keep between activities. Each automation keeps at most 1000 rows; past
-  that the oldest go and are counted (`match.dropped(db, automation)`). A `last` value is kept 30 days after it was
-  last seen; `match.tidy` drops expired rows once an hour, from the routine schedule.
-
-#### Looking back
-
-Built (`match.seen`). An automation's If (and only its If, so testing a trigger's `where` on each new activity stays
-cheap) can ask whether something happened before: a `seen` stands where a test would.
-
-```json
-{"seen": {"kinds": ["email.received"], "within": "2d", "same": "object.from",
-          "where": {"path": "object.subject", "op": "matches", "value": "trip|outing"},
-          "count": {"at_least": 1}}}
-```
-
-- It finds activities of `kinds` (and the kinds under them) published in the last `within` before now, passing its
-  own `where`, and, with `same`, holding the same value at that path as the activity that started the run (the run
-  context's `event`). That activity itself doesn't count.
-- `count` is `{"at_least": n}` (1 when not given), `{"at_most": n}` or both, up to 100: `{"at_most": 0}` reads
-  "if nothing like it came", as in "if I haven't replied within 2 days".
-- It reads at most 200 activities, of the automation's namespaces (`env["spaces"]`) and as the automation's person
-  (`env["viewer"]`, or `env["account"]`) may see them; `env["db"]` and `env["cfg"]` give the database. Without a database it finds
-  nothing. Its `where` is tested with the same `env` (so its clock too) and can't test `changed`.
-- In words: `at least one of “Email received” in the last 2 days, with the same sender`.
-
-In a workflow, a condition, filter or switch case takes either one test, as before, or a tree in `match`; with a
-tree, `path` (when given) is the part of the value the tree tests. Graphs saved before keep running unchanged.
-
-```json
-{"id": "school", "type": "condition",
- "config": {"path": "object", "match": {"all": [{"path": "from.0", "op": "contains", "value": "@stmarys.org"},
-                                                {"not": {"path": "attachments", "op": "gt", "value": 5}}]}}}
-```
-
 ### Automations: triggers and joins
 
 Built as shapes with checks (`app/domain/automation_spec.py`), saved ([Saving automations](#saving-automations)) and
@@ -566,6 +405,98 @@ Lens has three kinds of webhook address; they don't share tokens or do each othe
 | `POST /api/v1/sensors/push/{token}` ([Sensors](sensors.md)) | an admin adding a webhook sensor | keeps readings (numbers, on/off, text) for charts, with the sensor's handling |
 | `POST /api/v1/hooks/import/{token}` ([Import webhooks](api.md#import-webhooks)) | a namespace's owner | imports files, web pages or text as assets |
 
+### Match trees
+
+Built (`app/domain/match.py`). One condition language for a trigger's `where`, an automation's `if`, and the
+condition, filter and switch nodes of a workflow:
+
+```
+M := {"all": [M, …]} | {"any": [M, …]} | {"not": M} | {"path": "a.b.0", "op": OP, "value": V}
+```
+
+- A test (`{path, op, value}`) reads the part of the value at a dotted path, list items by number
+  (`object.from.0`); no path tests the value itself. The tests are in the table below.
+- `all` holds when every condition in it does (an empty `all` always holds), `any` when one does (it needs at least
+  one), `not` when its condition doesn't.
+- Values are literals, never templates, so matching stays cheap and safe.
+- A tree nests at most 6 deep and holds at most 50 tests. A problem is named with where it is: `the condition,
+  all.1.not: compare with a number`.
+- `match.describe(tree, kind=None)` reads a tree in words: `object.from ends with “@stmarys.org” and
+  object.subject matches “trip” or “outing”`. With a kind, fields are named by the titles in its schema.
+
+#### Operators
+
+The first seven are the workflow engine's tests and work exactly as a condition node's always have. The others are
+built in `app/domain/match.py` (`match.OPS` lists them all). When the value tested is a list, those pass when one of
+its items does (as `contains` does), and `not_in` passes when none does. A value of the wrong kind, such as text for
+`between` on numbers, doesn't pass; a test's own value is checked when it is saved, with the problem in words.
+
+| Test | Value | Passes when the value tested |
+| --- | --- | --- |
+| `exists`, `empty` | none | is set; is missing, empty text, `[]` or `{}` |
+| `equals`, `not_equals` | anything | is (or isn't) exactly the value |
+| `contains` | anything | is text holding it in any case, or a list or object holding it |
+| `gt`, `lt` | a number | is a number more (less) than it |
+| `in`, `not_in` | a list of up to 500 values | is (or isn't) one of them; text in any case |
+| `starts_with`, `ends_with` | text (a number is read as text) | is text, or a number, starting (ending) with it, in any case |
+| `matches` | a pattern of up to 200 characters, such as `trip` or `^re:` | is text holding a match, in any case |
+| `between` | two numbers, or two times: `[1, 5]`, `["-1d", "now"]` | is a number, or a time, from the first to the second (both included) |
+| `before`, `after` | a time: `2026-10-16T07:30`, `now`, or from now: `2h`, `-30m` | is a time before (after) it |
+| `within` | a duration: `30m`, `2h`, `1d` | is a time no further than that from now, either way |
+| `weekday` | days: `["sat", "sun"]`, `["monday"]` or ISO numbers (1 is Monday) | is a time on one of those days |
+| `time_between` | two times of day: `["22:00", "06:00"]` | is a time of day from the first up to the second, across midnight when the second is earlier |
+| `changed` | none, or a path to keep values apart by: `actor.id` | differs from the value this test saw last time (the first one seen is no change) |
+
+- **Times** are ISO 8601 times or dates. A time written without a zone (in the value or in what is tested) is in the
+  automation's time zone, and so are `weekday` and `time_between`. Durations are a whole number and `s`, `m`, `h` or
+  `d`; a minus points back (`-2h` is two hours ago).
+- **Patterns** are regular expressions in Python's syntax, read in any case. To keep one pattern from tying up the
+  worker on a crafted email, a pattern that repeats a part that repeats itself (`(a+)+`), repeats alternatives that
+  may start alike (`(a|aa)+`) or refers back to a group (`\1`) is refused when it is saved, a pattern reads at most
+  the first 20,000 characters of a value, and a match that takes over 50 ms counts as no match. Compiled patterns are
+  cached.
+- **`env`**: `match.test(tree, value, env)` reads time and state from `env`, never from globals, so tests and dry
+  runs can fix them: `now` (the clock when not given), `timezone` (UTC when not given) and `state`.
+- **`changed`** compares with the last value the same test saw for the same automation and trigger, kept in
+  `automation_state` (kind `last`) by a `match.State(db, automation, alias, dry=False)` in `env["state"]`. Make one
+  State per activity tested, so the If and a node testing the same thing agree. With `dry` it reads and keeps nothing.
+  Without a State nothing has changed. With a path in `value` (`actor.id`), each sensor or sender keeps its own last
+  value. Like every test, it is only reached when the tests before it in an `all` pass, so `changed` compares with
+  the last value seen when it was reached.
+- **`automation_state`** holds what automations keep between activities. Each automation keeps at most 1000 rows; past
+  that the oldest go and are counted (`match.dropped(db, automation)`). A `last` value is kept 30 days after it was
+  last seen; `match.tidy` drops expired rows once an hour, from the routine schedule.
+
+#### Looking back
+
+Built (`match.seen`). An automation's If (and only its If, so testing a trigger's `where` on each new activity stays
+cheap) can ask whether something happened before: a `seen` stands where a test would.
+
+```json
+{"seen": {"kinds": ["email.received"], "within": "2d", "same": "object.from",
+          "where": {"path": "object.subject", "op": "matches", "value": "trip|outing"},
+          "count": {"at_least": 1}}}
+```
+
+- It finds activities of `kinds` (and the kinds under them) published in the last `within` before now, passing its
+  own `where`, and, with `same`, holding the same value at that path as the activity that started the run (the run
+  context's `event`). That activity itself doesn't count.
+- `count` is `{"at_least": n}` (1 when not given), `{"at_most": n}` or both, up to 100: `{"at_most": 0}` reads
+  "if nothing like it came", as in "if I haven't replied within 2 days".
+- It reads at most 200 activities, of the automation's namespaces (`env["spaces"]`) and as the automation's person
+  (`env["viewer"]`, or `env["account"]`) may see them; `env["db"]` and `env["cfg"]` give the database. Without a database it finds
+  nothing. Its `where` is tested with the same `env` (so its clock too) and can't test `changed`.
+- In words: `at least one of “Email received” in the last 2 days, with the same sender`.
+
+In a workflow, a condition, filter or switch case takes either one test, as before, or a tree in `match`; with a
+tree, `path` (when given) is the part of the value the tree tests. Graphs saved before keep running unchanged.
+
+```json
+{"id": "school", "type": "condition",
+ "config": {"path": "object", "match": {"all": [{"path": "from.0", "op": "contains", "value": "@stmarys.org"},
+                                                {"not": {"path": "attachments", "op": "gt", "value": 5}}]}}}
+```
+
 ### Run context
 
 What an automation's If, its nodes and its templates see (`automation_spec.context_paths()` lists the keys, with
@@ -606,7 +537,7 @@ its own:
 
 Checked when it is saved, on every path (create, a new version, a body):
 
-- It needs an action node, each action is one the registry has (`GET /api/v1/automations/actions` will list them)
+- It needs an action node, each action is one the registry has (`GET /api/v1/automations/actions` lists them)
   with params that fit its schema, and each template in its params is valid.
 - **The leaf rule:** an action that reaches outside Lens or other people (effect `out`, worked out from its params)
   or that waits has nothing connected after it, as it can't pass anything on while it waits for a yes or its time.
@@ -795,6 +726,99 @@ everyone who reads the asset sees.
 
 Calendar events aren't written: Lens signs in to Google Calendar read-only, and writing needs a new consent. Meanwhile
 the agent can draft an event as a note.
+
+### Sources and the event log
+
+Built. A source (`events.Source`, added with `events.register_source`) reads rows Lens already keeps as activities,
+so nothing is stored twice:
+
+- `read(db, cfg, pos, spaces, limit, hint)`: activities strictly after `pos` (`[time, id]`, or `[time, null]` for
+  after every row at that time), oldest first, at most `limit`, of the namespaces in `spaces` (null: all). `hint`
+  is narrowing a source may use, like `{"actors": ["lens:sensor/5"]}`: what the triggers that want its kinds let
+  through.
+- `page(db, cfg, before, viewer, flt, limit)`: newest first, strictly before `before` (`key` of the last one shown),
+  with what the viewer may see and the filters it can apply cheaply (the stream checks every filter again).
+- `get(db, cfg, activity_id)`: one activity by its id, or null; `now(db)`, `back(db, seconds)`: positions of now and of
+  `seconds` ago; `key(a)`: the position `page` orders by.
+
+A kind belongs to the source named in its `source`, and a source may list more in `kinds`. These are built:
+
+- `recordings` (`app/domain/events_content.py`) reads `recording` by `created_at`, the id breaking ties, as
+  `asset.added` and its children (Kinds, above). The actor is whoever added it: an automation (its first job was
+  queued by `automation:<id>`), the storage source or mailbox it came from (`Service`, `lens:source/<id>`), an import
+  hook (`Service`, `lens:import_hook/<id>`), the person whose upload, clip or import it was (`Person`,
+  `lens:account/<id>`, or `lens:email/<address>` for someone who isn't an account), a sensor's digest (`Service`,
+  `lens:sensor/<id>`), or Lens (a folder scan). `events_content.actors(db, labels)` names them the way Lens writes
+  them down (an account id, an email, `watch:<id>`, `routine:<id>`, `import_hook:<id>`, `automation:<id>`, ...),
+  in a few queries for a whole page, and keeps names for 30 seconds.
+- `jobs` (`app/domain/events_content.py`) reads `job` by `finished_at`, the id breaking ties, as `asset.processed`
+  and `asset.failed`; their ids carry the time they finished (`processed-job-51-1792081450`), so a run tried again
+  is a new activity.
+- `comments` reads `comment` by `created_at`; `note_pages` reads `note_page` by `created_at`; `note_versions` reads
+  `note_version` by `at` (to the millisecond) and keeps one version for each page and window; `graph` reads
+  `graph_event` by `at`, the event number breaking ties (numbers are given out in order, so the two agree).
+- `sensor_readings` (`app/domain/events_streams.py`) reads `sensor_reading` by `at` (microseconds), the id breaking
+  ties, one sensor at a time, as `sensor.reading`; `sensors` reads the `storage_source` rows discovery made by
+  `created_at`, as `sensor.joined`.
+- `routine_runs` (`app/domain/events_streams.py`) reads `routine_run` rows that ended by `finished_at`, the id
+  breaking ties, as `routine.ran`.
+- `chat_messages` (`app/domain/events_streams.py`) reads `chat_message` rows with role user by `created_at` over the
+  index on (role, created_at), the id breaking ties, as `chat.message`.
+- `approvals` (`app/domain/events_approvals.py`) reads `approval` by `created_at`, the id breaking ties, as
+  `approval.waiting`; `approval_decisions` reads the decided ones by `decided_at`, as `approval.decided`. Both page
+  only the viewer's own approvals.
+- `log` reads `event_log`: activities no row of their own records (a deletion, a webhook call), written by
+  `events.emit(db, kind, *, actor, obj, space, summary, target=None, tag=None, key=None, published=None, spaces=None,
+  audience=None, owner=None, untrusted=None)`, which gives the id (`log-<n>`). Emitting a `key` again changes
+  nothing and gives the first id, so a retry never doubles an activity. Inside `with events.caused_by({"automation":
+  4, "run": 51, "depth": 1}):` what is emitted carries that cause. It is read by `(logged_at, id)` and paged by
+  `published`, and its rows are kept for `events.keep_days` (30; Settings → Automations).
+- `automations` (`app/domain/events_automations.py`) reads `automation_run` by `finished_at`, the id breaking ties,
+  as `automation.ran`: a run that ran its graph (done, partly, failed or waiting), with the automation as its actor
+  (`Application`, `lens:automation/<id>`), the run and what its actions did as its object, and what started it as its
+  `lens.cause` when that was another automation's run. An automation over a limit is logged as `automation.limited`,
+  at most once an hour each.
+
+### Following the stream
+
+Built. The API and `lens worker` are separate processes on one database, so following works the way notifications
+do: `events.follow(db, cfg, consumer, kinds=None, spaces=None, limit=500, hint=None)` gives `(activities, commit)`,
+the activities since the consumer's last commit, oldest first. Handle them in order, then call `commit()` to save
+where the next look starts (`event_cursor:<consumer>`, a position per source).
+
+- A consumer seen for the first time starts at now: nothing that happened before replays, not even through the
+  lookback. What happens in the second it starts in isn't seen.
+- `hint` gives each source its own narrowing, by source name: `{"sensor_readings": {"actors": ["lens:sensor/5"]}}`
+  (`match.compile_triggers` makes it, as [Running automations](#running-automations) says).
+- Only `kinds` (and their descendants; null: every kind) in `spaces` (null: every namespace and none). A source that
+  makes none of the kinds wanted isn't read, and its cursor moves to now, so a kind listened to later doesn't replay
+  a backlog. `events.idle(db, consumer)` moves every cursor to now.
+- A source with more waiting gives `limit` at a time. Once caught up, a look also reads the last 60 seconds again,
+  for a row written as the last look ran, minus what this process already handled. So claim each activity before
+  acting on it: `events.claim(db, consumer, key)` is true for the one process, and the one time, that claims `key`
+  (an activity's id, say), with a `CREATE` of `event_claim:<hash>` only one process wins. `events.unclaimed(db,
+  consumer, keys)` lists the keys nobody has claimed yet, in one query. Claims go after a day.
+- `events.emit` wakes the followers in its process; a follower waits between looks with `g = events.generation()`
+  before the look and `events.wait(events.poll_seconds(cfg), stop, since=g)` after it (`events.poll_seconds`, 5;
+  Settings → Automations).
+
+### Timeline reads
+
+Built. `events.page(db, cfg, viewer, before=None, flt=None, limit=50)` reads the stream newest first for a viewer
+(`events.viewer(account, spaces, admin)`, spaces null for every one): `{"items": [...], "next": ...}`, where `next` (an
+opaque cursor, null at the end) goes in `before` for the page after. It merges every source's `page` by `published`
+(each source's own position breaking ties), applies who may see what, and when filters thin a page out it reads on, up
+to five pages from each source. `events.get(db, cfg, id, viewer)` reads one activity, null when there is none or it
+isn't the viewer's to see.
+
+- Who sees what: `lens.audience` `owner` is its owner alone; `admins` is admins; `space` is everyone who reads one of
+  its namespaces (`space` or `lens.spaces`); admins read every namespace, and an activity of no namespace is for
+  admins. People who were given only some collections of a namespace don't see its activities yet.
+- Filters: `kinds` (with their descendants; a noisy kind only when named), `actor` (an actor's id, or several),
+  `spaces` (namespace ids), `tag` (an entity's id or name), `since` (published after) and `until` (at or before),
+  `q` (words in the summary) and `where` (a [match tree](#match-trees) on the activity).
+- `events.tidy(db, cfg)` drops event log rows past `events.keep_days` and claims past a day; the routine scheduler
+  runs it once an hour.
 
 ## Approvals
 
@@ -1219,6 +1243,8 @@ first, such as the school's address. In the web app they are under **Describe it
 | No reply in two days | An email whose start asks something, with no email in your Sent mailbox within two days, reminds you; any email you send in that time calls it off |
 | Webhook to note | A call to its webhook writes a note with what was sent |
 
+Router alerts' "at most once an hour" is a [limit](#limits-and-costs); the builder keeps it when you save.
+
 ### Agents
 
 Built. Over [MCP](mcp.md) an agent uses `automations` (list them, read one with its latest runs, or one run),
@@ -1226,10 +1252,10 @@ Built. Over [MCP](mcp.md) an agent uses `automations` (list them, read one with 
 body that doesn't fit comes back in plain words, naming the field. A new automation is saved switched off unless the
 agent says `enabled: true`, and saving and running need a token with the write scope.
 
-The [assistant](assistant.md) has the same tools. Saving there is made at once and always switched off; switching one
-on, or running one now, becomes an approval card the person decides, which says what it listens for and the actions
-it takes. Switching one off is made at once. Neither MCP nor the assistant lets a node run on its own (`auto`): only the
-person, signed in to the web app, does.
+The [assistant](assistant.md) has `automations`, `save_automation`, `test_automation` and `run_automation`. Saving
+there is made at once and always switched off; switching one on, or running one now, becomes an approval card the
+person decides, which says what it listens for and the actions it takes. Switching one off is made at once. Neither
+MCP nor the assistant lets a node run on its own (`auto`): only the person, signed in to the web app, does.
 
 ## Running automations
 
@@ -1276,8 +1302,8 @@ when it completes. It gives the run's id, or none when nothing ran. A run goes:
    for your pick (status `held`, one at a time; later ones add to its `hold.missed`) or skipped, as its budget says.
 5. **The graph** runs as its person, counted for `automation:<id>` and its run in the [activity ledger](activity.md):
    graph changes are marked as made by the automation, and activities it makes carry the run as their cause.
-   Routine actions are done; ones that ask first wait for the person's pick and ones with a time wait for it (until
-   approvals and timers are built, they stay waiting).
+   Routine actions are done; ones that ask first wait for the person's pick ([Approvals](#approvals)) and ones with a
+   time wait for it ([Actions that wait](#actions-that-wait)).
 6. **It finishes** `done`, `partly` (some actions failed), `failed` or `waiting` (actions wait), with its cost and
    tokens, what each node did (`trace`: `done`, `skipped`, `failed`, or `waiting` and `scheduled` for an action that
    asks first or waits for its time), its log (at most 500 lines) and an `automation.<status>` row in the activity
@@ -1303,7 +1329,117 @@ held run until you pick.
   the newest one its triggers listen for, else as started by hand. Limits, budgets and asking first apply.
 - `POST /automations/runs/{run}/decide {"run": true}` runs a held run now, once, whatever its budgets say;
   `{"run": false}` skips it.
-- `GET /automations/{id}/upcoming` lists when it runs next (empty until schedules are built).
+- `GET /automations/{id}/upcoming` lists what it has waiting on the clock, soonest first: its schedule, `at` and
+  relative times and its actions that wait ([Time](#time)).
+
+## Limits and costs
+
+An automation runs as often as what it listens for happens, so each one has limits, and what it spends is counted.
+[Running automations](#running-automations) says where in a run each is checked.
+
+| Limit | Default | Set in |
+| --- | --- | --- |
+| The wait between one automation's runs (`cooldown`, like `10m`) | none (`0s`) | its `limits`, over the API or `save_automation` |
+| One automation's runs an hour (`max_per_hour`, 1 to 3600) | 60 | its `limits`, over the API or `save_automation` |
+| Every automation's runs together, a minute (`automations.max_runs_per_minute`) | 60 | Settings → Automations |
+| A chain of automations setting each other off (`automations.max_depth`) | 3 | Settings → Automations |
+| How long runs are kept (`automations.keep_runs_days`; each automation keeps its last 20 whatever their age) | 30 days | Settings → Automations |
+| How long an action waits for your pick (`automations.approval_days`) | 7 days | Settings → Automations |
+| Actions waiting for your pick, per automation | 100 | fixed |
+| Timers waiting, per automation | 1000 | fixed |
+| What an automation keeps between activities (`automation_state` rows) | 1000 | fixed |
+| Saved variables, per automation or namespace | 100 | fixed |
+
+A run over a limit doesn't run: it counts in the automation's `limited` counter and shows in the stream as
+`automation.limited`, at most once an hour. The builder keeps an automation's own limits but doesn't show them yet;
+change them over the API or MCP ([Refine later](#refine-later)).
+
+**Costs.** Following the stream, testing triggers and conditions, telling you, and changing things in Lens call no
+model. A model is called only by `ask_model` and `ask_agent` ([The model and the agent](#the-model-and-the-agent)), by
+a [decide node](#the-decide-node) an activity reaches, and for [a draft from a sentence](#describe-it-in-words). Those
+calls, and each `http_request`, go in the [activity ledger](activity.md) under the automation (`automation:<id>`) and
+its run. A [budget](budgets.md) on the automation (set on its **Costs** tab), its workflow or its namespaces holds a run
+that would go over it for your pick, or skips it, as the budget says. The list shows each automation's cost this
+month, and each run what it cost.
+
+## The API and MCP tools
+
+Everything in the studio is open to agents. People and agents use the same API (`/api/v1`, [API](api.md#automations)),
+and agents also have MCP tools ([MCP](mcp.md#tools)). The [assistant](#agents) has `automations`, `save_automation`,
+`test_automation`, `run_automation`, `timeline`, `mark_activities`, `approvals` and `decline_approval`. Asked how to
+do something in this guide, the assistant and MCP clients look it up here with `lens_help`.
+
+| To | API | MCP |
+| --- | --- | --- |
+| List automations, read one with its runs, read a run | `GET /automations`, `GET /automations/{id}`, `GET /automations/{id}/runs`, `GET /automations/runs/{run}` | `automations` |
+| See what actions can do | `GET /automations/actions` | `automation_actions` |
+| Make or change one, switch it on or off | `POST /automations`, `PATCH /automations/{id}`, `POST /automations/{id}/enable` | `save_automation` (in the assistant it saves switched off and asks you to switch it on) |
+| Try one, keeping and sending nothing | `POST /automations/test`, `POST /automations/{id}/test` | `test_automation` |
+| Run one now | `POST /automations/{id}/run` | `run_automation` (in the assistant, once you approve) |
+| Draft one from a sentence, or start from a starter | `POST /automations/draft`, `GET /automations/starters` | none yet |
+| Delete and restore | `DELETE /automations/{id}`, `POST /automations/{id}/restore` | none yet; `automations` lists deleted ones (`removed`) |
+| Let an action run on its own | `POST /automations/{id}/policy`, signed in to the web app | none: only you do |
+| Run a run held over budget, or skip it | `POST /automations/runs/{run}/decide` | none yet |
+| What's coming up | `GET /automations/{id}/upcoming` | `schedules` lists its schedule and at triggers ([Schedules](schedules.md)) |
+| Saved variables | `GET`/`PUT /automations/{id}/vars`, `/namespaces/{name}/automation-vars` | `automation_vars`, `set_automation_vars` |
+| The variable picker and a template's preview | `POST /automations/variables`, `POST /automations/preview` | `automation_variables`, `preview_template` |
+| Approvals | `GET /approvals`, `GET /approvals/count`, `POST /approvals/{aid}` | `approvals`, `decline_approval` (never approve) |
+| The stream and its kinds | `GET /activities`, `GET /activities/kinds`, `POST /activities/mark` | `timeline`, `event_kinds`, `mark_activities` |
+| Set an automation off from outside | `POST /automations/hooks/{token}` ([Webhook trigger](#webhook-trigger)) | not needed: anything that sends HTTP calls it |
+
+## Built, in progress, planned
+
+The studio is built in modules; this table labels each part, and only what is merged is called built. What isn't
+built yet is in [Refine later](#refine-later); the [Timeline](timeline.md) has its own table.
+
+| Part | Status |
+| --- | --- |
+| Match trees: one condition language for triggers, an automation's If and workflow nodes | built |
+| Operators for times, lists, text patterns and changes (`in`, `matches`, `within`, `changed`...) | built |
+| Looking back over the stream in an automation's If (`seen`) | built |
+| Joins: `all`, `count`, `absent` and `batch`, completed as the stream brings each trigger's activities and as their timers fire ([Joins](#joins)) | built |
+| Activities, the kinds catalog, the event log, following the stream, timeline reads (`app/domain/events.py`) | built |
+| New assets as `asset.added` (the `recordings` source) | built |
+| New assets by kind: emails received, calendar events, files from storage, uploads, pages saved from the web, imports | built |
+| Runs that finished or failed, deletions and calendar events that moved | built |
+| Comments, notes written and saved, and changes to the entity graph | built |
+| Sensors: readings a sensor keeps, alert and notable log patterns, devices that report for the first time ([Sensors](#sensors-as-activities)) | built |
+| What people say to Lens, in the web app and chat apps, as `chat.message` ([Chat](#chat-as-activities)) | built |
+| Lens itself: routine runs, budget warnings, backups and new releases ([Lens itself](#lens-itself-as-activities)) | built |
+| The timeline API (`GET /api/v1/activities`), the MCP tools `timeline` and `event_kinds`, the assistant's `timeline` | built |
+| Review marks on the timeline (reviewed, important, hidden), their filters and `mark_activities` ([Timeline](timeline.md)) | built |
+| Reactions and comments on activities, as `reaction.added` and `comment.added` ([Timeline](timeline.md#reactions-and-comments)) | built |
+| The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
+| The event workflow scope: what an automation does, drawn with action nodes and tried on an activity (`app/domain/automation_nodes.py`) | built |
+| The decide node: the decision model picks a branch, one port per option and `unsure` ([The decide node](#the-decide-node)) | built |
+| Drawing an automation's workflow on the canvas: the actions in the palette, their settings from each action's params, Decide's ports, the leaf rule and a try on a kind's sample ([On the canvas](#on-the-canvas)) | built |
+| The action registry with risk from each action's effect, and `log_line`, a line in the run's log (`app/domain/actions.py`) | built |
+| Telling a person: the `notify` action and `channels.tell` (their own chat, a notification target, a Matterbridge room) | built |
+| The model and the agent: the `ask_model`, `call_tool` and `ask_agent` actions, and prompts with outside text marked | built |
+| Templates in params and prompts: the run context, one expression keeping its type, errors that name the nearest variable, saved prompt templates, filters for times, text and addresses ([Variables and templates](#variables-and-templates)) | built |
+| Saved variables: `vars` in the run context, the `set_variable` action, the API and MCP tools ([Saved variables](#saved-variables)) | built |
+| The variable picker's catalog and a preview of what a template gives, through the API and MCP ([The variable picker and preview](#the-variable-picker-and-preview)) | built |
+| Calling a web address: the `http_request` action, with credentials in headers kept sealed | built |
+| Running Lens work: the `run_workflow`, `run_pipeline` and `run_routine` actions | built |
+| Changing assets and writing notes: the `set_field`, `add_to_collection` and `write_note` actions | built |
+| Settings → Automations: whether automations run, their limits, how long runs are kept and how late a timer may fire; how often followers look and how long the event log is kept | built |
+| A webhook address per automation trigger, and calls to it as `webhook.received` ([Webhook trigger](#webhook-trigger)) | built |
+| Timers that outlast a restart and fire once across the API and the worker (`app/domain/timers.py`, [Time](#time)) | built |
+| The timers behind schedule, `at` and `relative` triggers, the `clock.tick` kind and what's coming ([Time](#time)), set when an automation is saved | built |
+| Actions that wait (`delay`, `when`): kept as timers, carried out at their time, asking first when they should then ([Time](#time)) | built |
+| The Timeline page with filters, grouping, review keys and new items, and Home's Latest card ([Timeline](timeline.md)) | built |
+| Approvals: an automation's action that asks first waits for your pick (approve, decline, edit, allow from now on), told once in your chat app, capped and expiring (`app/domain/approvals.py`) | built |
+| Deciding an automation's action with a yes in the chat it told you in | built |
+| Approvals as activities (`approval.waiting`, `approval.decided`) and the `approval.waiting` notification | built |
+| Agents' approval tools: `approvals` and `decline_approval` over MCP and in the assistant, and no way for an agent to approve | built |
+| The Approvals page (`/approvals`), its badge in the top bar and nav, and Home's Needs attention row | built |
+| Saving automations: checks, namespaces, switching on and off, delete and restore, the policy, the API (`app/domain/automations.py`) | built |
+| Running automations: following the stream, limits, budgets, runs as `automation.ran`, trying and running now, the API (`app/domain/automations.py`) | built |
+| Automations for agents: the MCP tools and the assistant's, switching on and running now by approval | built |
+| Describing an automation in words: a draft from a sentence (`POST /api/v1/automations/draft`) | built |
+| The studio: the list at `/automations` and the When, If and Then builder, with a test panel ([The studio](#the-studio)) | built |
+| An automation's page: its runs, what's coming up, its variables and its costs, in tabs ([An automation's page](#an-automations-page)) | built |
+| Starters: five ready-made drafts, switched off, to open, change and save (`GET /api/v1/automations/starters`, [Starters](#starters)) | built |
 
 ## Refine later
 
@@ -1311,7 +1447,7 @@ held run until you pick.
 - Switching an automation off and on keeps what an `all` or `count` join was waiting on, until its window passes; a
   changed join keeps the old one's rows until they expire.
 
-- Variables inside match values (`{"var": "vars.threshold"}`), once saved variables are built.
+- Variables inside match values (`{"var": "vars.threshold"}`).
 - Statistical conditions, such as a reading above its 7-day average.
 - Sequences longer than two steps ("A, then B, then C").
 - The canvas shows and edits match trees on condition, filter and switch nodes (today it edits one test; a tree
@@ -1327,8 +1463,8 @@ held run until you pick.
   snippet for IMAP messages before they are read (it needs the message body).
 - Per-recipient threading of email conversations; entity tags on new assets once extraction runs at ingest.
 - `note.saved` comes as a window's first change is made, while the person may still be typing; an automation can
-  wait a little before it reads the page (M6). A page made and then written on shows both `note.created` and
-  `note.saved`.
+  wait a little before it reads the page (**Wait first**, [Actions that wait](#actions-that-wait)). A page made and
+  then written on shows both `note.created` and `note.saved`.
 - A graph change across namespaces is for admins; show it to whoever reads all of its namespaces, as the graph's
   history does.
 - Every processed asset's analysis is an `entity.changed` (op created or changed); the timeline page could fold them
@@ -1344,9 +1480,9 @@ held run until you pick.
   with defaults per automation; a time zone of each person's own, rather than the triggers'; wrapping outside text
   the same way in `tool_nodes.ask_model` (pipeline workflows) and extensions' prompt tools; an activity when a person changes a variable; marking a variable
   from outside text only when the value itself came from it, not whenever the run read some; removing an
-  automation's variables when it is deleted (M6); a preview that runs the nodes before the template's (dry) rather
+  automation's variables when it is removed for good; a preview that runs the nodes before the template's (dry) rather
   than standing in for their outputs; the picker listing a saved prompt template's output schema for the node that
-  uses it; matching on variables in triggers and the If (M5).
+  uses it; matching on variables in triggers and the If.
 - The model and the agent: per-node model picks in the studio; streaming an agent's steps into the run's log as they
   happen; a namespace assistant's memory for automations (`remember` is left out today); approving an agent's
   proposals from the chat app it told you in.
@@ -1371,9 +1507,12 @@ held run until you pick.
 - Chat: recording every message in a room as an activity (opt-in per channel, off by default); a chat user who is
   also a Lens account as that person; a timeline page of others' private messages is read and left out, up to five
   source pages, so narrow it by account if that proves slow.
-- Deleted automations kept for a time, then removed with their runs (today they stay until restored).
 - The studio: dragging actions and rows to reorder them (today the arrows move an action); sharing an automation as a
-  file; a builder laid out for phones first.
+  file; a builder laid out for phones first; the builder showing and editing an automation's own limits (`cooldown`,
+  `max_per_hour`), which today it keeps as they came. On a phone, Save and turn on sits under the bottom bar, so making one from a
+  starter takes a swipe (5 taps and a swipe, against 4 clicks on a computer, in the clicks survey).
+- Agents: MCP tools for drafting from a sentence, the starters, delete and restore, and deciding a held run (today
+  through the API); the assistant's own `automation_actions` and variable tools.
 - Starters: "No reply in two days" matching the reply to the same conversation (emails carry no thread yet, so any
   email you send calls it off); a starter picking its sensor, room or address from what is connected, instead of a
   word to change.
@@ -1394,3 +1533,6 @@ held run until you pick.
 - Automations that listen for every kind (or hundreds of automations): an index of triggers by kind and `where`, so a
   look reads each activity once whatever the number of automations.
 - Drafts from a sentence: the person's own time zone when the sentence names none (today UTC).
+- Tests: two decisions on one approval at the same moment (today "decided once" is tested one after the other); the
+  real caps (100 approvals, 1000 timers, 64 KB and 60 calls a minute per hook), which the tests check with smaller
+  numbers.

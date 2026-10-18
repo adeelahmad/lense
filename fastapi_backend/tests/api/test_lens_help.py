@@ -47,6 +47,14 @@ def test_the_docs_are_found_by_words():
     assert manual.docs("the and of")["sections"] == []  # no words to look for
 
 
+def test_the_automations_guide_answers_how_to_be_told_when_the_school_emails():
+    top = manual.docs("how do I make Lens tell me when the school emails?")["sections"][0]
+    assert top["page"] == "automations.md" and top["url"].endswith("#five-minutes-tell-me-when-the-school-emails")
+    # the walkthrough's first lines say what to do: the starter, the school's address, Test, Save and turn on
+    assert "Tell me about school emails" in top["text"] and "school's address" in top["text"]
+    assert "Test" in top["text"] and "Save and turn on" in top["text"]
+
+
 def test_sections_anchors_and_a_changed_page(tmp_path, monkeypatch):
     monkeypatch.setenv("LENS_DOCS_DIR", str(tmp_path))
     (tmp_path / "setup.md").write_text(
