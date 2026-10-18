@@ -400,6 +400,15 @@ entry_points:
         control_kinds: [resource-name, x-network-destination, x-prompt-injection, size]
         caller_must_enforce: "none — queries go only to the admin's provider; pages are fetched through netguard like web import, 10 MB at most (P-SSRF-GUARD); once the answer has read outside text, a query or address neither the person nor a tool gave it asks first (P-INJECTION-EGRESS); results and pages reach the model marked as data; the ledger keeps the provider or host, never the query or page"
         provenance: {kind: documented, source: 'docs/assistant.md "a search or a page read sends words out of Lens"'}
+  - id: "the assistant's connection tools"
+    component: assistant
+    parameters:
+      - name: "a connection's id or name, a Gmail search, a message id, a time span, a path; the mail, events and files that come back"
+        attacker_controllable: true
+        x-condition: "admins who use the assistant, and indirectly whatever it read, through the model; mail and events: anyone who can email the account or invite it; files: whoever writes to the storage"
+        control_kinds: [resource-name, x-prompt-injection, size]
+        caller_must_enforce: "none — admins only, and only the tools for the kinds connected; each connection reads as it is set up to (Gmail and Google Calendar read only), so nothing changes in the account; a file is read up to 20 MB and a message's or file's text up to 11,000 characters; mail, events and files reach the model marked as data, and once read, tools that could carry it out of Lens ask first (P-INJECTION-EGRESS); bringing anything into a namespace waits for the person's yes; the ledger keeps what was called, never what came back"
+        provenance: {kind: documented, source: 'docs/assistant.md "Mail, calendars and files"'}
   - id: "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search)"
     component: outbound
     parameters:
@@ -545,6 +554,33 @@ entry_points:
         control_kinds: [x-credential, resource-name, x-network-source]
         caller_must_enforce: "admin enables both; per-person access keys, files added imported as at the ports (shares.add_files); failed WebDAV sign-ins throttled per visitor from X-Forwarded-For as trusted proxies report it"
         provenance: {kind: documented, source: 'docs/file-tree.md "At the web app''s address"'}
+  - id: "POST /api/v1/mesh/join (a machine joining the mesh)"
+    component: optional
+    parameters:
+      - name: "a join token's id, a nonce, the machine's name and Nebula public key, an HMAC of those keyed with the token's secret, facts about the machine"
+        attacker_controllable: true
+        x-condition: "anyone reaching the web app, once a token exists"
+        control_kinds: [x-credential, data]
+        caller_must_enforce: "no sign-in: the token's secret never crosses the wire, the HMAC is checked in constant time, wrong proofs throttled per address (8 in 15 minutes), a token is spent on use and expires, and the answer is sealed with a key derived from the secret"
+        provenance: {kind: documented, source: 'docs/mesh.md "Joining"'}
+  - id: "/api/v1/mesh/node/config, /node/renew, /node/beat (a node's own calls, with its node token)"
+    component: optional
+    parameters:
+      - name: "a public key to certify; a status report: whether Nebula runs, its peers, its machine, its log lines"
+        attacker_controllable: true
+        x-condition: "a machine that joined (a removed one is refused)"
+        control_kinds: [x-credential, data, x-peer]
+        caller_must_enforce: "the node token is 256 random bits kept only as a hash; a node gets its own config and a certificate for its own address and groups only; reports are capped"
+        provenance: {kind: documented, source: 'docs/mesh.md "After joining"'}
+  - id: "POST /api/v1/mesh/tokens, PATCH and DELETE /api/v1/mesh/nodes/{id}, PUT /api/v1/settings/mesh"
+    component: optional
+    parameters:
+      - name: "a node's role, name, namespaces, token hours and uses; the mesh's network, port, hosts, cipher"
+        attacker_controllable: false
+        x-condition: "admin only"
+        control_kinds: [x-env-config]
+        caller_must_enforce: "admin is trusted; audited (mesh.token.create, mesh.join, mesh.node.*); the network can't change once machines have addresses in it"
+        provenance: {kind: documented, source: 'docs/mesh.md "Settings"'}
   - id: ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY"
     component: outbound
     parameters:
@@ -1335,6 +1371,14 @@ build_flags:
     affects_properties:
       - {property_id: P-SHARES, effect: narrows}
     provenance: {kind: documented, source: 'docs/file-tree.md "At the web app''s address"'}
+  - name: "mesh.enabled"
+    default: "off"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "Lens is the CA of a Nebula mesh between its machines (key sealed in the database); a certificate per machine names its role and namespaces as groups; the rendered firewall opens the database port to worker nodes and the API port to every node on the primary, a node's agent port to the primary only; single-machine installs never turn it on"
+    affects_properties:
+      - {property_id: P-MESH, effect: enables}
+    provenance: {kind: documented, source: 'docs/mesh.md "Off until an admin adds a node"'}
   - name: "https.enabled"
     default: "off"
     security_relevant: true
@@ -1485,7 +1529,7 @@ properties_claimed:
     tier: security-critical
     conditions: "a published feed's address opens that feed alone, read-only, with no session; only an editor of the namespace makes one; it lists only items whose resource or activity the readers of the feed's namespace can read, never a vault's, and a namespace made a vault stops its feeds; the token is found by its hash, and rotating or deleting the feed stops the old address at once; text in an item cannot add markup to a reader"
     violation_symptoms: [info-leak]
-    x-voided-by: "the token is sealed with the server key, not only hashed, so the namespace's readers and whoever holds secret.key see the address again (domain/syndication.py token_of); anyone given the address reads the feed until it is rotated; editors choose what goes in, and a resource's title and summary show as they are now; the fit is by namespace roles (domain/syndication.py Fit), not per-asset grants"
+    x-voided-by: "the token is sealed with the server key, not only hashed, so the namespace's readers and whoever holds secret.key see the address again (domain/syndication.py token_of); anyone given the address reads the feed until it is rotated; editors choose what goes in, as does a routine (admins make them) whose workflow nodes publish what they pick, bounded the same way; a resource's title and summary show as they are now; the fit is by namespace roles (domain/syndication.py Fit), not per-asset grants"
     provenance: {kind: documented, source: 'docs/feeds.md "Private by default"'}
   - id: P-AUTH-REQ
     kind: authentication
@@ -1873,6 +1917,14 @@ properties_claimed:
     violation_symptoms: [integrity-bypass]
     x-voided-by: "the consequential check is the model's flag plus a word list (extensions/browser/src/core/act.js): an unlabelled control a misled model doesn't mark runs without asking; removing a site keeps the browser's access for the clipper; Lens sends the ask (confirm) and an extension older than this doesn't honour it"
     provenance: {kind: documented, source: 'docs/browser-assistant.md "Letting it use your browser"'}
+  - id: P-MESH
+    kind: authentication
+    components: [optional]
+    tier: security-critical
+    conditions: "the mesh (mesh.enabled, off until an admin adds a node) admits only machines that joined with a token an admin made, spent on use and expiring, which never crosses the wire (HMAC proof; answer sealed with a key derived from it); each machine's certificate names only its own address, role and namespaces; the rendered firewall opens the database port to worker nodes and the API port to every node on the primary, a node's agent port to the primary only; removing a node blocklists every certificate it was given on every machine and stops its node token; nodes still sign in to Lens as any client does"
+    violation_symptoms: [info-leak, integrity-bypass]
+    x-voided-by: "a wrong address in the install line gives a stranger the token's id (not its secret); a worker node holds the database credential (trusted peer, Q9); the lighthouse must be reachable on UDP mesh.port; Nebula's own isolation is upstream's (domain/mesh.py)"
+    provenance: {kind: documented, source: 'docs/mesh.md "What keeps it safe"'}
   - id: P-SANDBOX
     kind: integrity
     components: [assistant]

@@ -8,12 +8,13 @@ import { useState, type ReactNode } from "react";
 
 import { Brand } from "@/components/brand";
 import { PublicSearchForm } from "@/components/public/search-view";
+import { DataProgress } from "@/components/top-progress";
 import { Button } from "@/components/ui/button";
 import { ToastProvider } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ApiError } from "@/lib/api/browser";
 
-/** Data cache, tooltips and toasts for the pages visitors see (no archive context: they may not be signed in). */
+/** Data cache (with the loading bar), tooltips and toasts for the pages visitors see (no archive context: they may not be signed in). */
 export function PublicProviders({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
     () =>
@@ -29,6 +30,7 @@ export function PublicProviders({ children }: { children: ReactNode }) {
   );
   return (
     <QueryClientProvider client={queryClient}>
+      <DataProgress />
       <TooltipProvider delayDuration={250}>
         <ToastProvider>{children}</ToastProvider>
       </TooltipProvider>

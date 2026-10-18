@@ -758,7 +758,18 @@ def _outputs(graph, ids):
             else:
                 out[i] = (n.get("label") or spec.label, spec.output or {"type": "object"})
         elif n.get("type") == "decide":
-            out[i] = (n.get("label") or "Decide", {"type": "object", "properties": {"choice": {"type": "string", "title": "Choice"}}})
+            out[i] = (
+                n.get("label") or "Decide",
+                {
+                    "type": "object",
+                    "properties": {
+                        "port": {"type": "string", "title": "Branch taken (an option, or unsure)"},
+                        "choice": {"type": "string", "title": "Option chosen (its best guess when unsure)"},
+                        "confidence": {"type": "number", "title": "Confidence, 0 to 1"},
+                        "sure": {"type": "boolean", "title": "Sure enough to follow it"},
+                    },
+                },
+            )
     return out
 
 
