@@ -437,6 +437,7 @@ export type {
   ControlWorkerResponse,
   ControlWorkerResponses,
   ConversionNodeTestResult,
+  ConvertedFrom,
   Converters,
   CopyPageData,
   CopyPageError,

@@ -41712,6 +41712,53 @@
         ],
         "title": "ConversionNodeTestResult"
       },
+      "ConvertedFrom": {
+        "properties": {
+          "resource": {
+            "type": "integer",
+            "title": "Resource"
+          },
+          "to": {
+            "type": "string",
+            "enum": [
+              "audio",
+              "images"
+            ],
+            "title": "To"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page",
+            "description": "the page it is, from 0, for images made of a document's pages"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "resource",
+          "to"
+        ],
+        "title": "ConvertedFrom",
+        "description": "The asset a convert step made this one from (docs/processing.md#converting-assets)."
+      },
       "Converters": {
         "properties": {
           "office": {
@@ -62863,6 +62910,17 @@
               }
             ],
             "description": "an email's attachment made a resource of its own: that email"
+          },
+          "converted_from": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConvertedFrom"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "made by a convert step: the asset it was made from"
           },
           "web": {
             "anyOf": [
