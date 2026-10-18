@@ -159,7 +159,8 @@ that triggers subscribe to. `events.check_activity(a)` checks it, naming the fir
 - `object`: what it is about, with the kind's own fields. Ids are `lens:<table>/<id>` references, so actions can act
   on them; `events.ref_id(ref, "recording")` reads the id back.
 - `target`: where to, when the verb has one (Add to a collection), else null. `tag`: up to 50 objects such as
-  `{"type": "Mention", "id": "lens:entity/9", "name": "St Mary's"}`.
+  `{"type": "Mention", "id": "lens:entity/9", "name": "St Mary's", "entityType": "ORG"}`: an entity's type is its
+  code, so a trigger can fire on any person mentioned ([`mentions`](#operators)).
 - `summary`: one line of at most 300 characters, made by fixed rules, never by a model.
 - `space`: the namespace id, or null for activities of no namespace.
 - `lens`: Lens's own fields. `source` and `pos` (the source's position, `[time, id]`) are for the stream machinery.
@@ -228,8 +229,8 @@ imported), else `asset.added`. A file an email or archive held, made a resource 
 email is what arrived. A trigger on `asset.added` matches every one of them.
 
 A run of an asset's pipeline that finishes is `asset.processed` (it succeeded) or `asset.failed`, one activity per
-run, batch runs included. Its actor is whoever queued it, and its tags are the asset's entities (the ten most
-mentioned), which exist only once it has been processed: `asset.processed` is the kind for "when an email about St
+run, batch runs included. Its actor is whoever queued it, and its tags are the asset's entities (the fifty most
+mentioned, as many as an activity holds, each with its `entityType`), which exist only once it has been processed: `asset.processed` is the kind for "when an email about St
 Mary's is understood". A run tried again finishes again, as another activity. A deletion is logged as
 `asset.deleted` where the asset is deleted (once per asset), and a move to another namespace as `asset.moved`, a
 `Move` by whoever moved it, seen in the namespace it is in now (a trigger there on `asset.moved` is "when something
@@ -459,6 +460,7 @@ its items does (as `contains` does), and `not_in` passes when none does. A value
 | `weekday` | days: `["sat", "sun"]`, `["monday"]` or ISO numbers (1 is Monday) | is a time on one of those days |
 | `time_between` | two times of day: `["22:00", "06:00"]` | is a time of day from the first up to the second, across midnight when the second is earlier |
 | `changed` | none, or a path to keep values apart by: `actor.id` | differs from the value this test saw last time (the first one seen is no change) |
+| `mentions` | the entity: `{"type": "PERSON"}`, `{"name": "Acme*"}`, both, or `{"id": "lens:entity/9"}` | is an activity (its `tag`), or a list of tags, naming an entity of that type (any of a list), with a name like that, or with that id |
 
 - **Times** are ISO 8601 times or dates. A time written without a zone (in the value or in what is tested) is in the
   automation's time zone, and so are `weekday` and `time_between`. Durations are a whole number and `s`, `m`, `h` or
@@ -468,6 +470,20 @@ its items does (as `contains` does), and `not_in` passes when none does. A value
   may start alike (`(a|aa)+`) or refers back to a group (`\1`) is refused when it is saved, a pattern reads at most
   the first 20,000 characters of a value, and a match that takes over 50 ms counts as no match. Compiled patterns are
   cached.
+- **Mentions** are the entities an activity is tagged with (`asset.processed`, `entity.changed`). A type is its code
+  or its label in any case (`PERSON`, `person`, `Organisation`; `ORG`, `PRODUCT`, `PLACE`, `EVENT`, `WORK`, `TERM`,
+  `DATE`, `NUMBER`). In a name, `*` stands for any run of characters and `?` for one, in any case, and every other
+  character is itself; a name with neither is the whole name (`Acme` doesn't find “Acme Robotics”, `Acme*` does). A
+  value that is only text is a name. With no path the test reads the activity's `tag`; in the If give the path
+  (`event.tag`). The name is matched in time linear in its length, however many stars it has, so a crafted pattern
+  can't tie up the worker. When St Mary's or any person is mentioned in a processed asset:
+
+  ```json
+  {"as": "said", "on": "event", "kinds": ["asset.processed"],
+   "where": {"any": [{"op": "mentions", "value": {"name": "St Mary*"}},
+                     {"op": "mentions", "value": {"type": "PERSON"}}]}}
+  ```
+
 - **`env`**: `match.test(tree, value, env)` reads time and state from `env`, never from globals, so tests and dry
   runs can fix them: `now` (the clock when not given), `timezone` (UTC when not given) and `state`.
 - **`changed`** compares with the last value the same test saw for the same automation and trigger, kept in
@@ -1468,6 +1484,9 @@ built yet is in [Refine later](#refine-later); the [Timeline](timeline.md) has i
 
 - Variables inside match values (`{"var": "vars.threshold"}`).
 - Statistical conditions, such as a reading above its 7-day average.
+- `mentions` on an asset's top fifty entities: an asset that mentions more names only its most mentioned; a picker for
+  the entity and its type in the canvas's condition node (today it is written in a where or over the API and MCP);
+  an `entity.mentioned` kind, one per entity, if one per processed asset proves too coarse.
 - Sequences longer than two steps ("A, then B, then C").
 - The canvas shows and edits match trees on condition, filter and switch nodes (today it edits one test; a tree
   saved through the API is kept).
