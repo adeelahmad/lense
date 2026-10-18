@@ -14,6 +14,11 @@ class ImportHook(ResponseModel):
     collection: int | None = Field(None, description="where its imports go (default: the namespace's default collection)")
     pipeline: int | None = Field(None, description="the pipeline its imports run (default: the namespace's)")
     enabled: bool = Field(description="false while paused: pushes are refused, and the token keeps")
+    hand_back: bool = Field(
+        False,
+        description="hand PDFs back: a document this server can't make into a PDF itself is kept and waits for the "
+        "service that sent it to push its PDF with ?for=<recording> (off by default)",
+    )
     token_tail: str | None = Field(None, description="the token's last four characters, to tell tokens apart")
     used: int = Field(0, description="how many things it has imported")
     last_used_at: str | None = None
@@ -25,6 +30,11 @@ class ImportHookCreate(RequestModel):
     name: str = Field(min_length=1, max_length=80, description="what pushes to it, e.g. Scanner or Zapier")
     collection: int | None = None
     pipeline: int | None = None
+    hand_back: bool = Field(
+        False,
+        description="hand PDFs back: a document this server can't make into a PDF itself is kept and waits for the "
+        "service that sent it to push its PDF with ?for=<recording> (off by default)",
+    )
 
 
 class ImportHookUpdate(RequestModel):
@@ -32,6 +42,7 @@ class ImportHookUpdate(RequestModel):
     collection: int | None = None
     pipeline: int | None = None
     enabled: bool | None = None
+    hand_back: bool | None = Field(None, description="hand PDFs back (see ImportHook.hand_back)")
 
 
 class ImportHookCreated(ResponseModel):
@@ -53,11 +64,16 @@ class HookPush(RequestModel):
 
 
 class HookItem(ResponseModel):
-    kind: Literal["file", "url", "text"]
+    kind: Literal["file", "url", "text", "pdf"] = Field(description="pdf: a PDF handed back for a document (?for=)")
     name: str = Field(description="the file's name, the address, or the text's title")
     recording: int = Field(description="the asset or resource it became")
     job: int | None = Field(None, description="the job that runs its pipeline")
     duplicate: bool = Field(False, description="the namespace had this file already; it's that asset")
+    needs_pdf: bool = Field(
+        False,
+        description="this server can't make it into a PDF, and the hook hands PDFs back: push its PDF with "
+        "?for=<recording> and its pipeline runs",
+    )
 
 
 class HookPushed(ResponseModel):

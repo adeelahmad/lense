@@ -1058,9 +1058,10 @@ POST   /api/v1/hooks/import
 POST   /api/v1/hooks/import/{token}
 ```
 
-A namespace's owners manage its hooks. `POST {name, collection?, pipeline?}` makes one and answers with its token
-(`lih_...`), shown this once; only a hash is kept, and lists show its last four characters. `PATCH` renames it, pauses
-or resumes it (`enabled`), or changes its collection or pipeline (null for the namespace's own). `POST .../token` gives
+A namespace's owners manage its hooks. `POST {name, collection?, pipeline?, hand_back?}` makes one and answers with its
+token (`lih_...`), shown this once; only a hash is kept, and lists show its last four characters. `PATCH` renames it,
+pauses or resumes it (`enabled`), turns [PDF hand-back](#pdf-hand-back) on or off (`hand_back`), or changes its
+collection or pipeline (null for the namespace's own). `POST .../token` gives
 it a new token and the old one stops at once; `DELETE` stops it altogether. What a hook imported stays either way.
 Audited as `import_hook.create`, `.update`, `.token` and `.delete`.
 
@@ -1074,7 +1075,7 @@ a URL; the address form ends up in proxy logs, so prefer the header). Three ways
 - **JSON** `{url?, text?, title?}`: a web page or PDF kept as a document, as [web pages](#web-pages) are (a page needs
   Chromium on the server; a link to a PDF doesn't), and text imported as pasted text is.
 
-The answer (202) is `{namespace, items: [{kind, name, recording, job, duplicate}]}`. 401 for a token Lens doesn't know,
+The answer (202) is `{namespace, items: [{kind, name, recording, job, duplicate, needs_pdf}]}`. 401 for a token Lens doesn't know,
 saying which kind it took it for (a hook's, an API token, a sign-in), 403 while the hook is paused, 413 over
 `uploads.max_mb`, 507 when the disk can't hold the file. Each item is audited as `import.hook`, by `import_hook:<id>`
 rather than a person.
@@ -1096,6 +1097,30 @@ curl -H "Authorization: Bearer $TOKEN" --data-binary @minutes.pdf "https://lens.
 curl -H "Authorization: Bearer $TOKEN" -F file=@call.m4a -F title="Call with Sam" https://lens.example/api/v1/hooks/import
 curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"url": "https://example.org/report.pdf"}' https://lens.example/api/v1/hooks/import
 curl -H "Authorization: Bearer $LENS_API_TOKEN" -H "Content-Type: application/json" -d '{"text": "Notes", "title": "Notes"}' "https://lens.example/api/v1/hooks/import?namespace=pods"
+```
+
+#### PDF hand-back
+
+A light server (a Raspberry Pi without LibreOffice or Chromium) can't make Word, PowerPoint and Excel files, emails or
+saved web pages into PDFs, so it refuses them. A conversion node that can (anytopdf, or any service with LibreOffice)
+can push them through a hook with **`hand_back`** on and send the PDF back. It's off on every hook until an owner turns
+it on, and does nothing on a server that converts those files itself.
+
+1. Push the file as usual. Where this server can't convert it, it's kept, and its item says `needs_pdf: true`, with
+   no `job`: the resource waits (its page shows that it waits, `awaits_pdf` on `GET /recordings/{id}`), and running
+   what's waiting leaves it alone.
+2. Convert the file you already have and push its PDF to the same hook with `?for=<recording>`, as the raw body or the
+   one file of a form. It becomes the document's rendition (made by `pushed`), the pipeline the file was pushed with
+   runs, and its pages are drawn and read from that PDF. An email still gives its sender, recipients, subject and
+   attachments, read from its own file. The item is `{kind: "pdf", recording, job}`, audited as `import.hook`.
+
+Only the hook a document came through can hand back its PDF, and only once, while it waits: 404 for any other
+recording, a person's own token gets 400, and a body that isn't a PDF gets 400.
+
+```
+curl -H "Authorization: Bearer $TOKEN" --data-binary @minutes.docx "https://lens.example/api/v1/hooks/import?filename=minutes.docx"
+# {"namespace": "pods", "items": [{"kind": "file", "name": "minutes.docx", "recording": 42, "needs_pdf": true, ...}]}
+curl -H "Authorization: Bearer $TOKEN" --data-binary @minutes.pdf "https://lens.example/api/v1/hooks/import?for=42"
 ```
 
 ### Uploads

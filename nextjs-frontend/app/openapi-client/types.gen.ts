@@ -2355,6 +2355,26 @@ export type AutomationVarsIn = {
 };
 
 /**
+ * AwaitsPdf
+ *
+ * A document an import webhook brought in that this server can't make into a PDF: it waits for the hook to hand
+ * its PDF back.
+ */
+export type AwaitsPdf = {
+  /**
+   * Hook
+   *
+   * the import webhook it waits on
+   */
+  hook?: number | null;
+  /**
+   * Since
+   */
+  since?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * Backend
  */
 export type Backend = {
@@ -9927,8 +9947,10 @@ export type HookCalled = {
 export type HookItem = {
   /**
    * Kind
+   *
+   * pdf: a PDF handed back for a document (?for=)
    */
-  kind: "file" | "url" | "text";
+  kind: "file" | "url" | "text" | "pdf";
   /**
    * Name
    *
@@ -9953,6 +9975,12 @@ export type HookItem = {
    * the namespace had this file already; it's that asset
    */
   duplicate?: boolean;
+  /**
+   * Needs Pdf
+   *
+   * this server can't make it into a PDF, and the hook hands PDFs back: push its PDF with ?for=<recording> and its pipeline runs
+   */
+  needs_pdf?: boolean;
   [key: string]: unknown;
 };
 
@@ -10390,6 +10418,12 @@ export type ImportHook = {
    */
   enabled: boolean;
   /**
+   * Hand Back
+   *
+   * hand PDFs back: a document this server can't make into a PDF itself is kept and waits for the service that sent it to push its PDF with ?for=<recording> (off by default)
+   */
+  hand_back?: boolean;
+  /**
    * Token Tail
    *
    * the token's last four characters, to tell tokens apart
@@ -10434,6 +10468,12 @@ export type ImportHookCreate = {
    * Pipeline
    */
   pipeline?: number | null;
+  /**
+   * Hand Back
+   *
+   * hand PDFs back: a document this server can't make into a PDF itself is kept and waits for the service that sent it to push its PDF with ?for=<recording> (off by default)
+   */
+  hand_back?: boolean;
 };
 
 /**
@@ -10489,6 +10529,12 @@ export type ImportHookUpdate = {
    * Enabled
    */
   enabled?: boolean | null;
+  /**
+   * Hand Back
+   *
+   * hand PDFs back (see ImportHook.hand_back)
+   */
+  hand_back?: boolean | null;
 };
 
 /**
@@ -18811,6 +18857,10 @@ export type Recording = {
    */
   rendition?: Rendition | null;
   /**
+   * waiting for the PDF the import webhook that sent it hands back
+   */
+  awaits_pdf?: AwaitsPdf | null;
+  /**
    * a document: what it says about itself (title, authors, dates), read by Tika
    */
   described?: Described | null;
@@ -19463,8 +19513,10 @@ export type Rendition = {
   from: string;
   /**
    * By
+   *
+   * pushed: handed back by the import webhook that sent it (docs/api.md#import-webhooks)
    */
-  by: "libreoffice" | "chromium" | "anytopdf";
+  by: "libreoffice" | "chromium" | "anytopdf" | "pushed";
   [key: string]: unknown;
 };
 
@@ -46947,6 +46999,12 @@ export type PushToImportHookData = {
      * with your own token: the namespace it goes into (default: the only one you can import into)
      */
     namespace?: string | null;
+    /**
+     * For
+     *
+     * hand back a document's PDF: the recording a push with needs_pdf became (the hook's own documents only)
+     */
+    for?: number | null;
   };
   url: "/api/v1/hooks/import";
 };
@@ -47010,6 +47068,12 @@ export type PushToImportHookTokenData = {
      * Title
      */
     title?: string | null;
+    /**
+     * For
+     *
+     * hand back a document's PDF: the recording a push with needs_pdf became (the hook's own documents only)
+     */
+    for?: number | null;
   };
   url: "/api/v1/hooks/import/{token}";
 };

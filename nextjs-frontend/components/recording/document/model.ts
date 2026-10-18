@@ -167,6 +167,7 @@ export function emailRows(e: EmailInfo | null | undefined, when: (iso: string) =
 /** How a document that isn't a PDF was made into one: "made into a PDF by LibreOffice". */
 export function renditionNote(r: { by?: string | null } | null | undefined): string | null {
   if (!r?.by) return null;
+  if (r.by === "pushed") return "PDF handed back by the import webhook that sent it";
   const by: Record<string, string> = { libreoffice: "LibreOffice", chromium: "Chromium", anytopdf: "anytopdf" };
   return `made into a PDF by ${by[r.by] ?? r.by}`;
 }

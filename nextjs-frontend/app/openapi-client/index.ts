@@ -221,6 +221,7 @@ export type {
   AutomationVar,
   AutomationVars,
   AutomationVarsIn,
+  AwaitsPdf,
   Backend,
   Backup,
   BackupFileData,
