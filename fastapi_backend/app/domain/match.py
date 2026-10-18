@@ -1027,6 +1027,43 @@ def describe_join(join, kind=None):
     return f"what {who} in {within}, together in one run"
 
 
+def describe_trigger(t):
+    """A trigger in plain words, as lists show it: "“Email received”, where the sender contains “@stmarys.org”",
+    "every weekday at 07:00 (Europe/London)", "a call to its webhook"."""
+    on = t.get("on")
+    tz = t.get("timezone") or "UTC"
+    kinds = [k for k in t.get("kinds") or [] if isinstance(k, str)]
+    kind = kinds[0] if len(kinds) == 1 else None
+    if on in ("event", "relative"):
+        words = _either([_kind_label(k) for k in kinds]) if kinds else "any activity"
+        if on == "relative":
+            from . import timers
+
+            words = f"{timers._offset_words(t.get('offset') or '0s')} {_label(t.get('field'), kind)} of {words}"
+        if t.get("where"):
+            words += f", where {_describe(t['where'], kind, False)}"
+        return words
+    if on == "schedule":
+        from . import schedule
+
+        return f"{schedule.describe(t.get('cron'))} ({tz})"
+    if on == "at":
+        return f"once, at {t.get('at')} ({tz})"
+    if on == "webhook":
+        return "a call to its webhook"
+    if on == "manual":
+        return "when you run it"
+    return str(on)
+
+
+def describe_triggers(triggers, join=None):
+    """What sets an automation off, in one line: its triggers, then how its join takes them when there are several."""
+    words = "; ".join(describe_trigger(t) for t in triggers or [])
+    if len(triggers or []) > 1 and join and join.get("mode", "any") != "any":
+        words += f"; {describe_join(join)}"
+    return words
+
+
 # ---------- which automations an activity could start ----------
 def _actors(m):
     """The actor ids a where tree only lets through (actor.id equals or in), or None when it lets any through."""
