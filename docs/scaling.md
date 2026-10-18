@@ -7,14 +7,14 @@ launched. Everything it does is in the [activity ledger](activity.md), and its c
 [budget](budgets.md).
 
 Status: in progress. Built: groups, rules, approvals, budgets, the scaler, the API, MCP and assistant tools,
-Settings › Auto scaling (the switch, and each group's terms to approve or pause), and **This machine**, a provider that
-runs more `lens worker` processes where Lens runs. In progress: **AWS EC2** (spot or on demand), **DigitalOcean**
-and **Hetzner Cloud** providers are built (credentials checked, prices, launching, watching and deleting machines),
-and their machines join over the [mesh](mesh.md) as worker nodes that transcribe and tell voices apart; so are
-**Proxmox VE**, clones of a VM template on your own server, and **Linux hosts over SSH**, workers started on machines
-you have. They haven't been tried on a real cloud machine yet. Also in progress: **RunPod**, GPUs that serve a model
-with vLLM, which Lens's model calls go to while one runs. Planned: more model hosts (Lambda, Hugging Face, SageMaker,
-Bedrock); and making providers and groups in Settings.
+Settings › Auto scaling (the switch, [adding providers and making groups](#in-settings), and each group's terms to
+approve or pause), and **This machine**, a provider that runs more `lens worker` processes where Lens runs. In
+progress: **AWS EC2** (spot or on demand), **DigitalOcean** and **Hetzner Cloud** providers are built (credentials
+checked, prices, launching, watching and deleting machines), and their machines join over the [mesh](mesh.md) as
+worker nodes that transcribe and tell voices apart; so are **Proxmox VE**, clones of a VM template on your own server,
+and **Linux hosts over SSH**, workers started on machines you have. They haven't been tried on a real cloud machine
+yet. Also in progress: **RunPod**, GPUs that serve a model with vLLM, which Lens's model calls go to while one runs.
+Planned: more model hosts (Lambda, Hugging Face, SageMaker, Bedrock).
 
 Auto scaling is **off** until an admin turns it on, and a group launches nothing until a person approves its terms
 signed in to the web app. Agents can propose and manage groups, but never approve one.
@@ -39,6 +39,23 @@ PUT /api/v1/settings/scaling
 One process runs the scaler at a time: the API and every `lens worker` (except those started with `--steps` or
 `--no-schedule`, as scaled workers are) take turns holding its lease. While scaling is off and nothing is left to let
 go, the scaler doesn't even take the lease.
+
+## In Settings
+
+**Settings › Auto scaling** lists the providers, each with its kind, which credentials are set and whether its last
+check passed (and why not, in words when it failed), with **Check again** and **Remove**. Remove takes it out of the
+list at once with **Undo** on the notice; it's deleted a few seconds later, or as you leave the page, since its sealed
+credentials can't be put back once it's gone. A provider a group uses can't be removed until the group goes.
+
+**Add a provider** asks for the kind (each with what it does), then a form drawn from the driver's `fields`: defaults
+filled in, the name first and focused, credentials as password fields (sent as `secrets`, never shown again), lists
+one per line, on and off settings as checkboxes, and Enter saves. A driver that needs packages says which, and their
+licence, before it fetches them on the first save. The check runs as it's saved; when it fails, the dialog says why.
+
+**New group** on a provider asks for a name (`<provider> workers`), the minimum (0) and maximum (1), a monthly budget
+in USD only when the provider charges money (then it's required), and the driver's `template` with its defaults. A
+group made here is approved as it's made. Its rules are set by the assistant, MCP or the API for now; without rules it
+keeps its minimum running.
 
 ## Providers
 
@@ -271,4 +288,5 @@ preemptible and spot instances at clouds other than AWS and RunPod; draining an 
 (the node agent reading the instance's metadata) and handing its job back at once; following the spot price as it
 changes; AWS sign-in with an instance role or IAM Identity Center instead of keys; mixed instance types per group;
 warm pools; predictive scaling; health checks beyond
-joining; prices fetched from providers' pricing APIs.
+joining; prices fetched from providers' pricing APIs. In Settings: rules, changing a provider or a group, removing a
+group, and a provider's price and note.

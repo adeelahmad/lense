@@ -28,7 +28,7 @@ import {
   type ModelProvider,
 } from "@/components/settings/model-providers";
 import { SandboxGatewaySwitch } from "@/components/settings/sandbox-gateway";
-import { ScalingGroups } from "@/components/settings/scaling-panel";
+import { ScalingGroups, ScalingProviders } from "@/components/settings/scaling-panel";
 import { SignInProviders } from "@/components/settings/sign-in-providers";
 import { UpdatesPanel } from "@/components/settings/updates-panel";
 import { settingHref } from "@/components/settings/find";
@@ -622,6 +622,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return (
         <>
           <F ctx={ctx} id="scaling.enabled" />
+          <Sub>Providers</Sub>
+          <ScalingProviders />
           <Sub>Groups</Sub>
           <ScalingGroups />
           <More
@@ -639,7 +641,9 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
             A group launches nothing until you approve its terms here; agents (the assistant, MCP and API keys) make and
             manage groups but can’t approve them. Costs are estimates from list prices, counted against each group’s
-            budget. Today groups run more workers on this machine; cloud providers are planned.
+            budget. Today groups run more workers on this machine, and RunPod GPUs serve Lens’s model calls; AWS,
+            DigitalOcean, Hetzner Cloud, Proxmox VE and SSH providers launch machines that join over the mesh as worker
+            nodes, once the mesh is on in Settings › Network.
           </p>
         </>
       );
