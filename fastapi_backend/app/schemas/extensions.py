@@ -7,6 +7,7 @@ from typing import Any, Literal
 from pydantic import Field
 
 from app.schemas.common import RequestModel, ResponseModel
+from app.schemas.updates import Service
 
 Kind = Literal["tool", "skill", "hook", "plugin", "mcp"]
 Visibility = Literal["private", "namespace", "everyone"]
@@ -113,6 +114,20 @@ class McpServerTry(RequestModel):
 
 class McpServerTools(ResponseModel):
     tools: list[dict[str, Any]] = Field(description="its tools, as it lists them now: {name, description, schema, read_only}")
+
+
+class McpPreset(ResponseModel):
+    name: str = Field(description="what its tools are called by: name__tool")
+    label: str
+    description: str
+    spec: dict[str, Any] = Field(description="the server, as an MCP extension keeps it")
+    fill: list[str] = Field(default_factory=list, description="values written as ${NAME} in spec, to type in first")
+    needs: str | None = Field(None, description="the optional profile it runs in (GET /admin/services), if any")
+    service: Service | None = Field(None, description="that profile: whether it's on and running")
+
+
+class McpPresets(ResponseModel):
+    presets: list[McpPreset]
 
 
 class McpToolSwitch(RequestModel):

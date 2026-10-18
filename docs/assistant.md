@@ -700,10 +700,17 @@ or the command it runs as with its arguments and environment. **Paste a config**
 servers in, one server or many: Claude's `.mcp.json` (or `mcpServers` in its settings), VS Code's `mcp.json`
 (`servers`), or a server on its own as its README gives it. A server without a name is named after its package or its
 address (`@modelcontextprotocol/server-github` is `github`), and values written as `${NAME}`, which those apps fill in
-from their own settings, are pointed out to fill in. Servers on the older SSE transport are left out with a note.
+from their own settings, get a field of their own to type them in, which goes in their place when the server is tested
+or saved. Servers on the older SSE transport are left out with a note.
 **Test** asks the server for its tools before anything is saved, and Enter adds it. Over the API:
 `POST /api/v1/extensions/mcp/read` reads a config (nothing is reached), `POST /api/v1/extensions/mcp/test` lists a
 server's tools without saving it, and `POST /api/v1/extensions` saves it as an extension of kind `mcp`.
+
+**Ready-made** lists servers Lens knows. **Browser** adds [the browser](#the-browser) with one click once its container
+runs (until then its switch is there to turn it on). **GitHub** puts GitHub's own server
+(`https://api.githubcopilot.com/mcp/`) in the form with a field for a personal access token. The list is
+`GET /api/v1/extensions/mcp/presets` (admins), each with the spec to save and, for the browser, whether its container
+is on and answering.
 
 Header and environment values whose names say they carry a credential (Authorization, API keys, tokens, secrets,
 passwords, cookies, sessions) are sealed when the server is saved, with the server's key (as notification targets and
@@ -722,17 +729,57 @@ each change is a new version (`PATCH /api/v1/extensions/{id}/tools` with `{tool,
 an MCP tool still asks first after the conversation read outside text, as every tool that sends to another host does
 ([Third-party content and prompt injection](#third-party-content-and-prompt-injection)).
 
+Lens opens a new MCP session for each call, except for a server whose spec says `keep: true`, one that remembers
+things between calls (the browser's open page): its calls share one session, kept for ten minutes after the last one
+and opened again when the server no longer knows it. That session is the server's, shared by everyone whose assistant
+uses it, as its address and token are.
+
 ### The MCP runner
 
 MCP servers that run as a program run in a container of their own, the MCP runner
 ([`mcp-runner/`](https://github.com/adeelahmad/lense/tree/main/mcp-runner)), never next to Lens. It's off until you
-turn it on: add `COMPOSE_PROFILES=mcp` to Lens's `.env` and run the install command again (or
+turn it on: **Run the MCP runner on this machine** under **Command** in **Add MCP server** has the machine's upgrade
+agent add `mcp` to `COMPOSE_PROFILES` in `.env` and start it (see [Optional containers](#optional-containers)),
+or by hand, add `COMPOSE_PROFILES=mcp` to Lens's `.env` and run the install command again (or
 `docker compose --profile mcp up -d`). The container is the sandbox: it has none of Lens's data, keys or database, runs
 as an unprivileged user with every capability dropped, a read-only image and memory and process limits, and shares a
 network only with Lens's backend (and the internet, which `npx` and `uvx` need to fetch the servers). Each server gets
 an empty folder as its home and only the environment its extension gives it; Lens talks to the runner over HTTP with
 a token the runner writes to a volume only the two share. A server starts on first use, stays up while it's used,
 and stops after 15 idle minutes. Installs that don't run on Docker don't have the runner yet.
+
+### The browser
+
+The browser is a headless Chromium the assistant drives over MCP: it opens pages, reads them, clicks, types and fills
+in forms. It is [Playwright MCP](https://github.com/microsoft/playwright-mcp) (Apache-2.0), in a container of its own
+(the optional `browser` profile, `mcr.microsoft.com/playwright/mcp`, pinned in the compose file: about 400 MB to
+download, and at most 1 GB of memory). It's off until you turn it on: **Run the browser on this
+machine** under **Ready-made** in **Add MCP server**, then **Add Browser**, which adds it as the MCP server `browser`
+(its tools are `browser__browser_navigate`, `browser__browser_snapshot`, `browser__browser_click` and so on).
+
+- **Its sandbox.** None of Lens's data, keys or database; every capability dropped, a read-only image, memory and
+  process limits, and its profile (cookies, history) in memory only, gone when it stops (after an hour unused, or with
+  the switch). Its network has no way out but its proxy, `browser-proxy`: the same guard that captures web pages
+  (`netguard.py`), on its own, which goes to public addresses on ports 80 and 443 only and refuses this machine, the
+  local network and a cloud's metadata address. Lens's backend reaches it at `http://browser:8931/mcp`, and it
+  answers only to that name.
+- **What asks first.** Going to a page, going back and waiting for one run at once until the conversation has read
+  outside text; clicking, typing, filling in forms and anything else that acts on a page ask first, and after the
+  conversation read a page every browser tool asks, as every tool that sends to another host does. Running code in
+  the browser's own server process (`browser_run_code_unsafe`) starts switched off; turn it on in the server's page
+  only if you mean to.
+- **One browser for everyone.** Every conversation that uses it drives the same browser, with the same open pages and
+  cookies, so a site someone signs in to through it is signed in for the others too until it stops.
+- Installs that don't run on Docker don't have the browser yet; by hand, it's `docker compose --profile browser up -d`.
+
+### Optional containers
+
+The MCP runner, the browser and monitoring ([Prometheus and Grafana](prometheus.md)) are containers Lens can run next
+to it, off until an admin turns one on. The web app can't start containers itself, so the machine's upgrade agent does
+([Updates](updates.md)): it adds the profile to `COMPOSE_PROFILES` in Lens's `.env`, or takes it out, and starts or
+stops that profile's containers, one change at a time. Without an agent (Lens wasn't installed with `install.sh`), the
+switch shows the line to run on the machine instead. Agents use the same switches: `GET /api/v1/admin/services` and
+`PUT /api/v1/admin/services/{profile}` with `{"on": true}`, or the MCP tools `services` and `set_service` (admins).
 
 `ai.extensions: false` turns every extension off.
 

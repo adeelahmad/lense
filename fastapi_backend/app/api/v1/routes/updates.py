@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import FileResponse
 
 from app.api.deps import AdminReader, AdminWriter, Cfg, Db, domain_errors
-from app.domain import auth, backups, monitoring, sandbox, updates
+from app.domain import auth, backups, monitoring, sandbox, services, updates
 from app.schemas.backups import BackupSchedule, RestoreWork
 from app.schemas.common import Ok
 from app.schemas.updates import (
@@ -21,6 +21,9 @@ from app.schemas.updates import (
     MonitoringRequest,
     SandboxGateway,
     SandboxGatewayRequest,
+    Service,
+    ServiceRequest,
+    Services,
     UpdateStatus,
     UpgradeRequest,
 )
@@ -100,6 +103,32 @@ def set_monitoring(body: MonitoringRequest, user: AdminWriter, request: Request,
         raise HTTPException(409, str(e)) from None
     auth.audit(db, user.as_audit(), "lens.monitoring", None, {"on": body.on})
     return Monitoring.model_validate(got)
+
+
+@router.get("/admin/services")
+def list_services(user: AdminReader, db: Db) -> Services:
+    """Lens's optional containers (the MCP runner, the browser, monitoring): whether each is on and answering, and
+    how the machine's last change went."""
+    return Services.model_validate({"services": services.views(db)})
+
+
+@router.put("/admin/services/{profile}", status_code=202)
+def set_service(profile: str, body: ServiceRequest, user: AdminWriter, request: Request, db: Db, cfg: Cfg) -> Service:
+    """Have this machine start or stop one of them: its upgrade agent adds the profile to COMPOSE_PROFILES in .env, or
+    takes it out, and starts or stops its containers. Monitoring also turns /metrics on, as PUT /admin/monitoring
+    does. GET /admin/services follows along; without an agent, 409 says the line to run on the machine instead."""
+    if profile not in services.PROFILES:
+        raise HTTPException(404, f"Lens has no optional containers called {profile!r}")
+    try:
+        if profile == "monitoring":
+            monitoring.turn(db, request.app.state.archive.base, cfg, body.on, by=user.email)
+        else:
+            services.ask(db, profile, body.on, by=user.email)
+    except services.ServiceError as e:
+        raise HTTPException(409, str(e)) from None
+    action = "lens.monitoring" if profile == "monitoring" else "lens.services"
+    auth.audit(db, user.as_audit(), action, None, {"profile": profile, "on": body.on})
+    return Service.model_validate(services.view(db, profile))
 
 
 @router.get("/admin/sandbox")
