@@ -945,6 +945,7 @@ class DB:
         self._all = []
         # one connection now, the rest of the pool as concurrent queries need them: each server sign-in costs time
         self._size, self._grow_lock = size, threading.Lock()
+        self._held = threading.local()  # the connection this thread is inside a query on (conn)
         try:
             c = self._open()
             self._all.append(c)
@@ -1011,17 +1012,34 @@ class DB:
     def conn(self):
         """A connection from the pool. A server connection that has dropped (the server restarted, or a keepalive
         ping went unanswered while the machine slept) is replaced: without that, every query sent on it fails until
-        the process restarts."""
+        the process restarts.
+
+        A query made on a thread that is already inside one (Python can close an abandoned generator, such as a
+        streamed response whose reader went away, in the middle of any query, and its cleanup may query) shares that
+        thread's connection when the engine is embedded: it has the one connection, and waiting for it would wait for
+        ever, with every other thread behind. While Python runs, the outer query is between sends, so the inner one
+        is safe on it. A server has a pool, so there the inner query takes another connection."""
+        held = getattr(self, "_held", None)  # a handle made without __init__ (tests) keeps no record of its thread
+        outer = getattr(held, "c", None)
+        if outer is not None and self.embedded:
+            yield outer
+            return
         c = self._take()
+        if held is not None:
+            held.c = c
         try:
             if _closed(c):
                 c = self._replace(c)
+                if held is not None:
+                    held.c = c
             yield c
         except Exception as e:
             if not self.embedded and _lost(e):
                 c = self._replace(c)
             raise
         finally:
+            if held is not None:
+                held.c = outer
             self._pool.put(c)
 
     def _take(self):

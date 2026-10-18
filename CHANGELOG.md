@@ -84,6 +84,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Agents follow news feeds.** `subscribe_feed` (MCP and the assistant, admins) follows a feed into a namespace in one
   step, checked before it's kept; `news_feeds` lists them and `unsubscribe_feed` stops one
   ([News feeds](docs/processing.md#news-feeds-rss-and-atom)).
+- **Fixed: Lens could freeze after an answer.** When a browser left a streaming answer early, the cleanup of that
+  stream could wait for a database connection its own thread already held, and every request after it waited too.
+  A query made inside another on the same thread now runs on that connection
+  ([Concurrency](docs/database.md#concurrency)).
 
 ## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
 
