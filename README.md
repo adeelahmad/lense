@@ -220,6 +220,12 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   progress (built, with machines that join over the mesh to transcribe and tell voices apart, not yet tried on a real
   cloud), and model hosts are planned. ([Auto scaling](docs/scaling.md);
   [checks](docs/requirements.md#scale-out))
+- **Run on more machines.** Add a Mac with a GPU, a box for the assistant's code or a server with more disk, and
+  Lens joins it over a private network of its own, a Nebula mesh it issues the certificates for: one install line
+  with a one-time token, and the machine needs nothing else. Worker nodes run jobs as their own user of the
+  database, never with Lens's keys; compute nodes run the assistant's code on a sandbox gateway of their own.
+  Settings › Nodes and Network show each machine and the mesh, and agents do the same over the API. Not yet tried
+  between two real machines. ([Nodes and the mesh](docs/mesh.md); [checks](docs/requirements.md#run-on-more-machines))
 - **Keep it up to date and backed up.** Lens checks for a new release once a day and tells admins by email or a
   notification. One click in Settings › Updates (or one API call) upgrades it through a small agent on the machine,
   showing each step, and rolls back when the new version doesn't start; nothing installs unless an admin says so. The
@@ -282,8 +288,6 @@ These are open pull requests, not yet part of Lens:
 - **Web clipper:** signing in, or using your API token, not only an import webhook's
   ([#406](https://github.com/adeelahmad/lense/pull/406)).
 - **Automations:** more operators for conditions ([#434](https://github.com/adeelahmad/lense/pull/434)).
-- **Nodes:** Lens's own private network between the machines it runs on, a Nebula mesh it issues the certificates
-  for ([#607](https://github.com/adeelahmad/lense/pull/607)).
 
 ## Planned
 
