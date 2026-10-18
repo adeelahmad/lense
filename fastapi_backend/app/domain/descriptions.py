@@ -1,8 +1,9 @@
 """Descriptions of what's seen (docs/api.md#descriptions): a model that can see images says in a few sentences what
 each of a document's or an image's pages shows, and each of a video's shots (from its keyframe), so that they can be
 searched and read by people who can't see them. Which model is llm.describe_engine: "llm", the LLM provider's model an
-admin chose as llm.vision_model (the default), or "florence-2", Florence-2 on this machine (florence.py), which needs
-no provider and sends no picture anywhere. Without one the describe step is skipped, saying why."""
+admin chose as llm.vision_model (the default); or, on this machine, needing no provider and sending no picture
+anywhere, "florence-2", Florence-2 (florence.py), or "moondream", Moondream (moondream.py). Without one the describe
+step is skipped, saying why."""
 
 from __future__ import annotations
 
@@ -28,6 +29,9 @@ ENGINES = {
     "llm": "the LLM provider's model that can see images (llm.vision_model): each picture is a request to it",
     "florence-2": "Florence-2 (MIT) on this server's CPU: no picture leaves it and no provider is called; base is about "
     "280 MB, large about 830 MB, fetched the first time a job needs it",
+    "moondream": "Moondream on this server, through PyTorch: no picture leaves it; moondream3-preview is Moondream 3 "
+    "(BSL 1.1, not open source; about 19 GB, needs an NVIDIA GPU or a Mac's GPU), moondream2 is Moondream 2 "
+    "(Apache-2.0, about 3.7 GB, runs on a CPU, slowly); fetched the first time a job needs it",
 }
 
 
@@ -80,11 +84,12 @@ class Provider:
 
 def engine(cfg):
     """(what describes pictures, None), or (None, why there's none): its `name` and `describe(path, about)`."""
-    if (cfg["llm"].get("describe_engine") or "llm") == "florence-2":
-        from . import florence
+    which = cfg["llm"].get("describe_engine") or "llm"
+    if which in ("florence-2", "moondream"):
+        from . import florence, moondream
 
         try:
-            return florence.Florence(cfg), None
+            return (florence.Florence(cfg) if which == "florence-2" else moondream.Moondream(cfg)), None
         except RuntimeError as e:
             return None, str(e)
     model, why = model_why(cfg)
@@ -94,13 +99,17 @@ def engine(cfg):
 def status(cfg):
     """What describes pictures: the engine and its model, whether it's ready (and why not), the settings, and the
     engines there are. Nothing is loaded to say so."""
-    from . import florence
+    from . import florence, moondream
 
     l = cfg["llm"]
     which = l.get("describe_engine") or "llm"
+    later = "it isn't here yet: it's fetched the first time a job waits to describe something"
     if which == "florence-2":
         model = florence.name(florence.size(cfg))
-        why = None if florence.ready(cfg) else "it isn't here yet: it's fetched the first time a job waits to describe something"
+        why = None if florence.ready(cfg) else later
+    elif which == "moondream":
+        model = moondream.name(moondream.choice(cfg))
+        why = moondream.cannot_run(cfg) or (None if moondream.ready(cfg) else later)
     else:
         model, why = model_why(cfg)
     return {
@@ -110,6 +119,7 @@ def status(cfg):
         "why_not": why,
         "vision_model": l.get("vision_model"),
         "florence_model": florence.size(cfg),
+        "moondream_model": moondream.choice(cfg),
         "describe_max": int(l.get("describe_max") or 50),
         "engines": ENGINES,
     }

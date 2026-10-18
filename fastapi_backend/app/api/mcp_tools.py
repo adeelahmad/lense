@@ -58,11 +58,13 @@ from app.domain import (
     integrations,
     library,
     monitoring,
+    moondream,
     notebook,
     nsfw,
     rdf,
     render,
     research,
+    rss,
     settings,
     sources,
     store,
@@ -1843,8 +1845,8 @@ def write_note(
 @tool(
     "list_chats",
     "List your conversations",
-    "Your conversations with Lens's assistant, most recent first: each one's id, title, kind, when it was last added "
-    "to, and its link. Only your own: conversations aren't shared.",
+    "Your conversations with Lens's assistant, most recent first: each one's id, title (`title_by` person when someone "
+    "named it), kind, when it was last added to, and its link. Only your own: conversations aren't shared.",
     Arg("words", "string", "only those whose title has all these words", max_length=200),
     Arg("limit", "integer", "how many", default=20, minimum=1, maximum=200),
     personal=True,
@@ -1859,6 +1861,7 @@ def list_chats(ctx: Context, words: str | None, limit: int) -> dict[str, Any]:
                 {
                     "chat_id": c.id,
                     "title": c.title,
+                    "title_by": c.title_by,
                     "kind": c.kind if c.kind != "chat" else None,
                     "updated_at": c.updated_at,
                     "url": f"{ctx.web}/chat/{c.id}",
@@ -1920,6 +1923,7 @@ def read_chat(ctx: Context, chat_id: int, message: int | None, tree: bool) -> di
         {
             "chat_id": c["id"],
             "title": c["title"],
+            "title_by": c.get("title_by"),
             "url": f"{ctx.web}/chat/{c['id']}",
             "draws_on": chat_export.scope_words(c.get("scope")),
             "model": c.get("model"),
@@ -1928,6 +1932,29 @@ def read_chat(ctx: Context, chat_id: int, message: int | None, tree: bool) -> di
             "tree": [store.clean(n) for n in nodes] if tree else None,
         }
     )
+
+
+@tool(
+    "rename_chat",
+    "Rename a conversation",
+    "Name one of your conversations, or leave `title` out to have Lens title it now from how it starts (one call to the "
+    "model for summaries, counted in the activity ledger). Lens titles a conversation after its first answer on its "
+    "own; one someone named keeps its name. Needs a token with the write scope.",
+    Arg("chat_id", "integer", "the conversation (from list_chats)", required=True),
+    Arg("title", "string", "its new name; left out, Lens writes one", max_length=120),
+    writes=True,
+    personal=True,
+)
+def rename_chat(ctx: Context, chat_id: int, title: str | None) -> dict[str, Any]:
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to rename conversations")
+    chat_routes._own_chat(ctx.db, chat_id, ctx.user)
+    if name := (title or "").strip():
+        chat.rename(ctx.db, chat_id, name)
+        named = {"title": name[:120], "title_by": "person"}
+    else:
+        named = chat_routes.title_chat(chat_id, ctx.user, ctx.db, ctx.cfg).model_dump()
+    return {"chat_id": chat_id, **named, "url": f"{ctx.web}/chat/{chat_id}"}
 
 
 @tool(
@@ -2291,7 +2318,8 @@ def read_file(ctx: Context, path: str, offset: int) -> dict[str, Any]:
     "picture_descriptions",
     "Describing pictures",
     "What describes the pages of documents and images and the shots of videos (the describe step; search finds what "
-    "it says): the LLM provider's model that can see images, or Florence-2 on this server. Its model, whether it's "
+    "it says): the LLM provider's model that can see images, or Florence-2 or Moondream on this server. Its model, "
+    "whether it's "
     "ready and why not, how many pages or shots of a resource are described at most, and the engines there are. "
     "Admins only.",
     admin=True,
@@ -2307,12 +2335,14 @@ def picture_descriptions(ctx: Context) -> dict[str, Any]:
     "Change how pictures are described",
     "Choose what describes the pages and shots of new and reprocessed resources: engine llm, the LLM provider's model "
     "that can see images (vision_model), or florence-2, Florence-2 (MIT) on this server's CPU, so no picture leaves it "
-    "(florence_model base, about 280 MB, or large, about 830 MB, fetched the first time a job needs it); and "
-    "describe_max, how many pages or shots of a resource are described at most. Admins only, with a token that has "
-    "the write scope.",
+    "(florence_model base, about 280 MB, or large, about 830 MB, fetched the first time a job needs it), or moondream, "
+    "Moondream on this server (moondream_model moondream3-preview, Moondream 3 under the BSL 1.1, not open source, "
+    "about 19 GB and a GPU; or moondream2, Apache-2.0, about 3.7 GB, on a CPU); and describe_max, how many pages or "
+    "shots of a resource are described at most. Admins only, with a token that has the write scope.",
     Arg("engine", "string", "what describes pictures", enum=tuple(descriptions.ENGINES)),
     Arg("vision_model", "string", "the LLM provider's model that can see images, for engine llm; empty for none", max_length=200),
     Arg("florence_model", "string", "Florence-2's size, for engine florence-2", enum=florence.SIZES),
+    Arg("moondream_model", "string", "which Moondream, for engine moondream", enum=tuple(moondream.MODELS)),
     Arg("describe_max", "integer", "pages or shots of a resource described at most, 1 to 1000"),
     writes=True,
     admin=True,
@@ -2322,6 +2352,7 @@ def set_picture_descriptions(
     engine: str | None = None,
     vision_model: str | None = None,
     florence_model: str | None = None,
+    moondream_model: str | None = None,
     describe_max: int | None = None,
 ) -> dict[str, Any]:
     if not ctx.user.admin:
@@ -2332,11 +2363,12 @@ def set_picture_descriptions(
         ("describe_engine", engine),
         ("vision_model", vision_model),
         ("florence_model", florence_model),
+        ("moondream_model", moondream_model),
         ("describe_max", describe_max),
     )
     changes = {k: v for k, v in given if v is not None}
     if not changes:
-        raise ToolError("say what to change: engine, vision_model, florence_model or describe_max")
+        raise ToolError("say what to change: engine, vision_model, florence_model, moondream_model or describe_max")
     settings.save(ctx.db, ctx.request.app.state.archive.base, "llm", changes, ctx.user.email)
     auth.audit(ctx.db, ctx.user.as_audit(), "settings.save", "llm", sorted(changes) + ["mcp"])
     return {"saved": changes, **descriptions.status(ctx.request.app.state.settings.current())}
@@ -2534,6 +2566,69 @@ def set_install_settings(ctx: Context, public: bool | None = None, target: str |
     if asked:
         auth.audit(ctx.db, ctx.user.as_audit(), "lens.install", None, asked | {"via": "mcp"})
     return updates.install_view(ctx.db, ctx.cfg) | {"changing": asked}
+
+
+# ---------- news feeds (admins) ----------
+def _feeds_admin(ctx: Context, write: bool = False) -> None:
+    if not ctx.user.admin:
+        raise ToolError("only admins see or change the news feeds Lens follows")
+    if write and not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to change news feeds")
+
+
+@tool(
+    "news_feeds",
+    "News feeds",
+    "The news feeds (RSS or Atom) Lens follows: each one's id (feed), name, the feed's own title, whether it could be "
+    "read last time (health), and the namespaces it brings new posts into, with how each one's last scan went. Their "
+    "addresses stay sealed. Each post comes in as text with its link, author and date; a new one is a "
+    "feed_post.received activity. Admins only.",
+    admin=True,
+)
+def news_feeds(ctx: Context) -> dict[str, Any]:
+    _feeds_admin(ctx)
+    return {"feeds": rss.subscriptions(ctx.db), "settings": f"{ctx.web}/sources"}
+
+
+@tool(
+    "subscribe_feed",
+    "Subscribe to a news feed",
+    "Follow a news feed (RSS or Atom) into a namespace: url is the feed's address, or a page of the site that names its "
+    "feed. It's read first and kept only if it works; it's named by the feed's title unless name says. Each new post "
+    "then comes in as text, and with backfill also the posts the feed lists now. The namespace is made if it's new. "
+    "A feed already followed is reused. Feeds that need a password are added in the web app (Sources). Admins only, "
+    "with a token that has the write scope.",
+    Arg("url", "string", "the feed's address, or a page of the site", required=True, max_length=2000),
+    Arg("namespace", "string", "the namespace its posts go in", required=True, max_length=41),
+    Arg("name", "string", "what to call it (else the feed's title)", max_length=80),
+    Arg("backfill", "boolean", "also bring in the posts the feed lists now", default=False),
+    writes=True,
+    admin=True,
+)
+def subscribe_feed(ctx: Context, url: str, namespace: str, name: str | None = None, backfill: bool = False) -> dict[str, Any]:
+    _feeds_admin(ctx, write=True)
+    out = rss.subscribe(ctx.db, ctx.cfg, url, namespace, name, bool(backfill), by=ctx.user.email)
+    if out["added"]:
+        auth.audit(ctx.db, ctx.user.as_audit(), "source.create", f"storage_source:{out['feed']}", ["mcp"])
+    if not out["already"]:
+        auth.audit(ctx.db, ctx.user.as_audit(), "watch.create", f"watch_path:{out['watch']}", ["mcp"])
+    return out
+
+
+@tool(
+    "unsubscribe_feed",
+    "Stop following a news feed",
+    "Stop following a news feed (its id from news_feeds): no more posts come in from it. The posts it brought in stay. "
+    "Admins only, with a token that has the write scope.",
+    Arg("feed", "integer", "the feed's id, from news_feeds", required=True),
+    writes=True,
+    admin=True,
+)
+def unsubscribe_feed(ctx: Context, feed: int) -> dict[str, Any]:
+    _feeds_admin(ctx, write=True)
+    rss.unsubscribe(ctx.db, feed)
+    auth.audit(ctx.db, ctx.user.as_audit(), "source.delete", f"storage_source:{feed}", ["mcp"])
+    return {"unsubscribed": feed}
 
 
 # ---------- the stream of activities ----------

@@ -3372,6 +3372,12 @@ export type Chat = {
    */
   title: string;
   /**
+   * Title By
+   *
+   * who titled it: assistant (Lens, from its first question and answer; it titles it again when the first question is edited) or person (named by someone, so Lens leaves it); null: from before Lens kept who titled it
+   */
+  title_by?: "assistant" | "person" | null;
+  /**
    * Kind
    *
    * bridge: a conversation in a chat room, through Matterbridge
@@ -3571,6 +3577,8 @@ export type ChatCompletionRequest = {
 export type ChatCreate = {
   /**
    * Title
+   *
+   * yours, and kept; left out, Lens titles it after its first answer (ai.auto_title)
    */
   title?: string | null;
   /**
@@ -3767,6 +3775,12 @@ export type ChatSummary = {
    */
   title: string;
   /**
+   * Title By
+   *
+   * who titled it: assistant (Lens, from its first question and answer; it titles it again when the first question is edited) or person (named by someone, so Lens leaves it); null: from before Lens kept who titled it
+   */
+  title_by?: "assistant" | "person" | null;
+  /**
    * Kind
    *
    * bridge: a conversation in a chat room, through Matterbridge
@@ -3808,6 +3822,23 @@ export type ChatSummary = {
 };
 
 /**
+ * ChatTitle
+ */
+export type ChatTitle = {
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Title By
+   *
+   * who titled it: assistant (Lens, from its first question and answer; it titles it again when the first question is edited) or person (named by someone, so Lens leaves it); null: from before Lens kept who titled it
+   */
+  title_by: "assistant" | "person";
+  [key: string]: unknown;
+};
+
+/**
  * ChatTools
  */
 export type ChatTools = {
@@ -3842,6 +3873,8 @@ export type ChatTools = {
 export type ChatUpdate = {
   /**
    * Title
+   *
+   * rename it: yours from then on, so Lens doesn't retitle it (POST /chats/{cid}/title does)
    */
   title?: string | null;
   scope?: ChatScope | null;
@@ -13228,7 +13261,7 @@ export type NotePage = {
    *
    * who wrote the summary
    */
-  summary_by?: "person" | "assistant" | null;
+  summary_by?: "assistant" | "person" | null;
   /**
    * Date
    */
@@ -13244,7 +13277,7 @@ export type NotePage = {
    *
    * who filed it
    */
-  place_by?: "person" | "assistant" | null;
+  place_by?: "assistant" | "person" | null;
   /**
    * where the assistant would file it, when it wasn't sure
    */
@@ -13462,7 +13495,7 @@ export type NotePageItem = {
    *
    * who wrote the summary
    */
-  summary_by?: "person" | "assistant" | null;
+  summary_by?: "assistant" | "person" | null;
   /**
    * Date
    */
@@ -13478,7 +13511,7 @@ export type NotePageItem = {
    *
    * who filed it
    */
-  place_by?: "person" | "assistant" | null;
+  place_by?: "assistant" | "person" | null;
   /**
    * where the assistant would file it, when it wasn't sure
    */
@@ -41207,6 +41240,36 @@ export type ExportChatResponses = {
    */
   200: unknown;
 };
+
+export type TitleChatData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/chats/{cid}/title";
+};
+
+export type TitleChatErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TitleChatError = TitleChatErrors[keyof TitleChatErrors];
+
+export type TitleChatResponses = {
+  /**
+   * Successful Response
+   */
+  200: ChatTitle;
+};
+
+export type TitleChatResponse = TitleChatResponses[keyof TitleChatResponses];
 
 export type DownloadChatFileData = {
   body?: never;

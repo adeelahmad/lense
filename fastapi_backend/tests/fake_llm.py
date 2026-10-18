@@ -21,6 +21,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     usage = None  # token counts to report with each answer (and as a streamed answer's last chunk), like OpenAI
     research_plan = None  # a research plan (research.plan) to come back with, else a built-in one about the capsid
     research_report = None  # a research report (research._write) to come back with, else one citing [1] and [2]
+    title = None  # a conversation's title (chat.suggest_title), else the first question, labelled and quoted as models do
 
     def _json(self, obj):
         data = json.dumps(obj).encode()
@@ -78,6 +79,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         if seen:
             return self._json({"choices": [{"message": {"content": _describe(seen)}}]})
+        if str(((body.get("messages") or [{}])[0]).get("content") or "").startswith("You title conversations"):
+            asked = re.search(r"^Person: (.*)$", body["messages"][-1]["content"], re.M)
+            title = Handler.title if Handler.title is not None else f'Title: "{asked.group(1) if asked else "Untitled"}."'
+            return self._json({"choices": [{"message": {"content": title}}], **({"usage": Handler.usage} if Handler.usage else {})})
         schema = ((body.get("response_format") or {}).get("json_schema") or {}).get("schema") or {}
         if "verdicts" in schema.get("properties", {}):
             claims = [l[2:] for l in body["messages"][-1]["content"].splitlines() if l.startswith("- ")]
