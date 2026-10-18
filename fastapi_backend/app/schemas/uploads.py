@@ -36,6 +36,11 @@ class UploadStart(RequestModel):
     size: int = Field(gt=0, description="the file's size in bytes")
     title: str | None = Field(None, max_length=200, description="the asset's title (default: the file's name)")
     pipeline: int | None = Field(None, description="run this pipeline once it's here instead of the namespace's (not with `recording`)")
+    content_type: str | None = Field(
+        None,
+        description="the asset's content type (GET /content-types), one of its file's base type, instead of the one recognised from "
+        "the file; its pipeline runs (not with `recording`)",
+    )
     collection: int | None = Field(
         None, description="a collection of the namespace to put the asset in (default: its default collection; not with `recording`)"
     )
@@ -59,6 +64,7 @@ class Upload(ResponseModel):
     state: Literal["receiving", "held", "done"] = Field(description="held: all here, waiting to be put in a namespace")
     attach: int | None = Field(None, description="the text-only asset it becomes the audio of")
     pipeline: int | None = Field(None, description="the pipeline chosen to run once it's here (default: the namespace's)")
+    content_type: str | None = Field(None, description="the content type chosen for its asset (default: recognised from the file)")
     recording: int | None = Field(None, description="the asset it became (or was attached to), once done")
     job: int | None = Field(None, description="the processing queued for it, if any")
     duplicate: bool = Field(False, description="the namespace already had this file: `recording` is that one")

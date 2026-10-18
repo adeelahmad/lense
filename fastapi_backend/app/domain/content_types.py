@@ -8,7 +8,8 @@ Lens starts with a few; they can all be edited,
 the ones that aren't a base type's general subtype can be removed (a removed default stays removed), and people can
 add their own.
 
-A resource's subtype is the one someone chose (`recording.content_type`), else the first subtype of its base type
+A resource's subtype is the one someone chose (`recording.content_type`: when it was uploaded or imported, or
+afterwards), else the first subtype of its base type
 whose rules all match (one recognised by what the file holds first), else its base type's general subtype. The pipeline that runs is, in order: the one chosen for
 the run, the namespace's override for the subtype, the subtype's own pipeline, the namespace default, the standard
 pipeline (pipelines.resolve). Subtypes start with no pipeline, so nothing changes until someone sets one.
@@ -69,6 +70,20 @@ def base_of(rec):
         if pathlib.PurePosixPath(rec.get("path") or "").suffix.lower() in video.VIDEO_TYPES:
             return "video"
     return k if k in BASES else "text"
+
+
+def base_of_file(name):
+    """The base type a file of this name becomes once it's uploaded, before anything has read it: a document or a text
+    file is text, a picture an image, anything else audio or video by its extension (as base_of tells it)."""
+    from . import documents
+
+    ext = pathlib.PurePosixPath(str(name or "")).suffix.lower()
+    kind = documents.kind_of(name)
+    if kind == "image":
+        return "image"
+    if kind or ext in store.STRUCTURED_EXT:
+        return "text"
+    return base_of({"source": "audio", "path": str(name or "")})
 
 
 def seed(db):
@@ -306,16 +321,25 @@ def keys_of(db, rows):
     return out
 
 
+def check(db, key, base):
+    """The subtype `key`, chosen for a resource of `base` (at import, before the resource exists): ValueError when
+    there's no such subtype, or it's another base type's."""
+    try:
+        t = get(db, key)
+    except KeyError:
+        t = None
+    if not t or t["base"] != base:
+        fits = ", ".join(x["key"] for x in all_types(db) if x["base"] == base)
+        said = f"this is {base}; {t['label']} is a {t['base']} type" if t else f"there's no content type {key}"
+        raise ValueError(f"{said} (the {base} ones: {fits})")
+    return t["key"]
+
+
 def choose(db, rid, key):
     """Set a resource's subtype (None: recognise it from the file again). It has to be of the resource's base type."""
     rec = db.one("SELECT source, media, path FROM $r", r=R("recording", int(rid)))
     if not rec:
         raise KeyError(rid)
     if key is not None:
-        try:
-            t = get(db, key)
-        except KeyError:
-            raise ValueError("no such content type") from None
-        if t["base"] != base_of(rec):
-            raise ValueError(f"this is {base_of(rec)}; {t['label']} is a {t['base']} type")
+        check(db, key, base_of(rec))
     db.q("UPDATE $r SET content_type = $k", r=R("recording", int(rid)), k=key)

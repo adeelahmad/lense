@@ -771,14 +771,18 @@ records, transcript, document, web page, email and calendar event (text), plus a
 them, remove all but the general ones, and add their own. A default that's removed stays removed; defaults added in a
 later release appear on upgrade.
 
-A resource's content type is the one someone chose (its Details tab, `PUT /api/v1/recordings/{id}/content-type`), else
+A resource's content type is the one someone chose (when uploading or importing it, in its Details tab, or with
+`PUT /api/v1/recordings/{id}/content-type`), else
 the first of its base type whose rules all match (file extensions, a pattern in the file name or title, a length,
 what Lens found the file holds: `forms: [chat]` or `[records]`), else the general one. One recognised by what the file holds comes
 before one recognised by its name, so a Telegram result.json is a chat export, not a transcript. Patterns ignore case and see `_` as a space, so `\bcalls?\b` matches `team_call.mp3` but not
 `recall.mp3`. The pipeline that runs is the one chosen for the run, else the namespace's override for the
 content type, else the content type's pipeline, else the namespace default, else the standard pipeline. Content types
 start without a pipeline, so nothing changes until someone sets one. Files found by a folder scan go through the same
-choice as uploads.
+choice as uploads. Choosing it at import (**What it is** beside each file, pasted text or web page in Import;
+`content_type` on `POST /uploads`, `POST /import`, `POST /import/web` and `/web/links`; or telling the assistant what
+attached files are) means the right pipeline runs the first time, not after a change and a rerun. Left as
+**Recognised automatically**, it's recognised as above.
 
 ## Routines
 

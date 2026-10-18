@@ -13,7 +13,7 @@ import json
 import re
 from html.parser import HTMLParser
 
-from . import jobs, library, webcapture
+from . import content_types, jobs, library, webcapture
 
 MAX = 500  # links in one import, at most
 URL = re.compile(r"https?://[^\s<>\"']+", re.I)
@@ -106,10 +106,11 @@ def tags(folders, most=5, width=40):
     return [" ".join(f.split())[:width].strip() for f in folders[-most:] if f.strip()]
 
 
-def queue(db, cfg, sid, found, by, collection=None, pipeline=None, folders_as_tags=True):
-    """Capture each of `found` (from `read`) in namespace `sid` as a web page document: [{url, status, recording, job,
-    detail}], status queued, already (captured in the namespace before) or skipped (detail says why). The caller
-    checks the person may add to the namespace and the collection is one of its own."""
+def queue(db, cfg, sid, found, by, collection=None, pipeline=None, folders_as_tags=True, content_type=None):
+    """Capture each of `found` (from `read`) in namespace `sid` as a web page document (of `content_type`, a text one,
+    when it's chosen): [{url, status, recording, job, detail}], status queued, already (captured in the namespace
+    before) or skipped (detail says why). The caller checks the person may add to the namespace and the collection is
+    one of its own."""
     have = {
         (r.get("web") or {}).get("url"): r["id"]
         for r in db.rows("SELECT record::id(id) AS id, web FROM recording WHERE space = $s AND web != NONE", s=sid)
@@ -131,6 +132,8 @@ def queue(db, cfg, sid, found, by, collection=None, pipeline=None, folders_as_ta
                 library.set_tags(db, rid, tags(link["folders"]))
             except ValueError:
                 pass  # tags are a nicety: the page is captured without them
+        if content_type:
+            content_types.choose(db, rid, content_type)
         job = jobs.enqueue(db, rid, None, by=by, pipeline=pipeline)
         out.append({"url": url, "status": "queued", "recording": rid, "job": job})
     return out
