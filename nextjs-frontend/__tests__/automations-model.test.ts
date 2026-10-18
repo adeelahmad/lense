@@ -204,6 +204,10 @@ describe("the Then as a list", () => {
     };
     expect(toApi(two, actions)).toMatchObject({ join: { mode: "all", within: "1d" }, graph: { nodes: [], edges: [] } });
     expect(toApi({ ...d, name: " ", triggers: [] }, actions).name).toBe("log_line");
+    // its own limits (a starter's once an hour) go back as they came; none means the defaults
+    const limited = fromApi({ ...api, limits: { max_per_hour: 1 } }, actions);
+    expect(toApi(limited, actions).limits).toEqual({ max_per_hour: 1 });
+    expect(toApi(d, actions)).not.toHaveProperty("limits");
   });
 
   it("names an unnamed automation, says what is missing, and badges each step's risk", () => {

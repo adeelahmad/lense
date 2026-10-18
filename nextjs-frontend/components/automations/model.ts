@@ -44,6 +44,8 @@ export type Draft = {
   steps: Step[] | null;
   graph: WfGraph;
   spaces?: number[] | null;
+  /** Its own limits ({cooldown, max_per_hour}), kept as they came: the builder doesn't edit them yet. */
+  limits?: Record<string, unknown> | null;
 };
 
 // ---------- match trees as rows ----------
@@ -324,6 +326,7 @@ type ApiAutomation = {
   if?: unknown;
   graph?: Record<string, unknown> | null;
   spaces?: number[] | null;
+  limits?: Record<string, unknown> | null;
 };
 
 /** An automation from the API as a draft for the builder. */
@@ -337,6 +340,7 @@ export function fromApi(a: ApiAutomation, actions?: ActionDef[]): Draft {
     steps: stepsOf(graph, actions),
     graph,
     spaces: a.spaces,
+    limits: a.limits ?? null,
   };
 }
 
@@ -353,6 +357,7 @@ export function toApi(d: Draft, actions?: ActionDef[]) {
     join: triggers.length > 1 ? d.join : { mode: "any" },
     if: d.if ?? null,
     graph: d.steps ? graphOf(d.steps, actions) : d.graph,
+    ...(d.limits ? { limits: d.limits } : {}),
   };
 }
 
