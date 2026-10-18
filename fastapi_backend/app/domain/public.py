@@ -313,13 +313,16 @@ def readable(db, who):
 
 
 def _title_match(groups):
-    """Every word and phrase of one of the query's alternatives in the title (ignoring case)."""
+    """Every word and phrase of one of the query's alternatives in the title (ignoring case), and none it leaves out."""
     alts, p = [], {}
     for k, g in enumerate(groups):
         words = [w.lower() for w in g["words"] + g["phrases"]]
         alts.append("(" + " AND ".join(f"string::contains(string::lowercase(title ?? ''), $t{k}_{j})" for j in range(len(words))) + ")")
         p.update({f"t{k}_{j}": w for j, w in enumerate(words)})
-    return "(" + " OR ".join(alts) + ")", p
+    nots = [w.lower() for w in (groups[0].get("not") or [])] if groups else []  # and none it leaves out (NOT, -)
+    p.update({f"n{j}": w for j, w in enumerate(nots)})
+    left_out = "".join(f" AND !string::contains(string::lowercase(title ?? ''), $n{j})" for j in range(len(nots)))
+    return "(" + " OR ".join(alts) + ")" + left_out, p
 
 
 def search(db, q, who, limit=20, offset=0):

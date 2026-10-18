@@ -324,7 +324,9 @@ about them come back as not found.
 ## Search
 
 All words must appear, matched after English stemming ("exploit" also finds exploits and exploiting); "quoted phrases"
-must appear as written; OR separates alternatives. Filter by namespace, person, emotion or asset. The words are
+must appear as written; OR separates alternatives; NOT, or a `-` before a word or "phrase", leaves out the lines that
+have it (`budget -draft` finds budget without draft or drafts, `budget NOT "first draft"`), and a typed AND changes
+nothing. Filter by namespace, person, emotion or asset. The words are
 looked up in the index of `search.engine`: a SQLite FTS5 file by default, SurrealDB's own index, or OpenSearch
 ([configuration](configuration.md#word-search)). For archives that aren't in English set `search.stemming: none` and
 run `lens reindex`. There is no prefix search: a trailing `*` (`expl*`) is ignored and the word is searched as it is;
@@ -344,7 +346,7 @@ entity across the text run the step again.
 A search is matched three ways (`mode` on `GET /search`, the Match switch in the web app):
 
 * **auto** (the default): by its words and by meaning, fused by reciprocal rank, when search by meaning is set up and
-  the query has no "quoted phrases" or OR (those ask for exactly those words); else by its words.
+  the query has no "quoted phrases", OR or NOT (those ask for exactly those words); else by its words.
 * **keyword**: only the words, as above.
 * **semantic**: only by meaning.
 

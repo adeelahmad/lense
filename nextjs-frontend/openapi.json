@@ -15470,10 +15470,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "words, \"phrases\", OR between alternatives",
+              "description": "words, \"phrases\", OR between alternatives, NOT or -word to leave out",
               "title": "Q"
             },
-            "description": "words, \"phrases\", OR between alternatives"
+            "description": "words, \"phrases\", OR between alternatives, NOT or -word to leave out"
           },
           {
             "name": "ns",
@@ -28938,11 +28938,11 @@
             "required": false,
             "schema": {
               "type": "string",
-              "description": "words, \"phrases\", OR between alternatives",
+              "description": "words, \"phrases\", OR between alternatives, NOT or -word to leave out",
               "default": "",
               "title": "Q"
             },
-            "description": "words, \"phrases\", OR between alternatives"
+            "description": "words, \"phrases\", OR between alternatives, NOT or -word to leave out"
           },
           {
             "name": "limit",
@@ -73053,7 +73053,7 @@
             "maxLength": 500,
             "minLength": 1,
             "title": "Q",
-            "description": "words, \"phrases\", OR between alternatives"
+            "description": "words, \"phrases\", OR between alternatives, NOT or -word to leave out"
           },
           "speaker": {
             "anyOf": [

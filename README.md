@@ -77,10 +77,10 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   server](docs/mcp.md#one-namespaces-mcp-server), [chat completions](docs/api.md#chat-completions-for-any-app),
   [API](docs/api.md), [the graph as files](docs/file-tree.md), [authentication](docs/authentication.md);
   [checks](docs/requirements.md#connect-your-agents))
-- **Ask, and get cited answers.** A chat assistant on every page, and by voice, searches your archive by words (and by
-  meaning, once turned on), reads it, cites it and acts on it with tools: changes wait for your approval. Ask it about
-  Lens itself ("what's the MCP address?", "is Telegram on?") and it answers from Lens's docs and this server, citing
-  both. Once an admin
+- **Ask, and get cited answers.** A chat assistant on every page, and by voice, searches your archive by words (with
+  "phrases", OR, and -word to leave lines out) and by meaning, once turned on, reads it, cites it and acts on it with
+  tools: changes wait for your approval. Ask it about Lens itself ("what's the MCP address?", "is Telegram on?") and it
+  answers from Lens's docs and this server, citing both. Once an admin
   turns them on, it also searches the web and reads pages, cited like the archive, and runs Python and bash in a sandbox
   of each conversation's own. An admin's assistant searches and reads the mail, calendars and files connected to Lens
   (Gmail, Google Calendar, Google Drive, S3 and the rest), cites messages and events, and brings them in once you
