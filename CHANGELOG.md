@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **The upgrade agent starts the code sandbox's gateway.** Settings → Code sandbox → Run the gateway on this machine
+  now works on installs with an upgrade agent: the agent knows the `sandbox` profile and starts or stops its three
+  containers, as it does the MCP runner, the browser and monitoring. An older agent still says to run the line by hand
+  until it has updated itself ([The gateway](docs/assistant.md#the-gateway)).
 - **Deep research.** Give the assistant a goal (`/research <goal>`, `research: true` on a question, `POST
   /api/v1/chats/<id>/research`, its `start_research` tool, or MCP) and it plans the research: up to three follow-up
   questions, the sub-questions, where it looks (the archive, the graph, notes, the web, the code sandbox), the tool
