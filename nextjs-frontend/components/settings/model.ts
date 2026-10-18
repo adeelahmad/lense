@@ -169,9 +169,9 @@ export const SECTIONS: SectionSpec[] = [
   {
     id: "ai",
     label: "AI assistant",
-    backend: ["ai", "web", "decisions", "voice"],
+    backend: ["ai", "web", "decisions", "voice", "research"],
     description:
-      "What the chat assistant may do with tools, whether it searches the web, which routine choices it makes for you, and when a batch run needs a typed confirmation.",
+      "What the chat assistant may do with tools, whether it searches the web, which routine choices it makes for you, deep research, and when a batch run needs a typed confirmation.",
   },
   {
     id: "sandbox",
@@ -468,6 +468,7 @@ export const LAYERS: Opt[] = [
 
 /** The chat assistant's tools (app/domain/ai_tools.py), with whether they change anything. */
 export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
+  { name: "lens_help", label: "Answer questions about Lens from its docs and this server", acts: false },
   { name: "search_transcripts", label: "Search assets’ text", acts: false },
   {
     name: "list_recordings",
@@ -741,6 +742,18 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "analysis",
+    key: "typing",
+    label: "Names the rules can't type",
+    kind: "select",
+    options: [
+      { value: "auto", label: "Ask the decision model, when one is set up" },
+      { value: "model", label: "Ask the decision model, else the language model" },
+      { value: "rules", label: "Leave them terms" },
+    ],
+    hint: "A single unknown word, such as a brand or a project, is a term to the rules. The model reads the lines it's said in and gives it a type only when it's sure. Calls count in Activity and stop at the budget's hard limit.",
+  },
+  {
+    section: "analysis",
     key: "spacy_model",
     label: "spaCy model",
     kind: "text",
@@ -1002,6 +1015,42 @@ export const FIELDS: FieldSpec[] = [
     hint: "The highest limit a question or a conversation can set on the tool calls of one answer.",
     min: 1,
     max: 500,
+  },
+  {
+    section: "research",
+    key: "max_tool_calls",
+    label: "Most tool calls a deep research may make",
+    kind: "int",
+    hint: "A plan asks for fewer; you can raise it on the plan up to this.",
+    min: 1,
+    max: 500,
+  },
+  {
+    section: "research",
+    key: "max_minutes",
+    label: "Longest a deep research may run",
+    kind: "int",
+    unit: "minutes",
+    hint: "It then writes its report from what it found.",
+    min: 1,
+    max: 240,
+  },
+  {
+    section: "research",
+    key: "model",
+    label: "Model for deep research",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "the conversation's model",
+    hint: "A cheaper or stronger model on the same provider.",
+  },
+  {
+    section: "research",
+    key: "agents_skip_review",
+    label: "Let agents start deep research without your review",
+    kind: "switch",
+    hint: "Off: a plan an API key, an app or an agent asks for waits for you to approve it.",
   },
   {
     section: "ai",

@@ -541,8 +541,8 @@ def reply_text(cfg, text, approvals, cid, db=None):
 
 
 def sources(db, cfg, cid):
-    """The excerpts the conversation's last answer cites, a line each with its link into the web app, for a channel
-    that shows them under the answer (Channel.sources); "" when it cites none."""
+    """The excerpts the conversation's last answer cites, a line each with its link into the web app (or Lens's docs),
+    for a channel that shows them under the answer (Channel.sources); "" when it cites none."""
     from app.email import app_url
 
     row = db.one("SELECT id, passages FROM chat_message WHERE chat = $c AND role = 'assistant' ORDER BY id DESC LIMIT 1", c=cid) or {}
@@ -551,7 +551,7 @@ def sources(db, cfg, cid):
         return ""
     base, lines = app_url(cfg, db), []
     for p in used:
-        if p.get("recording_id") is None:  # a web page a tool found: its own address, as the tool gave it
+        if p.get("recording_id") is None:  # a web page a tool found, Lens's docs or this server (lens_help): its address
             lines.append(f"[{p['n']}] {p.get('title') or p.get('site') or 'A web page'}: {p['url']}")
             continue
         at = f"?page={p['page'] + 1}" if p.get("page") is not None else f"?t={int((p.get('t0') or 0) // 1000)}"

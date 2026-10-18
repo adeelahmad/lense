@@ -95,8 +95,8 @@
       "required": ["n", "source", "text"],
       "properties": {
         "n": { "type": "integer" },
-        "source": { "enum": ["said", "page", "screen", "memory", "web"], "description": "where it is: said in a recording, on a document's page, shown on screen, from memory, or a web page" },
-        "url": { "type": ["string", "null"], "description": "the web page, or the asset's page in Lens at that moment" },
+        "source": { "enum": ["said", "page", "screen", "memory", "web", "docs", "server"], "description": "where it is: said in a recording, on a document's page, shown on screen, from memory, a web page, Lens's docs, or this Lens server's facts" },
+        "url": { "type": ["string", "null"], "description": "the web page, the docs section, this server, or the asset's page in Lens at that moment" },
         "recording_id": { "type": "integer" },
         "title": { "type": ["string", "null"] },
         "namespace": { "type": ["string", "null"] },

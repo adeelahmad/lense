@@ -51,7 +51,8 @@ def _cut(text, n=QUOTE):
 
 
 def link(web, p):
-    """Where a citation can be read: a web page's address, or the asset's page in Lens at its moment."""
+    """Where a citation can be read: a web page's, the docs section's or this server's address, or the asset's page in
+    Lens at its moment."""
     if p.get("source") == "web" or p.get("url"):
         return p.get("url")
     if p.get("recording_id") is None:
@@ -61,11 +62,12 @@ def link(web, p):
 
 
 def citation(web, p):
-    """A citation as exports give it: a web page's {n, source: web, url, title, site, fetched_at, text}, or an
-    archive moment's {n, source, recording_id, title, namespace, time, page, speaker, text, url}."""
+    """A citation as exports give it: a page's {n, source: web, docs or server, url, title, site, fetched_at, text}
+    (a web page, Lens's docs, this server's facts: lens_help), or an archive moment's {n, source, recording_id, title,
+    namespace, time, page, speaker, text, url}."""
     if p.get("source") == "web" or p.get("url"):
         keep = ("n", "url", "title", "site", "fetched_at", "text", "used")
-        return store.clean({"source": "web", **{k: p.get(k) for k in keep}})
+        return store.clean({"source": p.get("source") or "web", **{k: p.get(k) for k in keep}})
     keep = ("n", "source", "recording_id", "title", "namespace", "recorded_at", "time", "page", "speaker", "text", "used")
     return store.clean({**{k: p.get(k) for k in keep}, "source": p.get("source") or "said", "url": link(web, p)})
 
