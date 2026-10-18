@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Read any message aloud.** Every question and answer in a conversation has a speaker button: one click reads it
+  aloud by the speech model and voice picked in Settings → AI assistant → Voice (else the browser's own speech),
+  another stops it. One message plays at a time, long answers go in pieces under every provider's limit, and each
+  piece's audio is kept in the page, so playing it again doesn't call the model again. Each call is logged in the
+  activity ledger ([Read a message aloud](docs/assistant.md#read-a-message-aloud)).
 - **Conversations title themselves.** After a conversation's first answer, the model gives it a short title from the
   question and the answer, with the model for summaries (`ai.compact_model`) when one is set, in one call counted for
   the conversation in the activity ledger; until then, and when there's no model, it's titled with the first
