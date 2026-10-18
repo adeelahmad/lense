@@ -11060,6 +11060,12 @@ export type Job = {
    */
   cost_estimate?: boolean | null;
   /**
+   * Priority
+   *
+   * its place among queued runs: the highest is taken first (POST /jobs/{jid}/move sets it)
+   */
+  priority?: number | null;
+  /**
    * Hold
    *
    * held or skipped over a budget (docs/budgets.md): {why, resource (the budget), action (ask, skip), decided: {run, by, at} once someone picked}
@@ -11177,6 +11183,53 @@ export type JobLog = {
 };
 
 /**
+ * JobMove
+ */
+export type JobMove = {
+  /**
+   * To
+   *
+   * the front of the queue (next) or its back
+   */
+  to?: "top" | "bottom" | null;
+  /**
+   * Before
+   *
+   * just before this queued run
+   */
+  before?: number | null;
+  /**
+   * After
+   *
+   * just after this queued run
+   */
+  after?: number | null;
+};
+
+/**
+ * JobMoved
+ */
+export type JobMoved = {
+  /**
+   * Ok
+   */
+  ok?: boolean;
+  /**
+   * Position
+   *
+   * its place now among the queued runs you can see: 1 is next
+   */
+  position: number;
+  /**
+   * Queued
+   *
+   * how many runs you can see are queued
+   */
+  queued: number;
+  [key: string]: unknown;
+};
+
+/**
  * JobPipeline
  */
 export type JobPipeline = {
@@ -11215,6 +11268,35 @@ export type JobQueued = {
 };
 
 /**
+ * JobsChanged
+ */
+export type JobsChanged = {
+  /**
+   * Ok
+   */
+  ok?: boolean;
+  /**
+   * Jobs
+   *
+   * the runs cancelled, or queued again
+   */
+  jobs: Array<number>;
+  /**
+   * Stopping
+   *
+   * running runs asked to stop after the step they're on
+   */
+  stopping?: Array<number>;
+  /**
+   * Skipped
+   *
+   * runs retry left alone: their asset was deleted, or already has a run queued or running
+   */
+  skipped?: number;
+  [key: string]: unknown;
+};
+
+/**
  * JobsCreate
  */
 export type JobsCreate = {
@@ -11241,6 +11323,30 @@ export type JobsCreate = {
    * also queue everything in this namespace that still needs work
    */
   namespace?: string | null;
+};
+
+/**
+ * JobsPick
+ */
+export type JobsPick = {
+  /**
+   * Jobs
+   *
+   * these runs; leave out for every run with `status`
+   */
+  jobs?: Array<number> | null;
+  /**
+   * Namespace
+   *
+   * only this namespace's runs (default: every one you can process in)
+   */
+  namespace?: string | null;
+  /**
+   * Status
+   *
+   * POST /jobs/cancel: default queued and held (clearing the queue), running too to stop those after their step; POST /jobs/retry: default failed (the dead letter queue), cancelled too
+   */
+  status?: Array<"queued" | "held" | "running" | "failed" | "cancelled"> | null;
 };
 
 /**
@@ -41677,6 +41783,12 @@ export type ListJobsData = {
      * Limit
      */
     limit?: number;
+    /**
+     * Order
+     *
+     * queue: in the order workers take them, the next first
+     */
+    order?: "newest" | "queue";
   };
   url: "/api/v1/jobs";
 };
@@ -41824,6 +41936,86 @@ export type QueueStepResponses = {
 };
 
 export type QueueStepResponse = QueueStepResponses[keyof QueueStepResponses];
+
+export type CancelJobsData = {
+  body: JobsPick;
+  path?: never;
+  query?: never;
+  url: "/api/v1/jobs/cancel";
+};
+
+export type CancelJobsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CancelJobsError = CancelJobsErrors[keyof CancelJobsErrors];
+
+export type CancelJobsResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobsChanged;
+};
+
+export type CancelJobsResponse = CancelJobsResponses[keyof CancelJobsResponses];
+
+export type RetryJobsData = {
+  body: JobsPick;
+  path?: never;
+  query?: never;
+  url: "/api/v1/jobs/retry";
+};
+
+export type RetryJobsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RetryJobsError = RetryJobsErrors[keyof RetryJobsErrors];
+
+export type RetryJobsResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobsChanged;
+};
+
+export type RetryJobsResponse = RetryJobsResponses[keyof RetryJobsResponses];
+
+export type MoveJobData = {
+  body: JobMove;
+  path: {
+    /**
+     * Jid
+     */
+    jid: number;
+  };
+  query?: never;
+  url: "/api/v1/jobs/{jid}/move";
+};
+
+export type MoveJobErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type MoveJobError = MoveJobErrors[keyof MoveJobErrors];
+
+export type MoveJobResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobMoved;
+};
+
+export type MoveJobResponse = MoveJobResponses[keyof MoveJobResponses];
 
 export type CancelJobData = {
   body?: never;

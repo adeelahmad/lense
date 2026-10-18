@@ -24,7 +24,8 @@ AFTER_IMPORT = ["clean", "analyze", "embed", "summarize", "report"]
 ACTIVE = ["queued", "running", "held"]  # held: over budget, waiting for someone to pick (budgets.py)
 FIELDS = (
     "record::id(id) AS id, recording, space, batch, pipeline, steps, step_index, next_step, status, worker, error, attempts, "
-    "created_by, created_at, started_at, finished_at, updated_at, cancel_requested, log_total, cost_usd, tokens, cost_estimate, hold"
+    "created_by, created_at, started_at, finished_at, updated_at, cancel_requested, log_total, cost_usd, tokens, cost_estimate, hold, "
+    "priority ?? 0 AS priority"
 )
 MEDIA_STEPS = {"transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe"}  # they take longer the longer the recording
 FILED = ("audio", "document", "image")  # sources with a file of their own for the steps to work on
@@ -342,7 +343,7 @@ def claim(db, worker, can):
     locked = keyring.locked_vaults(db)  # a vault's work waits until someone unlocks it here
     for r in db.rows(
         "SELECT record::id(id) AS id, space, priority, created_at, started_at FROM job WHERE status = 'queued' AND next_step IN $can "
-        "AND space NOTINSIDE $locked ORDER BY priority DESC, created_at ASC LIMIT 10",
+        "AND space NOTINSIDE $locked ORDER BY priority DESC, created_at ASC, id ASC LIMIT 10",
         can=sorted(can),
         locked=sorted(locked),
     ):
@@ -795,13 +796,118 @@ def retry(db, jid):
     i = min(j.get("step_index") or 0, len(j["steps"]) - 1)
     db.q(
         "UPDATE $j SET status = 'queued', next_step = $s, step_index = $i, error = NONE, cancel_requested = false, finished_at = NONE, "
-        "step_runs = $sr, updated_at = $t",
+        "step_runs = $sr, priority = 0, updated_at = $t",  # it joins the back of the queue
         j=R("job", jid),
         s=_spec(j["steps"][i])["type"],
         i=i,
         sr=(j.get("step_runs") or [])[:i],  # the steps it runs again start over
         t=store.now(),
     )
+
+
+BULK_MAX = 5000  # runs one bulk cancel or retry changes
+
+
+def _picked(db, spaces, statuses, ids=None):
+    """The runs a bulk action works on: those with these statuses in these namespaces (only `ids`, when given),
+    newest first."""
+    where, p = _where(spaces, statuses)
+    if ids is not None:
+        where += " AND id IN $ids"
+        p["ids"] = [R("job", int(i)) for i in ids]
+    return db.rows(
+        f"SELECT record::id(id) AS id, recording, status, created_at FROM job{where} ORDER BY created_at DESC LIMIT {BULK_MAX}", **p
+    )
+
+
+def cancel_many(db, spaces, ids=None, statuses=("queued", "held")):
+    """Clear the queue: cancel the queued and held runs in these namespaces (only `ids`, when given). With "running"
+    among `statuses`, running ones are asked to stop after the step they're on. Returns (cancelled, stopping) ids."""
+    cancelled, stopping, t = [], [], store.now()
+    statuses = [s for s in statuses if s in ACTIVE]
+    if not statuses:
+        return cancelled, stopping
+    for j in _picked(db, spaces, statuses, ids):
+        if j["status"] == "running":
+            db.q("UPDATE $j SET cancel_requested = true, updated_at = $t WHERE status = 'running'", j=R("job", j["id"]), t=t)
+            stopping.append(j["id"])
+        elif db.rows(
+            "UPDATE $j SET status = 'cancelled', finished_at = $t, updated_at = $t WHERE status IN ['queued', 'held'] RETURN AFTER",
+            j=R("job", j["id"]),
+            t=t,
+        ):
+            cancelled.append(j["id"])
+    return cancelled, stopping
+
+
+def retry_many(db, spaces, ids=None, statuses=("failed",)):
+    """Retry the failed runs (the dead letter queue; cancelled ones too, when asked) in these namespaces (only `ids`,
+    when given), each from the step it stopped at. A run whose asset was deleted, or whose asset already has a run
+    queued or running (a newer one, or a newer failed run retried first), is skipped. Returns (retried, skipped)."""
+    statuses = [s for s in statuses if s in ("failed", "cancelled")]
+    if not statuses:
+        return [], 0
+    picked = _picked(db, spaces, statuses, ids)
+    recs = {j["recording"] for j in picked}
+    busy = set(db.values("SELECT VALUE recording FROM job WHERE recording IN $r AND status IN $a", r=sorted(recs), a=ACTIVE))
+    retried, skipped = [], 0
+    for j in picked:
+        if j["recording"] in busy:
+            skipped += 1
+            continue
+        try:
+            retry(db, j["id"])
+        except ValueError:
+            skipped += 1
+            continue
+        busy.add(j["recording"])
+        retried.append(j["id"])
+    return retried, skipped
+
+
+def queue(db, spaces=None):
+    """Queued runs' ids (in these namespaces), in the order workers take them; one a worker can't run yet, or in a
+    locked vault, waits where it is."""
+    where, p = _where(spaces, "queued")
+    q = f"SELECT record::id(id) AS id, priority ?? 0 AS p, created_at FROM job{where} ORDER BY p DESC, created_at ASC, id ASC"
+    return [r["id"] for r in db.rows(q, **p)]
+
+
+def move(db, jid, to=None, before=None, after=None):
+    """Move a queued run to the top or bottom of the queue, or just before or after another queued run. The queue's
+    runs are numbered again (priority, highest first) so they keep their order around it; runs queued later join the
+    back."""
+    order = queue(db)
+    if jid not in order:
+        raise ValueError("only a queued run can be moved")
+    order.remove(jid)
+    ref = before if before is not None else after
+    if to == "top":
+        i = 0
+    elif to == "bottom":
+        i = len(order)
+    elif ref is not None and ref in order:
+        i = order.index(ref) + (1 if before is None else 0)
+    elif ref is not None:
+        raise ValueError("the run to move it next to isn't queued")
+    else:
+        raise ValueError("say where: to (top or bottom), before or after")
+    order.insert(i, jid)
+    _renumber(db, order)
+
+
+def _renumber(db, order):
+    """Priorities that put the queue in this order: the first highest. Only the runs whose number changes are written."""
+    have = {r["id"]: r["p"] for r in db.rows("SELECT record::id(id) AS id, priority ?? 0 AS p FROM job WHERE status = 'queued'")}
+    n, t = len(order), store.now()
+    changed = [(jid, n - k) for k, jid in enumerate(order) if have.get(jid) != n - k]
+    for k in range(0, len(changed), 200):
+        part = changed[k : k + 200]
+        db.run(
+            [f"UPDATE $j{x} SET priority = {p}, updated_at = $t WHERE status = 'queued'" for x, (_, p) in enumerate(part)],
+            t=t,
+            **{f"j{x}": R("job", jid) for x, (jid, _) in enumerate(part)},
+        )
 
 
 def reap(db, stale_minutes=15, max_attempts=3):
@@ -857,10 +963,12 @@ def _where(spaces=None, status=None, recording=None, batch=None):
     return (" WHERE " + " AND ".join(where) if where else ""), p
 
 
-def list_jobs(db, spaces=None, status=None, recording=None, limit=100, batch=None):
-    """The newest jobs (in these namespaces, with these statuses, of this recording or batch run)."""
+def list_jobs(db, spaces=None, status=None, recording=None, limit=100, batch=None, order="newest"):
+    """The newest jobs (in these namespaces, with these statuses, of this recording or batch run); with
+    order="queue", in the order workers take them (the next first)."""
     where, p = _where(spaces, status, recording, batch)
-    return _decorate(db, db.rows(f"SELECT {FIELDS} FROM job{where} ORDER BY created_at DESC LIMIT {int(limit)}", **p))
+    by = "priority DESC, created_at ASC, id ASC" if order == "queue" else "created_at DESC"
+    return _decorate(db, db.rows(f"SELECT {FIELDS} FROM job{where} ORDER BY {by} LIMIT {int(limit)}", **p))
 
 
 def changes(db, since, spaces=None, only=None):

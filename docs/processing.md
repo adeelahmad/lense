@@ -460,8 +460,14 @@ Imports, pipeline runs and folder scans return at once and run as jobs stored in
 `workers.inline` workers itself; more can run anywhere that reaches the database, each limited to the steps it can do.
 A job whose next step a worker can't run goes back on the queue for one that can, so a Mac can transcribe with mlx while
 the container does the rest. Jobs can be cancelled and retried from the failed step; a job whose worker stops
-responding is retried. Workers heartbeat every 30 s, and every 15 s while they run a job however long its step takes,
-with their machine's load. In Activity → Workers an admin can pause a worker (it takes no new jobs; the one it has
+responding is retried. In Activity the queue is handled as a whole too: **Clear queue** cancels every queued and held
+run you may process (in the namespace in view), asking first, and its message can undo it; under **Queued** the runs
+show in the order workers take them, and dragging one by its grip (or Alt+↑ and Alt+↓ on the grip, or Move to top
+and Move to bottom in its menu) reorders the queue; **Retry failed** retries every failed run, one per asset, at the
+back of the queue, and can be undone too. Agents do the same through [the API](api.md#jobs) and the MCP tools `runs`,
+`clear_queue`, `move_run` and `retry_runs`.
+Workers heartbeat every 30 s, and every 15 s while they run a job however long its step takes, with their machine's
+load. In Activity → Workers an admin can pause a worker (it takes no new jobs; the one it has
 carries on to the end), drain it (it also hands that job back to the queue after the step it's on, so another worker
 carries on, and stays paused) or resume it. `lens worker --name mac-mini` keeps its pause across restarts; the
 server's own workers are named after its process, so they start afresh. Steps added to a job while it runs (attaching audio does) run after its other steps: a worker
