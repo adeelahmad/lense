@@ -724,6 +724,23 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "transcribe",
+    key: "cleanup.only_if_poor",
+    label: "Clean only low quality recordings",
+    kind: "switch",
+    hint: "The step measures each recording and leaves a clean-sounding one as it is, cleaning only the noisy, quiet or clipped ones",
+  },
+  {
+    section: "transcribe",
+    key: "cleanup.snr_floor_db",
+    label: "Clean below this signal-to-noise",
+    kind: "int",
+    min: 0,
+    max: 60,
+    unit: "dB",
+    hint: "A recording at or above this is counted as clean and left alone; lower is noisier",
+  },
+  {
+    section: "transcribe",
     key: "vocabulary",
     label: "Expect your own names",
     kind: "switch",
