@@ -107,8 +107,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   Office files, photos, JSON and zip or tar archives, and, with an Apache Tika server (an opt-in extra), documents
   nothing else here can read; capture web pages one at a time, from a link list or a bookmarks file, by API or by asking
   the assistant, from private networks you allow in Settings too; and import videos and podcasts by their address (off
-  by default). Say what a file or a page is as it comes in (a podcast, an interview, a scan), by API or to the
-  assistant, and its content type's pipeline runs from the start.
+  by default). Say what a file or a page is as it comes in (a podcast, an interview, a scan), in Import, by API or
+  to the assistant, and its content type's pipeline runs from the start.
   ([Sensors](docs/sensors.md), [processing](docs/processing.md), [Apache Tika](docs/configuration.md#apache-tika),
   [import webhooks](docs/api.md#import-webhooks); [checks](docs/requirements.md#bring-in-everything))
 - **Clip from the browser.** The Lens web clipper for Chrome, Edge, Firefox and Safari turns a page, a selection or a
