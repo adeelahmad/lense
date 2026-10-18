@@ -12,6 +12,7 @@ import {
   NotebookPen,
   Podcast,
   RadioTower,
+  Rss,
   Search,
   Settings,
   Shapes,
@@ -61,6 +62,7 @@ export const NAV: NavItem[] = [
   { label: "Topics", href: "/topics", icon: Tags, group: "Explore" },
   { label: "Graph", href: "/graph", icon: Waypoints, group: "Explore" },
   { label: "Podcasts", href: "/podcasts", icon: Podcast, group: "Explore" },
+  { label: "Feeds", href: "/feeds", icon: Rss, group: "Explore" },
   { label: "Reports", href: "/reports", icon: ChartNoAxesColumn, group: "Explore" },
   // what waits for your pick: in the nav while anything does; the top bar's badge and Home's row lead there too
   {

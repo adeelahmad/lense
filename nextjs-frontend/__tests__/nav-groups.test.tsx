@@ -40,6 +40,16 @@ test("the timeline is under Explore for everyone", () => {
   expect(isActive("/timeline", "/timeline")).toBe(true);
 });
 
+test("feeds are under Explore, after Podcasts, for everyone", () => {
+  for (const admin of [true, false]) {
+    const items = navFor(admin);
+    const feeds = items.findIndex((i) => i.href === "/feeds");
+    expect(items[feeds]?.group).toBe("Explore");
+    expect(items[feeds - 1]?.href).toBe("/podcasts");
+  }
+  expect(isActive("/feeds/7", "/feeds")).toBe(true);
+});
+
 test("Approvals is in the nav only while something waits, and Automate keeps its name either way", () => {
   const { unmount } = nav(false);
   expect(screen.queryByRole("link", { name: /Approvals/ })).not.toBeInTheDocument();

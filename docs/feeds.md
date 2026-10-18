@@ -1,7 +1,7 @@
 # Published feeds (RSS and podcasts)
 
-**Status: in progress.** Feeds, their private addresses, the API, the MCP tools and the workflow nodes that let a
-routine fill a feed or make an episode on a schedule are built. The Feeds page in the web app comes next.
+**Status: built.** Feeds, their private addresses, the API, the MCP tools, the workflow nodes that let a routine fill a
+feed or make an episode on a schedule, and the Feeds page in the web app.
 
 A namespace can publish what's in it as a feed that any feed reader or podcast app follows: new resources, podcast
 episodes, things on the timeline, or text a person or an agent wrote. Each feed has a private address; add it to the
@@ -47,6 +47,22 @@ again adds only what's new. A feed lists its newest items (50 by default, up to 
 
 Feed readers poll; the feed answers `304 Not Modified` when nothing changed (its `ETag`), and notes when a reader
 last read it (`fetched_at`, at most once a minute), so the web app can show that a podcast app is subscribed.
+
+## In the web app
+
+**Feeds**, under Explore, lists the feeds in the namespaces you can read: each one's kind, namespace, how many items it
+holds and when an app last read it. **New feed** asks for a title (focused; Enter makes it), the kind and the namespace,
+which is the one picked in the top bar when you can edit it; the feed opens on its page.
+
+A feed's page shows its address with a **Copy** button, when an app last read it, and **New address** (editors), which
+stops the old one at once. Editors change what readers show (title, description, author, language, category, artwork,
+how many items a reader sees, and whether a podcast is explicit) and save with Enter. The items are listed newest
+first, each a link to what it's about; **Remove** takes one out at once with an Undo in the toast, which adds the same
+thing again. **Delete** deletes the feed at once with an Undo, which makes it again with its settings and items, at a
+new address (the old token is gone for good). What a feed listed stays in Lens either way.
+
+On the canvas, a graph workflow's palette has the publishing nodes under Data (Select assets, Select activities) and
+Keep (Publish to feed, Podcast episode); a feed is picked from a list, and the canvas names it on the node.
 
 ## From a routine
 

@@ -136,6 +136,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       routine last ran, Publish to feed adds it to a feed, and Podcast episode makes an episode about it (added to a
       feed, listed once it's made). Try on the canvas says what they would do
       ([Publishing from the graph](docs/processing.md#publishing-from-the-graph)).
+    - In the web app: **Feeds**, under Explore, lists them; New feed asks for a title, kind and namespace (Enter makes
+      it); a feed's page copies the address in one click, gets a new one, edits what readers show, takes items out and
+      deletes the feed with Undo instead of a confirm. The publishing nodes are on the canvas, with the feed picked from
+      a list ([In the web app](docs/feeds.md#in-the-web-app)).
 
 ## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
 

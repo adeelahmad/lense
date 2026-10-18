@@ -8,6 +8,8 @@ import {
   Braces,
   CheckCheck,
   FileText,
+  FolderSearch,
+  History,
   Group,
   ListTree,
   Puzzle,
@@ -19,6 +21,8 @@ import {
   Gavel,
   Network,
   PlayCircle,
+  Podcast,
+  Rss,
   Save,
   ScanSearch,
   SearchCheck,
@@ -355,6 +359,73 @@ export const NODES: Record<string, Info> = {
     gives: "merges · links · proposals",
     group: "Keep",
   },
+  // Publishing from the graph (feed_nodes.py): what came in, to a feed or into an episode
+  select_assets: {
+    label: "Select assets",
+    describe:
+      "The resources that came in since the routine last ran (or in the past day, week or month), newest first, in its namespaces",
+    icon: FolderSearch,
+    tone: "green",
+    inputs: 1,
+    outputs: ["out"],
+    takes: "namespaces",
+    gives: "resources[]",
+    group: "Data",
+  },
+  select_activities: {
+    label: "Select activities",
+    describe:
+      "What happened on the timeline since the routine last ran, of the kinds you pick: resources added, imports, changes",
+    icon: History,
+    tone: "green",
+    inputs: 1,
+    outputs: ["out"],
+    takes: "namespaces",
+    gives: "activities[]",
+    group: "Data",
+  },
+  publish_feed: {
+    label: "Publish to feed",
+    describe:
+      "Adds what comes in to a feed: resources and episodes, timeline activities, or text; what’s there already isn’t added twice",
+    icon: Rss,
+    tone: "gold",
+    inputs: 1,
+    outputs: [],
+    takes: "resources[] · activities[] · text",
+    gives: "items in the feed",
+    group: "Keep",
+  },
+  podcast_episode: {
+    label: "Podcast episode",
+    describe:
+      "Makes a two-host episode about the resources that come in, cited and fact-checked, and adds it to a feed once it’s made",
+    icon: Podcast,
+    tone: "gold",
+    inputs: 1,
+    outputs: [],
+    takes: "resources[]",
+    gives: "an episode",
+    group: "Keep",
+  },
+};
+
+/** When Select assets and Select activities look back, as the canvas says it. */
+export const SINCE: Record<string, string> = {
+  last_run: "since the routine last ran",
+  day: "the past day",
+  week: "the past week",
+  month: "the past month",
+  all: "everything",
+};
+/** The most a Select node passes on. */
+export const SELECT_LIMITS: Record<string, number> = { select_assets: 500, select_activities: 200 };
+/** Styles of a podcast episode, as Podcasts names them. */
+export const EPISODE_STYLES: Record<string, string> = {
+  "deep-dive": "Deep dive",
+  recap: "Quick recap",
+  debate: "Compare and contrast",
+  beginner: "For a beginner",
 };
 
 /** The start of a graph workflow: the namespaces a routine runs it over. */
@@ -391,7 +462,16 @@ export const PRIMITIVES = [
 /** Node types per scope, for when the catalog hasn't said (it lists each type's scopes). */
 const SCOPE_NODES: Record<Scope, string[]> = {
   recording: [...PRIMITIVES, "extract_rules", "extract_llm", "save_entities", "llm", "classify", "output", "field"],
-  graph: [...PRIMITIVES, "candidates", "llm_judge", "apply_changes"],
+  graph: [
+    ...PRIMITIVES,
+    "candidates",
+    "llm_judge",
+    "apply_changes",
+    "select_assets",
+    "select_activities",
+    "publish_feed",
+    "podcast_episode",
+  ],
   tool: [...PRIMITIVES, "ask_model", "call_tool"],
 };
 
@@ -402,8 +482,10 @@ export function inScope(type: string, scope: Scope, catalog?: { type: string; sc
 }
 
 export const GROUPS = ["Entities", "AI", "Logic", "Data", "Loops", "Keep"] as const;
+/** The nodes a graph workflow ends in: they change the graph or publish from it. */
+export const GRAPH_KEEPS = ["apply_changes", "publish_feed", "podcast_episode"];
 /** Nodes that keep something: a workflow needs one (or a node that keeps something as set up, see savesAsSet). */
-export const KEEPS = ["output", "field", "save_entities", "apply_changes"];
+export const KEEPS = ["output", "field", "save_entities", ...GRAPH_KEEPS];
 /** A node that keeps something only as it's set up: a classify node that acts on a sure answer. */
 export const savesAsSet = (n: WfNode) => n.type === "classify" && Boolean(n.config.apply);
 /** What a classify node chooses from. */
@@ -495,6 +577,8 @@ export function defaultConfig(type: string): Record<string, unknown> {
   if (type === "output") return { key: "" };
   if (type === "candidates") return { kind: "merge", min_confidence: 0.7, limit: 100 };
   if (type === "llm_judge") return { batch: 25 };
+  if (type === "select_assets" || type === "select_activities") return { since: "last_run", limit: 50 };
+  if (type === "podcast_episode") return { length: 10, style: "deep-dive" };
   if (type === "filter") return { path: "verdict.same", op: "equals", value: true };
   if (type === "switch") return { cases: [{ port: "first", op: "exists" }] };
   if (type === "set") return { fields: [{ key: "value", path: "" }] };
@@ -767,6 +851,7 @@ export function nodeSummary(
     template: (id: number) => string | undefined;
     field: (id: number) => string | undefined;
     custom?: (id: number) => CustomDef | undefined;
+    feed?: (id: number) => string | undefined;
   },
 ) {
   const c = n.config;
@@ -854,6 +939,25 @@ export function nodeSummary(
       return c.apply_above == null
         ? "Propose every change"
         : `Make ${Math.round(Number(c.apply_above) * 100)}%+ (up to ${Number(c.max_apply ?? 50)}), propose the rest`;
+    case "select_assets":
+    case "select_activities":
+      return [
+        SINCE[String(c.since ?? "last_run")] ?? String(c.since),
+        `up to ${Number(c.limit ?? 50)}`,
+        ...(n.type === "select_activities" && (c.kinds as string[] | undefined)?.length
+          ? [(c.kinds as string[]).join(", ")]
+          : []),
+        ...(c.q ? [`“${String(c.q)}”`] : []),
+        ...((c.namespaces as string[] | undefined)?.length ? [`in ${(c.namespaces as string[]).join(", ")}`] : []),
+      ].join(" · ");
+    case "publish_feed":
+      return c.feed == null ? "Choose a feed" : `to ${names.feed?.(Number(c.feed)) ?? `feed #${c.feed}`}`;
+    case "podcast_episode":
+      return [
+        `about ${Number(c.length ?? 10)} minutes`,
+        EPISODE_STYLES[String(c.style ?? "deep-dive")] ?? String(c.style),
+        ...(c.feed == null ? [] : [`to ${names.feed?.(Number(c.feed)) ?? `feed #${c.feed}`}`]),
+      ].join(" · ");
     default:
       return ref ? `‹${ref[0]} from a parameter›` : (NODES[n.type]?.describe ?? "");
   }
@@ -980,6 +1084,26 @@ export function problems(
     else if (n.type === "apply_changes" && !between(c.apply_above, 0, 1, false))
       fail("Sure enough at is a number from 0 to 1.");
     else if (n.type === "apply_changes" && !between(c.max_apply, 0, 1000, true)) fail("At most is 0 to 1000.");
+    else if (
+      (n.type === "select_assets" || n.type === "select_activities") &&
+      c.since != null &&
+      !SINCE[String(c.since)]
+    )
+      fail("Since is the last run, the past day, week or month, or everything.");
+    else if (n.type === "select_assets" && !between(c.limit, 1, SELECT_LIMITS.select_assets, true))
+      fail(`At most is 1 to ${SELECT_LIMITS.select_assets} resources.`);
+    else if (n.type === "select_activities" && !between(c.limit, 1, SELECT_LIMITS.select_activities, true))
+      fail(`At most is 1 to ${SELECT_LIMITS.select_activities} activities.`);
+    else if (n.type === "publish_feed" && c.feed == null) fail("Choose a feed.");
+    else if (n.type === "podcast_episode" && !between(c.length, 1, 180, true)) fail("Length is 1 to 180 minutes.");
+    else if (n.type === "podcast_episode" && c.style != null && !EPISODE_STYLES[String(c.style)])
+      fail("Choose a style.");
+    else if (n.type === "podcast_episode" && !between(c.max_sources, 1, 20, true)) fail("Most sources is 1 to 20.");
+    else if (
+      n.type === "podcast_episode" &&
+      !between(c.min_sources, 1, typeof c.max_sources === "number" ? c.max_sources : 20, true)
+    )
+      fail("Fewest sources is 1 to the most.");
     else if (n.type === "for_each" && !between(c.max_items, 1, 1000, true)) fail("At most is 1 to 1000 items.");
     else if (n.type === "repeat" && !between(c.max_rounds, 1, 50, true)) fail("At most is 1 to 50 rounds.");
     else if (n.type === "extract_rules") {
@@ -1016,14 +1140,14 @@ export function problems(
   if (kind === "workflow" && !out[""] && !keeps(g, custom, scope))
     out[""] =
       scope === "graph"
-        ? "Add an Apply changes node, or the workflow changes nothing."
+        ? "Add an Apply changes, Publish to feed or Podcast episode node, or the workflow changes nothing."
         : "Add a Save output, Set field or Save entities node (or a Classify node that acts), or the workflow keeps nothing.";
   return out;
 }
 
 /** Whether a graph keeps something: a saving node here, inside a body, or in a custom node. */
 function keeps(g: WfGraph, custom?: (id: number) => CustomDef | undefined, scope: Scope = "recording"): boolean {
-  const saving = scope === "graph" ? ["apply_changes"] : KEEPS.filter((t) => t !== "apply_changes");
+  const saving = scope === "graph" ? GRAPH_KEEPS : KEEPS.filter((t) => !GRAPH_KEEPS.includes(t));
   return g.nodes.some(
     (n) =>
       saving.includes(n.type) ||
