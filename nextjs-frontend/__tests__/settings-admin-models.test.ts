@@ -209,7 +209,7 @@ describe("settings fields", () => {
       value: { "gpt-4o-mini": { input: 0.15, output: 0.6 }, "my model": { input: 1, output: 2 } },
     });
     expect(parse(prices, "gpt-4o 2.5")).toEqual({
-      error: "Line 1: write the model, then its input and output price, like gpt-4o-mini 0.15 0.60",
+      error: "Line 1: write the model, then its input and output price, like gpt-4o-mini 0.15 0.60, or a price per hour, per minute or per million characters",
     });
     expect(parse(prices, "a 1 2\nb -1 2")).toHaveProperty("error");
     expect(parse(prices, "")).toEqual({ value: {} });
