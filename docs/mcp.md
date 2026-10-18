@@ -74,6 +74,7 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `find` | assets by any attribute: faces seen, people heard, entities, topics, kind, content type, dates (a day, month or year), tags, language, objects, emotions, length, collection and words in them; ids or names. Each says why it matched, with moments and links to cite ([Finding by any attribute](processing.md#finding-by-any-attribute)) |
 | `classify` | which of some labels fits an asset or a text, how sure, and every label ranked: labels you give, or Lens's content types or the namespace's topics; the decision model answers, else the language model. Read only: it changes nothing ([Classifying](processing.md#classifying)) |
 | `list_namespaces` | the namespaces you can read, with their assets, hours, people and your role |
+| `budgets` | where spending stands: each namespace you can read this period against its budget, and for admins all of Lens and every other budget, each ok, near or over ([Asking the assistant or an agent](budgets.md#asking-the-assistant-or-an-agent)) |
 | `list_recordings` | assets, newest first, by namespace, title words, dates, person, tag or kind, and whether they're flagged NSFW (`sensitive`) |
 | `list_speakers` | the people of your namespaces, the ones with the most talk time first |
 | `get_recording` | one asset: when, how long, people, summary and key points, chapters, the entities and keywords most mentioned, its link, and whether it's flagged NSFW |

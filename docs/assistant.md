@@ -310,6 +310,8 @@ When the configured model supports function calling, chat becomes an agent.
   Lens in Settings → Sources, Gmail, Google Calendar, Google Drive and S3 among them, and brings what it finds into a
   namespace, sends mail, adds events and writes files, each once you approve ([below](#mail-calendars-and-files)).
 - **Lens itself:** questions about Lens rather than the archive go to `lens_help` ([below](#questions-about-lens-itself)).
+- **Costs and budgets:** "where do my budgets stand?" goes to `budgets`: what each namespace spent this period against
+  its budget, and for admins all of Lens and every other budget ([Budgets](budgets.md#asking-the-assistant-or-an-agent)).
 
 ### Questions about Lens itself
 

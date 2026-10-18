@@ -392,3 +392,76 @@ def meter(db, resource, budget_ref=None, period=None, detail=False, now=None):
         if resource is None:
             out["by_namespace"] = activity.top(db, "space", since, 50)
     return out
+
+
+# ---------- for agents: where it all stands ----------
+def _stands(m):
+    """A meter as an agent reads it: what was spent this period, and the budget it's measured against."""
+    st = m.get("budget")
+    out = {"period": m["period"], "since": m["since"], "spent": m["spent"], "calls": m["calls"], "budget": None}
+    if st and st.get("budget"):
+        b = st["budget"]
+        out["budget"] = {
+            "usd": b.get("usd"),
+            "tokens": b.get("tokens"),
+            "period": b.get("period"),
+            "state": st["state"],
+            "share": st["share"],
+            "left": st.get("left"),
+            "warn_at": b.get("warn_at"),
+        }
+    return out
+
+
+def overview(db, spaces, admin, now=None, limit=20):
+    """Where spending stands, for the assistant's and MCP's `budgets` tools: each namespace in `spaces` (ids the person
+    can read) against its budget, and for admins all of Lens against the overall budget and every other budget with
+    where it stands. Money is USD from the activity ledger; `estimate` says a figure is a floor."""
+    names = store.space_names(db)
+    out = {
+        "namespaces": [
+            {"namespace": names.get(sid), **_stands(meter(db, f"space:{sid}", now=now))}
+            for sid in sorted(spaces, key=lambda s: names.get(s) or "")[:limit]
+        ]
+    }
+    if admin:
+        out["all"] = _stands(meter(db, None, ALL, now=now))
+        rows = []
+        for b in all_budgets(db):
+            if b["resource"] == ALL or b["resource"].startswith("space:"):
+                continue  # said above
+            st = status(db, b["resource"], b, now)
+            table, _, key = b["resource"].partition(":")
+            row = db.one("SELECT name, title FROM $r", r=R(table, int(key))) if key.isdigit() else None
+            rows.append(
+                {
+                    "resource": b["resource"],
+                    "name": (row or {}).get("name") or (row or {}).get("title"),
+                    "usd": b.get("usd"),
+                    "tokens": b.get("tokens"),
+                    "period": b.get("period"),
+                    "spent": st.get("spent"),
+                    "state": st["state"],
+                    "share": st.get("share"),
+                    "left": st.get("left"),
+                }
+            )
+        out["budgets"] = rows
+    return out
+
+
+def said(view):
+    """The overview in a line: all of Lens (for admins), else the namespaces, and what is near or over."""
+
+    def one(m, who):
+        b, usd = m.get("budget"), m["spent"]["usd"]
+        spent = f"{'about ' if m['spent'].get('estimate') else ''}${usd:.2f}"
+        if b and b.get("usd") is not None:
+            return f"{who}: {spent} of ${b['usd']:g} this {m['period']} ({b['state']})"
+        return f"{who}: {spent} this {m['period']}" + (f" ({b['state']})" if b else ", no budget")
+
+    parts = [one(view["all"], "all of Lens")] if "all" in view else [one(m, m["namespace"]) for m in view["namespaces"][:3]]
+    tight = [r["name"] or r["resource"] for r in view.get("budgets", []) if r["state"] in ("near", "over")]
+    if tight:
+        parts.append(f"near or over: {', '.join(tight[:5])}")
+    return "Read budgets: " + "; ".join(parts) if parts else "Read budgets: nothing to show"

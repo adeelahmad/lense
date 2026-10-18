@@ -49,6 +49,7 @@ from app.domain import (
     approvals,
     auth,
     blobs,
+    budgets,
     chat,
     chat_export,
     decide,
@@ -615,6 +616,22 @@ def list_namespaces(ctx: Context) -> dict[str, Any]:
             for n in rows
         ]
     }
+
+
+@tool(
+    "budgets",
+    "Where budgets stand",
+    "Where spending stands: what each namespace you can read spent this day, week or month (its budget's period, else "
+    "the month) against its budget, and for admins all of Lens against the overall budget and every other budget "
+    "(routines, automations, pipelines, workflows, scaling groups) with its state: ok, near or over. Money is USD from "
+    "the activity ledger; estimate: true means a figure is a floor.",
+    Arg("namespace", "string", "only this namespace"),
+)
+def budgets_tool(ctx: Context, namespace: str | None = None) -> dict[str, Any]:
+    spaces = {ctx.acl.namespace(namespace)} if namespace else ctx.acl.readable()
+    if spaces is None:  # an admin: every namespace
+        spaces = set(store.space_names(ctx.db))
+    return budgets.overview(ctx.db, spaces, bool(ctx.user.admin) and not namespace)
 
 
 SORTS = ("-date", "date", "title", "-title", "duration", "-duration")

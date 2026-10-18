@@ -86,8 +86,18 @@ change (admins), and every other budget with how much of it is used.
 `GET /api/v1/budgets/meter?ns=&period=&detail=` serves both. Anyone who can read a namespace sees its meter; all of
 Lens is admins'. A namespace's spend is the calls that count for it: its jobs, and requests to its own pages.
 
+## Asking the assistant or an agent
+
+Ask the assistant "where do my budgets stand?" or "what have I spent this month?" and it answers with the `budgets`
+tool; agents call the same tool over MCP. It gives what each namespace you can read spent this period (its budget's
+own day, week or month, else the month) against its budget, with what is left and whether it's ok, near or over. For
+admins it adds all of Lens against the overall budget, and every routine's, automation's, pipeline's, workflow's and
+scaling group's budget with where it stands. Figures are USD from the activity ledger, and `estimate: true` marks one
+that's a floor because a priced call didn't say what it used. It reads only; setting a budget stays with admins in the
+web app and `PUT /api/v1/budgets`.
+
 ## Refine later
 
 Forecasting from a routine's schedule (its runs left this period), per-person budgets, budget warnings sent through
-notifications and the weekly digest, and the assistant answering "where do my budgets stand?" in chat. The meter could
+notifications and the weekly digest. The meter could
 count chats in a namespace (they aren't attributed to one yet) and show a forecast to the end of the period.
