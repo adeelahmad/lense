@@ -115,6 +115,9 @@ import type {
   ChangeProviderData,
   ChangeProviderErrors,
   ChangeProviderResponses,
+  ChangeScheduleData,
+  ChangeScheduleErrors,
+  ChangeScheduleResponses,
   ChatCapabilitiesData,
   ChatCapabilitiesResponses,
   ChatToolsData,
@@ -736,6 +739,9 @@ import type {
   GetRunResponses,
   GetSandboxGatewayData,
   GetSandboxGatewayResponses,
+  GetScheduleData,
+  GetScheduleErrors,
+  GetScheduleResponses,
   GetSecretsData,
   GetSecretsResponses,
   GetSensorData,
@@ -1084,6 +1090,8 @@ import type {
   ListRunsData,
   ListRunsErrors,
   ListRunsResponses,
+  ListSchedulesData,
+  ListSchedulesResponses,
   ListSearchesData,
   ListSearchesResponses,
   ListSegmentEditsData,
@@ -1546,6 +1554,9 @@ import type {
   RunsCausedData,
   RunsCausedErrors,
   RunsCausedResponses,
+  RunScheduleData,
+  RunScheduleErrors,
+  RunScheduleResponses,
   RunWorkflowData,
   RunWorkflowErrors,
   RunWorkflowResponses,
@@ -11884,6 +11895,76 @@ export class Routines {
     return (options.client ?? client).post<UndoGraphChangeResponses, UndoGraphChangeErrors, ThrowOnError>({
       url: "/api/v1/graph-changes/{cid}/undo",
       ...options,
+    });
+  }
+}
+
+export class Schedules {
+  /**
+   * List Schedules
+   *
+   * Everything that runs on a clock that you manage, soonest first: for admins every routine (those run only by
+   * hand too) and the scheduled backup; for everyone the schedule and at triggers of their automations. Each with
+   * when it runs in words, its next and last run, how that went and whether it's on.
+   */
+  public static listSchedules<ThrowOnError extends boolean = false>(
+    options?: Options<ListSchedulesData, ThrowOnError>,
+  ): RequestResult<ListSchedulesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListSchedulesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/schedules",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Schedule
+   */
+  public static getSchedule<ThrowOnError extends boolean = false>(
+    options: Options<GetScheduleData, ThrowOnError>,
+  ): RequestResult<GetScheduleResponses, GetScheduleErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetScheduleResponses, GetScheduleErrors, ThrowOnError>({
+      url: "/api/v1/schedules/{sid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Change Schedule
+   *
+   * Change when it runs or switch it on or off; give only what changes. A routine's `cron: null` runs it only by
+   * hand. Switching an automation's schedule switches the whole automation (every trigger it has). Switching the
+   * backup off clears backups.schedule; switching it on needs a cron.
+   */
+  public static changeSchedule<ThrowOnError extends boolean = false>(
+    options: Options<ChangeScheduleData, ThrowOnError>,
+  ): RequestResult<ChangeScheduleResponses, ChangeScheduleErrors, ThrowOnError> {
+    return (options.client ?? client).patch<ChangeScheduleResponses, ChangeScheduleErrors, ThrowOnError>({
+      url: "/api/v1/schedules/{sid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Run Schedule
+   *
+   * Run it now, even when it's off: a routine as soon as the scheduler next looks (within half a minute), an
+   * automation here and now as its trigger would when its time comes, the backup now (it can take a while). A run over
+   * a budget is refused (routines: 409) or held for your pick (automations) unless over_budget is true.
+   */
+  public static runSchedule<ThrowOnError extends boolean = false>(
+    options: Options<RunScheduleData, ThrowOnError>,
+  ): RequestResult<RunScheduleResponses, RunScheduleErrors, ThrowOnError> {
+    return (options.client ?? client).post<RunScheduleResponses, RunScheduleErrors, ThrowOnError>({
+      url: "/api/v1/schedules/{sid}/run",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }

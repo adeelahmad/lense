@@ -209,8 +209,8 @@ only in namespaces they can edit (`?removed=true` lists deleted ones, to restore
 `/policy` lets an action node run without asking (`auto`) only from a signed-in session in the web app.
 `/actions` lists what action nodes can do. `/draft {"text": ...}` asks the model to turn a sentence into a draft to
 try and save, saying what didn't fit (`dropped`) and what it couldn't express (`unmapped`) ([Describe it in
-words](automations.md#describe-it-in-words)). The list adds each one's actions waiting (`waiting`) and cost this month
-(`cost_month`). `/test` tries a saved automation, and `POST /automations/test {"draft": ...}` an unsaved one, on an
+words](automations.md#describe-it-in-words)). The list adds each one's actions waiting (`waiting`), cost this month
+(`cost_month`), its triggers in words (`reads`), its runs today (`runs_today`) and when it runs next (`next_at`). `/test` tries a saved automation, and `POST /automations/test {"draft": ...}` an unsaved one, on an
 activity (`activity`) or a kind's sample (`kind`) without keeping or sending anything; `/run` runs it now (on
 `activity`, else the newest one its triggers listen for). `/runs` pages its runs (`before`, `limit`; `next` for the
 page after), `/runs?activity=<id>` lists the runs an activity started, `/runs/{run}` gives one with its trace, log and
@@ -378,6 +378,19 @@ Routines are for admins. `GET /routines/schedule?schedule=&timezone=` previews w
 starts one now and `runs` lists its last runs. A run held over a budget is run or skipped with `decide`, and `undo`
 takes back every graph change a run made. `GET /graph-changes` lists the changes to the entities of namespaces you can
 read, newest first; editors `accept`, `dismiss` or `undo` one ([Graph history](graph-history.md)).
+
+## schedules
+
+```
+GET    /api/v1/schedules
+GET    /api/v1/schedules/{id}
+PATCH  /api/v1/schedules/{id}
+POST   /api/v1/schedules/{id}/run
+```
+
+Everything that runs on a clock, in one list ([Schedules](schedules.md)): routines and the scheduled backup for
+admins, and the schedule and at triggers of the automations you manage. An id is `routine:3`,
+`automation:4:morning` or `backups`; `PATCH` takes `cron`, `at`, `timezone` and `enabled`, and `run` runs it now.
 
 ## namespaces
 

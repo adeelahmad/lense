@@ -178,3 +178,22 @@ def test_join_handlers_are_registered_with_timers():
 
     for kind, fn in match.TIMER_HANDLERS.items():
         assert timers._HANDLERS[kind].fn is fn and timers._HANDLERS[kind].ended is match.join_ended
+
+
+def test_triggers_read_in_words():
+    assert match.describe_trigger({"as": "w", "on": "webhook"}) == "a call to its webhook"
+    assert match.describe_trigger({"as": "go", "on": "manual"}) == "when you run it"
+    assert match.describe_trigger({"as": "t", "on": "at", "at": "2026-10-20T07:00"}) == "once, at 2026-10-20T07:00 (UTC)"
+    assert match.describe_trigger({"as": "e", "on": "event", "kinds": ["asset.added", "email.received"]}) == (
+        "“Asset added” or “Email received”"
+    )
+    assert match.describe_trigger({"as": "s", "on": "schedule", "cron": "0 7 * * *"}) == "every day at 07:00 (UTC)"
+    before = {"as": "r", "on": "relative", "kinds": ["calendar_event.added"], "field": "object.startTime", "offset": "-30m"}
+    assert match.describe_trigger(before).startswith("30 minutes before ")
+    # several triggers then their join; one trigger, or any, says no join
+    two = [{"as": "w", "on": "webhook"}, {"as": "go", "on": "manual"}]
+    assert match.describe_triggers(two, {"mode": "any"}) == "a call to its webhook; when you run it"
+    assert match.describe_triggers(two, {"mode": "batch", "within": "1h"}).endswith(
+        "; what the triggers bring in 1 hour, together in one run"
+    )
+    assert match.describe_triggers([], None) == ""
