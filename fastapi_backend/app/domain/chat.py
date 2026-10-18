@@ -8,6 +8,7 @@ configured, the best passages come back on their own.
 
 from __future__ import annotations
 
+import contextlib
 import contextvars
 import json
 import logging
@@ -598,6 +599,15 @@ def memory(db, cfg, cid, line=None):
     return {**had, "window": RECENT} if had.get("upto") else None
 
 
+def covered(db, cid, line):
+    """The summary as the app shows it: the one stored for the version `line` is, with "covers", how many of its
+    messages it stands for; None before the first summary (or /clear)."""
+    had = _stored(db, cid, line)
+    if not had.get("upto"):
+        return None
+    return {**had, "covers": sum(1 for m in line if m["id"] <= had["upto"])}
+
+
 def summary_note(summary):
     text = ((summary or {}).get("text") or "").strip()
     return (
@@ -652,11 +662,12 @@ def _batches(cfg, model, had, old):
         yield run
 
 
-def compact(db, cfg, cid, force=False, focus=None, full_only=False, line=None):
+def compact(db, cfg, cid, force=False, focus=None, full_only=False, line=None, keep=None):
     """Fold the messages older than the latest RECENT into the conversation's summary, once COMPACT_AFTER of them have
     built up or they fill ai.compact_at % of the chat model's context window (window; `full_only`: only then;
     ai.compact, on by default; needs a model). `force` (/compact) folds every message in now, whatever the setting,
-    with the person's `focus` (what to keep) if any. The summary is written by ai.compact_model when set, a cheaper
+    with the person's `focus` (what to keep) if any, but the latest `keep` (shrink). The summary is written by
+    ai.compact_model when set, a cheaper
     model than the chat's, in as many calls as it takes to fit that model's window (_batches), each in the ledger as
     the conversation's. It's of the version `line` is (by default the head's), afresh when the summary was another
     version's. Returns the new summary (with "folded": how many messages), or None when nothing changed."""
@@ -665,7 +676,8 @@ def compact(db, cfg, cid, force=False, focus=None, full_only=False, line=None):
     line = path(db, cid) if line is None else line
     had = _stored(db, cid, line)
     fresh = [m for m in line if m["id"] > (had.get("upto") or 0)]  # ids grow along a version
-    old = fresh if force else fresh[:-RECENT]
+    keep = (0 if force else RECENT) if keep is None else keep
+    old = fresh[:-keep] if keep else fresh
     if not old:
         return None
     if not force and (full_only or len(fresh) < RECENT + COMPACT_AFTER):
@@ -694,6 +706,81 @@ def compact(db, cfg, cid, force=False, focus=None, full_only=False, line=None):
         return None
     db.q("UPDATE $r SET summary = $s", r=R("chat", cid), s=out)
     return {**out, "folded": folded}
+
+
+# ---------- fitting an answer's request into the model's context ----------
+FIT_KEEP = 2  # the latest messages still read word for word once a conversation didn't fit the model
+MIN_RESULT = 400  # characters of a tool's result kept, however little room is left
+
+
+def shrink(db, cfg, cid, line):
+    """What to answer with once the model said the conversation doesn't fit its context: (the messages, the summary),
+    with all but the last FIT_KEEP messages of the version `line` folded into the summary now, whatever the count. With
+    summaries off (ai.compact), or when one can't be written, the last FIT_KEEP messages alone, for this answer."""
+    if cfg["ai"].get("compact", True):
+        try:
+            compact(db, cfg, cid, force=True, keep=FIT_KEEP, line=line)
+        except (llm.LLMError, activity.OverBudget):
+            log.warning("chat %s: couldn't fold the conversation into its summary to fit the model", cid, exc_info=True)
+    return list(line)[-FIT_KEEP:], memory(db, cfg, cid, line)
+
+
+def room(cfg, model=None, tools=None):
+    """About how many tokens an answer's messages may take: the model's context window less room for the answer and
+    for the tools offered."""
+    w = window(cfg, model)
+    return w - min(w // 4, 8192) - len(json.dumps(tools or [])) // 4
+
+
+def fit(msgs, budget):
+    """Shorten what tools returned, oldest first, until the messages take at most `budget` tokens: each loses its middle,
+    so the mark wrapped round outside text (untrusted.wrap) stays whole, and keeps at least MIN_RESULT characters.
+    Returns whether it cut anything."""
+    over, cut = tokens(msgs) - budget, False
+    for m in msgs:
+        if over <= 0:
+            break
+        text = m.get("content") or ""
+        if m["role"] != "tool" or len(text) <= MIN_RESULT:
+            continue
+        keep = max(MIN_RESULT, len(text) - over * 4)
+        if keep >= len(text):
+            continue
+        m["content"] = (
+            f"{text[: keep - keep // 4]}\n…({len(text) - keep} characters left out, to fit the model's context)…\n{text[-(keep // 4) :]}"
+        )
+        over -= (len(text) - len(m["content"])) // 4
+        cut = True
+    return cut
+
+
+def stream_fitted(cfg, question, passages, history=(), summary=None, model=None, shrink=None):
+    """llm.stream_chat of messages_for. When the server says they don't fit the model's context before any of the answer
+    came, it's asked once more with the conversation shrunk (`shrink()`: (history, summary), see shrink) and the first
+    half of the excerpts."""
+    try:
+        with contextlib.closing(llm.stream_chat(cfg, messages_for(question, passages, history, summary, cfg), model=model)) as pieces:
+            for piece in pieces:
+                yield piece
+            return
+    except llm.ContextFull:
+        if shrink is None:
+            raise
+    history, summary = shrink()
+    shorter = passages[: max(1, len(passages) // 2)]
+    with contextlib.closing(llm.stream_chat(cfg, messages_for(question, shorter, history, summary, cfg), model=model)) as pieces:
+        yield from pieces
+
+
+def reply_fitted(cfg, question, passages, history=(), summary=None, model=None, shrink=None):
+    """llm.chat of messages_for, asked once more as stream_fitted is when the server says they don't fit."""
+    try:
+        return llm.chat(cfg, messages_for(question, passages, history, summary, cfg), model=model)
+    except llm.ContextFull:
+        if shrink is None:
+            raise
+    history, summary = shrink()
+    return llm.chat(cfg, messages_for(question, passages[: max(1, len(passages) // 2)], history, summary, cfg), model=model)
 
 
 # ---------- commands: /clear and /compact, typed in the app or in a chat room ----------
@@ -1052,37 +1139,65 @@ def _finish(cfg, msgs, tools, model):
     return text
 
 
-def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, setup=False, summary=None, record=None, max_tool_calls=None):
+def tool_answer(
+    cfg, toolbox, question, history=(), max_steps=6, model=None, setup=False, summary=None, record=None, max_tool_calls=None, shrink=None
+):
     """The tool loop: yields ("step", {...}) for each tool call, then ("answer", text), or ("direct", text) when the model
     answered without looking anything up (it never saw the archive, so the caller can answer from a search instead).
     Every turn ends in an answer: when the steps run out, or the model replies with nothing, it's asked to answer from
     what it found, with the tools off. Raises llm.ToolsUnsupported. `record` (a Record) learns the tools offered and
     counts the rounds and tool calls. `max_tool_calls` (tool_calls_allowed): at most that many calls, in as many rounds
     as it takes (a round makes one call or more), instead of `max_steps` rounds; a round that asks for more makes the
-    first of them, and the answer is written from what they found (its record's outcome is limit)."""
+    first of them, and the answer is written from what they found (its record's outcome is limit). Each request is
+    fitted into the model's context (fit: what tools returned is shortened); when the server still says it doesn't
+    fit, what tools returned is cut down further, then the conversation is shrunk (`shrink()`: (history, summary),
+    once)."""
     limit = tool_calls_allowed(cfg, max_tool_calls)
     max_steps = limit or max_steps
     system = TOOL_SYSTEM + untrusted.rules(cfg) + ("\n\n" + SETUP_SYSTEM if setup else "")
     note = getattr(toolbox, "system_note", None)  # skills, and context from hooks (extensions.py)
     system += note() if note else ""
-    system += summary_note(summary)
     if limit:
-        system += (
+        budget_note = (
             f"\n\nYou have up to {limit} tool call{'s' if limit > 1 else ''} for this question in all (make calls that don't depend "
             "on each other in the same round), then you answer. Answer as soon as you have enough."
         )
     else:
-        system += (
+        budget_note = (
             f"\n\nYou have up to {max_steps} rounds of tool calls for this question (make calls that don't depend on each other "
             "in the same round), then you answer. Answer as soon as you have enough."
         )
-    msgs = [{"role": "system", "content": system}] + past_turns(history, summary=summary, cfg=cfg)
-    msgs.append({"role": "user", "content": question})
+
+    def opening(history, summary):
+        msgs = [{"role": "system", "content": system + summary_note(summary) + budget_note}] + past_turns(history, summary=summary, cfg=cfg)
+        return msgs + [{"role": "user", "content": question}]
+
+    msgs = opening(history, summary)
+    start = len(msgs)  # where this answer's own rounds begin
     tools, looked, made = toolbox.specs(), False, set()
     record = record or Record(cfg)
     record.offer(toolbox, tools, max_steps)
+    budget, shrunk = room(cfg, model, tools), shrink is None
+
+    def ask(call):
+        nonlocal start, budget, shrunk
+        while True:
+            fit(msgs, budget)
+            try:
+                return call()
+            except llm.ContextFull:
+                smaller = min(room(cfg, model, tools), tokens(msgs)) * 3 // 4  # the window it said (llm keeps it), or less than was sent
+                if smaller < budget and fit(msgs, smaller):  # what tools returned can still be cut
+                    budget = smaller
+                elif not shrunk:
+                    shrunk = True
+                    head = opening(*shrink())
+                    msgs[:start], start = head, len(head)
+                else:
+                    raise
+
     for _ in range(max_steps):
-        msg = llm.chat_message(cfg, msgs, tools=tools, model=model)
+        msg = ask(lambda: llm.chat_message(cfg, msgs, tools=tools, model=model))
         if not msg["tool_calls"]:
             if msg["content"].strip():
                 yield ("answer" if looked else "direct"), msg["content"]
@@ -1125,7 +1240,10 @@ def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, set
             break
     else:  # the rounds ran out
         record.limited = True
-    text = _finish(cfg, msgs, tools, model) or "I couldn't put an answer together from what I found. Try again, or ask something narrower."
+    text = (
+        ask(lambda: _finish(cfg, msgs, tools, model))
+        or "I couldn't put an answer together from what I found. Try again, or ask something narrower."
+    )
     yield ("answer" if looked else "direct"), text
 
 

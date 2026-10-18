@@ -111,6 +111,7 @@ nav:
       - Auto scaling: scaling.md
   - Operate:
       - Encryption: encryption.md
+      - Secrets: secrets.md
       - Storage: storage.md
       - Database: database.md
       - Telemetry: telemetry.md

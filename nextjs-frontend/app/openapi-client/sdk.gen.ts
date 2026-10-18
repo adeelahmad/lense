@@ -739,6 +739,8 @@ import type {
   GetRunResponses,
   GetSandboxGatewayData,
   GetSandboxGatewayResponses,
+  GetSecretsData,
+  GetSecretsResponses,
   GetSensorData,
   GetSensorErrors,
   GetSensorResponses,
@@ -1133,6 +1135,9 @@ import type {
   ListUploadsResponses,
   ListUsersData,
   ListUsersResponses,
+  ListVaultItemsData,
+  ListVaultItemsErrors,
+  ListVaultItemsResponses,
   ListViewsData,
   ListViewsResponses,
   ListVoicesData,
@@ -1766,6 +1771,9 @@ import type {
   TestNotifyTargetData,
   TestNotifyTargetErrors,
   TestNotifyTargetResponses,
+  TestSecretsData,
+  TestSecretsErrors,
+  TestSecretsResponses,
   TestSlackData,
   TestSlackResponses,
   TestSourceData,
@@ -3700,6 +3708,56 @@ export class Admin {
     return (options?.client ?? client).post<ReindexSearchResponses, unknown, ThrowOnError>({
       url: "/api/v1/admin/reindex",
       ...options,
+    });
+  }
+
+  /**
+   * Get Secrets
+   *
+   * The password managers Lens can read secrets from and whether each is set up; every secret field in Settings,
+   * whether it's set, and for one that refers to a password manager its reference and whether this server could read
+   * its value (and when, or why not).
+   */
+  public static getSecrets<ThrowOnError extends boolean = false>(
+    options?: Options<GetSecretsData, ThrowOnError>,
+  ): RequestResult<GetSecretsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetSecretsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/secrets",
+      ...options,
+    });
+  }
+
+  /**
+   * List Vault Items
+   *
+   * The items of a password manager Lens may refer to (those in its folder): each one's name, type, the fields that
+   * hold something and the reference to each. Never their values. 409 when the manager isn't set up or can't be
+   * reached, with why.
+   */
+  public static listVaultItems<ThrowOnError extends boolean = false>(
+    options?: Options<ListVaultItemsData, ThrowOnError>,
+  ): RequestResult<ListVaultItemsResponses, ListVaultItemsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListVaultItemsResponses, ListVaultItemsErrors, ThrowOnError>({
+      url: "/api/v1/secrets/items",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Secrets
+   *
+   * Sign in to a password manager with the settings saved and count the items Lens may read, to check them.
+   */
+  public static testSecrets<ThrowOnError extends boolean = false>(
+    options?: Options<TestSecretsData, ThrowOnError>,
+  ): RequestResult<TestSecretsResponses, TestSecretsErrors, ThrowOnError> {
+    return (options?.client ?? client).post<TestSecretsResponses, TestSecretsErrors, ThrowOnError>({
+      url: "/api/v1/secrets/test",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
     });
   }
 
