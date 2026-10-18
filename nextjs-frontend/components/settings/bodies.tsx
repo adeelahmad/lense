@@ -2599,6 +2599,7 @@ const LIMITS = [
   "ai.max_transcript_reads",
   "ai.compact_model",
   "ai.context_tokens",
+  "ai.compact_at",
 ];
 
 function AiBody({ ctx }: { ctx: BodyCtx }) {
@@ -2667,6 +2668,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
           <F ctx={ctx} id="ai.max_transcript_reads" />
           <F ctx={ctx} id="ai.compact_model" />
           <F ctx={ctx} id="ai.context_tokens" />
+          <F ctx={ctx} id="ai.compact_at" />
         </div>
       </More>
       <div className="flex flex-col gap-3">
