@@ -1261,7 +1261,7 @@ export type ApprovalOutcome = {
   /**
    * Job
    *
-   * the job started, for write_spec
+   * the job started, for write_spec and translate_transcript
    */
   job?: number | null;
   /**
@@ -28840,6 +28840,90 @@ export type TopicUpdate = {
 };
 
 /**
+ * TranslationCreate
+ */
+export type TranslationCreate = {
+  /**
+   * Language
+   *
+   * the language to translate into: a code such as fr or pt-BR
+   */
+  language: string;
+};
+
+/**
+ * TranslationPlan
+ *
+ * What translating an asset's transcript would take, before anyone asks for it (always an estimate).
+ */
+export type TranslationPlan = {
+  /**
+   * Recordings
+   */
+  recordings: number;
+  /**
+   * By Kind
+   */
+  by_kind?: {
+    [key: string]: number;
+  };
+  /**
+   * Hours
+   */
+  hours: number;
+  /**
+   * Seconds
+   */
+  seconds: number;
+  llm: LlmEstimate;
+  /**
+   * Would Replace
+   *
+   * existing outputs the run would overwrite
+   */
+  would_replace: number;
+  /**
+   * Needs Confirmation
+   */
+  needs_confirmation: boolean;
+  /**
+   * Confirm Text
+   */
+  confirm_text?: string | null;
+  /**
+   * Lines
+   *
+   * the transcript's lines, each translated keeping its times and speaker
+   */
+  lines: number;
+  /**
+   * Basis
+   *
+   * how the estimate was worked out
+   */
+  basis: string;
+  /**
+   * Estimate
+   *
+   * always true: these are estimates, not what it will cost
+   */
+  estimate?: boolean;
+  /**
+   * Problem
+   *
+   * why it can't be translated now (no model, no transcript, a budget used up)
+   */
+  problem?: string | null;
+  /**
+   * Job
+   *
+   * the job already translating it into `language`, when asked with one
+   */
+  job?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * TreeEntry
  */
 export type TreeEntry = {
@@ -40073,6 +40157,73 @@ export type AddFileResponses = {
 };
 
 export type AddFileResponse = AddFileResponses[keyof AddFileResponses];
+
+export type PlanTranslationData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: {
+    /**
+     * Language
+     *
+     * a language to translate into: also says the job already doing it
+     */
+    language?: string | null;
+  };
+  url: "/api/v1/resources/{rid}/files/translate";
+};
+
+export type PlanTranslationErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PlanTranslationError = PlanTranslationErrors[keyof PlanTranslationErrors];
+
+export type PlanTranslationResponses = {
+  /**
+   * Successful Response
+   */
+  200: TranslationPlan;
+};
+
+export type PlanTranslationResponse = PlanTranslationResponses[keyof PlanTranslationResponses];
+
+export type TranslateTranscriptData = {
+  body: TranslationCreate;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/files/translate";
+};
+
+export type TranslateTranscriptErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TranslateTranscriptError = TranslateTranscriptErrors[keyof TranslateTranscriptErrors];
+
+export type TranslateTranscriptResponses = {
+  /**
+   * Successful Response
+   */
+  202: JobQueued;
+};
+
+export type TranslateTranscriptResponse = TranslateTranscriptResponses[keyof TranslateTranscriptResponses];
 
 export type DeleteFileData = {
   body?: never;

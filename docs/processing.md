@@ -821,6 +821,9 @@ audio skip themselves for imported text. Steps:
   which changes nothing anyone relied on, since search didn't look at outputs before.
 - `spec`: writes a technical spec from the transcript into a note linked to the asset, with the Spec from transcript
   template unless the step names another prompt template ([Specs from transcripts](notes.md#specs-from-transcripts)).
+- `translate` (not a pipeline step: it runs only when someone asks): translates the transcript into a language with
+  the configured model, in batches of lines that keep their times, and keeps it as a translation file
+  ([Translating a transcript](api.md#translating-a-transcript)).
 - `report` with a template: renders an HTML page into the namespace's reports. These pages may not run scripts.
 - `export`: renders a template to a file (Markdown, text, HTML...) and can copy it to a storage source.
 - `convert`: makes new assets from one, a video's soundtrack as audio or a document's pages as images

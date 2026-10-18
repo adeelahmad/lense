@@ -1009,6 +1009,8 @@ PATCH  /api/v1/resources/{rid}/files/{fid}
 DELETE /api/v1/resources/{rid}/files/{fid}
 GET    /api/v1/resources/{rid}/files/{fid}/download
 GET    /api/v1/resources/{rid}/files/{fid}/lines
+GET    /api/v1/resources/{rid}/files/translate?language=
+POST   /api/v1/resources/{rid}/files/translate        {"language": "fr"}
 ```
 
 A resource's files: its primary file (`primary`: the audio or video its pipeline runs on, none for text
@@ -1040,6 +1042,35 @@ stay with a resource that moves to another namespace and go when it's deleted.
 `public` says whether everyone may download a file. A public resource opens its files with its parts
 ([Access](access.md#files)): transcripts, captions and translations with its text, indexes with its index,
 thumbnails with its media. Attachments always need permission.
+
+### translating a transcript
+
+Lens can make a translation as well as keep an uploaded one. `POST …/files/translate` with a `language` (a code such
+as `fr`, `de` or `pt-BR`) has the configured model translate the resource's transcript, and keeps the result as a
+supplementary file with the role `translation` and that language, exactly like an uploaded one: search finds its
+lines, the Files tab shows them and IIIF publishes it, and it downloads as Lens's own transcript JSON (`lens/1`, which
+imports straight back in), named after the resource (`Interview (fr).json`), with a description that says the model
+made it. Each line keeps its original's times and speaker, so a timed transcript gives a timed translation.
+
+It runs only when someone asks for it, never on its own: in the web app from the Files tab's **Translate…** (the
+language you read, from your browser, is filled in, unless the transcript is already in it), through the API or the
+MCP tool `translate_transcript`, or by the assistant's `translate_transcript` once the person approves it. It runs as
+a background job (202 with the `job`; asking again while it runs gives the same job) after what the resource's job
+still has to do. The lines go to the model in batches of up to 40 lines and 6,000 characters, numbered and marked as
+data ([prompt injection](assistant.md#third-party-content-and-prompt-injection)), so instructions written in a
+transcript are translated, never followed. A line the model doesn't give back is asked for once more on its own, then
+kept as it was, and the file's description says how many were.
+
+Every call is in the [activity ledger](activity.md), counted for the job, the resource and its namespace. A
+[budget](budgets.md) the run would go over holds the job until someone picks, as for any job; before each batch Lens
+looks again, so a budget used up part-way stops the translation (the job fails saying so, and no file is kept).
+
+`GET …/files/translate` says beforehand what it would take: the transcript's `lines`, the model calls and tokens in
+`llm`, and the cost at the model's price in Settings (`llm.cost`, null without a price), always an estimate
+(`estimate` is true, with its `basis`); `problem` says why it can't run now (no model configured, no transcript, a
+budget used up), and with `language`, `job` is the one already translating it into that language. `POST` needs the
+right to process the resource: 400 without a model or a transcript, for a language that isn't a code, or one the
+transcript is already in; 409 over budget. Asking is audited (`file.translate`).
 
 ## imports
 

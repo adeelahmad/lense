@@ -549,6 +549,7 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
   { name: "write_note", label: "Write notes", acts: false },
   { name: "update_note", label: "Change notes", acts: false },
   { name: "run_template", label: "Run a template on assets", acts: true },
+  { name: "translate_transcript", label: "Translate an asset's transcript", acts: true },
   {
     name: "propose_entity_change",
     label: "Propose entity merges, renames, type changes, descriptions and new entities",

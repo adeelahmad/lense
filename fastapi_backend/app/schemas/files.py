@@ -6,6 +6,7 @@ from typing import Literal
 
 from pydantic import Field
 
+from app.schemas.batches import Estimate
 from app.schemas.common import RequestModel, ResponseModel
 
 FileRole = Literal["transcript", "captions", "translation", "index", "thumbnail", "attachment"]
@@ -74,3 +75,17 @@ class FileLine(ResponseModel):
 class FileLines(ResponseModel):
     total: int
     lines: list[FileLine]
+
+
+class TranslationCreate(RequestModel):
+    language: str = Field(min_length=2, max_length=40, description="the language to translate into: a code such as fr or pt-BR")
+
+
+class TranslationPlan(Estimate):
+    """What translating an asset's transcript would take, before anyone asks for it (always an estimate)."""
+
+    lines: int = Field(description="the transcript's lines, each translated keeping its times and speaker")
+    basis: str = Field(description="how the estimate was worked out")
+    estimate: bool = Field(True, description="always true: these are estimates, not what it will cost")
+    problem: str | None = Field(None, description="why it can't be translated now (no model, no transcript, a budget used up)")
+    job: int | None = Field(None, description="the job already translating it into `language`, when asked with one")

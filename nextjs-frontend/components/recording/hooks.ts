@@ -39,6 +39,7 @@ export const rk = {
   highlights: (id: number) => ["recording", id, "highlights"] as const,
   files: (id: number) => ["recording", id, "files"] as const,
   spec: (id: number) => ["recording", id, "spec"] as const,
+  translation: (id: number) => ["recording", id, "files", "translation"] as const,
   fileLines: (id: number, fid: number) => ["recording", id, "files", fid, "lines"] as const,
   job: (jid: number) => ["job", jid] as const,
 };
@@ -427,6 +428,37 @@ export function useFileActions(id: number) {
     onError: fail("Couldn't delete the file"),
   });
   return { add, update, remove };
+}
+
+/** What translating the asset's transcript would take (always an estimate), and why it can't be done now, if it can't. */
+export function useTranslationPlan(id: number, enabled = true) {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: rk.translation(id),
+    enabled,
+    queryFn: () => data(Files.planTranslation({ client, path: { rid: id } })),
+  });
+}
+
+/** Have the model translate the transcript into a language, in the background; the file arrives when the job ends. */
+export function useTranslate(id: number) {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (language: string) =>
+      data(Files.translateTranscript({ client, path: { rid: id }, body: { language } })),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: rk.jobs(id) });
+      void qc.invalidateQueries({ queryKey: rk.translation(id) });
+    },
+    onError: (e: unknown) =>
+      toast({
+        title: "Couldn't start the translation",
+        body: e instanceof ApiError ? e.message : "Please try again.",
+        tone: "red",
+      }),
+  });
 }
 
 /** The asset's spec from its transcript (docs/notes.md, Specs from transcripts), checked again while it's being written. */

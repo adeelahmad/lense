@@ -181,7 +181,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   (noise, volume, echo, and silence left out, with the transcript's times kept), and transcripts cleaned up before
   analysis (stutters, "um"s, spacing and, with a local model, punctuation put back, and grammar by a LanguageTool server
   you run), entities found by spaCy instead of the rules, and the dates people say read as days on the calendar, each
-  off by default. Words transcription wasn't sure of are underlined, with how sure, to check and correct in place.
+  off by default. Words transcription wasn't sure of are underlined, with how sure, to check and correct in place. Translate a transcript into another language when you ask, with the estimate shown first: it's kept
+  beside the asset as a translation whose lines keep their times, found by search like an uploaded one.
   ([Graph](docs/graph.md), [entity pages](docs/notes.md#entity-pages),
   [similar content](docs/processing.md#similar-content), [graph history](docs/graph-history.md),
   [topics](docs/topics.md), [video](docs/video.md), [NSFW classification](docs/nsfw.md),
@@ -189,7 +190,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [cleaning up audio](docs/processing.md#cleaning-up-audio),
   [your own names](docs/processing.md#your-own-names-in-transcription),
   [cleaning up transcripts](docs/processing.md#cleaning-up-transcripts), [dates](docs/processing.md#dates),
-  [unsure words](docs/processing.md#unsure-words); [checks](docs/requirements.md#understand-it))
+  [unsure words](docs/processing.md#unsure-words),
+  [translations](docs/api.md#translating-a-transcript); [checks](docs/requirements.md#understand-it))
 - **Learn from it.** Make a two-host podcast episode about what you pick, every claim cited and checked against its
   source, read aloud in two voices, by Kokoro on this machine or a speech provider. Turn a voice session or a meeting into a technical spec, in a note linked to it,
   that keeps every decision, every no and every constraint in the speaker's own words, linked to when they said them,

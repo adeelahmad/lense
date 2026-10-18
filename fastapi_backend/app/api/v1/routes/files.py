@@ -2,6 +2,7 @@
 indexes, thumbnails and attachments kept beside it.
 
 People who can read the resource list and download its files; editors add, change and delete them, which is audited.
+People who may process it have the model translate its transcript into a new translation file (translations.py).
 """
 
 from __future__ import annotations
@@ -20,10 +21,21 @@ from app.api.media import sign_urls
 from app.api.streaming import stored_file
 from app.api.v1.routes.uploads import CHUNK
 from app.domain import access as acc
-from app.domain import auth, convert, documents, files, render, store, video
+from app.domain import auth, convert, documents, files, render, store, translations, video
 from app.domain.store import DB
 from app.schemas.common import Ok
-from app.schemas.files import FileLine, FileLines, FileRole, FileUpdate, PrimaryFile, ResourceFile, ResourceFiles
+from app.schemas.files import (
+    FileLine,
+    FileLines,
+    FileRole,
+    FileUpdate,
+    PrimaryFile,
+    ResourceFile,
+    ResourceFiles,
+    TranslationCreate,
+    TranslationPlan,
+)
+from app.schemas.recordings import JobQueued
 
 R = store.R
 router = APIRouter(prefix="/recordings/{rid}/files", tags=["files"])
@@ -176,6 +188,50 @@ async def add_file(
     detail = {"file": f["id"], "name": f["name"], "role": f["role"], "size": f["size"]}
     await run_in_threadpool(auth.audit, db, user.as_audit(), "file.add", f"recording:{rid}", detail)
     return _signed(_out(db, [f], acc.of(db, rid))[0])
+
+
+@router.get("/translate")
+def plan_translation(
+    rid: int,
+    acl: Acl,
+    db: Db,
+    cfg: Cfg,
+    language: str | None = Query(None, max_length=40, description="a language to translate into: also says the job already doing it"),
+) -> TranslationPlan:
+    """What translating this asset's transcript would take, before anyone asks for it: its lines, the model calls and
+    tokens, and the cost at the model's price in Settings, always labelled an estimate; why it can't be translated now,
+    if it can't (no model, no transcript, a budget used up); and with `language`, the job already translating it into
+    that language."""
+    acl.recording(rid)
+    job = None
+    if language:
+        try:
+            job = translations.translating(db, rid, translations.language(language))
+        except translations.Problem as e:
+            raise HTTPException(400, str(e)) from None
+    plan = translations.estimate(db, cfg, rid)
+    return TranslationPlan.model_validate({**plan, "problem": translations.problem(db, cfg, rid), "job": job})
+
+
+@router.post("/translate", status_code=202)
+def translate_transcript(rid: int, body: TranslationCreate, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> JobQueued:
+    """Translate this asset's transcript into `language` with the configured model, in the background, and keep it as a
+    supplementary file with the role `translation` and that language, as if it were uploaded: each line keeps its
+    times and speaker, and search, the Files tab, IIIF and exports read it like any translation. It runs only when
+    asked, after what the asset's job still has to do; asking again while it runs gives the same job. The transcript
+    reaches the model marked as data, so instructions in it are translated, not followed. Each model call is in the
+    activity ledger; a budget about to go over holds the job, and one used up stops it. Needs the right to process the
+    asset; 400 without a model or a transcript, 409 over budget (`GET .../translate` says so first). Audited as
+    `file.translate`."""
+    acl.recording(rid, "process")
+    try:
+        jid = translations.queue(db, cfg, rid, body.language, by=user.email, by_id=user.id)
+    except translations.OverBudget as e:
+        raise HTTPException(409, str(e)) from None
+    except translations.Problem as e:
+        raise HTTPException(400, str(e)) from None
+    auth.audit(db, user.as_audit(), "file.translate", f"recording:{rid}", {"language": body.language, "job": jid})
+    return JobQueued(job=jid)
 
 
 @router.patch("/{fid}")

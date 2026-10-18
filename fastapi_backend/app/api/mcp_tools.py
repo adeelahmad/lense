@@ -2503,6 +2503,63 @@ def get_spec(ctx: Context, recording_id: int) -> dict[str, Any]:
     return store.clean({**s, "note_id": note, "url": _note_url(ctx, note) if note else None, "recording_url": ctx.link(recording_id)})
 
 
+# ---------- translating a transcript (docs/api.md#translating-a-transcript) ----------
+@tool(
+    "translate_transcript",
+    "Translate a transcript",
+    "Translate a recording's transcript into another language with the configured model, in the background, and keep it "
+    "as a supplementary file with the role translation and that language, each line with its original times and "
+    "speaker, so search and the recording's page read it like an uploaded translation. It costs model calls: look at "
+    "get_translation's estimate first, and translate only when the person asked for it. Asking again while it runs "
+    "gives the same job. Check on it with get_translation. Needs a token with the write scope and the right to process "
+    "the recording; refused without a model or a transcript, or when a budget is used up.",
+    Arg("recording_id", "integer", "the recording", required=True),
+    Arg("language", "string", "the language to translate into, as a code such as fr, de or pt-BR", required=True),
+    writes=True,
+)
+def translate_transcript(ctx: Context, recording_id: int, language: str) -> dict[str, Any]:
+    from app.api.v1.routes import files as file_routes
+    from app.schemas.files import TranslationCreate
+
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to translate transcripts")
+    try:
+        body = TranslationCreate(language=language)
+    except ValueError:
+        raise ToolError("give the language as a code such as fr or pt-BR") from None
+    out = file_routes.translate_transcript(recording_id, body, ctx.acl, ctx.user, ctx.db, ctx.cfg)
+    return {"job": out.job, "status": "translating", "language": body.language, "recording_url": ctx.link(recording_id)}
+
+
+@tool(
+    "get_translation",
+    "Read a transcript's translations",
+    "Before translating a recording's transcript: what it would take (its lines, model calls, tokens and the cost at "
+    "the model's price in Settings, always an estimate, with how it was worked out) and why it can't be translated now, "
+    "if it can't. After: its translation files (uploaded or made: id, name, language, lines, whether they're timed) and "
+    "the latest job that was to translate it (into language, when given), with its status and, if it failed, why.",
+    Arg("recording_id", "integer", "the recording", required=True),
+    Arg("language", "string", "only the job translating it into this language (a code such as fr)"),
+)
+def get_translation(ctx: Context, recording_id: int, language: str | None) -> dict[str, Any]:
+    from app.domain import translations
+
+    ctx.acl.recording(recording_id)
+    try:
+        code = translations.language(language) if language else None
+    except translations.Problem as e:
+        raise ToolError(str(e)) from None
+    est = translations.estimate(ctx.db, ctx.cfg, recording_id)
+    return store.clean(
+        {
+            **translations.status(ctx.db, recording_id, code),
+            "estimate": {k: est[k] for k in ("lines", "llm", "basis", "estimate")},
+            "problem": translations.problem(ctx.db, ctx.cfg, recording_id),
+            "recording_url": ctx.link(recording_id),
+        }
+    )
+
+
 # ---------- email replies (docs/email-replies.md) ----------
 def _reply_out(ctx: Context, rid: int, r: dict[str, Any]) -> dict[str, Any]:
     """A reply as agents get it: its sources linked into the archive, and where the person reviews it."""

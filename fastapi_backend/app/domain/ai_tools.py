@@ -51,6 +51,7 @@ from . import (
     store,
     templates,
     topics,
+    translations,
     untrusted,
     uploads,
     web as webmod,
@@ -482,6 +483,16 @@ TOOLS = [
         True,
     ),
     (
+        "translate_transcript",
+        "Translate an asset's transcript into another language (a code such as fr, de or pt-BR) with the configured "
+        "model, in the background, kept as a translation file beside it: each line keeps its times and speaker, and "
+        "search and the asset's page read it like an uploaded translation. It costs model calls, so offer it only when "
+        "the person asks for a translation. Needs the person's approval, which shows the estimate.",
+        {"recording_id": _I, "language": _S},
+        ["recording_id", "language"],
+        True,
+    ),
+    (
         "entity_setup",
         "How a namespace organises its entities: its mode (self-organising, a fixed list, or hybrid: the list first, then new entities), the types it keeps, what it's "
         "about, its own entity types, and its defined entities.",
@@ -803,7 +814,14 @@ GROUPS = {
     },
     "changes": {
         "label": "Proposed changes",
-        "tools": ["suggest_topic", "propose_entity_change", "propose_topic_change", "entity_setup", "run_template"],
+        "tools": [
+            "suggest_topic",
+            "propose_entity_change",
+            "propose_topic_change",
+            "entity_setup",
+            "run_template",
+            "translate_transcript",
+        ],
     },
     "files": {"label": "Importing files", "tools": [t[0] for t in ops_tools.FILE_TOOLS]},
     "code": {"label": "Code sandbox", "tools": [t[0] for t in sandboxmod.TOOLS]},
@@ -2379,6 +2397,19 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
         title = row.get("title") or f"asset {recording_id}"
         return self._approval("write_spec", {"recording_id": int(recording_id)}, f"Write a spec from {title}", est)
 
+    def t_translate_transcript(self, recording_id, language):
+        row = self._ok(recording_id)
+        if row["space"] not in self.editable:
+            raise ValueError(f"asset {recording_id} isn't yours to translate")
+        code = translations.language(language)
+        why = translations.problem(self.db, self.cfg, int(recording_id))
+        if why:
+            raise ValueError(why)
+        est = translations.estimate(self.db, self.cfg, int(recording_id))
+        title = row.get("title") or f"asset {recording_id}"
+        args = {"recording_id": int(recording_id), "language": code}
+        return self._approval("translate_transcript", args, f"Translate {title} into {code}", est)
+
     # ---- notes (notebook.py): the assistant reads and writes them at once; they're its notebook ----
     def _note(self, note_id, edit=False):
         try:
@@ -2762,6 +2793,14 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable, via=
         try:
             result = {"job": specs.queue(db, cfg, rid, by=user["email"])}
         except specs.Problem as e:
+            raise ValueError(str(e)) from None
+    elif a["tool"] == "translate_transcript":
+        rid = int(args["recording_id"])
+        if (db.one("SELECT space FROM $r", r=R("recording", rid)) or {}).get("space") not in editable:
+            raise PermissionError("you can't translate that asset")
+        try:
+            result = {"job": translations.queue(db, cfg, rid, args["language"], by=user["email"], by_id=user.get("id"))}
+        except translations.Problem as e:
             raise ValueError(str(e)) from None
     elif a["tool"] == "run_template":
         steps, label = batches.steps_for(db, {"template": args["template_id"]})
