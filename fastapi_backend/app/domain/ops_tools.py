@@ -496,7 +496,7 @@ class OpsTools:
             "drivers": [{k: d[k] for k in ("id", "kind", "label", "priced", "ready")} for d in v["drivers"]],
         }
         if not v["enabled"]:
-            out["note"] = "scaling is off: an admin turns it on in Settings › Scaling (change_settings scaling {enabled: true})"
+            out["note"] = "scaling is off: an admin turns it on in Settings › Auto scaling (change_settings scaling {enabled: true})"
         running = sum(u["state"] == "running" for u in v["units"])
         return out, f"Read auto scaling: {len(v['groups'])} groups, {running} units running"
 

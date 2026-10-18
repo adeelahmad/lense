@@ -148,7 +148,7 @@ def test_only_a_person_in_the_web_app_approves_a_groups_terms(client, db, cfg, h
     # an agent proposes: saved, but it launches nothing until a person approves
     g = group(client, key, pid).json()
     assert (g["approved"], g["approval"]) == (False, None) and g["budget"]["usd"] == 20
-    assert g["waiting_for"] == "scaling is off: turn it on in Settings › Scaling"
+    assert g["waiting_for"] == "scaling is off: turn it on in Settings › Auto scaling"
     gid = g["id"]
     assert client.post(f"/api/v1/scaling/groups/{gid}/approve", headers=key).status_code == 403
     cfg = on(db, cfg)

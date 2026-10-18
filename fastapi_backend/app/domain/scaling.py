@@ -584,13 +584,13 @@ def group_view(db, g, now=None):
 def waiting_for(view, cfg=None):
     """Why a group launches nothing now, in words, or None."""
     if cfg is not None and not enabled(cfg):
-        return "scaling is off: turn it on in Settings › Scaling"
+        return "scaling is off: turn it on in Settings › Auto scaling"
     if not view.get("enabled"):
         return "the group is off"
     if view.get("paused"):
         return f"paused: {view.get('paused_why') or 'by hand'}"
     if not view.get("approved"):
-        return "a person's approval of its terms, in Settings › Scaling"
+        return "a person's approval of its terms, in Settings › Auto scaling"
     if view.get("capped"):
         return f"its budget: {view['capped']}"
     return None

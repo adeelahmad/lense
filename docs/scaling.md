@@ -6,15 +6,18 @@ unit is, how many there may be and the rules that pick the number, and a **unit*
 launched. Everything it does is in the [activity ledger](activity.md), and its cost counts against the group's
 [budget](budgets.md).
 
-Status: in progress. Built: groups, rules, approvals, budgets, the scaler, the API, MCP and assistant tools, and
-**This machine**, a provider that runs more `lens worker` processes where Lens runs. Planned: providers for AWS,
-DigitalOcean, Hetzner, Proxmox and any Linux host over SSH, joining Lens over its Nebula mesh network; model
-hosts (RunPod, Lambda, Hugging Face, SageMaker, Bedrock) for models; and the Settings › Scaling page.
+Status: in progress. Built: groups, rules, approvals, budgets, the scaler, the API, MCP and assistant tools,
+Settings › Auto scaling (the switch, and each group's terms to approve or pause), and **This machine**, a provider that
+runs more `lens worker` processes where Lens runs. Planned: providers for AWS, DigitalOcean, Hetzner, Proxmox and any
+Linux host over SSH, joining Lens over its Nebula mesh network; model hosts (RunPod, Lambda, Hugging Face, SageMaker,
+Bedrock) for models; and making providers and groups in Settings.
 
 Auto scaling is **off** until an admin turns it on, and a group launches nothing until a person approves its terms
 signed in to the web app. Agents can propose and manage groups, but never approve one.
 
 ## Turn it on
+
+**Settings › Auto scaling** turns it on, or:
 
 ```http
 PUT /api/v1/settings/scaling
@@ -107,8 +110,9 @@ When several rules speak, the largest number wins; the result stays within min a
 ## The person approves
 
 A group launches nothing until a person approves its **terms**: the provider, what each unit is, the max, the budget
-and what happens at its cap. `POST /scaling/groups/{id}/approve` approves them as they stand, and only from a session
-signed in to the web app: an API key, an app or an agent gets 403. A group made or changed by a person in the web app
+and what happens at its cap. Settings › Auto scaling lists each group with its terms in words and an **Approve**
+button; `POST /scaling/groups/{id}/approve` approves them as they stand, and only from a session signed in to the web
+app: an API key, an app or an agent gets 403. A group made or changed by a person in the web app
 is approved as it's saved, since that is their pick.
 
 Within the approved terms anyone who may change the group, agents included, acts at once: asking for a number of units,
