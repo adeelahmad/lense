@@ -8,6 +8,7 @@ from app.api.v1.routes import (
     admin,
     auth,
     automation_hooks,
+    automation_starters,
     automation_vars,
     automations,
     backups,
@@ -53,9 +54,11 @@ from app.api.v1.routes import (
     passkeys,
     pipelines,
     podcasts,
+    projects,
     public,
     rdf,
     recordings,
+    replies,
     requests,
     research,
     routines,
@@ -98,6 +101,7 @@ for module in (
     activity,
     activities,
     automation_hooks,
+    automation_starters,
     automation_vars,  # before namespaces: /namespaces/{name}/automation-vars
     automations,
     budgets,
@@ -143,6 +147,7 @@ for module in (
     extensions,
     marketplaces,
     chats,
+    projects,
     research,
     browser,
     collections,
@@ -163,5 +168,6 @@ for module in (
     specs,
     scaling,
     mesh,
+    replies,
 ):
     api_router.include_router(module.router)

@@ -32,7 +32,8 @@ class ImportRequest(ImportPreviewRequest):
 class ImportResult(ResponseModel):
     ok: bool = True
     id: int
-    job: int
+    job: int | None = None  # None when nothing was queued: the namespace had it already
+    duplicate: bool = Field(False, description="the namespace already had this page or video: `id` is that resource")
 
 
 class PreviewLine(ResponseModel):

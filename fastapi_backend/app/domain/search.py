@@ -1,7 +1,9 @@
 """Full-text search over every segment through SurrealDB's BM25 index, with highlighted snippets.
 
 Words are ANDed and matched after English stemming (exploit finds exploits and exploiting),
-"quoted phrases" must appear as written, and OR separates alternatives.
+"quoted phrases" must appear as written, OR separates alternatives, and NOT or a leading - leaves out the lines that
+have a word or "phrase" (`budget -draft`, `budget NOT "first draft"`). AND may be typed between words; it changes
+nothing, as every word is needed anyway.
 """
 
 from __future__ import annotations
@@ -24,29 +26,47 @@ FACET_CAP = 20000  # moments counted for facets; more than this and the counts s
 FACET_VALUES = 50  # values listed per facet
 
 
+def _term(p):
+    """A token as a word or a "phrase" ('' for punctuation alone)."""
+    if len(p) > 2 and p[0] == p[-1] == '"':
+        return " ".join(re.findall(r"[\w'’.-]+", p[1:-1]))
+    return re.sub(r"[^\w'’.-]", "", p.rstrip("*")).strip(".-")
+
+
 def parse_query(q):
-    groups, cur = [], {"words": [], "phrases": []}
-    for p in re.findall(r'"[^"]+"|\S+', q or ""):
-        if p.upper() == "OR":
-            if cur["words"] or cur["phrases"]:
+    """The query as up to four groups, any of which will do: {words, phrases, not}. `not` (the words and phrases after
+    NOT or a -) is the same for every group: a line with any of them is left out."""
+    groups, cur, out, negate = [], {"words": [], "phrases": []}, [], False
+    for p in re.findall(r'-?"[^"]+"|\S+', q or ""):
+        if p.upper() in ("OR", "AND", "NOT"):
+            if p.upper() == "OR" and (cur["words"] or cur["phrases"]):
                 groups.append(cur)
                 cur = {"words": [], "phrases": []}
+            negate = p.upper() == "NOT"
             continue
-        if len(p) > 2 and p[0] == p[-1] == '"':
-            inner = " ".join(re.findall(r"[\w'’.-]+", p[1:-1]))
-            if inner:
-                cur["phrases"].append(inner)
-            continue
-        w = re.sub(r"[^\w'’.-]", "", p.rstrip("*")).strip(".-")
-        if w:
-            cur["words"].append(w)
+        if p.startswith("-") and len(p) > 1:
+            negate, p = True, p[1:]
+        t = _term(p)
+        if t and negate:
+            out.append(t)
+        elif t:
+            cur["phrases" if p[0] == p[-1] == '"' and len(p) > 2 else "words"].append(t)
+        negate = False
     if cur["words"] or cur["phrases"]:
         groups.append(cur)
-    return groups[:4]
+    return [{**g, "not": out[:8]} for g in groups[:4]]
 
 
 def describe(groups):
-    return " OR ".join(" ".join(g["words"] + [f'"{x}"' for x in g["phrases"]]) for g in groups)
+    left_out = [f'-"{x}"' if " " in x else f"-{x}" for x in (groups[0].get("not") or [])] if groups else []
+    return " OR ".join(" ".join(g["words"] + [f'"{x}"' for x in g["phrases"]]) for g in groups) + "".join(f" {x}" for x in left_out)
+
+
+def excluded(text, groups):
+    """Whether a line has a word or phrase the query leaves out (NOT, -): the word's other forms too (-draft leaves
+    out drafts), as stemming would."""
+    low, nots = (text or "").lower(), (groups[0].get("not") or []) if groups else []
+    return any(re.search(r"\b" + re.escape(t.lower()) + (r"\b" if " " in t else ""), low) for t in nots)
 
 
 def snippet(marked, width=110):
@@ -159,6 +179,8 @@ def search(
     for r in rows:
         low = r["text"].lower()
         if not any(all(re.search(r"\b" + re.escape(p.lower()) + r"\b", low) for p in g["phrases"]) for g in groups):
+            continue
+        if excluded(r["text"], groups):
             continue
         marks = [r.get(f"h{k}") for k in range(1, len(groups) + 1) if isinstance(r.get(f"h{k}"), str)]
         best = max(marks, key=lambda h: h.count(M0)) if marks else r["text"]
@@ -290,8 +312,8 @@ def _mode(cfg, mode, groups, can):
         raise ValueError("mode is keyword, semantic, hybrid or auto")
     if mode == "keyword":
         return "keyword", None
-    if mode == "auto" and (len(groups) > 1 or any(g["phrases"] for g in groups)):
-        return "keyword", None  # "phrases" and OR ask for exactly those words
+    if mode == "auto" and (len(groups) > 1 or any(g["phrases"] or g.get("not") for g in groups)):
+        return "keyword", None  # "phrases", OR and NOT ask for exactly those words
     if cfg is None or not semantic.configured(cfg):
         return "keyword", (None if mode == "auto" else "search by meaning is off, or has no embeddings server")
     if not can:
@@ -593,6 +615,8 @@ def _layer(db, groups, where_f, cap, base, table, extra, source):
     for r in rows:
         low = r["text"].lower()
         if not any(all(re.search(r"\b" + re.escape(p.lower()) + r"\b", low) for p in g["phrases"]) for g in groups):
+            continue
+        if excluded(r["text"], groups):
             continue
         marks = [r.get(f"h{k}") for k in range(1, len(groups) + 1) if isinstance(r.get(f"h{k}"), str)]
         r["_snip"] = snippet(max(marks, key=lambda h: h.count(M0)) if marks else r["text"])

@@ -16,13 +16,14 @@ import {
 export const SETTINGS_GROUPS: { label: string; sections: SectionId[] }[] = [
   { label: "AI and search", sections: ["llm", "local-model", "ai", "sandbox", "search", "analysis"] },
   { label: "Speech and voices", sections: ["transcription", "speaker-separation", "voice-ids", "speech-providers"] },
-  { label: "Media and documents", sections: ["uploads", "documents", "video", "nsfw", "reports", "iiif"] },
+  { label: "Media and documents", sections: ["uploads", "documents", "video", "nsfw", "enhance", "reports", "iiif"] },
   { label: "Chat and email", sections: ["telegram", "slack", "bridge", "mailbox", "mail", "notifications"] },
   {
     label: "Security and access",
     sections: ["sign-in", "tokens", "encryption", "secrets", "access", "remote-access", "https"],
   },
   { label: "Files and devices", sections: ["storage", "shares", "smb", "nfs", "fedora", "sensors"] },
+  { label: "Nodes and network", sections: ["nodes", "network"] },
   {
     label: "System",
     sections: [

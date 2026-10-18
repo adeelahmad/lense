@@ -346,9 +346,11 @@ def _bundle_at(d):
 
 class OpenShell:
     """An OpenShell gateway, through its Python client (the `sandbox` extra), over mutual TLS when Lens has the
-    gateway's client certificate (tls_dir)."""
+    gateway's client certificate (tls_dir). A compute node's gateway is reached at `endpoint` (its mesh address) with
+    the certificate it gave Lens (`pem`: ca, cert, key), checked against the name its certificate is for
+    (`server_name`), since that's not its address."""
 
-    def __init__(self, cfg, certs=None, timeout=30.0):
+    def __init__(self, cfg, certs=None, timeout=30.0, endpoint=None, pem=None, server_name=None):
         try:
             import openshell
         except ImportError:
@@ -356,6 +358,9 @@ class OpenShell:
                 "the sandbox's client (openshell) isn't installed yet: it's fetched once the sandbox is on (Settings › Components)"
             ) from None
         self.sdk = openshell
+        if pem is not None:
+            self.client = _client_for(openshell, endpoint, pem, server_name, timeout)
+            return
         found = _bundle_at(certs or tls_dir())
         tls = openshell.TlsConfig(ca_path=found[0], cert_path=found[1], key_path=found[2]) if found else None
         self.client = openshell.SandboxClient(settings(cfg)["gateway"], tls=tls, timeout=timeout)
@@ -429,6 +434,24 @@ class OpenShell:
 
     def close(self):
         self.client.close()
+
+
+def _client_for(openshell, endpoint, pem, server_name, timeout):
+    """A SandboxClient over mutual TLS from certificates in memory, checking the gateway's against `server_name`.
+    OpenShell's client takes neither, so its channel is swapped for one that does (pinned: openshell < 0.2)."""
+    import grpc
+    from openshell._proto import openshell_pb2_grpc
+    from openshell.errors import _error_mapping_channel
+
+    creds = grpc.ssl_channel_credentials(
+        root_certificates=pem["ca"].encode(), private_key=pem["key"].encode(), certificate_chain=pem["cert"].encode()
+    )
+    options = [("grpc.ssl_target_name_override", server_name)] if server_name else []
+    client = openshell.SandboxClient(endpoint, timeout=timeout)  # an insecure channel, never used: replaced here
+    client._channel.close()
+    client._channel = grpc.secure_channel(endpoint, creds, options=options)
+    client._stub = openshell_pb2_grpc.OpenShellStub(_error_mapping_channel(client._channel))
+    return client
 
 
 _driver: Any = None  # what tests use instead of a gateway: a function of cfg that returns a Driver

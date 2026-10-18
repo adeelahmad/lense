@@ -20,6 +20,7 @@ import {
   Shapes,
   Sparkles,
   TextSearch,
+  WandSparkles,
   Webhook,
   Workflow,
   X,
@@ -63,6 +64,7 @@ import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
 const ICON: Record<string, LucideIcon> = {
+  enhance: WandSparkles,
   transcribe: Captions,
   read: ScanText,
   diarize: AudioLines,
@@ -83,6 +85,7 @@ const ICON: Record<string, LucideIcon> = {
   workflow: Workflow,
 };
 const LIB_ORDER = [
+  "enhance",
   "transcribe",
   "diarize",
   "shots",
@@ -98,6 +101,7 @@ const LIB_ORDER = [
   "summarize",
   "llm",
   "spec",
+  "reply",
   "report",
   "export",
   "workflow",

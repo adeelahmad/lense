@@ -186,7 +186,49 @@ class Rendition(ResponseModel):
     """How a document that isn't a PDF (or an image anytopdf read) was made into one."""
 
     from_: str = Field(alias="from", description="its own type: .docx, .eml, .jpg, …")
-    by: Literal["libreoffice", "chromium", "anytopdf"]
+    by: Literal["libreoffice", "chromium", "anytopdf", "pushed"] = Field(
+        description="pushed: handed back by the import webhook that sent it (docs/api.md#import-webhooks)"
+    )
+
+
+class AwaitsPdf(ResponseModel):
+    """A document an import webhook brought in that this server can't make into a PDF: it waits for the hook to hand
+    its PDF back."""
+
+    hook: int | None = Field(None, description="the import webhook it waits on")
+    since: str | None = None
+
+
+class EnhanceMeasured(ResponseModel):
+    """How good a picture looked to the enhance step (docs/enhance.md)."""
+
+    width: int
+    height: int
+    sharpness: float = Field(description="the variance of its Laplacian: how sharply its tones change")
+    noise: float = Field(description="its estimated noise, in levels out of 255")
+    contrast: float = Field(description="the standard deviation of its tones (0 to 255)")
+    brightness: float = Field(description="the mean of its tones (0 to 255)")
+    faces: int | None = Field(None, description="how many faces it has, where they were looked for")
+    smallest_face: int | None = Field(None, description="the height of its smallest face, in pixels")
+
+
+class Enhanced(ResponseModel):
+    """What the enhance step found and did (docs/enhance.md): whether the picture looked low quality and why, and the
+    enhanced copy it's read from, if one was made. The original stays as it is."""
+
+    kind: Literal["image"]
+    low: list[Literal["small", "blurry", "noisy", "dull", "small_faces"]] = Field(
+        default_factory=list, description="why it looked low quality; empty when it looked good enough"
+    )
+    measured: EnhanceMeasured
+    enhanced: bool = Field(description="an enhanced copy was made, and the steps after it read that")
+    engine: str | None = Field(None, description="what enhanced it: classic, or realesr-general-x4v3 (Real-ESRGAN)")
+    scale: float | None = Field(None, description="how many times bigger the copy is")
+    width: int | None = Field(None, description="the copy's width in pixels")
+    height: int | None = None
+    forced: bool | None = Field(None, description="enhanced on request, whatever the settings and its quality")
+    at: str | None = None
+    download: str | None = Field(None, description="a signed link to save the enhanced copy")
 
 
 class Described(ResponseModel):
@@ -289,12 +331,14 @@ class Recording(ResponseModel):
     tags: list[str] = Field(default_factory=list)
     email: EmailInfo | None = Field(None, description="an email: its subject, sender, recipients and date")
     rendition: Rendition | None = Field(None, description="a document that isn't a PDF: how the PDF it's read from was made")
+    awaits_pdf: AwaitsPdf | None = Field(None, description="waiting for the PDF the import webhook that sent it hands back")
     described: Described | None = Field(None, description="a document: what it says about itself (title, authors, dates), read by Tika")
     attached_to: AttachedTo | None = Field(None, description="an email's attachment made a resource of its own: that email")
     converted_from: ConvertedFrom | None = Field(None, description="made by a convert step: the asset it was made from")
     web: WebPage | None = Field(None, description="a web page captured as a document")
     enrichment: Enrichment | None = Field(None, description="the places and dates anytopdf found (analysis.anytopdf)")
     nsfw: NsfwState | None = Field(None, description="NSFW classification, where it's on in its namespace and it was classified")
+    enhanced: Enhanced | None = Field(None, description="an image the enhance step looked at: what it found, and its enhanced copy")
 
 
 class Page(ResponseModel):

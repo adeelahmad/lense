@@ -332,3 +332,62 @@ def test_a_slow_target_is_cut_off(env):
     took = time.monotonic() - t0
     assert 1 <= took < trickle_for / 2, took
     srv.close()
+
+
+def test_routine_runs_that_fail_or_leave_changes_to_review_are_told(client, db, env, inbox, monkeypatch):
+    """A routine's run that fails, or leaves graph changes to review, is told to each namespace it runs over that
+    has a target for it; changes are counted in the namespaces they touch."""
+    from app.domain import organize, routines, workflows
+
+    cfg, pods, calls = env["cfg"], env["pods"], store.ns_id(db, "calls")
+    events = ["routine.failed", "routine.proposed"]
+    client.post(
+        URL, json={"name": "Chat", "kind": "matterbridge", "url": inbox.url, "gateway": "lens", "events": events}, headers=env["ho"]
+    )
+    hook, secret = notify.create(db, cfg, calls, "Ops", "webhook", inbox.url + "/ops", events=["routine.failed"])
+    good = workflows.create(db, "Tidy names", organize.DEFAULT_GRAPH, None, "test", "graph")
+    bad = workflows.create(db, "Judge names", organize.DEFAULT_GRAPH, None, "test", "graph")
+
+    def fake(db_, cfg_, wid, spaces, version, say, origin, propose_only):
+        if wid == bad:
+            raise organize.llm.LLMError("500 the model fell over, see https://evil.example/x")
+        for sp in ([pods], [pods], [pods, calls]):  # two merges in pods, a link across pods and calls
+            cid = db_.next_id("graph_change")
+            kind = "link" if len(sp) > 1 else "merge"
+            db_.q("CREATE $r CONTENT $d", r=R("graph_change", cid), d={"kind": kind, "spaces": sp, "status": "proposed", **origin})
+        return {}, {"applied": 0, "proposed": 3, "skipped": 0}
+
+    monkeypatch.setattr(organize, "run", fake)
+    begin(db, cfg)
+    everywhere = routines.create(db, "Nightly", [{"type": "workflow", "workflow": good}, {"type": "workflow", "workflow": bad}])
+    only_pods = routines.create(db, "Pods only", [{"type": "workflow", "workflow": bad}], namespaces=[pods])
+    tidy = routines.create(db, "Tidy pods", [{"type": "workflow", "workflow": good}], namespaces=[pods])
+    quiet = routines.create(db, "Quiet", [{"type": "workflow", "workflow": good}], namespaces=[pods])
+    runs = {rid: routines.run(db, cfg, rid) for rid in (everywhere, only_pods, tidy, quiet)}
+    db.q("UPDATE graph_change SET status = 'dismissed' WHERE run = $r", r=runs[quiet])  # decided before the notifier looked
+
+    # Nightly: failed and proposed in pods, failed in calls; Pods only: failed in pods; Tidy pods: proposed in pods
+    assert notify.scan(db, cfg) == 5
+    assert notify.scan(db, cfg) == 0  # claimed once
+    assert notify.deliver_due(db, cfg) == 5
+    chat = sorted(inbox.json(i)["text"] for i, g in enumerate(inbox.got) if g["path"] == "/api/message")
+    assert chat == [
+        "1 of 2 actions of routine “Nightly” failed in pods: workflow: LLMError: 500 the model fell over, see hxxps://evil[.]example/x",
+        "Routine “Nightly” left 3 graph changes to review in pods.",
+        "Routine “Pods only” failed in pods: workflow: LLMError: 500 the model fell over, see hxxps://evil[.]example/x",
+        "Routine “Tidy pods” left 3 graph changes to review in pods.",
+    ]
+    ops = [g for g in inbox.got if g["path"] == "/ops"]
+    assert len(ops) == 1 and verify(secret, ops[0]["headers"], ops[0]["body"])
+    e = json.loads(ops[0]["body"])
+    assert e["type"] == "routine.failed" and e["namespace"] == "calls" and e["data"]["routine_name"] == "Nightly"
+    assert e["data"]["status"] == "partly" and e["data"]["actions"] == 2 and e["data"]["run"] == runs[everywhere]
+    assert e["data"]["failed"] == [
+        {"action": 2, "type": "workflow", "error": "LLMError: 500 the model fell over, see https://evil.example/x"}
+    ]
+    sent = notify.deliveries(db, hook["id"])
+    assert [d["event"] for d in sent] == ["routine.failed"] and sent[0]["status"] == "sent"
+    proposed = next(
+        json.loads(d["payload"]) for d in db.rows("SELECT payload FROM notify_delivery") if '"routine.proposed"' in d["payload"]
+    )
+    assert proposed["data"]["kinds"] in ({"merge": 2, "link": 1}, {"link": 1, "merge": 2}) and proposed["url"] is None

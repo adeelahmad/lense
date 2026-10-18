@@ -13,6 +13,7 @@ import logging
 from . import (
     auth,
     batches,
+    chat as chatmod,
     classify as classifymod,
     connection_tools,
     cypher,
@@ -30,9 +31,11 @@ from . import (
     graph_history,
     llm,
     manual,
+    marketplace as marketmod,
     notebook,
     ns_assistant,
     ops_tools,
+    projects as projectsmod,
     recsets,
     render,
     research as researchmod,
@@ -479,6 +482,23 @@ AUTHOR_TOOLS = [
         ["name", "enabled"],
         True,
     ),
+    (
+        "find_plugins",
+        "Plugins and skills in the marketplaces an admin added that have every word of query in their name, "
+        "description, category or author (or all of them); updates true: only the person's installed ones with another "
+        "version listed. Each gives its marketplace id, version, whether Lens can install it and whether it's installed.",
+        {"query": _S, "marketplace": _I, "updates": {"type": "boolean"}},
+        [],
+        False,
+    ),
+    (
+        "install_plugin",
+        "Install a plugin or skill from a marketplace (find_plugins gives marketplace and plugin) as the person's own "
+        "extension, or bring an installed one to the version listed now. Needs the person's approval.",
+        {"marketplace": _I, "plugin": _S},
+        ["marketplace", "plugin"],
+        True,
+    ),
 ]
 
 # automations (automations.py): saving one is made at once, switched off; switching one on or running it now acts, so
@@ -544,6 +564,44 @@ MEMORY_TOOLS = [
 ]
 
 
+# a project's conversations (projects.py): the coordinator and threads read the project's threads, start one with a
+# brief (answered in the background, with the person's own tools and approvals) and mark one done
+PROJECT_TOOLS = [
+    (
+        "project_threads",
+        "The threads of this conversation's project, the most recent first: each one's id, title, whether it's done, "
+        "whether an answer is being written in it now, and its last message.",
+        {"include_done": {"type": "boolean"}},
+        [],
+        False,
+    ),
+    (
+        "read_thread",
+        "Read one of the project's threads: its last messages (the version showing), oldest first.",
+        {"thread_id": _I, "limit": _I},
+        ["thread_id"],
+        False,
+    ),
+    (
+        "start_thread",
+        "Start a thread in this project for one part of the work: a short title and a brief saying what to do, with "
+        "everything it needs (the thread doesn't see this conversation, only the project's goal and instructions). "
+        "The assistant answers the brief there in the background, with the same tools and approvals; follow it with "
+        "project_threads and read_thread.",
+        {"title": _S, "brief": _S},
+        ["title", "brief"],
+        True,
+    ),
+    (
+        "finish_thread",
+        "Mark one of the project's threads done when its part of the work is finished (done: false to open it again).",
+        {"thread_id": _I, "done": {"type": "boolean"}},
+        ["thread_id"],
+        True,
+    ),
+]
+
+
 def builtin_names():
     """The assistant's own tool names, which extensions can't take."""
     every = (
@@ -552,6 +610,7 @@ def builtin_names():
         + ops_tools.FILE_TOOLS
         + AUTHOR_TOOLS
         + MEMORY_TOOLS
+        + PROJECT_TOOLS
         + AUTOMATION_TOOLS
         + browsermod.TOOLS
         + sandboxmod.TOOLS
@@ -588,6 +647,7 @@ OWN_RESULTS = {
     + ops_tools.FILE_TOOLS
     + AUTHOR_TOOLS
     + MEMORY_TOOLS
+    + PROJECT_TOOLS
     + AUTOMATION_TOOLS
     + sandboxmod.TOOLS
     + researchmod.TOOLS
@@ -637,6 +697,7 @@ GROUPS = {
     "connected": {"label": "Mail, calendars and files", "tools": [t[0] for t in connection_tools.TOOLS]},
     "notes": {"label": "Notes", "tools": ["find_notes", "read_note", "write_note", "update_note", "write_spec"]},
     "memory": {"label": "Namespace memory", "tools": [t[0] for t in MEMORY_TOOLS]},
+    "project": {"label": "This project", "tools": [t[0] for t in PROJECT_TOOLS]},
     "activity": {
         "label": "Timeline and automations",
         "tools": ["timeline", "mark_activities", "approvals", "decline_approval", "automations", "test_automation"]
@@ -686,6 +747,8 @@ def _why_missing(group, cfg, admin=False):
         return "nothing is connected yet: add a connection in Settings › Sources", None
     if group == "memory":
         return "in a conversation about one namespace whose own assistant is on", None
+    if group == "project":
+        return "in a project's conversations", None
     return "needs editor access to a namespace", None
 
 
@@ -725,6 +788,7 @@ def catalog(box):
         + ops_tools.FILE_TOOLS
         + AUTHOR_TOOLS
         + MEMORY_TOOLS
+        + PROJECT_TOOLS
         + AUTOMATION_TOOLS
         + sandboxmod.TOOLS
         + webmod.TOOLS
@@ -827,6 +891,10 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
         # the namespace's own assistant, when the conversation is about that namespace alone and its assistant is on
         home = ns_assistant.for_scope(db, self.scope)
         self.home = home if home and home[0] in self.readable else None
+        # the project the conversation is in (projects.py), when it's this person's
+        project = projectsmod.for_chat(db, chat_id)
+        self.project = project if project and project["account"] == self.account else None
+        self.started = 0  # threads this answer started (start_thread)
         # the browser the person is talking from, while its side panel is connected (and an admin hasn't turned it off)
         on = browser and browsermod.enabled(cfg) and browsermod.live(db, browser, user["id"])
         self.browser = str(browser) if on else None
@@ -838,7 +906,8 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
     def system_note(self):
         """What the model is told besides its usual instructions: the skills it can follow, and context that hooks add
         for this question."""
-        out = self._home_note() + (browsermod.NOTE if self.browser else "")
+        out = self._home_note() + (projectsmod.note(self.db, self.project, self.chat, self.cfg) if self.project else "")
+        out += browsermod.NOTE if self.browser else ""
         if self.sandbox:
             out += sandboxmod.NOTE.format(network=sandboxmod.network_note(self.cfg))
             if sandboxmod.nodes_on():
@@ -917,6 +986,8 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
             tools += AUTOMATION_TOOLS
         if self.home:
             tools += [t for t in MEMORY_TOOLS if self.home[0] in self.editable or not t[4]]
+        if self.project:
+            tools += PROJECT_TOOLS
         if self.browser:
             tools += browsermod.TOOLS
         if self.sandbox:
@@ -1324,6 +1395,20 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
         what = f"Switch {g['kind']} {name} {'on' if enabled else 'off'}"
         return self._approval("switch_extension", {"extension": g["id"], "name": name, "enabled": bool(enabled)}, what)
 
+    def t_find_plugins(self, query=None, marketplace=None, updates=False):
+        found, n = marketmod.find(self.db, self.me, query, marketplace, bool(updates), 30)
+        keep = ("marketplace", "marketplace_name", "name", "description", "version", "installable", "why_not", "installed", "update")
+        out = [{k: p[k] for k in keep if k in p} for p in found]
+        return {"plugins": out, "matched": n}, f"Found {n} plugin{'' if n == 1 else 's'}"
+
+    def t_install_plugin(self, marketplace, plugin):
+        got = marketmod.preview(self.db, self.cfg, self.me, int(marketplace), plugin)
+        items = ", ".join(f"{i['kind']} {i['name']}" for i in got["manifest"].get("items") or []) or "nothing"
+        have = next((p for p in marketmod.plugins(self.db, self.me, int(marketplace)) if p["name"] == plugin), {})
+        verb = "Update" if have.get("installed") else "Install"
+        what = f"{verb} the plugin {plugin} from {got['source']}: {items}"
+        return self._approval("install_plugin", {"marketplace": int(marketplace), "plugin": plugin}, what[:300])
+
     # ---- the namespace's memory (ns_assistant.py) ----
     def t_remember(self, fact, source_ref=None):
         sid, name, _ = self.home
@@ -1356,6 +1441,73 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
         sid, name, _ = self.home
         m = ns_assistant.get(self.db, sid, int(memory_id))
         return self._approval("forget_memory", {"namespace": name, "memory_id": m["id"]}, f"Forget “{m['text'][:120]}”")
+
+    # ---- the conversation's project (projects.py) ----
+    def _thread(self, thread_id):
+        try:
+            return projectsmod.thread(self.db, self.project, int(thread_id))
+        except KeyError:
+            raise ValueError(f"there's no thread {thread_id} in this project") from None
+
+    def t_project_threads(self, include_done=True):
+        rows = projectsmod.threads(self.db, self.project)
+        if not include_done:
+            rows = [t for t in rows if not t["done"]]
+        out = [
+            store.clean(
+                {
+                    "thread_id": t["id"],
+                    "title": t["title"],
+                    "done": t["done"] or None,
+                    "answering": t["answering"] or None,
+                    "messages": t["messages"],
+                    "last": t.get("last"),
+                    "updated_at": t.get("updated_at"),
+                }
+            )
+            for t in rows
+        ]
+        return {"project": self.project["name"], "threads": out}, f"Listed the project's threads: {len(out)}"
+
+    def t_read_thread(self, thread_id, limit=20):
+        t = self._thread(thread_id)
+        msgs = chatmod.path(self.db, t["id"])[-max(1, min(int(limit or 20), 50)) :]
+        out = [
+            store.clean(
+                {
+                    "role": m["role"],
+                    "text": (m.get("content") or "")[:4000],
+                    "at": m.get("created_at"),
+                    "tools": [s.get("summary") for s in m.get("steps") or [] if s] or None,
+                    "error": m.get("error"),
+                }
+            )
+            for m in msgs
+        ]
+        return {"thread_id": t["id"], "title": t["title"], "done": t["done"], "answering": t["answering"], "messages": out}, (
+            f"Read the thread “{t['title']}”: {len(out)} message(s)"
+        )
+
+    def t_start_thread(self, title, brief):
+        if self.chat != self.project.get("coordinator"):
+            raise ValueError("threads are started from the project's coordinator conversation")
+        if self.started >= projectsmod.STARTS_PER_ANSWER:
+            raise ValueError(f"one answer starts at most {projectsmod.STARTS_PER_ANSWER} threads")
+        title = " ".join(str(title or "").split())[:120]
+        if not title:
+            raise ValueError("a thread needs a title")
+        if len(str(brief or "")) > projectsmod.BRIEF_MAX:
+            raise ValueError(f"a brief has up to {projectsmod.BRIEF_MAX} characters")
+        self.started += 1
+        args = {"project": self.project["id"], "title": title, "brief": str(brief).strip()}
+        if self.wary():  # a brief written after reading outside text may carry it: the person looks first
+            return self._approval("start_thread", args, f"Start the thread “{title}” in {self.project['name']}" + self.why())
+        cid = start_brief(self.db, self.cfg, self.project, title, args["brief"])
+        return {"thread_id": cid, "title": title, "status": "started: the brief is being answered there"}, f"Started the thread “{title}”"
+
+    def t_finish_thread(self, thread_id, done=True):
+        t = projectsmod.set_done(self.db, self.project, self._thread(thread_id)["id"], bool(done))
+        return {"thread_id": t["id"], "done": t["done"]}, f"Marked “{t['title']}” {'done' if t['done'] else 'not done'}"
 
     def _run(self, name, fn, args):
         try:
@@ -2247,13 +2399,20 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
         return [{**r, "used": r["n"] in used} for r in self.refs if r["n"] in used]
 
 
+def start_brief(db, cfg, p, title, brief):
+    """A new thread in project `p`, titled `title`, its brief asked by the coordinator and answered in the background."""
+    cid = projectsmod.start_thread(db, p, title)
+    projectsmod.brief(db, cfg, p, cid, brief, by="coordinator", via="project")
+    return cid
+
+
 def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=False, readable=None, params=None, via="web"):
     """Carry out an approved action: a batch run (or a sample of it), an entity change, a note an automation's agent
     proposed, or a change to the server (ops_tools.py: settings, a namespace, importing attached files or web pages,
     following a news feed).
-    An automation's action (an approval with an intent) is decided by approvals.decide: `params` are an edit's, `via`
-    where the pick was made (web, chat, token, oauth or agent; only the person, signed in or in their own chat,
-    approves it)."""
+    An automation's action (an approval with an intent) is decided by approvals.decide: `params` are an edit's. `via`
+    is where the pick was made (web, chat, token, oauth or agent): only the person, signed in or in their own chat,
+    approves; an API key, an app, MCP and the assistant can only decline (PermissionError)."""
     from . import approvals  # it carries actions out, and actions load the assistant's tools
 
     a = approvals.get(db, aid)
@@ -2272,6 +2431,10 @@ def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=F
             "UPDATE $r SET status = 'declined', decided_at = $t, decided_by = $u", r=R("approval", a["id"]), t=store.now(), u=user["email"]
         )
         return {"status": "declined"}
+    if not approvals.can(a, via)["approve"]:
+        raise PermissionError(
+            "approve what the assistant asks yourself, signed in to Lens or in the chat: an API key or an app can only decline it"
+        )
     with graph_history.acting(actor=user["email"], via="assistant", approval=a["id"]):
         result = _carry_out(db, cfg, a, user, editable, decision, base, admin, readable, via)
     db.q(
@@ -2291,6 +2454,11 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable, via=
         result = run_extension(db, cfg, args, user, admin, box.readable, box)
     elif a["tool"] in ("save_extension", "switch_extension"):
         result = author_extension(db, a["tool"], args, user, admin, readable if readable is not None else editable, editable)
+    elif a["tool"] == "install_plugin":
+        rd = readable if readable is not None else editable
+        me = extensions.who(user["id"], user.get("email"), admin, {s: "editor" if s in editable else "viewer" for s in rd})
+        eid, n = marketmod.install(db, cfg, me, args["marketplace"], args["plugin"])
+        result = {"extension": eid, "version": n}
     elif a["tool"] in ("switch_automation", "run_automation"):
         result = _automation_approved(db, cfg, a["tool"], args, user, admin)
     elif a["tool"] in ("run_python", "run_bash"):  # a run that can reach another host, asked first (Toolbox._sandbox_run)
@@ -2336,6 +2504,12 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable, via=
     elif a["tool"] in ("write_note", "update_note"):  # proposed by an automation's agent (actions_ai.Box)
         box = Toolbox(db, cfg, user, readable if readable is not None else editable, editable, None, a["chat"], base, admin)
         result = getattr(box, "t_" + a["tool"])(**args)[0]
+    elif a["tool"] == "start_thread":  # a brief the coordinator wrote after reading outside text, now approved
+        try:
+            p = projectsmod.get(db, int(args["project"]), user["id"])
+        except KeyError:
+            raise PermissionError("that project isn't yours, or is gone") from None
+        result = {"thread": start_brief(db, cfg, p, args["title"], args["brief"])}
     elif a["tool"] == "forget_memory":
         sid = {v: k for k, v in store.space_names(db).items()}.get(args["namespace"])
         if sid not in editable:

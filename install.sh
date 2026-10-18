@@ -37,13 +37,29 @@
 #                  build). Docker only; Lens is built anyway for a branch or with EXTRAS (docs/deployment.md)
 #   LENS_IMAGES_REGISTRY  where those images are (default: ghcr.io/<owner of LENS_REPO>), for a mirror. Kept for later
 #                  runs
+#
+# Another machine joins an install's mesh as a node (docs/mesh.md, Nodes), with the line Settings › Nodes shows:
+#   ... | LENS_JOIN=http://lens.home:3000 LENS_JOIN_TOKEN=lensjoin1.… sh
+#   LENS_JOIN       the install's address (the web app's); with it this machine becomes a node, in ~/lens-node by
+#                   default, with Docker: no web app, no database, nothing published
+#   LENS_JOIN_TOKEN the join token, used once and never written down
+#   LENS_NODE_NAME  the name it joins with (default: LENS_SCALING_UNIT, an auto scaling unit's, else this machine's)
+#   LENS_NODE_SANDBOX 1 on a compute node's line: it also runs the assistant's code sandbox gateway. Kept for later runs
 set -eu
 
 # All in a function, so nothing runs until the whole script has arrived (curl | sh streams it).
 main() {
 
 REPO="${LENS_REPO:-adeelahmad/lense}"
-DIR="${LENS_DIR:-$HOME/lens}"
+# a node on another install's mesh: asked for with LENS_JOIN, or what an earlier run made in LENS_DIR
+NODE=0
+if [ -n "${LENS_JOIN:-}" ]; then
+  NODE=1
+  DIR="${LENS_DIR:-$HOME/lens-node}"
+else
+  DIR="${LENS_DIR:-$HOME/lens}"
+  [ -f "$DIR/.env" ] && grep -qx 'LENS_ROLE=node' "$DIR/.env" && NODE=1
+fi
 REF="${LENS_REF:-main}"
 TARGET="${LENS_TARGET:-}"
 
@@ -109,6 +125,7 @@ py_ok() {
   [ "$os" != Darwin ] || xcode-select -p >/dev/null 2>&1 # else python3 is a stub that pops up an install dialog
 }
 WIZARD="${LENS_WIZARD:-}"
+[ "$NODE" = 1 ] && WIZARD=0 # a node has nothing to ask
 if [ -z "$WIZARD" ]; then
   WIZARD=0
   [ ! -f "$DIR/.env" ] && [ -z "${LENS_BACKEND:-}" ] && tty_ok && WIZARD=1
@@ -151,6 +168,16 @@ elif [ "$WIZARD" = 1 ]; then
   echo "The web installer needs Python 3.8 or later; asking here instead."
 fi
 BACKEND="${LENS_BACKEND:-}"
+if [ "$NODE" = 1 ]; then # Nebula's network device needs Docker's (docs/mesh.md)
+  [ "${BACKEND:-docker}" = docker ] || fail "A node runs with Docker. Leave LENS_BACKEND out."
+  BACKEND=docker
+  if [ ! -f "$DIR/.env" ]; then
+    case "${LENS_JOIN_TOKEN:-}" in
+      lensjoin1.*) ;;
+      *) fail "LENS_JOIN_TOKEN is missing or isn't a join token. Copy the install line from Settings › Nodes again." ;;
+    esac
+  fi
+fi
 if [ -z "$BACKEND" ] && [ -f "$DIR/.env" ]; then # an existing install keeps what it runs on (its data is there)
   BACKEND="$(grep '^LENS_BACKEND=' "$DIR/.env" | cut -d= -f2- || true)"
   [ -n "$BACKEND" ] || BACKEND=docker
@@ -364,6 +391,67 @@ else
     fail "Couldn't get the code from GitHub ($REF). Check the network and LENS_REF, and try again."
 fi
 cd "$DIR"
+setenv() { # key value: replace the line, or add it (only this user can read the copy that replaces it)
+  if grep -q "^$1=" .env; then
+    (umask 077 && sed "s|^$1=.*|$1=$2|" .env >.env.tmp) && mv .env.tmp .env
+  else
+    printf '%s=%s\n' "$1" "$2" >>.env
+  fi
+}
+
+# --- A node on another install's mesh (docs/mesh.md, Nodes): two containers, no web app, nothing published --------
+# `mesh` runs Nebula and `node` (lens node) joins with the token, once; the token goes to the container's environment
+# for that first start only, never into .env. Running the line again updates the node, which stays the same node.
+if [ "$NODE" = 1 ]; then
+  if [ -f .env ] && ! grep -qx 'LENS_ROLE=node' .env; then
+    fail "$DIR holds a Lens install, not a node. Put the node in a folder of its own: LENS_DIR=$HOME/lens-node"
+  fi
+  if [ ! -f .env ]; then
+    (umask 077 && printf '# Written by install.sh: this machine is a node on another Lens install. Keep it with the volumes.\n' >.env)
+  fi
+  chmod 600 .env
+  setenv LENS_ROLE node
+  [ -z "${LENS_JOIN:-}" ] || setenv LENS_JOIN "$LENS_JOIN"
+  # a unit of an auto scaling group (docs/scaling.md): its name, and the steps its worker runs, kept for later runs
+  for k in LENS_SCALING_UNIT LENS_WORKER_STEPS; do
+    eval "v=\${$k:-}"
+    [ -z "$v" ] || setenv "$k" "$v"
+  done
+  # a compute node also runs the sandbox gateway (docker-compose.node.yml, profile sandbox), kept for later runs
+  if [ "${LENS_NODE_SANDBOX:-}" = 1 ] || grep -qx 'LENS_NODE_SANDBOX=1' .env; then
+    setenv LENS_NODE_SANDBOX 1
+    setenv COMPOSE_PROFILES sandbox
+  fi
+  name="${LENS_NODE_NAME:-$(grep '^LENS_NODE_NAME=' .env | cut -d= -f2- || true)}"
+  name="${name:-${LENS_SCALING_UNIT:-}}"
+  setenv LENS_NODE_NAME "${name:-$(hostname 2>/dev/null || uname -n)}"
+  setenv LENS_TARGET "${TARGET:-$(grep '^LENS_TARGET=' .env | cut -d= -f2- || true)}"
+  grep -q '^LENS_TARGET=.' .env || setenv LENS_TARGET lean # a node reads no Office files: the smaller image
+  setenv LENS_REPO "$REPO"
+  setenv LENS_DIR "$DIR"
+  say "Building and starting the node (the first build takes a few minutes)..."
+  LENS_JOIN_TOKEN="${LENS_JOIN_TOKEN:-}" $COMPOSE -f docker-compose.node.yml up -d --build
+  say "Joining $(grep '^LENS_JOIN=' .env | cut -d= -f2-)..."
+  WAIT="${LENS_WAIT:-600}"
+  start=$(date +%s)
+  until out="$($COMPOSE -f docker-compose.node.yml exec -T node lens node status 2>/dev/null)" && printf '%s' "$out" | grep -q '"joined": true'; do
+    refused="$(printf '%s\n' "$out" | sed -n 's/^ *"refused": "\(.*\)",\{0,1\}$/\1/p')"
+    if [ -n "$refused" ]; then
+      $COMPOSE -f docker-compose.node.yml stop node >/dev/null 2>&1 || true
+      fail "The install didn't let this machine join: $refused"
+    fi
+    if [ $(($(date +%s) - start)) -ge "$WAIT" ]; then
+      echo "The last lines the node logged:"
+      $COMPOSE -f docker-compose.node.yml logs --tail 40 2>&1 </dev/null | tail -n 40 || true
+      fail "The node didn't join within $((WAIT / 60)) minutes. See everything: cd $DIR && $COMPOSE -f docker-compose.node.yml logs"
+    fi
+    sleep 3
+  done
+  ip="$(printf '%s\n' "$out" | sed -n 's/^ *"ip": "\(.*\)",\{0,1\}$/\1/p' | head -n 1)"
+  say "This machine is on the mesh${ip:+ at $ip}: it shows in Settings › Nodes."
+  echo "  Stop: cd $DIR && $COMPOSE -f docker-compose.node.yml down    Update: run the line again (the token isn't needed again)"
+  exit 0
+fi
 
 # --- The edition: the one asked for, else the one this install already has (a lean install stays lean), else full ---
 [ -n "$TARGET" ] || TARGET="$( [ -f .env ] && grep '^LENS_TARGET=' .env | cut -d= -f2- || true)"
@@ -414,13 +502,6 @@ HTTPS_PORT="${HTTPS_PORT:-443}"
 HTTP_PORT="${HTTP_PORT:-80}"
 
 # --- Secrets, once: changing them later would sign everyone out and make stored credentials unreadable ------------
-setenv() { # key value: replace the line, or add it (only this user can read the copy that replaces it)
-  if grep -q "^$1=" .env; then
-    (umask 077 && sed "s|^$1=.*|$1=$2|" .env >.env.tmp) && mv .env.tmp .env
-  else
-    printf '%s=%s\n' "$1" "$2" >>.env
-  fi
-}
 unsetenv() { # key: drop the line, if there is one
   if grep -q "^$1=" .env; then
     (umask 077 && grep -v "^$1=" .env >.env.tmp) && mv .env.tmp .env

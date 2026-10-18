@@ -32,7 +32,7 @@ import type { TemplateSummary } from "@/app/openapi-client/types.gen";
 import type { Variable } from "@/components/forms/schema-form";
 import { FlowCanvas, PaletteItem, freshId, type CanvasEdge, type CanvasNode } from "@/components/canvas/flow-canvas";
 import { Button } from "@/components/ui/button";
-import { NodeSettings, type NsField } from "@/components/workflows/node-settings";
+import { NodeSettings, type FeedOption, type NsField } from "@/components/workflows/node-settings";
 import {
   BODIES,
   GROUPS,
@@ -101,6 +101,8 @@ export function GraphEditor({
   params,
   emptyPanel,
   onSaveAsCustom,
+  feeds,
+  namespaces,
   actions,
   variables,
 }: {
@@ -121,6 +123,9 @@ export function GraphEditor({
   emptyPanel: ReactNode;
   /** Fold the selected nodes into a new custom node: resolves to it once saved (or null if cancelled). */
   onSaveAsCustom?: (folded: Folded) => Promise<CustomDef | null>;
+  /** The feeds publishing nodes can add to, and the namespaces they can name (graph workflows). */
+  feeds?: FeedOption[];
+  namespaces?: string[];
   /** The actions catalog: an automation's workflow (scope event) lists each one in the palette. */
   actions?: ActionDef[];
   /** What templates can read, for the variable picker in an action's settings. */
@@ -308,7 +313,13 @@ export function GraphEditor({
       x: n.x ?? 0,
       y: n.y ?? 0,
       title: n.label || d?.name || info?.label || n.type,
-      subtitle: nodeSummary(n, { template: (x) => tpl.get(x)?.name, field: fieldName, custom, actions }),
+      subtitle: nodeSummary(n, {
+        template: (x) => tpl.get(x)?.name,
+        field: fieldName,
+        custom,
+        actions,
+        feed: (x) => feeds?.find((f) => f.id === x)?.title,
+      }),
       icon: d ? (ICONS[d.icon ?? ""] ?? Puzzle) : n.type === "group" ? GroupIcon : info?.icon,
       inputs: p.inputs.length === 0 ? 0 : p.many ? -1 : p.inputs.length,
       inPorts: p.inputs,
@@ -505,6 +516,8 @@ export function GraphEditor({
             actions={actions}
             variables={variables}
             peek={trace?.[traceKey(cur.id)] as { status: string; value?: string; error?: string } | undefined}
+            feeds={feeds}
+            namespaces={namespaces}
           />
         ) : kind === "workflow" || (kind === "custom" && !holder) ? (
           emptyPanel

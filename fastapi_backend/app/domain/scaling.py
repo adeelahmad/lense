@@ -44,7 +44,7 @@ import threading
 import time
 
 from . import activity, budgets, jobs, schedule, settings, store
-from . import scaling_clouds, scaling_proxmox  # noqa: F401 - registers their drivers
+from . import scaling_clouds, scaling_proxmox, scaling_ssh  # noqa: F401 - registers their drivers
 from . import scaling_drivers as drivers
 from .store import R
 
@@ -224,6 +224,8 @@ def _check_call(db, cfg, p, drv):
         result = {"ok": True, **(out if isinstance(out, dict) else {})}
     except Exception as e:  # noqa: BLE001 - what the provider said, for the person
         result = {"ok": False, "error": f"{type(e).__name__}: {e}"[:500] if not isinstance(e, drivers.DriverError) else str(e)[:500]}
+        before = p.get("check") or {}
+        result |= {k: before[k] for k in drv.kept if k in before}  # what a failed check mustn't forget (SSH host keys)
     db.q("UPDATE $r SET checked_at = $t, check = $c", r=R("scale_provider", p["id"]), t=store.now(), c=result)
     return result
 
@@ -580,8 +582,20 @@ def group_view(db, g, now=None):
         "updated_at": g.get("updated_at"),
         "updated_by": g.get("updated_by"),
     }
+    out["unit_steps"] = unit_steps((g.get("template") or {}).get("steps"), out["needs_join"])
     out["waiting_for"] = waiting_for(out)
     return out
+
+
+def unit_steps(steps, needs_join):
+    """The steps a group's units run, which its queue metrics count: the template's (None: every step). A machine
+    elsewhere joins as a worker node, which runs only the steps a node can, with no archive key (mesh.WORKER_STEPS):
+    counting jobs it never takes would launch machines for nothing. [] when none of the template's are such steps."""
+    mesh = mesh_module() if needs_join else None
+    allowed = getattr(mesh, "WORKER_STEPS", None)
+    if not allowed:
+        return list(steps) if steps else None
+    return [s for s in steps if s in allowed] if steps else list(allowed)
 
 
 def waiting_for(view, cfg=None):
@@ -597,7 +611,9 @@ def waiting_for(view, cfg=None):
     if view.get("capped"):
         return f"its budget: {view['capped']}"
     if cfg is not None and view.get("needs_join") and not can_join(cfg):
-        return "the mesh's install line, which other machines join Lens with (in progress, docs/mesh.md)"
+        return "the mesh, which other machines join Lens over: turn it on in Settings › Network"
+    if view.get("unit_steps") == []:
+        return "steps its machines can run: a machine elsewhere runs only transcribe and diarize (docs/mesh.md)"
     return None
 
 
@@ -975,8 +991,9 @@ def can_join(cfg):
 def bootstrap(db, cfg, g, name):
     """How a unit joins Lens: a worker started here gets its name and inherits the rest; a machine elsewhere gets the
     mesh's install line (`LENS_JOIN=… LENS_JOIN_TOKEN=… sh install.sh`) with a one-time join token good for an hour,
-    named for the unit, so the provider's user-data carries no long-lived secret: the database credential travels
-    inside the sealed join answer. {env, line, token_id, tag} (line and token_id None without the mesh)."""
+    named for the unit, so the provider's user-data carries no long-lived secret: the node asks for its database
+    user over the mesh once it has joined (docs/mesh.md, Worker nodes). {env, line, token_id, tag} (line and token_id
+    None without the mesh)."""
     boot = {"env": {"LENS_SCALING_UNIT": name}, "line": None, "token_id": None, "tag": conf(cfg)["tag"]}
     if not can_join(cfg):
         return boot
@@ -1046,11 +1063,11 @@ class Scaler:
         launching = [n for n in units if n.get("state") == "launching"]
         view = group_view(db, g, now)
         may_launch = enabled(cfg) and view["enabled"] and not view["paused"] and view["approved"] and not capped
-        joinable = not drv.needs_join or can_join(cfg)
+        joinable = not drv.needs_join or (can_join(cfg) and view["unit_steps"] != [])
         lo, hi, desired = g.get("min") or 0, g.get("max") or 0, g.get("desired") or 0
         if may_launch and g.get("rules"):
             want, state, said, new_min, new_max = evaluate(
-                g, metrics(db, cfg, (g.get("template") or {}).get("steps"), now), len(running), now, g.get("rule_state")
+                g, metrics(db, cfg, view["unit_steps"], now), len(running), now, g.get("rule_state")
             )
             sets = {"rule_state": state, "last_eval": {"at": _iso(now), "said": said}}
             if new_min is not None or new_max is not None:
@@ -1188,7 +1205,7 @@ class Scaler:
             db.q("UPDATE $r SET error = $e", r=R("scale_node", n["id"]), e=f"{type(e).__name__}: {e}"[:300])
             return True
         if d.get("state") == "gone":
-            why = "stopped at the provider" if state != "launching" else "never came up at the provider"
+            why = d.get("why") or ("stopped at the provider" if state != "launching" else "never came up at the provider")
             _terminate(db, cfg, drv, p, {**n, "external_id": None}, why, state="failed" if state == "launching" else "terminated", now=now)
             did["terminated"] += 1
             return False

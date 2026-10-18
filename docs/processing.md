@@ -23,12 +23,30 @@ How assets move through Lens: where they come from, what each step does, and how
 
 Every step takes `--ns`, `--limit` and `--force`; `run` does them all, and a lock stops two runs overlapping.
 
+### Your own names in transcription
+
+Speech-to-text gets wrong the names only you use: family, colleagues, places, projects. With `transcribe.vocabulary`
+on (Settings → Transcription → Expect your own names; off by default), each recording is transcribed knowing up to 60
+words its namespace already knows, in this order:
+
+- the custom vocabulary in Settings → Analysis (`analysis.gazetteer`), as written there;
+- the names of the namespace's named people;
+- its defined entities ([Entity setup](#entity-setup));
+- the words people put in when they corrected its transcripts, the capitalised ones a line didn't have before (the
+  text cleanup's own changes don't count), most often first.
+
+Whisper (faster-whisper and mlx-whisper) and OpenAI-compatible servers get them as the prompt, a line of the names (the
+diarizing models take none); Deepgram as key terms with Nova-3, or keywords with the models before it; AssemblyAI as
+key terms with Universal-3 and Slam-1, or boosted words with the others. SenseVoice and ElevenLabs take no hints, so
+they transcribe as before. The words go only to the engine the recording was going to anyway, and a provider's row in
+the [activity ledger](activity.md) says how many it was given. Run Transcribe again on an asset to use new names.
+
 ### Cleaning up transcripts
 
 Speech comes out of transcription as it was said, and the extractor, chapters, keywords and search all read it. With
 `analysis.cleanup` on (Settings → Analysis → Clean up transcripts before analysis; off by default), the `clean` step,
-which the standard pipeline runs just before `analyze`, tidies each line of a transcript with rules. It needs no model,
-fetches nothing and sends nothing out:
+which the standard pipeline runs just before `analyze`, tidies each line of a transcript with rules. The rules need no
+model, fetch nothing and send nothing out:
 
 - a word said three times or more in a row is kept once ("I I I looked" → "I looked"), and a doubled pronoun, article
   or conjunction ("the the", "I, I") once; "had had", "that that" and "very very" stay;
@@ -44,6 +62,14 @@ fetches nothing and sends nothing out:
   each line marks once. The model, Transformers and PyTorch (about 2 GB) are fetched the first time a clean step
   needs them ([Components](components.md)); until then, and in other languages, the rules run alone and the job's
   log says why.
+- grammar (`analysis.cleanup_grammar_url`, LanguageTool server; none): a [LanguageTool](https://languagetool.org)
+  server's grammar and punctuation fixes are made too ("he go" → "he goes", "a apple" → "an apple"), and only those:
+  spelling, style, wording and repeated-word ("very very") suggestions are left out, and so is any fix to a word
+  with a capital in it, so names stay as they were said. Start one with the compose files' `languagetool` profile
+  (`docker compose --profile languagetool up -d`, about 1 GB of memory) and set `http://languagetool:8010`. The
+  transcript's lines go to that address and nowhere else (no redirect is followed), so a server outside your network
+  sees them; each call is in the activity ledger. When it doesn't answer, the rules' changes stand and the job's log
+  says so.
 
 These are English rules ("um" is a word in German and Portuguese), so they apply to English lines: the line's or the
 asset's language when transcription gave one, else when the text reads as English. In other languages only a word
@@ -298,7 +324,9 @@ about them come back as not found.
 ## Search
 
 All words must appear, matched after English stemming ("exploit" also finds exploits and exploiting); "quoted phrases"
-must appear as written; OR separates alternatives. Filter by namespace, person, emotion or asset. The words are
+must appear as written; OR separates alternatives; NOT, or a `-` before a word or "phrase", leaves out the lines that
+have it (`budget -draft` finds budget without draft or drafts, `budget NOT "first draft"`), and a typed AND changes
+nothing. Filter by namespace, person, emotion or asset. The words are
 looked up in the index of `search.engine`: a SQLite FTS5 file by default, SurrealDB's own index, or OpenSearch
 ([configuration](configuration.md#word-search)). For archives that aren't in English set `search.stemming: none` and
 run `lens reindex`. There is no prefix search: a trailing `*` (`expl*`) is ignored and the word is searched as it is;
@@ -318,7 +346,7 @@ entity across the text run the step again.
 A search is matched three ways (`mode` on `GET /search`, the Match switch in the web app):
 
 * **auto** (the default): by its words and by meaning, fused by reciprocal rank, when search by meaning is set up and
-  the query has no "quoted phrases" or OR (those ask for exactly those words); else by its words.
+  the query has no "quoted phrases", OR or NOT (those ask for exactly those words); else by its words.
 * **keyword**: only the words, as above.
 * **semantic**: only by meaning.
 
@@ -434,8 +462,14 @@ Imports, pipeline runs and folder scans return at once and run as jobs stored in
 `workers.inline` workers itself; more can run anywhere that reaches the database, each limited to the steps it can do.
 A job whose next step a worker can't run goes back on the queue for one that can, so a Mac can transcribe with mlx while
 the container does the rest. Jobs can be cancelled and retried from the failed step; a job whose worker stops
-responding is retried. Workers heartbeat every 30 s, and every 15 s while they run a job however long its step takes,
-with their machine's load. In Activity → Workers an admin can pause a worker (it takes no new jobs; the one it has
+responding is retried. In Activity the queue is handled as a whole too: **Clear queue** cancels every queued and held
+run you may process (in the namespace in view), asking first, and its message can undo it; under **Queued** the runs
+show in the order workers take them, and dragging one by its grip (or Alt+↑ and Alt+↓ on the grip, or Move to top
+and Move to bottom in its menu) reorders the queue; **Retry failed** retries every failed run, one per asset, at the
+back of the queue, and can be undone too. Agents do the same through [the API](api.md#jobs) and the MCP tools `runs`,
+`clear_queue`, `move_run` and `retry_runs`.
+Workers heartbeat every 30 s, and every 15 s while they run a job however long its step takes, with their machine's
+load. In Activity → Workers an admin can pause a worker (it takes no new jobs; the one it has
 carries on to the end), drain it (it also hands that job back to the queue after the step it's on, so another worker
 carries on, and stays paused) or resume it. `lens worker --name mac-mini` keeps its pause across restarts; the
 server's own workers are named after its process, so they start afresh. Steps added to a job while it runs (attaching audio does) run after its other steps: a worker
@@ -752,6 +786,20 @@ node passes what it makes along its connections.
   `confidence`, `sure` and `ranked`, so a Condition or Switch can branch on them; [classifying](#classifying)), Pick
   (a path like `action_items.0.text`), Condition (yes and no branches; one test, or a
   [match tree](automations.md#match-trees) of several) and Merge.
+- **Web:** HTTP call sends GET, POST, PUT, PATCH or DELETE to a web address and passes on the answer (`status`, `ok`,
+  `url`, `content_type`, `body`, and `json` when it is JSON, up to 200,000 characters), so a Condition can branch on
+  `ok` and a Pick or template can read the JSON. The address, header values and body are templates (what came in is
+  `{{ input }}`: `https://api.example.com/search?q={{ input | urlencode }}`), but the scheme, host and port are written
+  out, so what flows through a workflow never decides where it goes. It goes out as the assistant's web tools do:
+  through Lens's network guard, to public addresses on ports 80 and 443 only (or the private networks an admin allowed
+  in Settings → Documents), every redirect checked again. Headers that carry credentials (Authorization, cookies, API
+  keys and tokens) are sealed with the server's key when the workflow is saved, bound to that header and that host, and
+  shown as `••••`; a redirect to another server doesn't get them. A 4xx or 5xx answer is passed on with `ok` false; an
+  address that can't be reached fails the node. Each call is a `workflow.http` row in the [activity ledger](activity.md)
+  (the host and method, never what was sent). A try on the canvas sends a GET but only says what it would send for the
+  other methods. Asset and graph workflows have it; automations call web addresses with their own action, which asks
+  first ([actions](automations.md#actions-and-intents)). Refine later: credentials passed in through a custom node's parameter
+  aren't sealed, and a sealed header is bound to its host rather than to one workflow.
 - **Keeping results:** Save output (`outputs.<name>`), Set field (a custom field, kept in the metadata history), Save
   entities, and a Classify node set to act on a sure answer (it sets the content type, suggests the topic or adds the
   tag; a try on the canvas only says what it would do).
@@ -804,7 +852,9 @@ The schedule is a five-field cron expression (minute hour day-of-month month day
 `@hourly`, `@daily`, `@weekly`, `@monthly`, in a time zone; without one a routine runs only when someone presses Run
 now. Every 30 seconds, `lens worker` checks (and so does the API process when it runs background work, and `lens watch`); a routine is
 never started twice at once, and one started in two processes runs once. Each run keeps what every action did and a
-log.
+log. A run that fails, or leaves graph changes to review, can be sent to a chat room through
+Matterbridge or to a webhook: pick `routine.failed` or `routine.proposed` for a namespace's target
+([Notifications](notifications.md#events)).
 
 The [Schedules](schedules.md) page (Automate › Schedules) lists every routine next to the automations' schedules and
 the backup, to switch, re-time and run each from one place; the Routines page and New routine open from its top.
@@ -814,23 +864,46 @@ the backup, to switch, re-time and run each from one place; the Routines page an
 A workflow's scope is assets (above), the graph, or an event: an automation's workflow, run by its automation
 ([The event workflow scope](automations.md#the-event-workflow-scope)). Graph workflows have their own nodes:
 
-- **Candidates** finds pairs of entities that may be one thing, by the same rules as the merge suggestions (same
-  letters, acronym, spelling, sounds alike, one name inside the other): inside each namespace (merge) or across
-  namespaces whose graph is shared (link). Pairs someone marked as different, and pairs already proposed, are skipped.
-- **Ask the model** (`llm_judge`) shows the model each pair with lines where the names appear and asks whether
-  they are the same thing, how sure it is, and which name to keep.
-- **Filter** keeps the pairs that pass a test, e.g. `verdict.same` equals true.
-- **Apply changes** merges or links the pairs whose confidence is at least *apply above* (at most *max apply* a run)
-  and proposes the rest. Without *apply above* it only proposes.
+- **Find what to tidy** (`candidates`) finds, by rules and without a model, what *Look for* says:
+  - **Look-alikes** (merge, link): pairs of entities that may be one thing, by the same rules as the merge
+    suggestions (same letters, acronym, spelling, sounds alike, one name inside the other), inside each namespace
+    (merge) or across namespaces whose graph is shared (link). Pairs someone marked as different are skipped.
+  - **Wrong types** (retype): entities whose type the naming rules read differently now, from the name itself (a
+    title, an ending like *Labs* or *Inc*, a known place or organisation: 90% for a term, 80% for another type) or from
+    most of the lines that say it, at least two (up to 90%). An entity is typed by its first asset; this catches a
+    term that later lines show is a person. Types a person or an agent set, entities on a fixed list and hidden ones
+    are left alone, and so are types the namespace doesn't keep.
+  - **Noise** (hide): entities with no letters or one letter, made of filler words (*Okay so*; not acronyms like
+    *US*), or a phrase rather than a name (95%; filler words are 70% when the entity has a type other than Term), and
+    terms said only once (50%, below the default 70%). Entities someone showed again are left alone.
+  - **Topics to group** (cluster): a namespace's topics that go under a broader topic: those whose labels end in
+    another topic's label (*Machine learning* and *Deep learning* under *Learning*, 85%), and three or more with no
+    broader topic that end in the same word, under a new topic for it (*Sales calls*, *Support calls* and *Team
+    calls* under *Calls*, 70% for three, up to 85%). Topics have no types, so *Only these types* doesn't apply.
+  Anything already proposed, dismissed or undone is skipped too, so a run never redoes what someone took back.
+- **Ask the model** (`llm_judge`) shows the model each candidate with lines where the names appear and asks, a kind
+  at a time: whether a pair is the same thing and which name to keep, what type a name is (from the namespace's
+  types), whether it is noise, or whether a group's topics go under its broader topic (with a better label for a new
+  one, and which topics to leave out); and how sure it is. Each gets a `verdict`, with `agree` true when the change
+  should be made (and, for pairs, `same`).
+- **Filter** keeps the candidates that pass a test, e.g. `verdict.agree` (or `verdict.same`) equals true.
+- **Apply changes** merges, links, retypes, hides or groups the candidates whose confidence (the model's, else the rules') is
+  at least *apply above* (at most *max apply* a run) and proposes the rest. Without *apply above* it only proposes. A
+  candidate the model said no to is skipped.
 
 A fresh archive has the workflow *Organise the entity graph* (both kinds of candidates, the model, then merges at 95%
 or more, 25 a run) and the routine *Organise the graph every night* that runs it at 03:00 UTC, switched off. Turn it
 on, or Run now with *propose only* first to see what it would do.
 
-Every change is recorded (`GET /api/v1/graph-changes`): editors of the namespaces involved accept or dismiss
-proposals (dismissing says the two are different, so the pair isn't suggested again) and undo applied changes; an
-admin can undo everything a run applied at once (`POST /api/v1/routine-runs/{id}/undo`). Merges are undone exactly as
-from an entity's page.
+Every change is recorded (`GET /api/v1/graph-changes`), and shows in Routines › Proposed changes: editors of the
+namespaces involved accept or dismiss proposals (dismissing a pair says the two are different; dismissing a type or a
+hide or a group leaves things as they are; neither is suggested again), choose another type when accepting a retype
+(`to`) or another label for a group's new broader topic (`label`), and undo applied changes; an admin can undo everything a run applied at once (`POST /api/v1/routine-runs/{id}/undo`).
+Merges are undone exactly as from an entity's page; a type or a hide someone has changed since stays as they left it.
+Undoing a group takes its topics out from under the broader topic, and deletes that topic when the group made it and
+nothing uses it since (a recording, a narrower or related topic).
+Agents do the same through the API, and `undo_graph_change` over MCP. To tidy types, noise and topics, add a workflow
+that looks for them (no built-in workflow does, so nothing changes until you add one).
 
 ### Publishing from the graph
 
@@ -854,8 +927,10 @@ schedule. Their nodes:
   *namespace* named, else the *feed*'s, else where an admin's episode goes; a source its readers couldn't read is left
   out. With a *feed*, the episode is added to it and listed once it's made.
 
-A run's result counts what was `published` and the `episodes` made, and its log says what each node did. Try on the
-canvas runs a graph workflow over the namespaces you pick and says what each node would do, without publishing. So
+A run's result counts what was `published` and the `episodes` made, and its log says what each node did. On the
+canvas the nodes are under Data and Keep in a graph workflow's palette, the feed is picked from a list, and the canvas
+says what to fix before Publish (a feed to choose, a limit over the most). Try on the canvas runs a graph workflow over
+the namespaces you pick and says what each node would do, without publishing. So
 Select assets → Podcast episode (feed *Weekly*, length 10) on a routine that runs every Monday makes an episode about
 the week's new resources and puts it in your podcast app; Select activities (kinds `asset.added`) → Publish to feed
 puts the timeline in your feed reader.

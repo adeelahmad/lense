@@ -49,6 +49,9 @@ import {
   RefreshCw,
   Network,
   ScrollText,
+  Server,
+  WandSparkles,
+  Waypoints,
   Workflow,
 } from "lucide-react";
 import Link from "next/link";
@@ -91,6 +94,7 @@ const ICON: Record<AnySectionId, LucideIcon> = {
   reports: ChartNoAxesColumn,
   video: Clapperboard,
   nsfw: EyeOff,
+  enhance: WandSparkles,
   workers: Cpu,
   scaling: Gauge,
   automations: Workflow,
@@ -98,6 +102,8 @@ const ICON: Record<AnySectionId, LucideIcon> = {
   access: ShieldCheck,
   "remote-access": Cloud,
   https: Lock,
+  nodes: Server,
+  network: Waypoints,
   "sign-in": LockKeyhole,
   encryption: FileLock,
   secrets: KeySquare,

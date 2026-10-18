@@ -81,7 +81,16 @@ case "$(last)" in *"-f docker-compose.prod.yml -f docker-compose.https.yml --pro
 [ "$(profiles)" = matterbridge,monitoring ] || fail "COMPOSE_PROFILES is $(profiles)"
 ok "the HTTPS compose file comes along when HTTPS is on"
 
-# 7. Anything else is refused and runs nothing: a profile it doesn't know, a turn that isn't on or off, a microsandbox
+# 7. The mesh (Nebula on the primary, docs/mesh.md) starts its one container, and stops it
+ask id=n1 action=services profile=mesh turn=on
+[ "$(said state)" = "done" ] && [ "$(profiles)" = matterbridge,monitoring,mesh ] || fail "COMPOSE_PROFILES is $(profiles)"
+case "$(last)" in *"--profile mesh up -d mesh") ;; *) fail "ran: $(last)" ;; esac
+ask id=n2 action=services profile=mesh turn=off
+[ "$(profiles)" = matterbridge,monitoring ] || fail "COMPOSE_PROFILES is $(profiles)"
+case "$(last)" in *"--profile mesh rm -s -f mesh") ;; *) fail "ran: $(last)" ;; esac
+ok "the mesh starts and stops its own container"
+
+# 8. Anything else is refused and runs nothing: a profile it doesn't know, a turn that isn't on or off, a microsandbox
 calls="$(wc -l <"$work/calls")"
 ask id=x1 action=services profile=matterbridge turn=on
 [ "$(said state)" = failed ] || fail "a profile it doesn't know: $(said state)"

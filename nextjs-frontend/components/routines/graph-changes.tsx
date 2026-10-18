@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { GitMerge, Link2, Undo2, Waypoints } from "lucide-react";
+import { EyeOff, FolderTree, GitMerge, Link2, Tags, Undo2, Waypoints } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -26,9 +26,78 @@ type Side = {
   mentions?: number;
   samples?: string[];
 };
-type Verdict = { same?: boolean; confidence?: number; keep?: "a" | "b" | null; why?: string };
+type Topic = { id: number; name: string; recordings?: number };
+type Verdict = {
+  same?: boolean;
+  agree?: boolean;
+  confidence?: number;
+  keep?: "a" | "b" | null;
+  type?: string;
+  label?: string;
+  leave?: number[];
+  why?: string;
+};
 
 const pct = (n: number | null | undefined) => (n == null ? "—" : `${Math.round(n * 100)}%`);
+
+const TYPE_NAMES: Record<string, string> = {
+  PERSON: "Person",
+  ORG: "Organisation",
+  PRODUCT: "Product",
+  PLACE: "Place",
+  EVENT: "Event",
+  WORK: "Work",
+  TERM: "Term",
+  DATE: "Date",
+  NUMBER: "Number",
+};
+/** "Organisation" for ORG; a namespace's own CLIENT_TEAM reads "Client team". */
+export const typeName = (code: string | null | undefined) =>
+  code ? (TYPE_NAMES[code] ?? (code.charAt(0) + code.slice(1).toLowerCase()).replace(/_/g, " ")) : "—";
+
+/** A group's broader topic and the topics to go under it (those the model would leave out struck through). */
+function TopicGroup({ parent, topics, left }: { parent: Side; topics: Topic[]; left: Set<number> }) {
+  return (
+    <div className="flex flex-col gap-1.5 rounded-sm border border-border bg-background p-3">
+      <p className="text-[12px] text-fg-muted">
+        {parent.id ? (
+          <Link href={`/topics/${parent.id}`} className="font-bold text-fg hover:text-fg-accent hover:underline">
+            {parent.name}
+          </Link>
+        ) : (
+          <span className="font-bold text-fg">{parent.name}</span>
+        )}{" "}
+        · {parent.namespace ?? "—"} · {topics.length} topic{topics.length === 1 ? "" : "s"} under it
+      </p>
+      <ul className="flex flex-wrap gap-1.5">
+        {topics.map((t) => (
+          <li key={t.id}>
+            <Link
+              href={`/topics/${t.id}`}
+              className={cn(
+                "rounded-sm border border-border px-1.5 py-0.5 text-[12.5px] text-fg hover:text-fg-accent",
+                left.has(t.id) && "text-fg-muted line-through",
+              )}
+            >
+              {t.name}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** What a change is about, in a few words, and its icon. */
+function heading(ch: GraphChange): { icon: typeof GitMerge; title: string } {
+  const a = ch.a as Side;
+  if (ch.kind === "merge") return { icon: GitMerge, title: "Merge: the same thing in one namespace?" };
+  if (ch.kind === "link") return { icon: Link2, title: "Link: the same thing across namespaces?" };
+  if (ch.kind === "retype") return { icon: Tags, title: `Type: ${typeName(a.type)} → ${typeName(ch.to)}?` };
+  if (ch.kind === "cluster")
+    return { icon: FolderTree, title: `Group under ${a.id ? "" : "a new topic, "}“${a.name}”?` };
+  return { icon: EyeOff, title: "Hide as noise?" };
+}
 
 function EntitySide({ side, kept, choose }: { side: Side; kept?: boolean; choose?: () => void }) {
   return (
@@ -71,18 +140,22 @@ function EntitySide({ side, kept, choose }: { side: Side; kept?: boolean; choose
   );
 }
 
-function ChangeCard({ ch }: { ch: GraphChange }) {
+/** One change: what it is, the entities it touches, what the rules and the model said, and what to do with it. */
+export function ChangeCard({ ch }: { ch: GraphChange }) {
   const client = useApiClient();
   const qc = useQueryClient();
   const toast = useToast();
   const { can } = useArchive();
   const a = ch.a as Side;
-  const b = ch.b as Side;
+  const b = (ch.b ?? null) as Side | null;
   const v = (ch.verdict ?? null) as Verdict | null;
   const merge = ch.kind === "merge";
-  const [keep, setKeep] = useState<number>(ch.keep ?? (v?.keep === "b" ? b.id : a.id));
-  const editor = can("editor", a.namespace) && can("editor", b.namespace);
-  const why = editor ? undefined : needRole("editor", a.namespace ?? b.namespace);
+  const pair = b != null;
+  const [keep, setKeep] = useState<number>(ch.keep ?? (v?.keep === "b" && b ? b.id : a.id));
+  const editor = can("editor", a.namespace) && (!b || can("editor", b.namespace));
+  const why = editor ? undefined : needRole("editor", a.namespace ?? b?.namespace);
+  const { icon: Icon, title } = heading(ch);
+  const kept = keep === a.id || !b ? a.name : b.name;
 
   const act = useMutation({
     mutationFn: (what: "accept" | "dismiss" | "undo") => {
@@ -94,17 +167,31 @@ function ChangeCard({ ch }: { ch: GraphChange }) {
     onSuccess: (_, what) => {
       void qc.invalidateQueries({ queryKey: ["graph-changes"] });
       void qc.invalidateQueries({ queryKey: ["graph"] });
+      const made = {
+        merge: `Merged into ${kept}`,
+        link: "Linked",
+        retype: `${a.name}: ${typeName(ch.to)} now`,
+        hide: `${a.name} is hidden`,
+        cluster: `Grouped under ${v?.label ?? a.name}`,
+      };
       toast({
         tone: "green",
         title:
           what === "accept"
-            ? merge
-              ? `Merged into ${keep === a.id ? a.name : b.name}`
-              : "Linked"
+            ? made[ch.kind]
             : what === "dismiss"
-              ? "Marked as different"
+              ? pair
+                ? "Marked as different"
+                : "Left as it is"
               : "Change undone",
-        body: what === "dismiss" ? "They won’t be suggested again." : `${a.name} · ${b.name}`,
+        body:
+          what === "dismiss"
+            ? pair
+              ? "They won’t be suggested again."
+              : "It won’t be suggested again."
+            : b
+              ? `${a.name} · ${b.name}`
+              : a.name,
       });
     },
     onError: (e: Error) => toast({ tone: "red", title: "Couldn’t do that", body: e.message }),
@@ -112,18 +199,12 @@ function ChangeCard({ ch }: { ch: GraphChange }) {
 
   return (
     <article
-      aria-label={`${a.name} and ${b.name}`}
+      aria-label={b ? `${a.name} and ${b.name}` : a.name}
       className="flex flex-col gap-3 rounded-md border border-border bg-surface p-4"
     >
       <header className="flex flex-wrap items-center gap-2 text-[13px]">
-        {merge ? (
-          <GitMerge aria-hidden className="size-4 text-fg-secondary" />
-        ) : (
-          <Link2 aria-hidden className="size-4 text-fg-secondary" />
-        )}
-        <span className="font-bold text-fg">
-          {merge ? "Merge: the same thing in one namespace?" : "Link: the same thing across namespaces?"}
-        </span>
+        <Icon aria-hidden className="size-4 text-fg-secondary" />
+        <span className="font-bold text-fg">{title}</span>
         <span className="flex-1" />
         <span className="text-[12px] text-fg-muted">
           {ch.status === "proposed" ? "Proposed" : ch.status === "applied" ? "Made" : ch.status}{" "}
@@ -131,18 +212,24 @@ function ChangeCard({ ch }: { ch: GraphChange }) {
           {ch.decided_by ? ` by ${ch.decided_by}` : ""}
         </span>
       </header>
-      <div className="flex flex-col gap-3 md:flex-row">
-        <EntitySide
-          side={a}
-          kept={merge && (ch.status === "proposed" ? keep === a.id : ch.keep === a.id)}
-          choose={merge && ch.status === "proposed" && editor ? () => setKeep(a.id) : undefined}
-        />
-        <EntitySide
-          side={b}
-          kept={merge && (ch.status === "proposed" ? keep === b.id : ch.keep === b.id)}
-          choose={merge && ch.status === "proposed" && editor ? () => setKeep(b.id) : undefined}
-        />
-      </div>
+      {ch.kind === "cluster" ? (
+        <TopicGroup parent={a} topics={(ch.topics ?? []) as Topic[]} left={new Set(v?.leave ?? [])} />
+      ) : (
+        <div className="flex flex-col gap-3 md:flex-row">
+          <EntitySide
+            side={a}
+            kept={merge && (ch.status === "proposed" ? keep === a.id : ch.keep === a.id)}
+            choose={merge && ch.status === "proposed" && editor ? () => setKeep(a.id) : undefined}
+          />
+          {b && (
+            <EntitySide
+              side={b}
+              kept={merge && (ch.status === "proposed" ? keep === b.id : ch.keep === b.id)}
+              choose={merge && ch.status === "proposed" && editor ? () => setKeep(b.id) : undefined}
+            />
+          )}
+        </div>
+      )}
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[12.5px]">
         <dt className="text-fg-muted">Rule</dt>
         <dd className="text-fg">
@@ -152,8 +239,26 @@ function ChangeCard({ ch }: { ch: GraphChange }) {
         <dd className="text-fg">
           {v ? (
             <>
-              <span className={cn("font-semibold", v.same === false ? "text-red-dark" : "text-green-dark")}>
-                {v.same === false ? "Different" : "Same"}
+              <span
+                className={cn("font-semibold", (v.same ?? v.agree) === false ? "text-red-dark" : "text-green-dark")}
+              >
+                {pair
+                  ? v.same === false
+                    ? "Different"
+                    : "Same"
+                  : ch.kind === "retype"
+                    ? v.agree === false
+                      ? `Keep ${typeName(a.type)}`
+                      : typeName(v.type ?? ch.to)
+                    : ch.kind === "cluster"
+                      ? v.agree === false
+                        ? "Not together"
+                        : v.label
+                          ? `Together, as “${v.label}”`
+                          : "Together"
+                      : v.agree === false
+                        ? "Not noise"
+                        : "Noise"}
               </span>{" "}
               · {pct(v.confidence)}
               {v.why ? ` · ${v.why}` : ""}
@@ -172,7 +277,15 @@ function ChangeCard({ ch }: { ch: GraphChange }) {
             disabledReason={why}
             onClick={() => act.mutate("accept")}
           >
-            {merge ? `Merge, keep “${keep === a.id ? a.name : b.name}”` : "Link them"}
+            {
+              {
+                merge: `Merge, keep “${kept}”`,
+                link: "Link them",
+                retype: `Make it ${typeName(ch.to)}`,
+                hide: "Hide it",
+                cluster: "Group them",
+              }[ch.kind]
+            }
           </Button>
           <Button
             size="sm"
@@ -181,7 +294,7 @@ function ChangeCard({ ch }: { ch: GraphChange }) {
             disabledReason={why}
             onClick={() => act.mutate("dismiss")}
           >
-            These are different
+            {pair ? "These are different" : ch.kind === "cluster" ? "Leave them" : "Leave it"}
           </Button>
         </div>
       )}
@@ -250,8 +363,8 @@ export function GraphChangesPage({ run }: { run?: number }) {
       ) : (
         <EmptyState icon={<Waypoints />} title={status === "proposed" ? "Nothing to review" : "No changes made"}>
           {status === "proposed"
-            ? "When a workflow that organises the graph isn’t sure two entities are one thing, it proposes the change here for you to accept or dismiss."
-            : "Merges and links that workflows made show here, so you can undo them."}
+            ? "When a workflow that organises the graph isn’t sure of a change (two entities as one, a new type, hiding noise), it proposes it here for you to accept or dismiss."
+            : "Merges, links, new types and hides that workflows made show here, so you can undo them."}
         </EmptyState>
       )}
     </div>

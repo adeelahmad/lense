@@ -22,6 +22,7 @@ with AES-GCM and are write-only: the API reports whether one is set, never its v
 | `PASSWORD_RESET_EXPIRE_MINUTES` | `60` | |
 | `SURREAL_URL` | embedded | `ws://host:8000` for a server; see [Database](database.md) |
 | `SURREAL_USER` / `SURREAL_PASS` / `SURREAL_NS` / `SURREAL_DB` / `SURREAL_POOL_SIZE` | `root` / `root` / `archive` / `main` / `8` | |
+| `SURREAL_AUTH` | root | `database`: `SURREAL_USER` is a user of that one database, not the server's root (a [worker node](mesh.md#worker-nodes) signs in so) |
 | `ARCHIVE_SECRET_KEY` | generated in `data_dir/secret.key` | encrypts stored credentials; keep it stable and backed up |
 | `ARCHIVE_CONFIG` | `archive.yaml` | processing configuration file |
 | `ARCHIVE_ALLOWED_HOSTS` | | break-glass override of allowed Host headers if a bad setting locks everyone out |
@@ -112,7 +113,8 @@ Start from `fastapi_backend/archive.example.yaml`, which documents every key. Th
 Admins can change, in Settings: transcription, speaker separation, speech providers, voice IDs, analysis, the LLM
 provider and key, a local model, the AI assistant, the [code sandbox](assistant.md#code-sandbox), search (word
 search and search by meaning), reports and graph,
-video, OCR, faces and objects, [NSFW classification](nsfw.md), workers, sign-in, components (and the edition, full or
+video, OCR, faces and objects, [NSFW classification](nsfw.md), [enhancing
+images](enhance.md), workers, sign-in, components (and the edition, full or
 lean), access and embedding (whether other devices on the network reach Lens, embed frame ancestors, text and transcript
 upload limit, allowed hosts, trusted proxies, session length), remote access, email, chat rooms, notifications,
 automations, telemetry, the Fedora repository, sensors, file shares, uploads, storage, documents, API keys,

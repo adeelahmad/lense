@@ -102,8 +102,8 @@ def _own_chat(db: DB, cid: int, user: Principal) -> dict[str, Any]:
 def list_chats(user: CurrentUser, db: Db) -> list[ChatSummary]:
     """Your conversations, most recent first."""
     return db.rows(
-        "SELECT record::id(id) AS id, title, title_by, scope, model, kind ?? 'chat' AS kind, tools, max_tool_calls, created_at, "
-        "updated_at FROM chat WHERE account = $a ORDER BY updated_at DESC LIMIT 200",
+        "SELECT record::id(id) AS id, title, title_by, scope, model, kind ?? 'chat' AS kind, tools, max_tool_calls, project, "
+        "done ?? false AS done, created_at, updated_at FROM chat WHERE account = $a ORDER BY updated_at DESC LIMIT 200",
         a=user.id,
     )
 
@@ -920,8 +920,8 @@ def get_approval(aid: int, user: CurrentUser, db: Db, cfg: Cfg) -> Approval:
 def decide_approval(aid: int, body: ApprovalDecision, user: Writer, acl: Acl, db: Db, cfg: Cfg, request: Request) -> ApprovalOutcome:
     """Approve (or run a sample of, or decline) something the assistant proposed or an automation's action. Each
     approval is decided once. An automation's action can also be edited (`params`) and then carried out, or allowed
-    from now on for that automation (`always`); approving one needs you signed in, since it's your pick: an API key
-    or an app can only decline it."""
+    from now on for that automation (`always`). Approving is your pick, so it needs you signed in: an API key or an
+    app can only decline (403 otherwise)."""
     a = db.one("SELECT account FROM $r", r=R("approval", aid))
     if not a or a["account"] != user.id:
         raise HTTPException(404, "not found")

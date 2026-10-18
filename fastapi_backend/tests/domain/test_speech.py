@@ -566,3 +566,80 @@ def test_stuck_converters_are_stopped(tmp_path, monkeypatch):
     (tmp_path / "a.doc").write_bytes(b"x")
     with pytest.raises(SystemExit):  # antiword gave up; no catdoc or LibreOffice here
         ingest.read_doc(tmp_path / "a.doc")
+
+
+def test_the_namespaces_own_names_go_to_the_engine(db, cfg, fake, monkeypatch):
+    """With transcribe.vocabulary on, each recording is transcribed knowing its namespace's custom vocabulary, named
+    people, defined entities and the names people fixed in its lines; off (the default), nothing is sent."""
+    from app.domain import vocabulary
+
+    monkeypatch.setattr(speech, "POLL_SECONDS", 0)
+    nid = store.ns_id(db, "family")
+    db.q("CREATE speaker CONTENT {space: $s, name: 'Siobhan'}; CREATE speaker CONTENT {space: $s, name: 'Speaker 2'}", s=nid)
+    db.q("CREATE entity CONTENT {space: $s, name: 'Llanfair', key: 'llanfair', type: 'PLACE', defined: true}", s=nid)
+    rid = db.next_id("recording")
+    db.q("CREATE $r CONTENT {space: $s, title: 'call', status: 'transcribed'}", r=R("recording", rid), s=nid)
+    db.q(
+        "CREATE segment_edit CONTENT {recording: $r, idx: 0, before: {text: 'ask shiv on'}, after: {text: 'Ask Siobhan and Aoife on'},"
+        " by: 'a@example.com', at: time::now(), n: 1};"
+        "CREATE segment_edit CONTENT {recording: $r, idx: 1, before: {text: 'um hello'}, after: {text: 'Hello Cleaned'},"
+        " by: $c, at: time::now(), n: 2}",
+        r=rid,
+        c="text cleanup",
+    )
+    assert vocabulary.terms(db, cfg, nid) == []  # off by default
+    settings.save(db, cfg, "transcribe", {"vocabulary": True}, "t")
+    settings.save(db, cfg, "analysis", {"gazetteer": ["Ffion | PERSON"]}, "t")
+    eff = provided(db, cfg, fake)
+    words = vocabulary.terms(db, eff, nid)
+    assert words == ["Ffion", "Siobhan", "Llanfair", "Aoife"]  # not "Speaker 2", not the cleanup's "Cleaned"
+    assert vocabulary.prompt(words) == "Ffion, Siobhan, Llanfair, Aoife."
+
+    speech.Engine(eff, "openai").transcribe(clip(), terms=words)
+    assert b'name="prompt"\r\n\r\nFfion, Siobhan, Llanfair, Aoife.' in Fake.seen[-1][3]
+    speech.Engine(eff, "deepgram").transcribe(clip(), terms=words)
+    q = urllib.parse.parse_qs(urllib.parse.urlsplit(Fake.seen[-1][1]).query)
+    assert q["keyterm"] == words and "keywords" not in q
+    Fake.seen.clear()
+    speech.Engine(eff, "assemblyai").transcribe(clip(), terms=words)
+    asked = next(json.loads(b) for m, p, h, b in Fake.seen if p == "/aai/v2/transcript" and m == "POST")
+    assert asked["word_boost"] == words
+
+    class Hearing:
+        name = "fake"
+        heard = None
+
+        def transcribe(self, audio, terms=()):
+            Hearing.heard = list(terms)
+            return [{"t0": 0, "t1": 900, "text": "Siobhan rang.", "lang": "en"}]
+
+    monkeypatch.setattr(ingest, "audio_path", lambda *a, **k: "unused")
+    monkeypatch.setattr(ingest, "decode", lambda p: clip())
+    ingest.transcribe_one(db, eff, rid, log=lambda *a: None, engine=Hearing())
+    assert Hearing.heard == words
+
+
+def test_whisper_keeps_the_language_it_heard():
+    """With no language set, the recording's language is the one Whisper detected; a language set in Settings wins."""
+    from types import SimpleNamespace as NS
+
+    from app.domain import ingest
+
+    class Faster:
+        def transcribe(self, audio, **kw):
+            seg = NS(start=0.0, end=1.5, text=" Bonjour à tous.", words=[NS(word=" Bonjour", start=0.0, end=0.6)])
+            return iter([seg]), NS(language="fr", language_probability=0.97)
+
+    class Mlx:
+        def transcribe(self, audio, **kw):
+            return {"language": "de", "segments": [{"start": 0.0, "end": 1.0, "text": " Guten Tag.", "words": []}]}
+
+    def engine(m, mlx, lang):
+        w = object.__new__(ingest.Whisper)
+        w.m, w.mlx, w.repo, w.lang, w.name = m, mlx, "repo", lang, "whisper"
+        return w
+
+    segs = engine(Faster(), False, None).transcribe(None)
+    assert ([s["lang"] for s in segs], ingest._language(segs)) == (["fr"], "fr")
+    assert [s["lang"] for s in engine(Mlx(), True, None).transcribe(None)] == ["de"]
+    assert [s["lang"] for s in engine(Faster(), False, "en").transcribe(None)] == ["en"]  # the setting, as before

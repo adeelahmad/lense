@@ -154,6 +154,79 @@ describe("classify", () => {
   });
 });
 
+describe("publishing from the graph", () => {
+  const names = {
+    template: () => undefined,
+    field: () => undefined,
+    feed: (id: number) => (id === 3 ? "Weekly" : undefined),
+  };
+  const wf = (
+    select: Record<string, unknown>,
+    publish: Record<string, unknown> | null,
+    type = "publish_feed",
+  ): WfGraph => ({
+    nodes: [
+      { id: "in", type: "input", config: {} },
+      { id: "sel", type: "select_assets", config: select },
+      ...(publish ? [{ id: "pub", type, config: publish }] : []),
+    ],
+    edges: [{ source: "in", target: "sel" }, ...(publish ? [{ source: "sel", target: "pub" }] : [])],
+  });
+
+  it("a Select node into Publish to feed or Podcast episode is a whole graph workflow", () => {
+    expect(problems(wf(defaultConfig("select_assets"), { feed: 3 }), kind, "graph")).toEqual({});
+    expect(
+      problems(wf(defaultConfig("select_assets"), defaultConfig("podcast_episode"), "podcast_episode"), kind, "graph"),
+    ).toEqual({});
+    for (const t of ["select_assets", "select_activities", "publish_feed", "podcast_episode"]) {
+      expect(inScope(t, "graph")).toBe(true);
+      expect(inScope(t, "recording")).toBe(false);
+    }
+    expect(portsOf({ id: "p", type: "publish_feed", config: {} }).outputs).toEqual([]);
+    expect(portsOf({ id: "s", type: "select_activities", config: {} }).outputs).toEqual(["out"]);
+    expect(defaultConfig("select_activities")).toEqual({ since: "last_run", limit: 50 });
+  });
+
+  it("says what to fix: a feed to choose, the limits, and a graph that publishes nothing", () => {
+    expect(problems(wf({}, {}), kind, "graph").pub).toBe("Choose a feed.");
+    expect(problems(wf({ limit: 900 }, { feed: 3 }), kind, "graph").sel).toBe("At most is 1 to 500 resources.");
+    expect(problems(wf({ since: "yesterday" }, { feed: 3 }), kind, "graph").sel).toMatch(/^Since is/);
+    expect(problems(wf({}, null), kind, "graph")[""]).toBe(
+      "Add an Apply changes, Publish to feed or Podcast episode node, or the workflow changes nothing.",
+    );
+    expect(problems(wf({}, { min_sources: 5, max_sources: 3 }, "podcast_episode"), kind, "graph").pub).toBe(
+      "Fewest sources is 1 to the most.",
+    );
+    expect(problems(wf({}, { length: 0 }, "podcast_episode"), kind, "graph").pub).toBe("Length is 1 to 180 minutes.");
+    expect(problems(wf({}, { feed: 3 }), kind, "recording").pub).toBe("This node is for graph workflows.");
+  });
+
+  it("names the selection and the feed on the canvas", () => {
+    expect(nodeSummary({ id: "s", type: "select_assets", config: defaultConfig("select_assets") }, names)).toBe(
+      "since the routine last ran · up to 50",
+    );
+    expect(
+      nodeSummary(
+        {
+          id: "s",
+          type: "select_activities",
+          config: { since: "week", limit: 20, kinds: ["asset.added"], q: "invoice" },
+        },
+        names,
+      ),
+    ).toBe("the past week · up to 20 · asset.added · “invoice”");
+    expect(nodeSummary({ id: "p", type: "publish_feed", config: {} }, names)).toBe("Choose a feed");
+    expect(nodeSummary({ id: "p", type: "publish_feed", config: { feed: 3 } }, names)).toBe("to Weekly");
+    expect(nodeSummary({ id: "p", type: "publish_feed", config: { feed: 9 } }, names)).toBe("to feed #9");
+    expect(
+      nodeSummary(
+        { id: "e", type: "podcast_episode", config: { ...defaultConfig("podcast_episode"), feed: 3 } },
+        names,
+      ),
+    ).toBe("about 10 minutes · Deep dive · to Weekly");
+  });
+});
+
 describe("entity filter", () => {
   const names = { template: () => undefined, field: () => undefined };
   const wf = (config: Record<string, unknown>): WfGraph => ({
@@ -180,5 +253,29 @@ describe("entity filter", () => {
       ),
     ).toBe("PERSON · not Thanks · said 2+ times");
     expect(nodeSummary({ id: "f", type: "entity_filter", config: {} }, names)).toBe("all types");
+  });
+});
+
+describe("HTTP call", () => {
+  const names = { template: () => undefined, field: () => undefined };
+  const wf = (config: Record<string, unknown>): WfGraph => ({
+    nodes: [
+      { id: "in", type: "input", config: {} },
+      { id: "h", type: "http", config },
+      { id: "o", type: "output", config: { key: "answer" } },
+    ],
+    edges: [
+      { source: "in", target: "h" },
+      { source: "h", target: "o" },
+    ],
+  });
+
+  it("an HTTP call node's host is written out", () => {
+    expect(inScope("http", "recording") && inScope("http", "graph")).toBe(true);
+    expect(inScope("http", "tool")).toBe(false);
+    expect(problems(wf({ method: "GET", url: "https://api.example.com/q?x={{ input }}" }), kind)).toEqual({});
+    expect(problems(wf({ url: "https://{{ input }}/x" }), kind).h).toMatch(/host written out/);
+    expect(problems(wf({ method: "GET", url: "https://a.example/", body: "x" }), kind).h).toMatch(/send a body/);
+    expect(nodeSummary({ id: "h", type: "http", config: defaultConfig("http") }, names)).toBe("GET https://");
   });
 });

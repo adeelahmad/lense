@@ -83,7 +83,9 @@ then.
 - **Chat on any page:** every page except Chat itself has an Ask button that opens a chat panel beside the page (full
   screen on phones). Its conversation follows you between pages, and across visits in the same browser, until New
   chat; it is an ordinary conversation, also listed in Chat. Each question can share the page's text (the page chip,
-  on by default) and text highlighted on the page (Ask about this, above any selection). The model reads them with the
+  on by default) and text highlighted on the page (Ask about this, above any selection). A timeline item's **Ask about
+  this** (or `a` on its line) hands the panel the item instead: its id, line, time, where it opens and its fields
+  ([timeline](timeline.md#asking-about-an-item)). The model reads them with the
   question (up to 12,000 characters of page text and 4,000 of the highlight) as what the person is looking at, not as
   citable excerpts. The question keeps the page's address, title and highlight, shown above it; the page's text isn't
   stored. An asset's text and pages keep their own selection toolbar, whose Ask in chat goes to the
@@ -279,7 +281,8 @@ When the configured model supports function calling, chat becomes an agent.
   and its other names, hiding one, or adding one to a namespace's fixed list) and changing topics (merging,
   renaming, describing or deleting one; [Topics](topics.md)) don't happen directly.
   They become approval cards (with the batch estimate) that the person approves, approves on a sample, or declines
-  (`POST /api/v1/approvals/<id>`). Viewers only get the read tools. When an [automation](automations.md#the-model-and-the-agent)
+  (`POST /api/v1/approvals/<id>`). Only the person approves one, signed in to Lens or in the chat: an API key, an app,
+  MCP and the assistant can only decline it. Viewers only get the read tools. When an [automation](automations.md#the-model-and-the-agent)
   uses the assistant, every change it would make is an approval of yours, notes included, with the run as its origin.
 - **Check sources** (`POST /api/v1/chats/<id>/messages/<id>/check`) re-checks every cited claim against the lines it
   cites, and lists sentences that cite nothing.
@@ -543,9 +546,9 @@ people it's turned on for: those who can edit a namespace, and admins (`sandbox.
 
 ### Compute nodes
 
-In progress: the seam is built, and the mesh that joins the nodes is being built in its own pull request. Once the
-install's mesh registers compute nodes (its other machines, each with its own sandbox gateway, reached only over the
-mesh's own network), the assistant can run a conversation's code on one of them:
+Once a compute node on the install's [mesh](mesh.md#compute-nodes) has its own sandbox gateway (its install line
+starts one, and hands Lens the gateway's certificate), the assistant can run a conversation's code on it, reached
+only over the mesh's own network:
 
 - **`sandbox_nodes`** lists where code can run: this machine (`here`) and each compute node, with whether it can run
   code now and, if not, why (it hasn't reported in the last 3 minutes, it isn't on the mesh, its sandbox gateway isn't
@@ -812,6 +815,29 @@ when: someone asks for a recap of a meeting
 Find the meeting, read it, and answer with three bullets: decisions, owners, dates.
 ```
 
+### Manifests as files: `lens ext`
+
+`lens ext` keeps extensions as files in a folder, for a git repository or an agent that writes them:
+
+```bash
+lens ext list                    # the extensions you can see; --json for scripts and agents
+lens ext pull --dir extensions   # yours (admins: all) as files; names or ids pick some, --all adds shared ones
+lens ext check extensions        # read and check them without saving; exits 1 when one doesn't check
+lens ext push extensions         # changed ones become new versions, new ones extensions; --notes says what changed
+```
+
+With no address it works on this install's database, as the first admin or the account `--as` names (run it with
+`docker compose exec backend lens ext …`). With `--url` and `--token` (or `LENS_URL` and `LENS_TOKEN`) it works on
+any Lens server through `/api/v1/extensions`, as the [API token](authentication.md#api-tokens)'s owner; pushing takes a
+write token.
+
+A skill or a prompt tool is pulled as `<name>.md` (Markdown with frontmatter), the rest as `<name>.yaml`; a folder's
+other `.md` files, a README, are left alone. A pulled file says the version it was pulled at (`version: 3`, which the
+check ignores), so neither side's changes are lost: a push refuses when the extension changed in Lens since that
+version, and a pull refuses to overwrite a file changed since it was pulled, each until it's given `--force`. Pushing
+a file that says what Lens has, written differently or with the defaults left out, saves nothing. `visibility` and
+`namespaces` in a file share the extension as they say when it's pushed; without them, who sees it stays as it is.
+
 ### Skills and plugins from marketplaces
 
 Lens reads Anthropic's open plugin and skill formats as they are, so what's made for Claude installs here unchanged:
@@ -821,6 +847,13 @@ Lens reads Anthropic's open plugin and skill formats as they are, so what's made
   and any other is added by its address (`owner/repo`, a GitHub or GitLab link, or a link to its marketplace.json),
   which is how a team runs a custom one. Everyone who can edit browses them, previews a plugin (what it adds and what
   Lens leaves out) and installs it.
+- **Finding and updating**: `GET /api/v1/marketplaces/plugins?q=` looks for a plugin across every marketplace added,
+  by the words in its name, description, category or author. A plugin you installed says which version you have, and
+  when its marketplace (read again on **Refresh**) lists another, its button reads **Update to** that version;
+  `?updates=true` lists only those.
+- **For agents**: over [MCP](mcp.md), `find_plugins` finds them (`updates` for the ones with another version) and
+  `install_plugin` installs one, or with `preview` says what it would add. In chat the assistant has the same two
+  tools, and installing waits for your yes, like saving an extension.
 - **Links and files** (`POST /api/v1/extensions/import`, `/import/archive`): a plugin or a skill from a GitHub or
   GitLab repository or folder, or a `.zip`, `.skill` or `.tar.gz`.
 
@@ -923,8 +956,9 @@ not [the assistant in your browser](browser-assistant.md), which uses your own b
 
 ### Optional containers
 
-The MCP runner, the browser, the [code sandbox](#the-gateway)'s gateway and monitoring
-([Prometheus and Grafana](prometheus.md)) are containers Lens can run next to it, off until an admin turns one on. The web app can't start containers itself, so the machine's upgrade agent does
+The MCP runner, the browser, the [code sandbox](#the-gateway)'s gateway, monitoring
+([Prometheus and Grafana](prometheus.md)) and the mesh ([Nodes and the mesh](mesh.md#on-this-machine), started when an
+admin adds a node) are containers Lens can run next to it, off until an admin turns one on. The web app can't start containers itself, so the machine's upgrade agent does
 ([Updates](updates.md)): it adds the profile to `COMPOSE_PROFILES` in Lens's `.env`, or takes it out, and starts or
 stops that profile's containers, one change at a time. Without an agent (Lens wasn't installed with `install.sh`), the
 switch shows the line to run on the machine instead. Agents use the same switches: `GET /api/v1/admin/services` and
