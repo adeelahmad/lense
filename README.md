@@ -187,7 +187,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   schedule rules, within min and max and a monthly budget, with every launch, join and hour of cost in the activity
   ledger. A group launches nothing until you approve its terms in Settings › Auto scaling; agents propose and manage
   groups over the API, MCP and the assistant, and never approve one. It runs more workers on this machine today;
-  cloud, Proxmox, Linux and model hosts are planned. ([Auto scaling](docs/scaling.md);
+  DigitalOcean and Hetzner Cloud providers are in progress (built, launching once the mesh's install line lands), and
+  AWS, Proxmox, Linux and model hosts are planned. ([Auto scaling](docs/scaling.md);
   [checks](docs/requirements.md#scale-out))
 - **Keep it up to date and backed up.** Lens checks for a new release once a day and tells admins by email or a
   notification. One click in Settings › Updates (or one API call) upgrades it through a small agent on the machine,
@@ -219,7 +220,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   up in Settings, with certificates from Let's Encrypt or ZeroSSL that renew on their own, answering only for its own
   domains and, if you choose, only to devices holding a client certificate; or reach it from anywhere through a
   Cloudflare tunnel with nothing opened on your router. Either way, the S3 and WebDAV shares and the MQTT hub answer at
-  that same address once you turn them on. ([Encryption](docs/encryption.md), [access](docs/access.md),
+  that same address once you turn them on. Keep API keys and tokens in a Vaultwarden or Bitwarden vault: a secret
+  field in Settings can refer to an item there, and Lens reads it without anyone, agents included, seeing it.
+  ([Encryption](docs/encryption.md), [secrets](docs/secrets.md), [access](docs/access.md),
   [prompt injection](docs/assistant.md#third-party-content-and-prompt-injection), [HTTPS](docs/https.md),
   [remote access](docs/remote-access.md); [checks](docs/requirements.md#stay-private-and-safe))
 - **Use open standards.** RDF and Dublin Core for every record, OAuth for apps and OpenID Connect sign-in, MCP, MQTT,
@@ -261,13 +264,15 @@ Next, and not in a pull request yet; each links to where it is tracked:
   topics, recordings and the other things that have pages ([notes](docs/notes.md)).
 - **Local models:** GPU builds of llama.cpp fetched by Lens, and local embedding models
   ([local models](docs/local-models.md)).
-- **Auto scaling:** providers for AWS, DigitalOcean, Hetzner, Proxmox and Linux hosts over SSH, joining over the
-  Nebula mesh, model hosts (RunPod, Lambda, Hugging Face, SageMaker, Bedrock), and making providers and groups in
-  Settings ([auto scaling](docs/scaling.md)).
+- **Auto scaling:** providers for AWS, Proxmox and Linux hosts over SSH, joining over the Nebula mesh, model hosts
+  (RunPod, Lambda, Hugging Face, SageMaker, Bedrock), and making providers and groups in Settings
+  ([auto scaling](docs/scaling.md)).
 - **Speech providers:** their summaries, chapters and entities as optional imports, and per-minute prices in the
   activity ledger ([speech providers](docs/speech-providers.md)).
 - **Storage:** uploads and assets' media in the file store, and a storage key to download
   ([storage](docs/storage.md)).
+- **Secrets:** Settings › Secrets in the web app, with a picker for the vault's items, and references in sources'
+  credentials and MCP servers ([secrets](docs/secrets.md)).
 - **Logging:** sending straight to Loki or another HTTP endpoint, and client certificates for TLS
   ([logging](docs/logging.md)).
 - **Proof:** each release tested by upgrading an install of the last one, holding data
