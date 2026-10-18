@@ -137,6 +137,7 @@ DEFAULTS = {
         "sensevoice": {"model": "iic/SenseVoiceSmall", "hub": "ms", "vad_max_segment_ms": 30000, "batch_size": 16},
         "whisper": {"model": "large-v3-turbo", "compute_type": "default"},
         "mlx_whisper": {"model": "mlx-community/whisper-large-v3-turbo"},
+        "vocabulary": False,  # give each recording's engine the names its namespace knows (vocabulary.py)
     },
     "diarize": {
         "engine": "auto",

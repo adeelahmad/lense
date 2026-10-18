@@ -643,6 +643,13 @@ export const FIELDS: FieldSpec[] = [
     kind: "text",
     mono: true,
   },
+  {
+    section: "transcribe",
+    key: "vocabulary",
+    label: "Expect your own names",
+    kind: "switch",
+    hint: "Each recording is transcribed knowing its namespace's named people, defined entities, custom vocabulary and the names you fixed in its transcripts, so the same mistakes stop coming back (Whisper, OpenAI-compatible, Deepgram and AssemblyAI; SenseVoice and ElevenLabs take no hints)",
+  },
   // Speaker separation
   {
     section: "diarize",
