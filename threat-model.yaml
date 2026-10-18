@@ -581,6 +581,15 @@ entry_points:
         control_kinds: [x-env-config]
         caller_must_enforce: "admin is trusted; audited (mesh.token.create, mesh.join, mesh.node.*); the network can't change once machines have addresses in it"
         provenance: {kind: documented, source: 'docs/mesh.md "Settings"'}
+  - id: "UDP 4242 on the primary and ports 8000 and 8080 on its mesh address (the mesh container, while the mesh is on)"
+    component: optional
+    parameters:
+      - name: "Nebula handshakes and tunnelled packets from anyone reaching the port; on the mesh, TCP to the database and the API"
+        attacker_controllable: true
+        x-condition: "anyone reaching UDP 4242; on the mesh, a machine with a certificate the mesh's CA signed"
+        control_kinds: [data, x-peer]
+        caller_must_enforce: "Nebula drops what no certificate of the mesh's CA signs and anything on the blocklist; its firewall, rendered by Lens, lets only lens-worker reach 8000 and lens-node 8080; the relays listen on the mesh address only; the container is the only one holding NET_ADMIN, makes its own key pair (the private key stays in its own volume) and runs only Nebula's release with the checksum kept in Lens"
+        provenance: {kind: documented, source: 'docs/mesh.md "On this machine"'}
   - id: ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY"
     component: outbound
     parameters:
@@ -1956,7 +1965,7 @@ properties_claimed:
     kind: authentication
     components: [optional]
     tier: security-critical
-    conditions: "the mesh (mesh.enabled, off until an admin adds a node) admits only machines that joined with a token an admin made, spent on use and expiring, which never crosses the wire (HMAC proof; answer sealed with a key derived from it); each machine's certificate names only its own address, role and namespaces; the rendered firewall opens the database port to worker nodes and the API port to every node on the primary, a node's agent port to the primary only; removing a node blocklists every certificate it was given on every machine and stops its node token; nodes still sign in to Lens as any client does"
+    conditions: "the mesh (mesh.enabled, off until an admin adds a node) admits only machines that joined with a token an admin made, spent on use and expiring, which never crosses the wire (HMAC proof; answer sealed with a key derived from it); each machine's certificate names only its own address, role and namespaces; the rendered firewall opens the database port to worker nodes and the API port to every node on the primary, a node's agent port to the primary only; removing a node blocklists every certificate it was given on every machine and stops its node token; nodes still sign in to Lens as any client does; on the primary Nebula runs in the mesh container, the only one holding NET_ADMIN, with a key pair it makes itself and Nebula's release checked against the kept checksum; its relays listen on the mesh address only"
     violation_symptoms: [info-leak, integrity-bypass]
     x-voided-by: "a wrong address in the install line gives a stranger the token's id (not its secret); a worker node holds the database credential (trusted peer, Q9); the lighthouse must be reachable on UDP mesh.port; Nebula's own isolation is upstream's (domain/mesh.py)"
     provenance: {kind: documented, source: 'docs/mesh.md "What keeps it safe"'}

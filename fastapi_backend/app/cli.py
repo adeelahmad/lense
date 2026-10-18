@@ -280,6 +280,7 @@ def platform_main(argv, config):
         jobs,
         local_llm,
         logs,
+        mesh,
         nfs_share,
         notify,
         passkeys,
@@ -407,6 +408,7 @@ def platform_main(argv, config):
                     shares.start(db, C, stop, log=say, name=wk.name)  # and the file shares (S3, WebDAV), while they're on
                     channels.start_all(db, C, stop, lambda: cfg, name=wk.name, log_fn=say)  # and the chat channels, while they're on
                     tunnel.start(db, C, stop, name=wk.name, log=say)  # and the Cloudflare tunnel, while it's on
+                    mesh.start(db, C, stop, name=wk.name, log=say)  # and the mesh container's config, while the mesh is on
                     https.start(db, C, stop, name=wk.name, log=say)  # and HTTPS, where the ports are (LENS_HTTPS_LISTEN)
                     local_llm.start(db, C, stop, name=wk.name, log=say)  # and the local chat model, while it's on
                     scaling.start(db, C, stop, name=wk.name, log_=say)  # and auto scaling (docs/scaling.md), while it's on

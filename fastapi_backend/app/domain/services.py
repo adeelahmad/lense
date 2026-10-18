@@ -1,5 +1,5 @@
-"""Lens's optional containers, turned on and off from the web app: the MCP runner, the browser and monitoring
-(docs/assistant.md, docs/prometheus.md).
+"""Lens's optional containers, turned on and off from the web app: the MCP runner, the browser, monitoring and the
+mesh (docs/assistant.md, docs/prometheus.md, docs/mesh.md).
 
 The containers can't start other containers, so the machine's upgrade agent does it, as it installs releases
 (updates.py, packaging/host/lens-upgrade.sh): a request with action=services, profile=<name> and turn=on|off in its
@@ -38,6 +38,13 @@ PROFILES = {
     "monitoring": (
         "Monitoring",
         "Prometheus, node-exporter and Grafana: charts of Lens and this machine over time",
+        None,
+    ),
+    # started and stopped by the mesh's keeper as mesh.enabled turns (mesh.py), not only from here
+    "mesh": (
+        "Mesh",
+        "Nebula, the private network between Lens's machines (Settings › Nodes): the only container holding NET_ADMIN, "
+        "listening on UDP 4242",
         None,
     ),
 }

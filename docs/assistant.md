@@ -946,8 +946,9 @@ not [the assistant in your browser](browser-assistant.md), which uses your own b
 
 ### Optional containers
 
-The MCP runner, the browser, the [code sandbox](#the-gateway)'s gateway and monitoring
-([Prometheus and Grafana](prometheus.md)) are containers Lens can run next to it, off until an admin turns one on. The web app can't start containers itself, so the machine's upgrade agent does
+The MCP runner, the browser, the [code sandbox](#the-gateway)'s gateway, monitoring
+([Prometheus and Grafana](prometheus.md)) and the mesh ([Nodes and the mesh](mesh.md#on-this-machine), started when an
+admin adds a node) are containers Lens can run next to it, off until an admin turns one on. The web app can't start containers itself, so the machine's upgrade agent does
 ([Updates](updates.md)): it adds the profile to `COMPOSE_PROFILES` in Lens's `.env`, or takes it out, and starts or
 stops that profile's containers, one change at a time. Without an agent (Lens wasn't installed with `install.sh`), the
 switch shows the line to run on the machine instead. Agents use the same switches: `GET /api/v1/admin/services` and
