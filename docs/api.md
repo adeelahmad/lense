@@ -1253,6 +1253,10 @@ asset (`facets`: up to 50 values each, most first, and `moments`), and lists the
 assets they're in, with how many of those assets each is in (`objects`); past 20,000 moments the counts cover
 20,000 of them (`partial`).
 
+In the web app, a result links to the asset with the words searched for (`/resources/<id>?t=<seconds>&q=<words>`,
+without filters, left-out words or `OR`): it opens with Find in its text showing them, on the match at that moment,
+or on the longest of the words when the text doesn't have them together.
+
 Each hit's `source` says where it was found: `said` (a line of the asset's text or transcript), `screen` (text on screen), `page` (a document's or an
 image's text: its `page`, from 0, and its `box` on it), `object` (a kind of object, where it's first seen: its time, or
 on a document's pages its `page`, with the `frame` and the `box` it's best seen in), `described` (what a shot or a page

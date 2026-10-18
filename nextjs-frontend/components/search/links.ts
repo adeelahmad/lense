@@ -1,8 +1,15 @@
 import type { RecordingSummary, SearchHit } from "@/app/openapi-client/types.gen";
+import { findText } from "@/components/search/query";
 
 /** A link to a moment: the recording page, seeking to `ms` (as whole seconds, `?t=`). */
 export function recordingHref(id: number, ms?: number | null): string {
   return ms && ms > 0 ? `/resources/${id}?t=${Math.floor(ms / 1000)}` : `/resources/${id}`;
+}
+
+/** A link from a search to an asset, carrying what was searched for (`?q=`) so the asset opens with it found. */
+export function withFind(href: string, q?: string | null): string {
+  const text = findText(q ?? "");
+  return text ? `${href}${href.includes("?") ? "&" : "?"}q=${encodeURIComponent(text)}` : href;
 }
 
 /** True when a recording has media to play (imported transcripts have none); undefined when unknown. */

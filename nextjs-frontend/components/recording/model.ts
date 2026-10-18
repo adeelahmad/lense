@@ -652,6 +652,26 @@ export function findInSegments(segments: Segment[], query: string): FindHit[] {
   return out;
 }
 
+/** What Find opens with on arriving from a search (?q=): its words together when the text has them, else the longest
+ * of its words the text has; on the first match at or after `startMs` (the moment the search linked to). Null when
+ * the text has none of them. */
+export function arrivalFind(
+  segments: Segment[],
+  q: string,
+  startMs: number | null,
+): { query: string; index: number } | null {
+  const words = q.split(/\s+/).filter((w) => w.length >= 2);
+  const tries = [q.trim(), ...[...words].sort((a, b) => b.length - a.length)];
+  for (const query of tries) {
+    const hits = findInSegments(segments, query);
+    if (!hits.length) continue;
+    const t0 = new Map(segments.map((s) => [s.idx, s.t0]));
+    const index = startMs == null ? 0 : hits.findIndex((h) => (t0.get(h.seg) ?? 0) >= startMs - 1000);
+    return { query, index: Math.max(0, index) };
+  }
+  return null;
+}
+
 /** Lowercase and strip accents without changing the string's length (so offsets map back). */
 export function fold(s: string): string {
   let out = "";

@@ -14,7 +14,14 @@ import { pageAt, pageRef, parsePage } from "@/components/recording/document/mode
 import { usePlayer, useRecording, useRecordingJobs } from "@/components/recording/hooks";
 import { pageState } from "@/components/recording/jobs";
 import { MobileLayout } from "@/components/recording/mobile-layout";
-import { adjacentTurnStart, findInSegments, groupTurns, segmentAt, type EntityRef } from "@/components/recording/model";
+import {
+  adjacentTurnStart,
+  arrivalFind,
+  findInSegments,
+  groupTurns,
+  segmentAt,
+  type EntityRef,
+} from "@/components/recording/model";
 import type { NoteDraft } from "@/components/recording/notes-model";
 import { RecordingSkeleton } from "@/components/recording/skeleton";
 import { RecordingDialogs, type DialogState } from "@/components/recording/dialogs";
@@ -35,6 +42,7 @@ export function RecordingPage({
   start,
   focus = null,
   page = null,
+  find = null,
 }: {
   id: number;
   start: number | null;
@@ -42,6 +50,8 @@ export function RecordingPage({
   focus?: { file: number; line: number | null } | null;
   /** A document's page to open on (?page=, from 1). */
   page?: string | null;
+  /** Words to open with found (?q=, from a search). */
+  find?: string | null;
 }) {
   const rec = useRecording(id);
   const jobs = useRecordingJobs(id);
@@ -98,6 +108,7 @@ export function RecordingPage({
       start={start}
       focus={focus}
       page={page}
+      find={find}
       rec={rec.data}
       model={player.data}
       state={state}
@@ -145,6 +156,7 @@ type InnerProps = {
   start: number | null;
   focus: RecordingCtx["fileFocus"];
   page: string | null;
+  find: string | null;
   rec: RecordingCtx["rec"];
   model: RecordingCtx["model"];
   state: RecordingCtx["state"];
@@ -153,7 +165,7 @@ type InnerProps = {
   speakers: RecordingCtx["speakers"];
 };
 
-function Inner({ id, start, focus, page, rec, model, state, jobs, turns, speakers }: InnerProps) {
+function Inner({ id, start, focus, page, find, rec, model, state, jobs, turns, speakers }: InnerProps) {
   const api = usePlayerApi();
   const { hasMedia } = usePlayerState();
   const { roleIn, can, admin } = useArchive();
@@ -194,6 +206,18 @@ function Inner({ id, start, focus, page, rec, model, state, jobs, turns, speaker
     started.current = true;
     api.seek(start * 1000, { manual: true });
   }, [api, start]);
+
+  // ?q= (a search's words) opens Find with them found, on the match at or after ?t= when there is one.
+  const found = useRef(false);
+  useEffect(() => {
+    if (found.current || !find) return;
+    found.current = true;
+    const at = arrivalFind(model.segments, find, start == null ? null : start * 1000);
+    if (!at) return;
+    setQuery(at.query);
+    setHitIndex(at.index);
+    setFindOpen(true);
+  }, [find, start, model.segments]);
 
   // #access (Home's "Needs attention" and access request emails link that way) opens the access settings.
   useEffect(() => {
