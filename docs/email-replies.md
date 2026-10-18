@@ -2,7 +2,7 @@
 
 Lens drafts replies to the email it reads, from what your archive says. Each fact in a draft is cited to the excerpt it
 came from, what the archive doesn't say is marked for you to fill in, and the draft waits for you:
-Lens never sends a reply on its own.
+Lens never sends a reply on its own. You send it, through the Gmail it came in on or your own mail app.
 
 It works on any email Lens has imported: mail that a watched [Gmail or IMAP mailbox](processing.md#gmail-and-google-workspace) brought in, or an
 `.eml` file you uploaded. It needs a language model (Settings › LLM provider).
@@ -19,6 +19,19 @@ in your own mail app, without its citations, for you to send; **Copy** copies th
 saves an edit, which Undo takes back. **Reply to all** adds who else the email was for to Cc. **Set aside** takes it
 off the list at once, with Undo instead of a question; **Draft again…** writes a new one, with what it should say.
 Viewers read the drafts; editors of the email's namespace draft and change them.
+
+## Sending
+
+An email that came in through a [Gmail connection](processing.md#gmail-and-google-workspace) an admin let send
+(**Also sends mail and saves drafts, after your yes**, under The assistant in its settings in Settings › Sources) has **Send** and **Keep in Gmail drafts**
+under its draft, for admins. The reply goes from the mailbox the email came in to, in the email's Gmail thread, to who
+To and Cc say, and without its citations. **Send** waits a few seconds with Undo instead of asking first, saves an edit
+you hadn't saved, and then sends; **Keep in Gmail drafts** puts it in Gmail's drafts at once, for you to send from
+Gmail. Neither works while something is still marked `[to confirm: …]`. A sent reply shows who sent it and links to it
+in Gmail, and isn't drafted or sent again.
+
+Any other email (IMAP, an uploaded `.eml`, a Gmail connection that only reads) is answered with **Open in your mail
+app** or **Copy**.
 
 ## Drafting a reply
 
@@ -73,19 +86,26 @@ it anyway.
 
 `GET /api/v1/replies` lists the email of the namespaces you can read, newest first, each with its reply. By default
 (`show=waiting`) it's the mail that may need an answer (no reply yet, and not automatic or your own) and every draft;
-`show` takes one status (`draft`, `drafting`, `skipped`, `dismissed`, `sent`, `failed`), `none` (no reply yet,
+`show` takes one status (`draft`, `drafting`, `skipped`, `dismissed`, `saved`, `sent`, `failed`), `none` (no reply yet,
 automatic mail too) or `all`, and `namespace` narrows it to one.
 
 `PATCH /api/v1/recordings/{id}/reply` changes a draft's `text`, `to`, `cc` or `subject` (the text before is kept as
 `previous`), or sets it aside (`status: dismissed`) and brings it back (`status: draft`), which is how setting it aside
 is undone. Drafting, editing and setting aside need the right to process the email (editors); anyone who can read the
-email can read its reply.
+email can read its reply. `sends` says whether it can go out through its Gmail connection.
+
+`POST /api/v1/recordings/{id}/reply/send` sends it, or keeps it in Gmail's drafts with `{"draft": true}` (its status
+becomes `sent` or `saved`, and `sent` says when, by whom and where it is in Gmail). It's the person's own pick, so it
+needs an admin signed in to Lens: an API key or an app gets 403 and asks through MCP instead.
 
 ## For agents
 
 The MCP server has the same: `email_replies` lists what waits, `draft_reply` drafts one (with `instructions`),
 `get_reply` reads it with its sources linked into the archive, and `edit_reply` changes it or sets it aside. Each result
-carries `review_url`, where the person reviews the draft. Nothing an agent does sends mail.
+carries `review_url`, where the person reviews the draft. Nothing an agent does sends mail on its own: `send_reply` (an
+admin's token) asks to send a draft, or to keep it in Gmail's drafts, and the ask waits in
+[Approvals](automations.md#approvals) showing all of the message. Approved, it sends the text it showed; a draft
+edited after the ask isn't sent, and is asked for again.
 
 ## Safety
 
@@ -93,10 +113,12 @@ An email is someone else's words, and may be written to steer a model. It reache
 ([what the archive says is data](mcp.md#what-the-archive-says-is-data)), and the system prompt says never to follow
 instructions in it. A web address in the draft that neither the email nor the excerpts hold is broken up
 (`hxxps://evil[.]example/…`), so an email can't have its reply carry a link of its own making, and a citation to an
-excerpt the model wasn't given is taken out. The draft says only what the email's namespace holds.
+excerpt the model wasn't given is taken out. The draft says only what the email's namespace holds, you see who it goes
+to (the address the email's Reply-To names, which anyone can set) before it goes, and every send is in the audit log
+(`reply.send`, `mail.send`).
 
 ## Refine later
 
-- Send a reply through the mailbox it came in to, after your yes (in progress).
+- Sending through an IMAP mailbox (SMTP), and from a Gmail connection by members, not only admins.
 - A signature in Settings; a decision model choosing which mail needs an answer; drafts from a whole thread rather than
   its newest message; replies with attachments.

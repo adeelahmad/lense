@@ -4,13 +4,17 @@ API and MCP. Runs against the fake Gmail and the fake model."""
 
 from __future__ import annotations
 
+import email
+from email import policy
+
 import pytest
 
-from app.domain import ingest, pipelines, responder, store
+from app.domain import ai_tools, ingest, pipelines, responder, sources, store
 from tests import fake_llm
 from tests.api.test_gmail_source import MARA, _service_account_source, admin, as_text, google  # noqa: F401 - fixtures
 from tests.api.test_mail_calendar_sources import REPORT, _email
 from tests.api.test_mcp import tool, tool_error
+from tests.fake_gmail import COMPOSE, GMAIL_READ
 from tests.helpers import drain, login, make_user, quiet
 
 R = store.R
@@ -33,7 +37,7 @@ def env(client, db, cfg, folder, admin, google, as_text):  # noqa: F811 - fixtur
     ingest.import_transcript(db, cfg, "calls", log, log=quiet)  # the same in another namespace: never cited
     report = google.add(REPORT, ["INBOX"], at=1790000000000)
     digest = google.add(_list_mail("Harbour digest", "This week at the harbour."), ["INBOX"], at=1790000100000)
-    sid = _service_account_source(client, admin, google)["id"]
+    sid = _service_account_source(client, admin, google, scopes=(GMAIL_READ, COMPOSE))["id"]
     r = client.post(
         "/api/v1/import/source",
         headers=admin,
@@ -50,6 +54,9 @@ def env(client, db, cfg, folder, admin, google, as_text):  # noqa: F811 - fixtur
     fake_llm.Handler.seen.clear()
     yield {
         "report": ids["Harbour report"],
+        "gmail": report,
+        "source": sid,
+        "google": google,
         "digest": ids["Harbour digest"],
         "log": db.values(
             "SELECT VALUE record::id(id) FROM recording WHERE title = $t AND space = $s", t="keeper's log", s=store.ns_id(db, "pods")
@@ -181,3 +188,88 @@ def test_agents_draft_read_and_edit_replies(client, db, cfg, env):
     out = tool(client, env["ed"], "edit_reply", recording_id=rid, text="Thanks, Mara [1].", status="dismissed")
     assert (out["status"], out["plain"]) == ("dismissed", "Thanks, Mara.")
     assert tool_error(client, env["ca"], "get_reply", recording_id=rid) == "not found, or not something you can read"
+
+
+def _ready(client, db, cfg, env, text="Hi Mara,\n\nThe ships arrived at dawn [1].\n\nTom"):
+    rid = env["report"]
+    client.post(f"/api/v1/recordings/{rid}/reply", headers=env["ed"])
+    drain(db, cfg)
+    client.patch(f"/api/v1/recordings/{rid}/reply", headers=env["ed"], json={"text": text})
+    return rid
+
+
+def test_sending_after_the_persons_yes(client, db, cfg, env):
+    rid = env["report"]
+    client.post(f"/api/v1/recordings/{rid}/reply", headers=env["ed"])
+    drain(db, cfg)
+    send = f"/api/v1/recordings/{rid}/reply/send"
+    # nothing marked to confirm may be left in it
+    r = client.post(send, headers=env["admin"])
+    assert r.status_code == 400 and "to confirm" in r.json()["detail"]
+    _ready(client, db, cfg, env)
+    # a connection only reads until an admin lets it send
+    assert client.get(f"/api/v1/recordings/{rid}/reply", headers=env["ed"]).json()["sends"] is False
+    r = client.post(send, headers=env["admin"])
+    assert r.status_code == 400 and "may send" in r.json()["detail"]
+    sources.update(db, cfg, env["source"], params={"write": "yes"})
+    assert client.get(f"/api/v1/recordings/{rid}/reply", headers=env["ed"]).json()["sends"] is True
+    assert client.get("/api/v1/replies", headers=env["ed"]).json()["emails"][0]["reply"]["sends"] is True
+    # only admins send from a connection, and viewers can't at all
+    assert client.post(send, headers=env["ed"]).status_code == 403
+    assert client.post(send, headers=env["vi"]).status_code == 403
+    # it's the person's own pick, signed in: an API key asks through send_reply
+    key = client.post("/api/v1/tokens", headers=env["admin"], json={"name": "agent", "scope": "write"}).json()["token"]
+    r = client.post(send, headers={"Authorization": f"Bearer {key}"})
+    assert r.status_code == 403 and "send_reply" in r.json()["detail"]
+    assert not env["google"].sent
+
+    # kept in Gmail's drafts first: in the email's thread, without its citations
+    r = client.post(send, headers=env["admin"], json={"draft": True})
+    assert r.status_code == 200, r.text
+    got = r.json()
+    assert got["status"] == "saved" and got["sent"]["draft"] and got["sent"]["url"]
+    assert env["google"].sent[-1]["draft"] and env["google"].sent[-1]["threadId"] == env["gmail"]
+    # then sent
+    got = client.post(send, headers=env["admin"]).json()
+    assert got["status"] == "sent" and got["sent"]["by"] == "root@x.io" and got["sent"]["thread"] == env["gmail"]
+    sent = env["google"].sent[-1]
+    msg = email.message_from_bytes(sent["raw"], policy=policy.default)
+    assert (msg["To"], msg["Subject"], msg["In-Reply-To"]) == ("mara@example.org", "Re: Harbour report", "<report@example.org>")
+    assert not sent["draft"] and msg.get_content().strip() == "Hi Mara,\n\nThe ships arrived at dawn.\n\nTom"
+    # sent, it isn't waiting, can't be sent again or changed, and a pipeline won't draft it again
+    assert client.get("/api/v1/replies", headers=env["vi"]).json()["emails"] == []
+    assert [e["recording"] for e in client.get("/api/v1/replies", headers=env["vi"], params={"show": "sent"}).json()["emails"]] == [rid]
+    assert client.post(send, headers=env["admin"]).status_code == 400
+    assert client.patch(f"/api/v1/recordings/{rid}/reply", headers=env["ed"], json={"text": "Hi"}).status_code == 400
+    from app.domain import jobs
+
+    jobs.add_steps(db, rid, [{"type": "reply"}])
+    drain(db, cfg)
+    assert client.get(f"/api/v1/recordings/{rid}/reply", headers=env["vi"]).json()["status"] == "sent"
+    assert len(env["google"].sent) == 2
+
+
+def test_agents_ask_to_send_and_the_person_approves(client, db, cfg, env):
+    rid = _ready(client, db, cfg, env)
+    sources.update(db, cfg, env["source"], params={"write": "yes"})
+    # an agent can't send: it asks, and the ask waits in Approvals showing all of the message
+    assert "admin" in tool_error(client, env["ed"], "send_reply", recording_id=rid)
+    out = tool(client, env["admin"], "send_reply", recording_id=rid)
+    assert out["status"] == "waiting for the person's approval" and out["review_url"].endswith(f"/approvals?id={out['approval']}")
+    assert out["summary"] == "Send the reply “Re: Harbour report” to mara@example.org from Mara's mail"
+    a = db.one("SELECT * FROM $r", r=R("approval", out["approval"]))
+    assert a["preview"].startswith(f"From: {MARA}\nTo: mara@example.org\nSubject: Re: Harbour report\n")
+    assert "The ships arrived at dawn." in a["preview"] and "[1]" not in a["preview"] and not env["google"].sent
+    me = {"email": "root@x.io", "id": a["account"]}
+    # an agent can only decline it; an edit after the ask means asking again
+    with pytest.raises(PermissionError):
+        ai_tools.approve(db, cfg, out["approval"], me, set(), admin=True, via="agent")
+    client.patch(f"/api/v1/recordings/{rid}/reply", headers=env["ed"], json={"text": "Hi Mara, see you Tuesday."})
+    with pytest.raises(ValueError, match="changed after it was approved"):
+        ai_tools.approve(db, cfg, out["approval"], me, set(), admin=True)
+    out = tool(client, env["admin"], "send_reply", recording_id=rid)
+    r = client.post(f"/api/v1/approvals/{out['approval']}", headers=env["admin"], json={"decision": "approve"})
+    assert r.status_code == 200 and r.json()["status"] == "sent", r.text
+    msg = email.message_from_bytes(env["google"].sent[-1]["raw"], policy=policy.default)
+    assert msg.get_content().strip() == "Hi Mara, see you Tuesday." and env["google"].sent[-1]["threadId"] == env["gmail"]
+    assert client.get(f"/api/v1/recordings/{rid}/reply", headers=env["vi"]).json()["status"] == "sent"

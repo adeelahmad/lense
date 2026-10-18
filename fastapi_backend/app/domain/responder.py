@@ -25,14 +25,14 @@ Automatic mail (mailing lists, bulk mail, no-reply senders, auto-replies, delive
 the person sent are skipped without a model call when a pipeline drafts, and drafted when someone asks for that one
 (`force`).
 
-Refine later: send the reply through the connection the mail came in on, after the person's yes; a signature in
-Settings; a decision model choosing which mail needs a reply; reply-all chosen by the model; drafts from a whole thread
+Refine later: sending through an IMAP mailbox (SMTP); a signature in Settings; a decision model choosing which mail needs a reply; reply-all chosen by the model; drafts from a whole thread
 rather than its newest message; attachments."""
 
 from __future__ import annotations
 
 import email
 import email.utils
+import pathlib
 import re
 from email import policy
 
@@ -47,8 +47,8 @@ EXCERPTS = 8
 EMAIL_MAX = 8000  # characters of the email the model reads
 TEXT_MAX = 20000
 RAW_MAX = 25 * 1024 * 1024
-STATUSES = ("draft", "skipped", "dismissed", "sent")
-SHOWN = ("waiting", "draft", "drafting", "skipped", "dismissed", "sent", "failed", "none", "all")
+STATUSES = ("draft", "skipped", "dismissed", "saved", "sent")
+SHOWN = ("waiting", "draft", "drafting", "skipped", "dismissed", "saved", "sent", "failed", "none", "all")
 BODY = (
     "Draft a reply to this email for the person who received it"
     "{% if me %} ({{ me }}){% endif %}, as they would write it: plain text, brief and friendly, in the email's "
@@ -373,7 +373,7 @@ def _job(db, rid):
     return None
 
 
-def view(row, job=None):
+def view(row, job=None, sends=None):
     """A reply as the API shows it: its status (drafting while a job is on it, failed when the last one failed, else
     as kept), the draft with and without its citations, and what's left to confirm."""
     from . import jobs
@@ -402,6 +402,8 @@ def view(row, job=None):
             "instructions": row.get("instructions"),
             "edited": row.get("edited"),
             "previous": row.get("previous"),
+            "sends": sends,
+            "sent": row.get("sent"),
             "drafted_at": row.get("drafted_at"),
             "updated_at": row.get("updated_at"),
         }
@@ -409,7 +411,109 @@ def view(row, job=None):
 
 
 def status(db, rid):
-    return view(db.one("SELECT * FROM $r", r=R("email_reply", rid)), _job(db, rid))
+    row = db.one("SELECT * FROM $r", r=R("email_reply", rid))
+    return view(row, _job(db, rid), bool(row and row.get("source") in senders(db)))
+
+
+def senders(db):
+    """The ids of the mail connections a reply can go out through: Gmail ones an admin let send."""
+    from . import gmail
+
+    return {
+        int(s["id"])
+        for s in db.rows("SELECT record::id(id) AS id, type, params FROM storage_source WHERE type = 'gmail'")
+        if gmail.writes(s)
+    }
+
+
+def outgoing(db, cfg, rid, draft=False):
+    """The reply as connection_tools sends it: (the connection, the reply, the message's args), answering the email in
+    its Gmail thread. Problem when it can't go yet: not a draft, something still to confirm, or no connection that sends."""
+    from . import connection_tools
+
+    row = db.one("SELECT * FROM $r", r=R("email_reply", rid))
+    if not row or not row.get("text"):
+        raise Problem("there's no reply to this email yet: draft one first")
+    if row.get("status") == "sent":
+        raise Problem("this reply was sent")
+    left = len(CONFIRM_RX.findall(row["text"]))
+    if left:
+        raise Problem(f"fill in what's marked [to confirm: …] first ({left} left)")
+    if not row.get("to") and not draft:
+        raise Problem("say who it goes to (to)")
+    rec = db.one("SELECT remote FROM $r", r=R("recording", rid)) or {}
+    remote = rec.get("remote") or {}
+    if row.get("source") not in senders(db) or not remote.get("path"):
+        raise Problem(
+            "this email didn't come in through a Gmail connection that may send: an admin lets it send in Settings › "
+            "Sources, or copy the reply into your mail app"
+        )
+    mid = pathlib.PurePosixPath(str(remote["path"])).stem  # a Gmail message's path is <label>/<message id>.eml
+    try:
+        src, args = connection_tools.outgoing_mail(
+            db, cfg, row["source"], row.get("to"), row.get("cc"), None, row.get("subject"), plain(row["text"]), mid, draft
+        )
+    except ValueError as e:
+        raise Problem(str(e)) from None
+    return src, row, args
+
+
+def ask(db, cfg, rid, account, draft=False):
+    """An agent's ask to send the reply (or keep it in Gmail's drafts): an approval in the person's inbox, showing all
+    of the message, that sends this text once they approve it (ai_tools.approve)."""
+    from . import connection_tools
+
+    src, row, args = outgoing(db, cfg, rid, draft)
+    subj = (args.get("subject") or "(no subject)")[:80]
+    who = ", ".join(args.get("to") or args.get("cc") or [])
+    who = who if len(who) <= 80 else who[:77] + "…"
+    summary = f"Save the reply “{subj}” in {src['name']}'s drafts" if draft else f"Send the reply “{subj}” to {who} from {src['name']}"
+    preview = (
+        connection_tools.mail_preview(src, args) + "\n\n(Note: drafted by Lens to an email someone else wrote; an agent asked to send it.)"
+    )
+    rec = db.one("SELECT space FROM $r", r=R("recording", rid)) or {}
+    aid = db.next_id("approval")
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("approval", aid),
+        d=store.clean(
+            {
+                "account": account,
+                "tool": "send_reply",
+                "args": {"recording": rid, "text": row["text"], "draft": bool(draft)},
+                "summary": summary,
+                "preview": preview,
+                "space": rec.get("space"),
+                "status": "pending",
+                "created_at": store.now(),
+            }
+        ),
+    )
+    return aid, summary
+
+
+def send(db, cfg, rid, user, admin, draft=False, text=None):
+    """Send the reply (or keep it in Gmail's drafts), the person's yes: what Gmail made of it. `text`, from an
+    approval, is the draft the person approved; one that changed since isn't sent. Only admins send from a connection."""
+    from . import connection_tools
+
+    src, row, args = outgoing(db, cfg, rid, draft)
+    if text is not None and text != row["text"]:
+        raise Problem("the draft changed after it was approved: ask again")
+    got = connection_tools.send_mail(db, cfg, args, user, admin)
+    done = store.clean(
+        {
+            "at": store.now(),
+            "by": user.get("email"),
+            "connection": src["id"],
+            "id": got.get("id"),
+            "draft": got.get("draft"),
+            "thread": got.get("thread"),
+            "url": got.get("url"),
+        }
+    )
+    db.q("UPDATE $r MERGE $d", r=R("email_reply", rid), d={"status": "saved" if draft else "sent", "sent": done, "updated_at": done["at"]})
+    return status(db, rid)
 
 
 def edit(db, rid, text=None, to=None, cc=None, subject=None, state=None):
@@ -473,7 +577,7 @@ def listing(db, spaces, shown="waiting", limit=50):
         ):
             if j["recording"] not in jobs_on and any((s or {}).get("type") == STEP for s in j.get("steps") or []):
                 jobs_on[j["recording"]] = j
-    own, names, out = mine(db), store.space_names(db), []
+    own, names, out, sending = mine(db), store.space_names(db), [], senders(db)
     for r in rows:
         mail, kept = r.get("mail") or {}, r.get("email") or {}
         sender = (mail.get("from") or [None])[0] or _first(str(kept.get("from") or ""))
@@ -486,7 +590,8 @@ def listing(db, spaces, shown="waiting", limit=50):
             if not sender or mailbox.ROBOTS_RX.match(sender.partition("@")[0])
             else None
         )
-        reply = view(replies.get(r["id"]), jobs_on.get(r["id"]))
+        row = replies.get(r["id"])
+        reply = view(row, jobs_on.get(r["id"]), bool(row and row.get("source") in sending))
         st = reply["status"]
         if shown == "waiting" and not ((st == "none" and not auto) or st in ("draft", "drafting", "failed")):
             continue

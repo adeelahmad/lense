@@ -20276,9 +20276,9 @@ export type Reply = {
   /**
    * Status
    *
-   * draft: waiting for the person; drafting: a job is on it (job); skipped: mail not to answer (why); failed: the last job to draft it failed (error)
+   * draft: waiting for the person; drafting: a job is on it (job); skipped: mail not to answer (why); failed: the last job to draft it failed (error); saved: kept in Gmail's drafts; sent: sent (sent)
    */
-  status: "none" | "drafting" | "draft" | "skipped" | "dismissed" | "sent" | "failed";
+  status: "none" | "drafting" | "draft" | "skipped" | "dismissed" | "saved" | "sent" | "failed";
   /**
    * Why
    */
@@ -20379,6 +20379,16 @@ export type Reply = {
    * the text it had before the last edit or draft, to undo it
    */
   previous?: ReplyBefore | null;
+  /**
+   * Sends
+   *
+   * it can go out through the Gmail connection the email came in on
+   */
+  sends?: boolean | null;
+  /**
+   * when and how it was sent or kept in Gmail's drafts
+   */
+  sent?: ReplySent | null;
   /**
    * Drafted At
    */
@@ -20521,6 +20531,61 @@ export type ReplyList = {
    * drafts waiting in these namespaces
    */
   drafts: number;
+  [key: string]: unknown;
+};
+
+/**
+ * ReplySend
+ */
+export type ReplySend = {
+  /**
+   * Draft
+   *
+   * keep it in Gmail's drafts instead of sending it
+   */
+  draft?: boolean;
+};
+
+/**
+ * ReplySent
+ */
+export type ReplySent = {
+  /**
+   * At
+   */
+  at?: string | null;
+  /**
+   * By
+   */
+  by?: string | null;
+  /**
+   * Connection
+   *
+   * the mail connection it went out through
+   */
+  connection?: number | null;
+  /**
+   * Id
+   *
+   * Gmail's id of the message
+   */
+  id?: string | null;
+  /**
+   * Draft
+   *
+   * Gmail's id of the draft, when it was kept as one
+   */
+  draft?: string | null;
+  /**
+   * Thread
+   */
+  thread?: string | null;
+  /**
+   * Url
+   *
+   * the message in Gmail
+   */
+  url?: string | null;
   [key: string]: unknown;
 };
 
@@ -50532,7 +50597,7 @@ export type ListRepliesData = {
     /**
      * Show
      */
-    show?: "waiting" | "draft" | "drafting" | "skipped" | "dismissed" | "sent" | "failed" | "none" | "all";
+    show?: "waiting" | "draft" | "drafting" | "skipped" | "dismissed" | "saved" | "sent" | "failed" | "none" | "all";
     /**
      * Namespace
      */
@@ -50655,3 +50720,36 @@ export type DraftReplyResponses = {
 };
 
 export type DraftReplyResponse = DraftReplyResponses[keyof DraftReplyResponses];
+
+export type SendReplyData = {
+  /**
+   * Body
+   */
+  body?: ReplySend | null;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/reply/send";
+};
+
+export type SendReplyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SendReplyError = SendReplyErrors[keyof SendReplyErrors];
+
+export type SendReplyResponses = {
+  /**
+   * Successful Response
+   */
+  200: Reply;
+};
+
+export type SendReplyResponse = SendReplyResponses[keyof SendReplyResponses];

@@ -35103,6 +35103,7 @@
                 "drafting",
                 "skipped",
                 "dismissed",
+                "saved",
                 "sent",
                 "failed",
                 "none",
@@ -35290,6 +35291,66 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ReplyEdit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{rid}/reply/send": {
+      "post": {
+        "tags": [
+          "replies"
+        ],
+        "summary": "Send Reply",
+        "description": "Send this email's reply through the Gmail connection the email came in on, in its thread and without its\ncitations, or keep it in Gmail's drafts (`draft`). It's your pick, so it needs you signed in to Lens: an API key, an\napp or an agent asks with the MCP tool `send_reply`, which waits in Approvals. Only admins send from a connection,\nand only from one an admin let send; nothing marked [to confirm: \u2026] may be left in it (400). Audited as\n`reply.send`.",
+        "operationId": "send_reply",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ReplySend"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
               }
             }
           }
@@ -70161,11 +70222,12 @@
               "draft",
               "skipped",
               "dismissed",
+              "saved",
               "sent",
               "failed"
             ],
             "title": "Status",
-            "description": "draft: waiting for the person; drafting: a job is on it (job); skipped: mail not to answer (why); failed: the last job to draft it failed (error)"
+            "description": "draft: waiting for the person; drafting: a job is on it (job); skipped: mail not to answer (why); failed: the last job to draft it failed (error); saved: kept in Gmail's drafts; sent: sent (sent)"
           },
           "why": {
             "anyOf": [
@@ -70423,6 +70485,29 @@
               }
             ],
             "description": "the text it had before the last edit or draft, to undo it"
+          },
+          "sends": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sends",
+            "description": "it can go out through the Gmail connection the email came in on"
+          },
+          "sent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReplySent"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "when and how it was sent or kept in Gmail's drafts"
           },
           "drafted_at": {
             "anyOf": [
@@ -70730,6 +70815,107 @@
           "drafts"
         ],
         "title": "ReplyList"
+      },
+      "ReplySend": {
+        "properties": {
+          "draft": {
+            "type": "boolean",
+            "title": "Draft",
+            "description": "keep it in Gmail's drafts instead of sending it",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ReplySend"
+      },
+      "ReplySent": {
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By"
+          },
+          "connection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connection",
+            "description": "the mail connection it went out through"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "description": "Gmail's id of the message"
+          },
+          "draft": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft",
+            "description": "Gmail's id of the draft, when it was kept as one"
+          },
+          "thread": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thread"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "the message in Gmail"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "ReplySent"
       },
       "ReplySource": {
         "properties": {

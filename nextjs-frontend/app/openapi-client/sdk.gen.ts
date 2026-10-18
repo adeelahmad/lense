@@ -1662,6 +1662,9 @@ import type {
   SendMessageData,
   SendMessageErrors,
   SendMessageResponses,
+  SendReplyData,
+  SendReplyErrors,
+  SendReplyResponses,
   SetBudgetData,
   SetBudgetErrors,
   SetBudgetResponses,
@@ -13785,6 +13788,28 @@ export class Replies {
   ): RequestResult<DraftReplyResponses, DraftReplyErrors, ThrowOnError> {
     return (options.client ?? client).post<DraftReplyResponses, DraftReplyErrors, ThrowOnError>({
       url: "/api/v1/resources/{rid}/reply",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Send Reply
+   *
+   * Send this email's reply through the Gmail connection the email came in on, in its thread and without its
+   * citations, or keep it in Gmail's drafts (`draft`). It's your pick, so it needs you signed in to Lens: an API key, an
+   * app or an agent asks with the MCP tool `send_reply`, which waits in Approvals. Only admins send from a connection,
+   * and only from one an admin let send; nothing marked [to confirm: …] may be left in it (400). Audited as
+   * `reply.send`.
+   */
+  public static sendReply<ThrowOnError extends boolean = false>(
+    options: Options<SendReplyData, ThrowOnError>,
+  ): RequestResult<SendReplyResponses, SendReplyErrors, ThrowOnError> {
+    return (options.client ?? client).post<SendReplyResponses, SendReplyErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/reply/send",
       ...options,
       headers: {
         "Content-Type": "application/json",
