@@ -68,7 +68,8 @@ confirm first.
 
 New automation opens the builder, with the cursor in **Describe it in words**: type a sentence ("when an email about
 a school trip arrives, tell me") and press Enter, and the model fills the builder in, saying what it left out. Or
-build it yourself:
+pick one of the [starters](#starters) under it, which fills the builder in and says what to change first. Or build it
+yourself:
 
 - **When**: one card per trigger. An activity kind has **Only when** rows (a field, a test that suits its type and
   a value); a schedule has presets or a cron line, its time zone and its next few times; a time is a date and time;
@@ -1208,7 +1209,7 @@ used up.
 Built (`app/domain/automation_starters.py`). `GET /api/v1/automations/starters` lists ready-made drafts, each
 `{id, name, description, draft}`, with `draft` what `POST /automations` takes, switched off. Nothing is stored: a
 starter is saved only when someone saves it, and runs only once it is turned on. The description says what to change
-first, such as the school's address.
+first, such as the school's address. In the web app they are under **Describe it in words** on a new automation.
 
 | Starter | What it does |
 | --- | --- |
