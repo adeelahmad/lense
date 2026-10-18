@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from urllib.parse import urlsplit
+
 import pytest
 
 from app.domain import chat
+from app.domain import llm as llm_mod
 from tests import fake_llm
 from tests.api._assist import sse, start_llm
 from tests.helpers import login, make_user, seed
@@ -103,6 +106,84 @@ def test_a_conversation_that_fills_the_context_is_folded_in_early(db, cfg, llm):
     assert chat.compact(db, cfg, cid, full_only=True) is None  # short ones don't fill it
 
 
+def long_talk(db, cid, n):
+    for i in range(n):
+        chat.add(db, cid, "user" if i % 2 == 0 else "assistant", f"long message {i} " + "word " * 100)
+
+
+def forget_windows():
+    llm_mod._MODELS.clear()
+    llm_mod._WINDOWS.clear()
+
+
+def test_the_context_window_is_the_model_servers(db, cfg, llm):
+    """Without ai.context_tokens, a conversation is folded in early at the context the model really has: what the
+    model server lists, llama.cpp's /props, or Lens's own local model's."""
+    cid = chat.create(db, 1)
+    long_talk(db, cid, chat.RECENT + 1)  # seven of these fill half of 1700 tokens, not half of 16000
+    forget_windows()
+    assert chat.window(cfg) == chat.CONTEXT_TOKENS and chat.compact(db, cfg, cid, full_only=True) is None
+
+    llm.about = {"fake": {"max_model_len": 1700}}  # vLLM
+    forget_windows()
+    assert chat.window(cfg) == 1700 and chat.compact(db, cfg, cid, full_only=True)["folded"] == 1
+
+    cid = chat.create(db, 1)
+    long_talk(db, cid, chat.RECENT + 1)
+    llm.about, llm.props = (
+        {"fake": {"owned_by": "llamacpp", "meta": {"n_ctx_train": 131072}}},
+        {"default_generation_settings": {"n_ctx": 1700}},
+    )
+    forget_windows()
+    assert chat.window(cfg) == 1700  # what the server runs with, not what the model was trained for
+    assert chat.compact(db, cfg, cid, full_only=True)["folded"] == 1
+
+    cid = chat.create(db, 1)
+    long_talk(db, cid, chat.RECENT + 1)
+    llm.about, llm.props = {}, None
+    port = urlsplit(cfg["llm"]["base_url"]).port
+    cfg["local_llm"] = {**cfg.get("local_llm", {}), "enabled": True, "model": "fake", "port": port, "context": 1700}
+    forget_windows()
+    assert chat.window(cfg) == 1700 and chat.compact(db, cfg, cid, full_only=True)["folded"] == 1
+    cfg["local_llm"]["enabled"] = False
+
+    # ai.context_tokens, when set, is what counts; ai.compact_at is how much of it a conversation may fill
+    llm.about = {"fake": {"context_length": 1700}, "fake-large": {"context_length": 1700}}
+    forget_windows()
+    cid = chat.create(db, 1)
+    long_talk(db, cid, chat.RECENT + 1)
+    cfg["ai"]["context_tokens"] = 100000
+    assert chat.window(cfg) == 100000 and chat.compact(db, cfg, cid, full_only=True) is None
+    cfg["ai"]["context_tokens"], cfg["ai"]["compact_at"] = None, 90
+    assert chat.compact(db, cfg, cid, full_only=True) is None
+    cfg["ai"]["compact_at"] = 50
+    assert chat.compact(db, cfg, cid, full_only=True)["folded"] == 1
+
+    # the conversation's own model's context counts, when it has one
+    llm.about = {"fake-large": {"context_length": 1700}}
+    forget_windows()
+    cid = chat.create(db, 1, model="fake-large")
+    long_talk(db, cid, chat.RECENT + 1)
+    assert chat.window(cfg) == chat.CONTEXT_TOKENS and chat.compact(db, cfg, cid, full_only=True)["folded"] == 1
+
+
+def test_a_long_conversation_is_folded_in_runs_that_fit_the_summary_model(db, cfg, llm):
+    cfg["ai"]["compact_model"] = "fake-large"
+    llm.about = {"fake-large": {"context_length": 4096}}  # about a dozen of these long messages at a time
+    forget_windows()
+    cid = chat.create(db, 1)
+    long_talk(db, cid, 30)
+    reply, mid = chat.run_command(db, cfg, cid, "compact")
+    asked = summaries(llm.seen)
+    assert reply.startswith("Compacted 30 messages") and len(asked) == 3
+    assert all(b["model"] == "fake-large" and b["max_tokens"] == chat.SUMMARY_TOKENS for b in asked)
+    assert "(none yet)" in asked[0]["messages"][1]["content"] and "Summary so far:\nOK" in asked[2]["messages"][1]["content"]
+    assert "long message 29 " in asked[2]["messages"][1]["content"] and chat.memory(db, cfg, cid)["upto"] == mid
+    # each call is in the activity ledger as the conversation's
+    rows = db.rows("SELECT resources FROM activity WHERE action = 'model.chat' AND model = 'fake-large'")
+    assert len(rows) == 3 and all(f"chat:{cid}" in r["resources"] for r in rows)
+
+
 def test_commands_are_read_from_the_message():
     assert chat.command("/clear") == ("clear", "")
     assert chat.command("  /Compact keep the dates\n") == ("compact", "keep the dates")
@@ -159,5 +240,13 @@ def test_the_summary_settings_are_checked(client, db):
     h = login(client, "root@x.io", "root password 1")
     ok = client.put("/api/v1/settings/ai", headers=h, json={"compact_model": " small ", "context_tokens": 32000})
     assert ok.status_code == 200, ok.text
-    for bad in ({"context_tokens": 10}, {"context_tokens": "big"}, {"compact_model": 3}):
+    assert client.put("/api/v1/settings/ai", headers=h, json={"compact_at": 70}).status_code == 200
+    for bad in (
+        {"context_tokens": 10},
+        {"context_tokens": "big"},
+        {"compact_model": 3},
+        {"compact_at": 5},
+        {"compact_at": 95},
+        {"compact_at": "half"},
+    ):
         assert client.put("/api/v1/settings/ai", headers=h, json=bad).status_code == 400, bad

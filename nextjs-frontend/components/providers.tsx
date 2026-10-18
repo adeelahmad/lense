@@ -3,12 +3,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 
+import { DataProgress } from "@/components/top-progress";
 import { ToastProvider } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ApiError } from "@/lib/api/browser";
 import { ArchiveProvider } from "@/lib/hooks/session";
 
-/** Client-side providers for the signed-in app: data cache, archive context, tooltips, toasts. */
+/** Client-side providers for the signed-in app: data cache (with the loading bar), archive context, tooltips, toasts. */
 export function AppProviders({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
     () =>
@@ -25,6 +26,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
   );
   return (
     <QueryClientProvider client={queryClient}>
+      <DataProgress />
       <TooltipProvider delayDuration={250}>
         <ToastProvider>
           <ArchiveProvider>{children}</ArchiveProvider>

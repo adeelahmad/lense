@@ -438,7 +438,8 @@ def list_changes(db, spaces, status=None, run=None, limit=200):
 # ---------- running a graph workflow ----------
 def run(db, cfg, wid, spaces, version=None, say=print, origin=None, propose_only=False):
     """Run one version (default: the current one) of a graph workflow over namespaces `spaces`. Returns
-    ({node id: done | skipped}, {applied, proposed, skipped})."""
+    ({node id: done | skipped}, {applied, proposed, skipped}, with `published` and `episodes` when its nodes publish
+    (feed_nodes.py))."""
     from . import flow, workflows
 
     w = workflows.get(db, wid, version)

@@ -1084,6 +1084,126 @@ def candidates(index, activity):
     return list(index["by_kind"].get((activity or {}).get("kind"), []))
 
 
+# ---------- the decide node ----------
+DECIDE_CONFIG = {"question", "options", "input", "min_confidence"}
+MAX_OPTIONS = 10
+DECIDE_DAYS = 7  # an answer is kept this long, so a retry or a dry run of the same activity doesn't pay again
+UNSURE = "unsure"
+
+
+def check_decide(nid, cfg):
+    """A decide node's settings ({question, options: {name: what it means}, input, min_confidence}), cleaned:
+    ValueError naming the node and the problem."""
+    from . import templates
+
+    q = cfg.get("question")
+    if not isinstance(q, str) or not q.strip() or len(q) > 1000:
+        raise ValueError(f"decide {nid}: ask a question, up to 1000 characters")
+    opts = cfg.get("options")
+    if not isinstance(opts, dict) or not 2 <= len(opts) <= MAX_OPTIONS:
+        raise ValueError(f"decide {nid}: give 2 to {MAX_OPTIONS} options, each a name and what it means")
+    for name, meaning in opts.items():
+        if not isinstance(name, str) or not flow.NAME_RX.match(name) or name in (UNSURE, "default"):
+            raise ValueError(f"decide {nid}: name each option in lowercase letters, digits and _ (not unsure)")
+        if not isinstance(meaning, str) or not meaning.strip() or len(meaning) > 300:
+            raise ValueError(f"decide {nid}: say what option {name} means, up to 300 characters")
+    out = {"question": q.strip(), "options": {k: v.strip() for k, v in opts.items()}}
+    if cfg.get("input") is not None:
+        body = cfg["input"]
+        if not isinstance(body, str) or not body.strip() or len(body) > 20000:
+            raise ValueError(f"decide {nid}: input is a template of up to 20000 characters, or none")
+        try:
+            templates.check(body)
+        except templates.TemplateProblem as e:
+            raise ValueError(f"decide {nid}: {e}") from None
+        out["input"] = body
+    mc = cfg.get("min_confidence")
+    if mc is not None:
+        if not _num(mc) or not 0 <= mc <= 1:
+            raise ValueError(f"decide {nid}: min_confidence is from 0 to 1")
+        out["min_confidence"] = float(mc)
+    return out
+
+
+def decide_ports(cfg):
+    """A decide node's output ports: one per option, then unsure."""
+    return [*(cfg.get("options") or {}), UNSURE]
+
+
+def _untrusted_text(a):
+    """An activity's summary and the outside text at its lens.untrusted paths, as one text."""
+    lines = [str(a.get("summary") or "")]
+    for p in (a.get("lens") or {}).get("untrusted") or []:
+        v = flow.dig(a, p)
+        if isinstance(v, list):
+            v = ", ".join(str(x) for x in v if x is not None)
+        if v not in (None, ""):
+            lines.append(f"{p}: {v}")
+    return "\n".join(x for x in lines if x)
+
+
+def run_decide(run, frame, node, value):
+    """Run a decide node: ask decide.choose (Jev, Laya, or the language model) which option fits what came in, inside
+    the run's activity.scope. It reads the node's input template, rendered as prompts are (variables.prompt: each
+    value from outside Lens marked, and `input`, what reached the node, counted as outside), or else the event's
+    summary and outside text, wrapped with untrusted.wrap. Passes the decision ({choice, confidence, ranked, by, sure}) on along the chosen option's port, or
+    along unsure when no option is sure enough (min_confidence, else decisions.act_above), nothing could answer, or
+    the budget's hard limit is reached. Answers are kept per activity and question, so a retry or a dry run doesn't
+    pay twice."""
+    from . import activity, decide, untrusted, variables
+
+    c, name = node["config"], node.get("label") or f"decide {node['id']}"
+    ctx = run.ctx if isinstance(run.ctx, dict) else {}
+    event = ctx.get("event") if isinstance(ctx.get("event"), dict) else None
+    if c.get("input"):
+        seen = {**ctx, "input": None if value is run.ctx else value}
+        try:
+            state = variables.prompt(c["input"], seen, [*variables.outside_paths(ctx), "input"], run.cfg, run.db)["text"]
+        except variables.Problem as e:
+            raise ValueError(f"{name}: input: {e}") from None
+    else:
+        text = _untrusted_text(event) if event else flow.preview(value, 20000)
+        source = f"activity {event['id']}" if event and event.get("id") else "the run's input"
+        state = untrusted.wrap(text, source, run.cfg)
+    aid = (ctx.get("automation") or {}).get("id")
+    rid = (ctx.get("run") or {}).get("id")
+    asked = _canon({"q": c["question"], "o": c["options"], "i": c.get("input")})
+    key = f"{event['id']}|{hashlib.sha1(asked.encode()).hexdigest()}" if event and event.get("id") else None
+    ref = state_ref(aid, "decide", "", key) if key else None
+    kept = run.db.one("SELECT decision FROM $r", r=ref) if ref is not None and run.db is not None else None
+    if kept and isinstance(kept.get("decision"), dict):
+        got = dict(kept["decision"], cached=True)
+    else:
+        refs = [r for r in (f"automation:{aid}" if aid else None, f"automation_run:{rid}" if rid else None) if r]
+        try:
+            with activity.scope(run.db, *refs, cfg=run.cfg):
+                got = decide.choose(run.cfg, c["question"], c["options"], state)
+        except (decide.Undecided, activity.OverBudget) as e:
+            why = "over budget" if isinstance(e, activity.OverBudget) else str(e)
+            run.say(f"{name}: unsure ({why})")
+            return {UNSURE: {"choice": None, "confidence": 0.0, "ranked": [], "by": None, "sure": False, "why": why}}
+        if ref is not None and run.db is not None:
+            if not run.db.one("SELECT id FROM $r", r=ref):
+                make_room(run.db, aid)
+            run.db.q(
+                "UPSERT $r SET automation = $a, kind = 'decide', alias = '', key = $k, decision = $d, at = $t, expires_at = $x",
+                r=ref,
+                a=aid,
+                k=key[:300],
+                d=got,
+                t=_stamp(),
+                x=_later(DECIDE_DAYS * 86400),
+            )
+    least = c.get("min_confidence")
+    if least is None:
+        least = float((run.cfg.get("decisions") or {}).get("act_above") or 0.8)
+    sure = got.get("choice") in c["options"] and float(got.get("confidence") or 0) >= least
+    out = {**got, "sure": sure}
+    port = got["choice"] if sure else UNSURE
+    run.say(f"{name}: {port} ({float(got.get('confidence') or 0):.2f}{', kept from before' if got.get('cached') else ''})")
+    return {port: out}
+
+
 # ---------- reading trees ----------
 def leaves(tree):
     """The tests in a tree, in order (not the lookbacks: `lookbacks`)."""
