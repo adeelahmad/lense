@@ -3,7 +3,8 @@ name: Release
 # Cuts and publishes a release in one go, from the Actions tab (Run workflow) or `gh workflow run release.yml`. The
 # version follows the Conventional Commit titles merged since the last release (a breaking change is major, minor
 # before 1.0; a feat minor; anything else patch) unless you give a bump. The new CHANGELOG.md section is the
-# "Unreleased" text, if any, then those changes listed by type; the version is set in the backend, frontend and
+# "Unreleased" text, if any, then the changelog.d/*.md fragments (deleted as they're folded in), then those changes
+# listed by type; the version is set in the backend, frontend and
 # Cloudron manifest, committed to the default branch, tagged vX.Y.Z and published as the GitHub release with that
 # section as its notes (.github/scripts/release.py). Pushing a vX.Y.Z tag yourself publishes that tag the same way,
 # without the commit.
@@ -11,12 +12,12 @@ name: Release
 # Before it cuts anything, the last release, holding data, is upgraded to the code being released and checked
 # (upgrade.yml): when anything is lost or an upgrade step misbehaves, nothing is cut. A pushed tag isn't checked again.
 #
-# Publishing starts the package workflows (cloudron.yml, qnap.yml, synology.yml, launchers.yml, browser-extension.yml,
-# safari-clipper.yml, browser-extension-firefox.yml, desktop.yml). A release published with the workflow's own token
-# doesn't trigger `release: published` in other workflows, so this one starts them itself, for the tag (`gh workflow run
-# <file> --ref vX.Y.Z -f tag=vX.Y.Z`). With a RELEASE_TOKEN secret (a fine-grained token with Contents: write on this
-# repository) the release is published with it instead, `release: published` fires as usual, and nothing is started
-# here. RELEASE_TOKEN is also what pushes past branch protection on main.
+# Publishing starts the package workflows (images.yml, cloudron.yml, qnap.yml, synology.yml, launchers.yml,
+# browser-extension.yml, safari-clipper.yml, browser-extension-firefox.yml, desktop.yml). A release published with
+# the workflow's own token doesn't trigger `release: published` in other workflows, so this one starts them itself,
+# for the tag (`gh workflow run <file> --ref vX.Y.Z -f tag=vX.Y.Z`). With a RELEASE_TOKEN secret (a fine-grained
+# token with Contents: write on this repository) the release is published with it instead, `release: published` fires
+# as usual, and nothing is started here. RELEASE_TOKEN is also what pushes past branch protection on main.
 on:
   workflow_dispatch:
     inputs:
@@ -169,7 +170,7 @@ jobs:
         # RELEASE_TOKEN's release fires `release: published` in them already
         if: env.EXISTING != 'true' && env.HAS_RELEASE_TOKEN != 'true'
         run: |
-          for workflow in cloudron.yml qnap.yml synology.yml launchers.yml browser-extension.yml safari-clipper.yml browser-extension-firefox.yml desktop.yml; do
+          for workflow in images.yml cloudron.yml qnap.yml synology.yml launchers.yml browser-extension.yml safari-clipper.yml browser-extension-firefox.yml desktop.yml; do
             if [ ! -f ".github/workflows/$workflow" ]; then
               echo "$workflow isn't in $TAG; skipped"
             elif gh workflow run "$workflow" --ref "$TAG" -f tag="$TAG"; then

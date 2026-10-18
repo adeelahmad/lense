@@ -3,12 +3,15 @@
 import { useState } from "react";
 
 import type { FieldDef, TemplateSummary } from "@/app/openapi-client/types.gen";
+import type { Variable } from "@/components/forms/schema-form";
+import { ActionSettings, DecideSettings } from "@/components/workflows/action-settings";
 import { FlowSettings } from "@/components/workflows/flow-settings";
 import {
   OPS,
   VOCABULARIES,
   infoFor,
   paramRef,
+  type ActionDef,
   type BodyKind,
   type CustomDef,
   type Scope,
@@ -94,6 +97,8 @@ export function NodeSettings({
   params,
   settings,
   peek,
+  actions,
+  variables,
 }: {
   node: WfNode;
   onChange: (n: WfNode) => void;
@@ -111,6 +116,10 @@ export function NodeSettings({
   settings?: string[];
   /** What it passed on in the last try. */
   peek?: { status: string; value?: string | null; error?: string | null };
+  /** The actions catalog, for an automation's action nodes. */
+  actions?: ActionDef[];
+  /** What templates can read, for the variable picker. */
+  variables?: Variable[];
 }) {
   const info = infoFor(node.type, scope);
   // Settings bound to a parameter show as unset below; setting them again unbinds them.
@@ -253,6 +262,12 @@ export function NodeSettings({
           </>
         )}
 
+        {node.type === "action" && (
+          <ActionSettings config={c} set={set} actions={actions ?? []} variables={variables} nodeId={node.id} />
+        )}
+
+        {node.type === "decide" && <DecideSettings config={c} set={set} />}
+
         {node.type === "call_tool" && (
           <>
             <Field
@@ -380,6 +395,78 @@ export function NodeSettings({
                   mono
                   defaultValue={typesText(c.types)}
                   onChange={(e) => set({ types: typesOf(e.target.value).length ? typesOf(e.target.value) : undefined })}
+                />
+              )}
+            </Field>
+          </>
+        )}
+
+        {node.type === "entity_filter" && (
+          <>
+            <Field label="Keep only these types" optional hint="e.g. PERSON, ORG; empty keeps every type">
+              {({ id, describedBy }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  mono
+                  defaultValue={typesText(c.types)}
+                  onChange={(e) => set({ types: typesOf(e.target.value).length ? typesOf(e.target.value) : undefined })}
+                />
+              )}
+            </Field>
+            <Field label="Leave out these types" optional hint="e.g. DATE, NUMBER">
+              {({ id, describedBy }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  mono
+                  defaultValue={typesText(c.skip_types)}
+                  onChange={(e) =>
+                    set({ skip_types: typesOf(e.target.value).length ? typesOf(e.target.value) : undefined })
+                  }
+                />
+              )}
+            </Field>
+            <Lines
+              label="Leave out these names"
+              hint="One per line; case and spacing don’t matter"
+              placeholder={"Thanks\nOkay"}
+              value={(c.skip_names as string[] | undefined) ?? []}
+              show={(v) => String(v)}
+              parse={(lines) => set({ skip_names: lines.length ? lines : undefined })}
+            />
+            <Field label="Name matches" optional hint="A regular expression, case aside, e.g. ^[A-Z] or corp|inc">
+              {({ id, describedBy }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  mono
+                  value={String(c.pattern ?? "")}
+                  onChange={(e) => set({ pattern: e.target.value || undefined })}
+                />
+              )}
+            </Field>
+            <Field label="At least this long" optional hint="Characters in the name">
+              {({ id, describedBy }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  type="number"
+                  min={1}
+                  value={c.min_length == null ? "" : String(c.min_length)}
+                  onChange={(e) => set({ min_length: num(e.target.value) })}
+                />
+              )}
+            </Field>
+            <Field label="Said at least" optional hint="Times: its mentions, else how often the list names it">
+              {({ id, describedBy }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  type="number"
+                  min={1}
+                  value={c.min_mentions == null ? "" : String(c.min_mentions)}
+                  onChange={(e) => set({ min_mentions: num(e.target.value) })}
                 />
               )}
             </Field>

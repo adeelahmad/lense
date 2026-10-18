@@ -324,6 +324,7 @@ def get_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> Recording:
     ]
     d["jobs"] = jobs.list_jobs(db, recording=rid, limit=5)
     d["attached_to"] = _attached_to(acl, db, r.get("attached_to"))
+    d["converted_from"] = _attached_to(acl, db, r.get("converted_from"))
     if r.get("enrichment") and acl.member(r):  # where a photo was taken: members only
         d["enrichment"] = {k: v for k, v in r["enrichment"].items() if k != "photo_fp"}
     d["nsfw"] = _nsfw(db, cfg, r, rid)
@@ -350,14 +351,15 @@ def mark_recording_nsfw(rid: int, body: RecordingNsfwUpdate, acl: Acl, user: Wri
 
 
 def _attached_to(acl: Access, db: DB, link: dict[str, Any] | None) -> dict[str, Any] | None:
-    """The email an attachment came from, with its title, when the caller may see that email."""
+    """The email an attachment came from (or the asset a convert step made this one from), with its title, when the
+    caller may see it."""
     if not link or not link.get("resource"):
         return None
     try:
         email = acl.recording(int(link["resource"]))
     except HTTPException:
         return None  # deleted since, or not theirs to see
-    return {"resource": int(link["resource"]), "file": link.get("file"), "title": email.get("title")}
+    return {**link, "resource": int(link["resource"]), "title": email.get("title")}
 
 
 @router.patch("/{rid}")

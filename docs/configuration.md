@@ -115,7 +115,8 @@ search and search by meaning), reports and graph,
 video, OCR, faces and objects, [NSFW classification](nsfw.md), workers, sign-in, components (and the edition, full or
 lean), access and embedding (whether other devices on the network reach Lens, embed frame ancestors, text and transcript
 upload limit, allowed hosts, trusted proxies, session length), remote access, email, chat rooms, notifications,
-automations, telemetry, the Fedora repository, sensors, file shares, uploads, storage, documents, API keys, and IIIF and metadata. The API
+automations, telemetry, the Fedora repository, sensors, file shares, uploads, storage, documents, API keys,
+[secrets](secrets.md) (a password manager that secret fields can refer to), and IIIF and metadata. The API
 refuses an allowed-host list that leaves out the address you are using.
 
 The sections are in groups: AI and search, Speech and voices, Media and documents, Chat and email, Security and

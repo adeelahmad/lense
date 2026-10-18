@@ -283,6 +283,7 @@ DEFAULTS = {
             "objects",
             "nsfw",
             "describe",
+            "convert",
             "clean",
             "analyze",
             "embed",
@@ -698,6 +699,19 @@ DEFAULTS = {
     # encryption at rest (docs/encryption.md): files Lens keeps under data_dir, encrypted with their namespace's key;
     # work_minutes: how long a plain working copy for ffmpeg and the other tools is kept after its last use
     "encryption": {"files": False, "work_minutes": 30, "vault_minutes": 60},
+    # secrets kept in a password manager (docs/secrets.md; domain/secret_providers.py): a secret field in Settings can
+    # hold a reference like vaultwarden://Item/password instead of the secret, read when the settings are built and
+    # again after cache_minutes. Vaultwarden (or Bitwarden): the server's address, the account Lens signs in as (its
+    # email, API key and master password, the last two secrets) and the one folder of it Lens may read.
+    "secrets": {
+        "cache_minutes": 10,
+        "vaultwarden_url": None,
+        "vaultwarden_email": None,
+        "vaultwarden_client_id": None,
+        "vaultwarden_client_secret": None,
+        "vaultwarden_password": None,
+        "vaultwarden_folder": "Lens",
+    },
     # the activity ledger (docs/activity.md): every change and call in or out, with its cost, per resource. On by
     # default; reads: log API reads (GET) too; keep_days: how long rows are kept
     "activity": {"enabled": True, "reads": False, "keep_days": 365},
@@ -721,6 +735,11 @@ DEFAULTS = {
     # for none; the newest `keep` scheduled backups are kept. connection: a storage connection (sources.py) every new
     # backup is also copied to, under folder, encrypted with a key from secret.key first (none: kept here only)
     "backups": {"schedule": None, "timezone": "UTC", "keep": 7, "connection": None, "folder": "lens-backups"},
+    # auto scaling (domain/scaling.py, docs/scaling.md): off by default, and a group launches nothing until a person
+    # approves its terms in the web app. tick_seconds: how often the scaler looks; join_minutes: how long a launched
+    # unit may take to join before it's given up on; accrue_minutes: how often a running unit's price goes into the
+    # ledger; tag: the prefix of units' names (and the tag they carry at the provider)
+    "scaling": {"enabled": False, "tick_seconds": 30, "join_minutes": 15, "accrue_minutes": 5, "tag": "lens"},
     "telemetry": {
         "enabled": False,
         "endpoint": None,
@@ -1355,6 +1374,14 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS activity_resources ON activity FIELDS resources",
     # caps on what a routine, pipeline, workflow or namespace may cost (domain/budgets.py): budget:<table>_<id>
     "DEFINE TABLE IF NOT EXISTS budget SCHEMALESS",
+    # auto scaling (domain/scaling.py): providers with their credentials sealed, groups with their rules and approval,
+    # and each unit launched (a worker machine or a model endpoint), alive or gone
+    "DEFINE TABLE IF NOT EXISTS scale_provider SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS scale_group SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS scale_group_provider ON scale_group FIELDS provider",
+    "DEFINE TABLE IF NOT EXISTS scale_node SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS scale_node_group ON scale_node FIELDS group",
+    "DEFINE INDEX IF NOT EXISTS scale_node_state ON scale_node FIELDS state",
     # background work
     "DEFINE TABLE IF NOT EXISTS job SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_status ON job FIELDS status",

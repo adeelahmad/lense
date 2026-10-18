@@ -38,6 +38,7 @@ from app.api.v1.routes import notebook as note_routes
 from app.api.v1.routes import recordings as recording_routes
 from app.api.v1.routes import research as research_routes
 from app.api.v1.routes import routines as routine_routes
+from app.api.v1.routes import schedules as schedule_routes
 from app.api.v1.routes import search as search_routes
 from app.api.v1.routes import topics as topic_routes
 from app.domain import (
@@ -68,6 +69,9 @@ from app.domain import (
     render,
     research,
     rss,
+    scaling,
+    scaling_drivers,
+    secret_providers,
     services,
     settings,
     sources,
@@ -96,6 +100,7 @@ from app.schemas.automations import (
 from app.schemas.chats import ChatScope, ChatSummary
 from app.schemas.entities import EntityHide, EntityList, EntityRename, EntityRetype, EntityUpdate
 from app.schemas.notebook import NotePage
+from app.schemas.schedules import ScheduleChange, ScheduleRun
 from app.schemas.search import SearchResults
 from app.schemas.topics import TopicMerge, TopicUpdate
 
@@ -2553,6 +2558,201 @@ def set_file_storage(
     return {"saved": changes, "check": checked}
 
 
+# ---------- secrets kept in a password manager (admins) ----------
+@tool(
+    "list_secrets",
+    "Secrets and where they come from",
+    "Every secret field in Settings (API keys, tokens, passwords; docs/secrets.md): whether it's set and, when it comes "
+    "from a password manager, the reference it holds (like vaultwarden://OpenAI/password) and whether this server could "
+    "read its value, when, or why not; and the password managers Lens can read from, whether each is set up. Never a "
+    "value: agents refer to secrets and never read them. Admins only.",
+    admin=True,
+)
+def list_secrets(ctx: Context) -> dict[str, Any]:
+    _admin(ctx)
+    return settings.secrets_view(ctx.db, ctx.request.app.state.archive.base)
+
+
+@tool(
+    "list_vault_items",
+    "A password manager's items",
+    "The items of the password manager Lens may refer to (the one folder it reads): each one's name, type, the fields "
+    "that hold something and the reference to each, never their values. q narrows by name. Admins only.",
+    Arg("provider", "string", "the password manager", default="vaultwarden", enum=("vaultwarden",)),
+    Arg("q", "string", "part of an item's name", max_length=200),
+    Arg("limit", "integer", "at most this many", default=200, minimum=1, maximum=1000),
+    admin=True,
+)
+def list_vault_items(ctx: Context, provider: str = "vaultwarden", q: str | None = None, limit: int = 200) -> dict[str, Any]:
+    _admin(ctx)
+    p = secret_providers.PROVIDERS.get(provider)
+    if p is None or not p.scheme:
+        raise ToolError("provider is vaultwarden")
+    if not p.configured(ctx.cfg):
+        raise ToolError(f"{p.label} isn't set up: an admin sets it up in Settings → Secrets ({ctx.web}/settings/secrets)")
+    try:
+        items = p.items(ctx.cfg, q, limit)
+    except secret_providers.Unavailable as e:
+        raise ToolError(str(e)) from None
+    return {"provider": p.id, "items": items}
+
+
+@tool(
+    "set_secret_reference",
+    "Point a secret at a password manager",
+    "Make a secret field in Settings (section and key, from list_secrets) read its value from a password manager: ref "
+    "is a reference like vaultwarden://OpenAI/password (an item of the folder Lens reads, and a field: a login's "
+    "password, username, totp, uri or notes, a card's number or code, or a custom field by name; the item alone means a "
+    "login's password or a note's text). It's checked against the manager first, so nothing is saved that can't be "
+    "read; the value itself never passes through here. Admins only, with a token that has the write scope.",
+    Arg("section", "string", "the settings section, like llm", required=True, max_length=40),
+    Arg("key", "string", "the secret field in it, like api_key", required=True, max_length=60),
+    Arg("ref", "string", "the reference, like vaultwarden://OpenAI/password", required=True, max_length=500),
+    writes=True,
+    admin=True,
+)
+def set_secret_reference(ctx: Context, section: str, key: str, ref: str) -> dict[str, Any]:
+    _admin(ctx)
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to point a secret at a password manager")
+    if key not in settings.SECRETS.get(section, ()):
+        raise ToolError(f"{section}.{key} isn't a secret field (list_secrets names them)")
+    if not secret_providers.is_reference(ref):
+        raise ToolError("ref is a reference like vaultwarden://Item name/field: a value never passes through here")
+    if key in settings.locked(section):
+        raise ToolError(f"{section}.{key} is set by the environment and can't be changed in the app")
+    try:
+        settings.save(ctx.db, ctx.request.app.state.archive.base, section, {key: ref}, ctx.user.email)
+    except ValueError as e:
+        raise ToolError(str(e)) from None
+    auth.audit(ctx.db, ctx.user.as_audit(), "settings.save", section, [key, "mcp"])
+    shown = next(
+        (
+            f
+            for f in settings.secrets_view(ctx.db, ctx.request.app.state.archive.base)["references"]
+            if f["section"] == section and f["key"] == key
+        ),
+        None,
+    )
+    return {"saved": {"section": section, "key": key, "ref": ref}, "status": shown}
+
+
+# ---------- auto scaling (admins) ----------
+def _scaler(ctx: Context, write: bool = False) -> None:
+    if not ctx.user.admin:
+        raise ToolError("only admins see or change auto scaling")
+    if write and not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to change auto scaling")
+
+
+def _scaling_do(ctx: Context, tool: str, args: dict[str, Any]) -> dict[str, Any]:
+    """A scaling tool's change, as an agent: never an approval of a group's terms (that's the person's, in the web app)."""
+    _scaler(ctx, write=True)
+    try:
+        out = scaling.apply_tool(ctx.db, ctx.cfg, tool, args, ctx.user.email, via="agent")
+    except scaling_drivers.DriverError as e:
+        raise ToolError(f"the provider refused: {e}") from None
+    what = out.get("group") or out.get("unit") or {}
+    table = "scale_group" if "group" in out else "scale_node"
+    auth.audit(ctx.db, ctx.user.as_audit(), f"scaling.{tool}", f"{table}:{what.get('id')}", ["mcp"])
+    if "group" in out and out["group"].get("waiting_for"):
+        out["approve"] = f"{ctx.web}/settings/scaling"
+    return out
+
+
+_GROUP_HOW = (
+    "A group: name, provider (its id), template (what each unit is, as the provider's driver asks), min, max, desired, "
+    "cooldown_seconds, warmup_seconds, terminate (oldest|newest), rules, at_cap (stop|min), enabled, budget (USD a "
+    "month, needed on a provider that charges). Rules: {type: target, metric, target}, {type: step, metric, "
+    'above|below, minutes, add|remove (a count or "50%")}, {type: schedule, cron, timezone, min, max, desired}'
+)
+
+
+@tool(
+    "scaling",
+    "Auto scaling",
+    "Auto scaling: whether it's on, the providers (where units launch: this machine, clouds, Proxmox, a Linux host, "
+    "or model hosts; credentials show only as set), the scaling groups with their rules in words, their budgets and "
+    "why one launches nothing now, the units, the drivers on offer and the metrics rules can watch. Admins only.",
+    admin=True,
+)
+def scaling_overview(ctx: Context) -> dict[str, Any]:
+    _scaler(ctx)
+    return {**scaling.overview(ctx.db, ctx.cfg), "about_metrics": scaling.METRICS, "settings": f"{ctx.web}/settings/scaling"}
+
+
+@tool(
+    "propose_scaling_group",
+    "Propose a scaling group",
+    "Make a scaling group: units launched on a provider between min and max, by its rules, within its budget. It "
+    "launches nothing until the person approves its terms, signed in to the web app (the answer links there); an agent "
+    f"can't approve them. {_GROUP_HOW}. Admins only, with a token that has the write scope.",
+    Arg("group", "object", "the group", required=True),
+    writes=True,
+    admin=True,
+)
+def propose_scaling_group(ctx: Context, group: dict[str, Any]) -> dict[str, Any]:
+    return _scaling_do(ctx, "propose_scaling_group", {"group": group})
+
+
+@tool(
+    "change_scaling_group",
+    "Change a scaling group",
+    "Change a scaling group: only the fields given change. A change that widens what the person approved (another "
+    "provider or unit, a higher max or budget, keeping min at the cap) waits for their approval again, in the web app. "
+    f"{_GROUP_HOW}. Admins only, with a token that has the write scope.",
+    Arg("group_id", "integer", "the group (from scaling)", required=True),
+    Arg("changes", "object", "the fields to change", required=True),
+    writes=True,
+    admin=True,
+)
+def change_scaling_group(ctx: Context, group_id: int, changes: dict[str, Any]) -> dict[str, Any]:
+    return _scaling_do(ctx, "change_scaling_group", {"group_id": group_id, "changes": changes})
+
+
+@tool(
+    "set_scaling_desired",
+    "Ask a scaling group for units",
+    "Ask a scaling group for a number of units now, within its min and max (what the person approved); its rules take "
+    "over again at their next change. Admins only, with a token that has the write scope.",
+    Arg("group_id", "integer", "the group (from scaling)", required=True),
+    Arg("desired", "integer", "units wanted now", required=True, minimum=0, maximum=scaling.MAX_UNITS),
+    writes=True,
+    admin=True,
+)
+def set_scaling_desired(ctx: Context, group_id: int, desired: int) -> dict[str, Any]:
+    return _scaling_do(ctx, "set_scaling_desired", {"group_id": group_id, "desired": desired})
+
+
+@tool(
+    "pause_scaling_group",
+    "Pause a scaling group",
+    "Pause a scaling group (nothing new launches; what runs stays) or resume it (paused false). Admins only, with a "
+    "token that has the write scope.",
+    Arg("group_id", "integer", "the group (from scaling)", required=True),
+    Arg("paused", "boolean", "pause (true) or resume (false)", default=True),
+    Arg("why", "string", "why, shown on the group", max_length=200),
+    writes=True,
+    admin=True,
+)
+def pause_scaling_group(ctx: Context, group_id: int, paused: bool = True, why: str | None = None) -> dict[str, Any]:
+    return _scaling_do(ctx, "pause_scaling_group", {"group_id": group_id, "paused": paused, "why": why})
+
+
+@tool(
+    "terminate_scaling_unit",
+    "Let a scaling unit go",
+    "Let one unit of a scaling group go now: a worker finishes or hands back its job first. Admins only, with a token "
+    "that has the write scope.",
+    Arg("unit_id", "integer", "the unit (from scaling)", required=True),
+    Arg("why", "string", "why, kept with the unit", max_length=200),
+    writes=True,
+    admin=True,
+)
+def terminate_scaling_unit(ctx: Context, unit_id: int, why: str | None = None) -> dict[str, Any]:
+    return _scaling_do(ctx, "terminate_scaling_unit", {"unit_id": unit_id, "why": why})
+
+
 # ---------- monitoring: Prometheus and Grafana next to Lens (admins) ----------
 @tool(
     "monitoring",
@@ -3574,6 +3774,62 @@ def undo_share(ctx: Context, share_id: int) -> dict[str, Any]:
     out = circles.undo(ctx.db, _me(ctx), share_id)
     auth.audit(ctx.db, ctx.user.as_audit(), "circle.unshare", f"circle_share:{share_id}", {"via": "mcp"})
     return out
+# ---------- schedules ----------
+@tool(
+    "schedules",
+    "What runs on a clock",
+    "Everything in Lens that runs on a clock, like a crontab, soonest first: routines and the scheduled backup "
+    "(admins) and the schedule and at triggers of your automations. Each has its id (for set_schedule and "
+    "run_schedule), when it runs in words and as cron, its time zone, when it runs next and last, how that went and "
+    "whether it's on.",
+    Arg("kind", "string", "only routines, automations or the backup", enum=("routine", "automation", "backups")),
+)
+def schedules(ctx: Context, kind: str | None) -> dict[str, Any]:
+    got = schedule_routes.list_schedules(ctx.user, ctx.acl, ctx.db, ctx.cfg)
+    return {"schedules": [s.model_dump(exclude_none=True) for s in got.schedules if kind in (None, s.kind)]}
+
+
+@tool(
+    "set_schedule",
+    "Change a schedule",
+    "Change when something runs on a clock, or switch it on or off: a routine, an automation's schedule or at "
+    "trigger, or the scheduled backup, by its id from schedules. Give only what changes. Switching an automation's "
+    "schedule switches the whole automation. Routines and the backup are for admins. Needs a token with the write scope.",
+    Arg("schedule_id", "string", "routine:3, automation:4:morning or backups (from schedules)", required=True, max_length=80),
+    Arg("cron", "string", "when it repeats: five-field cron (minute hour day month weekday) like 0 7 * * 1-5, or @daily", max_length=100),
+    Arg("at", "string", "a new time for an automation's at trigger, like 2026-11-02T07:30", max_length=40),
+    Arg("timezone", "string", "its time zone, like Europe/London", max_length=60),
+    Arg("by_hand", "boolean", "true takes the schedule away: a routine then runs only by hand, the backup stops"),
+    Arg("enabled", "boolean", "switch it on (it runs on its own) or off"),
+    writes=True,
+)
+def set_schedule(
+    ctx: Context, schedule_id: str, cron: str | None, at: str | None, timezone: str | None, by_hand: bool | None, enabled: bool | None
+) -> dict[str, Any]:
+    _writer(ctx, "change schedules")
+    given: dict[str, Any] = {k: v for k, v in (("cron", cron), ("at", at), ("timezone", timezone), ("enabled", enabled)) if v is not None}
+    if by_hand:
+        if cron:
+            raise ToolError("give a cron or by_hand, not both")
+        given["cron"] = None
+    if not given:
+        raise ToolError("say what changes: cron, at, timezone, by_hand or enabled")
+    got = schedule_routes.change_schedule(schedule_id, ScheduleChange(**given), ctx.request, ctx.user, ctx.acl, ctx.db, ctx.cfg)
+    return got.model_dump(exclude_none=True)
+
+
+@tool(
+    "run_schedule",
+    "Run a schedule now",
+    "Run something that runs on a clock now, even when it's off, by its id from schedules: a routine starts within half "
+    "a minute, an automation runs here and now as its trigger would when its time comes, the backup is taken now. A run "
+    "over a budget is refused (routines) or held for the person's pick (automations). Needs a token with the write scope.",
+    Arg("schedule_id", "string", "routine:3, automation:4:morning or backups (from schedules)", required=True, max_length=80),
+    writes=True,
+)
+def run_schedule(ctx: Context, schedule_id: str) -> dict[str, Any]:
+    _writer(ctx, "run schedules")
+    return schedule_routes.run_schedule(schedule_id, ctx.user, ctx.acl, ctx.db, ctx.cfg, ScheduleRun()).model_dump(exclude_none=True)
 
 
 # ---------- Lens itself: its docs and this server ----------

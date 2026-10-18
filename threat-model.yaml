@@ -8,7 +8,7 @@ project: lens
 prose_version: "threat-model.md@same-commit"
 model_status: under-review
 triage_policy: strict
-confidence: {documented: 211, maintainer: 46, inferred: 91, assumption: 8}
+confidence: {documented: 213, maintainer: 46, inferred: 91, assumption: 8}
 
 generation:
   model: "Claude Opus 5.5 (claude-opus-5-5)"
@@ -403,11 +403,11 @@ entry_points:
   - id: "the assistant's connection tools"
     component: assistant
     parameters:
-      - name: "a connection's id or name, a Gmail search, a message id, a time span, a path; the mail, events and files that come back"
+      - name: "a connection's id or name, a Gmail search, a message id, a time span, a path; the mail, events and files that come back; the message, event or text file the model would send or write"
         attacker_controllable: true
         x-condition: "admins who use the assistant, and indirectly whatever it read, through the model; mail and events: anyone who can email the account or invite it; files: whoever writes to the storage"
         control_kinds: [resource-name, x-prompt-injection, size]
-        caller_must_enforce: "none — admins only, and only the tools for the kinds connected; each connection reads as it is set up to (Gmail and Google Calendar read only), so nothing changes in the account; a file is read up to 20 MB and a message's or file's text up to 11,000 characters; mail, events and files reach the model marked as data, and once read, tools that could carry it out of Lens ask first (P-INJECTION-EGRESS); bringing anything into a namespace waits for the person's yes; the ledger keeps what was called, never what came back"
+        caller_must_enforce: "none — admins only, and only the tools for the connections there are; reading changes nothing in the account; a file is read up to 20 MB and a message's or file's text up to 11,000 characters; mail, events and files reach the model marked as data, and once read, tools that could carry it out of Lens ask first (P-INJECTION-EGRESS); bringing anything into a namespace waits for the person's yes; sending mail, saving a draft, adding an event and writing a file always wait for the person's yes, even in a setup conversation, with all of it shown (and a note when the answer read outside text), and the model is told never to act on what it read; sending and adding work only on a Gmail or Google Calendar connection an admin let do so (write, which asks Google for gmail.compose or calendar.events), checked again when approved; at most 50 addresses a field, 50,000 characters a message and 200,000 a file; a file is replaced only when asked and approved, and Google Drive connected read only is never written; each change is in the audit log; the ledger keeps what was called, never what came back"
         provenance: {kind: documented, source: 'docs/assistant.md "Mail, calendars and files"'}
   - id: "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search)"
     component: outbound
@@ -648,6 +648,16 @@ entry_points:
         obligation_id: admin-is-trusted
         caller_must_enforce: "admin is trusted; audited (lens.services, lens.monitoring); unknown profiles are a 404; one change at a time; reaches the machine only as an inbox request the agent checks again"
         provenance: {kind: documented, source: 'docs/assistant.md "Optional containers"'}
+  - id: "admin auto scaling"
+    component: authz
+    parameters:
+      - name: "/api/v1/scaling (providers, groups, units, tick), PUT /api/v1/settings/scaling, MCP and assistant scaling tools: provider credentials, a group's terms and rules, a unit id"
+        attacker_controllable: false
+        x-condition: "admin only (MCP: with the write scope)"
+        control_kinds: [x-credential, x-env-config]
+        obligation_id: admin-is-trusted
+        caller_must_enforce: "admin is trusted; off until turned on; audited (scaling.*) and in the activity ledger; credentials sealed and shown only as set; a group launches nothing until a person signed in to the web app approves its terms (P-SCALING)"
+        provenance: {kind: documented, source: 'docs/scaling.md "The person approves"'}
   - id: "admin sandbox gateway"
     component: authz
     parameters:
@@ -674,7 +684,7 @@ entry_points:
         attacker_controllable: true
         x-condition: "any editor, for automations in namespaces they edit; indirectly through activity text (mail, titles, chat) that reaches action params"
         control_kinds: [callback/code, data, x-prompt-injection]
-        caller_must_enforce: "none — it runs as its maker with their permissions at run time (P-AUTOMATION-ACTOR); actions reaching outside Lens ask first; outside text marks intents untrusted and breaks up links (P-INJECTION-EGRESS); chains and bursts are bounded (P-AUTOMATION-LOOP)"
+        caller_must_enforce: "none — it runs as its maker with their permissions at run time (P-AUTOMATION-ACTOR); actions reaching outside Lens ask first; outside text marks intents untrusted and breaks up links (P-INJECTION-EGRESS); chains and bursts are bounded (P-AUTOMATION-LOOP); `matches` patterns refuse nested repeats and repeated alternatives that start alike, read at most 20,000 characters and give up after 50 ms"
         provenance: {kind: documented, source: 'docs/automations.md "Running automations"'}
   - id: "code sandbox"
     component: assistant
@@ -1558,6 +1568,14 @@ properties_claimed:
     violation_symptoms: [info-leak]
     x-voided-by: "the snapshot (name, summary, entities, note) is kept as it was when shared, so an edit or deletion of the item later doesn't reach it; deleting a circle doesn't take back what was shared with it; a recipient keeps what they read before an undo (domain/circles.py)"
     provenance: {kind: documented, source: 'docs/circles.md "What keeps it safe"'}
+  - id: P-SCALING
+    kind: integrity
+    components: [authz, optional]
+    tier: security-critical
+    conditions: "auto scaling launches nothing unless a person signed in to the web app approved the group's terms (its provider, what each unit is, its max, its budget, what happens at its cap); an API key, an app, MCP and the assistant acting on its own never approve, and a change that widens the terms takes the approval away; a provider's credentials are sealed per provider and field, opened only for a call to it and never shown; a unit is handed no long-lived Lens secret"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "an admin's web session approves, and an admin is trusted; a yes on the Approvals page to the assistant's proposal approves the terms that proposal names; within the terms agents may raise the desired count up to max, spending up to the budget; costs are estimates from list prices (domain/scaling.py accrue), not bills, so a provider can charge more than the budget counts; a cloud unit's user-data holds a join token for that unit, usable once within an hour, which anyone with the cloud account or a process on that machine reading its metadata can see until it is spent (domain/scaling_drivers.py user_data); a cloud provider's API token can do whatever its account can, and Lens calls only the provider's fixed API host with it (domain/scaling_clouds.py)"
+    provenance: {kind: documented, source: 'docs/scaling.md "The person approves"'}
   - id: P-AUTH-REQ
     kind: authentication
     components: [web, identity]
@@ -1806,6 +1824,14 @@ properties_claimed:
     violation_symptoms: [info-leak, bad-data-accepted]
     x-voided-by: "the server's address is trusted input (N-ADMIN); a Tika server off this machine on plain http sees every document in clear, and Tika has no sign-in of its own (domain/tika.py); what Tika reads from the document is Tika's"
     provenance: {kind: documented, source: 'docs/configuration.md "The document goes only to the address set"'}
+  - id: P-SECRET-REFERENCES
+    kind: confidentiality
+    components: [outbound, assistant]
+    tier: security-critical
+    conditions: "a secret field that holds a reference to a password manager (vaultwarden://item/field) stores only the reference, sealed like any secret (P-SECRETS); its value is read into memory, never written to the database, disk or logs; the API, the assistant's and MCP tools and approval cards show the reference and whether it could be read, never the value, and listing the vault shows item and field names only; Lens reads one folder of one account (secrets.vaultwarden_folder), and an item deleted or moved out of it stops being used at the next read; a reference is checked against the vault before it's saved; the vault's own sign-in (API key and master password) is sealed and can't itself be a reference"
+    violation_symptoms: [info-leak]
+    x-voided-by: "whoever holds secret.key unseals the vault's sign-in, and with it every item of Lens's vault account (Q14); the account's decrypted key and the values read sit in the memory of each process that uses them (domain/vaultwarden_secrets.py, domain/secret_providers.py); an admin who points a field's consumer elsewhere (a model URL, the telemetry endpoint) sends it the value, as with a typed secret (trusted); the vault's address is trusted input (N-ADMIN): a vault on plain http off this machine shows the API key and the encrypted items to the network; a value read isn't checked the way a typed one is until it's used"
+    provenance: {kind: documented, source: 'docs/secrets.md "People and agents see the reference and whether it could be read, but never the value"'}
   - id: P-TEMPLATE
     kind: integrity
     components: [ingest, assistant]

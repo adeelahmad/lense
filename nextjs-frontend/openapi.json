@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Lens",
-    "version": "0.14.0"
+    "version": "0.16.0"
   },
   "paths": {
     "/api/v1/auth/status": {
@@ -3879,6 +3879,154 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Started"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/secrets": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get Secrets",
+        "description": "The password managers Lens can read secrets from and whether each is set up; every secret field in Settings,\nwhether it's set, and for one that refers to a password manager its reference and whether this server could read\nits value (and when, or why not).",
+        "operationId": "get_secrets",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecretsView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/secrets/items": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List Vault Items",
+        "description": "The items of a password manager Lens may refer to (those in its folder): each one's name, type, the fields that\nhold something and the reference to each. Never their values. 409 when the manager isn't set up or can't be\nreached, with why.",
+        "operationId": "list_vault_items",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "the password manager",
+              "default": "vaultwarden",
+              "title": "Provider"
+            },
+            "description": "the password manager"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "part of an item's name",
+              "title": "Q"
+            },
+            "description": "part of an item's name"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VaultItems"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/secrets/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Secrets",
+        "description": "Sign in to a password manager with the settings saved and count the items Lens may read, to check them.",
+        "operationId": "test_secrets",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SecretsTry"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecretsTestResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -29517,6 +29665,181 @@
         }
       }
     },
+    "/api/v1/schedules": {
+      "get": {
+        "tags": [
+          "schedules"
+        ],
+        "summary": "List Schedules",
+        "description": "Everything that runs on a clock that you manage, soonest first: for admins every routine (those run only by\nhand too) and the scheduled backup; for everyone the schedule and at triggers of their automations. Each with\nwhen it runs in words, its next and last run, how that went and whether it's on.",
+        "operationId": "list_schedules",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleCatalog"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/schedules/{sid}": {
+      "get": {
+        "tags": [
+          "schedules"
+        ],
+        "summary": "Get Schedule",
+        "operationId": "get_schedule",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Schedule"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "schedules"
+        ],
+        "summary": "Change Schedule",
+        "description": "Change when it runs or switch it on or off; give only what changes. A routine's `cron: null` runs it only by\nhand. Switching an automation's schedule switches the whole automation (every trigger it has). Switching the\nbackup off clears backups.schedule; switching it on needs a cron.",
+        "operationId": "change_schedule",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduleChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Schedule"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/schedules/{sid}/run": {
+      "post": {
+        "tags": [
+          "schedules"
+        ],
+        "summary": "Run Schedule",
+        "description": "Run it now, even when it's off: a routine as soon as the scheduler next looks (within half a minute), an\nautomation here and now as its trigger would when its time comes, the backup now (it can take a while). A run over\na budget is refused (routines: 409) or held for your pick (automations) unless over_budget is true.",
+        "operationId": "run_schedule",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ScheduleRun"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleStarted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sensors": {
       "get": {
         "tags": [
@@ -32524,6 +32847,967 @@
         }
       }
     },
+    "/api/v1/scaling": {
+      "get": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Overview",
+        "description": "Everything at a glance: the switch, providers, groups with their units, the drivers on offer, the metrics now.",
+        "operationId": "overview",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Overview"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/drivers": {
+      "get": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "List Drivers",
+        "description": "The kinds of provider Lens can launch on, with the settings each asks for.",
+        "operationId": "list_drivers",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DriverSpec"
+                  },
+                  "type": "array",
+                  "title": "Response Scaling-List Drivers"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/metrics": {
+      "get": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Metrics",
+        "description": "The values rules can watch, now.",
+        "operationId": "metrics",
+        "parameters": [
+          {
+            "name": "steps",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "comma-separated steps for the queue metrics",
+              "title": "Steps"
+            },
+            "description": "comma-separated steps for the queue metrics"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Metrics"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/providers": {
+      "get": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "List Providers",
+        "operationId": "list_providers",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Provider"
+                  },
+                  "type": "array",
+                  "title": "Response Scaling-List Providers"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Add Provider",
+        "description": "Add a provider. Its credentials are sealed (never shown again, only whether they're set) and checked with a\nread-only call; its library is fetched the first time.",
+        "operationId": "add_provider",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Provider"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/providers/{pid}": {
+      "get": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Get Provider",
+        "operationId": "get_provider",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Provider"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Change Provider",
+        "operationId": "change_provider",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Provider"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Remove Provider",
+        "operationId": "remove_provider",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/providers/{pid}/check": {
+      "post": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Check Provider",
+        "description": "Prove the provider's credentials with a read-only call: {ok, error?}.",
+        "operationId": "check_provider",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Scaling-Check Provider"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/groups": {
+      "get": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "List Groups",
+        "operationId": "list_groups",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Group"
+                  },
+                  "type": "array",
+                  "title": "Response Scaling-List Groups"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Create Group",
+        "description": "Make a group. From the web app it's approved as it's made (that is your pick); from a token or an app it\nwaits for a person's approval before it launches anything.",
+        "operationId": "create_group",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/groups/{gid}": {
+      "get": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Get Group",
+        "operationId": "get_group",
+        "parameters": [
+          {
+            "name": "gid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Gid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Change Group",
+        "description": "Change a group. A change that widens its approved terms (another provider or unit, a higher max or budget)\ntakes the approval away until a person gives it again, unless it's made from the web app.",
+        "operationId": "change_group",
+        "parameters": [
+          {
+            "name": "gid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Gid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Remove Group",
+        "description": "Remove a group: its units are terminated first.",
+        "operationId": "remove_group",
+        "parameters": [
+          {
+            "name": "gid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Gid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/groups/{gid}/approve": {
+      "post": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Approve Group",
+        "description": "Approve the group's terms as they stand: a person's pick, from a signed-in session only (403 otherwise).",
+        "operationId": "approve_group",
+        "parameters": [
+          {
+            "name": "gid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Gid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/groups/{gid}/desired": {
+      "post": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Set Desired",
+        "description": "Ask for a number of units now, within the group's min and max.",
+        "operationId": "set_desired",
+        "parameters": [
+          {
+            "name": "gid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Gid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Desired"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/groups/{gid}/pause": {
+      "post": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Pause Group",
+        "description": "Pause a group (nothing new launches; what runs stays) or resume it.",
+        "operationId": "pause_group",
+        "parameters": [
+          {
+            "name": "gid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Gid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Paused"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/groups/{gid}/history": {
+      "get": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Group History",
+        "description": "What happened to the group: launches, joins, terminations, changes and the cost it accrued (the ledger).",
+        "operationId": "group_history",
+        "parameters": [
+          {
+            "name": "gid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Gid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Scaling-Group History"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/units": {
+      "get": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "List Units",
+        "operationId": "list_units",
+        "parameters": [
+          {
+            "name": "group",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Group"
+            }
+          },
+          {
+            "name": "alive",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "only units not yet gone",
+              "default": false,
+              "title": "Alive"
+            },
+            "description": "only units not yet gone"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Unit"
+                  },
+                  "title": "Response Scaling-List Units"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/units/{nid}/protect": {
+      "post": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Protect Unit",
+        "description": "Keep a unit out of scale-in (or let it go again).",
+        "operationId": "protect_unit",
+        "parameters": [
+          {
+            "name": "nid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Nid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Protected"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unit"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/units/{nid}/terminate": {
+      "post": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Terminate Unit",
+        "description": "Let a unit go now: a running worker drains first, so its job is handed back.",
+        "operationId": "terminate_unit",
+        "parameters": [
+          {
+            "name": "nid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Nid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Terminate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unit"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/tick": {
+      "post": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Tick",
+        "description": "Run one pass of the scaler now, in this process (the scheduled one carries on): what it did.",
+        "operationId": "tick",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Scaling-Tick"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/mesh": {
       "get": {
         "tags": [
@@ -34857,6 +36141,18 @@
               }
             ],
             "title": "Summary"
+          },
+          "preview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview",
+            "description": "what would be sent or written, all of it, for the person to read first (a message, an event, a file)"
           },
           "estimate": {
             "title": "Estimate"
@@ -39269,6 +40565,17 @@
             "type": "array",
             "title": "Tree",
             "description": "every message of every version, oldest first"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChatMemory"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "what the model reads instead of the messages up to its `upto`; none before the first summary"
           }
         },
         "additionalProperties": true,
@@ -39545,6 +40852,46 @@
         "additionalProperties": false,
         "type": "object",
         "title": "ChatCreate"
+      },
+      "ChatMemory": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "the summary; empty after /clear, when the messages it covers aren't read at all"
+          },
+          "upto": {
+            "type": "integer",
+            "title": "Upto",
+            "description": "the last message it covers, of the version showing"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "when it was written"
+          },
+          "covers": {
+            "type": "integer",
+            "title": "Covers",
+            "description": "how many messages of the version showing it stands for"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "text",
+          "upto",
+          "covers"
+        ],
+        "title": "ChatMemory",
+        "description": "What the model reads instead of the messages a conversation's summary covers (long conversations are summarised;\n/compact and /clear)."
       },
       "ChatMessage": {
         "properties": {
@@ -42793,6 +44140,53 @@
         ],
         "title": "ConversionNodeTestResult"
       },
+      "ConvertedFrom": {
+        "properties": {
+          "resource": {
+            "type": "integer",
+            "title": "Resource"
+          },
+          "to": {
+            "type": "string",
+            "enum": [
+              "audio",
+              "images"
+            ],
+            "title": "To"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page",
+            "description": "the page it is, from 0, for images made of a document's pages"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "resource",
+          "to"
+        ],
+        "title": "ConvertedFrom",
+        "description": "The asset a convert step made this one from (docs/processing.md#converting-assets)."
+      },
       "Converters": {
         "properties": {
           "office": {
@@ -43782,6 +45176,172 @@
         ],
         "title": "Description",
         "description": "What a model that can see images said a page or a shot shows."
+      },
+      "Desired": {
+        "properties": {
+          "desired": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Desired"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "desired"
+        ],
+        "title": "Desired"
+      },
+      "DriverField": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "string",
+              "integer",
+              "number",
+              "boolean",
+              "list"
+            ],
+            "title": "Type"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "default": false
+          },
+          "default": {
+            "title": "Default"
+          },
+          "help": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Help"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "secret": {
+            "type": "boolean",
+            "title": "Secret",
+            "description": "a credential: sealed when saved, shown only as set",
+            "default": false
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "label",
+          "type"
+        ],
+        "title": "DriverField"
+      },
+      "DriverSpec": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "node",
+              "model"
+            ],
+            "title": "Kind",
+            "description": "node: machines that run `lens worker`; model: a model endpoint"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "about": {
+            "type": "string",
+            "title": "About"
+          },
+          "priced": {
+            "type": "boolean",
+            "title": "Priced",
+            "description": "it charges money, so its groups need a budget"
+          },
+          "extra": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra",
+            "description": "the optional packages it needs, fetched when a provider of it is saved"
+          },
+          "license": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License"
+          },
+          "ready": {
+            "type": "boolean",
+            "title": "Ready",
+            "description": "its packages are installed"
+          },
+          "fields": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DriverField"
+            },
+            "type": "object",
+            "title": "Fields",
+            "description": "the provider's settings"
+          },
+          "template": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DriverField"
+            },
+            "type": "object",
+            "title": "Template",
+            "description": "what a group picks for each unit"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "label",
+          "about",
+          "priced",
+          "ready",
+          "fields",
+          "template"
+        ],
+        "title": "DriverSpec"
       },
       "EmailInfo": {
         "properties": {
@@ -49271,6 +50831,615 @@
           "question"
         ],
         "title": "GraphQuestion"
+      },
+      "Group": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "provider": {
+            "type": "integer",
+            "title": "Provider"
+          },
+          "template": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Template"
+          },
+          "min": {
+            "type": "integer",
+            "title": "Min"
+          },
+          "max": {
+            "type": "integer",
+            "title": "Max"
+          },
+          "desired": {
+            "type": "integer",
+            "title": "Desired"
+          },
+          "cooldown_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cooldown Seconds"
+          },
+          "warmup_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warmup Seconds"
+          },
+          "terminate": {
+            "type": "string",
+            "title": "Terminate"
+          },
+          "rules": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Rules",
+            "description": "each with `says`, the rule in words"
+          },
+          "at_cap": {
+            "type": "string",
+            "title": "At Cap"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "paused": {
+            "type": "boolean",
+            "title": "Paused"
+          },
+          "paused_why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paused Why"
+          },
+          "capped": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capped",
+            "description": "why its budget stops it now, when it does"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval",
+            "description": "a person's approval: {by, at, terms}"
+          },
+          "approved": {
+            "type": "boolean",
+            "title": "Approved",
+            "description": "the approval covers the terms as they stand"
+          },
+          "terms": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Terms",
+            "description": "what an approval binds: kind, provider, template, max, budget, at_cap"
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GroupBudget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "units": {
+            "$ref": "#/components/schemas/UnitCounts"
+          },
+          "waiting_for": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiting For",
+            "description": "why it launches nothing now, when it doesn't"
+          },
+          "last_out_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Out At"
+          },
+          "last_in_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last In At"
+          },
+          "last_eval": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Eval",
+            "description": "what the rules said last: {at, said}"
+          },
+          "failures": {
+            "type": "integer",
+            "title": "Failures",
+            "default": 0
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "provider",
+          "template",
+          "min",
+          "max",
+          "desired",
+          "terminate",
+          "rules",
+          "at_cap",
+          "enabled",
+          "paused",
+          "approved",
+          "terms",
+          "units"
+        ],
+        "title": "Group"
+      },
+      "GroupBudget": {
+        "properties": {
+          "usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usd"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "spent": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Spent"
+          },
+          "left": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Left"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "period",
+          "state",
+          "spent",
+          "left"
+        ],
+        "title": "GroupBudget"
+      },
+      "GroupChange": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "template": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "desired": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desired"
+          },
+          "cooldown_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 86400.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cooldown Seconds"
+          },
+          "warmup_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 7200.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warmup Seconds"
+          },
+          "terminate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "oldest",
+                  "newest"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terminate"
+          },
+          "rules": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Rule"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rules"
+          },
+          "at_cap": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "stop",
+                  "min"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At Cap"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "GroupChange"
+      },
+      "GroupIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Name"
+          },
+          "provider": {
+            "type": "integer",
+            "title": "Provider",
+            "description": "the provider's id"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "node",
+                  "model"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind",
+            "description": "the provider's kind; filled in when left out"
+          },
+          "template": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Template",
+            "description": "what each unit is (the driver's template fields)"
+          },
+          "min": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Min",
+            "default": 0
+          },
+          "max": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Max",
+            "default": 1
+          },
+          "desired": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desired",
+            "description": "units wanted now (default min)"
+          },
+          "cooldown_seconds": {
+            "type": "integer",
+            "maximum": 86400.0,
+            "minimum": 0.0,
+            "title": "Cooldown Seconds",
+            "description": "how long after a change before the next",
+            "default": 300
+          },
+          "warmup_seconds": {
+            "type": "integer",
+            "maximum": 7200.0,
+            "minimum": 0.0,
+            "title": "Warmup Seconds",
+            "description": "how long a new unit may take to join before more are judged",
+            "default": 300
+          },
+          "terminate": {
+            "type": "string",
+            "enum": [
+              "oldest",
+              "newest"
+            ],
+            "title": "Terminate",
+            "description": "which unit goes first when scaling in",
+            "default": "oldest"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/Rule"
+            },
+            "type": "array",
+            "title": "Rules"
+          },
+          "at_cap": {
+            "type": "string",
+            "enum": [
+              "stop",
+              "min"
+            ],
+            "title": "At Cap",
+            "description": "at the budget's cap: stop every unit, or keep min",
+            "default": "stop"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget",
+            "description": "USD per month; needed on a priced provider"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "provider"
+        ],
+        "title": "GroupIn"
       },
       "HTTPValidationError": {
         "properties": {
@@ -56015,6 +58184,39 @@
         ],
         "title": "MetadataEdit"
       },
+      "Metrics": {
+        "properties": {
+          "metrics": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Metrics"
+          },
+          "about": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "About",
+            "description": "what each metric measures"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "metrics",
+          "about"
+        ],
+        "title": "Metrics"
+      },
       "ModelSpend": {
         "properties": {
           "model": {
@@ -60271,6 +62473,80 @@
         ],
         "title": "Output"
       },
+      "Overview": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "settings": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Settings"
+          },
+          "scaler": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Scaler",
+            "description": "which process scales and when it last looked"
+          },
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/Provider"
+            },
+            "type": "array",
+            "title": "Providers"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/Group"
+            },
+            "type": "array",
+            "title": "Groups"
+          },
+          "units": {
+            "items": {
+              "$ref": "#/components/schemas/Unit"
+            },
+            "type": "array",
+            "title": "Units"
+          },
+          "drivers": {
+            "items": {
+              "$ref": "#/components/schemas/DriverSpec"
+            },
+            "type": "array",
+            "title": "Drivers"
+          },
+          "metrics": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Metrics"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "settings",
+          "scaler",
+          "providers",
+          "groups",
+          "units",
+          "drivers",
+          "metrics"
+        ],
+        "title": "Overview"
+      },
       "Page": {
         "properties": {
           "idx": {
@@ -60975,6 +63251,30 @@
         "additionalProperties": false,
         "type": "object",
         "title": "PatternUpdate"
+      },
+      "Paused": {
+        "properties": {
+          "paused": {
+            "type": "boolean",
+            "title": "Paused",
+            "default": true
+          },
+          "why": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Paused"
       },
       "Permission": {
         "properties": {
@@ -62692,6 +64992,318 @@
         ],
         "title": "PrimaryFile",
         "description": "The audio, video, document or image the resource's pipeline runs on."
+      },
+      "Protected": {
+        "properties": {
+          "protected": {
+            "type": "boolean",
+            "title": "Protected",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Protected"
+      },
+      "Provider": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "driver": {
+            "type": "string",
+            "title": "Driver"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "priced": {
+            "type": "boolean",
+            "title": "Priced",
+            "default": true
+          },
+          "settings": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Settings"
+          },
+          "secrets": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Secrets",
+            "description": "which credentials are set"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "checked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked At"
+          },
+          "check": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check",
+            "description": "the last check: {ok, error?}"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "driver",
+          "settings",
+          "secrets"
+        ],
+        "title": "Provider"
+      },
+      "ProviderChange": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "settings": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settings"
+          },
+          "secrets": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secrets",
+            "description": "a secret given as null is removed; one left out is kept"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "check": {
+            "type": "boolean",
+            "title": "Check",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ProviderChange"
+      },
+      "ProviderIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Name"
+          },
+          "driver": {
+            "type": "string",
+            "title": "Driver",
+            "description": "the kind of provider (see /scaling/drivers)"
+          },
+          "settings": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Settings",
+            "description": "the driver's non-secret settings"
+          },
+          "secrets": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Secrets",
+            "description": "its credentials: sealed, never shown again"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price",
+            "description": "USD per unit-hour, when the driver doesn't know it; an estimate"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "check": {
+            "type": "boolean",
+            "title": "Check",
+            "description": "prove the credentials with a read-only call before answering",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "driver"
+        ],
+        "title": "ProviderIn"
       },
       "PublicCard": {
         "properties": {
@@ -64718,6 +67330,17 @@
               }
             ],
             "description": "an email's attachment made a resource of its own: that email"
+          },
+          "converted_from": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConvertedFrom"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "made by a convert step: the asset it was made from"
           },
           "web": {
             "anyOf": [
@@ -67940,6 +70563,194 @@
         "type": "object",
         "title": "RoutineUpdate"
       },
+      "Rule": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "target",
+              "step",
+              "schedule"
+            ],
+            "title": "Type"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "metric": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metric",
+            "description": "target and step rules: see /scaling/metrics"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target",
+            "description": "target rules: the value to keep the metric at"
+          },
+          "above": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Above",
+            "description": "step rules: fires while the metric is above this"
+          },
+          "below": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Below",
+            "description": "step rules: fires while the metric is below this"
+          },
+          "minutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1440.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minutes",
+            "description": "step rules: for how long before it fires (default 1)"
+          },
+          "add": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Add",
+            "description": "step rules: units to add, a count or a percentage like \"50%\""
+          },
+          "remove": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remove",
+            "description": "step rules: units to remove, a count or a percentage"
+          },
+          "cron": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cron",
+            "description": "schedule rules: when, as a cron expression"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min",
+            "description": "schedule rules: the new min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max",
+            "description": "schedule rules: the new max"
+          },
+          "desired": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desired",
+            "description": "schedule rules: the new desired count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "Rule"
+      },
       "S3Key": {
         "properties": {
           "id": {
@@ -68641,6 +71452,259 @@
         ],
         "title": "SavedView"
       },
+      "Schedule": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "routine:<id>, automation:<id>:<trigger> or backups"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "routine",
+              "automation",
+              "backups"
+            ],
+            "title": "Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "the routine's or automation's name"
+          },
+          "trigger": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger",
+            "description": "an automation's trigger (its `as`)"
+          },
+          "on": {
+            "type": "string",
+            "enum": [
+              "schedule",
+              "at",
+              "manual"
+            ],
+            "title": "On",
+            "description": "schedule: repeats on a cron; at: once, at a time; manual: no schedule (a routine run by hand, no backups)"
+          },
+          "cron": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cron",
+            "description": "five-field cron (minute hour day month weekday) or @daily..."
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "an at trigger's time (ISO 8601, in its time zone when it names none)"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone",
+            "default": "UTC"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "when it runs, in words: every weekday at 07:00, once on Fri 16 Oct at 07:00, ..."
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "whether it runs on its own (for an automation: the whole automation is on)"
+          },
+          "state": {
+            "type": "string",
+            "title": "State",
+            "description": "on, off or running (routines, the backup); waiting, done (an at trigger whose time came), missed, failed or off (automations)"
+          },
+          "next_run_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Run At",
+            "description": "when it runs next (UTC); none while it's off or has no schedule"
+          },
+          "last_run_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run At"
+          },
+          "last_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Status",
+            "description": "how its last run went (done, error, failed, partly, skipped, ...)"
+          },
+          "running": {
+            "type": "boolean",
+            "title": "Running",
+            "default": false
+          },
+          "href": {
+            "type": "string",
+            "title": "Href",
+            "description": "its page in the web app"
+          },
+          "namespace_names": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace Names",
+            "description": "the namespaces it works in; none for every one"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "something to know about it: why it doesn't run, its last error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "on",
+          "text",
+          "enabled",
+          "state",
+          "href"
+        ],
+        "title": "Schedule"
+      },
+      "ScheduleCatalog": {
+        "properties": {
+          "schedules": {
+            "items": {
+              "$ref": "#/components/schemas/Schedule"
+            },
+            "type": "array",
+            "title": "Schedules"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "schedules"
+        ],
+        "title": "ScheduleCatalog"
+      },
+      "ScheduleChange": {
+        "properties": {
+          "cron": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cron",
+            "description": "a new schedule (five-field cron or @daily...); null for a routine runs it only by hand, and for the backup stops scheduled backups"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "a new time for an automation's at trigger, like 2026-11-02T07:30"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone",
+            "description": "a time zone, like Europe/London"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled",
+            "description": "switch it on or off: an automation's whole automation; the backup off clears its schedule"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ScheduleChange"
+      },
       "SchedulePreview": {
         "properties": {
           "schedule": {
@@ -68672,6 +71736,70 @@
           "next"
         ],
         "title": "SchedulePreview"
+      },
+      "ScheduleRun": {
+        "properties": {
+          "over_budget": {
+            "type": "boolean",
+            "title": "Over Budget",
+            "description": "run it even though it's over a budget (docs/budgets.md)",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ScheduleRun"
+      },
+      "ScheduleStarted": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "asked (a routine starts within half a minute), done, waiting, partly, failed, held (over a budget), skipped (its If was false), limited or off (automations), or done for a backup"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why",
+            "description": "why it didn't run, or was held"
+          },
+          "run": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run",
+            "description": "an automation's run (GET /api/v1/automations/runs/{run})"
+          },
+          "backup": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Backup",
+            "description": "the backup it took"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "ScheduleStarted"
       },
       "SearchCreate": {
         "properties": {
@@ -69202,6 +72330,279 @@
           "set"
         ],
         "title": "SecretFlag"
+      },
+      "SecretProvider": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "scheme": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scheme",
+            "description": "how references to it start (vaultwarden://\u2026); none for the built-in store"
+          },
+          "configured": {
+            "type": "boolean",
+            "title": "Configured",
+            "description": "set up, so a reference to it can be read"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope",
+            "description": "what it reads, in words: never a secret"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "folder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder"
+          },
+          "installed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installed",
+            "description": "its client is fetched (a component), when it needs one"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "configured"
+        ],
+        "title": "SecretProvider"
+      },
+      "SecretReference": {
+        "properties": {
+          "section": {
+            "type": "string",
+            "title": "Section"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "ref": {
+            "type": "string",
+            "title": "Ref",
+            "description": "the reference the field holds, like vaultwarden://OpenAI/password"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "read": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read",
+            "description": "whether its value could be read by this server process; null before the first read"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why it couldn't be read, last time it was tried"
+          },
+          "read_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read At",
+            "description": "when its value was last read"
+          },
+          "missing": {
+            "type": "boolean",
+            "title": "Missing",
+            "description": "the password manager answered that the item or field isn't there",
+            "default": false
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "section",
+          "key",
+          "ref",
+          "provider"
+        ],
+        "title": "SecretReference"
+      },
+      "SecretsTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Items",
+            "description": "how many items the folder Lens reads holds"
+          },
+          "folder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder"
+          },
+          "account": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "SecretsTestResult"
+      },
+      "SecretsTry": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": "vaultwarden"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SecretsTry"
+      },
+      "SecretsView": {
+        "properties": {
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/SecretProvider"
+            },
+            "type": "array",
+            "title": "Providers"
+          },
+          "references": {
+            "items": {
+              "$ref": "#/components/schemas/SecretReference"
+            },
+            "type": "array",
+            "title": "References",
+            "description": "every secret field that refers to a password manager"
+          },
+          "fields": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Fields",
+            "description": "every secret field in Settings: section, key, set, and its ref when it holds one"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "providers",
+          "references",
+          "fields"
+        ],
+        "title": "SecretsView"
       },
       "SegmentEdit": {
         "properties": {
@@ -74960,6 +78361,25 @@
         ],
         "title": "TermSuggestion"
       },
+      "Terminate": {
+        "properties": {
+          "why": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Terminate"
+      },
       "TicketRequest": {
         "properties": {
           "ticket": {
@@ -76240,6 +79660,213 @@
         ],
         "title": "Undone"
       },
+      "Unit": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "group": {
+            "type": "integer",
+            "title": "Group"
+          },
+          "provider": {
+            "type": "integer",
+            "title": "Provider"
+          },
+          "driver": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Driver"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id",
+            "description": "the provider's id for it"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "launching",
+              "running",
+              "draining",
+              "terminating",
+              "terminated",
+              "failed"
+            ],
+            "title": "State"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "endpoint": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endpoint",
+            "description": "a model unit's endpoint: base_url, model; api_key true when set"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price",
+            "description": "USD per hour, an estimate"
+          },
+          "launched_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Launched At"
+          },
+          "ready_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ready At"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why"
+          },
+          "protected": {
+            "type": "boolean",
+            "title": "Protected",
+            "default": false
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "accrued_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accrued At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "group",
+          "provider",
+          "name",
+          "state"
+        ],
+        "title": "Unit"
+      },
+      "UnitCounts": {
+        "properties": {
+          "launching": {
+            "type": "integer",
+            "title": "Launching"
+          },
+          "running": {
+            "type": "integer",
+            "title": "Running"
+          },
+          "draining": {
+            "type": "integer",
+            "title": "Draining"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "launching",
+          "running",
+          "draining"
+        ],
+        "title": "UnitCounts"
+      },
       "UpdateStatus": {
         "properties": {
           "current": {
@@ -77279,6 +80906,77 @@
           "prf"
         ],
         "title": "VaultAnswer"
+      },
+      "VaultItem": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "login, note, card, identity or other"
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fields",
+            "description": "the names of the fields that hold something"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref",
+            "description": "the reference to the item's default field (a login's password, a note's text)"
+          },
+          "refs": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Refs",
+            "description": "the reference to each field"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "fields"
+        ],
+        "title": "VaultItem"
+      },
+      "VaultItems": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/VaultItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "provider",
+          "items"
+        ],
+        "title": "VaultItems"
       },
       "VaultPasskey": {
         "properties": {

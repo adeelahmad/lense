@@ -60,8 +60,11 @@ from app.api.v1.routes import (
     requests,
     research,
     routines,
+    scaling,
+    schedules,
     search,
     searches,
+    secrets,
     sensors,
     setup,
     shares,
@@ -90,6 +93,7 @@ api_router.include_router(oauth.router)
 for module in (
     users,
     admin,
+    secrets,
     backups,  # before updates: its /admin/backups/remote would otherwise be read as a backup's name
     updates,
     activity,
@@ -149,6 +153,7 @@ for module in (
     views,
     notifications,
     routines,
+    schedules,
     sensors,
     shares,
     import_hooks,
@@ -157,6 +162,7 @@ for module in (
     podcasts,
     feeds,
     specs,
+    scaling,
     mesh,
     circles,
 ):

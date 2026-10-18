@@ -313,7 +313,8 @@ export const JOURNEYS = [
     from: "/",
     async run(ctx) {
       const { page, meter } = ctx;
-      await go(ctx, "Routines");
+      // routines are on the Schedules page (everything on a clock), which has New routine for admins
+      await go(ctx, "Schedules");
       await meter.click(page.getByRole("main").getByRole("link", { name: "New routine" }), "New routine");
       await page.getByRole("textbox", { name: "Name" }).waitFor(); // named for you
       await page.waitForFunction(() => document.activeElement?.tagName === "INPUT");
@@ -793,6 +794,33 @@ export const JOURNEYS = [
       await meter.click(picker.getByRole("switch", { name: "Limit tool calls per answer" }), "Limit tool calls per answer (10)");
       await meter.click(picker.getByRole("button", { name: "Done" }), "Done");
       await page.getByRole("button", { name: /^Tools: \d+ picked · 10 calls\. / }).waitFor();
+    },
+  },
+  {
+    id: "chat-research",
+    ns: "podcasts",
+    module: "Chat",
+    feature: "Research a goal, approve its plan and save the report as a note",
+    note: "A new conversation in one namespace: the Deep research switch beside the composer, the goal and Enter; the plan comes back as a card to approve (Approve, or Enter in it), then the run's progress, then the cited report with Save as note. The stand-in model plans three sub-questions without asking anything first.",
+    from: "/",
+    async run(ctx) {
+      const { page, meter } = ctx;
+      await go(ctx, "Chat");
+      const question = page.getByRole("textbox", { name: "Your question" });
+      // A phone's Chat opens on the list of conversations once there is one
+      if (!(await question.waitFor({ timeout: 3000 }).then(() => true, () => false)))
+        await meter.click(page.getByRole("button", { name: "New conversation" }), "New conversation");
+      await meter.click(page.getByRole("button", { name: "Deep research", exact: true }), "Deep research");
+      await meter.type(question, "What was said about Raspberry Pi?", "the goal");
+      await meter.press("Enter", "Enter to plan it");
+      const plan = page.getByRole("form", { name: "Research plan" });
+      await plan.waitFor({ timeout: 60000 });
+      await meter.click(plan.getByRole("button", { name: "Approve", exact: true }), "Approve");
+      // it runs in the background: the progress card, then the report and what can be done with it
+      const actions = page.getByRole("group", { name: "Report actions" });
+      await actions.waitFor({ timeout: 120000 });
+      await meter.click(actions.getByRole("button", { name: "Save as note" }), "Save as note");
+      await page.getByText("Saved as a note in podcasts").first().waitFor();
     },
   },
   {

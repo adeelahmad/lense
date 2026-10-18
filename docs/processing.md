@@ -581,6 +581,13 @@ importing chosen ones and watching work as above. [News feeds](#news-feeds-rss-a
     (`google.token`, `google.calendar`); Google throttling the account shows as working, slowly, and a scan it
     interrupts is tried again at the next poll. The token endpoint is always Google's own, whatever a key file says. Without a Google Cloud project,
     a Google calendar's secret address in iCal format (Settings › Integrate calendar) works as a calendar feed.
+
+    **The assistant** (`write`): "Only reads" (empty, the default), or "Also adds events, after your yes" (`yes`),
+    which lets an admin's [assistant](assistant.md#mail-calendars-and-files) add an event once the person approves it,
+    with all of it shown first. That asks Google for `calendar.events` too, so a connected account connects again
+    (Connect again), a service account needs the calendars shared with it with "Make changes to events", and in
+    Workspace an admin allows `calendar.events` for it as well. Adding an event is a row in the activity ledger
+    (`google.calendar`, call `events.insert`) and in the audit log (`calendar.add`).
 - `.eml` and `.ics` files in any source, and uploaded through Import, can be read as text this way too.
 
 ### News feeds (RSS and Atom)
@@ -657,6 +664,14 @@ starts the source's watches again as new ones (taking what's there only if they 
 and messages differently: check their folders. Each access token Google gives, each listing and each message read is a
 row in the activity ledger (`google.token`, `gmail.list`, `gmail.read`); none costs anything.
 
+**The assistant** (`write`): "Only reads" (empty, the default), or "Also sends mail and saves drafts, after your yes"
+(`yes`), which lets an admin's [assistant](assistant.md#mail-calendars-and-files) send a message or save a draft once
+the person approves it, having read the whole message. Through the Gmail API that asks Google for `gmail.compose` too,
+so a connected account connects again (Connect again), and a Workspace admin allows
+`https://www.googleapis.com/auth/gmail.compose` for a service account as well; over IMAP, all of Gmail already covers
+it. Lens sends through the Gmail API either way. Each message sent or draft saved is a row in the activity ledger
+(`gmail.send`, `gmail.draft`) and in the audit log (`mail.send`, `mail.draft`).
+
 ## Pipelines and templates
 
 A pipeline is a named, versioned list of steps; each namespace can choose its default (otherwise: transcribe, diarize,
@@ -671,6 +686,8 @@ audio skip themselves for imported text. Steps:
   template unless the step names another prompt template ([Specs from transcripts](notes.md#specs-from-transcripts)).
 - `report` with a template: renders an HTML page into the namespace's reports. These pages may not run scripts.
 - `export`: renders a template to a file (Markdown, text, HTML...) and can copy it to a storage source.
+- `convert`: makes new assets from one, a video's soundtrack as audio or a document's pages as images
+  ([Converting assets](#converting-assets)).
 
 Any step can carry a condition: `min_minutes`, `max_minutes`, `source` (audio or transcript), `languages`.
 
@@ -688,6 +705,26 @@ New pipelines, workflows, templates and routines don't need a name typed: the we
 steps, what a workflow runs on, a template's kind, a routine's schedule and actions), numbered when it's taken
 ("Prompt template 2"). The pencil next to the name on its page renames it later, as does `PATCH` on its address.
 
+### Converting assets
+
+A Convert step makes new assets from the one it runs on. Default pipelines have none; add one in the pipeline editor
+or on the canvas (Step library → Convert).
+
+- **To audio** (`{"type": "convert", "to": "audio"}`): a video's soundtrack becomes an audio asset, titled
+  "<the video's title> (audio)". It is m4a unless `format` says `mp3`, `opus` or `flac`; AAC sound in m4a (or MP3
+  sound in mp3) is copied as it is, not encoded again. Audio, documents and videos with no sound are skipped.
+- **To images** (`{"type": "convert", "to": "images"}`): each page the Read step drew becomes an image asset,
+  titled "<title>, page N", the same JPEG the asset's page shows (documents.page_pixels on its longest side). Put a
+  Read step before it; without drawn pages it skips. A multi-page TIFF's frames work too; at most 200 pages are made
+  into images from one document.
+
+New assets are kept in the same namespace and collection, encrypted where its files are, and each says which asset
+(and page) it was made from: `converted_from` on `GET /api/v1/recordings/{id}`, and a link on its page. They then run
+the pipeline their content type gives them, as an upload does; `pipeline` names another pipeline by its id, or
+`"none"` keeps them as they are until a pipeline is run on them. Running the step again keeps what it made before;
+`force` makes their files again. An asset a Convert step made isn't converted again, so a pipeline can't feed itself,
+and deleting it deletes its file.
+
 ## Workflows and the canvas
 
 A pipeline's steps make derived files (a transcript or a page's text, shots, text on screen, faces); workflows turn them into metadata. A
@@ -696,8 +733,10 @@ node passes what it makes along its connections.
 
 - **Entities:** Extract entities (rules) runs the extractor analyze uses (the rules, or spaCy), plus your terms (`Name|TYPE`) and
   regular expressions (`TYPE: pattern`); Extract entities (LLM) asks the model for structured entities and keeps,
-  corrects or adds to any passed in; Merge joins lists; Save entities makes them the asset's entities (people's
-  corrections kept) and redoes keywords and chapters.
+  corrects or adds to any passed in; Merge joins lists; Entity filter keeps the entities you want (only some types,
+  without others, without names on a stop list, names at least so long or matching a pattern, or said at least so
+  many times; anything in the list that isn't an entity is left out); Save entities makes them the asset's entities
+  (people's corrections kept) and redoes keywords and chapters.
 - **AI and logic:** LLM prompt (a prompt template, with what came in as `{{ input }}`), Classify (which of your
   labels, the content types or the namespace's topics fits the asset, or what came in as text; it passes on `choice`,
   `confidence`, `sure` and `ranked`, so a Condition or Switch can branch on them; [classifying](#classifying)), Pick
@@ -711,6 +750,10 @@ A pipeline runs a workflow as a Workflow step, pinned to the workflow's publishe
 (`POST /api/v1/workflows/{id}/run` runs one on an asset). Pipelines can be drawn on the canvas too: a connection
 means "runs after", and the graph is put in order (ties left to right) and kept as the version's steps, so runs and
 Activity work as before. A pipeline saved as a list is drawn as a chain.
+
+An automation's workflow (scope `event`) is drawn on the same canvas, from What happened (the run) to Action and
+Decide nodes, with every action in the catalog listed in the palette and its settings drawn from the action's params
+([On the canvas](automations.md#on-the-canvas)).
 
 ## Content types
 
@@ -748,6 +791,9 @@ The schedule is a five-field cron expression (minute hour day-of-month month day
 now. Every 30 seconds, `lens worker` checks (and so does the API process when it runs background work, and `lens watch`); a routine is
 never started twice at once, and one started in two processes runs once. Each run keeps what every action did and a
 log.
+
+The [Schedules](schedules.md) page (Automate › Schedules) lists every routine next to the automations' schedules and
+the backup, to switch, re-time and run each from one place; the Routines page and New routine open from its top.
 
 ### Organising the graph
 

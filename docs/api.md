@@ -386,6 +386,19 @@ starts one now and `runs` lists its last runs. A run held over a budget is run o
 takes back every graph change a run made. `GET /graph-changes` lists the changes to the entities of namespaces you can
 read, newest first; editors `accept`, `dismiss` or `undo` one ([Graph history](graph-history.md)).
 
+## schedules
+
+```
+GET    /api/v1/schedules
+GET    /api/v1/schedules/{id}
+PATCH  /api/v1/schedules/{id}
+POST   /api/v1/schedules/{id}/run
+```
+
+Everything that runs on a clock, in one list ([Schedules](schedules.md)): routines and the scheduled backup for
+admins, and the schedule and at triggers of the automations you manage. An id is `routine:3`,
+`automation:4:morning` or `backups`; `PATCH` takes `cron`, `at`, `timezone` and `enabled`, and `run` runs it now.
+
 ## namespaces
 
 ```

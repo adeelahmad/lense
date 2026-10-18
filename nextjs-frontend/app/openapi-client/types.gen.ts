@@ -955,6 +955,12 @@ export type Approval = {
    */
   summary?: string | null;
   /**
+   * Preview
+   *
+   * what would be sent or written, all of it, for the person to read first (a message, an event, a file)
+   */
+  preview?: string | null;
+  /**
    * Estimate
    */
   estimate?: unknown;
@@ -3437,6 +3443,10 @@ export type Chat = {
    * every message of every version, oldest first
    */
   tree?: Array<ChatNode>;
+  /**
+   * what the model reads instead of the messages up to its `upto`; none before the first summary
+   */
+  summary?: ChatMemory | null;
   [key: string]: unknown;
 };
 
@@ -3606,6 +3616,40 @@ export type ChatCreate = {
    * at most this many tool calls in each answer (1 to ai.max_tool_calls); left out: your latest choice
    */
   max_tool_calls?: number | null;
+};
+
+/**
+ * ChatMemory
+ *
+ * What the model reads instead of the messages a conversation's summary covers (long conversations are summarised;
+ * /compact and /clear).
+ */
+export type ChatMemory = {
+  /**
+   * Text
+   *
+   * the summary; empty after /clear, when the messages it covers aren't read at all
+   */
+  text: string;
+  /**
+   * Upto
+   *
+   * the last message it covers, of the version showing
+   */
+  upto: number;
+  /**
+   * At
+   *
+   * when it was written
+   */
+  at?: string | null;
+  /**
+   * Covers
+   *
+   * how many messages of the version showing it stands for
+   */
+  covers: number;
+  [key: string]: unknown;
 };
 
 /**
@@ -5426,6 +5470,33 @@ export type ConversionNodeTestResult = {
 };
 
 /**
+ * ConvertedFrom
+ *
+ * The asset a convert step made this one from (docs/processing.md#converting-assets).
+ */
+export type ConvertedFrom = {
+  /**
+   * Resource
+   */
+  resource: number;
+  /**
+   * To
+   */
+  to: "audio" | "images";
+  /**
+   * Page
+   *
+   * the page it is, from 0, for images made of a document's pages
+   */
+  page?: number | null;
+  /**
+   * Title
+   */
+  title?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * Converters
  *
  * What this server can make into PDFs to read as documents (docs/api.md#documents-and-images).
@@ -6007,6 +6078,116 @@ export type Description = {
    * true for a document's or an image's pages
    */
   paged?: boolean | null;
+  [key: string]: unknown;
+};
+
+/**
+ * Desired
+ */
+export type Desired = {
+  /**
+   * Desired
+   */
+  desired: number;
+};
+
+/**
+ * DriverField
+ */
+export type DriverField = {
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Type
+   */
+  type: "string" | "integer" | "number" | "boolean" | "list";
+  /**
+   * Required
+   */
+  required?: boolean;
+  /**
+   * Default
+   */
+  default?: unknown;
+  /**
+   * Help
+   */
+  help?: string | null;
+  /**
+   * Options
+   */
+  options?: Array<unknown> | null;
+  /**
+   * Secret
+   *
+   * a credential: sealed when saved, shown only as set
+   */
+  secret?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * DriverSpec
+ */
+export type DriverSpec = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Kind
+   *
+   * node: machines that run `lens worker`; model: a model endpoint
+   */
+  kind: "node" | "model";
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * About
+   */
+  about: string;
+  /**
+   * Priced
+   *
+   * it charges money, so its groups need a budget
+   */
+  priced: boolean;
+  /**
+   * Extra
+   *
+   * the optional packages it needs, fetched when a provider of it is saved
+   */
+  extra?: string | null;
+  /**
+   * License
+   */
+  license?: string | null;
+  /**
+   * Ready
+   *
+   * its packages are installed
+   */
+  ready: boolean;
+  /**
+   * Fields
+   *
+   * the provider's settings
+   */
+  fields: {
+    [key: string]: DriverField;
+  };
+  /**
+   * Template
+   *
+   * what a group picks for each unit
+   */
+  template: {
+    [key: string]: DriverField;
+  };
   [key: string]: unknown;
 };
 
@@ -9084,6 +9265,328 @@ export type GraphQuestion = {
    * ask the graph as of a version: a number or a version's name
    */
   as_of?: string | null;
+};
+
+/**
+ * Group
+ */
+export type Group = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Kind
+   */
+  kind: string;
+  /**
+   * Provider
+   */
+  provider: number;
+  /**
+   * Template
+   */
+  template: {
+    [key: string]: unknown;
+  };
+  /**
+   * Min
+   */
+  min: number;
+  /**
+   * Max
+   */
+  max: number;
+  /**
+   * Desired
+   */
+  desired: number;
+  /**
+   * Cooldown Seconds
+   */
+  cooldown_seconds?: number | null;
+  /**
+   * Warmup Seconds
+   */
+  warmup_seconds?: number | null;
+  /**
+   * Terminate
+   */
+  terminate: string;
+  /**
+   * Rules
+   *
+   * each with `says`, the rule in words
+   */
+  rules: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * At Cap
+   */
+  at_cap: string;
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Paused
+   */
+  paused: boolean;
+  /**
+   * Paused Why
+   */
+  paused_why?: string | null;
+  /**
+   * Capped
+   *
+   * why its budget stops it now, when it does
+   */
+  capped?: string | null;
+  /**
+   * Approval
+   *
+   * a person's approval: {by, at, terms}
+   */
+  approval?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Approved
+   *
+   * the approval covers the terms as they stand
+   */
+  approved: boolean;
+  /**
+   * Terms
+   *
+   * what an approval binds: kind, provider, template, max, budget, at_cap
+   */
+  terms: {
+    [key: string]: unknown;
+  };
+  budget?: GroupBudget | null;
+  units: UnitCounts;
+  /**
+   * Waiting For
+   *
+   * why it launches nothing now, when it doesn't
+   */
+  waiting_for?: string | null;
+  /**
+   * Last Out At
+   */
+  last_out_at?: string | null;
+  /**
+   * Last In At
+   */
+  last_in_at?: string | null;
+  /**
+   * Last Eval
+   *
+   * what the rules said last: {at, said}
+   */
+  last_eval?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Failures
+   */
+  failures?: number;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Updated By
+   */
+  updated_by?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * GroupBudget
+ */
+export type GroupBudget = {
+  /**
+   * Usd
+   */
+  usd?: number | null;
+  /**
+   * Period
+   */
+  period: string;
+  /**
+   * State
+   */
+  state: string;
+  /**
+   * Spent
+   */
+  spent: {
+    [key: string]: unknown;
+  };
+  /**
+   * Left
+   */
+  left: {
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
+
+/**
+ * GroupChange
+ */
+export type GroupChange = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Provider
+   */
+  provider?: number | null;
+  /**
+   * Template
+   */
+  template?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Min
+   */
+  min?: number | null;
+  /**
+   * Max
+   */
+  max?: number | null;
+  /**
+   * Desired
+   */
+  desired?: number | null;
+  /**
+   * Cooldown Seconds
+   */
+  cooldown_seconds?: number | null;
+  /**
+   * Warmup Seconds
+   */
+  warmup_seconds?: number | null;
+  /**
+   * Terminate
+   */
+  terminate?: "oldest" | "newest" | null;
+  /**
+   * Rules
+   */
+  rules?: Array<Rule> | null;
+  /**
+   * At Cap
+   */
+  at_cap?: "stop" | "min" | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean | null;
+  /**
+   * Budget
+   */
+  budget?: number | null;
+};
+
+/**
+ * GroupIn
+ */
+export type GroupIn = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Provider
+   *
+   * the provider's id
+   */
+  provider: number;
+  /**
+   * Kind
+   *
+   * the provider's kind; filled in when left out
+   */
+  kind?: "node" | "model" | null;
+  /**
+   * Template
+   *
+   * what each unit is (the driver's template fields)
+   */
+  template?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Min
+   */
+  min?: number;
+  /**
+   * Max
+   */
+  max?: number;
+  /**
+   * Desired
+   *
+   * units wanted now (default min)
+   */
+  desired?: number | null;
+  /**
+   * Cooldown Seconds
+   *
+   * how long after a change before the next
+   */
+  cooldown_seconds?: number;
+  /**
+   * Warmup Seconds
+   *
+   * how long a new unit may take to join before more are judged
+   */
+  warmup_seconds?: number;
+  /**
+   * Terminate
+   *
+   * which unit goes first when scaling in
+   */
+  terminate?: "oldest" | "newest";
+  /**
+   * Rules
+   */
+  rules?: Array<Rule>;
+  /**
+   * At Cap
+   *
+   * at the budget's cap: stop every unit, or keep min
+   */
+  at_cap?: "stop" | "min";
+  /**
+   * Enabled
+   */
+  enabled?: boolean;
+  /**
+   * Budget
+   *
+   * USD per month; needed on a priced provider
+   */
+  budget?: number | null;
 };
 
 /**
@@ -13104,6 +13607,27 @@ export type MetadataEdit = {
 };
 
 /**
+ * Metrics
+ */
+export type Metrics = {
+  /**
+   * Metrics
+   */
+  metrics: {
+    [key: string]: number | number;
+  };
+  /**
+   * About
+   *
+   * what each metric measures
+   */
+  about: {
+    [key: string]: string;
+  };
+  [key: string]: unknown;
+};
+
+/**
  * ModelSpend
  */
 export type ModelSpend = {
@@ -15626,6 +16150,53 @@ export type Output = {
 };
 
 /**
+ * Overview
+ */
+export type Overview = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Settings
+   */
+  settings: {
+    [key: string]: unknown;
+  };
+  /**
+   * Scaler
+   *
+   * which process scales and when it last looked
+   */
+  scaler: {
+    [key: string]: unknown;
+  };
+  /**
+   * Providers
+   */
+  providers: Array<Provider>;
+  /**
+   * Groups
+   */
+  groups: Array<Group>;
+  /**
+   * Units
+   */
+  units: Array<Unit>;
+  /**
+   * Drivers
+   */
+  drivers: Array<DriverSpec>;
+  /**
+   * Metrics
+   */
+  metrics: {
+    [key: string]: number | number;
+  };
+  [key: string]: unknown;
+};
+
+/**
  * Page
  *
  * A page of a document, or an image (a TIFF has one per frame).
@@ -16028,6 +16599,20 @@ export type PatternUpdate = {
    * Action
    */
   action?: "keep" | "drop" | null;
+};
+
+/**
+ * Paused
+ */
+export type Paused = {
+  /**
+   * Paused
+   */
+  paused?: boolean;
+  /**
+   * Why
+   */
+  why?: string | null;
 };
 
 /**
@@ -17021,6 +17606,177 @@ export type PrimaryFile = {
    */
   pdf?: string | null;
   [key: string]: unknown;
+};
+
+/**
+ * Protected
+ */
+export type Protected = {
+  /**
+   * Protected
+   */
+  protected?: boolean;
+};
+
+/**
+ * Provider
+ */
+export type Provider = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Driver
+   */
+  driver: string;
+  /**
+   * Kind
+   */
+  kind?: string | null;
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Priced
+   */
+  priced?: boolean;
+  /**
+   * Settings
+   */
+  settings: {
+    [key: string]: unknown;
+  };
+  /**
+   * Secrets
+   *
+   * which credentials are set
+   */
+  secrets: {
+    [key: string]: boolean;
+  };
+  /**
+   * Price
+   */
+  price?: number | null;
+  /**
+   * Note
+   */
+  note?: string | null;
+  /**
+   * Checked At
+   */
+  checked_at?: string | null;
+  /**
+   * Check
+   *
+   * the last check: {ok, error?}
+   */
+  check?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Updated By
+   */
+  updated_by?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ProviderChange
+ */
+export type ProviderChange = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Settings
+   */
+  settings?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Secrets
+   *
+   * a secret given as null is removed; one left out is kept
+   */
+  secrets?: {
+    [key: string]: string | null;
+  } | null;
+  /**
+   * Price
+   */
+  price?: number | null;
+  /**
+   * Note
+   */
+  note?: string | null;
+  /**
+   * Check
+   */
+  check?: boolean;
+};
+
+/**
+ * ProviderIn
+ */
+export type ProviderIn = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Driver
+   *
+   * the kind of provider (see /scaling/drivers)
+   */
+  driver: string;
+  /**
+   * Settings
+   *
+   * the driver's non-secret settings
+   */
+  settings?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Secrets
+   *
+   * its credentials: sealed, never shown again
+   */
+  secrets?: {
+    [key: string]: string | null;
+  };
+  /**
+   * Price
+   *
+   * USD per unit-hour, when the driver doesn't know it; an estimate
+   */
+  price?: number | null;
+  /**
+   * Note
+   */
+  note?: string | null;
+  /**
+   * Check
+   *
+   * prove the credentials with a read-only call before answering
+   */
+  check?: boolean;
 };
 
 /**
@@ -18208,6 +18964,10 @@ export type Recording = {
    * an email's attachment made a resource of its own: that email
    */
   attached_to?: AttachedTo | null;
+  /**
+   * made by a convert step: the asset it was made from
+   */
+  converted_from?: ConvertedFrom | null;
   /**
    * a web page captured as a document
    */
@@ -20098,6 +20858,90 @@ export type RoutineUpdate = {
 };
 
 /**
+ * Rule
+ */
+export type Rule = {
+  /**
+   * Type
+   */
+  type: "target" | "step" | "schedule";
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Metric
+   *
+   * target and step rules: see /scaling/metrics
+   */
+  metric?: string | null;
+  /**
+   * Target
+   *
+   * target rules: the value to keep the metric at
+   */
+  target?: number | null;
+  /**
+   * Above
+   *
+   * step rules: fires while the metric is above this
+   */
+  above?: number | null;
+  /**
+   * Below
+   *
+   * step rules: fires while the metric is below this
+   */
+  below?: number | null;
+  /**
+   * Minutes
+   *
+   * step rules: for how long before it fires (default 1)
+   */
+  minutes?: number | null;
+  /**
+   * Add
+   *
+   * step rules: units to add, a count or a percentage like "50%"
+   */
+  add?: number | string | null;
+  /**
+   * Remove
+   *
+   * step rules: units to remove, a count or a percentage
+   */
+  remove?: number | string | null;
+  /**
+   * Cron
+   *
+   * schedule rules: when, as a cron expression
+   */
+  cron?: string | null;
+  /**
+   * Timezone
+   */
+  timezone?: string | null;
+  /**
+   * Min
+   *
+   * schedule rules: the new min
+   */
+  min?: number | null;
+  /**
+   * Max
+   *
+   * schedule rules: the new max
+   */
+  max?: number | null;
+  /**
+   * Desired
+   *
+   * schedule rules: the new desired count
+   */
+  desired?: number | null;
+};
+
+/**
  * S3Key
  */
 export type S3Key = {
@@ -20525,6 +21369,154 @@ export type SavedView = {
 };
 
 /**
+ * Schedule
+ */
+export type Schedule = {
+  /**
+   * Id
+   *
+   * routine:<id>, automation:<id>:<trigger> or backups
+   */
+  id: string;
+  /**
+   * Kind
+   */
+  kind: "routine" | "automation" | "backups";
+  /**
+   * Name
+   *
+   * the routine's or automation's name
+   */
+  name: string;
+  /**
+   * Trigger
+   *
+   * an automation's trigger (its `as`)
+   */
+  trigger?: string | null;
+  /**
+   * On
+   *
+   * schedule: repeats on a cron; at: once, at a time; manual: no schedule (a routine run by hand, no backups)
+   */
+  on: "schedule" | "at" | "manual";
+  /**
+   * Cron
+   *
+   * five-field cron (minute hour day month weekday) or @daily...
+   */
+  cron?: string | null;
+  /**
+   * At
+   *
+   * an at trigger's time (ISO 8601, in its time zone when it names none)
+   */
+  at?: string | null;
+  /**
+   * Timezone
+   */
+  timezone?: string;
+  /**
+   * Text
+   *
+   * when it runs, in words: every weekday at 07:00, once on Fri 16 Oct at 07:00, ...
+   */
+  text: string;
+  /**
+   * Enabled
+   *
+   * whether it runs on its own (for an automation: the whole automation is on)
+   */
+  enabled: boolean;
+  /**
+   * State
+   *
+   * on, off or running (routines, the backup); waiting, done (an at trigger whose time came), missed, failed or off (automations)
+   */
+  state: string;
+  /**
+   * Next Run At
+   *
+   * when it runs next (UTC); none while it's off or has no schedule
+   */
+  next_run_at?: string | null;
+  /**
+   * Last Run At
+   */
+  last_run_at?: string | null;
+  /**
+   * Last Status
+   *
+   * how its last run went (done, error, failed, partly, skipped, ...)
+   */
+  last_status?: string | null;
+  /**
+   * Running
+   */
+  running?: boolean;
+  /**
+   * Href
+   *
+   * its page in the web app
+   */
+  href: string;
+  /**
+   * Namespace Names
+   *
+   * the namespaces it works in; none for every one
+   */
+  namespace_names?: Array<string | null> | null;
+  /**
+   * Note
+   *
+   * something to know about it: why it doesn't run, its last error
+   */
+  note?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ScheduleCatalog
+ */
+export type ScheduleCatalog = {
+  /**
+   * Schedules
+   */
+  schedules: Array<Schedule>;
+  [key: string]: unknown;
+};
+
+/**
+ * ScheduleChange
+ */
+export type ScheduleChange = {
+  /**
+   * Cron
+   *
+   * a new schedule (five-field cron or @daily...); null for a routine runs it only by hand, and for the backup stops scheduled backups
+   */
+  cron?: string | null;
+  /**
+   * At
+   *
+   * a new time for an automation's at trigger, like 2026-11-02T07:30
+   */
+  at?: string | null;
+  /**
+   * Timezone
+   *
+   * a time zone, like Europe/London
+   */
+  timezone?: string | null;
+  /**
+   * Enabled
+   *
+   * switch it on or off: an automation's whole automation; the backup off clears its schedule
+   */
+  enabled?: boolean | null;
+};
+
+/**
  * SchedulePreview
  */
 export type SchedulePreview = {
@@ -20544,6 +21536,49 @@ export type SchedulePreview = {
    * Next
    */
   next: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
+ * ScheduleRun
+ */
+export type ScheduleRun = {
+  /**
+   * Over Budget
+   *
+   * run it even though it's over a budget (docs/budgets.md)
+   */
+  over_budget?: boolean;
+};
+
+/**
+ * ScheduleStarted
+ */
+export type ScheduleStarted = {
+  /**
+   * Status
+   *
+   * asked (a routine starts within half a minute), done, waiting, partly, failed, held (over a budget), skipped (its If was false), limited or off (automations), or done for a backup
+   */
+  status: string;
+  /**
+   * Why
+   *
+   * why it didn't run, or was held
+   */
+  why?: string | null;
+  /**
+   * Run
+   *
+   * an automation's run (GET /api/v1/automations/runs/{run})
+   */
+  run?: number | null;
+  /**
+   * Backup
+   *
+   * the backup it took
+   */
+  backup?: string | null;
   [key: string]: unknown;
 };
 
@@ -20843,6 +21878,170 @@ export type SecretFlag = {
    * Set
    */
   set: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * SecretProvider
+ */
+export type SecretProvider = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Scheme
+   *
+   * how references to it start (vaultwarden://…); none for the built-in store
+   */
+  scheme?: string | null;
+  /**
+   * Configured
+   *
+   * set up, so a reference to it can be read
+   */
+  configured: boolean;
+  /**
+   * Scope
+   *
+   * what it reads, in words: never a secret
+   */
+  scope?: string | null;
+  /**
+   * Url
+   */
+  url?: string | null;
+  /**
+   * Email
+   */
+  email?: string | null;
+  /**
+   * Folder
+   */
+  folder?: string | null;
+  /**
+   * Installed
+   *
+   * its client is fetched (a component), when it needs one
+   */
+  installed?: boolean | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SecretReference
+ */
+export type SecretReference = {
+  /**
+   * Section
+   */
+  section: string;
+  /**
+   * Key
+   */
+  key: string;
+  /**
+   * Ref
+   *
+   * the reference the field holds, like vaultwarden://OpenAI/password
+   */
+  ref: string;
+  /**
+   * Provider
+   */
+  provider: string;
+  /**
+   * Read
+   *
+   * whether its value could be read by this server process; null before the first read
+   */
+  read?: boolean | null;
+  /**
+   * Error
+   *
+   * why it couldn't be read, last time it was tried
+   */
+  error?: string | null;
+  /**
+   * Read At
+   *
+   * when its value was last read
+   */
+  read_at?: string | null;
+  /**
+   * Missing
+   *
+   * the password manager answered that the item or field isn't there
+   */
+  missing?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * SecretsTestResult
+ */
+export type SecretsTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Items
+   *
+   * how many items the folder Lens reads holds
+   */
+  items?: number | null;
+  /**
+   * Folder
+   */
+  folder?: string | null;
+  /**
+   * Account
+   */
+  account?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SecretsTry
+ */
+export type SecretsTry = {
+  /**
+   * Provider
+   */
+  provider?: string;
+};
+
+/**
+ * SecretsView
+ */
+export type SecretsView = {
+  /**
+   * Providers
+   */
+  providers: Array<SecretProvider>;
+  /**
+   * References
+   *
+   * every secret field that refers to a password manager
+   */
+  references: Array<SecretReference>;
+  /**
+   * Fields
+   *
+   * every secret field in Settings: section, key, set, and its ref when it holds one
+   */
+  fields: Array<{
+    [key: string]: unknown;
+  }>;
   [key: string]: unknown;
 };
 
@@ -24197,6 +25396,16 @@ export type TermSuggestion = {
 };
 
 /**
+ * Terminate
+ */
+export type Terminate = {
+  /**
+   * Why
+   */
+  why?: string | null;
+};
+
+/**
  * TicketRequest
  */
 export type TicketRequest = {
@@ -24967,6 +26176,112 @@ export type Undone = {
 };
 
 /**
+ * Unit
+ */
+export type Unit = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Group
+   */
+  group: number;
+  /**
+   * Provider
+   */
+  provider: number;
+  /**
+   * Driver
+   */
+  driver?: string | null;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * External Id
+   *
+   * the provider's id for it
+   */
+  external_id?: string | null;
+  /**
+   * State
+   */
+  state: "launching" | "running" | "draining" | "terminating" | "terminated" | "failed";
+  /**
+   * Address
+   */
+  address?: string | null;
+  /**
+   * Endpoint
+   *
+   * a model unit's endpoint: base_url, model; api_key true when set
+   */
+  endpoint?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Price
+   *
+   * USD per hour, an estimate
+   */
+  price?: number | null;
+  /**
+   * Launched At
+   */
+  launched_at?: string | null;
+  /**
+   * Ready At
+   */
+  ready_at?: string | null;
+  /**
+   * Ended At
+   */
+  ended_at?: string | null;
+  /**
+   * By
+   */
+  by?: string | null;
+  /**
+   * Why
+   */
+  why?: string | null;
+  /**
+   * Protected
+   */
+  protected?: boolean;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Accrued At
+   */
+  accrued_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * UnitCounts
+ */
+export type UnitCounts = {
+  /**
+   * Launching
+   */
+  launching: number;
+  /**
+   * Running
+   */
+  running: number;
+  /**
+   * Draining
+   */
+  draining: number;
+  [key: string]: unknown;
+};
+
+/**
  * UpdateStatus
  */
 export type UpdateStatus = {
@@ -25597,6 +26912,58 @@ export type VaultAnswer = {
    * the PRF extension's first result for the salt in the options, base64url
    */
   prf: string;
+};
+
+/**
+ * VaultItem
+ */
+export type VaultItem = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Type
+   *
+   * login, note, card, identity or other
+   */
+  type: string;
+  /**
+   * Fields
+   *
+   * the names of the fields that hold something
+   */
+  fields: Array<string>;
+  /**
+   * Ref
+   *
+   * the reference to the item's default field (a login's password, a note's text)
+   */
+  ref?: string | null;
+  /**
+   * Refs
+   *
+   * the reference to each field
+   */
+  refs?: {
+    [key: string]: string;
+  };
+  [key: string]: unknown;
+};
+
+/**
+ * VaultItems
+ */
+export type VaultItems = {
+  /**
+   * Provider
+   */
+  provider: string;
+  /**
+   * Items
+   */
+  items: Array<VaultItem>;
+  [key: string]: unknown;
 };
 
 /**
@@ -29242,6 +30609,92 @@ export type ReindexSearchResponses = {
 };
 
 export type ReindexSearchResponse = ReindexSearchResponses[keyof ReindexSearchResponses];
+
+export type GetSecretsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/secrets";
+};
+
+export type GetSecretsResponses = {
+  /**
+   * Successful Response
+   */
+  200: SecretsView;
+};
+
+export type GetSecretsResponse = GetSecretsResponses[keyof GetSecretsResponses];
+
+export type ListVaultItemsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Provider
+     *
+     * the password manager
+     */
+    provider?: string;
+    /**
+     * Q
+     *
+     * part of an item's name
+     */
+    q?: string | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/secrets/items";
+};
+
+export type ListVaultItemsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListVaultItemsError = ListVaultItemsErrors[keyof ListVaultItemsErrors];
+
+export type ListVaultItemsResponses = {
+  /**
+   * Successful Response
+   */
+  200: VaultItems;
+};
+
+export type ListVaultItemsResponse = ListVaultItemsResponses[keyof ListVaultItemsResponses];
+
+export type TestSecretsData = {
+  /**
+   * Body
+   */
+  body?: SecretsTry | null;
+  path?: never;
+  query?: never;
+  url: "/api/v1/secrets/test";
+};
+
+export type TestSecretsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TestSecretsError = TestSecretsErrors[keyof TestSecretsErrors];
+
+export type TestSecretsResponses = {
+  /**
+   * Successful Response
+   */
+  200: SecretsTestResult;
+};
+
+export type TestSecretsResponse = TestSecretsResponses[keyof TestSecretsResponses];
 
 export type RemoteBackupsData = {
   body?: never;
@@ -44781,6 +46234,115 @@ export type UndoGraphChangeResponses = {
 
 export type UndoGraphChangeResponse = UndoGraphChangeResponses[keyof UndoGraphChangeResponses];
 
+export type ListSchedulesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/schedules";
+};
+
+export type ListSchedulesResponses = {
+  /**
+   * Successful Response
+   */
+  200: ScheduleCatalog;
+};
+
+export type ListSchedulesResponse = ListSchedulesResponses[keyof ListSchedulesResponses];
+
+export type GetScheduleData = {
+  body?: never;
+  path: {
+    /**
+     * Sid
+     */
+    sid: string;
+  };
+  query?: never;
+  url: "/api/v1/schedules/{sid}";
+};
+
+export type GetScheduleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetScheduleError = GetScheduleErrors[keyof GetScheduleErrors];
+
+export type GetScheduleResponses = {
+  /**
+   * Successful Response
+   */
+  200: Schedule;
+};
+
+export type GetScheduleResponse = GetScheduleResponses[keyof GetScheduleResponses];
+
+export type ChangeScheduleData = {
+  body: ScheduleChange;
+  path: {
+    /**
+     * Sid
+     */
+    sid: string;
+  };
+  query?: never;
+  url: "/api/v1/schedules/{sid}";
+};
+
+export type ChangeScheduleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ChangeScheduleError = ChangeScheduleErrors[keyof ChangeScheduleErrors];
+
+export type ChangeScheduleResponses = {
+  /**
+   * Successful Response
+   */
+  200: Schedule;
+};
+
+export type ChangeScheduleResponse = ChangeScheduleResponses[keyof ChangeScheduleResponses];
+
+export type RunScheduleData = {
+  /**
+   * Body
+   */
+  body?: ScheduleRun | null;
+  path: {
+    /**
+     * Sid
+     */
+    sid: string;
+  };
+  query?: never;
+  url: "/api/v1/schedules/{sid}/run";
+};
+
+export type RunScheduleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RunScheduleError = RunScheduleErrors[keyof RunScheduleErrors];
+
+export type RunScheduleResponses = {
+  /**
+   * Successful Response
+   */
+  200: ScheduleStarted;
+};
+
+export type RunScheduleResponse = RunScheduleResponses[keyof RunScheduleResponses];
+
 export type ListSensorsData = {
   body?: never;
   path?: never;
@@ -46610,6 +48172,623 @@ export type WriteSpecResponses = {
 };
 
 export type WriteSpecResponse = WriteSpecResponses[keyof WriteSpecResponses];
+
+export type OverviewData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/scaling";
+};
+
+export type OverviewResponses = {
+  /**
+   * Successful Response
+   */
+  200: Overview;
+};
+
+export type OverviewResponse = OverviewResponses[keyof OverviewResponses];
+
+export type ListDriversData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/scaling/drivers";
+};
+
+export type ListDriversResponses = {
+  /**
+   * Response Scaling-List Drivers
+   *
+   * Successful Response
+   */
+  200: Array<DriverSpec>;
+};
+
+export type ListDriversResponse = ListDriversResponses[keyof ListDriversResponses];
+
+export type MetricsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Steps
+     *
+     * comma-separated steps for the queue metrics
+     */
+    steps?: string | null;
+  };
+  url: "/api/v1/scaling/metrics";
+};
+
+export type MetricsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type MetricsError = MetricsErrors[keyof MetricsErrors];
+
+export type MetricsResponses = {
+  /**
+   * Successful Response
+   */
+  200: Metrics;
+};
+
+export type MetricsResponse = MetricsResponses[keyof MetricsResponses];
+
+export type ListProvidersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/scaling/providers";
+};
+
+export type ListProvidersResponses = {
+  /**
+   * Response Scaling-List Providers
+   *
+   * Successful Response
+   */
+  200: Array<Provider>;
+};
+
+export type ListProvidersResponse = ListProvidersResponses[keyof ListProvidersResponses];
+
+export type AddProviderData = {
+  body: ProviderIn;
+  path?: never;
+  query?: never;
+  url: "/api/v1/scaling/providers";
+};
+
+export type AddProviderErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AddProviderError = AddProviderErrors[keyof AddProviderErrors];
+
+export type AddProviderResponses = {
+  /**
+   * Successful Response
+   */
+  201: Provider;
+};
+
+export type AddProviderResponse = AddProviderResponses[keyof AddProviderResponses];
+
+export type RemoveProviderData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/providers/{pid}";
+};
+
+export type RemoveProviderErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveProviderError = RemoveProviderErrors[keyof RemoveProviderErrors];
+
+export type RemoveProviderResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RemoveProviderResponse = RemoveProviderResponses[keyof RemoveProviderResponses];
+
+export type GetProviderData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/providers/{pid}";
+};
+
+export type GetProviderErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetProviderError = GetProviderErrors[keyof GetProviderErrors];
+
+export type GetProviderResponses = {
+  /**
+   * Successful Response
+   */
+  200: Provider;
+};
+
+export type GetProviderResponse = GetProviderResponses[keyof GetProviderResponses];
+
+export type ChangeProviderData = {
+  body: ProviderChange;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/providers/{pid}";
+};
+
+export type ChangeProviderErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ChangeProviderError = ChangeProviderErrors[keyof ChangeProviderErrors];
+
+export type ChangeProviderResponses = {
+  /**
+   * Successful Response
+   */
+  200: Provider;
+};
+
+export type ChangeProviderResponse = ChangeProviderResponses[keyof ChangeProviderResponses];
+
+export type CheckProviderData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/providers/{pid}/check";
+};
+
+export type CheckProviderErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CheckProviderError = CheckProviderErrors[keyof CheckProviderErrors];
+
+export type CheckProviderResponses = {
+  /**
+   * Response Scaling-Check Provider
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type CheckProviderResponse = CheckProviderResponses[keyof CheckProviderResponses];
+
+export type ListGroupsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/scaling/groups";
+};
+
+export type ListGroupsResponses = {
+  /**
+   * Response Scaling-List Groups
+   *
+   * Successful Response
+   */
+  200: Array<Group>;
+};
+
+export type ListGroupsResponse = ListGroupsResponses[keyof ListGroupsResponses];
+
+export type CreateGroupData = {
+  body: GroupIn;
+  path?: never;
+  query?: never;
+  url: "/api/v1/scaling/groups";
+};
+
+export type CreateGroupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateGroupError = CreateGroupErrors[keyof CreateGroupErrors];
+
+export type CreateGroupResponses = {
+  /**
+   * Successful Response
+   */
+  201: Group;
+};
+
+export type CreateGroupResponse = CreateGroupResponses[keyof CreateGroupResponses];
+
+export type RemoveGroupData = {
+  body?: never;
+  path: {
+    /**
+     * Gid
+     */
+    gid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/groups/{gid}";
+};
+
+export type RemoveGroupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveGroupError = RemoveGroupErrors[keyof RemoveGroupErrors];
+
+export type RemoveGroupResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RemoveGroupResponse = RemoveGroupResponses[keyof RemoveGroupResponses];
+
+export type GetGroupData = {
+  body?: never;
+  path: {
+    /**
+     * Gid
+     */
+    gid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/groups/{gid}";
+};
+
+export type GetGroupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetGroupError = GetGroupErrors[keyof GetGroupErrors];
+
+export type GetGroupResponses = {
+  /**
+   * Successful Response
+   */
+  200: Group;
+};
+
+export type GetGroupResponse = GetGroupResponses[keyof GetGroupResponses];
+
+export type ChangeGroupData = {
+  body: GroupChange;
+  path: {
+    /**
+     * Gid
+     */
+    gid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/groups/{gid}";
+};
+
+export type ChangeGroupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ChangeGroupError = ChangeGroupErrors[keyof ChangeGroupErrors];
+
+export type ChangeGroupResponses = {
+  /**
+   * Successful Response
+   */
+  200: Group;
+};
+
+export type ChangeGroupResponse = ChangeGroupResponses[keyof ChangeGroupResponses];
+
+export type ApproveGroupData = {
+  body?: never;
+  path: {
+    /**
+     * Gid
+     */
+    gid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/groups/{gid}/approve";
+};
+
+export type ApproveGroupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ApproveGroupError = ApproveGroupErrors[keyof ApproveGroupErrors];
+
+export type ApproveGroupResponses = {
+  /**
+   * Successful Response
+   */
+  200: Group;
+};
+
+export type ApproveGroupResponse = ApproveGroupResponses[keyof ApproveGroupResponses];
+
+export type SetDesiredData = {
+  body: Desired;
+  path: {
+    /**
+     * Gid
+     */
+    gid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/groups/{gid}/desired";
+};
+
+export type SetDesiredErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetDesiredError = SetDesiredErrors[keyof SetDesiredErrors];
+
+export type SetDesiredResponses = {
+  /**
+   * Successful Response
+   */
+  200: Group;
+};
+
+export type SetDesiredResponse = SetDesiredResponses[keyof SetDesiredResponses];
+
+export type PauseGroupData = {
+  body: Paused;
+  path: {
+    /**
+     * Gid
+     */
+    gid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/groups/{gid}/pause";
+};
+
+export type PauseGroupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PauseGroupError = PauseGroupErrors[keyof PauseGroupErrors];
+
+export type PauseGroupResponses = {
+  /**
+   * Successful Response
+   */
+  200: Group;
+};
+
+export type PauseGroupResponse = PauseGroupResponses[keyof PauseGroupResponses];
+
+export type GroupHistoryData = {
+  body?: never;
+  path: {
+    /**
+     * Gid
+     */
+    gid: number;
+  };
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Before
+     */
+    before?: number | null;
+  };
+  url: "/api/v1/scaling/groups/{gid}/history";
+};
+
+export type GroupHistoryErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GroupHistoryError = GroupHistoryErrors[keyof GroupHistoryErrors];
+
+export type GroupHistoryResponses = {
+  /**
+   * Response Scaling-Group History
+   *
+   * Successful Response
+   */
+  200: Array<{
+    [key: string]: unknown;
+  }>;
+};
+
+export type GroupHistoryResponse = GroupHistoryResponses[keyof GroupHistoryResponses];
+
+export type ListUnitsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Group
+     */
+    group?: number | null;
+    /**
+     * Alive
+     *
+     * only units not yet gone
+     */
+    alive?: boolean;
+  };
+  url: "/api/v1/scaling/units";
+};
+
+export type ListUnitsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListUnitsError = ListUnitsErrors[keyof ListUnitsErrors];
+
+export type ListUnitsResponses = {
+  /**
+   * Response Scaling-List Units
+   *
+   * Successful Response
+   */
+  200: Array<Unit>;
+};
+
+export type ListUnitsResponse = ListUnitsResponses[keyof ListUnitsResponses];
+
+export type ProtectUnitData = {
+  body: Protected;
+  path: {
+    /**
+     * Nid
+     */
+    nid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/units/{nid}/protect";
+};
+
+export type ProtectUnitErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ProtectUnitError = ProtectUnitErrors[keyof ProtectUnitErrors];
+
+export type ProtectUnitResponses = {
+  /**
+   * Successful Response
+   */
+  200: Unit;
+};
+
+export type ProtectUnitResponse = ProtectUnitResponses[keyof ProtectUnitResponses];
+
+export type TerminateUnitData = {
+  body: Terminate;
+  path: {
+    /**
+     * Nid
+     */
+    nid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/units/{nid}/terminate";
+};
+
+export type TerminateUnitErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TerminateUnitError = TerminateUnitErrors[keyof TerminateUnitErrors];
+
+export type TerminateUnitResponses = {
+  /**
+   * Successful Response
+   */
+  200: Unit;
+};
+
+export type TerminateUnitResponse = TerminateUnitResponses[keyof TerminateUnitResponses];
+
+export type TickData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/scaling/tick";
+};
+
+export type TickResponses = {
+  /**
+   * Response Scaling-Tick
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type TickResponse = TickResponses[keyof TickResponses];
 
 export type MeshStatusData = {
   body?: never;

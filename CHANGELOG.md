@@ -4,6 +4,26 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+## 0.16.0 <small>October 18, 2026</small> {id="0.16.0"}
+
+### Features
+
+- **web:** SchemaForm, a form generated from a JSON Schema with a variable picker ([#566](https://github.com/adeelahmad/lense/pull/566))
+- **chat:** recover when the model's context is full, and show what a summary covers ([#558](https://github.com/adeelahmad/lense/pull/558))
+- **pipelines:** convert steps that make a video's soundtrack an audio asset and a document's pages image assets ([#568](https://github.com/adeelahmad/lense/pull/568))
+- **scaling:** DigitalOcean and Hetzner Cloud providers ([#573](https://github.com/adeelahmad/lense/pull/573))
+- **workflows:** draw an automation's workflow on the canvas, with action and decide nodes ([#576](https://github.com/adeelahmad/lense/pull/576))
+
+## 0.15.0 <small>October 18, 2026</small> {id="0.15.0"}
+
+- **The assistant sends mail, adds events and writes files, after your yes.** New tools `send_mail` (send, or save a
+  draft, from Gmail; `reply_to` keeps a message's thread), `add_event` (an event on Google Calendar, inviting people
+  if asked) and `write_file` (a text file on a storage connection, replacing one only when asked). Each always waits
+  for your approval, which now shows all of it first: the whole message with who it goes to, the event, the file's
+  text. A Gmail or Google Calendar connection only reads until an admin picks "Also sends mail and saves drafts" or
+  "Also adds events" under The assistant in its settings and connects the account again, since Google is then asked
+  for `gmail.compose` or `calendar.events`; Google Drive connected read only is never written. Every change is in the
+  audit log ([Mail, calendars and files](docs/assistant.md#mail-calendars-and-files)).
 - **The upgrade agent starts the code sandbox's gateway.** Settings → Code sandbox → Run the gateway on this machine
   now works on installs with an upgrade agent: the agent knows the `sandbox` profile and starts or stops its three
   containers, as it does the MCP runner, the browser and monitoring. An older agent still says to run the line by hand
@@ -44,6 +64,16 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   a time (for the same sender, say), when one came a number of times, when one didn't come in time after another (no
   reply within two days), or once for a batch collected over a time. What it waits on outlasts a restart, and switching
   the automation off drops it ([Joins](docs/automations.md#joins)).
+- **Secrets from Vaultwarden.** A secret field in Settings (a model's API key, a chat app's token, a mail password)
+  can refer to an item in a Vaultwarden or Bitwarden vault, like `vaultwarden://OpenAI/password`, instead of holding
+  the secret. Lens reads the value, keeps it in memory for `secrets.cache_minutes` (10 by default) and reads it again
+  in the background, so a key changed in the vault reaches Lens by itself. Only the reference is stored, and it's
+  checked against the vault before it's saved. Lens signs in as an account of its own and reads one folder of it
+  (`secrets.vaultwarden_folder`, "Lens"). Settings, the API (`GET /api/v1/secrets`, `GET /api/v1/secrets/items`,
+  `POST /api/v1/secrets/test`), the MCP tools `list_secrets`, `list_vault_items` and `set_secret_reference`, and the
+  assistant's `list_secrets` and `vault_items` show references and whether they could be read, never a value. The
+  client (python-vaultwarden, Apache-2.0) is fetched once a Vaultwarden address is set. Secrets saved in Lens stay
+  the default ([Secrets](docs/secrets.md)).
 - **A decide node for judgement calls.** An automation's workflow can ask the decision model a question with a few
   options ("Does this need me today?") and go on along the option it picked, or along `unsure` when it isn't sure
   enough, none is set up or the budget is spent. The email it reads is marked as outside text, the answer is kept per
@@ -117,20 +147,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   "Mail, calendars and files". Gmail is searched with its own query language and IMAP by words in the newest subjects and
   senders; Google Calendar gives the events of a window; files are found by name and read when they are text, PDFs or
   Word files. Answers cite a message or an event with a link that opens it, and bringing things into Lens waits for the
-  person's yes. Nothing is sent, written or deleted yet
-  ([Mail, calendars and files](docs/assistant.md#mail-calendars-and-files)).
+  person's yes ([Mail, calendars and files](docs/assistant.md#mail-calendars-and-files)).
 - **The decision model types the names the rules can't.** When Jev or Laya is set up, analysis asks it what each new
   Term of a recording is (a person, an organisation, a product...), with the lines it's said in, in one call per
   recording, and keeps the types it is sure of. Settings › Analysis › Names the rules can't type (`analysis.typing`)
   can also let the language model answer, or turn it off; the language model is never asked by default
   ([Names the rules can't type](docs/processing.md#entities-and-the-graph-explorer)).
-- **Circles of trust.** Put the people close to you in circles of your own (Immediate family, Close family, Friends,
-  Colleagues are suggested) and share an activity from your timeline or a resource with a circle and a note: each of
-  them gets it in their own timeline as `share.received`, which their automations can follow, and you get
-  `share.sent`. *With the item* also gives them permission on that one resource (it needs `publish`); undo takes the
-  share back everywhere, with the permissions it gave. Nothing in a vault can be shared. Works through
-  `/api/v1/circles`, MCP (`list_circles`, `save_circle`, `share_with_circle`, `undo_share`) and the assistant, which
-  asks first ([Circles of trust](docs/circles.md)).
 - **A loading bar, as in Gmail.** A thin blue bar runs along the top of the web app while a page or its data loads:
   on every page change, and while a page waits for its first answers from the API. Refreshing what's already on screen
   and anything quicker than a blink don't show it ([The web app](docs/frontend.md#data)).
@@ -146,6 +168,19 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       routine last ran, Publish to feed adds it to a feed, and Podcast episode makes an episode about it (added to a
       feed, listed once it's made). Try on the canvas says what they would do
       ([Publishing from the graph](docs/processing.md#publishing-from-the-graph)).
+
+### Features
+
+- **assistant:** answer questions about Lens itself from its docs and this server ([#400](https://github.com/adeelahmad/lense/pull/400))
+- **automations:** an index of triggers for the dispatcher ([#545](https://github.com/adeelahmad/lense/pull/545))
+- **chat:** summarise long chats at the model's real context window ([#528](https://github.com/adeelahmad/lense/pull/528))
+- **scaling:** auto scaling groups, rules and approvals, with This machine as the first provider ([#556](https://github.com/adeelahmad/lense/pull/556))
+- **workflows:** an entity filter node ([#562](https://github.com/adeelahmad/lense/pull/562))
+
+### Fixes
+
+- **domain:** let automation_nodes and events_content be imported first ([#523](https://github.com/adeelahmad/lense/pull/523))
+- **settings:** test the LLM address and model on screen, not only the saved ones ([#539](https://github.com/adeelahmad/lense/pull/539))
 
 ## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
 

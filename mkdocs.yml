@@ -91,6 +91,7 @@ nav:
       - NSFW classification: nsfw.md
       - Notifications: notifications.md
       - Automations: automations.md
+      - Schedules: schedules.md
       - Timeline: timeline.md
       - Circles of trust: circles.md
   - Knowledge:
@@ -108,8 +109,10 @@ nav:
       - Speech providers: speech-providers.md
       - Activity and costs: activity.md
       - Budgets: budgets.md
+      - Auto scaling: scaling.md
   - Operate:
       - Encryption: encryption.md
+      - Secrets: secrets.md
       - Storage: storage.md
       - Database: database.md
       - Telemetry: telemetry.md

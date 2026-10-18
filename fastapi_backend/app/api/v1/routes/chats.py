@@ -219,7 +219,8 @@ def _chat_view(db: DB, acl: Access, c: dict[str, Any]) -> Chat:
     for m in msgs:
         m["versions"] = versions.get(m["id"])
     _readable_citations(db, acl, msgs)
-    return Chat.model_validate(sign_urls({**c, "messages": msgs, "tree": nodes}, full=True))
+    view = {**c, "messages": msgs, "tree": nodes, "summary": chat.covered(db, c["id"], msgs)}
+    return Chat.model_validate(sign_urls(view, full=True))
 
 
 def _readable_citations(db: DB, acl: Access, msgs: list[dict[str, Any]]) -> None:
@@ -681,6 +682,10 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         yield _ev("stopped", {"message": "Stopped"})
         yield from save(text or "(stopped)", cited, "stopped", stopped=True)
 
+    def shrink() -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        """The model said the conversation doesn't fit its context: fold it into the summary now (chat.shrink)."""
+        return chat.shrink(db, cfg, cid, past)
+
     def answer(on: chat.Answering) -> Iterator[str]:
         nonlocal notice
         if llm.configured(cfg) and cfg["ai"].get("tools") and tools != []:  # given no tools, it answers from a search
@@ -708,7 +713,17 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                 # setting the server up, or working in the person's browser, takes more steps than looking things up
                 steps_max = max(cfg["ai"].get("max_steps") or 6, 12 if setup else 0, browser.steps(cfg) if box.browser else 0)
                 answering = chat.tool_answer(
-                    cfg, box, asked, past, steps_max, model, setup=setup, summary=summary, record=record, max_tool_calls=limit
+                    cfg,
+                    box,
+                    asked,
+                    past,
+                    steps_max,
+                    model,
+                    setup=setup,
+                    summary=summary,
+                    record=record,
+                    max_tool_calls=limit,
+                    shrink=shrink,
                 )
                 for kind, data in answering:
                     if kind == "step":
@@ -745,7 +760,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         text, error = "", None
         try:
             if llm.configured(cfg):
-                pieces = llm.stream_chat(cfg, chat.messages_for(asked, passages, past, summary, cfg), model=model)
+                pieces = chat.stream_fitted(cfg, asked, passages, past, summary, model=model, shrink=shrink)
                 for piece in pieces:
                     text += piece
                     yield _ev("token", {"text": piece})
