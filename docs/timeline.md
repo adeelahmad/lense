@@ -41,9 +41,10 @@ unless you ask for them by kind.
   ("Work Gmail received 37 emails"), so a first mailbox sync reads as one line. A click opens it to its items.
 - Each line has an icon by kind, the summary (a link to what it is about), who did it, the namespace, the kind and
   how long ago. Opened, an item shows its object's fields, the automation run that caused it if one did, **What
-  this caused** ([below](#what-an-item-caused)), **Open**, **Ask about this** and **Hide**.
+  this caused** ([below](#what-an-item-caused)), **Open**, **Ask about this**, **Share** (with your
+  [circles](circles.md)) and **Hide**.
 - Filters: words in the summary (Enter applies), **Unreviewed only**, **Important**, kinds by family (Email,
-  Calendar, Files, Notes, Sensors, Chat, Automations, System; noisy kinds like sensor readings only when picked),
+  Calendar, Files, Notes, Shared, Sensors, Chat, Automations, System; noisy kinds like sensor readings only when picked),
   source or person (from those on the timeline), namespace, entity (as activities tag it), a date range, and an
   automation (what it did or caused). Filters live in the address, so a view can be linked, and the last set you used
   comes back the next time you open the page in this browser. **Clear** drops them all.

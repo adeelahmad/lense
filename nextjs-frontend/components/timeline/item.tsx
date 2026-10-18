@@ -14,16 +14,20 @@ import {
   MessagesSquare,
   NotebookPen,
   RadioTower,
+  Share2,
   Star,
+  Users,
   VolumeX,
   Workflow,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { forwardRef, type KeyboardEvent, type ReactNode } from "react";
+import { forwardRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import type { Reaction } from "@/app/openapi-client/types.gen";
 import { askAbout } from "@/components/page-chat/page-chat-model";
+import { shareable } from "@/components/circles/model";
+import { ShareDialog } from "@/components/circles/share-dialog";
 import {
   askQuote,
   familyOf,
@@ -49,6 +53,7 @@ export const FAMILY_ICON: Record<Family, LucideIcon> = {
   Calendar: CalendarDays,
   Files: FileText,
   Notes: NotebookPen,
+  Shared: Users,
   Sensors: RadioTower,
   Chat: MessagesSquare,
   Automations: Workflow,
@@ -144,6 +149,7 @@ export function ActivityDetail({
   const fields = objectFields(a);
   const href = objectHref(a);
   const cause = a.lens?.cause as { automation?: number; run?: number } | null | undefined;
+  const [sharing, setSharing] = useState(false);
   return (
     <div className="flex flex-col gap-2.5 pb-1 pl-7 text-[12.5px]">
       {fields.length > 0 && (
@@ -172,6 +178,11 @@ export function ActivityDetail({
           </Button>
         )}
         <AskButton items={[a]} />
+        {shareable(a.kind) && (
+          <Button size="xs" variant="ghost" icon={<Share2 />} onClick={() => setSharing(true)}>
+            Share
+          </Button>
+        )}
         {onHide && (
           <Button size="xs" variant="ghost" icon={<EyeOff />} onClick={onHide}>
             Hide
@@ -179,6 +190,14 @@ export function ActivityDetail({
         )}
         {onMute && <MuteButton name={a.actor.name} kind={kindLabel} onMute={onMute} />}
       </div>
+      {sharing && (
+        <ShareDialog
+          open={sharing}
+          onOpenChange={setSharing}
+          activity={a.id}
+          what={`“${(typeof a.object?.name === "string" && a.object.name) || a.summary}”`}
+        />
+      )}
     </div>
   );
 }

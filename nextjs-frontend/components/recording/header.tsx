@@ -27,6 +27,7 @@ import {
   Reply,
   RotateCw,
   ScrollText,
+  Users,
   Workflow,
 } from "lucide-react";
 import Link from "next/link";
@@ -34,6 +35,7 @@ import { useRouter } from "next/navigation";
 import { Fragment, useState, type ReactNode } from "react";
 
 import { AccessBadge } from "@/components/access/access-fields";
+import { ShareDialog } from "@/components/circles/share-dialog";
 import { libraryHref } from "@/components/library/collections-model";
 import { usePlayerApi } from "@/components/player/media";
 import { EvidencePartsDialog } from "@/components/evidence/parts-dialog";
@@ -370,6 +372,7 @@ function MoreMenu({ compact }: { compact?: boolean }) {
   const router = useRouter();
   const latest = r.jobs[0];
   const [podcast, setPodcast] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [opened, setOpened] = useState(false); // the spec is looked up once the menu is first opened
   const spec = useSpec(r.id, opened);
   const { writeSpec } = useRecordingActions(r.id);
@@ -416,6 +419,9 @@ function MoreMenu({ compact }: { compact?: boolean }) {
           </MenuItem>
           <MenuItem icon={<FolderTree />} disabled={!r.canEdit || !r.ns} onSelect={r.openCollection}>
             Move to collection…
+          </MenuItem>
+          <MenuItem icon={<Users />} onSelect={() => setSharing(true)}>
+            Share with a circle…
           </MenuItem>
           <MenuItem icon={<Podcast />} onSelect={() => setPodcast(true)}>
             Create podcast…
@@ -496,6 +502,14 @@ function MoreMenu({ compact }: { compact?: boolean }) {
         recordings={[r.id]}
         what={`“${r.model.title || "Untitled"}”`}
       />
+      {sharing && (
+        <ShareDialog
+          open={sharing}
+          onOpenChange={setSharing}
+          recording={r.id}
+          what={`“${r.model.title || "Untitled"}”`}
+        />
+      )}
     </>
   );
 }

@@ -1,0 +1,163 @@
+"use client";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Trash2, X } from "lucide-react";
+import { useState } from "react";
+
+import { Circles } from "@/app/openapi-client";
+import type { Circle, Person } from "@/app/openapi-client/types.gen";
+import { addable, personLabel } from "@/components/circles/model";
+import { Banner } from "@/components/ui/banner";
+import { Button, IconButton } from "@/components/ui/button";
+import { Input, Select } from "@/components/ui/field";
+import { Panel } from "@/components/ui/panel";
+import { RenameTitle } from "@/components/ui/rename-title";
+import { Skeleton } from "@/components/ui/states";
+import { useToast } from "@/components/ui/toast";
+import { data, useApiClient } from "@/lib/api/browser";
+
+/** The person's circles of trust under Profile (docs/circles.md): the people their agent shares with. Only they see
+ * their circles. A suggested name makes a circle in one click; deleting one is undone from the toast. */
+export function CirclesPanel() {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const circles = useQuery({ queryKey: ["circles"], queryFn: () => data(Circles.listCircles({ client })) });
+  const people = useQuery({ queryKey: ["circle-people"], queryFn: () => data(Circles.listCirclePeople({ client })) });
+  const [name, setName] = useState("");
+  const refresh = () => qc.invalidateQueries({ queryKey: ["circles"] });
+
+  const create = useMutation({
+    mutationFn: (body: { name: string; members?: number[] }) => data(Circles.createCircle({ client, body })),
+    onSuccess: () => {
+      setName("");
+      void refresh();
+    },
+  });
+  const remove = useMutation({
+    mutationFn: (c: Circle) => data(Circles.deleteCircle({ client, path: { cid: c.id } })),
+    onSuccess: (_, c) => {
+      void refresh();
+      toast({
+        title: `Deleted ${c.name}`,
+        action: { label: "Undo", onClick: () => create.mutate({ name: c.name, members: c.members.map((m) => m.id) }) },
+      });
+    },
+  });
+
+  const error = create.error ?? remove.error;
+  return (
+    <section id="circles" className="scroll-mt-4">
+      <Panel
+        title="Circles"
+        subtitle="The people you share with: your family, friends and colleagues. Only you see your circles, and adding someone tells them nothing."
+      >
+        <div className="flex flex-col gap-3">
+          {circles.isPending ? (
+            <Skeleton className="h-20 w-full" />
+          ) : (
+            circles.data?.circles.map((c) => (
+              <CircleRow key={c.id} circle={c} people={people.data ?? []} onDelete={() => remove.mutate(c)} />
+            ))
+          )}
+          {!!circles.data?.suggested.length && (
+            <div className="flex flex-wrap gap-2">
+              {circles.data.suggested.map((s) => (
+                <Button
+                  key={s}
+                  size="xs"
+                  variant="secondary"
+                  icon={<Plus />}
+                  disabled={create.isPending}
+                  onClick={() => create.mutate({ name: s })}
+                >
+                  {s}
+                </Button>
+              ))}
+            </div>
+          )}
+          <form
+            className="flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (name.trim()) create.mutate({ name: name.trim() });
+            }}
+          >
+            <Input
+              aria-label="New circle's name"
+              placeholder="New circle"
+              value={name}
+              maxLength={80}
+              onChange={(e) => setName(e.target.value)}
+              className="max-w-[300px]"
+            />
+            <Button type="submit" disabled={!name.trim() || create.isPending}>
+              Add circle
+            </Button>
+          </form>
+          {error && <Banner tone="error">{error.message}</Banner>}
+        </div>
+      </Panel>
+    </section>
+  );
+}
+
+function CircleRow({ circle, people, onDelete }: { circle: Circle; people: Person[]; onDelete: () => void }) {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const update = useMutation({
+    mutationFn: (body: { name?: string; add?: number[]; remove?: number[] }) =>
+      data(Circles.updateCircle({ client, path: { cid: circle.id }, body })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["circles"] }),
+  });
+  const more = addable(people, circle);
+  return (
+    <div className="flex flex-col gap-2 rounded-sm border border-border px-3 py-2.5" data-testid="circle">
+      <div className="flex items-center gap-2">
+        <RenameTitle
+          as="span"
+          what="circle"
+          name={circle.name}
+          onRename={(n) => update.mutateAsync({ name: n })}
+          className="min-w-0 flex-1 text-[14px] font-bold text-fg"
+        />
+        <IconButton label={`Delete ${circle.name}`} size={32} onClick={onDelete}>
+          <Trash2 />
+        </IconButton>
+      </div>
+      <ul className="flex flex-wrap gap-1.5">
+        {circle.members.map((m) => (
+          <li
+            key={m.id}
+            className="flex items-center gap-1 rounded-full border border-border bg-surface-neutral py-0.5 pl-2.5 pr-1 text-[12.5px] text-fg"
+          >
+            {personLabel(m)}
+            <button
+              type="button"
+              aria-label={`Take ${personLabel(m)} out of ${circle.name}`}
+              onClick={() => update.mutate({ remove: [m.id] })}
+              className="grid size-5 place-items-center rounded-full text-fg-muted hover:bg-border"
+            >
+              <X className="size-3" />
+            </button>
+          </li>
+        ))}
+        {!circle.members.length && <li className="text-[12.5px] text-fg-muted">Nobody yet.</li>}
+      </ul>
+      {more.length > 0 && (
+        <Select
+          size="sm"
+          aria-label={`Add someone to ${circle.name}`}
+          value=""
+          onChange={(e) => e.target.value && update.mutate({ add: [Number(e.target.value)] })}
+          options={[
+            { value: "", label: "Add someone…" },
+            ...more.map((p) => ({ value: String(p.id), label: personLabel(p) })),
+          ]}
+          className="w-[240px]"
+        />
+      )}
+      {update.isError && <Banner tone="error">{update.error.message}</Banner>}
+    </div>
+  );
+}

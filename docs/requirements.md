@@ -285,6 +285,8 @@ request, to another check that proves the same thing; loosening a requirement or
 | Sharing an activity or a resource with a circle and a note shows it in each member's own timeline and the sharer's, with the item or without, undone with its permissions, never from a vault | [test_circles.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_circles.py) `test_sharing_with_a_circle` |
 | Automations follow what was shared with the person; removing someone takes their circles and what was shared with them | [test_circles.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_circles.py) `test_automations_follow_shares` |
 | Agents make circles and share over MCP; the assistant shares only after the person's yes | [test_circles.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_circles.py) `test_agents_share_too` |
+| Circles live under Profile, a suggested circle takes one click and deleting one is undone, not confirmed | [circles-ui.test.tsx](https://github.com/adeelahmad/lense/blob/main/nextjs-frontend/__tests__/circles-ui.test.tsx) `makes a suggested circle in one click`; [circles-ui.test.tsx](https://github.com/adeelahmad/lense/blob/main/nextjs-frontend/__tests__/circles-ui.test.tsx) `deletes a circle with Undo instead of a confirm` |
+| Share on a timeline item or a resource picks the only circle, takes a note and is undone from its toast | [circles-ui.test.tsx](https://github.com/adeelahmad/lense/blob/main/nextjs-frontend/__tests__/circles-ui.test.tsx) `picks the only circle, shares with a note, and undoes from the toast` |
 
 ## See what it costs
 
