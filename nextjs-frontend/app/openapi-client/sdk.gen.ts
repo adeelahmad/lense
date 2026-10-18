@@ -7768,8 +7768,8 @@ export class Search {
    * Moments where the words appear (said in audio or video, shown on screen in a video, written in a document or in
    * a resource's supplementary transcripts, captions, translations and indexes, or the kinds of object seen in videos,
    * documents and images),
-   * best first, in the namespaces you can read and the collections you were given a role on. A person or emotion
-   * filter keeps to their lines. By meaning, a moment is a passage about what was asked, though its words may differ.
+   * best first, in the namespaces you can read and the collections you were given a role on. A person, emotion or
+   * sound filter keeps to their lines. By meaning, a moment is a passage about what was asked, though its words may differ.
    */
   public static searchTranscripts<ThrowOnError extends boolean = false>(
     options: Options<SearchTranscriptsData, ThrowOnError>,
@@ -7920,7 +7920,7 @@ export class Searches {
   /**
    * Create Search
    *
-   * Save a search (its words, namespace, person, emotion, asset and object) under a name unique among yours. Sharing it
+   * Save a search (its words, namespace, person, emotion, sound, asset and object) under a name unique among yours. Sharing it
    * with its namespace needs editor access there.
    */
   public static createSearch<ThrowOnError extends boolean = false>(

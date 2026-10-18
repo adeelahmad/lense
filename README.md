@@ -172,12 +172,13 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   asset, with Undo instead of a confirm (and a voice matched to the wrong person split off). Names get their real types (people, places, organisations, events, works) by
   rules, without a model, and a decision model types the ones the rules can't. Find what is most like a passage, an
   asset, a topic or an entity, in a Similar tab on every asset or by selecting text anywhere, and, with anytopdf, photos
-  by what they show. Pages and shots are described in words by the model provider's vision model or, off by default, by
-  Florence-2 or Moondream on your own server. A recording's sound can be cleaned up before it's transcribed (noise,
-  volume, echo, and silence left out, with the transcript's times kept), and transcripts cleaned up before analysis
-  (stutters, "um"s, spacing and, with a local model, punctuation put back, and grammar by a LanguageTool server you
-  run), entities found by spaCy instead of the rules, and the dates people say read as days on the calendar, each off
-  by default.
+  by what they show. Search filters moments by person, emotion or the sound heard in them (laughter, applause,
+  music), with a count for each. Pages and shots are described in words by the model provider's vision model or, off by
+  default, by Florence-2 or Moondream on your own server. A recording's sound can be cleaned up before it's transcribed
+  (noise, volume, echo, and silence left out, with the transcript's times kept), and transcripts cleaned up before
+  analysis (stutters, "um"s, spacing and, with a local model, punctuation put back, and grammar by a LanguageTool server
+  you run), entities found by spaCy instead of the rules, and the dates people say read as days on the calendar, each
+  off by default.
   ([Graph](docs/graph.md), [entity pages](docs/notes.md#entity-pages),
   [similar content](docs/processing.md#similar-content), [graph history](docs/graph-history.md),
   [topics](docs/topics.md), [video](docs/video.md), [NSFW classification](docs/nsfw.md),

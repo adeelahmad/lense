@@ -106,6 +106,15 @@ def norm_emotion(v):
     return c if c in EMOTIONS else ALIASES.get(c)
 
 
+def norm_event(v):
+    """A sound as segments hold it (Laughter, BGM …), however it's typed; music is BGM. Unknown ones are kept as given."""
+    s = str(v or "").strip()
+    if not s:
+        return None
+    known = {e.casefold(): e for e in SV_EVENTS} | {"music": "BGM"}
+    return known.get(s.casefold(), s)
+
+
 def labels():
     return {"palette": PALETTE, "emoji": EMOJI, "events": EVENT_EMOJI, "speakers": SPEAKER_COLORS}
 

@@ -121,7 +121,7 @@ function SavedRow({ s, onDelete, deleting }: { s: SavedSearch; onDelete: () => v
 }
 
 /**
- * Facets for the current words: namespace, speaker, emotion and recording, with how many moments each has, and the
+ * Facets for the current words: namespace, speaker, emotion, sound and recording, with how many moments each has, and the
  * kinds of object seen in the recordings (with how many recordings). Counts come from the words alone, so they don't
  * vanish when you pick one; each facet is one filter, shared with its chip.
  */
@@ -157,6 +157,7 @@ export function FacetPanel({
         { key: "namespace", title: "Namespace", values: facets.namespaces },
         { key: "speaker", title: "Person", values: facets.speakers },
         { key: "emotion", title: "Emotion", values: facets.emotions },
+        { key: "event", title: "Sounds", values: facets.events },
         { key: "recording", title: "Asset", values: facets.recordings },
         { key: "object", title: "Objects seen", values: facets.objects },
       ]

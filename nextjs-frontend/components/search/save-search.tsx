@@ -56,6 +56,7 @@ export function SaveSearchDialog({
             namespace: ns,
             speaker: filters.speaker ?? null,
             emotion: filters.emotion ?? null,
+            event: filters.event ?? null,
             recording: filters.recording ?? null,
             object: filters.object ?? null,
             shared: shared && !noShare,
@@ -98,6 +99,7 @@ export function SaveSearchDialog({
   });
   const dropped = [
     filters.emotion ? `emotion: ${filters.emotion}` : null,
+    filters.event ? `event: ${labels.event ?? filters.event}` : null,
     filters.recording != null ? `recording: ${labels.recording ?? filters.recording}` : null,
     filters.object ? `object: ${filters.object}` : null,
   ].filter(Boolean);
@@ -149,6 +151,12 @@ export function SaveSearchDialog({
           <>
             <dt className="text-fg-secondary">Emotion</dt>
             <dd className="m-0 text-fg">{filters.emotion}</dd>
+          </>
+        )}
+        {filters.event && (
+          <>
+            <dt className="text-fg-secondary">Sound</dt>
+            <dd className="m-0 text-fg">{labels.event ?? filters.event}</dd>
           </>
         )}
         {filters.recording != null && (

@@ -462,11 +462,19 @@ def _recording(ctx: Context, rid: int) -> dict[str, Any]:
     Arg("namespace", "string", "only this namespace (see list_namespaces)"),
     Arg("speaker_id", "integer", "only lines from this person (ids from list_speakers or get_recording)"),
     Arg("recording_id", "integer", "only within this asset"),
+    Arg("event", "string", "only lines with this sound: laughter, applause, music, cough …", max_length=40),
     Arg("limit", "integer", "how many moments", default=10, minimum=1, maximum=50),
     Arg("offset", "integer", "skip this many (for the next page)", default=0, minimum=0, maximum=10000),
 )
 def search(
-    ctx: Context, query: str, namespace: str | None, speaker_id: int | None, recording_id: int | None, limit: int, offset: int
+    ctx: Context,
+    query: str,
+    namespace: str | None,
+    speaker_id: int | None,
+    recording_id: int | None,
+    event: str | None,
+    limit: int,
+    offset: int,
 ) -> dict[str, Any]:
     if recording_id is not None:
         _recording(ctx, recording_id)
@@ -479,6 +487,7 @@ def search(
         ns=namespace,
         speaker=speaker_id,
         emotion=None,
+        event=event,
         recording=recording_id,
         object=None,
         limit=limit,
@@ -497,6 +506,7 @@ def search(
             "recorded_at": h.recorded_at,
             "speaker": h.speaker,
             "speaker_id": h.speaker_id,
+            "event": h.event,
             "found": h.source,
             "at": store.tc(h.t0) if h.t0 is not None else None,
             "seconds": _seconds(h.t0),

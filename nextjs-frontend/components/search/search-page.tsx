@@ -19,7 +19,9 @@ import {
   activeFilterCount,
   fromParams,
   hasTerms,
+  eventName,
   normalizeEmotion,
+  normalizeEvent,
   parseQuery,
   toParams,
   type SearchFilters,
@@ -112,6 +114,7 @@ export function SearchPage() {
             ns: filters.namespace,
             speaker: filters.speaker,
             emotion: filters.emotion,
+            event: filters.event,
             recording: filters.recording,
             object: filters.object,
             mode,
@@ -148,6 +151,7 @@ export function SearchPage() {
     const out: Partial<Record<keyof SearchFilters, string>> = {};
     if (filters.namespace) out.namespace = filters.namespace;
     if (filters.emotion) out.emotion = filters.emotion;
+    if (filters.event) out.event = eventName(filters.event);
     if (filters.object) out.object = filters.object;
     if (filters.speaker != null) {
       const hit = [...(baseData?.hits ?? []), ...hits].find((h) => h.speaker_id === filters.speaker);
@@ -202,6 +206,7 @@ export function SearchPage() {
       else issues.push(`You have no namespace called “${typed.namespace}”.`);
     }
     if (typed.emotion) next.emotion = normalizeEmotion(typed.emotion);
+    if (typed.event) next.event = normalizeEvent(typed.event);
     if (typed.object) next.object = typed.object.trim().toLowerCase();
     if (typed.recording) {
       const want = typed.recording.toLowerCase();
@@ -228,7 +233,7 @@ export function SearchPage() {
     setDraft(text);
   };
 
-  const chips: Chip[] = (["namespace", "speaker", "emotion", "recording", "object"] as const)
+  const chips: Chip[] = (["namespace", "speaker", "emotion", "event", "recording", "object"] as const)
     .filter((k) => filters[k] != null && filters[k] !== "")
     .map((k) => ({
       key: k,

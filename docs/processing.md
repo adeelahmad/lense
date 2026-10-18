@@ -375,7 +375,7 @@ about them come back as not found.
 All words must appear, matched after English stemming ("exploit" also finds exploits and exploiting); "quoted phrases"
 must appear as written; OR separates alternatives; NOT, or a `-` before a word or "phrase", leaves out the lines that
 have it (`budget -draft` finds budget without draft or drafts, `budget NOT "first draft"`), and a typed AND changes
-nothing. Filter by namespace, person, emotion or asset. The words are
+nothing. Filter by namespace, person, emotion, sound heard (`event:laughter`, applause, music …) or asset. The words are
 looked up in the index of `search.engine`: a SQLite FTS5 file by default, SurrealDB's own index, or OpenSearch
 ([configuration](configuration.md#word-search)). For archives that aren't in English set `search.stemming: none` and
 run `lens reindex`. There is no prefix search: a trailing `*` (`expl*`) is ignored and the word is searched as it is;
@@ -399,8 +399,8 @@ A search is matched three ways (`mode` on `GET /search`, the Match switch in the
 * **keyword**: only the words, as above.
 * **semantic**: only by meaning.
 
-A passage found by meaning is shown at its line that best fits (the person or emotion filtered on, else the one with
-most of the query's words), marked Related, with how alike it is (`similarity`, cosine). One that holds a keyword hit
+A passage found by meaning is shown at its line that best fits (the person, emotion or sound filtered on, else the one
+with most of the query's words), marked Related, with how alike it is (`similarity`, cosine). One that holds a keyword hit
 adds to that hit's rank instead of showing twice. Only passages at least `embeddings.min_similarity` alike count, and
 none much further than the closest one, so an unrelated query finds nothing rather than whatever is least unlike it.
 Facets count the moments found by meaning too. The assistant's search tool and chat's retrieval use the same passages,

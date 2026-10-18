@@ -23318,6 +23318,10 @@ export type SavedSearch = {
    */
   emotion?: string | null;
   /**
+   * Event
+   */
+  event?: string | null;
+  /**
    * Recording
    */
   recording?: number | null;
@@ -23649,6 +23653,12 @@ export type SearchCreate = {
    */
   emotion?: string | null;
   /**
+   * Event
+   *
+   * a sound heard (laughter, applause, music …)
+   */
+  event?: string | null;
+  /**
    * Recording
    */
   recording?: number | null;
@@ -23679,8 +23689,9 @@ export type SearchCreate = {
 /**
  * SearchFacets
  *
- * How many of all the matching moments are in each namespace, person, emotion and asset (up to 50 of each,
- * most first), and the kinds of object seen in the assets they're in. Text on screen has no person or emotion.
+ * How many of all the matching moments are in each namespace, person, emotion, sound and asset (up to 50 of
+ * each, most first), and the kinds of object seen in the assets they're in. Text on screen has no person, emotion or
+ * sound.
  */
 export type SearchFacets = {
   /**
@@ -23707,6 +23718,12 @@ export type SearchFacets = {
    * Emotions
    */
   emotions?: Array<FacetCount>;
+  /**
+   * Events
+   *
+   * sounds heard (Laughter, Applause, BGM …); plain speech isn't one
+   */
+  events?: Array<FacetCount>;
   /**
    * Recordings
    */
@@ -23750,6 +23767,12 @@ export type SearchHit = {
    * Emotion
    */
   emotion?: string | null;
+  /**
+   * Event
+   *
+   * the sound heard with it (Laughter, Applause, BGM for music …), if any
+   */
+  event?: string | null;
   /**
    * Speaker Id
    */
@@ -40468,6 +40491,12 @@ export type SearchTranscriptsData = {
      */
     emotion?: string | null;
     /**
+     * Event
+     *
+     * only lines with this sound (laughter, applause, music …), ignoring case
+     */
+    event?: string | null;
+    /**
      * Recording
      */
     recording?: number | null;
@@ -40488,7 +40517,7 @@ export type SearchTranscriptsData = {
     /**
      * Facets
      *
-     * also count all the matching moments by namespace, person, emotion and asset, and list their kinds of object
+     * also count all the matching moments by namespace, person, emotion, sound and asset, and list their kinds of object
      */
     facets?: boolean;
     /**

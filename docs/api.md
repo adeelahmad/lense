@@ -1252,11 +1252,12 @@ GET    /api/v1/mentions
 supplementary transcripts, captions, translations and indexes, or in what a model says its shots and pages show) in the
 namespaces you can read, best first: every word
 (English stemming), "quoted phrases" as written, `OR` between alternatives, `NOT` or `-` before a word or phrase to leave out the lines
-with it; `ns`, `speaker`, `emotion` and `recording`
-narrow it, and `object` keeps to the assets a kind of object is seen in ([Objects](#objects));
+with it; `ns`, `speaker`, `emotion`, `event` (a sound heard, such as laughter, applause or music, typed any way; music
+is stored as `BGM`) and `recording` narrow it, and `object` keeps to the assets a kind of object is seen in
+([Objects](#objects));
 `limit`/`offset` page through it. `total` counts the moments ranked so far (`capped` when there may be more).
-With `facets=true` it also counts all the matching moments, whatever the page, by namespace, person, emotion and
-asset (`facets`: up to 50 values each, most first, and `moments`), and lists the kinds of object seen in the
+With `facets=true` it also counts all the matching moments, whatever the page, by namespace, person, emotion, sound
+(`events`; plain speech isn't one) and asset (`facets`: up to 50 values each, most first, and `moments`), and lists the kinds of object seen in the
 assets they're in, with how many of those assets each is in (`objects`); past 20,000 moments the counts cover
 20,000 of them (`partial`).
 
@@ -1269,8 +1270,8 @@ image's text: its `page`, from 0, and its `box` on it), `object` (a kind of obje
 on a document's pages its `page`, with the `frame` and the `box` it's best seen in), `described` (what a shot or a page
 shows, [Descriptions](#descriptions): the shot's time, or the `page`, and its `frame`) or `file` (a line of a
 supplementary file: its `file`, `file_role` and `file_label`, and which `line`). A file's lines have no `t0` when the
-file doesn't say when they are; the web app opens those in the resource's Files tab. A `speaker` or `emotion` filter
-keeps to `said` hits.
+file doesn't say when they are; the web app opens those in the resource's Files tab. A `speaker`, `emotion` or `event`
+filter keeps to `said` hits, and each hit says its `emotion` and `event`.
 
 `mode` says how the words are matched ([search by meaning](processing.md#search-by-meaning)): `keyword` (BM25),
 `semantic` (passages an embedding model finds alike), `hybrid` (both, fused by rank) or `auto` (the default: hybrid
@@ -1782,7 +1783,7 @@ DELETE /api/v1/searches/{sid}
 ```
 
 Saved searches: `POST` with a `name` (unique among yours), the search's `q`, and any of `namespace`, `speaker`,
-`emotion` and `recording`, as `GET /search` takes them. They follow the rules of saved views (above): yours, or
+`emotion`, `event` and `recording`, as `GET /search` takes them. They follow the rules of saved views (above): yours, or
 `shared` with the namespace they search (editors there; a search of every namespace can't be shared); only their maker
 renames or shares them (`PATCH` with `name` or `shared`); their maker, or an owner of the namespace for a shared one,
 deletes them. `GET` lists yours, then the shared ones, with `speaker_name` and `recording_title` where you can read

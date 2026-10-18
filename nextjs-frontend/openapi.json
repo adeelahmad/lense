@@ -16112,7 +16112,7 @@
           "search"
         ],
         "summary": "Search Transcripts",
-        "description": "Moments where the words appear (said in audio or video, shown on screen in a video, written in a document or in\na resource's supplementary transcripts, captions, translations and indexes, or the kinds of object seen in videos,\ndocuments and images),\nbest first, in the namespaces you can read and the collections you were given a role on. A person or emotion\nfilter keeps to their lines. By meaning, a moment is a passage about what was asked, though its words may differ.",
+        "description": "Moments where the words appear (said in audio or video, shown on screen in a video, written in a document or in\na resource's supplementary transcripts, captions, translations and indexes, or the kinds of object seen in videos,\ndocuments and images),\nbest first, in the namespaces you can read and the collections you were given a role on. A person, emotion or\nsound filter keeps to their lines. By meaning, a moment is a passage about what was asked, though its words may differ.",
         "operationId": "search_transcripts",
         "parameters": [
           {
@@ -16173,6 +16173,25 @@
               ],
               "title": "Emotion"
             }
+          },
+          {
+            "name": "event",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only lines with this sound (laughter, applause, music \u2026), ignoring case",
+              "title": "Event"
+            },
+            "description": "only lines with this sound (laughter, applause, music \u2026), ignoring case"
           },
           {
             "name": "recording",
@@ -16238,11 +16257,11 @@
             "required": false,
             "schema": {
               "type": "boolean",
-              "description": "also count all the matching moments by namespace, person, emotion and asset, and list their kinds of object",
+              "description": "also count all the matching moments by namespace, person, emotion, sound and asset, and list their kinds of object",
               "default": false,
               "title": "Facets"
             },
-            "description": "also count all the matching moments by namespace, person, emotion and asset, and list their kinds of object"
+            "description": "also count all the matching moments by namespace, person, emotion, sound and asset, and list their kinds of object"
           },
           {
             "name": "mode",
@@ -16815,7 +16834,7 @@
           "searches"
         ],
         "summary": "Create Search",
-        "description": "Save a search (its words, namespace, person, emotion, asset and object) under a name unique among yours. Sharing it\nwith its namespace needs editor access there.",
+        "description": "Save a search (its words, namespace, person, emotion, sound, asset and object) under a name unique among yours. Sharing it\nwith its namespace needs editor access there.",
         "operationId": "create_search",
         "requestBody": {
           "content": {
@@ -77132,6 +77151,17 @@
             ],
             "title": "Emotion"
           },
+          "event": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event"
+          },
           "recording": {
             "anyOf": [
               {
@@ -77691,6 +77721,19 @@
             ],
             "title": "Emotion"
           },
+          "event": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event",
+            "description": "a sound heard (laughter, applause, music \u2026)"
+          },
           "recording": {
             "anyOf": [
               {
@@ -77781,6 +77824,14 @@
             "type": "array",
             "title": "Emotions"
           },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/FacetCount"
+            },
+            "type": "array",
+            "title": "Events",
+            "description": "sounds heard (Laughter, Applause, BGM \u2026); plain speech isn't one"
+          },
           "recordings": {
             "items": {
               "$ref": "#/components/schemas/RecordingFacet"
@@ -77803,7 +77854,7 @@
           "partial"
         ],
         "title": "SearchFacets",
-        "description": "How many of all the matching moments are in each namespace, person, emotion and asset (up to 50 of each,\nmost first), and the kinds of object seen in the assets they're in. Text on screen has no person or emotion."
+        "description": "How many of all the matching moments are in each namespace, person, emotion, sound and asset (up to 50 of\neach, most first), and the kinds of object seen in the assets they're in. Text on screen has no person, emotion or\nsound."
       },
       "SearchHit": {
         "properties": {
@@ -77867,6 +77918,18 @@
               }
             ],
             "title": "Emotion"
+          },
+          "event": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event",
+            "description": "the sound heard with it (Laughter, Applause, BGM for music \u2026), if any"
           },
           "speaker_id": {
             "anyOf": [
