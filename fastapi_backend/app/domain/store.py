@@ -178,9 +178,11 @@ DEFAULTS = {
         # a model the admin knows can see images: it describes pages and shots (the describe step); none, none are
         "vision_model": None,
         "describe_max": 50,  # pages or shots of a resource described at most
-        # what describes them: "llm" (vision_model, above) or "florence-2" (on this machine, florence.py)
+        # what describes them: "llm" (vision_model, above), or on this machine "florence-2" (florence.py) or
+        # "moondream" (moondream.py)
         "describe_engine": "llm",
         "florence_model": "base",  # Florence-2 base (about 280 MB) or large (about 830 MB)
+        "moondream_model": "moondream3-preview",  # Moondream 3 Preview (BSL 1.1, a GPU) or moondream2 (Apache-2.0)
     },
     "graph": {"max_nodes": 150, "min_edge_weight": 2},
     "search": {
@@ -297,7 +299,8 @@ DEFAULTS = {
         "extensions": True,  # tools, skills, hooks and plugins people add (extensions.py)
         "refine_notes": True,  # the model keeps notes' titles and one-line summaries true to the whole note (notebook.py)
         "compact": True,  # a long conversation keeps a summary of the messages the model no longer sees (chat.compact)
-        "compact_model": None,  # a cheaper model to write those summaries (None: the chat's model)
+        "compact_model": None,  # a cheaper model to write those summaries and titles (None: the chat's model)
+        "auto_title": True,  # a conversation nobody named is titled by the model after its first answer (chat.auto_title)
         "context_tokens": None,  # the chat model's context window; summarised early before it fills (None: 16000)
         "organise_notes": True,  # notes nobody filed are filed in PARA, or a suggestion waits on them (notebook.py)
         "untrusted_marking": True,  # third-party text reaches the model marked as data, not instructions (untrusted.py)
@@ -567,13 +570,16 @@ DEFAULTS = {
     # sensors (sensors.py, docs/sensors.md): off until an admin turns them on. Then the MQTT hub and the syslog listener
     # run in the process that runs routines (`lens worker`), on these ports; syslog is taken only from syslog_networks.
     # store, raw_days, rollup_days, important_days and max_per_minute are what a stream sensor gets unless it has its own.
-    # bind is a startup setting only.
+    # bind is a startup setting only. mqtt_web: the broker over WebSockets too, on mqtt_web_port, which the web app
+    # relays at /mqtt (so Remote access and HTTPS reach it), for clients with a hub login only.
     "sensors": {
         "enabled": False,
         "bind": "0.0.0.0",
         "mqtt": True,
         "mqtt_port": 1883,
         "mqtt_anonymous": False,
+        "mqtt_web": False,
+        "mqtt_web_port": 9883,
         "syslog": True,
         "syslog_port": 5514,
         "syslog_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "fc00::/7", "::1/128"],

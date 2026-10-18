@@ -7,9 +7,10 @@ import json
 
 import pytest
 
-from app.domain import settings, setup, store
+from app.domain import rss, settings, setup, store
 from tests import fake_llm
 from tests.api._assist import Assist, sse, start_llm
+from tests.api.test_news_feed_source import site  # noqa: F401 - a news feed served from this process
 from tests.helpers import write_wav
 
 
@@ -226,3 +227,36 @@ def test_the_assistant_captures_web_pages(app, db, cfg, folder, new_client, llm,
     vid = cv.post("/api/v1/chats", headers=hv, json={}).json()["id"]
     ev = sse(cv.post(f"/api/v1/chats/{vid}/messages", headers=hv, json={"content": "keep https://8.8.8.8/x"}).text)
     assert "approval" not in ev
+
+
+def test_the_assistant_follows_news_feeds(app, db, cfg, folder, new_client, llm, site):  # noqa: F811 - the fixture
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["admin"]
+    llm.tool_script = [
+        {"content": "", "tool_calls": [call(1, "subscribe_feed", {"url": "ftp://x/feed.xml", "namespace": "news"})]},
+        {"content": "", "tool_calls": [call(2, "subscribe_feed", {"url": f"{site}/blog", "namespace": "news"})]},
+        {"content": "", "tool_calls": [call(3, "news_feeds", {})]},
+        {"content": "Following Harbour news into news."},
+    ]
+    cid = c.post("/api/v1/chats", headers=h, json={"kind": "setup"}).json()["id"]
+    ev = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "follow the harbour blog in news"}).text)
+    assert "https://" in ev["step"][0]["summary"] and "approval" not in ev
+    assert ev["step"][1]["summary"] == f"Follow the news feed {site}/blog into news: done"
+    done = json.loads(llm.seen[-2]["messages"][-1]["content"])
+    assert (done["status"], done["posts"], done["added"], "title" in done) == ("done", 2, True, False)  # not the feed's words
+    (feed,) = rss.subscriptions(db)
+    assert feed["name"] == "Harbour news" and [w["namespace"] for w in feed["watching"]] == ["news"]
+    audit = db.values("SELECT VALUE action FROM audit_log WHERE detail CONTAINS 'assistant'")
+    assert {"source.create", "watch.create"} <= set(audit)
+
+    # elsewhere, stopping waits for approval
+    llm.tool_script = [
+        {"content": "", "tool_calls": [call(1, "unsubscribe_feed", {"feed": feed["feed"]})]},
+        {"content": "I asked to stop following it."},
+    ]
+    other = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    ev = sse(c.post(f"/api/v1/chats/{other}/messages", headers=h, json={"content": "stop the harbour feed"}).text)
+    appr = ev["approval"][0]
+    assert appr["summary"] == "Stop following the news feed Harbour news" and rss.subscriptions(db)
+    assert c.post(f"/api/v1/approvals/{appr['id']}", headers=h, json={"decision": "approve"}).json()["status"] == "done"
+    assert rss.subscriptions(db) == []

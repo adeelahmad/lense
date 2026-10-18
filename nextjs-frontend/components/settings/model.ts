@@ -518,6 +518,9 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
   { name: "read_settings", label: "Read settings (admins)", acts: false },
   { name: "change_settings", label: "Change settings (admins)", acts: true },
   { name: "create_namespace", label: "Create namespaces (admins)", acts: true },
+  { name: "news_feeds", label: "List the news feeds Lens follows (admins)", acts: false },
+  { name: "subscribe_feed", label: "Follow news feeds (admins)", acts: true },
+  { name: "unsubscribe_feed", label: "Stop following news feeds (admins)", acts: true },
 ];
 
 /** The speech providers (the backend's app/domain/speech.py), in the order Settings shows them. */
@@ -825,8 +828,9 @@ export const FIELDS: FieldSpec[] = [
     options: [
       { value: "llm", label: "The provider’s model that can see images" },
       { value: "florence-2", label: "Florence-2 on this server (MIT, runs on the CPU)" },
+      { value: "moondream", label: "Moondream on this server (PyTorch)" },
     ],
-    hint: "The Describe step says what each page and shot shows. Florence-2 sends no picture anywhere and is fetched the first time it’s needed",
+    hint: "The Describe step says what each page and shot shows. Florence-2 and Moondream send no picture anywhere and are fetched the first time they’re needed",
   },
   {
     section: "llm",
@@ -836,6 +840,19 @@ export const FIELDS: FieldSpec[] = [
     options: [
       { value: "base", label: "Base (about 280 MB, for small machines)" },
       { value: "large", label: "Large (about 830 MB, more detail, slower)" },
+    ],
+  },
+  {
+    section: "llm",
+    key: "moondream_model",
+    label: "Moondream model",
+    kind: "select",
+    options: [
+      {
+        value: "moondream3-preview",
+        label: "Moondream 3 Preview (about 19 GB, needs a GPU; BSL 1.1, not open source)",
+      },
+      { value: "moondream2", label: "Moondream 2 (about 3.7 GB, runs on the CPU, slowly; Apache-2.0)" },
     ],
   },
   {
@@ -907,13 +924,20 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "ai",
+    key: "auto_title",
+    label: "Title conversations",
+    kind: "switch",
+    hint: "After the first answer, the model gives a conversation a short title, with the model for summaries when one is set. A title you give it is kept. Off: it's titled with the first question.",
+  },
+  {
+    section: "ai",
     key: "compact_model",
     label: "Model for summaries",
     kind: "text",
     nullable: true,
     mono: true,
     placeholder: "the chat's model",
-    hint: "A smaller, cheaper model on the same provider to write them.",
+    hint: "A smaller, cheaper model on the same provider to write them, and conversations' titles.",
   },
   {
     section: "ai",
@@ -2706,6 +2730,22 @@ export const FIELDS: FieldSpec[] = [
     label: "Let devices in without a login",
     kind: "switch",
     hint: "Off: devices sign in with a hub login (Sensors → Hub logins)",
+  },
+  {
+    section: "sensors",
+    key: "mqtt_web",
+    label: "MQTT at the web app’s address too",
+    kind: "switch",
+    hint: "Over WebSockets at /mqtt wherever the web app opens, Remote access and HTTPS included, for devices with a hub login. Off: only on the MQTT port",
+  },
+  {
+    section: "sensors",
+    key: "mqtt_web_port",
+    label: "MQTT over WebSockets port",
+    kind: "int",
+    min: 1,
+    max: 65535,
+    hint: "Where the web app passes /mqtt on to (LENS_MQTT_WS_URL)",
   },
   { section: "sensors", key: "syslog", label: "Syslog", kind: "switch" },
   {

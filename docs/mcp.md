@@ -47,7 +47,7 @@ has the same tools, but sees only that namespace, whatever else the person who s
 that take a namespace use this one when none is named, `list_namespaces` and `list_files` show only it, and the tools
 about the server itself (`file_storage`, `monitoring`, `sandbox_gateway`, `install_settings` and the ones that change
 them) aren't there, even for admins. Nor are the person's own conversations (`list_chats`, `read_chat`,
-`export_chat`), which belong to no namespace. An admin counts as an owner of the namespace there.
+`rename_chat`, `export_chat`), which belong to no namespace. An admin counts as an owner of the namespace there.
 
 It is off until an owner of the namespace turns it on: **Admin → Namespaces →** the namespace **→ Connect apps**, which
 also copies its address, or `PATCH /api/v1/namespaces/<namespace>/integrations` with `{"mcp": true}`, or an agent's
@@ -96,6 +96,7 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `write_note` | write a note or a thing's page, marked as written by an assistant. Needs a write-scope token and editor access |
 | `list_chats` | the person's conversations with Lens's [assistant](assistant.md#chat), newest first, by words in their title, each with its link |
 | `read_chat` | one of them: what it draws on, and the version showing (or the one ending at a `message`), each message with its versions, the tools an answer used, its citations with links and its record; `tree` adds every message's parent and role |
+| `rename_chat` | name one of them, or have Lens [title](assistant.md#titles) it from how it starts (no `title`). Needs a write-scope token |
 | `export_chat` | one of them as Markdown or JSON ([Copy and export](assistant.md#copy-and-export)): the version showing, one `message`, every version (`all_versions`) or OpenAI's `{"messages": [...]}` shape (`as_messages`) |
 | `create_podcast` | make a two-host learning [episode](podcasts.md) about assets or lines in them, with an angle, a length and a style; it's made in the background. Needs a write-scope token and editor access where it goes |
 | `get_podcast` | an episode: how far it has got, its script with each line's speaker and the sources it cites (links), and what the fact-check changed |
@@ -127,10 +128,13 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `preview_template` | what a template in a drafted automation gives before it's saved, against an activity or the trigger kind's sample; a prompt shows outside text marked as the model sees it; an error names the missing variable and its nearest name |
 | `file_storage` | where Lens keeps its own files (notes' images and attachments) and the connections it could use; `check` tests it. Admins only |
 | `set_file_storage` | keep new files on this machine or a storage connection (folder, rclone crypt); checked before it's saved. Admins only, with a write-scope token |
-| `picture_descriptions` | what describes the pages and shots of resources ([Descriptions](configuration.md#descriptions)): the LLM provider's model that can see images or Florence-2 on this server, its model, whether it's ready and why not, and the engines there are. Admins only |
-| `set_picture_descriptions` | choose what describes pictures (`engine` `llm` or `florence-2`), the provider's `vision_model`, Florence-2's size (`florence_model`) and `describe_max`. Admins only, with a write-scope token |
+| `picture_descriptions` | what describes the pages and shots of resources ([Descriptions](configuration.md#descriptions)): the LLM provider's model that can see images, or Florence-2 or Moondream on this server, its model, whether it's ready and why not, and the engines there are. Admins only |
+| `set_picture_descriptions` | choose what describes pictures (`engine` `llm`, `florence-2` or `moondream`), the provider's `vision_model`, Florence-2's size (`florence_model`), which Moondream (`moondream_model`) and `describe_max`. Admins only, with a write-scope token |
 | `install_settings` | whether other devices on the network reach Lens and its edition (full or lean), whether the machine's upgrade agent can change them, and the install line to run when it can't. Admins only |
 | `set_install_settings` | open Lens to the network or keep it to this machine, or change the edition: the machine sets itself up again and Lens restarts ([Updates](updates.md#setting-the-machine-up-again)). Admins only, with a write-scope token |
+| `news_feeds` | the news feeds (RSS or Atom) Lens follows, the namespaces each brings posts into and how the last scan went; addresses stay sealed. Admins only |
+| `subscribe_feed` | follow a news feed into a namespace in one step: its address or a page of the site, read first and kept only if it works; `backfill` also brings in the posts it lists now ([News feeds](processing.md#news-feeds-rss-and-atom)). Admins only, with a write-scope token |
+| `unsubscribe_feed` | stop following a news feed; the posts it brought in stay. Admins only, with a write-scope token |
 | `propose_graph_change` | ask for two entities to be merged or linked; it waits in Proposed changes unless `apply` makes it at once (it can be undone). Needs a write-scope token and editor access |
 | `undo_graph_change` | take back a merge or link `propose_graph_change` made. Needs a write-scope token and editor access |
 | `edit_entity` | rename an entity, change its type, describe it, set the other ways it's said, or hide or show it. Needs a write-scope token and editor access |
@@ -150,7 +154,7 @@ which records an undoable change (proposed by default), `undo_graph_change`, `ed
 `merge_topics`, `delete_topic` and `undo_topic_change`, which curate entities and topics as an editor does in the web
 app (merges and deletes can be undone), `write_note`, which adds a note, `create_podcast`, which
 queues an episode, `create_feed` and `publish_to_feed`, which make and fill a [published feed](feeds.md), `write_spec`, which queues a spec, `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
-editors), `set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_picture_descriptions`, which changes what describes pictures (admins), `set_file_storage`, which changes where new files are kept (admins), and `set_monitoring`,
+editors), `set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_picture_descriptions`, which changes what describes pictures (admins), `set_file_storage`, which changes where new files are kept (admins), `subscribe_feed` and `unsubscribe_feed`, which follow and stop following news feeds (admins), and `set_monitoring`,
 `set_sandbox_gateway` (the [code sandbox](assistant.md#code-sandbox)'s gateway) and `set_install_settings`, which have
 the machine change how Lens runs (admins).
 Importing stays in the web app and the API.

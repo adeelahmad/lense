@@ -1381,12 +1381,15 @@ photo search results carry `nsfw: true` for the ones the web app blurs.
 The `describe` step has a model that can see images say in a few sentences what each page of a document or an image
 shows, and each shot of a video (from its keyframe): the setting, the people (by what they do and wear, never who they
 might be), the things and any text in it. The model is the one an admin chose as `llm.vision_model` on the LLM
-provider, or, with `llm.describe_engine` `florence-2`, Florence-2 on the server itself, which needs no provider. It
+provider, or, with `llm.describe_engine` `florence-2` or `moondream`, Florence-2 or Moondream on the server itself,
+which needs no provider. It
 comes after `nsfw` in the standard pipeline, and describes at most `llm.describe_max` pages or shots of a resource.
-Without an LLM, with no `llm.vision_model`, or before Florence-2 is fetched, it's skipped, saying why; a model that
+Without an LLM, with no `llm.vision_model`, before Florence-2 or Moondream is fetched, or where the chosen Moondream
+can't run, it's skipped, saying why; a model that
 can't see makes it fail with what the server said ([Configuration](configuration.md#descriptions)). The player's `descriptions` lists them in order:
 `{idx, t0, t1, text, model, frame, paged}`: the shot or page, where it starts and ends (ms; on pages, the page from 0
-and the next), what the model said, which model (such as `Florence-2-base`), and a signed link to the picture it was
+and the next), what the model said, which model (such as `Florence-2-base` or `Moondream-2`), and a signed link to
+the picture it was
 shown. Search finds them
 (`source: described`, [search](#search)). Moving or deleting a resource moves or deletes them; the step run again
 replaces them.
@@ -1518,6 +1521,7 @@ GET    /api/v1/chats/tools
 POST   /api/v1/chats
 GET    /api/v1/chats/{cid}
 PATCH  /api/v1/chats/{cid}
+POST   /api/v1/chats/{cid}/title
 DELETE /api/v1/chats/{cid}
 POST   /api/v1/chats/{cid}/messages
 GET    /api/v1/chats/{cid}/messages/{mid}
@@ -1549,7 +1553,11 @@ step it's on: the stream sends `stopped`, then `done` with the saved message, wh
 `content` is what came before (`(stopped)` when nothing had). `{stopping: false}` when nothing was being written.
 `POST /chats/{cid}/messages {content, edit}` edits one of your earlier questions (`edit` is its message id): it and
 everything after it are replaced by this question and its new answer; 404 when `edit` isn't a question in that
-conversation. A conversation titled after the first question is retitled when that question is edited.
+conversation. A conversation Lens titled (`title_by` `assistant`) is titled again when that question is edited; one
+you named (`title_by` `person`: `POST /chats` or `PATCH /chats/{cid}` with `title`) keeps its name. After a
+conversation's first answer the model titles it, and the stream ends with `title`; `POST /chats/{cid}/title` has it
+titled now from how it starts, `{title, title_by}` (409 before the first question, 400 without a model)
+([Titles](assistant.md#titles)).
 
 `GET /chats/tools` lists the tool groups and tools you have, each tool's `effect` (`read`, `asks` or `out`), why a
 group isn't available and the setting that switches it on, the most tool calls a question may ask for
