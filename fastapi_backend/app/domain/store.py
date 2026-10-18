@@ -1511,6 +1511,10 @@ SCHEMA = [
     # what each namespace's assistant remembers (ns_assistant.py); its name and instructions are space.assistant
     "DEFINE TABLE IF NOT EXISTS assistant_memory SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS assistant_memory_space ON assistant_memory FIELDS space",
+    # projects (projects.py): someone's goal, the namespaces it draws on, and its conversations (chat.project)
+    "DEFINE TABLE IF NOT EXISTS project SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS project_account ON project FIELDS account",
+    "DEFINE INDEX IF NOT EXISTS chat_project ON chat FIELDS project",
     # browsers connected for the assistant to use (browser.py): a side panel's session, and the actions asked of it
     "DEFINE TABLE IF NOT EXISTS browser_session SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS browser_session_account ON browser_session FIELDS account",
