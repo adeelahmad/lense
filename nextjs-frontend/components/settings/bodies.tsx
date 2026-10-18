@@ -1075,12 +1075,26 @@ function LogsBody({ ctx }: { ctx: BodyCtx }) {
     refetchInterval: 15_000,
   });
   const test = useMutation({ mutationFn: () => data(Admin.testLogs({ client })) });
+  const testHttp = useMutation({ mutationFn: () => data(Admin.testLogs({ client, query: { to: "http" } })) });
   const s = status.data;
   const host = (saved.syslog_host as string | null | undefined) ?? null;
   const on = Boolean(saved.syslog);
   const failing = Boolean(s?.last_error && (!s.last_sent || (s.error_at ?? 0) > s.last_sent));
+  const hs = s?.http;
+  const httpUrl = (saved.http_url as string | null | undefined) ?? null;
+  const httpOn = Boolean(saved.http) && Boolean(hs?.on);
+  const httpFailing = Boolean(hs?.last_error && (!hs.last_sent || (hs.error_at ?? 0) > hs.last_sent));
+  const headersSecret = (saved.http_headers ?? {}) as { set?: boolean };
+  const headers = ctx.state("logs.http_headers");
   return (
     <>
+      {httpOn && hs && (
+        <Banner tone={httpFailing ? "error" : "success"} title={`Sending to ${hs.target}`}>
+          {httpFailing
+            ? `Can’t reach it: ${hs.last_error}. Lines wait and are tried again${hs.dropped ? `; ${hs.dropped} dropped so far` : ""}.`
+            : `${hs.sent} line${hs.sent === 1 ? "" : "s"} sent from the server${hs.dropped ? `, ${hs.dropped} dropped` : ""}. Each worker sends its own.`}
+        </Banner>
+      )}
       {on && s?.syslog ? (
         <Banner tone={failing ? "error" : "success"} title={`Sending to syslog at ${s.target}`}>
           {failing
@@ -1088,9 +1102,12 @@ function LogsBody({ ctx }: { ctx: BodyCtx }) {
             : `${s.sent} line${s.sent === 1 ? "" : "s"} sent from the server${s.dropped ? `, ${s.dropped} dropped` : ""}. Each worker sends its own.`}
         </Banner>
       ) : (
-        <Banner title="Logs stay on this machine.">
-          Lines go to the console and to a file per process. Turn on syslog below to send them to a log server too.
-        </Banner>
+        !httpOn && (
+          <Banner title="Logs stay on this machine.">
+            Lines go to the console and to a file per process. Turn on syslog or an HTTP endpoint below to send them to
+            a log server too.
+          </Banner>
+        )
       )}
       <div className="grid gap-3 sm:grid-cols-2">
         <F ctx={ctx} id="logs.level" />
@@ -1145,6 +1162,56 @@ function LogsBody({ ctx }: { ctx: BodyCtx }) {
           </Banner>
         ))}
       {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+      <F ctx={ctx} id="logs.http" />
+      <div className="grid gap-3 sm:grid-cols-[1fr_200px]">
+        <F ctx={ctx} id="logs.http_url" />
+        <F ctx={ctx} id="logs.http_kind" />
+      </div>
+      <SecretSetting
+        key={l?.updated_at ?? "none"}
+        label="Headers"
+        placeholder="Authorization=Bearer%20token,X-Scope-OrgID=home"
+        isSet={Boolean(headersSecret.set)}
+        saved={headersSecret}
+        updatedBy={l?.updated_by}
+        updatedAt={l?.updated_at}
+        value={headers.value as string | undefined}
+        onChange={(x) => headers.onChange(x)}
+      />
+      <p className="-mt-2 text-[12px] text-fg-muted">
+        Optional: key=value pairs, separated by commas and URL-encoded, for a server that needs a token. They are
+        dropped when the address moves to another server.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="logs.http_level" />
+        <F ctx={ctx} id="logs.http_verify" />
+      </div>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button
+          size="sm"
+          icon={<PlugZap />}
+          onClick={() => testHttp.mutate()}
+          disabled={testHttp.isPending || !httpUrl}
+        >
+          {testHttp.isPending ? "Sending…" : "Send a test line"}
+        </Button>
+        <span className="text-[12px] text-fg-muted">
+          {ctx.dirty
+            ? "Uses the saved settings, not your unsaved changes"
+            : "Sends one line, even while sending is off"}
+        </span>
+      </div>
+      {testHttp.data &&
+        (testHttp.data.ok ? (
+          <Banner tone="success" title="The test line was sent.">
+            {`The endpoint took it in ${testHttp.data.ms} ms.`}
+          </Banner>
+        ) : (
+          <Banner tone="error" title="The test failed.">
+            {testHttp.data.error}
+          </Banner>
+        ))}
+      {testHttp.isError && <Banner tone="error">{testHttp.error.message}</Banner>}
       <LogViewer />
     </>
   );

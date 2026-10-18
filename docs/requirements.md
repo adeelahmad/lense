@@ -332,6 +332,7 @@ request, to another check that proves the same thing; loosening a requirement or
 | Requirement | Checks |
 |---|---|
 | Structured logs, read in Settings › Logs, and optionally sent to a syslog server | [test_logs.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_logs.py) `test_viewer_reads_the_file_newest_first_and_filters`, `test_syslog_off_by_default_then_sent_over_udp` |
+| Logs optionally sent straight to Grafana Loki or another HTTP endpoint, with sealed headers | [test_logs.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_logs.py) `test_http_sends_to_loki_in_batches_with_the_sealed_headers`, `test_http_test_line_as_ndjson_and_headers_dropped_for_a_new_host`, `test_unreachable_http_endpoint_never_blocks` |
 | OpenTelemetry traces and metrics, off until turned on | [test_telemetry.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_telemetry.py) `test_off_by_default_sends_nothing`, `test_traces_and_metrics_go_to_the_endpoint` |
 | A Prometheus `/metrics` endpoint, off until turned on | [test_prometheus.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_prometheus.py) `test_off_by_default`, `test_needs_its_token` |
 | One switch starts Prometheus, node-exporter and Grafana next to Lens | [test_monitoring.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_monitoring.py) `test_turning_monitoring_on_and_off`, `test_the_agent_changes_compose_profiles` |

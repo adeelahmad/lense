@@ -160,6 +160,7 @@ SECRETS = {
     "components": ("hf_token",),
     "web": ("api_key",),
     "secrets": ("vaultwarden_client_secret", "vaultwarden_password"),
+    "logs": ("http_headers",),
 }
 ENUMS = {
     ("transcribe", "engine"): {"sensevoice", "whisper", "mlx-whisper", "openai", "elevenlabs", "assemblyai", "deepgram"},
@@ -217,6 +218,8 @@ ENUMS = {
     ("logs", "syslog_transport"): set(logs.TRANSPORTS),
     ("logs", "syslog_facility"): set(logs.FACILITIES),
     ("logs", "syslog_framing"): {"octet", "newline"},
+    ("logs", "http_level"): set(logs.LEVELS),
+    ("logs", "http_kind"): set(logs.HTTP_KINDS),
 }
 # Settings the environment (.env) sets, which win over archive.yaml and the app and show as locked there: the
 # break-glass allowed hosts, the model provider so an install can be configured without the setup wizard, and
@@ -1347,7 +1350,7 @@ HOST_RX = re.compile(r"^[A-Za-z0-9.:_-]{1,253}$")
 def _logs_setting(key, value):
     if ("logs", key) in ENUMS:  # checked against ENUMS already
         return value
-    if key in ("file", "syslog", "syslog_verify"):
+    if key in ("file", "syslog", "syslog_verify", "http", "http_verify"):
         if not isinstance(value, bool):
             raise ValueError(f"logs.{key} is true or false")
         return value
@@ -1376,6 +1379,30 @@ def _logs_setting(key, value):
             link_local = False
         if link_local:
             raise ValueError("logs.syslog_host can't be a link-local address (169.254.0.0/16, fe80::/10)")
+        return v
+    if key == "http_url":
+        if value in (None, ""):
+            return None
+        if not (isinstance(value, str) and VIEWER_URL.match(value.strip())):
+            raise ValueError("logs.http_url is the http(s) address lines are sent to, like http://loki:3100")
+        v = value.strip()
+        try:
+            u = urllib.parse.urlsplit(v)
+            host = u.hostname or ""
+            u.port  # noqa: B018 - ValueError for a port out of range
+        except ValueError:
+            raise ValueError("logs.http_url isn't a valid address") from None
+        if not host:
+            raise ValueError("logs.http_url isn't a valid address")
+        if u.username is not None or u.password is not None:
+            # the address is stored and shown as it is; a token belongs in the sealed headers
+            raise ValueError("logs.http_url can't carry a user name or password; put credentials in logs.http_headers")
+        try:
+            link_local = ipaddress.ip_address(host).is_link_local
+        except ValueError:
+            link_local = False
+        if link_local:
+            raise ValueError("logs.http_url can't be a link-local address (169.254.0.0/16, fe80::/10)")
         return v
     if key == "syslog_app_name":
         if not (isinstance(value, str) and APP_NAME_RX.match(value.strip())):
@@ -1739,6 +1766,8 @@ def save(db, base, section, changes, user=None):
             elif isinstance(v, str):
                 if (section, k) == ("telemetry", "headers"):
                     telemetry.parse_headers(v)  # ValueError when malformed
+                if (section, k) == ("logs", "http_headers"):
+                    logs.headers(v)  # ValueError when malformed
                 if section == "matterbridge" and (len(v) > 500 or "\n" in v.strip()):
                     raise ValueError(f"matterbridge.{k} is one line of text")
                 if (section, k) in (
@@ -1769,8 +1798,15 @@ def save(db, base, section, changes, user=None):
             # the saved headers (an auth token) were for the old collector: they don't go to a new host
             if before:
                 sealed.pop("headers", None)
+        new_log_headers = isinstance((changes or {}).get("http_headers"), str)
+        if (section, k) == ("logs", "http_url") and not new_log_headers and _origin(before) != _origin(data[k]):
+            # the same for a log server's token
+            if before:
+                sealed.pop("http_headers", None)
     if section == "logs" and data.get("syslog") and not data.get("syslog_host", (base.get("logs") or {}).get("syslog_host")):
         raise ValueError("set the syslog server's address (logs.syslog_host) to send logs to it")
+    if section == "logs" and data.get("http") and not data.get("http_url", (base.get("logs") or {}).get("http_url")):
+        raise ValueError("set the address to send logs to (logs.http_url) first")
     if section == "speakers":
         m = data.get("match_threshold", defaults["match_threshold"])
         r = data.get("review_threshold", defaults["review_threshold"])

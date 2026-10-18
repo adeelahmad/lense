@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import http.server
+import json
 import logging
 import socket
 import socketserver
@@ -179,6 +181,117 @@ def test_unreachable_server_never_blocks():
             lg.warning("line %d", i)
         assert time.time() - t < 1
         assert _wait(lambda: h.stats["last_error"])
+    finally:
+        logging.getLogger("lens.unreachable").removeHandler(h)
+        h.close()
+
+
+class _Http(http.server.BaseHTTPRequestHandler):
+    got: list[tuple[str, dict, bytes]] = []
+    status = 204
+
+    def do_POST(self):  # noqa: N802 - the stdlib's name
+        body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
+        _Http.got.append((self.path, dict(self.headers), body))
+        self.send_response(_Http.status)
+        self.end_headers()
+
+    def log_message(self, *_):
+        pass
+
+
+@pytest.fixture
+def http_server():
+    _Http.got, _Http.status = [], 204
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _Http)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{srv.server_address[1]}"
+    srv.shutdown()
+
+
+def test_http_settings_are_checked(client, db, cfg):
+    h = admin(client, db)
+    bad = [
+        {"http": True},  # nowhere to send to
+        {"http_url": "loki:3100"},
+        {"http_url": "http://169.254.169.254/push"},
+        {"http_url": "https://user:pass@logs.example.com"},
+        {"http_kind": "carrier-pigeon"},
+        {"http_level": "loud"},
+        {"http_headers": "no equals sign"},
+    ]
+    for body in bad:
+        assert client.put("/api/v1/settings/logs", json=body, headers=h).status_code == 400, body
+    v = client.get("/api/v1/settings", headers=h).json()["logs"]["values"]
+    assert v["http"] is False and v["http_kind"] == "loki" and v["http_headers"] == {"secret": True, "set": False}
+    s = client.get("/api/v1/settings/logs/status", headers=h).json()
+    assert s["http"]["on"] is False and s["http"]["target"] is None
+
+
+def test_http_sends_to_loki_in_batches_with_the_sealed_headers(client, db, cfg, http_server):
+    h = admin(client, db)
+    logging.getLogger("lens.test").warning("while off")
+    body = {"http": True, "http_url": http_server, "http_headers": "Authorization=Bearer%20s3cret,X-Scope-OrgID=home"}
+    assert client.put("/api/v1/settings/logs", json=body, headers=h).status_code == 200
+    v = client.get("/api/v1/settings", headers=h).json()["logs"]["values"]
+    assert v["http_headers"] == {"secret": True, "set": True}  # write-only
+    s = client.get("/api/v1/settings/logs/status", headers=h).json()["http"]
+    assert s["on"] is True and s["target"] == f"{http_server}/loki/api/v1/push"
+    for i in range(3):
+        logging.getLogger("lens.test").warning("shipped %d with token=abcdef", i)
+    assert _wait(lambda: any(b"shipped 2" in g[2] for g in _Http.got))
+    path, headers, raw = next(g for g in _Http.got if b"shipped" in g[2])
+    assert path == "/loki/api/v1/push" and headers["Authorization"] == "Bearer s3cret" and headers["X-Scope-OrgID"] == "home"
+    streams = json.loads(raw)["streams"]
+    lines = [json.loads(line) for st in streams for _, line in st["values"]]
+    ours = [d for d in lines if d["logger"] == "lens.test"]
+    assert [d["msg"] for d in ours] == [f"shipped {i} with token=***" for i in range(3)]  # one request, redacted
+    st = next(st for st in streams if st["stream"]["level"] == "warning")
+    assert st["stream"]["service_name"] == "lens" and st["stream"]["process"] == "api"
+    assert all(len(ts) == 19 and ts.isdigit() for ts, _ in st["values"])  # nanoseconds since the epoch
+    assert b"while off" not in b"".join(g[2] for g in _Http.got) and b"abcdef" not in raw
+    # the sender's own request lines (httpx logs each one) aren't sent back to the server
+    time.sleep(3)
+    assert not any(b"/loki/api/v1/push" in g[2] for g in _Http.got)
+    s = client.get("/api/v1/settings/logs/status", headers=h).json()["http"]
+    assert s["sent"] >= 3 and s["last_error"] is None
+
+
+def test_http_test_line_as_ndjson_and_headers_dropped_for_a_new_host(client, db, cfg, http_server):
+    h = admin(client, db)
+    assert client.post("/api/v1/settings/logs/test", params={"to": "http"}, headers=h).json()["ok"] is False
+    body = {"http_url": f"{http_server}/ingest", "http_kind": "ndjson", "http_headers": "Authorization=Bearer%20s3cret"}
+    assert client.put("/api/v1/settings/logs", json=body, headers=h).status_code == 200
+    t = client.post("/api/v1/settings/logs/test", params={"to": "http"}, headers=h).json()
+    assert t["ok"], t
+    path, headers, raw = _Http.got[-1]
+    assert path == "/ingest" and headers["Content-Type"] == "application/x-ndjson" and raw.endswith(b"\n")
+    assert json.loads(raw)["msg"].endswith("test message from Settings → Logs")
+    _Http.status = 500
+    t = client.post("/api/v1/settings/logs/test", params={"to": "http"}, headers=h).json()
+    assert t["ok"] is False and "HTTP 500" in t["error"]
+    # the token was for that server: moving to another host drops it
+    moved = http_server.replace("127.0.0.1", "localhost")
+    assert client.put("/api/v1/settings/logs", json={"http_url": moved}, headers=h).status_code == 200
+    v = client.get("/api/v1/settings", headers=h).json()["logs"]["values"]
+    assert v["http_headers"] == {"secret": True, "set": False}
+
+
+def test_unreachable_http_endpoint_never_blocks():
+    s = socket.socket()
+    s.bind(("127.0.0.1", 0))
+    port = s.getsockname()[1]
+    s.close()  # nothing listens there
+    h = logs.HttpHandler(f"http://127.0.0.1:{port}/push", "json", logging.INFO, None, True)
+    try:
+        lg = logging.getLogger("lens.unreachable")
+        lg.addHandler(h)
+        t = time.time()
+        for i in range(100):
+            lg.warning("line %d", i)
+        assert time.time() - t < 1
+        assert _wait(lambda: h.stats["last_error"], seconds=8)
+        assert h.stats["sent"] == 0
     finally:
         logging.getLogger("lens.unreachable").removeHandler(h)
         h.close()

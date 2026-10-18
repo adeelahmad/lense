@@ -1835,6 +1835,7 @@ import type {
   TestLlmErrors,
   TestLlmResponses,
   TestLogsData,
+  TestLogsErrors,
   TestLogsResponses,
   TestMailboxData,
   TestMailboxResponses,
@@ -3682,7 +3683,8 @@ export class Admin {
   /**
    * Log Status
    *
-   * The API process's log level, its log file, and how sending to syslog is going (off by default).
+   * The API process's log level, its log file, and how sending to syslog and to an HTTP endpoint is going (both off
+   * by default).
    */
   public static logStatus<ThrowOnError extends boolean = false>(
     options?: Options<LogStatusData, ThrowOnError>,
@@ -3696,12 +3698,12 @@ export class Admin {
   /**
    * Test Logs
    *
-   * Send one line to the saved syslog server now (on or off), to check the address, port and transport.
+   * Send one line to the saved syslog server or HTTP endpoint now (on or off), to check its address and settings.
    */
   public static testLogs<ThrowOnError extends boolean = false>(
     options?: Options<TestLogsData, ThrowOnError>,
-  ): RequestResult<TestLogsResponses, unknown, ThrowOnError> {
-    return (options?.client ?? client).post<TestLogsResponses, unknown, ThrowOnError>({
+  ): RequestResult<TestLogsResponses, TestLogsErrors, ThrowOnError> {
+    return (options?.client ?? client).post<TestLogsResponses, TestLogsErrors, ThrowOnError>({
       url: "/api/v1/settings/logs/test",
       ...options,
     });

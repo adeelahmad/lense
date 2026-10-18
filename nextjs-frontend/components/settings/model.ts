@@ -3793,6 +3793,50 @@ export const FIELDS: FieldSpec[] = [
   { section: "logs", key: "syslog_verify", label: "Verify the certificate", kind: "switch", hint: "For TLS" },
   { section: "logs", key: "syslog_app_name", label: "App name", kind: "text", mono: true },
   {
+    section: "logs",
+    key: "http",
+    label: "Send to an HTTP endpoint",
+    kind: "switch",
+    hint: "Grafana Loki, or JSON for Vector, Fluent Bit or Logstash. Off by default; while off, nothing leaves this machine",
+  },
+  {
+    section: "logs",
+    key: "http_url",
+    label: "Address",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "http://loki:3100",
+    hint: "For Loki, the server’s address is enough; /loki/api/v1/push is added",
+  },
+  {
+    section: "logs",
+    key: "http_kind",
+    label: "Format",
+    kind: "select",
+    options: [
+      { value: "loki", label: "Loki push API" },
+      { value: "json", label: "JSON array" },
+      { value: "ndjson", label: "One JSON object per line" },
+    ],
+  },
+  {
+    section: "logs",
+    key: "http_level",
+    label: "HTTP level",
+    kind: "select",
+    options: [
+      { value: "debug", label: "Debug" },
+      { value: "info", label: "Info" },
+      { value: "warning", label: "Warning" },
+      { value: "error", label: "Error" },
+      { value: "critical", label: "Critical" },
+    ],
+    hint: "Only lines at this level or above are sent",
+  },
+  { section: "logs", key: "http_headers", label: "Headers", kind: "secret" },
+  { section: "logs", key: "http_verify", label: "Verify the certificate", kind: "switch", hint: "For https" },
+  {
     section: "tokens",
     key: "oauth_enabled",
     label: "Let apps and AI assistants sign in",
@@ -4430,6 +4474,10 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
     e["logs.syslog_host"] = "Enter a host name or IP address, without a port";
   else if (values["logs.syslog"] === true && "logs.syslog_host" in values && !slHost)
     e["logs.syslog_host"] = "Set the syslog server’s address to send logs to";
+  const logUrl = values["logs.http_url"] as string | null | undefined;
+  if (logUrl && !URL_RX.test(logUrl)) e["logs.http_url"] = "Use an http(s) address, such as http://loki:3100";
+  else if (values["logs.http"] === true && "logs.http_url" in values && !logUrl)
+    e["logs.http_url"] = "Set the address to send logs to";
   const rights = values["iiif.rights"] as string | null | undefined;
   if (rights && !RIGHTS_RX.test(rights))
     e["iiif.rights"] = "Pick a Creative Commons licence or a RightsStatements.org statement";
@@ -4545,6 +4593,12 @@ export function why(c: Change): string | null {
     return c.after
       ? "The server and its workers start sending their log lines to the syslog server within a few seconds."
       : "Nothing more is sent; what was sent stays on the syslog server.";
+  if (id === "logs.http")
+    return c.after
+      ? "The server and its workers start sending their log lines to the endpoint within a few seconds."
+      : "Nothing more is sent; what was sent stays where it went.";
+  if (id === "logs.http_headers")
+    return c.after === "" ? "The headers are removed." : "Sent with every batch of lines; stored encrypted.";
   if (id === "logs.level" || id === "logs.levels")
     return "The server and its workers follow within a few seconds, without a restart.";
   if (id === "llm.api_key")
