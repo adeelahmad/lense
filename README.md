@@ -161,7 +161,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   namespaces) and let a decision model pick the branch, then tell you in
   your own chat app, ask the model or the agent, use a tool, call a web address (its credentials kept sealed), run a
   workflow, pipeline or routine, or change assets and notes. A Classify node in a workflow sorts an asset into labels,
-  content types or topics, acting only on a sure answer. Anything that reaches outside Lens or changes more than what
+  content types or topics, acting only on a sure answer, and an Entity filter node keeps the entities you want. Anything that reaches outside Lens or changes more than what
   set it off asks first, until you let it run on its own: on the Approvals page or, for a change inside Lens, with a yes
   in the chat it told you in; agents can decline an approval but never give one. Each automation has limits and budgets,
   and agents make, try and run them over MCP and in the assistant, or draft one from a sentence; the studio to draw them
