@@ -73,6 +73,10 @@ class ActivityPage(ResponseModel):
     marks: dict[str, ActivityMark] = Field(default_factory=dict, description="your marks on items, by id (those you marked)")
     reactions: dict[str, list[Reaction]] = Field(default_factory=dict, description="everyone's reactions on items, by id (those with any)")
     comments: dict[str, int] = Field(default_factory=dict, description="how many comments items have, by id (those with any)")
+    why: dict[str, str] = Field(
+        default_factory=dict,
+        description="with order=for_you: why an item is where it is, by id, for those your own signals placed",
+    )
 
 
 class ReactIn(RequestModel):

@@ -522,6 +522,14 @@ export type ActivityPage = {
   comments?: {
     [key: string]: number;
   };
+  /**
+   * Why
+   *
+   * with order=for_you: why an item is where it is, by id, for those your own signals placed
+   */
+  why?: {
+    [key: string]: string;
+  };
   [key: string]: unknown;
 };
 
@@ -12407,6 +12415,53 @@ export type LocalModelServer = {
 };
 
 /**
+ * LogHttpStatus
+ *
+ * How sending to an HTTP endpoint (Loki or JSON) is going, from the API process.
+ */
+export type LogHttpStatus = {
+  /**
+   * On
+   *
+   * whether lines are being sent to an HTTP endpoint
+   */
+  on: boolean;
+  /**
+   * Target
+   *
+   * the address lines are POSTed to
+   */
+  target?: string | null;
+  /**
+   * Sent
+   */
+  sent?: number;
+  /**
+   * Dropped
+   *
+   * lines dropped because the endpoint couldn't keep up or was unreachable
+   */
+  dropped?: number;
+  /**
+   * Queued
+   */
+  queued?: number;
+  /**
+   * Last Sent
+   */
+  last_sent?: number | null;
+  /**
+   * Last Error
+   */
+  last_error?: string | null;
+  /**
+   * Error At
+   */
+  error_at?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * LogLine
  *
  * One log record, redacted as it was written.
@@ -12507,6 +12562,7 @@ export type LogStatus = {
    * Error At
    */
   error_at?: number | null;
+  http?: LogHttpStatus;
   [key: string]: unknown;
 };
 
@@ -32202,9 +32258,25 @@ export type LogStatusResponse = LogStatusResponses[keyof LogStatusResponses];
 export type TestLogsData = {
   body?: never;
   path?: never;
-  query?: never;
+  query?: {
+    /**
+     * To
+     *
+     * the syslog server, or the HTTP endpoint (Loki or JSON)
+     */
+    to?: "syslog" | "http";
+  };
   url: "/api/v1/settings/logs/test";
 };
+
+export type TestLogsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TestLogsError = TestLogsErrors[keyof TestLogsErrors];
 
 export type TestLogsResponses = {
   /**
@@ -33241,6 +33313,12 @@ export type ListActivitiesData = {
      * Limit
      */
     limit?: number;
+    /**
+     * Order
+     *
+     * latest: newest first; for_you: the 200 newest from `before` on, the `limit` of them that your own reactions, comments and marks say you care for most first, each with `why`; `next` moves past all 200
+     */
+    order?: "latest" | "for_you";
   };
   url: "/api/v1/activities";
 };

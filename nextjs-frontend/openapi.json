@@ -3534,7 +3534,7 @@
           "admin"
         ],
         "summary": "Log Status",
-        "description": "The API process's log level, its log file, and how sending to syslog is going (off by default).",
+        "description": "The API process's log level, its log file, and how sending to syslog and to an HTTP endpoint is going (both off\nby default).",
         "operationId": "log_status",
         "responses": {
           "200": {
@@ -3556,8 +3556,26 @@
           "admin"
         ],
         "summary": "Test Logs",
-        "description": "Send one line to the saved syslog server now (on or off), to check the address, port and transport.",
+        "description": "Send one line to the saved syslog server or HTTP endpoint now (on or off), to check its address and settings.",
         "operationId": "test_logs",
+        "parameters": [
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "syslog",
+                "http"
+              ],
+              "type": "string",
+              "description": "the syslog server, or the HTTP endpoint (Loki or JSON)",
+              "default": "syslog",
+              "title": "To"
+            },
+            "description": "the syslog server, or the HTTP endpoint (Loki or JSON)"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -3565,6 +3583,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LogTestResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -5148,7 +5176,7 @@
           "activities"
         ],
         "summary": "List Activities",
-        "description": "What happened in Lens, newest first: new assets and everything else the stream holds, each an Activity Streams\n2.0 activity with a Lens kind. Give `next` as `before` for the page after. Noisy kinds (like sensor readings) are\nleft out unless named in `kinds`. Text from outside Lens is listed in each activity's `lens.untrusted`. `marks`\nhas your own marks on the page's activities; `reviewed`, `important` and `hidden` filter by them.",
+        "description": "What happened in Lens, newest first: new assets and everything else the stream holds, each an Activity Streams\n2.0 activity with a Lens kind. Give `next` as `before` for the page after. Noisy kinds (like sensor readings) are\nleft out unless named in `kinds`. Text from outside Lens is listed in each activity's `lens.untrusted`. `marks`\nhas your own marks on the page's activities; `reviewed`, `important` and `hidden` filter by them. `order=for_you`\nputs what you react to, comment on and mark important first, and what you hid last (docs/timeline.md, For you).",
         "operationId": "list_activities",
         "parameters": [
           {
@@ -5390,6 +5418,22 @@
               "default": 50,
               "title": "Limit"
             }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "latest",
+                "for_you"
+              ],
+              "type": "string",
+              "description": "latest: newest first; for_you: the 200 newest from `before` on, the `limit` of them that your own reactions, comments and marks say you care for most first, each with `why`; `next` moves past all 200",
+              "default": "latest",
+              "title": "Order"
+            },
+            "description": "latest: newest first; for_you: the 200 newest from `before` on, the `limit` of them that your own reactions, comments and marks say you care for most first, each with `why`; `next` moves past all 200"
           }
         ],
         "responses": {
@@ -37172,6 +37216,14 @@
             "type": "object",
             "title": "Comments",
             "description": "how many comments items have, by id (those with any)"
+          },
+          "why": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Why",
+            "description": "with order=for_you: why an item is where it is, by id, for those your own signals placed"
           }
         },
         "additionalProperties": true,
@@ -57848,6 +57900,83 @@
         ],
         "title": "LocalModelServer"
       },
+      "LogHttpStatus": {
+        "properties": {
+          "on": {
+            "type": "boolean",
+            "title": "On",
+            "description": "whether lines are being sent to an HTTP endpoint"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target",
+            "description": "the address lines are POSTed to"
+          },
+          "sent": {
+            "type": "integer",
+            "title": "Sent",
+            "default": 0
+          },
+          "dropped": {
+            "type": "integer",
+            "title": "Dropped",
+            "description": "lines dropped because the endpoint couldn't keep up or was unreachable",
+            "default": 0
+          },
+          "queued": {
+            "type": "integer",
+            "title": "Queued",
+            "default": 0
+          },
+          "last_sent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sent"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "error_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "on"
+        ],
+        "title": "LogHttpStatus",
+        "description": "How sending to an HTTP endpoint (Loki or JSON) is going, from the API process."
+      },
       "LogLine": {
         "properties": {
           "ts": {
@@ -58008,6 +58137,9 @@
               }
             ],
             "title": "Error At"
+          },
+          "http": {
+            "$ref": "#/components/schemas/LogHttpStatus"
           }
         },
         "additionalProperties": true,

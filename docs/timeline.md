@@ -17,7 +17,7 @@ Status: in progress. The studio's timeline is built in steps; only what is merge
 | What each item caused (automation runs, approvals), and Approve and Decline on waiting approvals | planned |
 | Tagging the agent in a comment, so it answers in the thread | built |
 | Sources, sensors, people and agents as actors in the graph: a Source node with ADDED links, on the canvas, in the explorer and in Cypher | built |
-| A For you order learned from what each person reacts to, comments on and hides | planned |
+| A For you order learned from what each person reacts to, comments on, marks important and hides, each item saying why | built |
 
 ## What shows
 
@@ -32,6 +32,9 @@ unless you ask for them by kind.
 
 - Newest first. **Older** reads the next page. While the tab is visible the page looks for new items every 15
   seconds; when there are some, a **3 new** pill at the top brings them in, so the list never jumps under you.
+- **Latest** / **For you** above the filters: Latest is the stream as it is; For you puts what you care for most
+  first, learned from your own reactions, comments and marks, with a line under each item it placed saying why
+  ([For you](#for-you)). Latest is the default, and the choice lives in the address like a filter (`?order=for_you`).
 - A run of the same source or person and the same kind, each within 30 minutes of the one before, is one line
   ("Work Gmail received 37 emails"), so a first mailbox sync reads as one line. A click opens it to its items.
 - Each line has an icon by kind, the summary (a link to what it is about), who did it, the namespace, the kind and
@@ -145,11 +148,12 @@ Marks change nothing else: an activity you hid still triggers automations and st
 
 ## Agents
 
-- MCP: `timeline` takes `unreviewed: true` for what you haven't marked reviewed and has your marks in `marks`;
-  `mark_activities` marks activities by id (`ids`, and `reviewed`, `important` or `hidden`), for the person it acts
-  for, with a token that has the write scope ([MCP](mcp.md)).
-- The assistant: `timeline` takes `unreviewed` and lists each activity's marks; `mark_activities` marks them for the
-  person. After it has read text from outside Lens (the timeline's own titles count), hiding or marking reviewed
+- MCP: `timeline` takes `unreviewed: true` for what you haven't marked reviewed and has your marks in `marks`, and
+  `order: for_you` for the [For you](#for-you) order with `why` by id; `mark_activities` marks activities by id
+  (`ids`, and `reviewed`, `important` or `hidden`), for the person it acts for, with a token that has the write
+  scope ([MCP](mcp.md)).
+- The assistant: `timeline` takes `unreviewed` and `order` and lists each activity's marks and, for you, its `why`;
+  `mark_activities` marks them for the person. After it has read text from outside Lens (the timeline's own titles count), hiding or marking reviewed
   waits for the person's yes, since that text may have asked for it; marking important or bringing things back acts
   at once ([Chat](assistant.md)).
 - MCP, on the feed: `react_to_activity` (`id`, `emoji`, `on`) reacts for the person it acts for, `activity_comments`
@@ -157,6 +161,24 @@ Marks change nothing else: an activity you hid still triggers automations and st
   with a token that has the write scope. The `timeline` page carries `reactions` and `comments` too. Comments are
   what people wrote: agents read them as data, never as instructions. A comment an agent writes with `@lens` in it
   gets the assistant's answer like anyone's, as the person the token acts for.
+
+## For you
+
+For you is a cheap, explainable order of the timeline, learned from each person's own signals and nothing else:
+nobody's reactions or marks change anyone else's order, and no model is called.
+
+- The signals are your own reactions (+1 each), comments (+2), important marks (+2) and hidden marks (−3), the most
+  recent 200 of each. Each is summed over the actor, the kind and the tagged entities of the activity it was on, so
+  a 👍 on an email from Work Gmail about St Mary's School counts for Work Gmail, for emails and for the school.
+- An item's score is its recency (halving every two days) times 1 + tanh(affinity ÷ 4), with affinity the sum of
+  your weights on its actor, kind and entities: a strong affinity doubles its score, a strongly negative one halves
+  it. An item with no signal in common keeps its recency alone.
+- A page takes the 200 newest items from where it starts, orders them by score and shows the best `limit`; **Older**
+  moves past all 200. With no signals yet, For you is Latest, and the page says so.
+- `why` on the page names the strongest signal that placed each item ("You often react to Work Gmail", "About St
+  Mary's School, which you often react to", "You hid items from Dropbox before"), shown under the item.
+- `GET /api/v1/activities?order=for_you` is the same for agents, with `why` by id; the other filters apply as in
+  Latest. Nothing is stored: the order is made on each read from three small queries and arithmetic.
 
 ## How marks, reactions and comments are kept
 
@@ -177,6 +199,8 @@ counts are two grouped queries. Nothing of this costs a model call.
   back to it.
 
 - Server-sent updates instead of the page polling for new items.
+- For you counts opens too, once the page reports them, and could cache each person's affinity for a minute rather
+  than summing it on every read; per-source mute (a lasting "hide everything from this") is next.
 - Saved filter views.
 - A daily digest of unreviewed items, as an automation starter.
 - Marks on activities whose rows are gone (an event log entry past `events.keep_days`, a deleted asset) stay until
