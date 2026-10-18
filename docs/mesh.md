@@ -218,7 +218,7 @@ In the web app:
   machine shows in the list when it joins. Every machine is listed, this one first, with its role, mesh address,
   online or when it was last seen (offline after three minutes without a report), Nebula, its Lens version, its
   processors, memory and system, when its certificate runs out, the namespaces it serves (ticked in place), its
-  workers and Nebula's last lines. Click the pencil to rename a node (Enter saves, Escape keeps the name). Remove
+  workers, on a compute node whether its sandbox gateway runs, and Nebula's last lines. Click the pencil to rename a node (Enter saves, Escape keeps the name). Remove
   asks nothing: the row stays, dimmed and marked Removed, with Undo while its certificate is good. Join tokens not
   used yet are listed under it, each with Withdraw. The list refreshes every 15 seconds.
 
