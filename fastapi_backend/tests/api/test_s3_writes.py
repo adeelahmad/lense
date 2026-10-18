@@ -286,3 +286,20 @@ def test_people_with_a_role_on_a_collection_add_there_only(client, db, env):
     assert day["parent"] == env["talks"] and _recording(db, "minutes")["collection"] == day["id"]
     assert _code(lambda: c.put_object(Bucket="pods", Key="Collections/Other/x.pdf", Body=PDF))[0] == "AccessDenied"
     assert _code(lambda: c.put_object(Bucket="pods", Key="x.pdf", Body=PDF))[0] == "AccessDenied"  # the default collection isn't theirs
+
+
+def test_the_nfs_shares_key_follows_nfs_add_files(db, env):
+    """rclone serving NFS writes through the S3 server with the share's own key: that follows nfs.add_files, and the
+    import says it came over NFS."""
+    cfg = env["conf"]["cfg"]
+    ed = db.one("SELECT VALUE record::id(id) FROM account WHERE email = 'ed@x.io'")
+    _, kid, secret = s3.service_key(db, cfg, ed, "nfs")
+    env["keys"]["nfs"] = (kid, secret)
+    env["conf"]["cfg"] = {**cfg, "shares": {**cfg["shares"], "add_files": False}, "nfs": {**cfg["nfs"], "add_files": True}}
+    _s3(env, "nfs").put_object(Bucket="pods", Key="Collections/Talks/minutes.pdf", Body=PDF)
+    rec = _recording(db, "minutes")
+    assert rec["collection"] == env["talks"]
+    assert db.one("SELECT VALUE detail.via FROM audit_log WHERE action = 'share.import'") == "nfs"
+    assert _code(lambda: _s3(env).put_object(Bucket="pods", Key="Collections/Talks/b.pdf", Body=PDF))[0] == "AccessDenied"
+    env["conf"]["cfg"] = {**env["conf"]["cfg"], "nfs": {**cfg["nfs"], "add_files": False}}
+    assert _code(lambda: _s3(env, "nfs").put_object(Bucket="pods", Key="Collections/Talks/c.pdf", Body=PDF))[0] == "AccessDenied"

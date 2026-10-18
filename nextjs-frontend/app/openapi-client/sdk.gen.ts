@@ -677,6 +677,9 @@ import type {
   GetRecordingWordcloudData,
   GetRecordingWordcloudErrors,
   GetRecordingWordcloudResponses,
+  GetResearchData,
+  GetResearchErrors,
+  GetResearchResponses,
   GetResourceFieldsData,
   GetResourceFieldsErrors,
   GetResourceFieldsResponses,
@@ -1003,6 +1006,9 @@ import type {
   ListRecordingsData,
   ListRecordingsErrors,
   ListRecordingsResponses,
+  ListResearchData,
+  ListResearchErrors,
+  ListResearchResponses,
   ListRolesData,
   ListRolesResponses,
   ListRoutinesData,
@@ -1322,6 +1328,12 @@ import type {
   RequestAccessData,
   RequestAccessErrors,
   RequestAccessResponses,
+  ResearchNoteData,
+  ResearchNoteErrors,
+  ResearchNoteResponses,
+  ResearchPodcastData,
+  ResearchPodcastErrors,
+  ResearchPodcastResponses,
   ResetPasswordData,
   ResetPasswordErrors,
   ResetPasswordResponses,
@@ -1346,6 +1358,9 @@ import type {
   RestoreVersionData,
   RestoreVersionErrors,
   RestoreVersionResponses,
+  ResumeResearchData,
+  ResumeResearchErrors,
+  ResumeResearchResponses,
   RetagRecordingsData,
   RetagRecordingsErrors,
   RetagRecordingsResponses,
@@ -1360,6 +1375,9 @@ import type {
   RevertMetadataEditResponses,
   ReviewNewData,
   ReviewNewResponses,
+  ReviseResearchData,
+  ReviseResearchErrors,
+  ReviseResearchResponses,
   RevokeAnyTokenData,
   RevokeAnyTokenErrors,
   RevokeAnyTokenResponses,
@@ -1527,6 +1545,9 @@ import type {
   StartRcloneSigninData,
   StartRcloneSigninErrors,
   StartRcloneSigninResponses,
+  StartResearchData,
+  StartResearchErrors,
+  StartResearchResponses,
   StartUpgradeData,
   StartUpgradeErrors,
   StartUpgradeResponses,
@@ -1538,6 +1559,9 @@ import type {
   StopAnswerData,
   StopAnswerErrors,
   StopAnswerResponses,
+  StopResearchData,
+  StopResearchErrors,
+  StopResearchResponses,
   StreamEventsData,
   StreamEventsErrors,
   StreamEventsResponses,
@@ -10505,6 +10529,10 @@ export class Chats {
    * `/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the
    * conversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.
    *
+   * With `research` (or /research <goal>) the content is a research goal: the answer is a plan to approve (streamed as
+   * `research`, then `approval`), which runs in the background once approved (POST /chats/{cid}/research, GET
+   * /research/{id}).
+   *
    * With `browser` (the session of a browser's Lens side panel, POST /browser/sessions), the assistant can use that
    * browser while the side panel is connected: open pages, read them, click, type and download files into the
    * conversation (docs/browser-assistant.md).
@@ -10608,6 +10636,148 @@ export class Chats {
   ): RequestResult<DecideApprovalResponses, DecideApprovalErrors, ThrowOnError> {
     return (options.client ?? client).post<DecideApprovalResponses, DecideApprovalErrors, ThrowOnError>({
       url: "/api/v1/approvals/{aid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Research {
+  /**
+   * Start Research
+   *
+   * Start research on a goal in a conversation: the goal is saved as a question and one model call plans it (up to
+   * three follow-up questions with answers to pick, the sub-questions, where it looks, the tool calls it may make, the
+   * report's outline, and an estimate of the cost). The plan waits as an approval (POST /approvals/{id}: approve it as
+   * it is, or with `params` its edits; or decline), or revise it (POST /research/{id}/revise). With `review` false it
+   * starts at once: your own pick when signed in; an API key or an app needs research.agents_skip_review. The same as a
+   * question with `research: true`, or /research <goal>.
+   */
+  public static startResearch<ThrowOnError extends boolean = false>(
+    options: Options<StartResearchData, ThrowOnError>,
+  ): RequestResult<StartResearchResponses, StartResearchErrors, ThrowOnError> {
+    return (options.client ?? client).post<StartResearchResponses, StartResearchErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/research",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Research
+   *
+   * Your research, newest first; with `chat_id`, that conversation's (to show each plan's or run's card).
+   */
+  public static listResearch<ThrowOnError extends boolean = false>(
+    options?: Options<ListResearchData, ThrowOnError>,
+  ): RequestResult<ListResearchResponses, ListResearchErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListResearchResponses, ListResearchErrors, ThrowOnError>({
+      url: "/api/v1/research",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Research
+   *
+   * A research run: its plan, status and stage (gather, write, check, done), progress (sub-questions done, sources
+   * found, tool calls and cost so far, from the activity ledger) and, once it's done, the report's message
+   * (`answer`, in the conversation). What it waits for when a budget holds it (`held`), and why it ended early.
+   */
+  public static getResearch<ThrowOnError extends boolean = false>(
+    options: Options<GetResearchData, ThrowOnError>,
+  ): RequestResult<GetResearchResponses, GetResearchErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetResearchResponses, GetResearchErrors, ThrowOnError>({
+      url: "/api/v1/research/{rid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Revise Research
+   *
+   * Send your answers to the follow-up questions and your edits to the plan back for one more planning call; the
+   * plan and its approval change in place. Only while the plan waits for approval.
+   */
+  public static reviseResearch<ThrowOnError extends boolean = false>(
+    options: Options<ReviseResearchData, ThrowOnError>,
+  ): RequestResult<ReviseResearchResponses, ReviseResearchErrors, ThrowOnError> {
+    return (options.client ?? client).post<ReviseResearchResponses, ReviseResearchErrors, ThrowOnError>({
+      url: "/api/v1/research/{rid}/revise",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Stop Research
+   *
+   * Stop a run: it stops after the step it's on and keeps what it found, saved in the conversation as its answer,
+   * marked stopped (one that hasn't started, or waits on a budget, stops now). Works whichever process runs it.
+   */
+  public static stopResearch<ThrowOnError extends boolean = false>(
+    options: Options<StopResearchData, ThrowOnError>,
+  ): RequestResult<StopResearchResponses, StopResearchErrors, ThrowOnError> {
+    return (options.client ?? client).post<StopResearchResponses, StopResearchErrors, ThrowOnError>({
+      url: "/api/v1/research/{rid}/stop",
+      ...options,
+    });
+  }
+
+  /**
+   * Resume Research
+   *
+   * Let a run that a budget holds go on anyway (your pick, as "run it once" is for a held routine run).
+   */
+  public static resumeResearch<ThrowOnError extends boolean = false>(
+    options: Options<ResumeResearchData, ThrowOnError>,
+  ): RequestResult<ResumeResearchResponses, ResumeResearchErrors, ThrowOnError> {
+    return (options.client ?? client).post<ResumeResearchResponses, ResumeResearchErrors, ThrowOnError>({
+      url: "/api/v1/research/{rid}/resume",
+      ...options,
+    });
+  }
+
+  /**
+   * Research Note
+   *
+   * Save the report as a note: in the namespace it looked in (`namespace` when there are several), its archive
+   * citations as links to the assets they cite, web citations as links, and a link back to the conversation (shown to
+   * you alone). Needs editor access there.
+   */
+  public static researchNote<ThrowOnError extends boolean = false>(
+    options: Options<ResearchNoteData, ThrowOnError>,
+  ): RequestResult<ResearchNoteResponses, ResearchNoteErrors, ThrowOnError> {
+    return (options.client ?? client).post<ResearchNoteResponses, ResearchNoteErrors, ThrowOnError>({
+      url: "/api/v1/research/{rid}/note",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Research Podcast
+   *
+   * Make a podcast episode from the assets the report cites (POST /podcasts with them picked): about the research
+   * goal unless `prompt` says otherwise, titled after the report.
+   */
+  public static researchPodcast<ThrowOnError extends boolean = false>(
+    options: Options<ResearchPodcastData, ThrowOnError>,
+  ): RequestResult<ResearchPodcastResponses, ResearchPodcastErrors, ThrowOnError> {
+    return (options.client ?? client).post<ResearchPodcastResponses, ResearchPodcastErrors, ThrowOnError>({
+      url: "/api/v1/research/{rid}/podcast",
       ...options,
       headers: {
         "Content-Type": "application/json",

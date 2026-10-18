@@ -98,6 +98,7 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "unsubscribe_feed",
         "mark_activities",
         "decline_approval",
+        "start_research",
         "set_automation_vars",
         "save_automation",
         "run_automation",
