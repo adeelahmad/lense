@@ -97,7 +97,8 @@ def test_adding_a_node_makes_the_ca_a_token_and_turns_the_mesh_on(client, db, cf
     assert client.post("/api/v1/mesh/tokens", json={}, headers=login(client, "v@x.io", "viewer password 1")).status_code == 403
 
 
-def test_a_worker_node_needs_a_database_server(client, db, cfg, nebula):
+def test_a_worker_node_needs_a_database_server(client, db, cfg, nebula, monkeypatch):
+    monkeypatch.setattr(db, "url", "mem://")  # an install on the embedded database (CI runs these on a server too)
     h = admin(client, db)
     r = client.post("/api/v1/mesh/tokens", json={"role": "worker"}, headers=h)
     assert r.status_code == 400 and "SurrealDB server" in r.text
