@@ -191,10 +191,27 @@ def test_models_are_costed_by_tokens_by_time_or_not_at_all(client, cfg, h):
     assert price("gpu-box", 10, 10, 60_000) == (pytest.approx(0.01), False)  # a minute at 0.60/hour
     assert price("off", 10, 10, 60_000) == (None, False)
     assert price("unlisted-local", 10, 10, 60_000) == (None, False)  # local models aren't costed by default
+    cfg["telemetry"]["prices"] |= {
+        "deepgram:nova-3": {"unit": "minute", "per_minute": 0.0043},
+        "openai:tts-1": {"unit": "characters", "per_million": 15},
+    }
+    price = activity.model_cost(cfg)
+    assert price("deepgram:nova-3", None, None, 900, {"seconds": 120}) == (pytest.approx(0.0086), False)
+    assert price("deepgram:nova-3", None, None, 900, {}) == (None, True)  # priced, but no length to cost it by
+    assert price("openai:tts-1", None, None, 900, {"chars": 2000}) == (pytest.approx(0.03), False)
 
     put = lambda v: client.put("/api/v1/settings/telemetry", headers=h, json={"prices": v})  # noqa: E731
-    assert put({"m": {"unit": "time", "per_hour": 1.5}, "x": {"unit": "off"}, "t": {"input": 1}}).status_code == 200
+    both = {"s": {"unit": "minute", "per_minute": 0.006}, "c": {"unit": "characters", "per_million": 15}}
+    assert put({"m": {"unit": "time", "per_hour": 1.5}, "x": {"unit": "off"}, "t": {"input": 1}, **both}).status_code == 200
     got = client.get("/api/v1/settings", headers=h).json()["telemetry"]["values"]["prices"]
     assert {k: got[k] for k in "mxt"} == {"m": {"unit": "time", "per_hour": 1.5}, "x": {"unit": "off"}, "t": {"input": 1.0, "output": 0.0}}
-    for bad in ({"m": {"unit": "time", "input": 1}}, {"m": {"unit": "watts"}}, {"m": {"unit": "off", "per_hour": 1}}):
+    assert {k: got[k] for k in "sc"} == both
+    bad_ones = (
+        {"m": {"unit": "time", "input": 1}},
+        {"m": {"unit": "watts"}},
+        {"m": {"unit": "off", "per_hour": 1}},
+        {"m": {"unit": "minute", "per_hour": 1}},
+        {"m": {"unit": "characters", "per_million": -1}},
+    )
+    for bad in bad_ones:
         assert put(bad).status_code == 400, bad

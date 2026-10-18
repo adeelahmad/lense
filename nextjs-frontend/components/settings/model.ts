@@ -3701,7 +3701,7 @@ export const FIELDS: FieldSpec[] = [
     kind: "lines",
     mono: true,
     placeholder: "gpt-4o-mini 0.15 0.60",
-    hint: "One model per line: its name, then the input and output price in dollars per million tokens. The AI assistant’s prices count for the configured model",
+    hint: "One model per line: its name, then the input and output price in dollars per million tokens; or a price “per hour” (a local model), “per minute” of audio or “per million characters” read aloud (speech providers, named like deepgram:nova-3), or “off”. The AI assistant’s prices count for the configured model",
   },
   // Logs
   {
@@ -4213,17 +4213,36 @@ export function toUi(f: FieldSpec, v: unknown): unknown {
 
 export type Parsed = { value: unknown } | { error: string };
 
-export type Prices = Record<string, { input: number; output: number }>;
+export type Price =
+  | { unit?: "tokens"; input: number; output: number }
+  | { unit: "time"; per_hour: number }
+  | { unit: "minute"; per_minute: number }
+  | { unit: "characters"; per_million: number }
+  | { unit: "off" };
+export type Prices = Record<string, Price>;
 
-/** telemetry.prices as lines: "model input output". */
+const PRICE_UNITS: [string, "time" | "minute" | "characters", string][] = [
+  ["per hour", "time", "per_hour"],
+  ["per minute", "minute", "per_minute"],
+  ["per million characters", "characters", "per_million"],
+];
+
+/** telemetry.prices as lines: "model input output", "model 0.6 per hour", "model 0.006 per minute",
+ * "model 15 per million characters" or "model off". */
 export function pricesToLines(v: unknown): string {
   if (!v || typeof v !== "object") return "";
-  return Object.entries(v as Prices)
-    .map(([model, p]) => `${model} ${p?.input ?? 0} ${p?.output ?? 0}`)
+  return Object.entries(v as Record<string, Record<string, number | string>>)
+    .map(([model, p]) => {
+      if (p?.unit === "off") return `${model} off`;
+      const unit = PRICE_UNITS.find(([, u]) => u === p?.unit);
+      if (unit) return `${model} ${p?.[unit[2]] ?? 0} ${unit[0]}`;
+      return `${model} ${p?.input ?? 0} ${p?.output ?? 0}`;
+    })
     .join("\n");
 }
 
-/** Lines of "model input output" (dollars per million tokens) back to telemetry.prices. */
+/** Lines of prices (dollars per million tokens, or per hour, minute of audio or million characters) back to
+ * telemetry.prices. */
 export function linesToPrices(text: string): Parsed {
   const out: Prices = {};
   const lines = text
@@ -4231,10 +4250,26 @@ export function linesToPrices(text: string): Parsed {
     .map((l) => l.trim())
     .filter(Boolean);
   for (let i = 0; i < lines.length; i++) {
-    const parts = lines[i].split(/\s+/);
+    const line = lines[i];
+    const parts = line.split(/\s+/);
+    if (parts.length >= 2 && parts[parts.length - 1].toLowerCase() === "off") {
+      out[parts.slice(0, -1).join(" ")] = { unit: "off" };
+      continue;
+    }
+    const unit = PRICE_UNITS.find(([words]) => line.toLowerCase().endsWith(" " + words));
+    if (unit) {
+      const head = line.slice(0, -unit[0].length).trim().split(/\s+/);
+      const n = Number(head[head.length - 1]);
+      if (head.length < 2 || !Number.isFinite(n) || n < 0)
+        return { error: `Line ${i + 1}: write the model, then its price, like whisper-1 0.006 ${unit[0]}` };
+      out[head.slice(0, -1).join(" ")] = { unit: unit[1], [unit[2]]: n } as Price;
+      continue;
+    }
     const nums = parts.slice(-2).map(Number);
     if (parts.length < 3 || nums.some((n) => !Number.isFinite(n) || n < 0))
-      return { error: `Line ${i + 1}: write the model, then its input and output price, like gpt-4o-mini 0.15 0.60` };
+      return {
+        error: `Line ${i + 1}: write the model, then its input and output price, like gpt-4o-mini 0.15 0.60, or a price per hour, per minute or per million characters`,
+      };
     out[parts.slice(0, -2).join(" ")] = { input: nums[0], output: nums[1] };
   }
   return { value: out };

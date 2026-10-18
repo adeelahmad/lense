@@ -158,7 +158,8 @@ def _ledger(action, cfg, model_, detail):
     except ImportError:
         yield _NoLedger()
         return
-    with activity.call(action, cfg, model_, detail=detail) as row:
+    # costed by the provider's price in telemetry.prices, per minute of audio or per million characters
+    with activity.call(action, cfg, model_, detail=detail, price=activity.model_cost(cfg)) as row:
         yield row
 
 

@@ -37,7 +37,16 @@ assistant's model, Settings › AI assistant:
 | --- | --- | --- |
 | Tokens | `{"input": 3.0, "output": 15.0}` (USD per million tokens) | cloud models that bill by tokens |
 | Time | `{"unit": "time", "per_hour": 0.6}` (USD per hour a call takes) | a local model on your own machine |
+| Audio | `{"unit": "minute", "per_minute": 0.006}` (USD per minute of audio heard) | speech to text providers |
+| Characters | `{"unit": "characters", "per_million": 15}` (USD per million characters read aloud) | text to speech providers |
 | Off | `{"unit": "off"}`, or leave the model out | the default: no money counted, only tokens and time |
+
+Speech providers are named the way their ledger rows name them, the provider then the model: `deepgram:nova-3`,
+`openai:whisper-1` or `assemblyai:universal` for a transcription (`speech.transcribe`, costed by the recording's
+length, `detail.seconds`), and `elevenlabs:eleven_multilingual_v2` or `openai:tts-1` for an answer read aloud
+(`model.speech`, costed by `detail.chars`). In Settings › Telemetry › prices that's one line each, like
+`deepgram:nova-3 0.0043 per minute` or `openai:tts-1 15 per million characters`; check the provider's own price list,
+since Lens ships none.
 
 So local models aren't costed unless you give them a price. `decisions.price_per_call` gives the decision model's
 price per decision.

@@ -237,7 +237,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
 - **See what it costs.** An activity ledger of every model call, with reports, charts and budgets that cap spending.
   Setup asks for one overall budget after a cloud model, with a soft limit that warns and a hard limit that stops paid
   calls. A meter in the top bar shows spend against the budget, and the Costs page breaks it down by day, model and
-  what cost most. Routine choices go to small decision models, and the LLM only when it adds value.
+  what cost most. Models are priced by tokens or by the hour, and speech providers by the minute of audio or the
+  character read aloud. Routine choices go to small decision models, and the LLM only when it adds value.
   ([Activity and costs](docs/activity.md), [budgets](docs/budgets.md#one-budget-for-everything),
   [the meter](docs/budgets.md#the-meter-and-the-costs-page); [checks](docs/requirements.md#see-what-it-costs))
 - **Scale out.** Scaling groups add workers when work waits and let them go when it doesn't, by target, step and
@@ -327,8 +328,8 @@ Next, and not in a pull request yet; each links to where it is tracked:
 - **Local models:** GPU builds of llama.cpp fetched by Lens, and local embedding models
   ([local models](docs/local-models.md)).
 - **Auto scaling:** spreading model calls across GPUs, and more model hosts (Lambda, SageMaker, Bedrock) ([auto scaling](docs/scaling.md)).
-- **Speech providers:** their summaries, chapters and entities as optional imports, and per-minute prices in the
-  activity ledger ([speech providers](docs/speech-providers.md)).
+- **Speech providers:** their summaries, chapters and entities as optional imports
+  ([speech providers](docs/speech-providers.md)).
 - **Storage:** uploads and assets' media in the file store, and a storage key to download
   ([storage](docs/storage.md)).
 - **Secrets:** references in sources' credentials and MCP servers ([secrets](docs/secrets.md)).

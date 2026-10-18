@@ -1717,10 +1717,13 @@ def _origin(url):
 def _prices(value):
     """{model: price}: how each model's calls are costed (docs/activity.md#costs). By tokens, {input, output} USD per
     million tokens (unit "tokens", the default); by time, {unit: "time", per_hour} USD per hour a call takes (a local
-    model on your own machine); or {unit: "off"}. A model left out isn't costed."""
+    model on your own machine); by audio, {unit: "minute", per_minute} USD per minute heard, and by characters,
+    {unit: "characters", per_million} USD per million characters read aloud (speech providers); or {unit: "off"}. A
+    model left out isn't costed."""
     msg = (
         "telemetry.prices gives each model a price: {input, output} USD per million tokens, {unit: time, per_hour} "
-        "USD per hour, or {unit: off}"
+        "USD per hour, {unit: minute, per_minute} USD per minute of audio, {unit: characters, per_million} USD per "
+        "million characters, or {unit: off}"
     )
     if value is None:
         return {}
@@ -1747,6 +1750,11 @@ def _prices(value):
             if set(p) - {"unit", "per_hour"} or not num(p.get("per_hour", 0)):
                 raise ValueError(msg)
             out[name] = {"unit": "time", "per_hour": float(p.get("per_hour", 0))}
+        elif unit in ("minute", "characters"):
+            rate = "per_minute" if unit == "minute" else "per_million"
+            if set(p) - {"unit", rate} or not num(p.get(rate, 0)):
+                raise ValueError(msg)
+            out[name] = {"unit": unit, rate: float(p.get(rate, 0))}
         elif unit == "off":
             if set(p) - {"unit"}:
                 raise ValueError(msg)

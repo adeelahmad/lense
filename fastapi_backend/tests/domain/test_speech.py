@@ -18,7 +18,7 @@ import wave
 import numpy as np
 import pytest
 
-from app.domain import ingest, settings, speakers, speech, store, voice
+from app.domain import activity, ingest, settings, speakers, speech, store, voice
 from tests.helpers import login, make_user, write_wav
 
 R = store.R
@@ -643,3 +643,29 @@ def test_whisper_keeps_the_language_it_heard():
     assert ([s["lang"] for s in segs], ingest._language(segs)) == (["fr"], "fr")
     assert [s["lang"] for s in engine(Mlx(), True, None).transcribe(None)] == ["de"]
     assert [s["lang"] for s in engine(Faster(), False, "en").transcribe(None)] == ["en"]  # the setting, as before
+
+
+def test_speech_calls_are_costed_per_minute_heard_and_per_character_read(db, cfg, fake):
+    provided(db, cfg, fake)
+    prices = {
+        "deepgram:nova-3": {"unit": "minute", "per_minute": 0.0043},
+        "elevenlabs:eleven_multilingual_v2": {"unit": "characters", "per_million": 100},
+    }
+    settings.save(db, cfg, "telemetry", {"prices": prices}, "t")
+    settings.save(db, cfg, "voice", {"tts_provider": "elevenlabs", "tts_voice": "v42"}, "t")
+    eff = settings.effective(db, cfg)
+    with activity.scope(db, "asset:1", cfg=eff):
+        speech.Engine(eff, "deepgram").transcribe(talk(90, (40,)))
+        voice.speak(eff, "Hello there")
+    rows = {r["action"]: r for r in db.rows("SELECT * FROM activity") if r["action"] in ("speech.transcribe", "model.speech")}
+    heard, read = rows["speech.transcribe"], rows["model.speech"]
+    assert heard["detail"]["seconds"] == 90.0 and heard["cost_usd"] == pytest.approx(1.5 * 0.0043)
+    assert read["detail"]["chars"] == 11 and read["cost_usd"] == pytest.approx(11 / 1e6 * 100)
+    assert not heard.get("unpriced") and not read.get("unpriced")
+    # a provider without a price isn't costed, as before
+    settings.save(db, cfg, "telemetry", {"prices": {}}, "t")
+    eff = settings.effective(db, cfg)
+    with activity.scope(db, "asset:2", cfg=eff):
+        voice.speak(eff, "Hello again")
+    again = [r for r in db.rows("SELECT * FROM activity") if r["action"] == "model.speech" and r["resources"] == ["asset:2"]]
+    assert [r.get("cost_usd") for r in again] == [None]
