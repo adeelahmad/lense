@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { EyeOff, GitMerge, Link2, Tags, Undo2, Waypoints } from "lucide-react";
+import { EyeOff, FolderTree, GitMerge, Link2, Tags, Undo2, Waypoints } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -26,12 +26,15 @@ type Side = {
   mentions?: number;
   samples?: string[];
 };
+type Topic = { id: number; name: string; recordings?: number };
 type Verdict = {
   same?: boolean;
   agree?: boolean;
   confidence?: number;
   keep?: "a" | "b" | null;
   type?: string;
+  label?: string;
+  leave?: number[];
   why?: string;
 };
 
@@ -52,12 +55,47 @@ const TYPE_NAMES: Record<string, string> = {
 export const typeName = (code: string | null | undefined) =>
   code ? (TYPE_NAMES[code] ?? (code.charAt(0) + code.slice(1).toLowerCase()).replace(/_/g, " ")) : "—";
 
+/** A group's broader topic and the topics to go under it (those the model would leave out struck through). */
+function TopicGroup({ parent, topics, left }: { parent: Side; topics: Topic[]; left: Set<number> }) {
+  return (
+    <div className="flex flex-col gap-1.5 rounded-sm border border-border bg-background p-3">
+      <p className="text-[12px] text-fg-muted">
+        {parent.id ? (
+          <Link href={`/topics/${parent.id}`} className="font-bold text-fg hover:text-fg-accent hover:underline">
+            {parent.name}
+          </Link>
+        ) : (
+          <span className="font-bold text-fg">{parent.name}</span>
+        )}{" "}
+        · {parent.namespace ?? "—"} · {topics.length} topic{topics.length === 1 ? "" : "s"} under it
+      </p>
+      <ul className="flex flex-wrap gap-1.5">
+        {topics.map((t) => (
+          <li key={t.id}>
+            <Link
+              href={`/topics/${t.id}`}
+              className={cn(
+                "rounded-sm border border-border px-1.5 py-0.5 text-[12.5px] text-fg hover:text-fg-accent",
+                left.has(t.id) && "text-fg-muted line-through",
+              )}
+            >
+              {t.name}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 /** What a change is about, in a few words, and its icon. */
 function heading(ch: GraphChange): { icon: typeof GitMerge; title: string } {
   const a = ch.a as Side;
   if (ch.kind === "merge") return { icon: GitMerge, title: "Merge: the same thing in one namespace?" };
   if (ch.kind === "link") return { icon: Link2, title: "Link: the same thing across namespaces?" };
   if (ch.kind === "retype") return { icon: Tags, title: `Type: ${typeName(a.type)} → ${typeName(ch.to)}?` };
+  if (ch.kind === "cluster")
+    return { icon: FolderTree, title: `Group under ${a.id ? "" : "a new topic, "}“${a.name}”?` };
   return { icon: EyeOff, title: "Hide as noise?" };
 }
 
@@ -134,6 +172,7 @@ export function ChangeCard({ ch }: { ch: GraphChange }) {
         link: "Linked",
         retype: `${a.name}: ${typeName(ch.to)} now`,
         hide: `${a.name} is hidden`,
+        cluster: `Grouped under ${v?.label ?? a.name}`,
       };
       toast({
         tone: "green",
@@ -173,20 +212,24 @@ export function ChangeCard({ ch }: { ch: GraphChange }) {
           {ch.decided_by ? ` by ${ch.decided_by}` : ""}
         </span>
       </header>
-      <div className="flex flex-col gap-3 md:flex-row">
-        <EntitySide
-          side={a}
-          kept={merge && (ch.status === "proposed" ? keep === a.id : ch.keep === a.id)}
-          choose={merge && ch.status === "proposed" && editor ? () => setKeep(a.id) : undefined}
-        />
-        {b && (
+      {ch.kind === "cluster" ? (
+        <TopicGroup parent={a} topics={(ch.topics ?? []) as Topic[]} left={new Set(v?.leave ?? [])} />
+      ) : (
+        <div className="flex flex-col gap-3 md:flex-row">
           <EntitySide
-            side={b}
-            kept={merge && (ch.status === "proposed" ? keep === b.id : ch.keep === b.id)}
-            choose={merge && ch.status === "proposed" && editor ? () => setKeep(b.id) : undefined}
+            side={a}
+            kept={merge && (ch.status === "proposed" ? keep === a.id : ch.keep === a.id)}
+            choose={merge && ch.status === "proposed" && editor ? () => setKeep(a.id) : undefined}
           />
-        )}
-      </div>
+          {b && (
+            <EntitySide
+              side={b}
+              kept={merge && (ch.status === "proposed" ? keep === b.id : ch.keep === b.id)}
+              choose={merge && ch.status === "proposed" && editor ? () => setKeep(b.id) : undefined}
+            />
+          )}
+        </div>
+      )}
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[12.5px]">
         <dt className="text-fg-muted">Rule</dt>
         <dd className="text-fg">
@@ -207,9 +250,15 @@ export function ChangeCard({ ch }: { ch: GraphChange }) {
                     ? v.agree === false
                       ? `Keep ${typeName(a.type)}`
                       : typeName(v.type ?? ch.to)
-                    : v.agree === false
-                      ? "Not noise"
-                      : "Noise"}
+                    : ch.kind === "cluster"
+                      ? v.agree === false
+                        ? "Not together"
+                        : v.label
+                          ? `Together, as “${v.label}”`
+                          : "Together"
+                      : v.agree === false
+                        ? "Not noise"
+                        : "Noise"}
               </span>{" "}
               · {pct(v.confidence)}
               {v.why ? ` · ${v.why}` : ""}
@@ -234,6 +283,7 @@ export function ChangeCard({ ch }: { ch: GraphChange }) {
                 link: "Link them",
                 retype: `Make it ${typeName(ch.to)}`,
                 hide: "Hide it",
+                cluster: "Group them",
               }[ch.kind]
             }
           </Button>
@@ -244,7 +294,7 @@ export function ChangeCard({ ch }: { ch: GraphChange }) {
             disabledReason={why}
             onClick={() => act.mutate("dismiss")}
           >
-            {pair ? "These are different" : "Leave it"}
+            {pair ? "These are different" : ch.kind === "cluster" ? "Leave them" : "Leave it"}
           </Button>
         </div>
       )}

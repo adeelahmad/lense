@@ -49960,7 +49960,8 @@
               "merge",
               "link",
               "retype",
-              "hide"
+              "hide",
+              "cluster"
             ],
             "title": "Kind"
           },
@@ -49968,7 +49969,7 @@
             "additionalProperties": true,
             "type": "object",
             "title": "A",
-            "description": "the entity changed, or the first of a pair"
+            "description": "the entity changed, the first of a pair, or a group's broader topic (no id when new)"
           },
           "b": {
             "anyOf": [
@@ -49994,6 +49995,61 @@
             ],
             "title": "To",
             "description": "a retype's new type"
+          },
+          "topics": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topics",
+            "description": "a group's topics, to put under its broader topic"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "an applied group's broader topic"
+          },
+          "created": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created",
+            "description": "the broader topic an applied group made"
+          },
+          "grouped": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grouped",
+            "description": "the topics an applied group put under its broader topic"
           },
           "spaces": {
             "items": {
@@ -50161,6 +50217,19 @@
             ],
             "title": "To",
             "description": "for a retype: the type to give (default: the one proposed)"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "for a group under a new topic: its label (default: the one proposed)"
           }
         },
         "additionalProperties": false,

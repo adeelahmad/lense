@@ -9000,11 +9000,11 @@ export type GraphChange = {
   /**
    * Kind
    */
-  kind: "merge" | "link" | "retype" | "hide";
+  kind: "merge" | "link" | "retype" | "hide" | "cluster";
   /**
    * A
    *
-   * the entity changed, or the first of a pair
+   * the entity changed, the first of a pair, or a group's broader topic (no id when new)
    */
   a: {
     [key: string]: unknown;
@@ -9023,6 +9023,32 @@ export type GraphChange = {
    * a retype's new type
    */
   to?: string | null;
+  /**
+   * Topics
+   *
+   * a group's topics, to put under its broader topic
+   */
+  topics?: Array<{
+    [key: string]: unknown;
+  }> | null;
+  /**
+   * Parent
+   *
+   * an applied group's broader topic
+   */
+  parent?: number | null;
+  /**
+   * Created
+   *
+   * the broader topic an applied group made
+   */
+  created?: number | null;
+  /**
+   * Grouped
+   *
+   * the topics an applied group put under its broader topic
+   */
+  grouped?: Array<number> | null;
   /**
    * Spaces
    */
@@ -9092,6 +9118,12 @@ export type GraphChangeAccept = {
    * for a retype: the type to give (default: the one proposed)
    */
   to?: string | null;
+  /**
+   * Label
+   *
+   * for a group under a new topic: its label (default: the one proposed)
+   */
+  label?: string | null;
 };
 
 /**

@@ -13,19 +13,26 @@ filter, for each, repeat, group and custom nodes):
     or an agent set are left as they are.
   - hide: entities that are noise: no letters, one letter, filler words ("Okay so"), a phrase rather than a name, or a
     term said only once. Entities someone showed again are left out.
+  - cluster: a namespace's topics to group under a broader one: those whose labels end in another topic's label
+    ("Machine learning", "Deep learning" under "Learning"), or several with no broader topic that end in the same word
+    ("Sales calls", "Support calls", "Team calls" under a new "Calls").
   Candidates with a change already proposed, dismissed or undone are left out, so a run doesn't redo what someone
   took back.
 - `llm_judge`: asks the model, a batch at a time with lines where each name was said, about each candidate: whether a
-  pair is the same thing, what type a name is, or whether it is noise. Each gets a `verdict` {agree (make the change),
-  confidence, why; for pairs same and keep; for a retype the type}.
-- `apply_changes`: makes the changes it is given (merges, links, new types, hides), or proposes them for someone to
+  pair is the same thing, what type a name is, whether it is noise, or whether topics go under a broader one. Each
+  gets a `verdict` {agree (make the change), confidence, why; for pairs same and keep; for a retype the type; for a
+  group a better label for a new broader topic and the topics to leave out}.
+- `apply_changes`: makes the changes it is given (merges, links, new types, hides, groups), or proposes them for someone to
   accept. Only those whose confidence (the model's, else the rules') is at least `apply_above` are made, at most
   `max_apply` a run; without `apply_above` everything is proposed. Every change is recorded and can be undone, one by
   one or a whole run.
 
-Each change is a `graph_change` row: {kind, pair (what it is about, to tell it again), a (the entity, or a pair's
-first), b, keep, to (a retype's new type), spaces, reason, confidence, verdict, status (proposed, applied, dismissed,
-undone), merge (the entity_merge id behind an applied merge), routine, run, workflow}.
+Each change is a `graph_change` row: {kind, pair (what it is about, to tell it again), a (the entity, a pair's first,
+or a group's broader topic {id (none for a new one), name}), b, keep, to (a retype's new type), topics (a group's
+[{id, name, recordings}]), spaces, reason, confidence, verdict, status (proposed, applied, dismissed, undone), merge (the
+entity_merge id behind an applied merge), parent, created, grouped (an applied group's broader topic, whether the
+group made it, and the topics put under it), routine, run, workflow}. Topics aren't in the graph's history, so a group
+is undone only from its change.
 """
 
 from __future__ import annotations
@@ -34,7 +41,7 @@ from collections import Counter, defaultdict
 
 import re
 
-from . import analyze, entities, entity_setup, graph_history, llm, name_types, store
+from . import analyze, entities, entity_setup, graph_history, llm, name_types, notebook, store, topics
 
 R = store.R
 GRAPH_NODES = ("input", "pick", "condition", "merge", "candidates", "llm_judge", "filter", "apply_changes")
@@ -46,7 +53,7 @@ CONFIG = {
     "apply_changes": {"apply_above", "max_apply"},
 }
 PAIRS = ("merge", "link")  # kinds about two entities; the rest are about one
-KINDS = (*PAIRS, "retype", "hide")
+KINDS = (*PAIRS, "retype", "hide", "cluster")
 STATUSES = ("proposed", "applied", "dismissed", "undone")
 JUDGE_SCHEMA = {
     "type": "object",
@@ -79,6 +86,7 @@ JUDGE_SYSTEM = (
 ONE_SCHEMA = {
     "retype": {"type": {"type": "string"}},
     "hide": {"noise": {"type": "boolean"}},
+    "cluster": {"agree": {"type": "boolean"}, "label": {"type": "string"}, "leave": {"type": "array", "items": {"type": "integer"}}},
 }
 ONE_SYSTEM = {
     "retype": (
@@ -94,12 +102,19 @@ ONE_SYSTEM = {
         "words. Real people, organisations, products, places, events, works and topics are not noise, even when they "
         "are said once. Reply with JSON only."
     ),
+    "cluster": (
+        "You organise the vocabulary of topics a knowledge graph's assets are about. For each numbered group, say "
+        "whether the topics listed go under the broader topic named (agree), as narrower kinds or parts of it; for a "
+        "new broader topic, a better label for it if there is one; the numbers of the topics that don't belong "
+        '(leave); how sure you are from 0 to 1; and why in a few words. Sharing a word is not enough: "Sales calls" '
+        'and "Cold calls" are calls, "Judgement calls" are not. Reply with JSON only.'
+    ),
 }
 
 
 def _one_schema(kind):
     item = {"item": {"type": "integer"}, **ONE_SCHEMA[kind], "confidence": {"type": "number"}, "why": {"type": "string"}}
-    need = ["item", *ONE_SCHEMA[kind], "confidence"]
+    need = ["item", "agree" if kind == "cluster" else next(iter(ONE_SCHEMA[kind])), "confidence"]
     return {
         "type": "object",
         "properties": {"tidying": {"type": "array", "items": {"type": "object", "properties": item, "required": need}}},
@@ -175,8 +190,8 @@ def candidates(db, spaces, c):
     or entities [{kind, pair, a, to (retype), reason, confidence}]."""
     kind, floor, limit = c.get("kind") or "merge", c.get("min_confidence", 0.7), c.get("limit") or 100
     types = set(c.get("types") or [])
-    if kind in ("retype", "hide"):
-        return (wrong_types if kind == "retype" else noise)(db, spaces, floor, limit, types)
+    if kind in ("retype", "hide", "cluster"):
+        return {"retype": wrong_types, "hide": noise, "cluster": topic_groups}[kind](db, spaces, floor, limit, types)
     if kind == "link":
         spaces = set(db.values("SELECT VALUE record::id(id) FROM space WHERE graph = 'shared' AND record::id(id) IN $s", s=sorted(spaces)))
     if not spaces:
@@ -327,6 +342,73 @@ def noise(db, spaces, floor=0.7, limit=100, types=()):
     ]
 
 
+GROUP_MIN = 3  # topics that share a last word before they're grouped under a new topic for it
+
+
+def _words(label):
+    return [w.casefold() for w in analyze.WORD.findall(label or "")]
+
+
+def topic_groups(db, spaces, floor=0.7, limit=100, types=()):
+    """Topics to group under a broader topic: [{kind: cluster, pair, a: the broader topic {id, name}, topics, reason,
+    confidence}]. Under an existing topic when their labels end in its label; under a new one named for their last
+    word when GROUP_MIN or more topics with no broader one end in it."""
+    held, names, found = _held(db), store.space_names(db), []
+    for sid in sorted(spaces):
+        rows = db.rows("SELECT record::id(id) AS id, key, label, broader FROM topic WHERE space = $s", s=sid)
+        if len(rows) < 2:
+            continue
+        uses = Counter(db.values("SELECT VALUE topic FROM topic_about WHERE space = $s AND status = 'accepted'", s=sid))
+        up = {t["id"]: set(t.get("broader") or []) for t in rows}
+        by_key = {t["key"]: t for t in rows}
+
+        def above(tid, seen=None):
+            seen = seen if seen is not None else set()
+            for b in up.get(tid, ()):
+                if b not in seen:
+                    seen.add(b)
+                    above(b, seen)
+            return seen
+
+        groups = defaultdict(list)  # (parent key, label, existing id) -> children
+        for t in rows:
+            ws = _words(t["label"])
+            for n in range(len(ws) - 1, 0, -1):  # the longest label it ends in that is a topic: "deep learning" > "learning"
+                p = by_key.get(topics.key_of(" ".join(ws[-n:])))
+                if p and p["id"] != t["id"]:
+                    if p["id"] not in up[t["id"]] and t["id"] not in above(p["id"]):
+                        groups[(p["key"], p["label"], p["id"])].append(t)
+                    break
+            else:
+                if len(ws) > 1 and not up[t["id"]] and len(ws[-1]) >= 4 and ws[-1] not in FILLER and topics.key_of(ws[-1]) not in by_key:
+                    groups[(topics.key_of(ws[-1]), ws[-1], None)].append(t)
+        for (key, label, pid), kids in groups.items():
+            if pid is None:
+                if len(kids) < GROUP_MIN:
+                    continue
+                label = Counter(analyze.WORD.findall(k["label"])[-1] for k in kids).most_common(1)[0][0]
+                label = label[:1].upper() + label[1:]
+                reason, conf = f"{len(kids)} topics end in “{label.casefold()}”", round(min(0.85, 0.55 + 0.05 * len(kids)), 2)
+            else:
+                reason, conf = f"their labels end in “{label}”", 0.85
+            pk = f"cluster:{sid}:{key}"
+            if conf >= floor and pk not in held:
+                kids = sorted(kids, key=lambda k: (-uses[k["id"]], k["label"].casefold()))
+                found.append((conf, sum(uses[k["id"]] for k in kids), sid, pid, label, kids, reason, pk))
+    found.sort(key=lambda x: (-x[0], -x[1]))
+    return [
+        {
+            "kind": "cluster",
+            "pair": pk,
+            "a": {"id": pid, "name": label, "type": "TOPIC", "namespace": names.get(sid), "space": sid},
+            "topics": [{"id": k["id"], "name": k["label"], "recordings": uses[k["id"]]} for k in kids],
+            "reason": reason,
+            "confidence": conf,
+        }
+        for conf, _n, sid, pid, label, kids, reason, pk in found[:limit]
+    ]
+
+
 # ---------- the model's verdict ----------
 def _describe(k, item):
     def side(s):
@@ -361,6 +443,10 @@ def _sure(v):
 
 
 def _describe_one(k, item):
+    if item["kind"] == "cluster":
+        a, kids = item["a"], "\n".join(f"   {n}. {t['name']}" for n, t in enumerate(item["topics"], 1))
+        under = f'"{a["name"]}" (a topic already)' if a.get("id") else f'"{a["name"]}" (a new topic)'
+        return f"{k}. under {under}, in {a['namespace']}:\n{kids}\n   rules think: group ({item['reason']}; {item['confidence']})"
     s = item["a"]
     said = "; ".join(f'"{x[:160]}"' for x in s["samples"]) or "no lines"
     line = f'{k}. "{s["name"]}" ({s["type"]}, {s["mentions"]} mentions in {s["namespace"]}; found in: {said})'
@@ -377,7 +463,7 @@ def _ones_judged(db, cfg, kind, batch, c):
         for sid in {it["a"]["space"] for it in batch}:
             codes |= entity_setup.type_codes(db, sid) - set(entities.QUIET)
         ask.append("Types: " + ", ".join(sorted(codes)))
-    ask.append("Names:\n" + "\n".join(_describe_one(k, it) for k, it in enumerate(batch, 1)))
+    ask.append(("Groups" if kind == "cluster" else "Names") + ":\n" + "\n".join(_describe_one(k, it) for k, it in enumerate(batch, 1)))
     reply = llm.json_out(cfg, ONE_SYSTEM[kind], "\n\n".join(ask), _one_schema(kind), c.get("model"))
     got = {}
     for d in (reply or {}).get("tidying") or []:
@@ -390,6 +476,20 @@ def _ones_judged(db, cfg, kind, batch, c):
                 continue
             got[d["item"]] = store.clean(
                 {"agree": typ != it["a"]["type"], "type": typ, "confidence": _sure(d.get("confidence")), "why": why}
+            )
+        elif kind == "cluster":
+            if not isinstance(d.get("agree"), bool):
+                continue
+            leave = sorted({int(n) for n in d.get("leave") or [] if isinstance(n, int) and 1 <= n <= len(it["topics"])})
+            label = " ".join(str(d.get("label") or "").split())[:200]
+            got[d["item"]] = store.clean(
+                {
+                    "agree": d["agree"] and len(leave) < len(it["topics"]),
+                    "label": label if label and not it["a"].get("id") and label.casefold() != it["a"]["name"].casefold() else None,
+                    "leave": [it["topics"][n - 1]["id"] for n in leave] or None,
+                    "confidence": _sure(d.get("confidence")),
+                    "why": why,
+                }
             )
         elif isinstance(d.get("noise"), bool):
             got[d["item"]] = store.clean({"agree": d["noise"], "confidence": _sure(d.get("confidence")), "why": why})
@@ -405,7 +505,7 @@ def judge(cfg, items, c, say=print, db=None):
         if isinstance(it, dict) and it.get("kind") in KINDS and isinstance(it.get("a"), dict):
             by_kind["pair" if it["kind"] in PAIRS else it["kind"]].append(n)
     for kind, ns in by_kind.items():
-        what = "pairs" if kind == "pair" else "names"
+        what = {"pair": "pairs", "cluster": "groups"}.get(kind, "names")
         for start in range(0, len(ns), size):
             part = ns[start : start + size]
             batch = [items[n] for n in part]
@@ -433,6 +533,8 @@ def _keep(item):
 
 def _make(db, ch, user):
     """Make one change; the fields to record on it (merge id), or None when it can't be made any more."""
+    if ch["kind"] == "cluster":
+        return _make_group(db, ch, user)
     if ch["kind"] not in PAIRS:
         return _make_one(db, ch)
     a, b = ch["a"]["id"], ch["b"]["id"]
@@ -443,6 +545,50 @@ def _make(db, ch, user):
         return {"merge": entities.merge(db, keep, [b if keep == a else a], user=user), "keep": keep}
     entities.link(db, a, b, check_spaces=False)
     return {}
+
+
+def _make_group(db, ch, user):
+    """Put a group's topics under its broader topic, made first when it's new: {parent, created, grouped}, or None when
+    none of them can go under it any more (gone, or it would loop)."""
+    v, a, sid = ch.get("verdict") or {}, ch["a"], ch["a"]["space"]
+    pid = a.get("id") if a.get("id") and db.one("SELECT id FROM $r", r=R("topic", int(a["id"]))) else None
+    label = ch.get("label") or v.get("label") or a["name"]
+    if pid is None:
+        got = db.one("SELECT record::id(id) AS id FROM topic WHERE tkey = $k", k=f"{int(sid)}:{topics.key_of(label)}")
+        pid = got["id"] if got else None
+    created = None
+    if pid is None:
+        try:
+            pid = created = topics.create(db, sid, label, user=user)
+        except ValueError:  # another topic has that label as one of its others
+            return None
+    leave, grouped = set(v.get("leave") or []), []
+    for t in ch.get("topics") or []:
+        row = db.one("SELECT broader FROM $r", r=R("topic", int(t["id"])))
+        if t["id"] in leave or t["id"] == pid or not row or pid in (row.get("broader") or []):
+            continue
+        try:
+            topics.update(db, t["id"], broader=[*(row.get("broader") or []), pid], user=user)
+        except (ValueError, KeyError):  # it would loop, or the topic has as many broader ones as it can
+            continue
+        grouped.append(t["id"])
+    if not grouped:
+        if created:
+            _drop_unused_topic(db, created)
+        return None
+    return {"parent": pid, "created": created, "grouped": grouped}
+
+
+def _drop_unused_topic(db, tid):
+    """Delete a topic a group made, unless something has used it since (a recording, a narrower or related topic)."""
+    t = db.one("SELECT space, related FROM $r", r=R("topic", int(tid)))
+    if not t or t.get("related") or db.one("SELECT id FROM topic_about WHERE topic = $t LIMIT 1", t=int(tid)):
+        return False
+    if db.one("SELECT id FROM topic WHERE space = $s AND $t IN broader LIMIT 1", s=t["space"], t=int(tid)):
+        return False
+    db.q("DELETE $r", r=R("topic", int(tid)))
+    notebook.release(db, f"topic:{int(tid)}")
+    return True
 
 
 def _make_one(db, ch):
@@ -470,6 +616,8 @@ def _target(it):
 
 
 def _touches(it):
+    if it["kind"] == "cluster":  # topics, not entities: not in the graph's history
+        return []
     return [it["a"]["id"], *([it["b"]["id"]] if it["kind"] in PAIRS else [])]
 
 
@@ -482,6 +630,7 @@ def _record(db, item, status, origin, extra=None):
             "a": item["a"],
             "b": item.get("b"),
             "to": _target(item) if item["kind"] == "retype" else None,
+            "topics": item.get("topics") if item["kind"] == "cluster" else None,
             "spaces": sorted({item["a"]["space"], *([item["b"]["space"]] if item.get("b") else [])}),
             "reason": item.get("reason"),
             "confidence": item.get("confidence"),
@@ -509,6 +658,7 @@ def apply_changes(db, items, c, origin=None, propose_only=False, say=print):
             and isinstance(it.get("a"), dict)
             and (it["kind"] not in PAIRS or isinstance(it.get("b"), dict))
             and (it["kind"] != "retype" or _target(it))
+            and (it["kind"] != "cluster" or isinstance(it.get("topics"), list))
         ):
             stats["skipped"] += 1
             continue
@@ -591,8 +741,9 @@ def get_change(db, cid):
     return ch
 
 
-def accept(db, cid, user=None, keep=None, to=None):
-    """Make a proposed change (`keep`: a merge's entity to keep; `to`: a retype's type, in place of the one proposed)."""
+def accept(db, cid, user=None, keep=None, to=None, label=None):
+    """Make a proposed change (`keep`: a merge's entity to keep; `to`: a retype's type, in place of the one proposed;
+    `label`: a group's new broader topic's label)."""
     ch = get_change(db, cid)
     if ch["status"] != "proposed":
         raise ValueError(f"this change is {ch['status']}, not proposed")
@@ -605,6 +756,10 @@ def accept(db, cid, user=None, keep=None, to=None):
             raise ValueError("only a change of type takes a type")
         entities._check_type(db, ch["a"]["space"], to)
         ch["to"] = to
+    if label is not None:
+        if ch["kind"] != "cluster" or ch["a"].get("id"):
+            raise ValueError("only a group under a new topic takes a label")
+        ch["label"] = " ".join(str(label).split()) or None
     with graph_history.change(db, f"{ch['kind']}.accept", entities=_touches(ch), why=ch.get("reason"), graph_change=ch["id"]):
         done = _make(db, ch, user)
     if done is None:
@@ -616,6 +771,8 @@ def accept(db, cid, user=None, keep=None, to=None):
         )
         if ch["kind"] in PAIRS:
             raise ValueError("one of these entities is gone (merged or deleted since)")
+        if ch["kind"] == "cluster":
+            raise ValueError("none of these topics can go under it now (gone, under it already, or it would loop)")
         raise ValueError("the entity is gone, hidden or changed since this was proposed")
     db.q(
         "UPDATE $r MERGE $d",
@@ -641,7 +798,7 @@ def undo(db, cid, user=None):
     ch = get_change(db, cid)
     if ch["status"] != "applied":
         raise ValueError(f"this change is {ch['status']}, not applied")
-    one = [] if ch["kind"] in PAIRS else [ch["a"]["id"]]
+    one = [ch["a"]["id"]] if ch["kind"] in ("retype", "hide") else []
     with graph_history.change(db, f"{ch['kind']}.undo", entities=one, graph_change=ch["id"]):
         if ch["kind"] == "merge":
             m = db.one("SELECT undone FROM $r", r=R("entity_merge", int(ch["merge"])))
@@ -649,6 +806,8 @@ def undo(db, cid, user=None):
                 entities.undo_merge(db, ch["merge"])
         elif ch["kind"] == "link":
             entities.unlink(db, ch["a"]["id"], ch["b"]["id"])
+        elif ch["kind"] == "cluster":
+            _ungroup(db, ch)
         else:
             e = db.one(f"SELECT {entities.FIELDS} FROM $r", r=R("entity", int(ch["a"]["id"])))
             if not e:
@@ -658,6 +817,20 @@ def undo(db, cid, user=None):
             elif ch["kind"] == "hide" and e.get("hidden") and str(e.get("hidden_reason") or "").startswith("noise:"):
                 entities.hide(db, e["id"], False)
     db.q("UPDATE $r SET status = 'undone', undone_at = $t, undone_by = $u", r=R("graph_change", ch["id"]), t=store.now(), u=user)
+
+
+def _ungroup(db, ch):
+    """Take a group's topics out from under its broader topic (those someone hasn't moved since), and delete the broader
+    topic when the group made it and nothing uses it."""
+    pid = ch.get("parent")
+    for tid in ch.get("grouped") or []:
+        row = db.one("SELECT broader FROM $r", r=R("topic", int(tid)))
+        if row and pid in (row.get("broader") or []):
+            db.q(
+                "UPDATE $r SET broader = $b, updated = $t", r=R("topic", int(tid)), b=[b for b in row["broader"] if b != pid], t=store.now()
+            )
+    if ch.get("created"):
+        _drop_unused_topic(db, ch["created"])
 
 
 def undo_run(db, run_id, user=None, say=None):
@@ -720,7 +893,7 @@ def run_node(r, f, node, value, vals):
     t, c, name = node["type"], node["config"], node.get("label") or f"{node['type']} {node['id']}"
     if t == "candidates":
         out = candidates(r.db, r.extra["spaces"], c)
-        r.say(f"{name}: {len(out)} pairs")
+        r.say(f"{name}: {len(out)} {'pairs' if (c.get('kind') or 'merge') in PAIRS else 'found'}")
         return {"out": out}
     if t == "llm_judge":
         return {"out": judge(r.cfg, value if isinstance(value, list) else [], c, r.say, r.db)}

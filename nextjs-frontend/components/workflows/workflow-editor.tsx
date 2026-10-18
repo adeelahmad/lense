@@ -477,8 +477,8 @@ export function WorkflowEditor({ id }: { id?: number }) {
               <h2 className="text-[15px] font-bold text-fg">How graph workflows run</h2>
               <p>
                 A graph workflow starts from the namespaces a routine runs it over. Find what to tidy finds look-alike
-                entities, entities whose type looks wrong, or noise; Ask the model judges each one, and Apply changes
-                makes the sure ones and proposes the rest.
+                entities, entities whose type looks wrong, noise, or topics to group; Ask the model judges each one, and
+                Apply changes makes the sure ones and proposes the rest.
               </p>
               <p>
                 Run it from a routine. Proposed changes wait in Routines → Proposed changes, and every change can be
