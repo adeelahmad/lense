@@ -124,6 +124,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   recording, and keeps the types it is sure of. Settings › Analysis › Names the rules can't type (`analysis.typing`)
   can also let the language model answer, or turn it off; the language model is never asked by default
   ([Names the rules can't type](docs/processing.md#entities-and-the-graph-explorer)).
+- **A loading bar, as in Gmail.** A thin blue bar runs along the top of the web app while a page or its data loads:
+  on every page change, and while a page waits for its first answers from the API. Refreshing what's already on screen
+  and anything quicker than a blink don't show it ([The web app](docs/frontend.md#data)).
 
 - **Published feeds.** A namespace publishes a private RSS feed, or a podcast feed with Apple Podcasts' tags, that any
   feed reader or podcast app follows at its address: resources (with their audio as the enclosure), podcast episodes

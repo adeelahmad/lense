@@ -217,7 +217,8 @@ server, the NSFW model, the MCP runner, Fedora) stay off or download only when y
 swapped for a cloud provider instead. Setup asks only what has no default: the model, and a budget for a cloud model.
 Picking a cloud model provider fills in its address and a model, so only its key is left to paste. Every setting lives
 in the web app, which works on a phone too: settings are in named groups, a search finds any one by name, and the
-options most people leave as they are stay folded. ([Components](docs/components.md),
+options most people leave as they are stay folded. A thin bar along the top of the web app shows a page or its data is
+still loading. ([Components](docs/components.md),
 [speech providers](docs/speech-providers.md), [local models](docs/local-models.md),
 [cloud model providers](docs/configuration.md#cloud-model-providers); [checks](docs/requirements.md#light-by-default))
 
