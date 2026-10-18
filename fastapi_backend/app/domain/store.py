@@ -1501,6 +1501,10 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS event_reaction SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS event_reaction_activity ON event_reaction FIELDS activity",
     "DEFINE INDEX IF NOT EXISTS event_reaction_account ON event_reaction FIELDS account",
+    # mutes on the timeline (domain/event_mutes.py): each person's muted actors and kinds, for good or until a time,
+    # event_mute:<hash of account and target> (the id keeps the pair unique)
+    "DEFINE TABLE IF NOT EXISTS event_mute SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS event_mute_account ON event_mute FIELDS account",
     # every line of a run's log, in chunks (jobs.RunLog): job_log:<random>
     "DEFINE TABLE IF NOT EXISTS job_log SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_log_job ON job_log FIELDS job",

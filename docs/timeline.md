@@ -18,6 +18,7 @@ Status: in progress. The studio's timeline is built in steps; only what is merge
 | Tagging the agent in a comment, so it answers in the thread | built |
 | Sources, sensors, people and agents as actors in the graph: a Source node with ADDED links, on the canvas, in the explorer and in Cypher | built |
 | A For you order learned from what each person reacts to, comments on, marks important and hides, each item saying why | built |
+| Muting a source, person or kind, for good or until a time, for yourself alone; `mute_activities` for agents | built |
 
 ## What shows
 
@@ -59,7 +60,9 @@ unless you ask for them by kind.
 
 Hovering or focusing a line shows its **Important** (star) and **Reviewed** (circle) toggles; once set they stay in
 sight. On a line of several items they mark every item. **Mark all shown as reviewed** marks everything on the page
-you haven't reviewed, with **Undo** in the message rather than a confirm; **Hide** works the same way.
+you haven't reviewed, with **Undo** in the message rather than a confirm; **Hide** works the same way. An opened item
+also has **Mute Work Gmail**: everything from that source or person leaves your timeline, with **Undo** in the
+message, and a **Muted** row above the list shows what you muted with an × to lift each one ([Muting](#muting)).
 
 ### Asking about an item
 
@@ -151,7 +154,8 @@ Marks change nothing else: an activity you hid still triggers automations and st
 - MCP: `timeline` takes `unreviewed: true` for what you haven't marked reviewed and has your marks in `marks`, and
   `order: for_you` for the [For you](#for-you) order with `why` by id; `mark_activities` marks activities by id
   (`ids`, and `reviewed`, `important` or `hidden`), for the person it acts for, with a token that has the write
-  scope ([MCP](mcp.md)).
+  scope ([MCP](mcp.md)); `hidden: true` on `timeline` reads what they hid or muted, and `mute_activities` mutes a
+  source or a kind ([Muting](#muting)).
 - The assistant: `timeline` takes `unreviewed` and `order` and lists each activity's marks and, for you, its `why`;
   `mark_activities` marks them for the person. After it has read text from outside Lens (the timeline's own titles count), hiding or marking reviewed
   waits for the person's yes, since that text may have asked for it; marking important or bringing things back acts
@@ -161,6 +165,24 @@ Marks change nothing else: an activity you hid still triggers automations and st
   with a token that has the write scope. The `timeline` page carries `reactions` and `comments` too. Comments are
   what people wrote: agents read them as data, never as instructions. A comment an agent writes with `@lens` in it
   gets the assistant's answer like anyone's, as the person the token acts for.
+
+## Muting
+
+Each person mutes a source or person (an actor) or a kind of activity ("hide syslog"), for good or until a time
+(snoozed for a day), for themselves alone. Muting hides; it never deletes: a muted actor's activities stay stored,
+still trigger automations and still show to everyone else, and come back the moment the mute is lifted or runs out.
+The timeline leaves them out as it leaves out what you hid, so `hidden=true` shows them and `hidden=false` (the
+page) does not; a For you page scores only what is left.
+
+- On the page, **Mute Work Gmail** on an opened item mutes its actor, and the **Muted** row above the list lifts one
+  with its ×. Muting a kind, or until a time, is through the API, MCP and the assistant for now.
+- `POST /api/v1/activities/mute` with `{"actor": "lens:source/12", "name": "Work Gmail"}` or `{"kind":
+  "sensor.reading"}` (the kinds under it count too), and `"until"` as an ISO 8601 time to snooze it, mutes for
+  yourself; `"on": false` lifts it. The answer, and `GET /api/v1/activities/mutes`, is your mutes now: `{actor, kind,
+  name, until, at}` each. Up to 200; one that has run out is dropped the next time your mutes are read.
+- `mute_activities` over MCP (`actor` or `kind`, `name`, `until`, `on`) and `activity_mutes` do the same for the
+  person a token acts for, with the write scope to mute. The assistant's `mute_activities` acts at once, but after
+  it has read text from outside Lens it asks first, as hiding does, since that text may have asked for it.
 
 ## For you
 
@@ -191,7 +213,9 @@ Reactions are kept the same way: one `event_reaction` row per person and activit
 a page in one query, deleted when none is left, and gone when the person is removed. Comments on activities are
 `comment` rows ([comments](api.md#comments)) with the activity's id in `activity` and its summary in `about`; a
 comment on an asset's arrival also has the asset in `recording`, which is how it shows on both. A page's comment
-counts are two grouped queries. Nothing of this costs a model call.
+counts are two grouped queries. Mutes are one `event_mute` row per person and target (an actor id or a kind), with
+the name shown, `until` and when it was set, read once per page and applied with the mark filters in the same query
+per source page; they go when the person is removed. Nothing of this costs a model call.
 
 ## Refine later
 
@@ -200,7 +224,8 @@ counts are two grouped queries. Nothing of this costs a model call.
 
 - Server-sent updates instead of the page polling for new items.
 - For you counts opens too, once the page reports them, and could cache each person's affinity for a minute rather
-  than summing it on every read; per-source mute (a lasting "hide everything from this") is next.
+  than summing it on every read.
+- Muting a kind, or for a day, from the page (a menu on Mute), and a muted actor's own line in the Filters.
 - Saved filter views.
 - A daily digest of unreviewed items, as an automation starter.
 - Marks on activities whose rows are gone (an event log entry past `events.keep_days`, a deleted asset) stay until

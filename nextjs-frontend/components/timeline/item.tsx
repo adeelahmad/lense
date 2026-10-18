@@ -9,6 +9,7 @@ import {
   CircleCheck,
   EyeOff,
   FileText,
+  VolumeX,
   Mail,
   MessagesSquare,
   NotebookPen,
@@ -124,6 +125,7 @@ export function ActivityDetail({
   caused,
   social,
   onHide,
+  onMute,
 }: {
   a: Activity;
   /** What this activity caused (automation runs, approvals), from the modules that know. */
@@ -131,6 +133,8 @@ export function ActivityDetail({
   /** Its reactions and comments (timeline/social.tsx). */
   social?: ReactNode;
   onHide?: () => void;
+  /** Mute its actor: everything from this source or person leaves your timeline (docs/timeline.md, Muting). */
+  onMute?: () => void;
 }) {
   const fields = objectFields(a);
   const href = objectHref(a);
@@ -173,8 +177,23 @@ export function ActivityDetail({
             Hide
           </Button>
         )}
+        {onMute && <MuteButton name={a.actor.name} onMute={onMute} />}
       </div>
     </div>
+  );
+}
+
+function MuteButton({ name, onMute }: { name: string; onMute: () => void }) {
+  return (
+    <Button
+      size="xs"
+      variant="ghost"
+      icon={<VolumeX />}
+      onClick={onMute}
+      title={`Leave everything from ${name} out of your timeline; nothing is deleted, and Undo or the Muted list brings it back`}
+    >
+      Mute {name}
+    </Button>
   );
 }
 
@@ -188,6 +207,8 @@ type RowProps = {
   markOf: (id: string) => Mark;
   onMark: (ids: string[], flags: Partial<Mark>) => void;
   onHide?: (ids: string[]) => void;
+  /** Mute an item's actor (docs/timeline.md, Muting). */
+  onMute?: (a: Activity) => void;
   open: boolean;
   onToggle: () => void;
   focused?: boolean;
@@ -224,6 +245,7 @@ export const TimelineRow = forwardRef<HTMLLIElement, RowProps>(function Timeline
     markOf,
     onMark,
     onHide,
+    onMute,
     open,
     onToggle,
     focused,
@@ -342,6 +364,7 @@ export const TimelineRow = forwardRef<HTMLLIElement, RowProps>(function Timeline
                 mark={markOf(a.id)}
                 onMark={(flags) => onMark([a.id], flags)}
                 onHide={onHide ? () => onHide([a.id]) : undefined}
+                onMute={onMute ? () => onMute(a) : undefined}
                 caused={caused?.(a)}
                 social={social?.(a)}
               />
@@ -353,6 +376,7 @@ export const TimelineRow = forwardRef<HTMLLIElement, RowProps>(function Timeline
             caused={caused?.(first)}
             social={social?.(first)}
             onHide={onHide ? () => onHide(ids) : undefined}
+            onMute={onMute ? () => onMute(first) : undefined}
           />
         ))}
     </li>
@@ -364,6 +388,7 @@ function SubItem({
   mark,
   onMark,
   onHide,
+  onMute,
   caused,
   social,
 }: {
@@ -371,6 +396,7 @@ function SubItem({
   mark: Mark;
   onMark: (flags: Partial<Mark>) => void;
   onHide?: () => void;
+  onMute?: () => void;
   caused?: ReactNode;
   social?: ReactNode;
 }) {
@@ -401,6 +427,7 @@ function SubItem({
             Hide
           </Button>
         )}
+        {onMute && <MuteButton name={a.actor.name} onMute={onMute} />}
       </div>
     </li>
   );

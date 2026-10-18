@@ -100,6 +100,30 @@ class MarksIn(MarkIn):
     ids: list[str] = Field(min_length=1, max_length=500, description="the activities' ids")
 
 
+class Mute(ResponseModel):
+    """One of your mutes: an actor or a kind, until a time or for good."""
+
+    actor: str | None = Field(None, description="the muted actor's id, like lens:source/12")
+    kind: str | None = Field(None, description="the muted kind, like sensor.reading (the kinds under it count too)")
+    name: str | None = Field(None, description="the actor's name as the page showed it, or the kind's label")
+    until: str | None = Field(None, description="when it runs out (ISO 8601); null for good")
+    at: str | None = None
+
+
+class MuteIn(RequestModel):
+    """Mute an actor or a kind (one of the two) for yourself, for good or until a time; `on` false lifts it."""
+
+    actor: str | None = Field(None, max_length=240, description="an actor's id, like lens:source/12 or lens:account/1")
+    kind: str | None = Field(None, max_length=120, description="a kind, like sensor.reading")
+    name: str | None = Field(None, max_length=200, description="the actor's name, for the Muted list")
+    until: str | None = Field(None, max_length=40, description="until this time (ISO 8601); left out: for good")
+    on: bool = Field(True, description="mute (true) or lift the mute (false)")
+
+
+class MutesOut(ResponseModel):
+    mutes: list[Mute] = Field(description="your mutes now, the latest first")
+
+
 class MarksOut(ResponseModel):
     marks: dict[str, ActivityMark] = Field(description="your marks now, by id")
     unknown: list[str] = Field(default_factory=list, description="ids of activities there are none of, or you can't see")
