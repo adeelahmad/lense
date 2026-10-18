@@ -896,8 +896,10 @@ def machine_load():
 
 
 WORKER_BEAT = 15  # seconds between a busy worker's heartbeats
+# the mesh node this worker runs on (docs/mesh.md): the node's agent starts it with LENS_MESH_NODE; none on the primary
+MESH_NODE = int(os.environ["LENS_MESH_NODE"]) if os.environ.get("LENS_MESH_NODE", "").isdigit() else None
 WORKER_FIELDS = (
-    "record::id(id) AS name, steps, host, heartbeat_at, current, paused, drain, paused_by, paused_at, load, cpus, components, machine"
+    "record::id(id) AS name, steps, host, heartbeat_at, current, paused, drain, paused_by, paused_at, load, cpus, components, machine, node"
 )
 
 
@@ -958,7 +960,7 @@ class Worker:
     def register(self, current=None):
         # SET, not CONTENT: being paused (from the app) outlasts restarts
         self.db.q(
-            "UPSERT $w SET steps = $s, host = $h, heartbeat_at = $t, current = $c, load = $l, cpus = $n",
+            "UPSERT $w SET steps = $s, host = $h, heartbeat_at = $t, current = $c, load = $l, cpus = $n, node = $node",
             w=R("worker", self.name),
             s=sorted(self.can),
             h=socket.gethostname(),
@@ -966,6 +968,7 @@ class Worker:
             c=current,
             l=machine_load(),
             n=os.cpu_count(),
+            node=MESH_NODE,
         )
 
     def paused(self):

@@ -78,15 +78,18 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
 - **Ask, and get cited answers.** A chat assistant on every page, and by voice, searches your archive by words (and by
   meaning, once turned on), reads it, cites it and acts on it with tools: changes wait for your approval. Once an admin
   turns them on, it also searches the web and reads pages, cited like the archive, and runs Python and bash in a sandbox
-  of each conversation's own. Regenerating an answer or editing a question makes a new version beside the old one, and
+  of each conversation's own. An admin's assistant searches and reads the mail, calendars and files connected to Lens
+  (Gmail, Google Calendar, Google Drive, S3 and the rest), cites messages and events, and brings them in once you
+  approve. Regenerating an answer or editing a question makes a new version beside the old one, and
   nothing is lost. Each answer keeps a record of what produced it (the model, its tools, how long it took and what it
   cost), opened from its header. It reads answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine
-  (opt-in), any message in one click, and `/clear` and `/compact` keep long conversations short. Conversations title
-  themselves after their first answer, unless you name them. Each namespace can have its own assistant with
+  (opt-in), any message in one click. Long conversations are summarised before they fill the model's context, and
+  `/clear` and `/compact` start afresh or summarise now. Conversations title themselves after their first answer, unless
+  you name them. Each namespace can have its own assistant with
   its own name, instructions and memory, answering in Telegram and Slack (built in, with voice notes and files), in
   Discord, Matrix, WhatsApp and other chat rooms through Matterbridge, and by email at an address of its own that you
   email or forward things to. ([Chat](docs/assistant.md), [web search](docs/assistant.md#web-search-and-reading-pages),
-  [code sandbox](docs/assistant.md#code-sandbox), [answer records](docs/assistant.md#what-each-answer-records),
+  [mail, calendars and files](docs/assistant.md#mail-calendars-and-files), [code sandbox](docs/assistant.md#code-sandbox), [answer records](docs/assistant.md#what-each-answer-records),
   [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md), [speech providers](docs/speech-providers.md);
   [checks](docs/requirements.md#ask-and-get-cited-answers))
 - **Answer your email.** Lens drafts a reply to an email a watched mailbox brought in, from what that email's
@@ -147,7 +150,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   templates to start from, a search by their words, a download as Markdown, and Undo and Recently deleted instead of a
   confirm. Export an asset or a collection as an evidence PDF with everything Lens found about it, or the parts you
   pick. Publish a namespace's resources, episodes, timeline activities or text as a private RSS feed or a podcast
-  feed that any feed reader or podcast app follows. ([Podcasts](docs/podcasts.md),
+  feed that any feed reader or podcast app follows, and let a routine fill it on a schedule with what's new, or make
+  an episode about the week's new resources. ([Podcasts](docs/podcasts.md),
   [specs from transcripts](docs/notes.md#specs-from-transcripts), [notes](docs/notes.md),
   [evidence PDFs](docs/api.md#evidence-pdfs), [published feeds](docs/feeds.md);
   [checks](docs/requirements.md#learn-from-it))
@@ -159,7 +163,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   on that stream, on a schedule, at a time or when their own webhook is called, alone or with their triggers joined (all
   of them, a number of times, one that doesn't come in time, or a batch): they test conditions (text, patterns,
   numbers, lists, times, days, whether a value changed and whether something like it happened before in their
-  namespaces), then tell you in
+  namespaces) and let a decision model pick the branch, then tell you in
   your own chat app, ask the model or the agent, use a tool, call a web address (its credentials kept sealed), run a
   workflow, pipeline or routine, or change assets and notes. A Classify node in a workflow sorts an asset into labels,
   content types or topics, acting only on a sure answer. Anything that reaches outside Lens or changes more than what
@@ -175,6 +179,12 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   what cost most. Routine choices go to small decision models, and the LLM only when it adds value.
   ([Activity and costs](docs/activity.md), [budgets](docs/budgets.md#one-budget-for-everything),
   [the meter](docs/budgets.md#the-meter-and-the-costs-page); [checks](docs/requirements.md#see-what-it-costs))
+- **Scale out.** Scaling groups add workers when work waits and let them go when it doesn't, by target, step and
+  schedule rules, within min and max and a monthly budget, with every launch, join and hour of cost in the activity
+  ledger. A group launches nothing until you approve its terms in Settings › Auto scaling; agents propose and manage
+  groups over the API, MCP and the assistant, and never approve one. It runs more workers on this machine today;
+  cloud, Proxmox, Linux and model hosts are planned. ([Auto scaling](docs/scaling.md);
+  [checks](docs/requirements.md#scale-out))
 - **Keep it up to date and backed up.** Lens checks for a new release once a day and tells admins by email or a
   notification. One click in Settings › Updates (or one API call) upgrades it through a small agent on the machine,
   showing each step, and rolls back when the new version doesn't start; nothing installs unless an admin says so. The
@@ -220,7 +230,8 @@ server, the NSFW model, the MCP runner, Fedora) stay off or download only when y
 swapped for a cloud provider instead. Setup asks only what has no default: the model, and a budget for a cloud model.
 Picking a cloud model provider fills in its address and a model, so only its key is left to paste. Every setting lives
 in the web app, which works on a phone too: settings are in named groups, a search finds any one by name, and the
-options most people leave as they are stay folded. ([Components](docs/components.md),
+options most people leave as they are stay folded. A thin bar along the top of the web app shows a page or its data is
+still loading. ([Components](docs/components.md),
 [speech providers](docs/speech-providers.md), [local models](docs/local-models.md),
 [cloud model providers](docs/configuration.md#cloud-model-providers); [checks](docs/requirements.md#light-by-default))
 
@@ -235,18 +246,22 @@ These are open pull requests, not yet part of Lens:
 - **Web clipper:** signing in, or using your API token, not only an import webhook's
   ([#406](https://github.com/adeelahmad/lense/pull/406)).
 - **Automations:** more operators for conditions ([#434](https://github.com/adeelahmad/lense/pull/434)).
+- **Nodes:** Lens's own private network between the machines it runs on, a Nebula mesh it issues the certificates
+  for ([#546](https://github.com/adeelahmad/lense/pull/546)).
 
 ## Planned
 
 Next, and not in a pull request yet; each links to where it is tracked:
 
-- **The automations studio:** drawing automations in the web app, and the decide node, where a decision model
-  picks the branch ([automations](docs/automations.md)).
+- **The automations studio:** drawing automations in the web app ([automations](docs/automations.md)).
 - **Timeline:** what each item caused, and Approve and Decline on waiting approvals ([timeline](docs/timeline.md)).
 - **Notes:** nesting a note under its project or area without a click, pages in the graph, and wiki addresses for
   topics, recordings and the other things that have pages ([notes](docs/notes.md)).
 - **Local models:** GPU builds of llama.cpp fetched by Lens, and local embedding models
   ([local models](docs/local-models.md)).
+- **Auto scaling:** providers for AWS, DigitalOcean, Hetzner, Proxmox and Linux hosts over SSH, joining over the
+  Nebula mesh, model hosts (RunPod, Lambda, Hugging Face, SageMaker, Bedrock), and making providers and groups in
+  Settings ([auto scaling](docs/scaling.md)).
 - **Speech providers:** their summaries, chapters and entities as optional imports, and per-minute prices in the
   activity ledger ([speech providers](docs/speech-providers.md)).
 - **Storage:** uploads and assets' media in the file store, and a storage key to download
@@ -286,7 +301,7 @@ The guides are on the [docs site](https://adeelahmad.github.io/lense/) and in th
   [the graph as files](docs/file-tree.md), [NFS share](docs/file-shares.md), [SMB share](docs/smb.md),
   [linked data (RDF)](docs/rdf.md), [IIIF](docs/iiif.md), [Fedora](docs/fedora.md)
 - **Models and cost:** [local models](docs/local-models.md), [speech providers](docs/speech-providers.md),
-  [activity and costs](docs/activity.md), [budgets](docs/budgets.md)
+  [activity and costs](docs/activity.md), [budgets](docs/budgets.md), [auto scaling](docs/scaling.md)
 - **Operate:** [encryption](docs/encryption.md), [storage](docs/storage.md), [database](docs/database.md),
   [logging](docs/logging.md), [telemetry](docs/telemetry.md), [Prometheus](docs/prometheus.md),
   [usage analytics](docs/analytics.md)

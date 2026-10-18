@@ -51,6 +51,7 @@ from app.domain import (
     decide,
     descriptions,
     events,
+    extensions,
     feeds,
     filetree,
     florence,
@@ -58,6 +59,7 @@ from app.domain import (
     integrations,
     library,
     manual,
+    mcp_servers,
     monitoring,
     moondream,
     notebook,
@@ -67,6 +69,8 @@ from app.domain import (
     research,
     responder,
     rss,
+    scaling,
+    scaling_drivers,
     services,
     settings,
     sources,
@@ -2650,6 +2654,122 @@ def set_file_storage(
     return {"saved": changes, "check": checked}
 
 
+# ---------- auto scaling (admins) ----------
+def _scaler(ctx: Context, write: bool = False) -> None:
+    if not ctx.user.admin:
+        raise ToolError("only admins see or change auto scaling")
+    if write and not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to change auto scaling")
+
+
+def _scaling_do(ctx: Context, tool: str, args: dict[str, Any]) -> dict[str, Any]:
+    """A scaling tool's change, as an agent: never an approval of a group's terms (that's the person's, in the web app)."""
+    _scaler(ctx, write=True)
+    try:
+        out = scaling.apply_tool(ctx.db, ctx.cfg, tool, args, ctx.user.email, via="agent")
+    except scaling_drivers.DriverError as e:
+        raise ToolError(f"the provider refused: {e}") from None
+    what = out.get("group") or out.get("unit") or {}
+    table = "scale_group" if "group" in out else "scale_node"
+    auth.audit(ctx.db, ctx.user.as_audit(), f"scaling.{tool}", f"{table}:{what.get('id')}", ["mcp"])
+    if "group" in out and out["group"].get("waiting_for"):
+        out["approve"] = f"{ctx.web}/settings/scaling"
+    return out
+
+
+_GROUP_HOW = (
+    "A group: name, provider (its id), template (what each unit is, as the provider's driver asks), min, max, desired, "
+    "cooldown_seconds, warmup_seconds, terminate (oldest|newest), rules, at_cap (stop|min), enabled, budget (USD a "
+    "month, needed on a provider that charges). Rules: {type: target, metric, target}, {type: step, metric, "
+    'above|below, minutes, add|remove (a count or "50%")}, {type: schedule, cron, timezone, min, max, desired}'
+)
+
+
+@tool(
+    "scaling",
+    "Auto scaling",
+    "Auto scaling: whether it's on, the providers (where units launch: this machine, clouds, Proxmox, a Linux host, "
+    "or model hosts; credentials show only as set), the scaling groups with their rules in words, their budgets and "
+    "why one launches nothing now, the units, the drivers on offer and the metrics rules can watch. Admins only.",
+    admin=True,
+)
+def scaling_overview(ctx: Context) -> dict[str, Any]:
+    _scaler(ctx)
+    return {**scaling.overview(ctx.db, ctx.cfg), "about_metrics": scaling.METRICS, "settings": f"{ctx.web}/settings/scaling"}
+
+
+@tool(
+    "propose_scaling_group",
+    "Propose a scaling group",
+    "Make a scaling group: units launched on a provider between min and max, by its rules, within its budget. It "
+    "launches nothing until the person approves its terms, signed in to the web app (the answer links there); an agent "
+    f"can't approve them. {_GROUP_HOW}. Admins only, with a token that has the write scope.",
+    Arg("group", "object", "the group", required=True),
+    writes=True,
+    admin=True,
+)
+def propose_scaling_group(ctx: Context, group: dict[str, Any]) -> dict[str, Any]:
+    return _scaling_do(ctx, "propose_scaling_group", {"group": group})
+
+
+@tool(
+    "change_scaling_group",
+    "Change a scaling group",
+    "Change a scaling group: only the fields given change. A change that widens what the person approved (another "
+    "provider or unit, a higher max or budget, keeping min at the cap) waits for their approval again, in the web app. "
+    f"{_GROUP_HOW}. Admins only, with a token that has the write scope.",
+    Arg("group_id", "integer", "the group (from scaling)", required=True),
+    Arg("changes", "object", "the fields to change", required=True),
+    writes=True,
+    admin=True,
+)
+def change_scaling_group(ctx: Context, group_id: int, changes: dict[str, Any]) -> dict[str, Any]:
+    return _scaling_do(ctx, "change_scaling_group", {"group_id": group_id, "changes": changes})
+
+
+@tool(
+    "set_scaling_desired",
+    "Ask a scaling group for units",
+    "Ask a scaling group for a number of units now, within its min and max (what the person approved); its rules take "
+    "over again at their next change. Admins only, with a token that has the write scope.",
+    Arg("group_id", "integer", "the group (from scaling)", required=True),
+    Arg("desired", "integer", "units wanted now", required=True, minimum=0, maximum=scaling.MAX_UNITS),
+    writes=True,
+    admin=True,
+)
+def set_scaling_desired(ctx: Context, group_id: int, desired: int) -> dict[str, Any]:
+    return _scaling_do(ctx, "set_scaling_desired", {"group_id": group_id, "desired": desired})
+
+
+@tool(
+    "pause_scaling_group",
+    "Pause a scaling group",
+    "Pause a scaling group (nothing new launches; what runs stays) or resume it (paused false). Admins only, with a "
+    "token that has the write scope.",
+    Arg("group_id", "integer", "the group (from scaling)", required=True),
+    Arg("paused", "boolean", "pause (true) or resume (false)", default=True),
+    Arg("why", "string", "why, shown on the group", max_length=200),
+    writes=True,
+    admin=True,
+)
+def pause_scaling_group(ctx: Context, group_id: int, paused: bool = True, why: str | None = None) -> dict[str, Any]:
+    return _scaling_do(ctx, "pause_scaling_group", {"group_id": group_id, "paused": paused, "why": why})
+
+
+@tool(
+    "terminate_scaling_unit",
+    "Let a scaling unit go",
+    "Let one unit of a scaling group go now: a worker finishes or hands back its job first. Admins only, with a token "
+    "that has the write scope.",
+    Arg("unit_id", "integer", "the unit (from scaling)", required=True),
+    Arg("why", "string", "why, kept with the unit", max_length=200),
+    writes=True,
+    admin=True,
+)
+def terminate_scaling_unit(ctx: Context, unit_id: int, why: str | None = None) -> dict[str, Any]:
+    return _scaling_do(ctx, "terminate_scaling_unit", {"unit_id": unit_id, "why": why})
+
+
 # ---------- monitoring: Prometheus and Grafana next to Lens (admins) ----------
 @tool(
     "monitoring",
@@ -2766,6 +2886,125 @@ def set_sandbox_gateway(ctx: Context, on: bool) -> dict[str, Any]:
         raise ToolError(str(e)) from None
     auth.audit(ctx.db, ctx.user.as_audit(), "lens.sandbox", None, {"on": bool(on), "via": "mcp"})
     return got
+
+
+# ---------- the MCP servers the assistant calls (admins) ----------
+def _extension_me(ctx: Context) -> dict[str, Any]:
+    """Who is asking, as extensions.py checks it: an app given access (OAuth) doesn't count as an admin there."""
+    u = ctx.user
+    return extensions.who(u.id, u.email, u.admin and u.via != "oauth", u.roles)
+
+
+def _server_line(ctx: Context, g: dict[str, Any]) -> dict[str, Any]:
+    s = g.get("spec") or {}
+    return store.clean(
+        {
+            "id": g["id"],
+            "name": g["name"],
+            "title": g.get("title"),
+            "description": g.get("description"),
+            "enabled": bool(g.get("enabled")),
+            "url": s.get("url"),
+            "command": s.get("command"),
+            "args": s.get("args"),
+            "headers": sorted(s.get("headers") or {}) or None,  # names only: their values are never shown
+            "env": sorted(s.get("env") or {}) or None,
+            "tools": [t["name"] for t in s.get("tools") or []],
+            "off": s.get("off") or [],
+            "keep": bool(s.get("keep")),
+            "page": f"{ctx.web}/extensions/{g['id']}",
+        }
+    )
+
+
+@tool(
+    "mcp_servers",
+    "MCP servers",
+    "The MCP servers the assistant can call, added in Extensions: each one's address or command, the names of its "
+    "headers and env (never their values), whether it's on, its tools and the ones switched off, and its page in the "
+    "web app; and the ready-made ones Lens knows (browser, github), whether each is added and what it needs. Admins "
+    "only.",
+    admin=True,
+)
+def mcp_servers_list(ctx: Context) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins see and add MCP servers")
+    added = [_server_line(ctx, g) for g in extensions.visible(ctx.db, _extension_me(ctx), "mcp")]
+    ready = []
+    for p in mcp_servers.presets():
+        have = any(x["name"] == p["name"] or (x.get("url") and x["url"] == p["spec"].get("url")) for x in added)
+        ready.append(
+            store.clean(
+                {
+                    "preset": p["name"],
+                    "label": p["label"],
+                    "description": p["description"],
+                    "added": have,
+                    "values": p["fill"] or None,  # what add_mcp_server needs typed in
+                    "service": services.view(ctx.db, p["needs"]) if p["needs"] else None,
+                }
+            )
+        )
+    return {"servers": added, "ready_made": ready, "add": f"{ctx.web}/extensions/new/mcp"}
+
+
+@tool(
+    "add_mcp_server",
+    "Add an MCP server",
+    "Add an MCP server the assistant can call. A ready-made one: preset browser (once its container runs: set_service) "
+    'or github, with values for what it needs ({"GITHUB_TOKEN": "..."}). Or your own: server {url, headers} for one on '
+    "the network (Streamable HTTP), or {command, args, env} for one that runs as a program in the MCP runner; off lists "
+    "tools to switch off, ask {tool: true or false} which ask first, keep true one session for all its calls. Lens "
+    "asks the server for its tools before saving it, so it must answer. Tokens are sealed and never shown again. "
+    "Admins only, with an API key that has the write scope (an app given access can't add one).",
+    Arg("preset", "string", "a ready-made server", enum=tuple(p["name"] for p in mcp_servers.presets())),
+    Arg("name", "string", "its name: lowercase letters, digits and _ (its tools are called <name>__<tool>)", max_length=41),
+    Arg("server", "object", "{url, headers} or {command, args, env}, with off, ask and keep; with a preset, what to change"),
+    Arg("values", "object", "the values a ready-made server, or the ${NAME}s in your own, need typed in, by name"),
+    Arg("description", "string", "what it's for", max_length=1024),
+    writes=True,
+    admin=True,
+)
+def add_mcp_server(
+    ctx: Context,
+    preset: str | None = None,
+    name: str | None = None,
+    server: dict[str, Any] | None = None,
+    values: dict[str, Any] | None = None,
+    description: str | None = None,
+) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins see and add MCP servers")
+    if ctx.user.via == "oauth":
+        raise ToolError("an app given access can't add MCP servers, even an admin's: use an admin's API key, or the web app")
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to add one")
+    spec = dict(server or {})
+    if preset:
+        p = next(x for x in mcp_servers.presets() if x["name"] == preset)
+        if p["needs"]:
+            s = services.view(ctx.db, p["needs"])
+            if not s["running"]:
+                raise ToolError(
+                    f"the {s['label'].lower()} isn't running yet: turn it on with set_service ({p['needs']}), and add "
+                    "it once services says it is"
+                )
+        spec = {**p["spec"], **spec}
+        name, description = name or p["name"], description or p["description"]
+    elif not spec:
+        raise ToolError("give a preset, or the server: {url, headers} or {command, args, env}")
+    if not name:
+        raise ToolError("name it: lowercase letters, digits and _")
+    spec, missing = mcp_servers.filled(spec, {k: v for k, v in (values or {}).items() if isinstance(v, str)})
+    if missing:
+        raise ToolError(f"type in {', '.join(missing)} in values")
+    manifest = {"name": name, "kind": "mcp", **({"description": description} if description else {}), **spec}
+    try:
+        eid = extensions.create(ctx.db, _extension_me(ctx), manifest)
+    except (ValueError, PermissionError) as e:
+        raise ToolError(str(e)) from None
+    auth.audit(ctx.db, ctx.user.as_audit(), "extension.create", f"extension:{eid}", {"origin": "code", "via": "mcp"})
+    return _server_line(ctx, extensions.visible_one(ctx.db, _extension_me(ctx), eid))
 
 
 # ---------- how install.sh set this machine up: reachable on the network, and the edition (admins) ----------

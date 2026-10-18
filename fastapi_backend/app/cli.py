@@ -283,6 +283,7 @@ def platform_main(argv, config):
         notify,
         passkeys,
         routines,
+        scaling,
         sensors,
         settings,
         shares,
@@ -407,6 +408,7 @@ def platform_main(argv, config):
                     tunnel.start(db, C, stop, name=wk.name, log=say)  # and the Cloudflare tunnel, while it's on
                     https.start(db, C, stop, name=wk.name, log=say)  # and HTTPS, where the ports are (LENS_HTTPS_LISTEN)
                     local_llm.start(db, C, stop, name=wk.name, log=say)  # and the local chat model, while it's on
+                    scaling.start(db, C, stop, name=wk.name, log_=say)  # and auto scaling (docs/scaling.md), while it's on
                     nfs_share.start(db, C, stop, name=wk.name, log=say)  # and the file tree over NFS, while it's on
                     updates.start(db, C, stop, log=say)  # and the daily check for a new release (docs/updates.md)
                 _stop_on_term()
