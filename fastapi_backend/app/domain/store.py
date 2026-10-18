@@ -178,9 +178,11 @@ DEFAULTS = {
         # a model the admin knows can see images: it describes pages and shots (the describe step); none, none are
         "vision_model": None,
         "describe_max": 50,  # pages or shots of a resource described at most
-        # what describes them: "llm" (vision_model, above) or "florence-2" (on this machine, florence.py)
+        # what describes them: "llm" (vision_model, above), or on this machine "florence-2" (florence.py) or
+        # "moondream" (moondream.py)
         "describe_engine": "llm",
         "florence_model": "base",  # Florence-2 base (about 280 MB) or large (about 830 MB)
+        "moondream_model": "moondream3-preview",  # Moondream 3 Preview (BSL 1.1, a GPU) or moondream2 (Apache-2.0)
     },
     "graph": {"max_nodes": 150, "min_edge_weight": 2},
     "search": {

@@ -1975,6 +1975,10 @@ mac-ocr = [
 mlx = [
     { name = "mlx-whisper" },
 ]
+moondream = [
+    { name = "torch" },
+    { name = "transformers" },
+]
 msg = [
     { name = "extract-msg" },
 ]
@@ -2092,15 +2096,17 @@ requires-dist = [
     { name = "surrealdb", specifier = ">=2.0,<3" },
     { name = "tokenizers", marker = "extra == 'florence'" },
     { name = "tokenizers", marker = "extra == 'injection'" },
+    { name = "torch", marker = "extra == 'moondream'" },
     { name = "torch", marker = "extra == 'punctuation'" },
     { name = "torch", marker = "extra == 'sensevoice'" },
     { name = "torch", marker = "extra == 'voices'" },
     { name = "torchaudio", marker = "extra == 'sensevoice'" },
     { name = "torchaudio", marker = "extra == 'voices'" },
+    { name = "transformers", marker = "extra == 'moondream'" },
     { name = "transformers", marker = "extra == 'punctuation'" },
     { name = "webauthn", specifier = ">=3.0.1,<4" },
 ]
-provides-extras = ["sensevoice", "whisper", "mlx", "laya", "voices", "pyannote", "faces", "mac-ocr", "rapidocr", "doctr", "insightface", "objects", "punctuation", "spacy", "injection", "florence", "validate", "smb", "sandbox", "web", "msg"]
+provides-extras = ["sensevoice", "whisper", "mlx", "laya", "voices", "pyannote", "faces", "mac-ocr", "rapidocr", "doctr", "insightface", "objects", "punctuation", "spacy", "injection", "florence", "moondream", "validate", "smb", "sandbox", "web", "msg"]
 
 [package.metadata.requires-dev]
 dev = [

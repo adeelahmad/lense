@@ -828,8 +828,9 @@ export const FIELDS: FieldSpec[] = [
     options: [
       { value: "llm", label: "The provider’s model that can see images" },
       { value: "florence-2", label: "Florence-2 on this server (MIT, runs on the CPU)" },
+      { value: "moondream", label: "Moondream on this server (PyTorch)" },
     ],
-    hint: "The Describe step says what each page and shot shows. Florence-2 sends no picture anywhere and is fetched the first time it’s needed",
+    hint: "The Describe step says what each page and shot shows. Florence-2 and Moondream send no picture anywhere and are fetched the first time they’re needed",
   },
   {
     section: "llm",
@@ -839,6 +840,19 @@ export const FIELDS: FieldSpec[] = [
     options: [
       { value: "base", label: "Base (about 280 MB, for small machines)" },
       { value: "large", label: "Large (about 830 MB, more detail, slower)" },
+    ],
+  },
+  {
+    section: "llm",
+    key: "moondream_model",
+    label: "Moondream model",
+    kind: "select",
+    options: [
+      {
+        value: "moondream3-preview",
+        label: "Moondream 3 Preview (about 19 GB, needs a GPU; BSL 1.1, not open source)",
+      },
+      { value: "moondream2", label: "Moondream 2 (about 3.7 GB, runs on the CPU, slowly; Apache-2.0)" },
     ],
   },
   {
