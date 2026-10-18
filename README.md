@@ -87,15 +87,14 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   nothing is lost. Each answer keeps a record of what produced it (the model, its tools, how long it took and what it
   cost), opened from its header. It reads answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine
   (opt-in), any message in one click. Long conversations are summarised before they fill the model's context, and
-  `/clear` and `/compact` start afresh or summarise now. Conversations title themselves after their first answer, unless
-  you name them. It answers questions about Lens itself, from its docs and this server. Each namespace can have its
-  own assistant with its own name, instructions and memory, answering in Telegram and Slack (built in, with voice
-  notes and files), in
+  `/clear` and `/compact` start afresh or summarise now. It answers questions about Lens itself (how to back up,
+  whether Telegram is on) from its docs and this server, citing both. Conversations title themselves after their first answer, unless
+  you name them. Each namespace can have its own assistant with
+  its own name, instructions and memory, answering in Telegram and Slack (built in, with voice notes and files), in
   Discord, Matrix, WhatsApp and other chat rooms through Matterbridge, and by email at an address of its own that you
   email or forward things to. ([Chat](docs/assistant.md), [web search](docs/assistant.md#web-search-and-reading-pages),
   [mail, calendars and files](docs/assistant.md#mail-calendars-and-files), [code sandbox](docs/assistant.md#code-sandbox), [answer records](docs/assistant.md#what-each-answer-records),
-  [questions about Lens](docs/assistant.md#questions-about-lens-itself),
-  [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md), [speech providers](docs/speech-providers.md);
+  [questions about Lens](docs/assistant.md#questions-about-lens-itself), [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md), [speech providers](docs/speech-providers.md);
   [checks](docs/requirements.md#ask-and-get-cited-answers))
 - **Extend the assistant.** Add tools (a prompt, a web request, a graph drawn on the canvas, or sandboxed Python),
   skills, hooks and MCP servers, by code, on the canvas or just by asking. Remote MCP servers connect by address, and
@@ -169,8 +168,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   content types or topics, acting only on a sure answer, and an Entity filter node keeps the entities you want. Anything that reaches outside Lens or changes more than what
   set it off asks first, until you let it run on its own: on the Approvals page or, for a change inside Lens, with a yes
   in the chat it told you in; agents can decline an approval but never give one. Each automation has limits and budgets,
-  and agents make, try and run them over MCP and in the assistant, or draft one from a sentence; the studio to draw them
-  in the web app is planned. ([Processing](docs/processing.md#workflows-and-the-canvas),
+  and agents make, try and run them over MCP and in the assistant, or draft one from a sentence. An automation's
+  workflow is drawn and tried on the workflow canvas, with its actions in the palette; the studio's builder is
+  planned. ([Processing](docs/processing.md#workflows-and-the-canvas),
   [converting assets](docs/processing.md#converting-assets), [notifications](docs/notifications.md),
   [automations](docs/automations.md),
   [approvals](docs/automations.md#approvals), [timeline](docs/timeline.md); [checks](docs/requirements.md#automate-it))
@@ -184,7 +184,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   schedule rules, within min and max and a monthly budget, with every launch, join and hour of cost in the activity
   ledger. A group launches nothing until you approve its terms in Settings › Auto scaling; agents propose and manage
   groups over the API, MCP and the assistant, and never approve one. It runs more workers on this machine today;
-  cloud, Proxmox, Linux and model hosts are planned. ([Auto scaling](docs/scaling.md);
+  DigitalOcean and Hetzner Cloud providers are in progress (built, launching once the mesh's install line lands), and
+  AWS, Proxmox, Linux and model hosts are planned. ([Auto scaling](docs/scaling.md);
   [checks](docs/requirements.md#scale-out))
 - **Keep it up to date and backed up.** Lens checks for a new release once a day and tells admins by email or a
   notification. One click in Settings › Updates (or one API call) upgrades it through a small agent on the machine,
@@ -254,15 +255,16 @@ These are open pull requests, not yet part of Lens:
 
 Next, and not in a pull request yet; each links to where it is tracked:
 
-- **The automations studio:** drawing automations in the web app ([automations](docs/automations.md)).
+- **The automations studio:** a When, If and Then builder for automations, with their runs and costs, in the web app
+  ([automations](docs/automations.md)).
 - **Timeline:** what each item caused, and Approve and Decline on waiting approvals ([timeline](docs/timeline.md)).
 - **Notes:** nesting a note under its project or area without a click, pages in the graph, and wiki addresses for
   topics, recordings and the other things that have pages ([notes](docs/notes.md)).
 - **Local models:** GPU builds of llama.cpp fetched by Lens, and local embedding models
   ([local models](docs/local-models.md)).
-- **Auto scaling:** providers for AWS, DigitalOcean, Hetzner, Proxmox and Linux hosts over SSH, joining over the
-  Nebula mesh, model hosts (RunPod, Lambda, Hugging Face, SageMaker, Bedrock), and making providers and groups in
-  Settings ([auto scaling](docs/scaling.md)).
+- **Auto scaling:** providers for AWS, Proxmox and Linux hosts over SSH, joining over the Nebula mesh, model hosts
+  (RunPod, Lambda, Hugging Face, SageMaker, Bedrock), and making providers and groups in Settings
+  ([auto scaling](docs/scaling.md)).
 - **Speech providers:** their summaries, chapters and entities as optional imports, and per-minute prices in the
   activity ledger ([speech providers](docs/speech-providers.md)).
 - **Storage:** uploads and assets' media in the file store, and a storage key to download
