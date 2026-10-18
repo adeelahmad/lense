@@ -3443,6 +3443,10 @@ export type Chat = {
    * every message of every version, oldest first
    */
   tree?: Array<ChatNode>;
+  /**
+   * what the model reads instead of the messages up to its `upto`; none before the first summary
+   */
+  summary?: ChatMemory | null;
   [key: string]: unknown;
 };
 
@@ -3612,6 +3616,40 @@ export type ChatCreate = {
    * at most this many tool calls in each answer (1 to ai.max_tool_calls); left out: your latest choice
    */
   max_tool_calls?: number | null;
+};
+
+/**
+ * ChatMemory
+ *
+ * What the model reads instead of the messages a conversation's summary covers (long conversations are summarised;
+ * /compact and /clear).
+ */
+export type ChatMemory = {
+  /**
+   * Text
+   *
+   * the summary; empty after /clear, when the messages it covers aren't read at all
+   */
+  text: string;
+  /**
+   * Upto
+   *
+   * the last message it covers, of the version showing
+   */
+  upto: number;
+  /**
+   * At
+   *
+   * when it was written
+   */
+  at?: string | null;
+  /**
+   * Covers
+   *
+   * how many messages of the version showing it stands for
+   */
+  covers: number;
+  [key: string]: unknown;
 };
 
 /**
@@ -5289,6 +5327,33 @@ export type ConversionNodeTestResult = {
    * Ms
    */
   ms?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ConvertedFrom
+ *
+ * The asset a convert step made this one from (docs/processing.md#converting-assets).
+ */
+export type ConvertedFrom = {
+  /**
+   * Resource
+   */
+  resource: number;
+  /**
+   * To
+   */
+  to: "audio" | "images";
+  /**
+   * Page
+   *
+   * the page it is, from 0, for images made of a document's pages
+   */
+  page?: number | null;
+  /**
+   * Title
+   */
+  title?: string | null;
   [key: string]: unknown;
 };
 
@@ -18841,6 +18906,10 @@ export type Recording = {
    * an email's attachment made a resource of its own: that email
    */
   attached_to?: AttachedTo | null;
+  /**
+   * made by a convert step: the asset it was made from
+   */
+  converted_from?: ConvertedFrom | null;
   /**
    * a web page captured as a document
    */
