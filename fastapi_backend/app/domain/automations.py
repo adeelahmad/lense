@@ -13,9 +13,9 @@ An automation is an `automation:<id>` row:
 - What its runs left: `last_run_at`, `last_status`, `counters` ({runs, skipped, limited, missed}).
 - `removed_at`: deleted (switched off and hidden; restore brings it back).
 
-Parts of the studio built in their own steps are called once they are there (automation_nodes.provided): schedules
-and times (timers), webhooks (automation_hooks) and joins other than any (match.join_step). Until then a trigger or
-join that needs one is refused as coming soon.
+Parts of the studio built in their own steps are called through automation_nodes.provided: schedules and times
+(timers), webhooks (automation_hooks) and joins other than any (match.join_step, whose absent and batch modes wait
+on timers). A trigger or join whose part isn't there is refused as coming soon.
 """
 
 from __future__ import annotations
@@ -981,7 +981,7 @@ def _route(db, cfg, a, t, act, who, sec):
     if a["join"]["mode"] != "any":
         step = provided("match", "join_step")
         done = step(db, cfg, a, t["as"], act) if step is not None else []
-        return sum(1 for c in done if fire(db, cfg, a["id"], t["as"], c.get("event") or act, c.get("events")) is not None)
+        return sum(1 for c in done if fire(db, cfg, a["id"], c.get("as") or t["as"], c.get("event") or act, c.get("events")) is not None)
     return 1 if fire(db, cfg, a["id"], t["as"], act, {t["as"]: act}) is not None else 0
 
 

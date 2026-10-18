@@ -34,6 +34,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   only in the automation's namespaces and only as its person may see them. `changed` in a trigger's where or an If
   compares each activity with the last one, and trying an automation keeps nothing
   ([Looking back](docs/automations.md#looking-back)).
+- **Automations wait for their triggers together.** An automation's join runs it when all of its triggers came within
+  a time (for the same sender, say), when one came a number of times, when one didn't come in time after another (no
+  reply within two days), or once for a batch collected over a time. What it waits on outlasts a restart, and switching
+  the automation off drops it ([Joins](docs/automations.md#joins)).
 - **Specs from transcripts.** Turn a voice session or a meeting into a technical spec, saved as a note linked to it:
   the model writes the spec, then lists every named decision, every "no" and "not that, this", every constraint and
   every gap the speaker left to decide later, each with its quote and a link to the moment it was said; a quote the
