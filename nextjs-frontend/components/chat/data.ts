@@ -1,10 +1,9 @@
 "use client";
 
-import { useQuery, type QueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
 
 import { Chats } from "@/app/openapi-client";
-import type { Chat } from "@/app/openapi-client/types.gen";
 import { data, useApiClient } from "@/lib/api/browser";
 
 export function useChats() {
@@ -83,17 +82,4 @@ export function useStopAnswer(wait = 15_000) {
     },
     [client, wait],
   );
-}
-
-/** After an answer is written: the conversation (and its approvals) read again, so it holds the answer `mid`. The
- * page moves to /chat/{id} as a new conversation's first answer streams, and on a slow device that first load is
- * still in flight when the answer ends; the query cache folds a refetch asked for then into the load, which can
- * predate the answer. So when the conversation read back lacks the answer, it is read once more. */
-export async function refreshAnswered(qc: QueryClient, cid: number, mid: number | null) {
-  const has = () => mid == null || (qc.getQueryData<Chat>(["chat", cid])?.messages ?? []).some((m) => m.id === mid);
-  await Promise.all([
-    qc.invalidateQueries({ queryKey: ["chat", cid] }),
-    qc.invalidateQueries({ queryKey: ["approvals", cid] }),
-  ]);
-  if (!has()) await qc.invalidateQueries({ queryKey: ["chat", cid] });
 }

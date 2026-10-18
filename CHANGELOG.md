@@ -13,10 +13,6 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   `POST /api/v1/activities/{id}/react` and `/activities/{id}/comments`
   ([Reactions and comments](docs/timeline.md#reactions-and-comments)).
 
-- **Fixed: a new conversation's first answer shows on a slow phone.** The page moves to the conversation as its
-  first answer streams, and when that first load was still in flight as the answer ended, the answer was not shown
-  until the page was reloaded ("No answer was saved for this question"); the conversation is now read again.
-
 ## 0.15.0 <small>October 18, 2026</small> {id="0.15.0"}
 
 - **The assistant sends mail, adds events and writes files, after your yes.** New tools `send_mail` (send, or save a
