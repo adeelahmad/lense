@@ -269,7 +269,7 @@ These are open pull requests, not yet part of Lens:
   ([#406](https://github.com/adeelahmad/lense/pull/406)).
 - **Automations:** more operators for conditions ([#434](https://github.com/adeelahmad/lense/pull/434)).
 - **Nodes:** Lens's own private network between the machines it runs on, a Nebula mesh it issues the certificates
-  for ([#591](https://github.com/adeelahmad/lense/pull/591)).
+  for ([#595](https://github.com/adeelahmad/lense/pull/595)).
 
 ## Planned
 
