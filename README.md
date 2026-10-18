@@ -101,9 +101,10 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
 - **Answer your email.** Lens drafts a reply to an email a watched mailbox brought in, from what that email's
   namespace holds: each fact cited to its excerpt, what the archive doesn't say marked for you to confirm, addressed
   and threaded as a reply to it. Drafts wait for you to edit or set aside, and nothing is sent on its own; ask for one
-  through the API or MCP (agents list what waits and draft with your instructions), or add the reply step to a
-  pipeline to draft each new email, which skips mailing lists, no-reply senders and your own mail without a model
-  call. ([Email replies](docs/email-replies.md); [checks](docs/requirements.md#answer-your-email))
+  on the Replies page (Enter drafts the first, then copy it or open it in your mail app), through the API or MCP
+  (agents list what waits and draft with your instructions), or add the reply step to a pipeline to draft each new
+  email, which skips mailing lists, no-reply senders and your own mail without a model call.
+  ([Email replies](docs/email-replies.md); [checks](docs/requirements.md#answer-your-email))
 - **Work toward a goal in projects.** A project has a name, a goal in your words, instructions and the namespaces it
   draws on. Its coordinator conversation looks at the project as a whole: it is told about every thread, starts threads
   with a brief that the assistant answers there in the background, reads them and marks them done. Each thread is a
