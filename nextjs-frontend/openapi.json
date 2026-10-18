@@ -27546,6 +27546,171 @@
         }
       }
     },
+    "/api/v1/projects/{pid}/schedules": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Add Schedule",
+        "description": "Ask a prompt on a schedule: each time, in a new thread or always the same one, answered in the background as\nyou, with your tools, approvals and budgets.",
+        "operationId": "add_schedule",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectScheduleCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectSchedule"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{pid}/schedules/{sid}": {
+      "patch": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Update Schedule",
+        "description": "Change a schedule, or switch it off or on.",
+        "operationId": "update_schedule",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          },
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectScheduleUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectSchedule"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Remove Schedule",
+        "description": "Remove a schedule. The threads it started stay.",
+        "operationId": "remove_schedule",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          },
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chats/{cid}/research": {
       "post": {
         "tags": [
@@ -66400,6 +66565,14 @@
             "type": "array",
             "title": "Thread List",
             "description": "its threads, the most recently added to first"
+          },
+          "schedules": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectSchedule"
+            },
+            "type": "array",
+            "title": "Schedules",
+            "description": "prompts it asks on a schedule"
           }
         },
         "additionalProperties": true,
@@ -66449,6 +66622,248 @@
           "namespaces"
         ],
         "title": "ProjectCreate"
+      },
+      "ProjectSchedule": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt",
+            "description": "what it asks each time, as a brief"
+          },
+          "cron": {
+            "type": "string",
+            "title": "Cron",
+            "description": "when: five cron fields (minute hour day-of-month month day-of-week)"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone",
+            "default": "UTC"
+          },
+          "thread": {
+            "type": "string",
+            "title": "Thread",
+            "description": "new: a new thread each time; same: always the same one",
+            "default": "new"
+          },
+          "on": {
+            "type": "boolean",
+            "title": "On",
+            "default": true
+          },
+          "chat": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chat",
+            "description": "its thread, when it asks in the same one (made on its first run)"
+          },
+          "when": {
+            "type": "string",
+            "title": "When",
+            "description": "the schedule in words",
+            "default": ""
+          },
+          "next_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next At",
+            "description": "its next time (none while off or the project is archived)"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectScheduleRun"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "prompt",
+          "cron"
+        ],
+        "title": "ProjectSchedule"
+      },
+      "ProjectScheduleCreate": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Prompt",
+            "description": "what to ask each time, answered in the background"
+          },
+          "cron": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Cron",
+            "description": "when: five cron fields, like 0 8 * * 1-5 (8:00 on weekdays), or @daily"
+          },
+          "timezone": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Timezone",
+            "description": "the time zone the schedule is in, like Europe/London",
+            "default": "UTC"
+          },
+          "thread": {
+            "type": "string",
+            "enum": [
+              "new",
+              "same"
+            ],
+            "title": "Thread",
+            "description": "new: a new thread each time; same: always the same one",
+            "default": "new"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "prompt",
+          "cron"
+        ],
+        "title": "ProjectScheduleCreate"
+      },
+      "ProjectScheduleRun": {
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "the time it was for"
+          },
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why it didn't ask, or what went wrong"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "ProjectScheduleRun"
+      },
+      "ProjectScheduleUpdate": {
+        "properties": {
+          "prompt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt"
+          },
+          "cron": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cron"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
+          },
+          "thread": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "new",
+                  "same"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thread"
+          },
+          "on": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On",
+            "description": "switched off, it waits until it's switched on again"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ProjectScheduleUpdate",
+        "description": "Only the fields you send change."
       },
       "ProjectSummary": {
         "properties": {

@@ -11,7 +11,18 @@ from app.api.deps import Acl, Cfg, CurrentUser, Db, Principal, Writer
 from app.domain import projects
 from app.domain.store import DB
 from app.schemas.common import Created, Ok
-from app.schemas.projects import Project, ProjectCreate, ProjectSummary, ProjectThread, ProjectUpdate, ThreadCreate, ThreadUpdate
+from app.schemas.projects import (
+    Project,
+    ProjectCreate,
+    ProjectSchedule,
+    ProjectScheduleCreate,
+    ProjectScheduleUpdate,
+    ProjectSummary,
+    ProjectThread,
+    ProjectUpdate,
+    ThreadCreate,
+    ThreadUpdate,
+)
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -41,7 +52,7 @@ def summary(db: DB, p: dict[str, Any], threads: list[dict[str, Any]] | None = No
 def view(db: DB, p: dict[str, Any]) -> Project:
     projects.coordinator(db, p)  # made again if its conversation was deleted
     threads = projects.threads(db, p)
-    return Project.model_validate({**summary(db, p, threads), "thread_list": threads})
+    return Project.model_validate({**summary(db, p, threads), "thread_list": threads, "schedules": projects.schedules(db, p)})
 
 
 @router.get("")
@@ -142,4 +153,43 @@ def release_thread(pid: int, cid: int, user: Writer, db: Db) -> Ok:
         raise HTTPException(404, "no such thread in this project") from None
     except ValueError as e:
         raise HTTPException(400, str(e)) from None
+    return Ok()
+
+
+def _one(db: DB, p: dict[str, Any], sid: str) -> ProjectSchedule:
+    return ProjectSchedule.model_validate(next(s for s in projects.schedules(db, p) if s["id"] == sid))
+
+
+@router.post("/{pid}/schedules")
+def add_schedule(pid: int, body: ProjectScheduleCreate, user: Writer, db: Db) -> ProjectSchedule:
+    """Ask a prompt on a schedule: each time, in a new thread or always the same one, answered in the background as
+    you, with your tools, approvals and budgets."""
+    p = own(db, pid, user)
+    try:
+        sc = projects.add_schedule(db, p, body.prompt, body.cron, body.timezone, body.thread)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    return _one(db, p, sc["id"])
+
+
+@router.patch("/{pid}/schedules/{sid}")
+def update_schedule(pid: int, sid: str, body: ProjectScheduleUpdate, user: Writer, db: Db) -> ProjectSchedule:
+    """Change a schedule, or switch it off or on."""
+    p = own(db, pid, user)
+    try:
+        projects.update_schedule(db, p, sid, body.prompt, body.cron, body.timezone, body.thread, body.on)
+    except KeyError:
+        raise HTTPException(404, "no such schedule in this project") from None
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    return _one(db, p, sid)
+
+
+@router.delete("/{pid}/schedules/{sid}")
+def remove_schedule(pid: int, sid: str, user: Writer, db: Db) -> Ok:
+    """Remove a schedule. The threads it started stay."""
+    try:
+        projects.remove_schedule(db, own(db, pid, user), sid)
+    except KeyError:
+        raise HTTPException(404, "no such schedule in this project") from None
     return Ok()

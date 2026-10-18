@@ -40,6 +40,9 @@ import type {
   AddRecordingPermissionData,
   AddRecordingPermissionErrors,
   AddRecordingPermissionResponses,
+  AddScheduleData,
+  AddScheduleErrors,
+  AddScheduleResponses,
   AddVaultPasskeyData,
   AddVaultPasskeyErrors,
   AddVaultPasskeyResponses,
@@ -1467,6 +1470,9 @@ import type {
   RemoveRecordingPermissionData,
   RemoveRecordingPermissionErrors,
   RemoveRecordingPermissionResponses,
+  RemoveScheduleData,
+  RemoveScheduleErrors,
+  RemoveScheduleResponses,
   RemoveUserData,
   RemoveUserErrors,
   RemoveUserResponses,
@@ -1998,6 +2004,9 @@ import type {
   UpdateRoutineData,
   UpdateRoutineErrors,
   UpdateRoutineResponses,
+  UpdateScheduleData,
+  UpdateScheduleErrors,
+  UpdateScheduleResponses,
   UpdateSearchData,
   UpdateSearchErrors,
   UpdateSearchResponses,
@@ -11155,6 +11164,57 @@ export class Projects {
   ): RequestResult<UpdateThreadResponses, UpdateThreadErrors, ThrowOnError> {
     return (options.client ?? client).patch<UpdateThreadResponses, UpdateThreadErrors, ThrowOnError>({
       url: "/api/v1/projects/{pid}/threads/{cid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Add Schedule
+   *
+   * Ask a prompt on a schedule: each time, in a new thread or always the same one, answered in the background as
+   * you, with your tools, approvals and budgets.
+   */
+  public static addSchedule<ThrowOnError extends boolean = false>(
+    options: Options<AddScheduleData, ThrowOnError>,
+  ): RequestResult<AddScheduleResponses, AddScheduleErrors, ThrowOnError> {
+    return (options.client ?? client).post<AddScheduleResponses, AddScheduleErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}/schedules",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove Schedule
+   *
+   * Remove a schedule. The threads it started stay.
+   */
+  public static removeSchedule<ThrowOnError extends boolean = false>(
+    options: Options<RemoveScheduleData, ThrowOnError>,
+  ): RequestResult<RemoveScheduleResponses, RemoveScheduleErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveScheduleResponses, RemoveScheduleErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}/schedules/{sid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Schedule
+   *
+   * Change a schedule, or switch it off or on.
+   */
+  public static updateSchedule<ThrowOnError extends boolean = false>(
+    options: Options<UpdateScheduleData, ThrowOnError>,
+  ): RequestResult<UpdateScheduleResponses, UpdateScheduleErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateScheduleResponses, UpdateScheduleErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}/schedules/{sid}",
       ...options,
       headers: {
         "Content-Type": "application/json",
