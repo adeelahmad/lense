@@ -83,6 +83,8 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "undo_topic_change",
         "write_note",
         "rename_chat",
+        "create_project",
+        "update_project",
         "create_podcast",
         "create_feed",
         "publish_to_feed",
@@ -550,7 +552,7 @@ def test_monitoring_tools(client, db, env, monkeypatch):
     assert "no upgrade agent" in tool_error(client, ha, "set_monitoring", on=True)
     # and every optional container, the same way
     got = tool(client, ha, "services")
-    assert [s["profile"] for s in got["services"]] == ["mcp", "browser", "monitoring"]
+    assert [s["profile"] for s in got["services"]] == ["mcp", "browser", "monitoring", "mesh"]
     assert "no upgrade agent" in tool_error(client, ha, "set_service", profile="browser", on=True)
     assert "only admins" in tool_error(client, env["h"], "set_service", profile="browser", on=True)
 

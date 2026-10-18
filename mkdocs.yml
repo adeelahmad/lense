@@ -78,6 +78,7 @@ nav:
       - Access: access.md
   - Use:
       - Chat and batch runs: assistant.md
+      - Projects: projects.md
       - Chat rooms: chat-rooms.md
       - Email: assistant-email.md
       - Podcasts: podcasts.md

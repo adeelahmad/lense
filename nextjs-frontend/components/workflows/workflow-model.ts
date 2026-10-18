@@ -316,26 +316,26 @@ export const NODES: Record<string, Info> = {
   },
   // Graph workflows (scope graph)
   candidates: {
-    label: "Look-alike entities",
-    describe:
-      "Pairs of entities that may be one thing, found by rules (same letters, acronym, spelling, sound, one name in the other)",
+    label: "Find what to tidy",
+    describe: "Found by rules: look-alike entities to merge or link, entities whose type looks wrong, or noise to hide",
     icon: SearchCheck,
     tone: "green",
     inputs: 1,
     outputs: ["out"],
     takes: "namespaces",
-    gives: "pairs[]",
+    gives: "candidates[]",
     group: "Entities",
   },
   llm_judge: {
     label: "Ask the model",
-    describe: "Asks the model whether each pair is the same thing, with lines where each name appears",
+    describe:
+      "Asks the model about each candidate, with lines where each name appears: one thing or two, its type, or noise",
     icon: Gavel,
     tone: "gold",
     inputs: 1,
     outputs: ["out"],
-    takes: "pairs[]",
-    gives: "pairs[] with a verdict",
+    takes: "candidates[]",
+    gives: "candidates[] with a verdict",
     group: "AI",
   },
   filter: {
@@ -386,13 +386,14 @@ export const NODES: Record<string, Info> = {
   },
   apply_changes: {
     label: "Apply changes",
-    describe: "Merges or links the pairs it’s sure of and proposes the rest for someone to accept; all can be undone",
+    describe:
+      "Makes the changes it’s sure of (merges, links, types, hides) and proposes the rest for someone to accept; all can be undone",
     icon: CheckCheck,
     tone: "gold",
     inputs: 1,
     outputs: [],
-    takes: "pairs[]",
-    gives: "merges · links · proposals",
+    takes: "candidates[]",
+    gives: "changes · proposals",
     group: "Keep",
   },
 };
@@ -499,6 +500,13 @@ export const waits = (n: WfNode) => n.config.delay != null || n.config.when != n
 export const KEEPS = ["output", "field", "save_entities", "apply_changes"];
 /** A node that keeps something only as it's set up: a classify node that acts on a sure answer. */
 export const savesAsSet = (n: WfNode) => n.type === "classify" && Boolean(n.config.apply);
+/** What a candidates node looks for. */
+export const CANDIDATE_KINDS: Record<string, string> = {
+  merge: "look-alikes in a namespace",
+  link: "look-alikes across namespaces",
+  retype: "wrong types",
+  hide: "noise",
+};
 /** What a classify node chooses from. */
 export const VOCABULARIES: Record<string, string> = { content_type: "Content types", topic: "The namespace’s topics" };
 /** Nodes with a body of nodes inside, opened by double-clicking. */
@@ -993,13 +1001,13 @@ export function nodeSummary(
       return c.field != null ? (names.field(Number(c.field)) ?? `field #${c.field}`) : "Choose a field";
     case "candidates":
       return [
-        c.kind === "link" ? "across namespaces" : "in each namespace",
+        CANDIDATE_KINDS[String(c.kind ?? "merge")] ?? String(c.kind),
         `${Math.round(Number(c.min_confidence ?? 0.7) * 100)}%+`,
         `up to ${Number(c.limit ?? 100)}`,
         ...((c.types as string[] | undefined)?.length ? [(c.types as string[]).join(", ")] : []),
       ].join(" · ");
     case "llm_judge":
-      return `${Number(c.batch ?? 25)} pairs a call${c.model ? ` · ${String(c.model)}` : ""}`;
+      return `${Number(c.batch ?? 25)} at a time${c.model ? ` · ${String(c.model)}` : ""}`;
     case "apply_changes":
       return c.apply_above == null
         ? "Propose every change"
@@ -1166,8 +1174,8 @@ export function problems(
       fail("Only the asset’s classification can be acted on.");
     else if (n.type === "candidates" && !between(c.min_confidence, 0, 1, false))
       fail("How sure is a number from 0 to 1.");
-    else if (n.type === "candidates" && !between(c.limit, 1, 1000, true)) fail("At most is 1 to 1000 pairs.");
-    else if (n.type === "llm_judge" && !between(c.batch, 1, 100, true)) fail("Pairs a call is 1 to 100.");
+    else if (n.type === "candidates" && !between(c.limit, 1, 1000, true)) fail("At most is 1 to 1000 a run.");
+    else if (n.type === "llm_judge" && !between(c.batch, 1, 100, true)) fail("At a time is 1 to 100.");
     else if (n.type === "apply_changes" && !between(c.apply_above, 0, 1, false))
       fail("Sure enough at is a number from 0 to 1.");
     else if (n.type === "apply_changes" && !between(c.max_apply, 0, 1000, true)) fail("At most is 0 to 1000.");

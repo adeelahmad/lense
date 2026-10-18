@@ -46,6 +46,8 @@ x-backend: &backend
     OPENAPI_OUTPUT_FILE: ./shared-data/openapi.json
     # the volume shared with the matterbridge service (its config, written from Settings → Chat rooms)
     LENS_MATTERBRIDGE_DIR: /matterbridge
+    # the volume shared with the mesh service (its config, written while the mesh is on; docs/mesh.md)
+    LENS_MESH_DIR: /mesh
     # the MCP runner (the optional `mcp` service, docs/assistant.md): MCP servers that run as a program, sandboxed there
     LENS_MCP_RUNNER_URL: http://mcp:8090
     LENS_MCP_TOKEN_FILE: /mcp-key/token
@@ -65,6 +67,7 @@ x-backend: &backend
     - ./docs:/docs:ro
     - ${AUDIO_DIR:-./local-audio}:/audio:ro
     - matterbridge-data:/matterbridge
+    - mesh-data:/mesh
     - mcp-key:/mcp-key:ro
     - sandbox-key:/sandbox-key:ro
   depends_on:
@@ -337,9 +340,41 @@ services:
       - fedora-data:/fcrepo-home
     networks: [lens]
 
+  # The mesh (docs/mesh.md): Nebula, the private network between Lens's machines, on this machine (mesh/sidecar.py).
+  # Lens's server writes its config into the volume the two share; it makes this machine's key pair itself and holds
+  # NET_ADMIN for the mesh's network device, which nothing else in Lens does. It relays the database and the API to
+  # the machines the mesh's firewall lets in. Started by the upgrade agent when an admin adds a node (Settings ›
+  # Nodes), or `docker compose --profile mesh up -d`. Other machines reach it on UDP 4242 (LENS_MESH_PORT).
+  mesh:
+    image: python:3.12-slim  # the plain image: the script is the repo's, Nebula is fetched with its checksum checked
+    profiles: [mesh]
+    command: ["python", "-I", "/lens-mesh/sidecar.py"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    cap_add: [NET_ADMIN]
+    devices: ["/dev/net/tun:/dev/net/tun"]
+    read_only: true
+    tmpfs: [/tmp]
+    mem_limit: 256m
+    pids_limit: 256
+    environment:
+      LENS_MESH_DIR: /mesh
+      LENS_MESH_STATE: /state
+      LENS_MESH_LISTEN_PORT: "4242"
+      LENS_MESH_RELAYS: 8000=surrealdb:8000,8080=backend:8000
+    ports:
+      - "${LENS_MESH_BIND:-0.0.0.0}:${LENS_MESH_PORT:-4242}:4242/udp"
+    volumes:
+      - ./mesh/sidecar.py:/lens-mesh/sidecar.py:ro
+      - mesh-data:/mesh
+      - mesh-state:/state
+    networks: [lens]
+
 volumes:
   surreal-data:
   matterbridge-data:
+  mesh-data:
+  mesh-state:
   mcp-data:
   mcp-key:
   sandbox-key:
