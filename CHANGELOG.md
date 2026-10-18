@@ -11,8 +11,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   it, or say "yes" in a chat room; an API key or an app only declines it unless `research.agents_skip_review` is on.
   It runs in the background, one run per person at a time, within its tool calls, `research.max_minutes` and your
   budgets, survives a restart, and stops when asked; the cited report comes back in the conversation, its claims
-  checked against their sources, and saves as a note or makes a podcast episode. The web app's plan and progress
-  cards are in progress ([Deep research](docs/assistant.md#deep-research)).
+  checked against their sources, and saves as a note or makes a podcast episode. In the web app, the composer's Deep
+  research switch asks for it; the plan is a card to edit and approve with Enter, then a progress card that survives a
+  reload; and the report saves as a note, reads aloud, makes a podcast or exports as Markdown. Settings → AI assistant
+  → Deep research holds its limits ([Deep research](docs/assistant.md#deep-research)).
 - **Read any message aloud.** Every question and answer in a conversation has a speaker button: one click reads it
   aloud by the speech model and voice picked in Settings → AI assistant → Voice (else the browser's own speech),
   another stops it. One message plays at a time, long answers go in pieces under every provider's limit, and each

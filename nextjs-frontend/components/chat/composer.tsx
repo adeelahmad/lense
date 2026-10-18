@@ -15,6 +15,7 @@ import {
   Paperclip,
   Plus,
   Sparkles,
+  Telescope,
   Wrench,
   X,
 } from "lucide-react";
@@ -451,7 +452,8 @@ export function ScopeBar({
 /**
  * The question box: Enter sends, Shift+Enter makes a new line. Typing goes on while an answer is written: what you
  * send then waits its turn (`busy`). With `onFiles`, files can be attached (the clip, dropping them on the box, or
- * pasting them), shown in `files`; a message can be only files.
+ * pasting them), shown in `files`; a message can be only files. With `research`, a Deep research switch: what's sent
+ * next is a research goal, answered with a plan to approve (as /research <goal> is).
  */
 export function Composer({
   value,
@@ -466,6 +468,7 @@ export function Composer({
   hasFiles = false,
   uploading = false,
   voice,
+  research,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -482,6 +485,8 @@ export function Composer({
   uploading?: boolean;
   /** Voice mode: a mic that talks the conversation (hear, send, read the answer aloud) until tapped again. */
   voice?: { on: boolean; onToggle: () => void };
+  /** Deep research: the next message is a research goal. `off`: why it can't be, when it can't. */
+  research?: { on: boolean; onToggle: () => void; off?: string | null };
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const [over, setOver] = useState(false);
@@ -518,6 +523,20 @@ export function Composer({
       )}
     >
       {files}
+      {research?.on && (
+        <span className="inline-flex h-7 items-center gap-1.5 self-start rounded-pill border border-gold-border bg-gold-surface pl-2.5 pr-1 text-[12px] font-semibold text-fg-strong">
+          <Telescope aria-hidden className="size-[13px]" />
+          Deep research: you approve a plan first
+          <button
+            type="button"
+            onClick={research.onToggle}
+            aria-label="Turn deep research off"
+            className="grid size-5 place-items-center rounded-full hover:bg-black/5"
+          >
+            <X className="size-3!" />
+          </button>
+        </span>
+      )}
       <div className="flex items-end gap-2">
         {onFiles && (
           <button
@@ -531,6 +550,29 @@ export function Composer({
             className="grid size-9 shrink-0 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral hover:text-fg"
           >
             <Paperclip className="size-[18px]" />
+          </button>
+        )}
+        {research && (
+          <button
+            type="button"
+            aria-label="Deep research"
+            aria-pressed={research.on}
+            title={
+              research.off ??
+              (research.on
+                ? "Ask a normal question instead"
+                : "Research a goal: a plan to approve, then a cited report")
+            }
+            disabled={Boolean(research.off) && !research.on}
+            onClick={research.onToggle}
+            className={cn(
+              "grid size-9 shrink-0 place-items-center rounded-full transition-colors duration-fast disabled:cursor-not-allowed disabled:opacity-50",
+              research.on
+                ? "bg-gold-surface text-gold-dark"
+                : "text-fg-secondary hover:bg-surface-neutral hover:text-fg",
+            )}
+          >
+            <Telescope className="size-[18px]" />
           </button>
         )}
         <textarea
