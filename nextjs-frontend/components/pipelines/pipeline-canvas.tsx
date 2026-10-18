@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AudioLines,
+  AudioWaveform,
   Captions,
   Clapperboard,
   Eraser,
@@ -54,6 +55,7 @@ import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
 const ICON: Record<string, LucideIcon> = {
+  enhance: AudioWaveform,
   transcribe: Captions,
   read: ScanText,
   diarize: AudioLines,
@@ -74,7 +76,7 @@ const ICON: Record<string, LucideIcon> = {
   workflow: Workflow,
 };
 const TONE = { intent: "blue", red: "red", green: "green", gate: "gold", neutral: "neutral" } as const;
-const ASSETS = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe"];
+const ASSETS = ["enhance", "transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe"];
 const METADATA = ["clean", "analyze", "embed", "summarize", "llm", "spec", "report", "export"];
 
 /** A pipeline drawn as a graph: asset steps, metadata steps and workflows, an edge saying what runs after what. */

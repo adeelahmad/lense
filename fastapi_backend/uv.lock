@@ -2022,6 +2022,9 @@ voices = [
 web = [
     { name = "ddgs" },
 ]
+webrtc = [
+    { name = "pywebrtc-audio" },
+]
 whisper = [
     { name = "faster-whisper" },
 ]
@@ -2046,6 +2049,7 @@ dev = [
     { name = "pytest-mock" },
     { name = "pytest-xdist" },
     { name = "python-dotenv" },
+    { name = "pywebrtc-audio" },
     { name = "ruff" },
     { name = "tokenizers" },
     { name = "types-pyyaml" },
@@ -2087,6 +2091,7 @@ requires-dist = [
     { name = "pyobjc-framework-vision", marker = "sys_platform == 'darwin' and extra == 'mac-ocr'" },
     { name = "pypdf", specifier = ">=6.20.1" },
     { name = "python-doctr", marker = "extra == 'doctr'", specifier = ">=1.0" },
+    { name = "pywebrtc-audio", marker = "extra == 'webrtc'", specifier = ">=0.2.0,<0.3" },
     { name = "pyyaml", specifier = ">=6" },
     { name = "rapidocr-onnxruntime", marker = "extra == 'rapidocr'" },
     { name = "rdflib", specifier = ">=7.1,<8" },
@@ -2108,7 +2113,7 @@ requires-dist = [
     { name = "transformers", marker = "extra == 'punctuation'" },
     { name = "webauthn", specifier = ">=3.0.1,<4" },
 ]
-provides-extras = ["sensevoice", "whisper", "mlx", "laya", "voices", "pyannote", "faces", "mac-ocr", "rapidocr", "doctr", "insightface", "objects", "punctuation", "spacy", "injection", "florence", "moondream", "validate", "smb", "sandbox", "web", "msg"]
+provides-extras = ["sensevoice", "whisper", "mlx", "laya", "voices", "pyannote", "faces", "mac-ocr", "rapidocr", "doctr", "insightface", "objects", "punctuation", "spacy", "injection", "florence", "moondream", "validate", "smb", "sandbox", "web", "webrtc", "msg"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -2131,6 +2136,7 @@ dev = [
     { name = "pytest-mock", specifier = ">=3.14.0,<4" },
     { name = "pytest-xdist", specifier = ">=3.6,<4" },
     { name = "python-dotenv", specifier = ">=1.2.4,<2" },
+    { name = "pywebrtc-audio", specifier = ">=0.2.0,<0.3" },
     { name = "ruff", specifier = ">=0.17.0,<0.18" },
     { name = "tokenizers", specifier = ">=0.23.3" },
     { name = "types-pyyaml" },
@@ -4289,6 +4295,31 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/9b/80/6e61b1a91debf4c1b47d441f9a9d7fe2aabcdd9575ed70b2811474eb95c3/pytorch-metric-learning-2.9.0.tar.gz", hash = "sha256:27a626caf5e2876a0fd666605a78cb67ef7597e25d7a68c18053dd503830701f", size = 84530, upload-time = "2025-08-17T17:11:19.501Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/46/7d/73ef5052f57b7720cad00e16598db3592a5ef4826745ffca67a2f085d4dc/pytorch_metric_learning-2.9.0-py3-none-any.whl", hash = "sha256:d51646006dc87168f00cf954785db133a4c5aac81253877248737aa42ef6432a", size = 127801, upload-time = "2025-08-17T17:11:18.185Z" },
+]
+
+[[package]]
+name = "pywebrtc-audio"
+version = "0.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d8/b0/8d9e93083ac412cc758003d5e216d44f69b50619cdd0cfc7897e576eb90c/pywebrtc_audio-0.2.0.tar.gz", hash = "sha256:cdc47c063439b033bdd6110d2e1119fd6e36c6e007ed824bc369c9a5e3cb307a", size = 1748548, upload-time = "2026-09-03T19:03:15.662Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2e/74/a6e3a35e39199039ae9cc88e7728da1f5329b820c092ce51ced49fb842d2/pywebrtc_audio-0.2.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:2b3552930655219101c59c1295cdc29f2ab38b389c3c495d9f41773183880615", size = 403707, upload-time = "2026-09-03T19:02:44.771Z" },
+    { url = "https://files.pythonhosted.org/packages/33/01/6b48bbf13c765420aadf96667b433207e705179f67bc0dee6b8f87f93022/pywebrtc_audio-0.2.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:46134bf1a6d8d1fcdf90674e2787ec93435533a0f290f67b530040f8eabdb793", size = 367960, upload-time = "2026-09-03T19:02:46.215Z" },
+    { url = "https://files.pythonhosted.org/packages/14/bc/17ddeb099bb7b5a4cf16cd2abaee97c27b57455c0711a2c7d58813cf4abd/pywebrtc_audio-0.2.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:b5ddbe2fb5533b5aff7315e5463dfabbeb4f9d89135f5a6076144de81334bf1b", size = 400609, upload-time = "2026-09-03T19:02:47.88Z" },
+    { url = "https://files.pythonhosted.org/packages/8b/f0/7cde753b5bebf1cabff32289370caae8b2e1ae300477dfd00d05ea1aa84d/pywebrtc_audio-0.2.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:e0cbe0afe02c7fa3b5bb7c47a64a145664a90141c504abac64bd55163b456c60", size = 442400, upload-time = "2026-09-03T19:02:49.319Z" },
+    { url = "https://files.pythonhosted.org/packages/d1/17/498662ef1dd4fe9b649d1507c95e65b41186a083f0cc1ca52c96dbdd12f5/pywebrtc_audio-0.2.0-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:e295bb687cce04552d2585a01346d219a2eab545a0aa63458116633359f0f3e0", size = 1395946, upload-time = "2026-09-03T19:02:51.054Z" },
+    { url = "https://files.pythonhosted.org/packages/ed/0d/40da061f539e635beec444a7aa83ce8705861e42238a29a697ad4a2fcc50/pywebrtc_audio-0.2.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:66c5be23e71be322872378dce4df89aad13522ec968bf6d6fa7386c2699d88a6", size = 1484743, upload-time = "2026-09-03T19:02:52.39Z" },
+    { url = "https://files.pythonhosted.org/packages/33/3e/1b9dee1fa750e744a128289c9d8fa991fffc8a2ff89b3285b238b275eb3c/pywebrtc_audio-0.2.0-cp312-cp312-win_amd64.whl", hash = "sha256:0dabbdadd5d7fd7dcb88323266e5e14d46aaa136c58fa0573c4b0323b683c80b", size = 513391, upload-time = "2026-09-03T19:02:54.085Z" },
+    { url = "https://files.pythonhosted.org/packages/1f/cb/c3a0197971d132d8115a7ee88017183719e526ae302670acc1c3c2b88359/pywebrtc_audio-0.2.0-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:a9edfe0dc08ed3e5f856613786235e3ca5ac74f6dc14a6937da67244d19d1091", size = 403723, upload-time = "2026-09-03T19:02:55.641Z" },
+    { url = "https://files.pythonhosted.org/packages/b6/cd/ca9a2b1782e24ed009f21cc996eb1b77fc480d34f9958c29e3bc2b209091/pywebrtc_audio-0.2.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:22b31c256be3b8c7401bbeed5c483ba0f326b15a3e1640dc791ba40c49bc7e0d", size = 367981, upload-time = "2026-09-03T19:02:57.101Z" },
+    { url = "https://files.pythonhosted.org/packages/3f/72/78715f87dff9b2e3868d565f106e2209e0cdd57b070ee9593cc5be033e05/pywebrtc_audio-0.2.0-cp313-cp313-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:a1c56938aa82346511a749d8c95fa522061b1d4da26878a5bfd38dc8fea4352d", size = 400529, upload-time = "2026-09-03T19:02:58.341Z" },
+    { url = "https://files.pythonhosted.org/packages/4b/43/5df4cd966ce6c3e5fd2c556cbcbde4d91404433e27d1a470c41b46aed51e/pywebrtc_audio-0.2.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:4b02aa10312378a9c8bec5d6f25586b3464c29dd1cc6961716a7f18f4350828e", size = 442498, upload-time = "2026-09-03T19:02:59.712Z" },
+    { url = "https://files.pythonhosted.org/packages/07/61/957d2acdd8f020c8beba65747b602501e6e679f1abf1109f24a52d5a3cc6/pywebrtc_audio-0.2.0-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:36d22c1486b836fad39b249943b522dd3f94d475606a00b663a929d3aaf8ad39", size = 1395943, upload-time = "2026-09-03T19:03:01.208Z" },
+    { url = "https://files.pythonhosted.org/packages/64/05/eae32f43de19bc271f5192859537611487e9cdd2c25ab3f295628443d150/pywebrtc_audio-0.2.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:99098022711832bb2bf82ccfc524ad4ce84062d386742232f1c1839f235a3acf", size = 1484804, upload-time = "2026-09-03T19:03:02.754Z" },
+    { url = "https://files.pythonhosted.org/packages/89/1e/ff2d90d0450bb2c117f314c946b4a780ff80e65d98d7e760bb4a8d627b22/pywebrtc_audio-0.2.0-cp313-cp313-win_amd64.whl", hash = "sha256:346f57a3e06e164fa9e8298c7ecb91d19333618e29a0ff6d972ac4c46a970a9d", size = 513446, upload-time = "2026-09-03T19:03:04.437Z" },
 ]
 
 [[package]]

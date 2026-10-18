@@ -137,6 +137,16 @@ DEFAULTS = {
         "sensevoice": {"model": "iic/SenseVoiceSmall", "hub": "ms", "vad_max_segment_ms": 30000, "batch_size": 16},
         "whisper": {"model": "large-v3-turbo", "compute_type": "default"},
         "mlx_whisper": {"model": "mlx-community/whisper-large-v3-turbo"},
+        # what the enhance step does to a recording's sound before it's transcribed (audio_cleanup.py); a pipeline only
+        # runs it when the step is in it
+        "cleanup": {
+            "noise": "moderate",
+            "gain": True,
+            "high_pass": True,
+            "echo": "off",
+            "trim_silence": True,
+            "min_silence_ms": 2000,
+        },
     },
     "diarize": {
         "engine": "auto",
@@ -274,6 +284,7 @@ DEFAULTS = {
         "stale_minutes": 15,
         "max_attempts": 3,
         "steps": [
+            "enhance",
             "transcribe",
             "read",
             "diarize",

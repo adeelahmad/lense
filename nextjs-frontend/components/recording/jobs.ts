@@ -287,6 +287,7 @@ export function readyBefore(j: JobInfo): string[] {
 // ---------- Reprocess: choose steps ----------
 
 export const STEP_ORDER = [
+  "enhance",
   "transcribe",
   "diarize",
   "shots",
@@ -304,6 +305,7 @@ export const STEP_ORDER = [
 export type StepKey = (typeof STEP_ORDER)[number];
 
 export const STEP_HELP: Record<StepKey, string> = {
+  enhance: "Clean up the sound for transcription: noise, gain, echo and silence (Settings → Transcription)",
   transcribe: "Audio → text with timings",
   diarize: "Split speakers and match voice IDs",
   shots: "Scene cuts, keyframes and sampled frames",
@@ -322,6 +324,7 @@ export const STEP_HELP: Record<StepKey, string> = {
 
 /** Ticking a step also ticks the later steps that use its output. */
 export const DEPENDENTS: Record<StepKey, StepKey[]> = {
+  enhance: ["transcribe", "diarize", "clean", "analyze", "embed", "summarize", "report"],
   transcribe: ["diarize", "clean", "analyze", "embed", "summarize", "report"],
   diarize: ["analyze", "summarize", "report"],
   shots: ["ocr", "faces", "objects", "nsfw", "describe"],
@@ -341,17 +344,20 @@ export type StepOption = { key: StepKey; disabled: string | null };
 
 /**
  * The steps offered for a recording: video steps only for videos (faces, objects, nsfw and describe also for a
- * document's or an image's pages); transcribe/diarize need audio; clean is for speech, so not for pages.
+ * document's or an image's pages); enhance/transcribe/diarize need audio; enhance and clean are for speech, so not for
+ * pages.
  */
 export function reprocessOptions(opts: { video: boolean; hasAudio: boolean; paged?: boolean }): StepOption[] {
   const left = opts.video
     ? []
     : opts.paged
-      ? ["shots", "ocr", "clean"]
+      ? ["enhance", "shots", "ocr", "clean"]
       : ["shots", "ocr", "faces", "objects", "nsfw", "describe"];
   return STEP_ORDER.filter((k) => !left.includes(k)).map((key) => {
     let disabled: string | null = null;
-    if (!opts.hasAudio && key === "transcribe")
+    if (!opts.hasAudio && key === "enhance")
+      disabled = "This asset has no audio: its text was imported, so there's no sound to clean up.";
+    else if (!opts.hasAudio && key === "transcribe")
       disabled = "This asset has no audio: its text was imported, so there's nothing to transcribe.";
     else if (!opts.hasAudio && key === "diarize")
       disabled = "Speakers come from the imported text's labels; diarizing needs the audio.";

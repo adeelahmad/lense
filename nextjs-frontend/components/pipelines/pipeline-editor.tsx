@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AudioLines,
+  AudioWaveform,
   Captions,
   ChevronDown,
   Clapperboard,
@@ -61,6 +62,7 @@ import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
 const ICON: Record<string, LucideIcon> = {
+  enhance: AudioWaveform,
   transcribe: Captions,
   read: ScanText,
   diarize: AudioLines,
@@ -80,6 +82,7 @@ const ICON: Record<string, LucideIcon> = {
   workflow: Workflow,
 };
 const LIB_ORDER = [
+  "enhance",
   "transcribe",
   "diarize",
   "shots",

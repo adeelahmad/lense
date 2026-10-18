@@ -1377,6 +1377,93 @@ export type Attachment = {
 };
 
 /**
+ * AudioCleanup
+ *
+ * How the enhance step cleaned up a recording's sound for transcription (docs/audio-cleanup.md).
+ */
+export type AudioCleanup = {
+  /**
+   * Noise
+   *
+   * noise suppression: off, low, moderate, high or very_high (6, 12, 18 or 21 dB)
+   */
+  noise: string;
+  /**
+   * Gain
+   *
+   * automatic gain control
+   */
+  gain: boolean;
+  /**
+   * High Pass
+   *
+   * the rumble below speech taken out
+   */
+  high_pass: boolean;
+  /**
+   * Echo
+   *
+   * echo cancellation: off, or the channel (left or right) holding what the speakers played
+   */
+  echo: string;
+  /**
+   * Trim Silence
+   *
+   * silences of min_silence_ms or longer left out of what's transcribed
+   */
+  trim_silence: boolean;
+  /**
+   * Min Silence Ms
+   *
+   * the shortest pause left out when trimming silence
+   */
+  min_silence_ms: number;
+  /**
+   * Duration Ms
+   *
+   * how long the recording is
+   */
+  duration_ms: number;
+  /**
+   * Speech Ms
+   *
+   * how much of it WebRTC's voice detection heard as speech
+   */
+  speech_ms: number;
+  /**
+   * Kept Ms
+   *
+   * how much of it is transcribed: all of it unless silence is trimmed
+   */
+  kept_ms: number;
+  /**
+   * Gain Db
+   *
+   * the gain applied by the end of the recording, in dB
+   */
+  gain_db?: number | null;
+  /**
+   * Echo Note
+   *
+   * why echo wasn't cancelled though it was asked for
+   */
+  echo_note?: string | null;
+  /**
+   * Engine
+   *
+   * what cleaned it up, with its version
+   */
+  engine?: string | null;
+  /**
+   * At
+   *
+   * when the step ran
+   */
+  at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * AuditEntry
  */
 export type AuditEntry = {
@@ -17583,6 +17670,10 @@ export type Recording = {
    * NSFW classification, where it's on in its namespace and it was classified
    */
   nsfw?: NsfwState | null;
+  /**
+   * how its enhance step cleaned up its sound before transcription
+   */
+  audio_cleanup?: AudioCleanup | null;
   [key: string]: unknown;
 };
 

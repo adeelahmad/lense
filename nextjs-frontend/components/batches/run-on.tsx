@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 
 type Kind = "template" | "pipeline" | "steps";
 const STEP_ORDER = [
+  "enhance",
   "transcribe",
   "diarize",
   "shots",

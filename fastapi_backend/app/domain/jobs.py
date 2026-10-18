@@ -26,7 +26,7 @@ FIELDS = (
     "record::id(id) AS id, recording, space, batch, pipeline, steps, step_index, next_step, status, worker, error, attempts, "
     "created_by, created_at, started_at, finished_at, updated_at, cancel_requested, log_total, cost_usd, tokens, cost_estimate, hold"
 )
-MEDIA_STEPS = {"transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe"}  # they take longer the longer the recording
+MEDIA_STEPS = {"enhance", "transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe"}  # slower on longer media
 FILED = ("audio", "document", "image")  # sources with a file of their own for the steps to work on
 TIMINGS = 25  # recent timings kept per kind of step, for estimates
 
@@ -69,6 +69,19 @@ def _transcribe(db, cfg, rid, say, spec=None):
 
         mediaurl.ensure(db, cfg, rid, rec, say)
     ingest.transcribe_one(db, cfg, rid, say)
+
+
+def _enhance(db, cfg, rid, say, spec=None):
+    """A recording's sound cleaned up before it's transcribed (audio_cleanup.py), as Settings → Transcription → Audio
+    cleanup sets it."""
+    from . import audio_cleanup
+
+    source = _source(db, rid)
+    if source in ("document", "image"):
+        raise Skip(f"{'an image' if source == 'image' else 'a document'} has no sound to clean up")
+    if source != "audio":
+        raise Skip("imported text has no sound to clean up")
+    say(audio_cleanup.summary(audio_cleanup.step(db, cfg, rid, say)))
 
 
 def _diarize(db, cfg, rid, say, spec=None):
@@ -207,6 +220,7 @@ def _describe(db, cfg, rid, say, spec=None):
 
 VIDEO_STEPS = {"shots", "ocr", "faces", "objects", "describe"}  # added after workers.steps lists were first written
 STEPS = {
+    "enhance": _enhance,
     "transcribe": _transcribe,
     "read": _read,
     "diarize": _diarize,
@@ -235,14 +249,14 @@ def for_source(steps, source):
     nothing to transcribe and its speakers came with it, so it skips both steps too (unless they're all that was asked
     for: those still run, to say why there's nothing to do)."""
     if source == "transcript":
-        return [s for s in steps if s.get("type") not in ("transcribe", "diarize")] or steps
+        return [s for s in steps if s.get("type") not in ("enhance", "transcribe", "diarize")] or steps
     if source not in ("document", "image"):
         return steps
     out = []
     for s in steps:
         if s.get("type") == "transcribe":
             s = {**s, "type": "read"}
-        if s.get("type") == "diarize" or (s.get("type") == "read" and any(o.get("type") == "read" for o in out)):
+        if s.get("type") in ("enhance", "diarize") or (s.get("type") == "read" and any(o.get("type") == "read" for o in out)):
             continue
         out.append(s)
     return out
@@ -937,6 +951,8 @@ class Worker:
             self.can |= VIDEO_STEPS
         if self.can & {"analyze", "summarize"}:  # embedding needs what they need; lists written before it existed run it too
             self.can.add("embed")
+        if not steps and "transcribe" in self.can:  # cleaning up the sound needs no more than transcribing; older lists run it
+            self.can.add("enhance")
         if "analyze" in self.can:  # cleaning up a transcript needs no more than analysing it; older lists run it too
             self.can.add("clean")
         if not steps and "objects" in self.can:  # NSFW classification runs on ONNX Runtime too; older lists run it as well

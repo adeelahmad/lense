@@ -145,6 +145,31 @@ const ENGINE_KEY: Record<string, [string, string]> = {
   "mlx-whisper": ["mlx_whisper", "mlx-whisper"],
 };
 
+/** What the Clean up audio pipeline step does before transcription (audio_cleanup.py); it runs where a pipeline has it. */
+function AudioCleanup({ ctx }: { ctx: BodyCtx }) {
+  return (
+    <div className="flex flex-col gap-3 rounded-md border border-border p-3">
+      <div>
+        <span className="text-[13px] font-bold text-fg-strong">Audio cleanup</span>
+        <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+          What the Clean up audio step does to the sound before it’s transcribed, with WebRTC. It runs in pipelines that
+          have it (<Link href="/pipelines">Pipelines</Link>); the recording itself is never changed.
+        </p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="transcribe.cleanup.noise" />
+        <F ctx={ctx} id="transcribe.cleanup.echo" />
+        <F ctx={ctx} id="transcribe.cleanup.gain" />
+        <F ctx={ctx} id="transcribe.cleanup.high_pass" />
+        <F ctx={ctx} id="transcribe.cleanup.trim_silence" />
+        {ctx.form["transcribe.cleanup.trim_silence"] !== false && (
+          <F ctx={ctx} id="transcribe.cleanup.min_silence_ms" />
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function SectionBody({ ctx }: { ctx: BodyCtx }) {
   const v = (id: string) => ctx.values[id];
   const raw = (id: string) => ctx.form[id];
@@ -164,6 +189,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
               in <Link href="/settings/speech-providers">Speech providers</Link>. SenseVoice and Whisper keep their
               models for when you switch back.
             </p>
+            <AudioCleanup ctx={ctx} />
           </>
         );
       const [key, name] = ENGINE_KEY[engine] ?? ENGINE_KEY.sensevoice;
@@ -184,6 +210,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
             Each engine remembers its own model: {models.join(", ")}. Auto uses the fastest device each worker has.
           </p>
+          <AudioCleanup ctx={ctx} />
         </>
       );
     }
