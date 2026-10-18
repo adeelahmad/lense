@@ -1,10 +1,10 @@
 # Nodes and the mesh
 
 Status: **in progress**. Built: Lens as the mesh's certificate authority, join tokens, joining without sending the
-token, each machine's Nebula config, a node's renewals and reports, removing a node, the `mesh` settings and the API
-under `/api/v1/mesh`. Coming in their own pull requests: Nebula running on the primary and relaying the database,
-`lens node` and the install line that joins another machine, Settings › Network and Nodes in the web app, and running
-code on compute nodes.
+token, each machine's Nebula config, a node's renewals and reports, removing a node, the `mesh` settings, the API
+under `/api/v1/mesh`, and Nebula running on the primary in the `mesh` container, relaying the database and the API.
+Coming in their own pull requests: `lens node` and the install line that joins another machine, Settings › Network and
+Nodes in the web app, and running code on compute nodes.
 
 Lens runs on one machine until you add another: a Mac with a GPU to transcribe on, a box to run the assistant's code
 on, a server with more disk. Those machines talk to this install over a private network of Lens's own, a
@@ -65,6 +65,37 @@ Over the mesh, with its node token (`Authorization: Bearer lensnode1.…`):
 
 A removed node is refused on all three.
 
+## On this machine
+
+Lens's server can't create network devices, and nothing in Lens but Nebula needs to, so on the primary Nebula runs in
+a container of its own, `mesh` (`mesh/sidecar.py`, in the plain Python image). It's an optional service like the
+browser or monitoring: adding a node asks the machine's upgrade agent to start it, and turning the mesh off
+(`mesh.enabled`) stops it. Without an upgrade agent, start it with the line Settings › Network shows:
+
+```sh
+docker compose -f docker-compose.prod.yml --profile mesh up -d
+```
+
+- **Its own key.** The container makes this machine's Nebula key pair the first time and keeps the private key in its
+  own volume. It shares a folder with Lens's server (`LENS_MESH_DIR`, `/mesh`): it puts the public key there, Lens
+  signs it and writes the config back (`lens.json`), and the container adds the private key and runs Nebula. Lens
+  signs it again when a third of its life is left, or when the container's key changes.
+- **Checked before it runs.** It fetches Nebula's release for the machine on first use, checked against the same
+  checksums Lens keeps, and runs each new config past `nebula -test` first. A change Nebula can take while running
+  (a removed node's certificate on the blocklist, the firewall) is reloaded without dropping tunnels; a new network
+  device or port restarts it.
+- **Relays.** It listens on this machine's mesh address only, and passes port 8000 to the database and port 8080 to
+  the API: what a worker node and every node reach here, as Nebula's firewall allows (below).
+- **The port.** Other machines reach it on UDP 4242, which Docker publishes (`LENS_MESH_PORT` in `.env` publishes
+  another; `mesh.port` is the port nodes are told to use, so change both, or set `mesh.hosts` to `host:port` when a
+  router forwards another port to it).
+- **What it says.** It writes how it runs (`status.json`): Nebula on or not, since when, the relays and Nebula's last
+  lines. `GET /api/v1/mesh` shows it under `service`, and the primary's own row in `/api/v1/mesh/nodes` carries it as
+  a node's report does.
+
+It holds `NET_ADMIN` and `/dev/net/tun` and nothing else: no other capability, a read-only image, 256 MB of memory,
+none of Lens's data or keys but its own key pair and the config.
+
 ## The config
 
 Each machine's config is rendered by Lens, from the settings and the node's row; the node adds only its private key.
@@ -91,7 +122,7 @@ Everything is in **Settings › Network** (`mesh`), editable in the app with def
 | --- | --- | --- |
 | `enabled` | off | on when a node is added; off stops the mesh |
 | `network` | `10.73.0.0/16` | the mesh's addresses, a private IPv4 range from /8 to /28; the primary is its first. It can't change once machines have addresses in it |
-| `port` | `4242` | the UDP port the primary listens on; nodes must reach it |
+| `port` | `4242` | the UDP port nodes reach the primary at: the one Docker publishes (`LENS_MESH_PORT`), unless a router forwards another |
 | `hosts` | none | where nodes reach that port from outside the mesh (`host` or `host:port`, up to 8). Empty: the address each node joined this install at |
 | `cipher` | `aes` | or `chachapoly` (faster on machines without AES hardware, such as some Raspberry Pis); the same on every machine |
 | `cert_days` | 30 | how long a machine's certificate lasts; it renews at two thirds |
@@ -107,6 +138,8 @@ removes it (undo with `POST /nodes/{id}/restore` while its certificate is good).
 ## What keeps it safe
 
 - Nothing listens until an admin adds a node, and single-machine installs never do.
+- On the primary only the `mesh` container holds `NET_ADMIN`; it makes its own key pair, runs only Nebula's release with
+  the checksum kept in Lens, and its relays listen on the mesh address alone.
 - Only a machine with a token an admin made joins; the token is spent on use, expires, and never crosses the wire.
 - A machine's certificate names only its own address, role and namespaces; it can't widen them by renewing.
 - Nebula's firewall, rendered by Lens, opens only what each role needs. Lens itself never trusts the mesh's address:

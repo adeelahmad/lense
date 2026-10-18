@@ -46,7 +46,7 @@ import wave
 
 import numpy as np
 
-from . import kokoro, store
+from . import kokoro, store, vocabulary
 
 log = logging.getLogger("lens")
 SR = 16000
@@ -301,7 +301,7 @@ def _label(v):
 
 
 # ---------- providers ----------
-def _openai(cfg, clip, seconds):
+def _openai(cfg, clip, seconds, terms=()):
     base, m, key = base_url(cfg, "openai"), model(cfg, "openai"), _key(cfg, "openai")
     data, name, ctype = clip
     lang = _language(cfg)
@@ -314,6 +314,8 @@ def _openai(cfg, clip, seconds):
                   ("timestamp_granularities[]", "word")]  # fmt: skip
     if lang:
         fields.append(("language", lang))
+    if terms and "diarize" not in m:  # the diarizing models take no prompt
+        fields.append(("prompt", vocabulary.prompt(terms)))
     body, ctype_ = multipart(fields, [("file", name, data, ctype)])
     headers = {"Content-Type": ctype_, **({"Authorization": f"Bearer {key}"} if key else {})}
     j = _json(base + "/audio/transcriptions", data=body, headers=headers, timeout=section(cfg)["timeout"])
@@ -353,7 +355,7 @@ def _short(lang):
     return names.get(lang) or lang.split("-")[0].split("_")[0][:3]
 
 
-def _elevenlabs(cfg, clip, seconds):
+def _elevenlabs(cfg, clip, seconds, terms=()):  # Scribe takes no hints (vocabulary.py)
     data, name, ctype = clip
     fields = [("model_id", model(cfg, "elevenlabs")), ("diarize", "true"), ("tag_audio_events", "true"), ("timestamps_granularity", "word")]
     if _language(cfg):
@@ -383,7 +385,7 @@ def _elevenlabs(cfg, clip, seconds):
     return group_words(words, _short(j.get("language_code")))
 
 
-def _assemblyai(cfg, clip, seconds):
+def _assemblyai(cfg, clip, seconds, terms=()):
     base, key, t = base_url(cfg, "assemblyai"), _key(cfg, "assemblyai"), section(cfg)["timeout"]
     data, _, ctype = clip
     up = _json(base + "/v2/upload", data=data, headers={"Authorization": key, "Content-Type": "application/octet-stream"}, timeout=t)
@@ -397,6 +399,11 @@ def _assemblyai(cfg, clip, seconds):
         ask["language_detection"] = True
     if section(cfg)["sentiment"]:
         ask["sentiment_analysis"] = True
+    if terms:  # key terms for the models that take them, else boosted words (at most six words each)
+        if str(m or "").startswith(("slam", "universal-3")):
+            ask["keyterms_prompt"] = list(terms)
+        else:
+            ask["word_boost"] = [t for t in terms if len(t.split()) <= 6]
     d = cfg.get("diarize") or {}
     if d.get("min_speakers") or d.get("max_speakers"):
         ask["speaker_options"] = {
@@ -423,17 +430,19 @@ def _assemblyai(cfg, clip, seconds):
     return add_sentiment(segs, spans)
 
 
-def _deepgram(cfg, clip, seconds):
+def _deepgram(cfg, clip, seconds, terms=()):
     data, _, ctype = clip
-    q = {"model": model(cfg, "deepgram"), "smart_format": "true", "punctuate": "true", "diarize": "true", "utterances": "true"}
+    q: dict = {"model": model(cfg, "deepgram"), "smart_format": "true", "punctuate": "true", "diarize": "true", "utterances": "true"}
     if _language(cfg):
         q["language"] = _language(cfg)
     else:
         q["detect_language"] = "true"
     if section(cfg)["sentiment"]:
         q["sentiment"] = "true"
+    if terms:  # Nova-3 takes key terms; the models before it, keywords
+        q["keyterm" if str(q["model"]).startswith("nova-3") else "keywords"] = list(terms)
     j = _json(
-        base_url(cfg, "deepgram") + "/v1/listen?" + urllib.parse.urlencode(q),
+        base_url(cfg, "deepgram") + "/v1/listen?" + urllib.parse.urlencode(q, doseq=True),
         data=data,
         headers={"Authorization": f"Token {_key(cfg, 'deepgram')}", "Content-Type": ctype},
         timeout=section(cfg)["timeout"],
@@ -462,8 +471,8 @@ def _deepgram(cfg, clip, seconds):
     return add_sentiment(segs, spans)
 
 
-# each takes (cfg, an encoded clip as (bytes, file name, media type), its seconds) and returns its segments, timed
-# from the clip's start
+# each takes (cfg, an encoded clip as (bytes, file name, media type), its seconds, the words to expect) and returns its
+# segments, timed from the clip's start
 TRANSCRIBE = {"openai": _openai, "elevenlabs": _elevenlabs, "assemblyai": _assemblyai, "deepgram": _deepgram}
 
 
@@ -532,15 +541,18 @@ class Engine:
         _need(cfg, provider)
         self.cfg, self.provider, self.name = cfg, provider, provider
 
-    def transcribe(self, audio):
-        """The recording's transcript: in one request when it fits the provider's limits, else piece by piece."""
+    def transcribe(self, audio, terms=()):
+        """The recording's transcript: in one request when it fits the provider's limits, else piece by piece; `terms`
+        are the words to expect (vocabulary.py)."""
         most, most_bytes = limits(self.cfg, self.provider)
         detail = {"seconds": round(len(audio) / SR, 2)}  # the ledger row reads it when the call ends
+        if terms:
+            detail["vocabulary"] = len(terms)
         parts = []
         with _ledger("speech.transcribe", self.cfg, f"{self.provider}:{model(self.cfg, self.provider)}", detail):
             for a, b in pieces(audio, most):
                 for start, end, clip in clips(audio, a, b, most_bytes):
-                    parts.append((start, TRANSCRIBE[self.provider](self.cfg, clip, round((end - start) / SR, 2))))
+                    parts.append((start, TRANSCRIBE[self.provider](self.cfg, clip, round((end - start) / SR, 2), terms)))
             if len(parts) > 1:
                 detail["pieces"] = len(parts)
                 log.info("speech: %s s of audio went to %s in %d pieces", detail["seconds"], LABELS[self.provider], len(parts))
