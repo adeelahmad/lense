@@ -539,6 +539,26 @@ people it's turned on for: those who can edit a namespace, and admins (`sandbox.
 - **Its client.** Lens's own client for the gateway (the `sandbox` Python extra, OpenShell's SDK, Apache-2.0) is
   fetched once the sandbox is on ([Components](components.md)).
 
+### Compute nodes
+
+In progress: the seam is built, and the mesh that joins the nodes is being built in its own pull request. Once the
+install's mesh registers compute nodes (its other machines, each with its own sandbox gateway, reached only over the
+mesh's own network), the assistant can run a conversation's code on one of them:
+
+- **`sandbox_nodes`** lists where code can run: this machine (`here`) and each compute node, with whether it can run
+  code now and, if not, why (it hasn't reported in the last 3 minutes, it isn't on the mesh, its sandbox gateway isn't
+  running), its machine, its groups, and which one has this conversation's sandbox.
+- **`node`** on `run_python` and `run_bash` (a node's id or name, or `here`) runs there. Left out, code runs where the
+  conversation's sandbox already is: this machine until a run asks for a node. A sandbox that moves starts fresh where
+  it moves to, without earlier files, and the one it left is deleted. The model is told to pick a node only when the
+  person asks for a machine or for more power than this one has.
+- **The same rules everywhere.** A node's sandbox has the same image, limits and network setting as this machine's,
+  is stopped when idle and deleted when unused or with its conversation, by its own gateway. Each run's ledger row
+  names its node (`sandbox.run`, `node`). Turning off this machine's gateway leaves the nodes' sandboxes alone, and a
+  node removed from the mesh takes its sandboxes with it.
+- **Nothing changes without nodes:** until the mesh registers some, there is no `sandbox_nodes` and no `node`, and
+  every sandbox runs on this machine's gateway.
+
 ### The gateway
 
 Built: the Docker Compose install has a `sandbox` profile that runs OpenShell's gateway (release 0.1.4) next to Lens.
