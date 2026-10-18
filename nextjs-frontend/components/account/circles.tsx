@@ -6,15 +6,16 @@ import { useState } from "react";
 
 import { Circles } from "@/app/openapi-client";
 import type { Circle, Person } from "@/app/openapi-client/types.gen";
-import { addable, personLabel } from "@/components/circles/model";
+import { addable, personLabel, withLet, type Let } from "@/components/circles/model";
 import { Banner } from "@/components/ui/banner";
 import { Button, IconButton } from "@/components/ui/button";
-import { Input, Select, Switch } from "@/components/ui/field";
+import { Checkbox, Input, Select, Switch } from "@/components/ui/field";
 import { Panel } from "@/components/ui/panel";
 import { RenameTitle } from "@/components/ui/rename-title";
 import { Skeleton } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
+import { useArchive } from "@/lib/hooks/session";
 
 /** The person's circles of trust under Profile (docs/circles.md): the people their agent shares with. Only they see
  * their circles. A suggested name makes a circle in one click; deleting one is undone from the toast. */
@@ -106,11 +107,15 @@ function CircleRow({ circle, people, onDelete }: { circle: Circle; people: Perso
   const client = useApiClient();
   const qc = useQueryClient();
   const update = useMutation({
-    mutationFn: (body: { name?: string; add?: number[]; remove?: number[]; lets?: "free_busy"[] }) =>
+    mutationFn: (body: { name?: string; add?: number[]; remove?: number[]; lets?: Let[]; about?: string[] }) =>
       data(Circles.updateCircle({ client, path: { cid: circle.id }, body })),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["circles"] }),
   });
   const more = addable(people, circle);
+  const { me } = useArchive();
+  const spaces = Object.keys(me?.roles ?? {}).sort();
+  const about = circle.about ?? [];
+  const asks = circle.lets?.includes("questions") ?? false;
   return (
     <div className="flex flex-col gap-2 rounded-sm border border-border px-3 py-2.5" data-testid="circle">
       <div className="flex items-center gap-2">
@@ -159,10 +164,30 @@ function CircleRow({ circle, people, onDelete }: { circle: Circle; people: Perso
       )}
       <Switch
         checked={circle.lets?.includes("free_busy") ?? false}
-        onCheckedChange={(on) => update.mutate({ lets: on ? ["free_busy"] : [] })}
+        onCheckedChange={(on) => update.mutate({ lets: withLet(circle.lets, "free_busy", on) })}
         label="They can see when you’re free (never what)"
         className="text-[13px]"
       />
+      <Switch
+        checked={asks}
+        onCheckedChange={(on) => update.mutate({ lets: withLet(circle.lets, "questions", on) })}
+        label="They can ask your agent questions, answered from:"
+        className="text-[13px]"
+      />
+      {asks && (
+        <div className="flex flex-wrap gap-x-4 gap-y-1.5 pl-11">
+          {spaces.map((ns) => (
+            <Checkbox
+              key={ns}
+              checked={about.includes(ns)}
+              onCheckedChange={(on) => update.mutate({ about: on ? [...about, ns] : about.filter((x) => x !== ns) })}
+              label={ns}
+              className="text-[13px]"
+            />
+          ))}
+          {!spaces.length && <span className="text-[12.5px] text-fg-muted">You have no namespaces to pick.</span>}
+        </div>
+      )}
       {update.isError && <Banner tone="error">{update.error.message}</Banner>}
     </div>
   );

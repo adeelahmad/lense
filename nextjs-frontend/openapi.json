@@ -36300,6 +36300,48 @@
         }
       }
     },
+    "/api/v1/circles/ask": {
+      "post": {
+        "tags": [
+          "circles"
+        ],
+        "summary": "Ask Their Agent",
+        "description": "Ask someone's agent a question, answered only from the namespaces they let a circle of theirs with you ask about\n(`lets: questions` and `about`), citing what it used. They see the question and the answer in their own timeline\n(agent.asked).",
+        "operationId": "ask_their_agent",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentAnswer"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/circles/when-free": {
       "post": {
         "tags": [
@@ -37746,6 +37788,38 @@
         ],
         "title": "ActivityTotals"
       },
+      "AgentAnswer": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/AnswerSource"
+            },
+            "type": "array",
+            "title": "Sources"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "answer",
+          "sources"
+        ],
+        "title": "AgentAnswer"
+      },
       "AnalyticsChurn": {
         "properties": {
           "previous_active": {
@@ -38158,6 +38232,59 @@
           "supported"
         ],
         "title": "AnswerCheck"
+      },
+      "AnswerSource": {
+        "properties": {
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time"
+          },
+          "cited": {
+            "type": "boolean",
+            "title": "Cited",
+            "default": false
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "its page, when you can open it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "n"
+        ],
+        "title": "AnswerSource"
       },
       "ApiToken": {
         "properties": {
@@ -38895,6 +39022,35 @@
         ],
         "title": "ApprovalWhy",
         "description": "The activity that caused it, as it was when it asked."
+      },
+      "AskIn": {
+        "properties": {
+          "person": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Person",
+            "description": "whose agent to ask, by account id or email"
+          },
+          "question": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Question"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "person",
+          "question"
+        ],
+        "title": "AskIn"
       },
       "AssistantMemory": {
         "properties": {
@@ -42879,6 +43035,92 @@
         ],
         "title": "BudgetStatus"
       },
+      "BusySpan": {
+        "properties": {
+          "start": {
+            "type": "string",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "title": "End"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "BusySpan"
+      },
+      "BusyTimes": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "busy": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/BusySpan"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Busy",
+            "description": "when they're busy; never what, where or with whom"
+          },
+          "person": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Person",
+            "description": "who was asked about, when they haven't let you see"
+          },
+          "refused": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refused"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "BusyTimes"
+      },
       "Caused": {
         "properties": {
           "runs": {
@@ -44035,11 +44277,22 @@
           "lets": {
             "items": {
               "type": "string",
-              "const": "free_busy"
+              "enum": [
+                "free_busy",
+                "questions"
+              ]
             },
             "type": "array",
             "title": "Lets",
-            "description": "what its people may ask your agent: free_busy, when you're free"
+            "description": "what its people may ask your agent: free_busy, questions"
+          },
+          "about": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "About",
+            "description": "the namespaces of yours their questions are answered from"
           },
           "created_at": {
             "anyOf": [
@@ -44100,11 +44353,30 @@
           "lets": {
             "items": {
               "type": "string",
-              "const": "free_busy"
+              "enum": [
+                "free_busy",
+                "questions"
+              ]
             },
             "type": "array",
             "title": "Lets",
-            "description": "what its people may ask your agent: free_busy, when you're free"
+            "description": "what its people may ask your agent: free_busy, questions"
+          },
+          "about": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "About",
+            "description": "namespaces of yours, by name or id, their questions are answered from"
           }
         },
         "additionalProperties": false,
@@ -44303,7 +44575,10 @@
               {
                 "items": {
                   "type": "string",
-                  "const": "free_busy"
+                  "enum": [
+                    "free_busy",
+                    "questions"
+                  ]
                 },
                 "type": "array"
               },
@@ -44313,6 +44588,29 @@
             ],
             "title": "Lets",
             "description": "what its people may ask your agent, replacing what they could"
+          },
+          "about": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                },
+                "type": "array",
+                "maxItems": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "About",
+            "description": "namespaces of yours their questions are answered from"
           }
         },
         "additionalProperties": false,
@@ -81346,25 +81644,6 @@
         ],
         "title": "SourceUpdated"
       },
-      "Span": {
-        "properties": {
-          "start": {
-            "type": "string",
-            "title": "Start"
-          },
-          "end": {
-            "type": "string",
-            "title": "End"
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "required": [
-          "start",
-          "end"
-        ],
-        "title": "Span"
-      },
       "SparqlQuery": {
         "properties": {
           "query": {
@@ -84161,73 +84440,6 @@
         "type": "object",
         "title": "TimelineViewUpdate",
         "description": "Only what you send changes."
-      },
-      "Times": {
-        "properties": {
-          "id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Id"
-          },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "busy": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/Span"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Busy",
-            "description": "when they're busy; never what, where or with whom"
-          },
-          "person": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Person",
-            "description": "who was asked about, when they haven't let you see"
-          },
-          "refused": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Refused"
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "title": "Times"
       },
       "TokenLimits": {
         "properties": {
@@ -88180,14 +88392,14 @@
           },
           "people": {
             "items": {
-              "$ref": "#/components/schemas/Times"
+              "$ref": "#/components/schemas/BusyTimes"
             },
             "type": "array",
             "title": "People"
           },
           "free": {
             "items": {
-              "$ref": "#/components/schemas/Span"
+              "$ref": "#/components/schemas/BusySpan"
             },
             "type": "array",
             "title": "Free",

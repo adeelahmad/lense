@@ -616,6 +616,29 @@ export type ActivityTotals = {
 };
 
 /**
+ * AgentAnswer
+ */
+export type AgentAnswer = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Answer
+   */
+  answer: string;
+  /**
+   * Sources
+   */
+  sources: Array<AnswerSource>;
+  [key: string]: unknown;
+};
+
+/**
  * AnalyticsChurn
  */
 export type AnalyticsChurn = {
@@ -875,6 +898,35 @@ export type AnswerCheck = {
    * Uncited
    */
   uncited?: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
+ * AnswerSource
+ */
+export type AnswerSource = {
+  /**
+   * N
+   */
+  n: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Time
+   */
+  time?: string | null;
+  /**
+   * Cited
+   */
+  cited?: boolean;
+  /**
+   * Url
+   *
+   * its page, when you can open it
+   */
+  url?: string | null;
   [key: string]: unknown;
 };
 
@@ -1285,6 +1337,22 @@ export type ApprovalWhy = {
    */
   url?: string | null;
   [key: string]: unknown;
+};
+
+/**
+ * AskIn
+ */
+export type AskIn = {
+  /**
+   * Person
+   *
+   * whose agent to ask, by account id or email
+   */
+  person: number | string;
+  /**
+   * Question
+   */
+  question: string;
 };
 
 /**
@@ -3569,6 +3637,52 @@ export type BudgetStatus = {
 };
 
 /**
+ * BusySpan
+ */
+export type BusySpan = {
+  /**
+   * Start
+   */
+  start: string;
+  /**
+   * End
+   */
+  end: string;
+  [key: string]: unknown;
+};
+
+/**
+ * BusyTimes
+ */
+export type BusyTimes = {
+  /**
+   * Id
+   */
+  id?: number | null;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Busy
+   *
+   * when they're busy; never what, where or with whom
+   */
+  busy?: Array<BusySpan> | null;
+  /**
+   * Person
+   *
+   * who was asked about, when they haven't let you see
+   */
+  person?: string | null;
+  /**
+   * Refused
+   */
+  refused?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * Caused
  *
  * What an activity caused, for the person asking: the runs it started of the automations they manage, and the
@@ -4248,9 +4362,15 @@ export type Circle = {
   /**
    * Lets
    *
-   * what its people may ask your agent: free_busy, when you're free
+   * what its people may ask your agent: free_busy, questions
    */
-  lets?: Array<"free_busy">;
+  lets?: Array<"free_busy" | "questions">;
+  /**
+   * About
+   *
+   * the namespaces of yours their questions are answered from
+   */
+  about?: Array<string>;
   /**
    * Created At
    */
@@ -4279,9 +4399,15 @@ export type CircleCreate = {
   /**
    * Lets
    *
-   * what its people may ask your agent: free_busy, when you're free
+   * what its people may ask your agent: free_busy, questions
    */
-  lets?: Array<"free_busy">;
+  lets?: Array<"free_busy" | "questions">;
+  /**
+   * About
+   *
+   * namespaces of yours, by name or id, their questions are answered from
+   */
+  about?: Array<number | string>;
 };
 
 /**
@@ -4383,7 +4509,13 @@ export type CircleUpdate = {
    *
    * what its people may ask your agent, replacing what they could
    */
-  lets?: Array<"free_busy"> | null;
+  lets?: Array<"free_busy" | "questions"> | null;
+  /**
+   * About
+   *
+   * namespaces of yours their questions are answered from
+   */
+  about?: Array<number | string> | null;
 };
 
 /**
@@ -25903,21 +26035,6 @@ export type SourceUpdated = {
 };
 
 /**
- * Span
- */
-export type Span = {
-  /**
-   * Start
-   */
-  start: string;
-  /**
-   * End
-   */
-  end: string;
-  [key: string]: unknown;
-};
-
-/**
  * SparqlQuery
  */
 export type SparqlQuery = {
@@ -27548,37 +27665,6 @@ export type TimelineViewUpdate = {
    * save what the timeline shows now into it
    */
   state?: TimelineViewState | null;
-};
-
-/**
- * Times
- */
-export type Times = {
-  /**
-   * Id
-   */
-  id?: number | null;
-  /**
-   * Name
-   */
-  name?: string | null;
-  /**
-   * Busy
-   *
-   * when they're busy; never what, where or with whom
-   */
-  busy?: Array<Span> | null;
-  /**
-   * Person
-   *
-   * who was asked about, when they haven't let you see
-   */
-  person?: string | null;
-  /**
-   * Refused
-   */
-  refused?: string | null;
-  [key: string]: unknown;
 };
 
 /**
@@ -29855,13 +29941,13 @@ export type WhenFree = {
   /**
    * People
    */
-  people: Array<Times>;
+  people: Array<BusyTimes>;
   /**
    * Free
    *
    * when everyone who let you see, and you, are free, within the hours of the day asked for
    */
-  free: Array<Span>;
+  free: Array<BusySpan>;
   [key: string]: unknown;
 };
 
@@ -52575,6 +52661,31 @@ export type UndoCircleShareResponses = {
 };
 
 export type UndoCircleShareResponse = UndoCircleShareResponses[keyof UndoCircleShareResponses];
+
+export type AskTheirAgentData = {
+  body: AskIn;
+  path?: never;
+  query?: never;
+  url: "/api/v1/circles/ask";
+};
+
+export type AskTheirAgentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AskTheirAgentError = AskTheirAgentErrors[keyof AskTheirAgentErrors];
+
+export type AskTheirAgentResponses = {
+  /**
+   * Successful Response
+   */
+  200: AgentAnswer;
+};
+
+export type AskTheirAgentResponse = AskTheirAgentResponses[keyof AskTheirAgentResponses];
 
 export type WhenFreeData = {
   body: WhenFreeIn;

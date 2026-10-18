@@ -8,7 +8,7 @@ project: lens
 prose_version: "threat-model.md@same-commit"
 model_status: under-review
 triage_policy: strict
-confidence: {documented: 216, maintainer: 46, inferred: 91, assumption: 8}
+confidence: {documented: 219, maintainer: 46, inferred: 91, assumption: 8}
 
 generation:
   model: "Claude Opus 5.5 (claude-opus-5-5)"
@@ -531,6 +531,16 @@ entry_points:
         obligation_id: free-busy-only-when-let
         caller_must_enforce: "the person asked must have let a circle with the asker see; Lens answers only start and end times, caps the window and the people, and records each ask in the asked person's timeline"
         provenance: {kind: documented, source: 'docs/circles.md "When they''re free"'}
+  - id: "POST /circles/ask, MCP ask_their_agent, the assistant's ask_their_agent (asking someone's agent a question)"
+    component: assistant
+    parameters:
+      - name: "the person asked, a question"
+        attacker_controllable: true
+        x-condition: "anyone signed in; the question reaches a model"
+        control_kinds: [data, size, x-prompt-injection]
+        obligation_id: ask-agent-only-when-let
+        caller_must_enforce: "the person asked must have let a circle with the asker ask and named the namespaces; Lens answers from those only, wraps the question as outside text, and records the question and answer in their timeline"
+        provenance: {kind: documented, source: 'docs/circles.md "Ask their agent"'}
   - id: "automations' params and prompts, POST /automations/preview and /automations/variables"
     component: optional
     parameters:
@@ -1084,6 +1094,15 @@ outputs:
       - {id: inv-free-busy-only-when-let, statement: "busy times reach only people in a circle that lets free_busy, and only when, never what", property_id: P-FREE-BUSY, provenance: {kind: documented, source: 'docs/circles.md "When they''re free"'}}
     downstream_must_not_assume:
       - {id: dmna-free-means-available, statement: "that a free stretch means the person will take a meeting then, or that every event of theirs is in Lens", provenance: {kind: documented, source: 'docs/circles.md "When they''re free"'}}
+  - component: assistant
+    channel: "An agent's answer to someone in a circle (POST /circles/ask; domain/circles_ask.py)"
+    taint: same-as-input
+    x-taint-note: "a model's answer from excerpts of the namespaces the owner named, with their titles and times; the question and answer in the owner's timeline as outside text"
+    taint_provenance: {kind: documented, source: 'docs/circles.md "Ask their agent"'}
+    invariants:
+      - {id: inv-ask-agent-named-namespaces, statement: "answers come only from the namespaces the owner named for that circle, never a vault's", property_id: P-ASK-AGENT, provenance: {kind: documented, source: 'docs/circles.md "Ask their agent"'}}
+    downstream_must_not_assume:
+      - {id: dmna-answer-only-excerpts, statement: "that the answer is only what the excerpts say, or that the question is not text steering a model", provenance: {kind: documented, source: 'docs/circles.md "Ask their agent"'}}
 
 # ---------------------------------------------------------------- §1.10
 adversaries:
@@ -1683,6 +1702,14 @@ properties_claimed:
     violation_symptoms: [info-leak]
     x-voided-by: "an event they organise or are invited to by their account's email counts wherever it is held, if they can read it; asks repeated over time show the shape of their days to those they let see; a repeating event counts by its first time only (domain/circles_ask.py)"
     provenance: {kind: documented, source: 'docs/circles.md "When they''re free"'}
+  - id: P-ASK-AGENT
+    kind: confidentiality
+    components: [assistant, authz]
+    tier: security-critical
+    conditions: "someone's agent answers a question only for people in a circle of theirs that lets questions, which nothing but they turn on, and only from excerpts in the namespaces they named on it (about) that they still read, never a vault's; the question is outside text to the model; every question and its answer show in their own timeline; a source links only when the asker can open it"
+    violation_symptoms: [info-leak]
+    x-voided-by: "whatever those namespaces hold can be read out by questions, so naming a namespace lets the circle read it through the agent; the model may say more than the excerpts support; the answer is a model call charged to both people (domain/circles_ask.py)"
+    provenance: {kind: documented, source: 'docs/circles.md "Ask their agent"'}
   - id: P-AUTH-REQ
     kind: authentication
     components: [web, identity]

@@ -231,6 +231,14 @@ TOOLS = [
         True,
     ),
     (
+        "ask_their_agent",
+        "Ask the agent of someone in the person's circles a question (person: account id or email). It answers only "
+        "from what they let the person ask about, citing it; they see the question and the answer.",
+        {"person": _S, "question": _S},
+        ["person", "question"],
+        False,
+    ),
+    (
         "when_free",
         "When people in the person's circles are busy between start and end (ISO times, in tz), for those who let the "
         "person see it, and when the person and all of them are free for at least minutes, within day_start..day_end "
@@ -785,6 +793,7 @@ GROUPS = {
             "circles",
             "share_with_circle",
             "when_free",
+            "ask_their_agent",
             "approvals",
             "decline_approval",
             "automations",
@@ -1818,6 +1827,12 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
             out["shares"] = circles.shares(self.db, me, shares, min(int(limit or 20), 50))
         n = len(out["circles"])
         return out, f"Read {n} circle{'' if n == 1 else 's'}" + (f" and the shares {shares}" if out.get("shares") is not None else "")
+
+    def t_ask_their_agent(self, person, question):
+        from . import circles_ask
+
+        out = circles_ask.ask(self.db, self.cfg, self._me(), str(person), str(question), via="assistant")
+        return out, f"Asked {out['name']}'s agent"
 
     def t_when_free(self, people, start, end, tz="UTC", minutes=30, day_start=9, day_end=18):
         from . import circles_ask

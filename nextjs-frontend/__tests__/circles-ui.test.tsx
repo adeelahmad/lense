@@ -31,6 +31,9 @@ jest.mock("@/app/openapi-client", () => ({
   },
 }));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
+jest.mock("@/lib/hooks/session", () => ({
+  useArchive: () => ({ me: { user: { email: "adeel@x.io" }, roles: { calls: "owner", pods: "owner" } }, admin: false }),
+}));
 const toast = jest.fn();
 jest.mock("@/components/ui/toast", () => ({ useToast: () => toast }));
 
@@ -99,11 +102,28 @@ describe("circles under Profile", () => {
 
   it("lets a circle see when you're free in one click", async () => {
     show(<CirclesPanel />);
-    fireEvent.click(await screen.findByRole("switch"));
+    fireEvent.click((await screen.findAllByRole("switch"))[0]);
     await waitFor(() =>
       expect(mockApi.updateCircle).toHaveBeenCalledWith(
         expect.objectContaining({ path: { cid: 1 }, body: { lets: ["free_busy"] } }),
       ),
+    );
+  });
+
+  it("lets a circle ask your agent about the namespaces you pick", async () => {
+    mockApi.listCircles.mockImplementation(() =>
+      ok({ circles: [{ ...family, lets: ["free_busy", "questions"], about: ["calls"] }], suggested: [] }),
+    );
+    show(<CirclesPanel />);
+    fireEvent.click(await screen.findByRole("checkbox", { name: "pods" }));
+    await waitFor(() =>
+      expect(mockApi.updateCircle).toHaveBeenCalledWith(
+        expect.objectContaining({ body: { about: ["calls", "pods"] } }),
+      ),
+    );
+    fireEvent.click(screen.getAllByRole("switch")[1]);
+    await waitFor(() =>
+      expect(mockApi.updateCircle).toHaveBeenCalledWith(expect.objectContaining({ body: { lets: ["free_busy"] } })),
     );
   });
 

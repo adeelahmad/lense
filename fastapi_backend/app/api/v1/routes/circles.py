@@ -9,6 +9,8 @@ from app.api.deps import Acl, Cfg, CurrentUser, Db, Principal, Writer, domain_er
 from app.api.v1.routes import activities as activity_routes
 from app.domain import auth, circles, circles_ask
 from app.schemas.circles import (
+    AgentAnswer,
+    AskIn,
     Circle,
     CircleCreate,
     CircleList,
@@ -50,7 +52,7 @@ def list_circle_people(user: CurrentUser, db: Db) -> list[Person]:
 def create_circle(body: CircleCreate, user: Writer, db: Db) -> Circle:
     """A new circle of yours. Audited as `circle.create`."""
     with domain_errors():
-        cid = circles.create(db, me(user), body.name, body.members, body.lets)
+        cid = circles.create(db, me(user), body.name, body.members, body.lets, body.about)
     auth.audit(db, user.as_audit(), "circle.create", f"circle:{cid}", {"members": len(body.members)})
     return Circle.model_validate(circles.get(db, cid, user.id))
 
@@ -104,6 +106,16 @@ def undo_circle_share(sid: int, user: Writer, db: Db) -> ShareUndone:
     return ShareUndone.model_validate(out)
 
 
+@router.post("/ask")
+def ask_their_agent(body: AskIn, user: CurrentUser, db: Db, cfg: Cfg) -> AgentAnswer:
+    """Ask someone's agent a question, answered only from the namespaces they let a circle of theirs with you ask about
+    (`lets: questions` and `about`), citing what it used. They see the question and the answer in their own timeline
+    (agent.asked)."""
+    with domain_errors():
+        out = circles_ask.ask(db, cfg, me(user), body.person, body.question, via="web" if user.via == "access" else user.via)
+    return AgentAnswer.model_validate(out)
+
+
 @router.post("/when-free")
 def when_free(body: WhenFreeIn, user: CurrentUser, db: Db) -> WhenFree:
     """When people in your circles are busy in a window, for those who let you see it (a circle of theirs with
@@ -136,7 +148,7 @@ def update_circle(cid: int, body: CircleUpdate, user: Writer, db: Db) -> Circle:
     """Rename a circle of yours, set who is in it, add and take people out, or set what they may ask your agent
     (`lets`: free_busy lets them see when you're free)."""
     with domain_errors():
-        out = circles.update(db, me(user), cid, body.name, body.members, body.add, body.remove, body.lets)
+        out = circles.update(db, me(user), cid, body.name, body.members, body.add, body.remove, body.lets, body.about)
     auth.audit(db, user.as_audit(), "circle.update", f"circle:{cid}", None)
     return Circle.model_validate(out)
 

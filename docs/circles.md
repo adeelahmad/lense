@@ -13,7 +13,7 @@ Status: in progress. Circles are built in steps; only what is merged is called b
 | Circles under Profile in the web app, and a Share action on timeline items and resource pages | built |
 | Rules: an automation shares what you pick (by kind, sender, entity or the decision model) with a circle, asking you first or on its own | built |
 | When they're free: a circle can see when you're free (never what), and agents find a time that suits everyone | built |
-| Asking someone's agent a question (what does the trip need), answered only from what they let that circle see, with citations | planned |
+| Asking someone's agent a question (what does the trip need), answered only from the namespaces they let that circle ask about, with citations | built |
 | Circles across Lens servers over ActivityPub: a signed inbox, an outbox and WebFinger handles like `sam@lens.example` | planned |
 
 ## Circles
@@ -79,6 +79,17 @@ every event in a namespace you alone belong to (your own calendar). Nothing in a
 the free stretches, at least so many minutes long and within the hours of the day asked for, when the person asking
 and everyone who let them see are free, to suggest a time for a call or a trip. No model is called.
 
+## Ask their agent
+
+Turn on *They can ask your agent questions* on a circle (`lets: ["questions"]`) and pick the namespaces its answers
+come from (`about`, never a vault). Its people, or their agents, can then ask your agent ("what does Sam's trip need?").
+It answers only from excerpts found in those namespaces, cites them ([1]), and says when it can't tell. The question is
+outside text to the model, so it can't talk your agent into anything; the worst it can do is read what you picked.
+
+You see each question and the answer in your timeline (`agent.asked`). Each answer is one model call in the activity
+ledger, counted for both of you; with no model set up, the matching excerpts come back instead. A source links to its
+page only when the person asking can open it.
+
 ## For agents
 
 Everything here works for agents as it does for people.
@@ -90,11 +101,12 @@ Everything here works for agents as it does for people.
   `GET /api/v1/circles/shares?direction=received|sent`, and take one back with `DELETE /api/v1/circles/shares/{id}`.
   Audited as `circle.create`, `circle.update`, `circle.delete`, `circle.share` and `circle.unshare`.
   `POST /api/v1/circles/when-free` (`people`, `start`, `end`, `tz`, `minutes`, `day_start`, `day_end`) answers when
-  they're busy and when everyone is free; a circle's `lets` turns it on.
-- **MCP:** `list_circles` (with `shares`: received or sent), `save_circle`, `share_with_circle`, `undo_share` and
-  `when_free`. They are about the person, so a namespace's own MCP server doesn't offer them.
+  they're busy and when everyone is free; a circle's `lets` turns it on. `POST /api/v1/circles/ask` (`person`,
+  `question`) asks their agent; a circle's `lets: ["questions"]` and `about` (namespaces) let it.
+- **MCP:** `list_circles` (with `shares`: received or sent), `save_circle`, `share_with_circle`, `undo_share`,
+  `when_free` and `ask_their_agent`. They are about the person, so a namespace's own MCP server doesn't offer them.
 - **The assistant:** `circles` reads them, `share_with_circle` asks the person first (telling other people is always
-  their pick), and `when_free` finds a time.
+  their pick), `when_free` finds a time, and `ask_their_agent` asks someone's agent.
 - **Automations:** the `share_with_circle` action ([Rules](#rules)), which agents can add with the automation tools.
 
 ## What keeps it safe
