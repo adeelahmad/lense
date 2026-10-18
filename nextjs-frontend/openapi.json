@@ -25793,7 +25793,7 @@
           "chats"
         ],
         "summary": "Get Chat",
-        "description": "A conversation with the version showing (`messages`, each with its `versions`) and every version's messages\n(`tree`). Citations follow your current access: ones you can no longer read are left out (web pages it cited stay:\nthey aren't the archive's).",
+        "description": "A conversation with the version showing (`messages`, each with its `versions`) and every version's messages\n(`tree`). Citations follow your current access: ones you can no longer read are left out (web pages, Lens's docs\nand this server's facts it cited stay: they aren't the archive's).",
         "operationId": "get_chat",
         "parameters": [
           {
@@ -58621,7 +58621,7 @@
               }
             ],
             "title": "Recording Id",
-            "description": "the asset it's from; none for a web page"
+            "description": "the asset it's from; none for a web page, Lens's docs, this server's facts, a message or an event"
           },
           "source": {
             "anyOf": [
@@ -58633,7 +58633,7 @@
               }
             ],
             "title": "Source",
-            "description": "what it is: said (speech), page (a document's), screen (text shown in a video), memory, or web"
+            "description": "what it is: said (speech), page (a document's), screen (text shown in a video), memory, web, docs (Lens's docs), server (this server's facts), mail or event (a connection's message or event)"
           },
           "url": {
             "anyOf": [
@@ -58645,7 +58645,7 @@
               }
             ],
             "title": "Url",
-            "description": "a web page's address (source web): the citation opens it"
+            "description": "where it is when it isn't the archive's: a web page (web), a page of Lens's docs (docs), this server (server), or a message or event at its account (mail, event); the citation opens it"
           },
           "site": {
             "anyOf": [
@@ -58657,7 +58657,7 @@
               }
             ],
             "title": "Site",
-            "description": "a web page's site, like example.com"
+            "description": "a web page's site, like example.com; a message's or event's connection"
           },
           "fetched_at": {
             "anyOf": [
@@ -58777,7 +58777,7 @@
           "text"
         ],
         "title": "Passage",
-        "description": "A numbered excerpt an answer can cite: a moment of an asset, or a web page (`source` \"web\", with its `url`)."
+        "description": "A numbered excerpt an answer can cite: a moment of an asset, a web page (`source` \"web\", with its `url`), or a\nmessage or event of a connected account (`source` \"mail\" or \"event\", with its `url` in Gmail or Google Calendar)."
       },
       "Passkey": {
         "properties": {

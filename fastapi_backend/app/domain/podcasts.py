@@ -119,20 +119,27 @@ def _vault(db, sid):
     return bool((db.one("SELECT vault FROM $r", r=R("data_key", int(sid))) or {}).get("vault"))
 
 
+def fits(db, sid, source_spaces):
+    """Whether an episode about sources in `source_spaces` may go in namespace `sid` (None: one not made yet, read by
+    admins alone): everyone who can read it can read every source's namespace, and no source is in a vault."""
+    if any(_vault(db, s) for s in source_spaces):
+        return False
+    readers = _readers(db, sid) if sid is not None else set()
+    return all(readers <= _readers(db, s, collections=False) for s in source_spaces if s != sid)
+
+
 def target(db, cfg, source_spaces, roles, admin):
     """(namespace id, why) for a new episode. The podcasts namespace (podcasts.namespace) when the person may add to
-    it and everyone who can read it can read every source's namespace, and no source is in a vault; else the source's
-    own namespace when all sources share one the person may add to. Raises Problem when neither will do."""
+    it and it fits (`fits`); else the source's own namespace when all sources share one the person may add to. Raises
+    Problem when neither will do."""
     from . import auth
 
     name = (cfg.get("podcasts") or {}).get("namespace") or "podcasts"
     row = db.one("SELECT record::id(id) AS id FROM space WHERE name = $n LIMIT 1", n=name)
     sid = row["id"] if row else None
     can_add = admin or (sid is not None and auth.allows(roles, sid, "editor"))
-    if can_add and not any(_vault(db, s) for s in source_spaces):
-        readers = _readers(db, sid) if sid is not None else set()
-        if all(readers <= _readers(db, s, collections=False) for s in source_spaces if s != sid):
-            return (sid if sid is not None else store.ns_id(db, name)), "podcasts"
+    if can_add and fits(db, sid, source_spaces):
+        return (sid if sid is not None else store.ns_id(db, name)), "podcasts"
     if len(source_spaces) == 1:
         (only,) = source_spaces
         if admin or auth.allows(roles, only, "editor"):
@@ -158,11 +165,14 @@ def create(
     style=None,
     title=None,
     voices=None,
+    space=None,
 ):
     """A new episode about what was picked, queued to be made. Returns {episode, job, namespace, placed}.
 
     `roles` ({space: role}) and `admin` decide where it may go; `readable` (None: everything) and `also` (recordings
-    seen through a role on their collection) bound the sources it may read, and are kept for the job. Callers check the person may read every picked recording first."""
+    seen through a role on their collection) bound the sources it may read, and are kept for the job. Callers check the person may read every picked recording first.
+    `space` is where it goes when the caller has decided (a routine's podcast episode node): it must fit (`fits`),
+    Problem otherwise."""
     sel = clean_selection(selection)
     opts = options(cfg, length, style, prompt, voices)
     rids = selected_recordings(sel)
@@ -172,7 +182,12 @@ def create(
     also = sorted({int(x) for x in also or ()})
     if readable is not None and any(r["space"] not in readable and r["id"] not in also for r in rows):
         raise KeyError("recording")
-    sid, placed = target(db, cfg, {r["space"] for r in rows}, roles or {}, admin)
+    if space is not None:
+        if not fits(db, int(space), {r["space"] for r in rows}):
+            raise Problem("an episode about these sources can't go in that namespace: people there couldn't read them all")
+        sid, placed = int(space), "chosen"
+    else:
+        sid, placed = target(db, cfg, {r["space"] for r in rows}, roles or {}, admin)
     rid = db.next_id("recording")
     t = store.now()
     first = next(r["title"] for r in rows if r["id"] == rids[0]) or "Untitled"

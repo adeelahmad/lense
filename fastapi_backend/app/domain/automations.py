@@ -907,25 +907,6 @@ def decide_held(db, cfg, run_id, run_it=True, by=None):
 
 
 # ---------- following the stream ----------
-def _stream_index(db, rows):
-    """{kind: [(automation, trigger)]} for the triggers the stream feeds."""
-    index: dict = {}
-    for a in rows:
-        for t in a["triggers"]:
-            if t["on"] in ("event", "relative"):
-                try:
-                    kinds = events.expand(t.get("kinds") or [])
-                except ValueError:
-                    continue
-            elif t["on"] == "webhook":
-                kinds = {"webhook.received"} & {k["name"] for k in events.kinds()}
-            else:
-                continue
-            for k in kinds or ():
-                index.setdefault(k, []).append((a, t))
-    return index
-
-
 def _enabled(db):
     return [
         view(db, r)
@@ -994,16 +975,17 @@ def dispatch(db, cfg, log=None):
     if not rows:
         events.idle(db, CONSUMER)
         return 0
-    index = _stream_index(db, rows)
-    if not index:
+    index = match.compile_triggers(rows)
+    if not index["kinds"]:
         events.idle(db, CONSUMER)
         return 0
     spaces = None if any(a.get("spaces") is None for a in rows) else {s for a in rows for s in a["spaces"]}
-    acts, commit = events.follow(db, cfg, CONSUMER, kinds=sorted(index), spaces=spaces)
+    acts, commit = events.follow(db, cfg, CONSUMER, kinds=index["kinds"], spaces=spaces, hint=index["hint"])
     viewers: dict = {}
     started = 0
     for act in acts:
-        for a, t in index.get(act.get("kind"), []):
+        for c in match.candidates(index, act):
+            a, t = c["row"], c["trigger"]
             try:
                 if a["run_as"] not in viewers:
                     account = _account(db, a["run_as"])

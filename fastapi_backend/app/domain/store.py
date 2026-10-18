@@ -156,9 +156,11 @@ DEFAULTS = {
     # anytopdf: the places and dates anytopdf (run here) finds, as hints for the extractor (enrich.py); dates: the dates
     # each line gives kept as days on the calendar (dates.py); cleanup: the
     # clean step tidies transcripts before analysis (cleanup.py), cleanup_fillers taking out "um" and "uh" too, and
-    # cleanup_punctuation (off, missing, always) putting marks back with a local model
+    # cleanup_punctuation (off, missing, always) putting marks back with a local model; typing: which model types the
+    # names the rules leave terms (name_types.asking)
     "analysis": {
         "entities": "rules",
+        "typing": "auto",
         "spacy_model": "en_core_web_sm",
         "gazetteer": [],
         "anytopdf": False,

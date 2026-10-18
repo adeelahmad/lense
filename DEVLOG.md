@@ -111,11 +111,39 @@ organisations and products, holidays), the words a name starts or ends with, rol
 verbs of saying after it and the namespace's named speakers; a recording gives each name one type. Upgrade step
 `entity-types` retypes old analysis-made Terms, skipping types people or agents set (graph history and audit log).
 
-Refine later: the decision model (Jev or Laya) for the names the rules leave as Terms, in analysis and as an action
-on existing Terms (next PR); place, name and brand lists for more languages and regions (Custom vocabulary in
+Then the decision model: `analysis.typing` (`auto` by default: Jev or Laya when set up, never the language model;
+`model` lets the language model answer; `rules` none) asks about a recording's new Terms in one `decide.choose_all`
+call, with two lines each, and keeps answers above `decisions.act_above`.
+
+Refine later: an action that asks the model about existing Terms (API, MCP, a button on the Entities page; next PR);
+offer the namespace's own types to the model too; ask about names in the hybrid mode's new entities; place, name and brand lists for more languages and regions (Custom vocabulary in
 Settings covers one install's own names); type existing entities again when a later recording gives better evidence
 (needs a marker for types people set, kept out of the versioned rows); "Google Cloud"-like names (a known company,
 then a word) as products.
+
+## 2026-10-15 · The assistant knows Lens itself
+
+Adeel: the assistant had no clue about the platform, its capabilities or general asks like "what is the MCP
+address"; ground it in the docs through an internal tool. `lens_help` (app/domain/manual.py) answers from two things:
+this server's facts (version, the web app, MCP and API addresses as the person uses them, what is turned on, their
+access; admins also get each setting's page) and Lens's docs, cut at their headings into an in-memory SQLite FTS5
+index (the word index's engine), found by words, with the docs' contents. Both are cited ([n]: "This Lens server",
+"Docs · MCP server › Connecting", opening the heading on GitHub). The same tool is on the MCP server, and chat rooms
+list its sources. The Docker Compose files mount the install's `docs/` read-only at `/docs`; Cloudron's image copies
+them.
+
+Refine later: the docs inside the NAS packages' images (Synology, QNAP build from fastapi_backend/ only, so they have
+the server's facts and the online link); an in-app docs page so citations open the installed version instead of
+GitHub's main branch; docs found by meaning too when search by meaning is on; docs passages for models that can't call
+tools (search-and-answer only reads the archive); the README's overview in containers (its symlink points outside
+docs/).
+
+Found while landing it (the clicks survey hung after its first chat answer, one run in six): a reader leaving a
+streamed answer before it ends leaves its generator to the garbage collector, which closes it on whatever thread is
+running, mid-query, and the answer's cleanup (`on.end()`) then asked the database for the one embedded connection that
+same thread held: a self-deadlock that froze the whole server. `store.DB.conn` now gives a thread the connection it
+already holds. Refine later: the cleanup of a streamed answer (and, in a long conversation, its summary's model call)
+still runs on the thread that happens to collect it, the event loop's included; hand it to a worker instead.
 
 ## 2026-10-14 · Long recordings in pieces a speech provider takes
 

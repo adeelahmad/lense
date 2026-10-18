@@ -171,6 +171,21 @@ reads each name and the words around it (`app/domain/name_types.py`):
   topic, or retyped on the Entities page (one at a time or ticked together). Names listed in Settings › Analysis ›
   Custom vocabulary (`Name | TYPE`) always get the type given there.
 
+**Names the rules can't type.** When a [decision model](assistant.md#routine-choices) is set up (Jev with its key, or
+Laya), analysis asks it what each new Term of a recording is, with the first two lines it's said in, and keeps the type
+when it is sure (`decisions.act_above`, 0.8). Names that are already entities aren't asked again, and the short form of
+a longer name in the same recording ("Johnson" of "Sarah Johnson") takes that name's type. The names of a recording go
+in one call (up to 20 a call and 40 a recording; Laya, which reads less, one at a time). Each call is in Activity and
+counts toward budgets, and none is made once the budget's hard limit is reached. Settings › Analysis › **Names the rules
+can't type** (`analysis.typing`) chooses:
+
+- `auto` (the default): the decision model when one is set up, else nothing; the language model is never asked.
+- `model`: the decision model, else the language model, in one call per recording too.
+- `rules`: no model; the names stay Terms.
+
+A name the model isn't sure of stays a Term, and so do all of them when it can't be reached. Names a workflow's nodes
+typed, and names mapped onto a fixed list ([Entity setup](#entity-setup)), aren't asked.
+
 A name gets one type per recording, the one most of its lines give it, so "Lee" after "Dr Lee" is a person too. "And"
 no longer joins two names into one ("Kenya and Nigeria" are two places). The given names are mostly the US Census
 Bureau's frequent first names of 1990 (public domain); the other lists are written for Lens. With
@@ -756,3 +771,31 @@ Every change is recorded (`GET /api/v1/graph-changes`): editors of the namespace
 proposals (dismissing says the two are different, so the pair isn't suggested again) and undo applied changes; an
 admin can undo everything a run applied at once (`POST /api/v1/routine-runs/{id}/undo`). Merges are undone exactly as
 from an entity's page.
+
+### Publishing from the graph
+
+Graph workflows also publish, so a routine fills a [feed](feeds.md) or makes a [podcast episode](podcasts.md) on a
+schedule. Their nodes:
+
+- **Select assets** passes on the resources in the routine's namespaces (or the *namespaces* named), newest first,
+  *limit* at most (50, up to 500): those that came in *since* the routine's last run (the default; on its first run,
+  the past week), or in the past *day*, *week* or *month*, or *all* of them; matching *q* (words in the title),
+  *topics*, *entities* and *status*. Podcast episodes are left out unless *include episodes* is on, so an episode about
+  the week's resources isn't a source for the next one.
+- **Select activities** passes on the [timeline](timeline.md)'s activities in those namespaces, of the *kinds* named
+  (with their descendants), *since* the same choices, matching *q* and a *where* match tree, newest first, *limit* at
+  most (50, up to 200). Only what everyone who reads the namespace sees, never someone's own.
+- **Publish to feed** adds what comes in to the *feed*: resources and episodes, activities, or text (a template
+  node's output becomes a text item, with the node's *title*). What's in the feed already isn't added again, so a
+  routine that runs again adds only what's new; what the feed's readers couldn't read is refused and said in the run's
+  log. The feed's namespace is one the routine covers.
+- **Podcast episode** makes an episode about the resources that come in (*max sources*, 10, of those with text; none
+  under *min sources*), with the *title*, *prompt*, *length* and *style* of [Podcasts](podcasts.md), placed in the
+  *namespace* named, else the *feed*'s, else where an admin's episode goes; a source its readers couldn't read is left
+  out. With a *feed*, the episode is added to it and listed once it's made.
+
+A run's result counts what was `published` and the `episodes` made, and its log says what each node did. Try on the
+canvas runs a graph workflow over the namespaces you pick and says what each node would do, without publishing. So
+Select assets → Podcast episode (feed *Weekly*, length 10) on a routine that runs every Monday makes an episode about
+the week's new resources and puts it in your podcast app; Select activities (kinds `asset.added`) → Publish to feed
+puts the timeline in your feed reader.

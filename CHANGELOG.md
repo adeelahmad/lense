@@ -11,6 +11,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   checked against their SHA-256); podcast episodes wait for it, and the browser reads answers until it's here. A
   podcast's second host gets a voice in the first host's language. Agents pick it through the settings API and list the
   voices with `GET /api/v1/voice/voices?provider=kokoro` ([Kokoro](docs/speech-providers.md#kokoro)).
+- **The upgrade agent starts the code sandbox's gateway.** Settings → Code sandbox → Run the gateway on this machine
+  now works on installs with an upgrade agent: the agent knows the `sandbox` profile and starts or stops its three
+  containers, as it does the MCP runner, the browser and monitoring. An older agent still says to run the line by hand
+  until it has updated itself ([The gateway](docs/assistant.md#the-gateway)).
 - **Deep research.** Give the assistant a goal (`/research <goal>`, `research: true` on a question, `POST
   /api/v1/chats/<id>/research`, its `start_research` tool, or MCP) and it plans the research: up to three follow-up
   questions, the sub-questions, where it looks (the archive, the graph, notes, the web, the code sandbox), the tool
@@ -47,6 +51,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   a time (for the same sender, say), when one came a number of times, when one didn't come in time after another (no
   reply within two days), or once for a batch collected over a time. What it waits on outlasts a restart, and switching
   the automation off drops it ([Joins](docs/automations.md#joins)).
+- **A decide node for judgement calls.** An automation's workflow can ask the decision model a question with a few
+  options ("Does this need me today?") and go on along the option it picked, or along `unsure` when it isn't sure
+  enough, none is set up or the budget is spent. The email it reads is marked as outside text, the answer is kept per
+  activity so a retry doesn't pay again, and the call shows in the activity ledger under the run
+  ([The decide node](docs/automations.md#the-decide-node)).
 - **Specs from transcripts.** Turn a voice session or a meeting into a technical spec, saved as a note linked to it:
   the model writes the spec, then lists every named decision, every "no" and "not that, this", every constraint and
   every gap the speaker left to decide later, each with its quote and a link to the moment it was said; a quote the
@@ -101,6 +110,19 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   stream could wait for a database connection its own thread already held, and every request after it waited too.
   A query made inside another on the same thread now runs on that connection
   ([Concurrency](docs/database.md#concurrency)).
+- **Mail, calendars and files in chat.** An admin's assistant can search and read the mailboxes, calendars and
+  storage they connected under Settings → Sources, through the new tools `connections`, `search_mail`, `read_mail`,
+  `calendar_events`, `list_files`, `find_files`, `read_file` and `import_from_connection`; the tool picker shows them as
+  "Mail, calendars and files". Gmail is searched with its own query language and IMAP by words in the newest subjects and
+  senders; Google Calendar gives the events of a window; files are found by name and read when they are text, PDFs or
+  Word files. Answers cite a message or an event with a link that opens it, and bringing things into Lens waits for the
+  person's yes. Nothing is sent, written or deleted yet
+  ([Mail, calendars and files](docs/assistant.md#mail-calendars-and-files)).
+- **The decision model types the names the rules can't.** When Jev or Laya is set up, analysis asks it what each new
+  Term of a recording is (a person, an organisation, a product...), with the lines it's said in, in one call per
+  recording, and keeps the types it is sure of. Settings › Analysis › Names the rules can't type (`analysis.typing`)
+  can also let the language model answer, or turn it off; the language model is never asked by default
+  ([Names the rules can't type](docs/processing.md#entities-and-the-graph-explorer)).
 
 - **Published feeds.** A namespace publishes a private RSS feed, or a podcast feed with Apple Podcasts' tags, that any
   feed reader or podcast app follows at its address: resources (with their audio as the enclosure), podcast episodes
@@ -109,6 +131,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   one stops the old address at once, and the feed asks directories and search engines not to list it. Editors make and
   fill feeds with `POST /api/v1/feeds` and `POST /api/v1/feeds/{id}/items`; agents use the MCP tools `list_feeds`,
   `create_feed` and `publish_to_feed` ([Published feeds](docs/feeds.md)).
+    - Routines fill them: the graph workflow nodes Select assets and Select activities pick what came in since the
+      routine last ran, Publish to feed adds it to a feed, and Podcast episode makes an episode about it (added to a
+      feed, listed once it's made). Try on the canvas says what they would do
+      ([Publishing from the graph](docs/processing.md#publishing-from-the-graph)).
+
 ## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
 
 - **Dates read as days, for agents.** With Settings → Analysis → Read dates on (off by default), analysis reads the

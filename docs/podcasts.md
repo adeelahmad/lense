@@ -61,6 +61,10 @@ The audio is the asset's (`GET /api/v1/recordings/{id}/audio`), and so are shari
 use the MCP tools `create_podcast` (resources as `recording_ids`, lines as `"<recording_id>:<line>"`) and
 `get_podcast` ([MCP](mcp.md)).
 
+A routine makes episodes on a schedule with the **Podcast episode** workflow node
+([Publishing from the graph](processing.md#publishing-from-the-graph)): an episode about the week's new resources,
+added to a [feed](feeds.md) your podcast app follows.
+
 ## The prompts are templates
 
 The plan, write and fact-check prompts are prompt templates (Templates in the web app) called **Podcast: plan**,

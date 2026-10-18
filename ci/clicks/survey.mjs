@@ -87,6 +87,16 @@ async function surveyPages(page, base, phone) {
       return seen.filter((el) => el.offsetParent !== null && !el.closest("[hidden], nav, details:not([open]) > :not(summary)")).length;
     });
   const settle = () => page.waitForTimeout(1200);
+  // A page's controls once it has drawn: a page still loading what it shows has none for a moment, so none is counted
+  // again for a few seconds before it's taken
+  const counted = async () => {
+    let n = await controls();
+    for (let tries = 0; n === 0 && tries < 12; tries++) {
+      await page.waitForTimeout(300);
+      n = await controls();
+    }
+    return n;
+  };
   // The controls the floating Ask button covers with the page (and anything scrolling in it) at its end, where
   // scrolling can't carry them clear: it should rise above them or step aside, so any is a failure.
   const askCovers = async () => {
@@ -143,7 +153,7 @@ async function surveyPages(page, base, phone) {
     await page.waitForLoadState("domcontentloaded");
     await settle();
     const key = pageKey(page.url());
-    await visit({ page: key, label: item.label, reach: 1 + menu, controls: await controls() });
+    await visit({ page: key, label: item.label, reach: 1 + menu, controls: await counted() });
     // a second level: settings sections, and tabs that are links (Admin, Sensors, Pipelines)
     const sub = await page
       .locator("main")
@@ -155,7 +165,7 @@ async function surveyPages(page, base, phone) {
       if (!s.href || pages.some((p) => p.page === pageKey(base + s.href))) continue;
       await page.goto(base + s.href, { waitUntil: "domcontentloaded" });
       await settle();
-      await visit({ page: pageKey(page.url()), label: `${item.label} › ${s.label}`, reach: 2 + menu, controls: await controls() });
+      await visit({ page: pageKey(page.url()), label: `${item.label} › ${s.label}`, reach: 2 + menu, controls: await counted() });
     }
   }
   return pages;

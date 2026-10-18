@@ -25,7 +25,7 @@ def sse(text):
 
 def start_llm(cfg):
     fake_llm.Handler.tool_script, fake_llm.Handler.reject_tools, fake_llm.Handler.decision = [], False, None
-    fake_llm.Handler.ignore_tool_choice = False
+    fake_llm.Handler.ignore_tool_choice, fake_llm.Handler.pick = False, None
     fake_llm.Handler.title = None
     fake_llm.Handler.names, fake_llm.Handler.cypher_script = None, []
     fake_llm.Handler.research_plan = fake_llm.Handler.research_report = None
