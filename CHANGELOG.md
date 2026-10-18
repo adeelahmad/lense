@@ -4,9 +4,361 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+## 0.17.0 <small>October 18, 2026</small> {id="0.17.0"}
+
 ### Features
 
 - **microsandbox:** the MCP runner runs inside the sandbox, turned on and off from the web app like Docker's; it runs as a user of its own with the database and the archive closed to it
+
+- **A new conversation's first answer no longer goes missing.** A quick answer in a new conversation sometimes showed
+  "No answer was saved for this question" though it was saved: the conversation's first read, made before the answer
+  was saved, was used in place of reading it again. The web app (Chat, the page assistant and a recording's Chat tab)
+  now drops a read under way and reads the conversation afresh once the answer is saved. And an answer is now written
+  on a thread of its own, so closing the tab, losing the connection or moving to another page no longer drops it: it's
+  finished and saved all the same, and only Stop ends it early ([Chat](docs/assistant.md#chat)).
+
+- **The code sandbox can run on compute nodes.** Once the mesh registers the install's compute nodes, `run_python`
+  and `run_bash` take a `node` to run on, `sandbox_nodes` lists where code can run and why a node can't now, and a
+  conversation's sandbox stays where it last ran (moving starts a fresh one). Each node's sandboxes are stopped,
+  swept and deleted through its own gateway, and each run's ledger row names its node. Until nodes are registered
+  nothing changes ([Compute nodes](docs/assistant.md#compute-nodes)).
+
+- **Choose the content type as it comes in.** Import has a **What it is** pick beside each file, pasted text and web
+  page, offering the content types of its base type (Recognised automatically until you pick one). `POST /uploads`,
+  `POST /import`, `POST /import/web` and `/import/web/links` take a `content_type`, and the assistant's `import_files`
+  and `import_urls` take one when you say what the files or pages are: the asset is that content type from the start,
+  so its pipeline runs the first time, not after a change and a rerun. One of another base type (a podcast for a
+  photo) is refused before anything is saved, naming the ones that fit. Without one, nothing changes: it's recognised
+  from the file ([Content types](docs/processing.md#content-types)).
+
+- **`lens ext`: extensions as files.** `lens ext pull` writes your extensions' manifests into a folder (skills and
+  prompt tools as Markdown, the rest as YAML), `lens ext push` saves the changed ones as new versions and the new ones
+  as extensions, `lens ext check` checks them without saving, and `lens ext list` lists them (`--json` for agents). It
+  works on this install's database, or on any Lens server with `--url` and an API token. A pulled file says its
+  version, so a push won't save over changes made in Lens since, and a pull won't overwrite changes made in the file,
+  without `--force` ([Manifests as files](docs/assistant.md#manifests-as-files-lens-ext)).
+
+- **Transcription expects your own names.** With Settings → Transcription → Expect your own names on (off by
+  default), each recording is transcribed knowing up to 60 words its namespace already knows: the custom vocabulary,
+  its named people, its defined entities and the names people fixed in its transcripts. Whisper and OpenAI-compatible
+  servers get them as the prompt, Deepgram as key terms or keywords, AssemblyAI as key terms or boosted words; SenseVoice
+  and ElevenLabs take no hints ([Your own names in transcription](docs/processing.md#your-own-names-in-transcription)).
+
+- **Nebula on the primary** (the private network between Lens's machines, in progress). On the primary Nebula runs in
+  the optional `mesh` container, which the upgrade agent starts when a node is added: it makes its own key pair, checks
+  Nebula's download against the kept checksums and relays the database and the API on the mesh address only. The
+  install line that joins a machine and the Settings pages follow in their own pull requests
+  ([Nodes and the mesh](docs/mesh.md)).
+
+- **Projects.** A project is a goal you work toward with the assistant: a name, the goal in your words, instructions
+  and the namespaces it draws on. It comes with a coordinator conversation about the project as a whole, which is told
+  about every thread, and its threads are conversations scoped to its namespaces, marked done when finished; your own
+  conversations can be brought in or taken out, and deleting a project keeps them. Every answer in a project reads its
+  goal and instructions. The coordinator starts threads with a brief (`start_thread`), reads them and marks them done;
+  a brief, from it, you or an agent, is answered in the background as you, with your tools, approvals and budgets.
+  The Projects page, at the top of Chat's conversation list, starts a project with just a name, starts threads with a
+  brief on Enter, shows which are working and marks them done in one click.
+  Schedules ask a prompt on a schedule, in a new thread each time or the same one, and wait while switched off or the
+  project is archived; agents set them with the MCP tool `schedule_project`.
+  `/api/v1/projects` and the MCP tools `list_projects`, `read_project`, `create_project` and
+  `update_project` do it all for agents ([Projects](docs/projects.md)).
+
+- **Feeds in the web app.** The Feeds page, opened from Podcasts and under Explore once there is a feed, lists your
+  published feeds; New feed asks for a title, kind and namespace (Enter makes it); a feed's page copies the address in
+  one click, gets a new one, edits what readers show, takes items out and deletes the feed with Undo instead of a
+  confirm. The publishing nodes are on the canvas, with the feed picked from a list ([In the web
+  app](docs/feeds.md#in-the-web-app)).
+
+- **Grammar fixed by LanguageTool, when you run one.** With transcripts cleaned up and Settings → Analysis →
+  LanguageTool server set (none by default; the compose files' new `languagetool` profile starts one at
+  `http://languagetool:8010`), the clean step makes its grammar and punctuation fixes too, leaving spelling, style and
+  names alone. Each change is in Change history with Revert; without the server the rules run alone
+  ([Cleaning up transcripts](docs/processing.md#cleaning-up-transcripts)).
+
+- **Routine run alerts.** A routine's run that fails (all its actions, some of them, or one that stops without
+  finishing) or leaves graph changes to review can now be sent through Matterbridge, to a signed webhook, or to Slack
+  and Discord: pick the new `routine.failed` and `routine.proposed` events for a namespace's notification target. Each
+  namespace the routine runs over gets its own message, linking the routine or the run's changes; new targets' default
+  events are unchanged ([Notifications](docs/notifications.md#events)).
+
+- **Talk to the assistant from a timeline item.** An opened item on the Timeline has **Ask about this**, and `a` on
+  a line does the same: the chat beside the page opens with the item (its id, line, time, where it opens and its
+  fields) as what your question is about, read as data, so you type the question and press Enter. Nothing changes
+  until you use it ([timeline](docs/timeline.md#asking-about-an-item)).
+
+- **Joining a node** (in progress). Another machine joins with the install line and `LENS_JOIN` and `LENS_JOIN_TOKEN`:
+  it asks nothing, publishes no port, and runs Nebula and `lens node`, which joins once and then follows the primary's
+  config, renews its certificate and reports over the mesh. Adding a node token now returns that install line
+  ([On a node](docs/mesh.md#on-a-node)).
+
+- **Clear the job queue, reorder it and retry failed runs in bulk.** Activity has **Clear queue** (it asks, then can
+  be undone) and **Retry failed**, and under Queued the runs show in the order workers take them and can be dragged
+  into another order (or moved with Alt+↑ and Alt+↓, or Move to top and Move to bottom). The API has the same:
+  `POST /jobs/cancel` cancels every queued and held run you may process (or one namespace's, or chosen ids),
+  `POST /jobs/{jid}/move` moves a queued run, and `POST /jobs/retry` retries every failed run, the dead letter queue.
+  Agents use the MCP tools `runs`, `clear_queue`, `move_run` and `retry_runs`
+  ([Background work](docs/processing.md#background-work), [the API](docs/api.md#jobs)). A retried run now joins the
+  back of the queue.
+
+- **Enhance low quality images before they're read.** The new `enhance` step, first in the standard pipeline,
+  measures each image (size, sharpness, noise, contrast, and face size where the namespace finds faces) and keeps an
+  enhanced copy of a low quality one, which OCR, faces, objects and descriptions then read; the original stays as it
+  is. Off by default: Settings → Enhance. The light `classic` engine (Pillow) is the default; Real-ESRGAN general
+  x4v3 (BSD-3-Clause, 5 MB) is fetched the first time it's chosen. The Details tab says what was found, saves the
+  copy, and enhances an image on request; agents use `POST /api/v1/resources/{rid}/enhance`, the MCP tool `enhance`
+  or the `enhance` automation action ([Enhancing images](docs/enhance.md)).
+
+- **Whisper keeps the language it heard.** With no language set in Settings › Transcription, recordings Whisper
+  transcribes now keep the language it detected, as other engines' do, for search filters and the text cleanup.
+
+- **Worker nodes run jobs** (in progress). On a worker node, `lens node` also runs `lens worker`, against this
+  install's database through the mesh, signed in as a user of that one database made for the node (removed with it;
+  `SURREAL_AUTH=database`). Its jobs fetch their files from the primary over the mesh, plain, never a vault's or
+  another namespace's, and it never gets the archive's secret, so it runs `transcribe` and `diarize` with the models
+  on that machine, skipping any other step `LENS_WORKER_STEPS` names. A worker that serves some namespaces takes only
+  their jobs, and an auto scaling group on machines elsewhere counts only the jobs a worker node takes, so it never
+  launches one for others ([Worker nodes](docs/mesh.md#worker-nodes)).
+
+- **Only the person approves what the assistant asks.** Sending mail, adding an event, writing a file and the
+  assistant's other proposals are approved only by the person signed in to Lens, or in the chat they were asked in.
+  An API key or an app given access can now only decline them (`POST /api/v1/approvals/{id}` answers 403 to an
+  approve or a sample), as MCP and the assistant already could, and each approval's `can` says so
+  ([Approvals](docs/automations.md#approvals)).
+
+**Email replies.** Lens drafts a reply to an email a watched mailbox brought in, from what that email's namespace
+holds: each fact cited to its excerpt, what the archive doesn't say marked `[to confirm: …]`, addressed to the sender
+and threaded. Drafts wait to be edited or set aside and nothing is sent; ask through the API or MCP
+(`email_replies`, `draft_reply`, `get_reply`, `edit_reply`), or add the new reply step to a pipeline to draft each
+new email, skipping mailing lists, no-reply senders and your own mail without a model call. The prompt is the
+Reply to an email template ([Email replies](docs/email-replies.md)).
+
+- **Agents find, install and update marketplace plugins.** `find_plugins` and `install_plugin` (over MCP, and in
+  chat, where installing waits for your yes) look across every marketplace added and install a plugin as your own
+  extension. A plugin you installed now says which version you have, and its button reads **Update to** the version
+  its marketplace lists when that's another; `GET /api/v1/marketplaces/plugins` finds plugins across marketplaces
+  (`?updates=true` for those with another version)
+  ([Skills and plugins from marketplaces](docs/assistant.md#skills-and-plugins-from-marketplaces)).
+
+- **Settings › Nodes and Network** (in progress). Nodes adds a machine (its role, and optionally a name and
+  namespaces) and shows the install line once, with Copy and how long it works. It lists every machine, this one
+  first, with its mesh address, when it was last seen, Nebula, its Lens version, certificate, namespaces, worker and
+  log, renames in place, and removes a machine with Undo instead of a dialog. Network shows whether the mesh is off or
+  running, the CA, this machine's mesh address, the mesh settings and what Nebula said
+  ([the mesh](docs/mesh.md)).
+
+**The Replies page.** The email that waits for an answer, in the menu while any does: Enter drafts the first
+one's reply, a draft shows with its sources and what's left to confirm, and Open in your mail app or Copy takes it
+without its citations. Edits save with Ctrl+Enter; Set aside offers Undo. An email's More actions menu has Reply to
+this email….
+
+- **Leave words out of a search.** `budget -draft` or `budget NOT draft` finds the lines about the budget that don't
+  mention a draft (or drafts), and `-"first draft"` leaves out a phrase; a typed AND changes nothing, as every word is
+  needed anyway. It works in the web app, the API, MCP and the assistant's search, and the "?" help shows it.
+
+- **Compute nodes run the assistant's code** (in progress). A compute node's install line now has
+  `LENS_NODE_SANDBOX=1`, which starts an OpenShell gateway on that machine. `lens node` hands Lens the gateway's
+  client certificate once, kept sealed, and reports whether the gateway answers. Lens reaches the gateway over the
+  mesh only, with mutual TLS, so `sandbox_nodes` lists the node and `run_python` and `run_bash` can run there
+  ([Compute nodes](docs/mesh.md#compute-nodes)).
+
+- **A copy you have already isn't read again.** The same file in two folders of a source on this machine (or uploaded,
+  or found by a scan) is one resource, matched by what's in it, so it's transcribed once; a web page or a video
+  imported by an address the namespace has already gives that resource back, with `duplicate` true, instead of
+  fetching and reading it twice. Copies on cloud storage are still matched by their path ([Imports](docs/api.md#web-pages)).
+
+- **Import webhooks can hand back PDFs.** A light server without LibreOffice or Chromium, such as a Raspberry Pi, can
+  now take Word, PowerPoint and Excel files, emails and saved web pages through an import webhook whose owner turned on
+  `hand_back`: the file is kept and waits, the answer says `needs_pdf`, and the conversion node that sent it pushes the
+  PDF back with `?for=<recording>`. That PDF is what the document's pages are drawn and read from, and its pipeline
+  runs then. It's off on every hook, and nothing changes on a server that converts those files itself
+  ([PDF hand-back](docs/api.md#pdf-hand-back)).
+
+**Reactions and comments on the timeline.** The timeline is a feed everyone in a namespace talks on: an opened item
+has a **React** button with a palette (👍 ❤️ 🎉 👀 😂 😮 😢 🙏) and shows everyone's reactions as chips, and its
+comments open as threads with **Reply**, where Enter sends. A closed line sums its items' reactions and says "3
+comments". A comment on an asset's arrival is a comment on the asset, so the same thread shows on its page. Each
+reaction is a `reaction.added` activity and each comment a `comment.added`, so automations can act on them, and
+agents react and comment over MCP (`react_to_activity`, `activity_comments`, `comment_on_activity`) and through
+`POST /api/v1/activities/{id}/react` and `/activities/{id}/comments`
+([Reactions and comments](docs/timeline.md#reactions-and-comments)).
+
+**Send a reply.** A reply to an email that came in through a Gmail connection an admin let send goes out from the
+Replies page, from that mailbox and in the email's thread, without its citations: Send waits a few seconds with
+Undo, and Keep in Gmail drafts puts it in Gmail's drafts. Nothing marked to confirm may be left in it. Agents ask
+with the MCP tool `send_reply`, which waits in Approvals showing all of the message and sends the text approved
+(`POST /api/v1/recordings/<id>/reply/send` for a person signed in; [Sending](docs/email-replies.md#sending)).
+
+- **Playable copies.** With Settings › Video › Playable copies on (off by default), media browsers can't play, such as
+  HEVC in a .mov, AVI, MTS or AMR, gets one copy they can (H.264 and AAC in MP4, at most 720 lines high by default),
+  made by the transcribe step. The player gets the copy; downloads still give the file itself
+  ([Playable copies](docs/video.md#playable-copies)).
+
+- **A pipeline's Read step picks its own converter.** One pipeline can make its documents and photographed pages into
+  PDFs with anytopdf while the rest keep the server's choice in Settings → Documents: set **Make PDFs with** on its Read
+  step, or `converter` (`auto`, `anytopdf` or `lens`) in the step over the API and MCP. An image read again by Lens
+  itself no longer keeps pointing at a PDF an earlier anytopdf run made of it
+  ([processing](docs/processing.md#choosing-the-converter-for-a-read-step)).
+
+- **Clean up a recording's sound before it's transcribed.** A new pipeline step, Clean up audio (`clean_audio`), runs a
+  recording through WebRTC's audio processing (pywebrtc-audio, Apache-2.0, about 0.5 MB, fetched the first time it
+  runs): noise suppression, automatic gain, a high-pass filter, echo cancellation for two-channel call recordings, and
+  pauses left out of what's transcribed, with the transcript's times put back on the recording's timeline. Settings →
+  Transcription → Audio cleanup holds what it does; no pipeline has it until you add it, the file is never changed, and
+  `GET /api/v1/recordings/{id}` says what it found (`audio_cleanup`)
+  ([Cleaning up audio](docs/processing.md#cleaning-up-audio)).
+
+- **Shared routing rules for an email account.** An IMAP or Gmail account can carry routing rules that every watch
+  on it uses, so a shared inbox's policy (support@ to support, newsletters skipped) is written once rather than on
+  each mailbox's watch. A watch tries its own rules first, then the account's, then its namespace; with no shared
+  rules nothing changes. They're edited from the account's More menu on the Sources page or saved with
+  `PUT /api/v1/sources/{id}/routes`; the routes preview takes `shared_routes` and says which list decided, and agents
+  read and change every account's and watch's rules with the MCP tools `mail_routing` and `set_mail_routing`
+  ([Email](docs/processing.md#email-imap-calendar-feeds-ical-and-google-calendar)).
+
+- **Automations in the web app.** The Automations page lists each automation's triggers in words, with its runs
+  today and when it runs next, and Schedules is now a tab of it. The When, If and Then builder drafts an automation
+  from a sentence or from one of five starters, which stay off until you turn them on, and its test panel tries it on
+  a sample without changing anything. An automation's page shows its runs, with an action that waits marked as
+  waiting, what's coming up, its saved variables and its costs. Agents list the starters at
+  `GET /api/v1/automations/starters`. The [Automations guide](docs/automations.md) now reads as one guide, starting
+  with a five-minute walkthrough, and every automations entry in the [threat model](threat-model.md) names the test
+  that proves its mitigation.
+
+**Tag @lens in a comment and the agent answers in the thread.** On the timeline or on an asset's page, a comment
+with `@lens` (or the assistant's own name) in it gets the agent's answer as a comment by Lens on the same thread,
+as the person who tagged it, with their tools, in a conversation of theirs titled after the item; every change it
+proposes waits for their approval, and the reply links where to decide. Off with Settings → AI assistant → Answer
+when tagged in a comment ([Asking the agent in a comment](docs/timeline.md#asking-the-agent-in-a-comment)).
+
+- **Clean up only low quality recordings.** The `clean_audio` step can now measure each recording's signal-to-noise
+  and clipping first and leave a clean-sounding one as it is, cleaning only the noisy, quiet or clipped ones. Off by
+  default (every recording is still cleaned); turn on "Clean only low quality recordings" under Settings →
+  Transcription → Audio cleanup and set the signal-to-noise floor. What it measured (`snr_db`, `clip_pct`) is on the
+  recording in `GET /api/v1/recordings/{id}` ([Cleaning up audio](docs/processing.md#cleaning-up-audio)).
+
+- **Kokoro reads aloud on this machine.** Pick **Kokoro** as the voice in Settings → AI assistant → Voice, and spoken
+  answers and podcast hosts are read by Kokoro v1.0 on the server's own CPU, in any of its 54 voices across nine
+  languages, with nothing sent anywhere and nothing billed. It's fetched once picked (the `kokoro` extra with
+  kokoro-onnx and ONNX Runtime, the model in `voice.kokoro_model`, full or 8-bit, and the voices: about 450 MB,
+  checked against their SHA-256); podcast episodes wait for it, and the browser reads answers until it's here. A
+  podcast's second host gets a voice in the first host's language. Agents pick it through the settings API and list the
+  voices with `GET /api/v1/voice/voices?provider=kokoro` ([Kokoro](docs/speech-providers.md#kokoro)).
+
+- **A catalogue of what you select.** Library › Export › Catalogue of all selected (.csv) saves one spreadsheet row per
+  asset (title, namespace, collection, kind, date, length, people, tags, language, status, access, origin and a link),
+  with formula-like cells defused ([Finding by any attribute](docs/processing.md#finding-by-any-attribute)).
+
+- **Add providers and make scaling groups in Settings.** Settings › Auto scaling lists the providers with their last
+  check in words, Check again, and Remove with Undo. Add a provider picks the kind, then fills a form drawn from the
+  driver's fields (defaults filled, credentials as password fields, Enter saves) and shows the check it runs. New group
+  on a provider asks for a name, the minimum and maximum, a monthly budget when the provider charges, and what each
+  unit is; a group made there is approved as it's made. Rules stay with the assistant, MCP and the API for now
+  ([In Settings](docs/scaling.md#in-settings)).
+
+- **A video's own captions.** With Settings › Documents › Use a video's own captions on (off by default), a video
+  imported by its address whose captions people wrote takes them as its transcript, in the transcription language or
+  the video's own, so nothing is transcribed ([Videos and podcasts](docs/api.md#videos-and-podcasts)).
+
+**Sources, sensors, people and agents in the graph.** Whoever brought an asset in (the actor of its activity on the
+timeline: a storage source, a sensor, a person, an automation, a routine, an import hook, or Lens itself) is now a
+Source node in the graph with an ADDED link to the asset, so `(Source)-[:ADDED]->(Recording)-[:MENTIONS]->(Entity)`
+says where Lens learns about each person, place or organisation. The canvas draws sources linked to what their assets
+mention, the explorer lists an asset's source among its parents, and the Timeline page's Graph button opens the canvas
+on the sources alone ([Actors in the graph](docs/timeline.md#actors-in-the-graph)).
+
+- **Agents manage the mesh's machines** (in progress, as the mesh is). Over MCP and in the assistant, an admin's agent
+  reads the mesh (`mesh`: its CA, this machine's address, every machine and how it's doing, the join tokens not used
+  yet, never their secrets) and adds a machine (`add_mesh_node`, which answers with the install line), renames one or
+  changes its namespaces, takes one off and brings it back, and withdraws a join token. In the assistant, adding a
+  machine and taking one off always wait for your yes, and the install line is shown to you once on the approval
+  card, never kept or sent to the model; the rest happens at once. Over MCP every change needs an admin's
+  write-scope token and is audited ([Agents](docs/mesh.md#agents)).
+
+- **Hugging Face Inference Endpoints as a model host for auto scaling.** A Hugging Face group serves a model with
+  vLLM on hardware picked from Hugging Face's list, which also gives its price, and Lens's model calls go to it
+  while it runs, with a key of the unit's own. A unit that never comes up now counts as a failed launch, so three in a
+  row pause the group ([Model hosts](docs/scaling.md#model-hosts)).
+
+- **Visibility for many assets at once.** Owners select assets in the Library and pick Visibility › Public, Restricted
+  or Private; Undo puts each back as it was ([access](docs/access.md#an-assets-access)).
+
+- **Send logs straight to Grafana Loki or another HTTP endpoint.** Settings → Logs can now POST every line, in batches,
+  to Loki's push API (Grafana Cloud and Alloy too), or as JSON for Vector, Fluent Bit and Logstash, with optional
+  headers for a token, stored encrypted and dropped when the address moves to another server. Off by default, sent
+  from a background queue so a slow endpoint never holds Lens up, with a test line and sent and dropped counts in
+  Settings. Agents use `PUT /api/v1/settings/logs` and `POST /api/v1/settings/logs/test?to=http`
+  ([Logging](docs/logging.md#sending-to-loki-or-another-http-endpoint)).
+
+**For you on the timeline.** Next to Latest, the Timeline page has a **For you** order that puts what you care for
+most first, learned cheaply from your own reactions, comments and marks (important lifts, hidden sinks) summed over
+each item's source, kind and entities, with a line under each item saying why ("You often react to Work Gmail").
+Nobody else's signals touch your order, no model is called, and Latest stays the default. Agents ask for it with
+`order=for_you` on `GET /api/v1/activities`, in the MCP `timeline` tool and in the assistant
+([For you](docs/timeline.md#for-you)).
+
+- **Quiet processing.** Settings › Workers › Quiet processing keeps the heavy steps (transcribing, reading and looking
+  through media) to a window such as 01:00-06:00, or to so many at a time, both off by default; the rest runs as before
+  ([Background work](docs/architecture.md#background-work)).
+
+**Mute a source on the timeline.** An opened item has **Mute Work Gmail**: everything from that source or person
+leaves your timeline, with Undo, and a Muted row above the list lifts each one. Muting hides, it never deletes: the
+activities stay, still trigger automations and still show to everyone else, and `hidden=true` shows them to you.
+Agents mute a source or a kind, for good or until a time, with `POST /api/v1/activities/mute`, the MCP
+`mute_activities` tool and the assistant, which asks first after it has read outside text
+([Muting](docs/timeline.md#muting)).
+
+- **Auto scaling's tests hold each provider to its published API.** The RunPod, DigitalOcean, Hetzner Cloud and
+  Hugging Face fakes check every request and answer against the provider's own OpenAPI document, and AWS runs on
+  moto, a local stand-in for EC2 ([Model hosts](docs/scaling.md#model-hosts)).
+
+- **Speech providers are costed in the activity ledger.** Give a provider a price per minute of audio
+  (`deepgram:nova-3 0.0043 per minute`) or per million characters read aloud (`openai:tts-1 15 per million
+  characters`) in Settings › Telemetry › prices, and each transcription and spoken answer is costed by its length,
+  counting toward budgets like any model call. The prices box also shows and keeps prices per hour and "off" as
+  written, where it used to show them as zero token prices ([Activity and costs](docs/activity.md#costs)).
+
+Moving an asset to another namespace and switching a sensor are now activities of their own on the timeline, for
+people and automations alike: `asset.moved` is a Move by whoever moved it, with the namespaces it left and joined and
+the collection it is in now, seen where it is now; `sensor.changed` is an Update by the person who paused, ignored,
+resumed or reset a sensor, with the status it had before, seen in the sensor's namespace or by admins when it has none.
+Saving a status that is already set, or a rename, logs nothing.
+
+- **Amazon SageMaker as a model host for auto scaling.** A SageMaker group serves a model with AWS's vLLM container on
+  a real-time endpoint in your AWS account, priced from the AWS Price List, and Lens's model calls go to it while it
+  runs, signed with the provider's AWS key. A SageMaker endpoint can also be set as the LLM provider by hand, with an
+  AWS access key as its key ([Model hosts](docs/scaling.md#model-hosts)).
+
+- **Storage per source.** Admin › System health lists, under Disk, the space each source's assets take and what Lens
+  made of them (frames, pages, reports, caches); `GET /api/v1/resources/origins?storage=true` gives agents the same
+  ([API](docs/api.md#resources)).
+
+An opened timeline item now shows what happened because of it: the automation runs it started (with their status and
+a link to the automation) and the approvals those runs asked you for, with Approve and Decline on the ones still
+waiting, so a pick is made where it was caused. `GET /api/v1/activities/{id}/caused` and the MCP tool
+`activity_caused` read the same for agents, and `approvals` (API, MCP and the assistant) takes the activity that
+caused them.
+
+### Features
+
+- **schedules:** one Schedules page for every routine, automation schedule and the backup ([#535](https://github.com/adeelahmad/lense/pull/535))
+- **install:** LENS_IMAGES=pull installs a release from its prebuilt images ([#575](https://github.com/adeelahmad/lense/pull/575))
+- **scaling:** Proxmox VE provider ([#579](https://github.com/adeelahmad/lense/pull/579))
+- **automations:** lists read each automation's triggers in words, with its runs today and next time ([#580](https://github.com/adeelahmad/lense/pull/580))
+- **routines:** graph workflows find wrong types and noise to tidy ([#567](https://github.com/adeelahmad/lense/pull/567))
+- **scaling:** AWS EC2 units, as spot instances or on demand ([#559](https://github.com/adeelahmad/lense/pull/559))
+- **routines:** graph workflows group topics under broader ones ([#594](https://github.com/adeelahmad/lense/pull/594))
+- **automations:** an Automations page in the web app, with a When, If and Then builder and a test panel ([#587](https://github.com/adeelahmad/lense/pull/587))
+- **automations:** an automation's runs, what's coming up, its variables and costs, in tabs ([#600](https://github.com/adeelahmad/lense/pull/600))
+- **automations:** five starter automations, switched off, and a journey test from an email to a yes ([#606](https://github.com/adeelahmad/lense/pull/606))
+- **workflows:** an HTTP call node behind the web tools' guard ([#574](https://github.com/adeelahmad/lense/pull/574))
+- **scaling:** Linux hosts over SSH as a provider ([#589](https://github.com/adeelahmad/lense/pull/589))
+- **scaling:** RunPod GPUs serve a model as a model host ([#614](https://github.com/adeelahmad/lense/pull/614))
+- **automations:** the builder offers the starters, and the clicks survey makes one and turns it on ([#616](https://github.com/adeelahmad/lense/pull/616))
+- **scaling:** a running model unit serves Lens's model calls ([#617](https://github.com/adeelahmad/lense/pull/617))
+
+### Fixes
+
+- **automations:** a run's trace marks an action that waits as waiting, not done ([#586](https://github.com/adeelahmad/lense/pull/586))
 
 ## 0.16.0 <small>October 18, 2026</small> {id="0.16.0"}
 
