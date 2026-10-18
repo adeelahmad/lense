@@ -12,6 +12,7 @@ import { BackupsPanel } from "@/components/settings/backups-panel";
 import { ComponentsStatus } from "@/components/settings/components-status";
 import { EditionChoice, NetworkReach } from "@/components/settings/install-settings";
 import { LogViewer } from "@/components/settings/log-viewer";
+import { McpServers } from "@/components/settings/mcp-servers";
 import { AllTokens } from "@/components/account/all-tokens";
 import { ACCESS } from "@/components/iiif/metadata-model";
 import { RIGHTS } from "@/components/iiif/rights";
@@ -253,6 +254,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           )}
           <F ctx={ctx} id="analysis.entities" />
           {raw("analysis.entities") === "spacy" && <F ctx={ctx} id="analysis.spacy_model" />}
+          <F ctx={ctx} id="analysis.typing" />
           <F ctx={ctx} id="analysis.anytopdf" />
           <F ctx={ctx} id="analysis.dates" />
           <F
@@ -2705,6 +2707,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
         </ul>
       </More>
       <WebSearch ctx={ctx} />
+      <McpServers />
       <More
         ctx={ctx}
         ids={["research.max_tool_calls", "research.max_minutes", "research.model", "research.agents_skip_review"]}

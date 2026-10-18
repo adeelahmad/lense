@@ -52,26 +52,36 @@ ask id=b2 action=services profile=browser turn=off
 case "$(last)" in *"--profile browser rm -s -f browser browser-proxy") ;; *) fail "ran: $(last)" ;; esac
 ok "the MCP runner and the browser are turned on and off apart"
 
-# 3. Turning on what is on already leaves it in COMPOSE_PROFILES once
+# 3. The code sandbox's gateway on, then off: its three containers (the certificates, the client's key, the gateway)
+ask id=s1 action=services profile=sandbox turn=on
+[ "$(said state)" = "done" ] && [ "$(said profile)" = sandbox ] || fail "status: $(cat "$inst/.lens-control/services-status")"
+[ "$(profiles)" = matterbridge,mcp,sandbox ] || fail "COMPOSE_PROFILES is $(profiles)"
+case "$(last)" in *"--profile sandbox up -d openshell-init openshell-key openshell-gateway") ;; *) fail "ran: $(last)" ;; esac
+ask id=s2 action=services profile=sandbox turn=off
+[ "$(said state)" = "done" ] && [ "$(profiles)" = matterbridge,mcp ] || fail "COMPOSE_PROFILES is $(profiles)"
+case "$(last)" in *"--profile sandbox rm -s -f openshell-init openshell-key openshell-gateway") ;; *) fail "ran: $(last)" ;; esac
+ok "the code sandbox's gateway starts and stops its three containers"
+
+# 4. Turning on what is on already leaves it in COMPOSE_PROFILES once
 ask id=m2 action=services profile=mcp turn=on
 [ "$(profiles)" = matterbridge,mcp ] || fail "COMPOSE_PROFILES is $(profiles)"
 ok "a profile turned on twice is in COMPOSE_PROFILES once"
 
-# 4. A request from before profiles (monitoring=on) is the monitoring profile, with Grafana's port in the status
+# 5. A request from before profiles (monitoring=on) is the monitoring profile, with Grafana's port in the status
 ask id=g1 action=services monitoring=on
 [ "$(said state)" = "done" ] && [ "$(said profile)" = monitoring ] && [ "$(said grafana_port)" = 3005 ] || fail "status: $(cat "$inst/.lens-control/services-status")"
 [ "$(profiles)" = matterbridge,mcp,monitoring ] || fail "COMPOSE_PROFILES is $(profiles)"
 case "$(last)" in *"--profile monitoring up -d prometheus node-exporter grafana") ;; *) fail "ran: $(last)" ;; esac
 ok "monitoring=on still turns monitoring on"
 
-# 5. With HTTPS on, the HTTPS compose file comes too
+# 6. With HTTPS on, the HTTPS compose file comes too
 echo LENS_HTTPS=1 >>"$inst/.env"
 ask id=m3 action=services profile=mcp turn=off
 case "$(last)" in *"-f docker-compose.prod.yml -f docker-compose.https.yml --profile mcp rm -s -f mcp") ;; *) fail "ran: $(last)" ;; esac
 [ "$(profiles)" = matterbridge,monitoring ] || fail "COMPOSE_PROFILES is $(profiles)"
 ok "the HTTPS compose file comes along when HTTPS is on"
 
-# 6. Anything else is refused and runs nothing: a profile it doesn't know, a turn that isn't on or off, a microsandbox
+# 7. Anything else is refused and runs nothing: a profile it doesn't know, a turn that isn't on or off, a microsandbox
 calls="$(wc -l <"$work/calls")"
 ask id=x1 action=services profile=matterbridge turn=on
 [ "$(said state)" = failed ] || fail "a profile it doesn't know: $(said state)"

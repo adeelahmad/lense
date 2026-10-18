@@ -8,6 +8,7 @@ import threading
 class Handler(http.server.BaseHTTPRequestHandler):
     seen = []  # (headers, body) of each request
     answer = None  # {"choice", "confidence", "probabilities"}; None picks the first option, sure of it
+    pick = None  # a function (question, state) -> option, sure of it; None (or no option) falls back to `answer`
     status = 200
 
     def log_message(self, *a):
@@ -22,6 +23,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             answers = {}
             for name, q in body["questions"].items():
                 first = next(iter(q["criteria"]))
+                got = Handler.pick(q["instructions"], body["state"]) if Handler.pick else None
+                if got:
+                    answers[name] = {"type": "choice", "choice": got, "confidence": 0.95, "probabilities": {got: 0.95}}
+                    continue
                 answers[name] = Handler.answer or {"type": "choice", "choice": first, "confidence": 1.0, "probabilities": {first: 1.0}}
             data = json.dumps({"model": "jev-1.13.0", "answers": answers, "usage": {"input_tokens": 400, "output_tokens": 40}}).encode()
         self.send_response(Handler.status)
@@ -32,7 +37,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 
 def start(cfg, key="jev-key"):
-    Handler.seen, Handler.answer, Handler.status = [], None, 200
+    Handler.seen, Handler.answer, Handler.pick, Handler.status = [], None, None, 200
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     cfg["decisions"] = {**cfg.get("decisions", {}), "base_url": f"http://127.0.0.1:{srv.server_address[1]}/v1", "api_key": key}

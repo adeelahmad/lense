@@ -106,6 +106,9 @@ import type {
   ChangeLoginProviderData,
   ChangeLoginProviderErrors,
   ChangeLoginProviderResponses,
+  ChangeNodeData,
+  ChangeNodeErrors,
+  ChangeNodeResponses,
   ChangePasswordData,
   ChangePasswordErrors,
   ChangePasswordResponses,
@@ -853,6 +856,9 @@ import type {
   InstallMarketplacePluginData,
   InstallMarketplacePluginErrors,
   InstallMarketplacePluginResponses,
+  JoinMeshData,
+  JoinMeshErrors,
+  JoinMeshResponses,
   LinkEntityData,
   LinkEntityErrors,
   LinkEntityResponses,
@@ -1144,6 +1150,9 @@ import type {
   LostPasskeyResponses,
   MailboxStatusData,
   MailboxStatusResponses,
+  MakeMeshTokenData,
+  MakeMeshTokenErrors,
+  MakeMeshTokenResponses,
   MakeSigninLinkData,
   MakeSigninLinkErrors,
   MakeSigninLinkResponses,
@@ -1178,6 +1187,12 @@ import type {
   MergeTopicsData,
   MergeTopicsErrors,
   MergeTopicsResponses,
+  MeshNodesData,
+  MeshNodesResponses,
+  MeshStatusData,
+  MeshStatusResponses,
+  MeshTokensData,
+  MeshTokensResponses,
   MetricsData,
   MetricsErrors,
   MetricsResponses,
@@ -1198,6 +1213,11 @@ import type {
   NewTokenResponses,
   NfsStatusData,
   NfsStatusResponses,
+  NodeBeatData,
+  NodeBeatErrors,
+  NodeBeatResponses,
+  NodeConfigData,
+  NodeConfigResponses,
   NotSameSpeakerData,
   NotSameSpeakerErrors,
   NotSameSpeakerResponses,
@@ -1372,6 +1392,9 @@ import type {
   RemoveLoginProviderData,
   RemoveLoginProviderErrors,
   RemoveLoginProviderResponses,
+  RemoveNodeData,
+  RemoveNodeErrors,
+  RemoveNodeResponses,
   RemovePasskeyData,
   RemovePasskeyErrors,
   RemovePasskeyResponses,
@@ -1402,6 +1425,9 @@ import type {
   RenameTokenData,
   RenameTokenErrors,
   RenameTokenResponses,
+  RenewNodeData,
+  RenewNodeErrors,
+  RenewNodeResponses,
   ReprocessRecordingData,
   ReprocessRecordingErrors,
   ReprocessRecordingResponses,
@@ -1435,6 +1461,9 @@ import type {
   RestoreDeletedData,
   RestoreDeletedErrors,
   RestoreDeletedResponses,
+  RestoreNodeData,
+  RestoreNodeErrors,
+  RestoreNodeResponses,
   RestoreVersionData,
   RestoreVersionErrors,
   RestoreVersionResponses,
@@ -1937,6 +1966,9 @@ import type {
   VaultOptionsResponses,
   VoiceInfoData,
   VoiceInfoResponses,
+  WithdrawMeshTokenData,
+  WithdrawMeshTokenErrors,
+  WithdrawMeshTokenResponses,
   WriteSpecData,
   WriteSpecErrors,
   WriteSpecResponses,
@@ -10489,8 +10521,8 @@ export class Chats {
    * Get Chat
    *
    * A conversation with the version showing (`messages`, each with its `versions`) and every version's messages
-   * (`tree`). Citations follow your current access: ones you can no longer read are left out (web pages it cited stay:
-   * they aren't the archive's).
+   * (`tree`). Citations follow your current access: ones you can no longer read are left out (web pages, Lens's docs
+   * and this server's facts it cited stay: they aren't the archive's).
    */
   public static getChat<ThrowOnError extends boolean = false>(
     options: Options<GetChatData, ThrowOnError>,
@@ -13001,6 +13033,203 @@ export class Scaling {
     return (options?.client ?? client).post<TickResponses, unknown, ThrowOnError>({
       url: "/api/v1/scaling/tick",
       ...options,
+    });
+  }
+}
+
+export class Mesh {
+  /**
+   * Mesh Status
+   *
+   * Whether the mesh is on, its network and port, where other machines reach it, its CA and how many machines are
+   * on it.
+   */
+  public static meshStatus<ThrowOnError extends boolean = false>(
+    options?: Options<MeshStatusData, ThrowOnError>,
+  ): RequestResult<MeshStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<MeshStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/mesh",
+      ...options,
+    });
+  }
+
+  /**
+   * Mesh Nodes
+   *
+   * Every machine: this one (the primary) first, then each node with its role, address, certificate, last report
+   * and the workers running on it. Removed nodes are listed too, with when.
+   */
+  public static meshNodes<ThrowOnError extends boolean = false>(
+    options?: Options<MeshNodesData, ThrowOnError>,
+  ): RequestResult<MeshNodesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<MeshNodesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/mesh/nodes",
+      ...options,
+    });
+  }
+
+  /**
+   * Remove Node
+   *
+   * Take a node off the mesh: its certificates go on every machine's blocklist and its credentials stop working.
+   * POST /mesh/nodes/{id}/restore undoes it while its certificate is good.
+   */
+  public static removeNode<ThrowOnError extends boolean = false>(
+    options: Options<RemoveNodeData, ThrowOnError>,
+  ): RequestResult<RemoveNodeResponses, RemoveNodeErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveNodeResponses, RemoveNodeErrors, ThrowOnError>({
+      url: "/api/v1/mesh/nodes/{node_id}",
+      ...options,
+    });
+  }
+
+  /**
+   * Change Node
+   *
+   * Rename a node, or change the namespaces it serves (its certificate's groups follow when it next renews).
+   */
+  public static changeNode<ThrowOnError extends boolean = false>(
+    options: Options<ChangeNodeData, ThrowOnError>,
+  ): RequestResult<ChangeNodeResponses, ChangeNodeErrors, ThrowOnError> {
+    return (options.client ?? client).patch<ChangeNodeResponses, ChangeNodeErrors, ThrowOnError>({
+      url: "/api/v1/mesh/nodes/{node_id}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Restore Node
+   *
+   * Undo removing a node.
+   */
+  public static restoreNode<ThrowOnError extends boolean = false>(
+    options: Options<RestoreNodeData, ThrowOnError>,
+  ): RequestResult<RestoreNodeResponses, RestoreNodeErrors, ThrowOnError> {
+    return (options.client ?? client).post<RestoreNodeResponses, RestoreNodeErrors, ThrowOnError>({
+      url: "/api/v1/mesh/nodes/{node_id}/restore",
+      ...options,
+    });
+  }
+
+  /**
+   * Mesh Tokens
+   *
+   * Join tokens that can still be used (their secrets are shown only when made).
+   */
+  public static meshTokens<ThrowOnError extends boolean = false>(
+    options?: Options<MeshTokensData, ThrowOnError>,
+  ): RequestResult<MeshTokensResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<MeshTokensResponses, unknown, ThrowOnError>({
+      url: "/api/v1/mesh/tokens",
+      ...options,
+    });
+  }
+
+  /**
+   * Make Mesh Token
+   *
+   * Add a node: a token another machine joins the mesh with, shown this once. Makes the mesh's CA the first time,
+   * and turns the mesh on.
+   */
+  public static makeMeshToken<ThrowOnError extends boolean = false>(
+    options: Options<MakeMeshTokenData, ThrowOnError>,
+  ): RequestResult<MakeMeshTokenResponses, MakeMeshTokenErrors, ThrowOnError> {
+    return (options.client ?? client).post<MakeMeshTokenResponses, MakeMeshTokenErrors, ThrowOnError>({
+      url: "/api/v1/mesh/tokens",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Withdraw Mesh Token
+   *
+   * Withdraw a join token: no machine can join with it any more (those that did stay).
+   */
+  public static withdrawMeshToken<ThrowOnError extends boolean = false>(
+    options: Options<WithdrawMeshTokenData, ThrowOnError>,
+  ): RequestResult<WithdrawMeshTokenResponses, WithdrawMeshTokenErrors, ThrowOnError> {
+    return (options.client ?? client).delete<WithdrawMeshTokenResponses, WithdrawMeshTokenErrors, ThrowOnError>({
+      url: "/api/v1/mesh/tokens/{token_id}",
+      ...options,
+    });
+  }
+
+  /**
+   * Join Mesh
+   *
+   * A machine joins the mesh with a join token, without sending it: the token's id, the machine's public key, and
+   * an HMAC of the request keyed with the token's secret. The answer is sealed with a key from that secret
+   * (docs/mesh.md, Joining). Too many wrong tries from one address are turned away for a while.
+   */
+  public static joinMesh<ThrowOnError extends boolean = false>(
+    options: Options<JoinMeshData, ThrowOnError>,
+  ): RequestResult<JoinMeshResponses, JoinMeshErrors, ThrowOnError> {
+    return (options.client ?? client).post<JoinMeshResponses, JoinMeshErrors, ThrowOnError>({
+      url: "/api/v1/mesh/join",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Node Config
+   *
+   * The calling node's Nebula config as it is now (the blocklist, the lighthouse's addresses): it reloads when the
+   * version changes.
+   */
+  public static nodeConfig<ThrowOnError extends boolean = false>(
+    options?: Options<NodeConfigData, ThrowOnError>,
+  ): RequestResult<NodeConfigResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<NodeConfigResponses, unknown, ThrowOnError>({
+      url: "/api/v1/mesh/node/config",
+      ...options,
+    });
+  }
+
+  /**
+   * Renew Node
+   *
+   * A new certificate for the calling node's public key, with the groups it has now.
+   */
+  public static renewNode<ThrowOnError extends boolean = false>(
+    options: Options<RenewNodeData, ThrowOnError>,
+  ): RequestResult<RenewNodeResponses, RenewNodeErrors, ThrowOnError> {
+    return (options.client ?? client).post<RenewNodeResponses, RenewNodeErrors, ThrowOnError>({
+      url: "/api/v1/mesh/node/renew",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Node Beat
+   *
+   * The calling node's report, every minute: Nebula, its peers, its machine.
+   */
+  public static nodeBeat<ThrowOnError extends boolean = false>(
+    options: Options<NodeBeatData, ThrowOnError>,
+  ): RequestResult<NodeBeatResponses, NodeBeatErrors, ThrowOnError> {
+    return (options.client ?? client).post<NodeBeatResponses, NodeBeatErrors, ThrowOnError>({
+      url: "/api/v1/mesh/node/beat",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }

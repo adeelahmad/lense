@@ -5,9 +5,9 @@
 
 export type Passage = {
   n: number;
-  /** The asset it's from; none for a web page. */
+  /** The asset it's from; none for a web page, Lens's docs or this server (lens_help), at `url`. */
   recording_id?: number | null;
-  /** "web" for a web page the assistant searched for or read, with its `url` and `site`. */
+  /** "web" for a web page the assistant searched for or read, with its `url` and `site`; "docs" or "server" from lens_help. */
   source?: string | null;
   url?: string | null;
   site?: string | null;
