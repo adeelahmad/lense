@@ -3,12 +3,15 @@
 import { useState } from "react";
 
 import type { FieldDef, TemplateSummary } from "@/app/openapi-client/types.gen";
+import type { Variable } from "@/components/forms/schema-form";
+import { ActionSettings, DecideSettings } from "@/components/workflows/action-settings";
 import { FlowSettings } from "@/components/workflows/flow-settings";
 import {
   OPS,
   VOCABULARIES,
   infoFor,
   paramRef,
+  type ActionDef,
   type BodyKind,
   type CustomDef,
   type Scope,
@@ -94,6 +97,8 @@ export function NodeSettings({
   params,
   settings,
   peek,
+  actions,
+  variables,
 }: {
   node: WfNode;
   onChange: (n: WfNode) => void;
@@ -111,6 +116,10 @@ export function NodeSettings({
   settings?: string[];
   /** What it passed on in the last try. */
   peek?: { status: string; value?: string | null; error?: string | null };
+  /** The actions catalog, for an automation's action nodes. */
+  actions?: ActionDef[];
+  /** What templates can read, for the variable picker. */
+  variables?: Variable[];
 }) {
   const info = infoFor(node.type, scope);
   // Settings bound to a parameter show as unset below; setting them again unbinds them.
@@ -252,6 +261,12 @@ export function NodeSettings({
             </Field>
           </>
         )}
+
+        {node.type === "action" && (
+          <ActionSettings config={c} set={set} actions={actions ?? []} variables={variables} nodeId={node.id} />
+        )}
+
+        {node.type === "decide" && <DecideSettings config={c} set={set} />}
 
         {node.type === "call_tool" && (
           <>

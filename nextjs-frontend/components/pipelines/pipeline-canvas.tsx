@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ArrowRightLeft,
   AudioLines,
   Captions,
   Clapperboard,
@@ -36,6 +37,7 @@ import {
   PROVIDES,
   cleanPipelineGraph,
   graphOrder,
+  newStep,
   orderProblem,
   specProblems,
   stepSummary,
@@ -63,6 +65,7 @@ const ICON: Record<string, LucideIcon> = {
   objects: Shapes,
   nsfw: EyeOff,
   describe: Eye,
+  convert: ArrowRightLeft,
   clean: Eraser,
   analyze: TextSearch,
   embed: ScanSearch,
@@ -74,7 +77,7 @@ const ICON: Record<string, LucideIcon> = {
   workflow: Workflow,
 };
 const TONE = { intent: "blue", red: "red", green: "green", gate: "gold", neutral: "neutral" } as const;
-const ASSETS = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe"];
+const ASSETS = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "convert"];
 const METADATA = ["clean", "analyze", "embed", "summarize", "llm", "spec", "report", "export"];
 
 /** A pipeline drawn as a graph: asset steps, metadata steps and workflows, an edge saying what runs after what. */
@@ -173,7 +176,6 @@ export function PipelineCanvas({ id }: { id: number }) {
   });
 
   const add = (payload: string, x?: number, y?: number) => {
-    const [type, wid] = payload.split(":");
     const at = graph.nodes.find((n) => n.id === sel);
     const nid = freshId(
       graph.nodes.map((n) => n.id),
@@ -181,7 +183,7 @@ export function PipelineCanvas({ id }: { id: number }) {
     );
     const node: PlNode = {
       id: nid,
-      step: { type, ...(type === "llm" ? { key: "" } : {}), ...(wid ? { workflow: Number(wid) } : {}) },
+      step: newStep(payload),
       x: x ?? (at?.x ?? 0) + 240,
       y: y ?? at?.y ?? 80,
     };
