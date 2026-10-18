@@ -123,20 +123,20 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [the assistant in your browser](docs/browser-assistant.md); [checks](docs/requirements.md#clip-from-the-browser))
 - **Understand it.** Transcription, people recognised by voice (long recordings go to a speech provider in pieces that
   fit its limits), text on screen and in scans, faces (off by default), NSFW pictures flagged by a model on your own
-  server (off by default, per namespace), entities and topics in a knowledge graph you can explore, query with Cypher or
-  SPARQL, and see as it was at any version. Every entity has its own page at a wiki address
-  (`/wiki/<namespace>/<Name>`), and entities, topics and people are edited and merged from their lists, the graph or an
-  asset, with Undo instead of a confirm. Names get their real types (people, places, organisations, events, works) by
-  rules, without a model, and a decision model types the ones the rules can't. Find what is most like a passage, an
-  asset, a topic or an entity, in a Similar tab on every asset or by selecting text anywhere, and, with anytopdf, photos
-  by what they show. Pages and shots are described in words by the model provider's vision model or, off by default, by
-  Florence-2 or Moondream on your own server. Transcripts can be cleaned up before analysis (stutters, "um"s, spacing
-  and, with a local model, punctuation put back), entities found by spaCy instead of the rules, and the dates people say
-  read as days on the calendar, each off by default.
+  server (off by default, per namespace), low quality images enhanced before they're read (off by default), entities and
+  topics in a knowledge graph you can explore, query with Cypher or SPARQL, and see as it was at any version. Every
+  entity has its own page at a wiki address (`/wiki/<namespace>/<Name>`), and entities, topics and people are edited and
+  merged from their lists, the graph or an asset, with Undo instead of a confirm. Names get their real types (people,
+  places, organisations, events, works) by rules, without a model, and a decision model types the ones the rules can't.
+  Find what is most like a passage, an asset, a topic or an entity, in a Similar tab on every asset or by selecting text
+  anywhere, and, with anytopdf, photos by what they show. Pages and shots are described in words by the model provider's
+  vision model or, off by default, by Florence-2 or Moondream on your own server. Transcripts can be cleaned up before
+  analysis (stutters, "um"s, spacing and, with a local model, punctuation put back), entities found by spaCy instead of
+  the rules, and the dates people say read as days on the calendar, each off by default.
   ([Graph](docs/graph.md), [entity pages](docs/notes.md#entity-pages),
   [similar content](docs/processing.md#similar-content), [graph history](docs/graph-history.md),
   [topics](docs/topics.md), [video](docs/video.md), [NSFW classification](docs/nsfw.md),
-  [long recordings](docs/speech-providers.md#long-recordings),
+  [enhancing images](docs/enhance.md), [long recordings](docs/speech-providers.md#long-recordings),
   [cleaning up transcripts](docs/processing.md#cleaning-up-transcripts), [dates](docs/processing.md#dates);
   [checks](docs/requirements.md#understand-it))
 - **Learn from it.** Make a two-host podcast episode about what you pick, every claim cited and checked against its
@@ -244,7 +244,6 @@ still loading. ([Components](docs/components.md),
 These are open pull requests, not yet part of Lens:
 
 - **Chat:** a conversation exported as Markdown, PDF or JSON ([#474](https://github.com/adeelahmad/lense/pull/474)).
-- **Pictures:** low-quality images enhanced before they're read ([#479](https://github.com/adeelahmad/lense/pull/479)).
 - **Web clipper:** signing in, or using your API token, not only an import webhook's
   ([#406](https://github.com/adeelahmad/lense/pull/406)).
 - **Automations:** more operators for conditions ([#434](https://github.com/adeelahmad/lense/pull/434)).
@@ -300,8 +299,8 @@ The guides are on the [docs site](https://adeelahmad.github.io/lense/) and in th
   [the assistant by email](docs/assistant-email.md), [podcasts](docs/podcasts.md), [notes](docs/notes.md),
   [web clipper](docs/web-clipper.md), [the assistant in your browser](docs/browser-assistant.md),
   [sensors](docs/sensors.md), [processing](docs/processing.md), [video](docs/video.md),
-  [NSFW classification](docs/nsfw.md), [notifications](docs/notifications.md), [automations](docs/automations.md),
-  [timeline](docs/timeline.md)
+  [NSFW classification](docs/nsfw.md), [enhancing images](docs/enhance.md), [notifications](docs/notifications.md),
+  [automations](docs/automations.md), [timeline](docs/timeline.md)
 - **Knowledge:** [graph and Cypher](docs/graph.md), [graph history](docs/graph-history.md), [topics](docs/topics.md),
   [the graph as files](docs/file-tree.md), [NFS share](docs/file-shares.md), [SMB share](docs/smb.md),
   [linked data (RDF)](docs/rdf.md), [IIIF](docs/iiif.md), [Fedora](docs/fedora.md)
