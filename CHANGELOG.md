@@ -4,6 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **A new conversation's first answer no longer goes missing.** A quick answer in a new conversation sometimes showed
+  "No answer was saved for this question" though it was saved: the conversation's first read, made before the answer
+  was saved, was used in place of reading it again. The web app (Chat, the page assistant and a recording's Chat tab)
+  now drops a read under way and reads the conversation afresh once the answer is saved. And an answer is now written
+  on a thread of its own, so closing the tab, losing the connection or moving to another page no longer drops it: it's
+  finished and saved all the same, and only Stop ends it early ([Chat](docs/assistant.md#chat)).
+
 ## 0.15.0 <small>October 18, 2026</small> {id="0.15.0"}
 
 - **The assistant sends mail, adds events and writes files, after your yes.** New tools `send_mail` (send, or save a
