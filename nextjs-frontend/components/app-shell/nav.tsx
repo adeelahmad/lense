@@ -26,7 +26,7 @@ export function Nav({
   admin: boolean;
   collapsed: boolean;
   onToggle?: () => void;
-  counts: { recordings?: number; reviews?: number; approvals?: number };
+  counts: { recordings?: number; reviews?: number; approvals?: number; feeds?: number };
   onNavigate?: () => void;
   className?: string;
   top?: ReactNode;

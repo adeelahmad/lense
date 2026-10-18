@@ -159,7 +159,7 @@ def list_graph_changes(
 def accept_graph_change(cid: int, body: GraphChangeAccept, user: Writer, acl: Acl, db: Db) -> Ok:
     _change(db, acl, cid, "curate")
     with domain_errors():
-        organize.accept(db, cid, user.email, body.keep)
+        organize.accept(db, cid, user.email, body.keep, body.to)
     auth.audit(db, user.as_audit(), "graph_change.accept", f"graph_change:{cid}")
     return Ok()
 

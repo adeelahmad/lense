@@ -1,5 +1,5 @@
 """Routines: schedules, running what is due once, pipeline and workflow actions on recordings, and the graph-organising
-workflow proposing, making and undoing merges and links."""
+workflows proposing, making and undoing merges, links, new types and hides."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import datetime as dt
 
 import pytest
 
-from app.domain import analyze, entities, ingest, organize, routines, schedule, store, workflows
+from app.domain import analyze, entities, graph_history, ingest, organize, routines, schedule, store, workflows
 from tests import fake_llm
 from tests.helpers import login, make_user, quiet, seed
 
@@ -281,6 +281,96 @@ def test_propose_only(db, cfg, env):
     assert len(db.values("SELECT VALUE id FROM entity")) == before
     north = [eid(db, "Northwind Labs"), eid(db, "North Wind Labs")]
     assert all(entities._entity(db, x) for x in north)
+
+
+TIDY_GRAPH = {
+    "nodes": [
+        {"id": "in", "type": "input", "config": {}},
+        {"id": "types", "type": "candidates", "config": {"kind": "retype"}},
+        {"id": "noise", "type": "candidates", "config": {"kind": "hide"}},
+        {"id": "all", "type": "merge", "config": {}},
+        {"id": "judge", "type": "llm_judge", "config": {"batch": 10}},
+        {"id": "yes", "type": "filter", "config": {"path": "verdict.agree", "op": "equals", "value": True}},
+        {"id": "apply", "type": "apply_changes", "config": {"apply_above": 0.95, "max_apply": 25}},
+    ],
+    "edges": [
+        {"source": "in", "target": "types"},
+        {"source": "in", "target": "noise"},
+        {"source": "types", "target": "all"},
+        {"source": "noise", "target": "all"},
+        {"source": "all", "target": "judge"},
+        {"source": "judge", "target": "yes"},
+        {"source": "yes", "target": "apply"},
+    ],
+}
+
+
+def test_rules_read_types_and_noise():
+    assert organize.better_type("Northwind Labs", "TERM", []) == ("ORG", "its name says so", 0.9)
+    assert organize.better_type("Northwind Labs", "ORG", []) is None
+    lines = ["Then Ferris said no.", "We asked Dr Ferris.", "Dr Ferris agreed."]
+    assert organize.better_type("Ferris", "TERM", lines)[:2] == ("PERSON", "2 of 3 lines say so")
+    assert organize.better_type("Ferris", "TERM", lines[:1]) is None  # one line isn't enough
+    assert organize.noise_reason("Okay so", "TERM", 4) == ("filler words, not a name", 0.95)
+    assert organize.noise_reason("US", "PLACE", 4) is None  # an acronym, not the word "us"
+    assert organize.noise_reason("42", "TERM", 4)[0] == "no letters in it"
+    assert organize.noise_reason("the thing we talked about at the start of it", "TERM", 2)[0].startswith("reads like a phrase")
+    assert organize.noise_reason("Capsid", "TERM", 1) == ("a term said only once", 0.5)
+    assert organize.noise_reason("Capsid", "TERM", 3) is None
+
+
+def test_graph_workflows_retype_and_hide(client, db, cfg, env, llm):
+    h = env["admin"]
+    pods = store.ns_id(db, "pods")
+    labs, aws_long, dyno = eid(db, "Northwind Labs"), eid(db, "Amazon Web Services"), eid(db, "Dyno Therapeutics")
+    db.q("UPDATE $r SET type = 'TERM'", r=R("entity", labs))  # as an older analysis left it
+    db.q("UPDATE $r SET type = 'TERM', name = 'Um okay'", r=R("entity", aws_long))  # what an extractor took for a name
+    wid = workflows.create(db, "Tidy", TIDY_GRAPH, "", "test", "graph")
+    _, totals = organize.run(db, cfg, wid, {pods})
+    assert totals == {"applied": 2, "proposed": 0, "skipped": 0}, totals
+    assert entities._entity(db, labs)["type"] == "ORG"
+    hidden = entities._entity(db, aws_long)
+    assert hidden["hidden"] and hidden["hidden_reason"] == "noise: filler words, not a name"
+
+    made = {c["kind"]: c for c in client.get("/api/v1/graph-changes", params={"status": "applied"}, headers=h).json()}
+    assert set(made) == {"retype", "hide"}
+    assert made["retype"]["to"] == "ORG" and made["retype"]["b"] is None and made["retype"]["verdict"]["agree"]
+    for c in made.values():
+        assert client.post(f"/api/v1/graph-changes/{c['id']}/undo", headers=h).status_code == 200
+    assert entities._entity(db, labs)["type"] == "TERM" and not entities._entity(db, aws_long)["hidden"]
+    _, again = organize.run(db, cfg, wid, {pods})
+    assert again == {"applied": 0, "proposed": 0, "skipped": 0}, again  # what someone took back isn't made again
+
+    # proposed only: accepted with another type, or dismissed and not proposed again
+    db.q("UPDATE $r SET type = 'TERM'", r=R("entity", dyno))
+    _, got = organize.run(db, cfg, wid, {pods}, propose_only=True)
+    assert got["proposed"] == 1, got
+    ch = client.get("/api/v1/graph-changes", params={"status": "proposed"}, headers=h).json()[0]
+    assert (ch["kind"], ch["a"]["id"], ch["to"]) == ("retype", dyno, "ORG")
+    assert client.post(f"/api/v1/graph-changes/{ch['id']}/accept", headers=h, json={"keep": dyno}).status_code == 400
+    assert client.post(f"/api/v1/graph-changes/{ch['id']}/accept", headers=h, json={"to": "NOPE"}).status_code == 400
+    assert client.post(f"/api/v1/graph-changes/{ch['id']}/accept", headers=h, json={"to": "PRODUCT"}).status_code == 200
+    assert entities._entity(db, dyno)["type"] == "PRODUCT"
+    assert client.post(f"/api/v1/graph-changes/{ch['id']}/undo", headers=h).status_code == 200
+    assert entities._entity(db, dyno)["type"] == "TERM"
+
+    other = eid(db, "Dyno Therapeutics", "calls")
+    db.q("UPDATE $r SET type = 'TERM'", r=R("entity", other))
+    _, got = organize.run(db, cfg, wid, {store.ns_id(db, "calls")}, propose_only=True)
+    ch = client.get("/api/v1/graph-changes", params={"status": "proposed"}, headers=h).json()[0]
+    assert client.post(f"/api/v1/graph-changes/{ch['id']}/dismiss", headers=h).status_code == 200
+    assert entities._entity(db, other)["type"] == "TERM"
+    _, got = organize.run(db, cfg, wid, {store.ns_id(db, "calls")})
+    assert got["applied"] == got["proposed"] == 0, got
+
+    # a rollback past an applied retype marks it undone
+    db.q("UPDATE $r SET type = 'TERM', name = 'Okay well'", r=R("entity", labs))
+    before = graph_history.head(db)
+    _, got = organize.run(db, cfg, wid, {pods})
+    assert got["applied"] == 1, got  # hidden as noise (its name no longer says what it is)
+    graph_history.rollback(db, before, dry_run=False, by="root@x.io")
+    assert not entities._entity(db, labs)["hidden"]
+    assert not client.get("/api/v1/graph-changes", params={"status": "applied"}, headers=h).json()
 
 
 def test_new_recordings_advance_only_as_far_as_queued(db, cfg, env):

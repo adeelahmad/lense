@@ -163,7 +163,11 @@ describe("graph workflows", () => {
       "Make 95%+ (up to 25), propose the rest",
     );
     expect(nodeSummary({ id: "c", type: "candidates", config: { kind: "link", min_confidence: 0.85 } }, names)).toBe(
-      "across namespaces · 85%+ · up to 100",
+      "look-alikes across namespaces · 85%+ · up to 100",
     );
+    expect(nodeSummary({ id: "c", type: "candidates", config: { kind: "retype" } }, names)).toBe(
+      "wrong types · 70%+ · up to 100",
+    );
+    expect(nodeSummary({ id: "j", type: "llm_judge", config: {} }, names)).toBe("25 at a time");
   });
 });

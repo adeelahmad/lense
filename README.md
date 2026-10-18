@@ -78,7 +78,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [API](docs/api.md), [the graph as files](docs/file-tree.md), [authentication](docs/authentication.md);
   [checks](docs/requirements.md#connect-your-agents))
 - **Ask, and get cited answers.** A chat assistant on every page, and by voice, searches your archive by words (and by
-  meaning, once turned on), reads it, cites it and acts on it with tools: changes wait for your approval. Once an admin
+  meaning, once turned on), reads it, cites it and acts on it with tools: changes wait for your approval. Ask it about
+  Lens itself ("what's the MCP address?", "is Telegram on?") and it answers from Lens's docs and this server, citing
+  both. Once an admin
   turns them on, it also searches the web and reads pages, cited like the archive, and runs Python and bash in a sandbox
   of each conversation's own. An admin's assistant searches and reads the mail, calendars and files connected to Lens
   (Gmail, Google Calendar, Google Drive, S3 and the rest), cites messages and events, and brings them in once you
@@ -96,11 +98,17 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [mail, calendars and files](docs/assistant.md#mail-calendars-and-files), [code sandbox](docs/assistant.md#code-sandbox), [answer records](docs/assistant.md#what-each-answer-records),
   [questions about Lens](docs/assistant.md#questions-about-lens-itself), [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md), [speech providers](docs/speech-providers.md);
   [checks](docs/requirements.md#ask-and-get-cited-answers))
+- **Work toward a goal in projects.** A project has a name, a goal in your words, instructions and the namespaces it
+  draws on. Its coordinator conversation looks at the project as a whole and is told about every thread; each thread is
+  a conversation about one part of the work, scoped to the project's namespaces and marked done when finished. Every
+  answer in a project reads its goal and instructions. Agents start and change projects over MCP and the API.
+  ([Projects](docs/projects.md); [checks](docs/requirements.md#work-toward-a-goal-in-projects))
 - **Extend the assistant.** Add tools (a prompt, a web request, a graph drawn on the canvas, or sandboxed Python),
   skills, hooks and MCP servers, by code, on the canvas or just by asking. Remote MCP servers connect by address, and
   ones that run as a program (`npx`, `uvx`) run in a sandboxed container of their own, off until you turn it on. Add
   one with a form or by pasting another app's config, its tokens sealed and each of its tools switched on or off.
-  Install skills and plugins from marketplaces in the open plugin format, or from a repository or an archive.
+  Install skills and plugins from marketplaces in the open plugin format, or from a repository or an archive, and keep
+  your own as files in a folder with `lens ext` (pull, push, check).
   ([Extending the assistant](docs/assistant.md#extending-the-assistant-tools-skills-hooks-and-plugins),
   [adding an MCP server](docs/assistant.md#adding-an-mcp-server), [the MCP runner](docs/assistant.md#the-mcp-runner);
   [checks](docs/requirements.md#extend-the-assistant))
@@ -112,7 +120,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   Office files, photos, JSON and zip or tar archives, and, with an Apache Tika server (an opt-in extra), documents
   nothing else here can read; capture web pages one at a time, from a link list or a bookmarks file, by API or by asking
   the assistant, from private networks you allow in Settings too; and import videos and podcasts by their address (off
-  by default).
+  by default). Say what a file or a page is as it comes in (a podcast, an interview, a scan), in Import, by API or
+  to the assistant, and its content type's pipeline runs from the start.
   ([Sensors](docs/sensors.md), [processing](docs/processing.md), [Apache Tika](docs/configuration.md#apache-tika),
   [import webhooks](docs/api.md#import-webhooks); [checks](docs/requirements.md#bring-in-everything))
 - **Clip from the browser.** The Lens web clipper for Chrome, Edge, Firefox and Safari turns a page, a selection or a
@@ -121,8 +130,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   assistant, which can also use that browser on the sites you allow (open, read, click, type), asking before anything
   that sends, deletes, buys or posts. ([Web clipper](docs/web-clipper.md),
   [the assistant in your browser](docs/browser-assistant.md); [checks](docs/requirements.md#clip-from-the-browser))
-- **Understand it.** Transcription, people recognised by voice (long recordings go to a speech provider in pieces that
-  fit its limits), text on screen and in scans, faces (off by default), NSFW pictures flagged by a model on your own
+- **Understand it.** Transcription, which can expect the names your namespace knows (off by default), people
+  recognised by voice (long recordings go to a speech provider in pieces that fit its limits), text on screen and in scans, faces (off by default), NSFW pictures flagged by a model on your own
   server (off by default, per namespace), entities and topics in a knowledge graph you can explore, query with Cypher or
   SPARQL, and see as it was at any version. Every entity has its own page at a wiki address
   (`/wiki/<namespace>/<Name>`), and entities, topics and people are edited and merged from their lists, the graph or an
@@ -131,12 +140,13 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   asset, a topic or an entity, in a Similar tab on every asset or by selecting text anywhere, and, with anytopdf, photos
   by what they show. Pages and shots are described in words by the model provider's vision model or, off by default, by
   Florence-2 or Moondream on your own server. Transcripts can be cleaned up before analysis (stutters, "um"s, spacing
-  and, with a local model, punctuation put back), entities found by spaCy instead of the rules, and the dates people say
-  read as days on the calendar, each off by default.
+  and, with a local model, punctuation put back, and grammar by a LanguageTool server you run), entities found by spaCy
+  instead of the rules, and the dates people say read as days on the calendar, each off by default.
   ([Graph](docs/graph.md), [entity pages](docs/notes.md#entity-pages),
   [similar content](docs/processing.md#similar-content), [graph history](docs/graph-history.md),
   [topics](docs/topics.md), [video](docs/video.md), [NSFW classification](docs/nsfw.md),
   [long recordings](docs/speech-providers.md#long-recordings),
+  [your own names](docs/processing.md#your-own-names-in-transcription),
   [cleaning up transcripts](docs/processing.md#cleaning-up-transcripts), [dates](docs/processing.md#dates);
   [checks](docs/requirements.md#understand-it))
 - **Learn from it.** Make a two-host podcast episode about what you pick, every claim cited and checked against its
@@ -148,8 +158,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   templates to start from, a search by their words, a download as Markdown, and Undo and Recently deleted instead of a
   confirm. Export an asset or a collection as an evidence PDF with everything Lens found about it, or the parts you
   pick. Publish a namespace's resources, episodes, timeline activities or text as a private RSS feed or a podcast
-  feed that any feed reader or podcast app follows, and let a routine fill it on a schedule with what's new, or make
-  an episode about the week's new resources. ([Podcasts](docs/podcasts.md),
+  feed that any feed reader or podcast app follows (Feeds, from the Podcasts page), and let a routine fill it on a schedule with
+  what's new, or make an episode about the week's new resources. ([Podcasts](docs/podcasts.md),
   [specs from transcripts](docs/notes.md#specs-from-transcripts), [notes](docs/notes.md),
   [evidence PDFs](docs/api.md#evidence-pdfs), [published feeds](docs/feeds.md);
   [checks](docs/requirements.md#learn-from-it))
@@ -168,12 +178,14 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   automation schedule and the backup in one list with when each runs next and last, to switch, re-time or run now, and
   agents do the same over the API and MCP. A Classify node in a workflow sorts an asset into labels, content types or
   topics, acting only on a sure answer, and an Entity filter node keeps the entities you want; an HTTP call node calls
-  a web address through the same guard as the assistant's web tools, with its keys sealed to their host. Anything that
-  reaches outside Lens or changes more than what set it off asks first, until you let it run on its own: on the
-  Approvals page or, for a change inside Lens, with a yes in the chat it told you in; agents can decline an approval but
-  never give one. Each automation has limits and budgets, and agents make, try and run them over MCP and in the
-  assistant, or draft one from a sentence. An automation's workflow is drawn and tried on the workflow canvas, with its
-  actions in the palette; the studio's builder is planned. ([Processing](docs/processing.md#workflows-and-the-canvas),
+  a web address through the same guard as the assistant's web tools, with its keys sealed to their host. Graph
+  workflows tidy the entities on a routine: look-alikes to merge or link, types the rules now read differently, and
+  noise to hide, making the changes they're sure of and proposing the rest, each one undoable. Anything that reaches
+  outside Lens or changes more than what set it off asks first, until you let it run on its own: on the Approvals page
+  or, for a change inside Lens, with a yes in the chat it told you in; agents can decline an approval but never give
+  one. Each automation has limits and budgets, and agents make, try and run them over MCP and in the assistant, or
+  draft one from a sentence. An automation's workflow is drawn and tried on the workflow canvas, with its actions in
+  the palette; the studio's builder is planned. ([Processing](docs/processing.md#workflows-and-the-canvas),
   [converting assets](docs/processing.md#converting-assets), [notifications](docs/notifications.md),
   [automations](docs/automations.md), [approvals](docs/automations.md#approvals), [schedules](docs/schedules.md),
   [timeline](docs/timeline.md); [checks](docs/requirements.md#automate-it))
@@ -252,7 +264,7 @@ These are open pull requests, not yet part of Lens:
   ([#406](https://github.com/adeelahmad/lense/pull/406)).
 - **Automations:** more operators for conditions ([#434](https://github.com/adeelahmad/lense/pull/434)).
 - **Nodes:** Lens's own private network between the machines it runs on, a Nebula mesh it issues the certificates
-  for ([#546](https://github.com/adeelahmad/lense/pull/546)).
+  for ([#553](https://github.com/adeelahmad/lense/pull/553)).
 
 ## Planned
 

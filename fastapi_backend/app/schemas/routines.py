@@ -102,9 +102,10 @@ class SchedulePreview(ResponseModel):
 
 class GraphChange(ResponseModel):
     id: int
-    kind: Literal["merge", "link"]
-    a: dict[str, Any]
-    b: dict[str, Any]
+    kind: Literal["merge", "link", "retype", "hide"]
+    a: dict[str, Any] = Field(description="the entity changed, or the first of a pair")
+    b: dict[str, Any] | None = Field(None, description="a merge's or link's other entity")
+    to: str | None = Field(None, description="a retype's new type")
     spaces: list[int]
     reason: str | None = None
     confidence: float | None = None
@@ -121,6 +122,7 @@ class GraphChange(ResponseModel):
 
 class GraphChangeAccept(RequestModel):
     keep: int | None = Field(None, description="for a merge: the entity to keep (default: the one proposed)")
+    to: str | None = Field(None, description="for a retype: the type to give (default: the one proposed)", max_length=40)
 
 
 class Undone(ResponseModel):
