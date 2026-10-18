@@ -9,7 +9,7 @@ import type { ActivityMark, Reaction } from "@/app/openapi-client/types.gen";
 import { askAbout } from "@/components/page-chat/page-chat-model";
 import { Caused } from "@/components/timeline/caused";
 import { FiltersBar, type Actor } from "@/components/timeline/filters";
-import { TimelineRow, groupMark } from "@/components/timeline/item";
+import { TimelineRow, groupMark, type MuteOpts } from "@/components/timeline/item";
 import {
   askQuote,
   filterCount,
@@ -30,7 +30,7 @@ import {
 } from "@/components/timeline/model";
 import { Social } from "@/components/timeline/social";
 import { useCommentCounts, useReactions } from "@/components/timeline/use-social";
-import { useKinds, useMarks, useMutes, useNewItems, useTimeline } from "@/components/timeline/use-timeline";
+import { aDay, useKinds, useMarks, useMutes, useNewItems, useTimeline } from "@/components/timeline/use-timeline";
 import { Button } from "@/components/ui/button";
 import { Segmented } from "@/components/ui/tabs";
 import { Drawer } from "@/components/ui/dialog";
@@ -158,9 +158,10 @@ export function TimelinePage() {
   const counts = useCommentCounts(serverComments);
   const mutes = useMutes();
   const mutedActors = useMemo(() => new Set(mutes.mutes.map((m) => m.actor).filter(Boolean)), [mutes.mutes]);
+  const mutedKinds = useMemo(() => new Set(mutes.mutes.map((m) => m.kind).filter(Boolean)), [mutes.mutes]);
   const shown = useMemo(
-    () => all.filter((a) => !marks.of(a.id).hidden && !mutedActors.has(a.actor.id)),
-    [all, marks, mutedActors],
+    () => all.filter((a) => !marks.of(a.id).hidden && !mutedActors.has(a.actor.id) && !mutedKinds.has(a.kind)),
+    [all, marks, mutedActors, mutedKinds],
   );
   const groups = useMemo(() => group(shown), [shown]);
   const labels = useMemo(() => Object.fromEntries((kinds.data ?? []).map((k) => [k.name, k.label])), [kinds.data]);
@@ -213,7 +214,14 @@ export function TimelinePage() {
       ),
     [marks],
   );
-  const muteActor = useCallback((a: Activity) => mutes.mute({ actor: a.actor.id, name: a.actor.name }), [mutes]);
+  const muteFrom = useCallback(
+    (a: Activity, opts?: MuteOpts) =>
+      mutes.mute(
+        opts?.kind ? { kind: a.kind, name: labels[a.kind] ?? a.kind } : { actor: a.actor.id, name: a.actor.name },
+        opts?.day ? aDay() : undefined,
+      ),
+    [mutes, labels],
+  );
   const markAllShown = () => {
     const ids = shown.filter((a) => !marks.of(a.id).reviewed).map((a) => a.id);
     marks.set(ids, { reviewed: true }, { title: `Marked ${ids.length} reviewed`, undo: true });
@@ -378,7 +386,7 @@ export function TimelinePage() {
                 markOf={marks.of}
                 onMark={mark}
                 onHide={hide}
-                onMute={muteActor}
+                onMute={muteFrom}
                 open={open.has(g.key)}
                 onToggle={() => toggle(g.key)}
                 focused={i === active}
