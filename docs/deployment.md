@@ -33,6 +33,22 @@ an arm64 server), so a machine can download them instead of building
 optional extras (`EXTRAS`): to bake one in, build from source as above. The images are built in CI from the release's
 tag with the repository's own token; nothing else signs or hosts them.
 
+The install line pulls them with `LENS_IMAGES=pull` ([Get started](get-started.md#in-one-line)). By hand, from a
+checkout of a release, name them in `.env` and add `docker-compose.images.yml`, which takes the build away from the
+API, worker and web app (the optional containers that are built, such as the MCP runner, still build):
+
+```bash
+git checkout v0.15.0   # a release, and the same version below
+cat >> .env <<'ENV'
+LENS_BACKEND_IMAGE=ghcr.io/adeelahmad/lens-backend:0.15.0-full
+LENS_FRONTEND_IMAGE=ghcr.io/adeelahmad/lens-frontend:0.15.0
+ENV
+docker compose -f docker-compose.prod.yml -f docker-compose.images.yml pull backend frontend
+docker compose -f docker-compose.prod.yml -f docker-compose.images.yml up -d
+```
+
+`LENS_IMAGES_REGISTRY` points the install line at a mirror of them instead of GHCR.
+
 ## Checklist
 
 * **HTTPS in front of the web app**: [Remote access](remote-access.md) (a Cloudflare Tunnel Lens runs itself, set up in

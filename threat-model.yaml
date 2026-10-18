@@ -1184,6 +1184,15 @@ dependencies:
     covered_here: false
     violation_disposition: "OUT-OF-MODEL: dependency-contract"
     provenance: {kind: inferred, question_id: Q19}
+  - name: "Lens's prebuilt images (ghcr.io/<owner>/lens-backend, lens-frontend; opt-in LENS_IMAGES=pull)"
+    relied_on_for: "the API, worker and web app a pulling install runs, built by images.yml from the release tag with GITHUB_TOKEN and pulled over TLS by version tag"
+    relied_on_properties: [build-toolchain-integrity]
+    caller_obligations_acknowledged: []
+    adversary_capabilities_forwarded: []
+    outputs_consumed: []
+    covered_here: false
+    violation_disposition: "OUT-OF-MODEL: dependency-contract"
+    provenance: {kind: documented, source: 'docs/deployment.md "Prebuilt images"'}
   - name: "Build, lint and codegen toolchain (frontend dev dependencies, openapi-ts, linters)"
     relied_on_for: "building the images; in no running service; a report must show the code ships"
     relied_on_properties: [build-toolchain-integrity]
