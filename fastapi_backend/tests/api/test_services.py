@@ -88,6 +88,17 @@ def test_monitoring_through_the_same_switch(client, db, control):
     assert client.get("/api/v1/admin/monitoring", headers=h).json()["on"] is True
 
 
+def test_in_a_microsandbox_the_runner_is_a_setting_in_env(client, db, monkeypatch):
+    """The sandbox starts the runner itself as COMPOSE_PROFILES says (microsandbox/mcp.sh): without an agent, the
+    line to run is that setting; the other profiles don't run there."""
+    monkeypatch.delenv("LENS_CONTROL_DIR", raising=False)
+    monkeypatch.setenv("LENS_BACKEND", "microsandbox")
+    monkeypatch.setenv("LENS_HOST_DIR", "/home/pi/lens")
+    h = admin(client, db)
+    assert of(client, h, "mcp")["manual"] == "add COMPOSE_PROFILES=mcp to /home/pi/lens/.env (the sandbox picks it up by itself)"
+    assert of(client, h, "browser")["manual"] == "this install runs in a microsandbox, where the browser doesn't run yet"
+
+
 def test_no_agent_shows_the_line_to_run(client, db, monkeypatch):
     monkeypatch.delenv("LENS_CONTROL_DIR", raising=False)
     h = admin(client, db)

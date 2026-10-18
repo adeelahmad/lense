@@ -28,6 +28,7 @@ import os
 import re
 import secrets
 import shutil
+import signal
 import subprocess
 import sys
 import threading
@@ -38,6 +39,9 @@ VERSION = "2025-06-18"
 HOME = os.environ.get("LENS_MCP_HOME", "/data")
 TOKEN_FILE = os.environ.get("LENS_MCP_TOKEN_FILE", "/key/token")
 PORT = int(os.environ.get("LENS_MCP_PORT", "8090"))
+BIND = os.environ.get(
+    "LENS_MCP_BIND", "0.0.0.0"
+)  # 127.0.0.1 where Lens is on the same machine (a microsandbox)
 START_SECONDS = 180  # a first `npx -y` downloads the server
 CALL_SECONDS = 120
 IDLE = 900
@@ -358,7 +362,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def serve(port=PORT, token=None):
     """The runner on `port` (0: any); returns the server (its .token, .server_address)."""
-    srv = ThreadingHTTPServer(("0.0.0.0", port), Handler)
+    srv = ThreadingHTTPServer((BIND, port), Handler)
     srv.daemon_threads = True
     srv.token = token or secrets.token_urlsafe(32)
     return srv
@@ -372,7 +376,18 @@ def main():
         f.write(srv.token)
     os.replace(tmp, TOKEN_FILE)
     threading.Thread(target=reap, daemon=True).start()
-    print(f"MCP runner on :{PORT}", flush=True)
+
+    def quit(
+        *_,
+    ):  # stopped (docker stop, or the sandbox's loop): the servers go with it
+        with LOCK:
+            for s in SERVERS.values():
+                with s.lock:
+                    s.stop()
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, quit)
+    print(f"MCP runner on {BIND}:{PORT}", flush=True)
     srv.serve_forever()
 
 

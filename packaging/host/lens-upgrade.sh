@@ -18,7 +18,8 @@
 # adds or removes the profile in COMPOSE_PROFILES in .env and starts or stops that profile's containers, those named in
 # services_of below and nothing else, and says how it went in .lens-control/services-status. A request from before
 # profiles, monitoring=on|off, is the monitoring profile. It comes in the same file as an upgrade, the one every agent
-# watches.
+# watches. In a microsandbox install only the MCP runner can be turned: it runs inside the sandbox, which watches
+# COMPOSE_PROFILES in .env (microsandbox/mcp.sh), so the agent changes .env and nothing else.
 set -eu
 umask 022 # the containers read the status and the log
 
@@ -66,9 +67,15 @@ services() {
       return 0
       ;;
   esac
+  # In a microsandbox there are no containers to start: only the MCP runner runs there, inside the sandbox, which
+  # starts or stops it as COMPOSE_PROFILES in .env says (microsandbox/mcp.sh); the other profiles are Docker's
+  sandbox=0
   if [ "$(env_of LENS_BACKEND)" = microsandbox ]; then
-    sstatus failed "finished_at=$(now)" "code=2" "error=$profile runs in Docker; this install runs in a microsandbox"
-    return 0
+    if [ "$profile" != mcp ]; then
+      sstatus failed "finished_at=$(now)" "code=2" "error=$profile runs in Docker; this install runs in a microsandbox"
+      return 0
+    fi
+    sandbox=1
   fi
   sstatus running
   # the other profiles stay as they are
@@ -78,6 +85,10 @@ services() {
     grep -v '^COMPOSE_PROFILES=' "$DIR/.env" >"$DIR/.env.tmp" || true
     [ -z "$profiles" ] || echo "COMPOSE_PROFILES=$profiles" >>"$DIR/.env.tmp"
     cat "$DIR/.env.tmp" >"$DIR/.env" && rm -f "$DIR/.env.tmp"
+  fi
+  if [ "$sandbox" = 1 ]; then
+    sstatus "done" "finished_at=$(now)" "code=0"
+    return 0
   fi
   if docker compose version >/dev/null 2>&1; then compose="docker compose"; else compose="docker-compose"; fi
   files="-f docker-compose.prod.yml"

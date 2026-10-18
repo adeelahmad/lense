@@ -43,6 +43,8 @@ do:
 3. Builds the backend and the web app from the code, read-only at `/lens`. It builds again only when the code
    changes. The web app is built on the sandbox's own disk, and only what it builds is kept in the volume.
 4. Runs SurrealDB, the API, a job worker and the web app, and restarts any of them that stops.
+5. Runs the [MCP runner](assistant.md#the-mcp-runner) while `COMPOSE_PROFILES` in `.env` names `mcp`, as the switch
+   in the web app sets it: a process as its own user, `mcp`, with the volume closed to it, on the sandbox's localhost.
 
 The database, the archive, the builds and the downloaded packages are in the named volume `lens-data`, which outlives
 the sandbox. A sandbox that is started again boots without running Lens, so Lens always starts in a fresh one:
@@ -124,8 +126,8 @@ again for a few seconds, then moves what is left to `/data/.lens/trash` and goes
 
 ## Not yet
 
-- **Matterbridge, Fedora and OpenSearch.** The opt-in Compose services don't run in the sandbox yet. Use Docker for
-  these.
+- **Matterbridge, Fedora, OpenSearch, the browser, the code sandbox's gateway and monitoring.** The opt-in Compose
+  services other than the MCP runner don't run in the sandbox yet. Use Docker for these.
 - **Prebuilt images.** Each machine builds Lens itself, as `install.sh` does with Docker. Published images would make
   the first start quicker.
 - **Moving an install.** A Docker install doesn't move into a sandbox yet: its database and archive stay in Docker's
