@@ -10,6 +10,8 @@ The body links to anything with mention tokens, which the editor and the assista
     @[Weekly call](recording:12)   @[Ada Lovelace](entity:5)   @[Plans](page:3)   #[Capsid design](topic:9)
 
 @ is for resources, people and other pages; # is for topics, the namespace's vocabulary (topics.py). Links are kept as note_link rows, so a page shows its backlinks and the graph sees them.
+@[Research: capsids](chat:12) links a conversation (a research report's note links back to the one it came from),
+which is named and linked only for the person whose conversation it is.
 
 The editor may also keep its own document state (`doc`, opaque: a BlockSuite/Yjs snapshot) next to the Markdown, which
 holds what Markdown can't, like drawings on the edgeless canvas. A change to the Markdown alone (the assistant's, say)
@@ -40,7 +42,9 @@ R = store.R
 PLACES = ("project", "area", "resource", "archive")
 AUTHORS = ("person", "assistant")
 VIEWS = ("page", "edgeless")  # how the editor shows it: a document, or the endless canvas (drawings, diagrams)
-KINDS = ("recording", "entity", "topic", "collection", "speaker", "page")  # what a page can link to
+# what a page can link to; a conversation (chat, as a research report's note links back to it) shows as a link only
+# to the person whose conversation it is
+KINDS = ("recording", "entity", "topic", "collection", "speaker", "page", "chat")
 ABOUT = ("recording", "entity", "topic", "collection", "speaker")  # what can have a page of its own
 TITLE_MAX = 200
 SUMMARY_MAX = 300
@@ -877,7 +881,8 @@ def backlinks(db, sid, targets):
 
 
 def labels(db, targets):
-    """Current names for link targets: {"recording:12": "Weekly call"}; the ones that are gone are left out."""
+    """Current names for link targets: {"recording:12": "Weekly call"}; the ones that are gone are left out. A
+    conversation's (chat:12) has its `account` instead of a `space`: only that person sees its name."""
     by_kind = {}
     for t in targets:
         kind, _, key = t.partition(":")
@@ -887,6 +892,12 @@ def labels(db, targets):
     for kind, keys in by_kind.items():
         table = "note_page" if kind == "page" else kind
         name = {"recording": "title ?? path", "page": "title", "speaker": "name ?? label", "topic": "label"}.get(kind, "name")
+        if kind == "chat":
+            for r in db.rows(
+                "SELECT record::id(id) AS id, account, title AS name FROM chat WHERE id IN $ids", ids=[R("chat", k) for k in keys]
+            ):
+                out[f"chat:{r['id']}"] = {"name": r.get("name"), "account": r.get("account")}
+            continue
         for r in db.rows(
             f"SELECT record::id(id) AS id, space, {name} AS name FROM {table} WHERE id IN $ids", ids=[R(table, k) for k in keys]
         ):

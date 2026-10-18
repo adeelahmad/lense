@@ -181,6 +181,9 @@ The setup wizard's model provider step and Settings → LLM provider offer the m
 Studio, llama.cpp, vLLM, LocalAI) and these cloud providers, each through its OpenAI-compatible API. Picking one fills
 in the address and a model, and a cloud provider's API key field takes the focus, with a link to where the provider
 hands out keys: paste the key and save. The model stays editable, with the provider's other models suggested.
+**Test** tries the address, model and key on screen, saved or not; the saved key goes only to the saved address, so
+a new address is tested with the key typed for it. Over the API, `POST /api/v1/settings/llm/test` takes the same
+`base_url`, `model` and `api_key`, and with no body tests what is saved.
 
 | Provider | Address | Model filled in |
 |---|---|---|

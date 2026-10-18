@@ -8,7 +8,7 @@ project: lens
 prose_version: "threat-model.md@same-commit"
 model_status: under-review
 triage_policy: strict
-confidence: {documented: 205, maintainer: 46, inferred: 91, assumption: 8}
+confidence: {documented: 208, maintainer: 46, inferred: 91, assumption: 8}
 
 generation:
   model: "Claude Opus 5.5 (claude-opus-5-5)"
@@ -205,6 +205,15 @@ entry_points:
         obligation_id: keep-one-time-secrets
         caller_must_enforce: "holder keeps them secret"
         provenance: {kind: documented, source: 'docs/authentication.md "A link lasts three days"'}
+  - id: "POST /auth/passkeys/elsewhere"
+    component: identity
+    parameters:
+      - name: "an address to take your sign-in to"
+        attacker_controllable: true
+        x-condition: "signed in themselves; not API tokens or apps"
+        control_kinds: [resource-name]
+        caller_must_enforce: "only an address Lens opens at (tunnel, HTTPS domains); 15 minutes, once, other links left alone"
+        provenance: {kind: documented, source: 'docs/authentication.md "Lens opens at another address"'}
   - id: "/oauth/register, /authorize, /token, /revoke"
     component: identity
     parameters:
@@ -438,7 +447,7 @@ entry_points:
         obligation_id: enable-only-trusted-extensions
         caller_must_enforce: "person enables only extensions they trust"
         provenance: {kind: documented, source: 'docs/assistant.md "other people''s run only when an admin shared them"'}
-  - id: "MCP servers: POST /extensions/mcp/read and /mcp/test, saving an extension of kind mcp, PATCH /extensions/{id}/tools"
+  - id: "MCP servers: POST /extensions/mcp/read and /mcp/test, GET /extensions/mcp/presets, saving an extension of kind mcp, PATCH /extensions/{id}/tools"
     component: assistant
     parameters:
       - name: "config text (JSON or YAML), a server's address and headers, or a command, its arguments and env; a tool name and its switches"
@@ -446,7 +455,7 @@ entry_points:
         x-condition: "admins only, except reading a config, which any signed-in person may and which reaches nothing"
         control_kinds: [data, x-network-destination, x-credential, callback-code]
         obligation_id: admin-is-trusted
-        caller_must_enforce: "admin is trusted with the address and the command; reading a config parses text only; a command runs only in the MCP runner; credential values are sealed to the extension and where they go and shown as ••••; a tool switched off isn't offered, and every MCP tool asks first after outside text"
+        caller_must_enforce: "admin is trusted with the address and the command; reading a config parses text only; a command runs only in the MCP runner; credential values are sealed to the extension and where they go and shown as ••••; a tool switched off isn't offered, and every MCP tool asks first after outside text; a server whose spec says keep reuses one session for every caller"
         provenance: {kind: documented, source: 'docs/assistant.md "Adding an MCP server"'}
   - id: "Python code tools, shipped and admin-created templates, workflows, pipelines, routines"
     component: assistant
@@ -468,6 +477,16 @@ entry_points:
         obligation_id: keep-hook-addresses-secret
         caller_must_enforce: "the person keeps the address and secret to the services that call it; Lens keeps the token hashed, caps size and rate, checks signatures sent, and treats what was sent as outside text"
         provenance: {kind: documented, source: 'docs/automations.md "No webhook exists until an automation with such a trigger is saved"'}
+  - id: "GET /feeds/public/{token}, /feeds/public/{token}/items/{item}/audio (a published feed)"
+    component: optional
+    parameters:
+      - name: "token in the path, Range, If-None-Match"
+        attacker_controllable: true
+        x-condition: "anyone given the address, once an editor of a namespace makes a feed"
+        control_kinds: [x-credential, resource-name]
+        obligation_id: keep-feed-addresses-secret
+        caller_must_enforce: "the person shares the address as a password; Lens finds the token by its hash, stops the old address when a new one is made, and lists only what the namespace's readers can read"
+        provenance: {kind: documented, source: 'docs/feeds.md "Private by default"'}
   - id: "automations' params and prompts, POST /automations/preview and /automations/variables"
     component: optional
     parameters:
@@ -549,12 +568,12 @@ entry_points:
   - id: "host control inbox and the monitoring scrape token"
     component: authz
     parameters:
-      - name: "inbox/upgrade request: release ref (empty: the version running) with https=0|1, public=0|1 and target=full|lean, or action=services with monitoring=on|off"
+      - name: "inbox/upgrade request: release ref (empty: the version running) with https=0|1, public=0|1 and target=full|lean, or action=services with profile=mcp|browser|monitoring and turn=on|off (or an older Lens's monitoring=on|off)"
         attacker_controllable: true
         x-condition: "writable by the containers and local users"
         control_kinds: [x-env-config]
         obligation_id: agent-allow-list
-        caller_must_enforce: "the agent installs only a release tag or the install's branch, changes only the HTTPS ports, the web app's network reach and the edition (other values dropped), and only toggles the monitoring profile; a writer can at most restart Lens with those choices or open it to the network"
+        caller_must_enforce: "the agent installs only a release tag or the install's branch, changes only the HTTPS ports, the web app's network reach and the edition (other values dropped), and only toggles the mcp, browser and monitoring profiles (any other refused); a writer can at most restart Lens with those choices or open it to the network"
         provenance: {kind: documented, source: "docs/updates.md"}
       - name: "/metrics scrape token, .lens-control/prometheus-token"
         attacker_controllable: true
@@ -573,6 +592,16 @@ entry_points:
         obligation_id: admin-is-trusted
         caller_must_enforce: "admin is trusted; audited (lens.install, https.ports); reaches the machine only as an inbox request the agent checks again"
         provenance: {kind: documented, source: 'docs/updates.md "Setting the machine up again"'}
+  - id: "admin optional container requests"
+    component: authz
+    parameters:
+      - name: "PUT /api/v1/admin/services/{profile} {on}, MCP set_service: profile mcp|browser|monitoring"
+        attacker_controllable: false
+        x-condition: "admin only (MCP: with the write scope)"
+        control_kinds: [x-env-config]
+        obligation_id: admin-is-trusted
+        caller_must_enforce: "admin is trusted; audited (lens.services, lens.monitoring); unknown profiles are a 404; one change at a time; reaches the machine only as an inbox request the agent checks again"
+        provenance: {kind: documented, source: 'docs/assistant.md "Optional containers"'}
   - id: "admin sandbox gateway"
     component: authz
     parameters:
@@ -619,6 +648,15 @@ entry_points:
         control_kinds: [data, x-prompt-injection]
         caller_must_enforce: "none — served only to the conversation's person (404 otherwise, or for another conversation's id) as an attachment with nosniff and a sandbox content policy, never rendered; random 96-bit id checked against the conversation; kept AES-256-GCM encrypted with a key derived from the server's secret, bound to the file and conversation; at most 20 a conversation, 25 MB each; deleted with the conversation or the account"
         provenance: {kind: documented, source: 'docs/assistant.md "Code sandbox"'}
+  - id: "deep research"
+    component: assistant
+    parameters:
+      - name: "/research <goal>, research: true, POST /chats/{cid}/research, /research/{id} (revise, stop, resume, note, podcast), start_research (assistant and MCP), research_status (MCP): a goal, answers to follow-up questions, plan edits; research.* settings (admins)"
+        attacker_controllable: true
+        x-condition: "anyone who may use the assistant, in their own conversations; indirectly through what the run reads, through the model"
+        control_kinds: [data, x-prompt-injection, size]
+        caller_must_enforce: "none — the plan waits for the person's own approval (P-RESEARCH); the run uses only its sources' read tools, as the person, within its tool calls, minutes and budgets; its web searches and page reads don't ask again, bounded by the plan and the ledger; one run per person at a time; the report's claims are checked against what they cite"
+        provenance: {kind: documented, source: 'docs/assistant.md "Deep research"'}
   - id: "microsandbox program requests"
     component: authz
     parameters:
@@ -743,7 +781,7 @@ contract_dimensions:
   - {component: optional, dimension: serialization-reconstruction, status: not-applicable, conditions: "readings stored as data; no object reconstruction", provenance: {kind: inferred, question_id: Q34}}
   - {component: optional, dimension: callback-execution, status: claimed, property_id: P-CHILD-SECRETS, conditions: "tunnel token and llama-server key stay off command lines", provenance: {kind: documented, source: 'docs/remote-access.md "in its environment, not on its command line"'}}
   - {component: optional, dimension: reference-lifecycle, status: claimed, property_id: P-SENSORS, conditions: "each service off until an admin turns it on", provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}}
-  - {component: optional, dimension: confidentiality, status: claimed, property_id: P-NFS, conditions: "NFS share off until an admin turns it on; read-only; one account's view; allowed networks only", provenance: {kind: documented, source: 'docs/file-shares.md "NFS has no login"'}}
+  - {component: optional, dimension: confidentiality, status: claimed, property_id: P-NFS, conditions: "NFS share off until an admin turns it on; adds files only as its account may import, never changes what Lens made (nfs.add_files off: read-only); one account's view; allowed networks only", provenance: {kind: documented, source: 'docs/file-shares.md "NFS has no login"'}}
   - {component: optional, dimension: confidentiality, status: claimed, property_id: P-SMB, conditions: "SMB share off until an admin turns it on; adds files only as its owner may import, never changes what Lens made (smb.add_files off: read-only); each key sees its owner's view; allowed networks only", provenance: {kind: documented, source: 'docs/smb.md "What keeps it safe"'}}
   - {component: optional, dimension: concurrency-reentrancy, status: disclaimed, property_id: N-VOLUME, conditions: "MQTT and syslog connection counts, one thread per connection", provenance: {kind: documented, source: 'SECURITY.md "denial of service by sheer volume"'}}
   - {component: optional, dimension: resource-complexity, status: disclaimed, property_id: N-VOLUME, conditions: "MQTT and syslog connection counts, one thread per connection", provenance: {kind: documented, source: 'SECURITY.md "denial of service by sheer volume"'}}
@@ -890,6 +928,16 @@ outputs:
       - {id: inv-share-uniform-410, statement: "a dead link answers the same 410 whatever went wrong", property_id: P-SHARE, provenance: {kind: documented, source: 'docs/authentication.md "the same whatever went wrong"'}}
     downstream_must_not_assume:
       - {id: dmna-410-meaningful, statement: "that a 410 says anything about the asset", provenance: {kind: documented, source: 'docs/authentication.md "the same whatever went wrong"'}}
+  - component: optional
+    channel: "Published feeds (GET /feeds/public/{token}: RSS and podcast XML, items' audio; domain/syndication.py)"
+    taint: same-as-input
+    x-taint-note: "titles, summaries, episode outlines and activity summaries as they are now, escaped for the XML and again for readers that render descriptions as HTML; only items the feed's namespace readers can read; itunes:block, podcast:locked and X-Robots-Tag ask directories and crawlers to keep out"
+    taint_provenance: {kind: documented, source: 'docs/feeds.md "Private by default"'}
+    invariants:
+      - {id: inv-feed-bounded-by-namespace, statement: "a feed lists only what the readers of its namespace can read, never a vault's", property_id: P-FEEDS, provenance: {kind: documented, source: 'docs/feeds.md "Private by default"'}}
+    downstream_must_not_assume:
+      - {id: dmna-feed-address-private, statement: "that the address stays private once shared: it is a bearer credential until rotated", provenance: {kind: documented, source: 'docs/feeds.md "Private by default"'}}
+      - {id: dmna-feed-directories-keep-out, statement: "that a directory or crawler honours the request to keep out", provenance: {kind: documented, source: 'docs/feeds.md "Private by default"'}}
 
 # ---------------------------------------------------------------- §1.10
 adversaries:
@@ -1422,6 +1470,14 @@ properties_claimed:
     violation_symptoms: [integrity-bypass]
     x-voided-by: "liveness plus asset match only (domain/auth.py:441-444); ?s= routes (api/deps.py:252, Q7)"
     provenance: {kind: documented, source: 'docs/authentication.md "give read-only access to one asset''s player and embed"'}
+  - id: P-FEEDS
+    kind: confidentiality
+    components: [authz, optional]
+    tier: security-critical
+    conditions: "a published feed's address opens that feed alone, read-only, with no session; only an editor of the namespace makes one; it lists only items whose resource or activity the readers of the feed's namespace can read, never a vault's, and a namespace made a vault stops its feeds; the token is found by its hash, and rotating or deleting the feed stops the old address at once; text in an item cannot add markup to a reader"
+    violation_symptoms: [info-leak]
+    x-voided-by: "the token is sealed with the server key, not only hashed, so the namespace's readers and whoever holds secret.key see the address again (domain/syndication.py token_of); anyone given the address reads the feed until it is rotated; editors choose what goes in, and a resource's title and summary show as they are now; the fit is by namespace roles (domain/syndication.py Fit), not per-asset grants"
+    provenance: {kind: documented, source: 'docs/feeds.md "Private by default"'}
   - id: P-AUTH-REQ
     kind: authentication
     components: [web, identity]
@@ -1476,7 +1532,7 @@ properties_claimed:
     components: [identity]
     tier: correctness-only
     x-tier-question: Q37
-    conditions: "access JWT 900 s; sign-in link 72 h, emailed links 60 min; OAuth code 5 min; app tokens 60 min / 30 days; API tokens default 90 days, never past tokens.max_days"
+    conditions: "access JWT 900 s; sign-in link 72 h, emailed links 60 min, your own link to another address 15 min; OAuth code 5 min; app tokens 60 min / 30 days; API tokens default 90 days, never past tokens.max_days"
     violation_symptoms: [bad-data-accepted]
     x-voided-by: "admin token settings; the API-key cap check (domain/auth.py:282)"
     provenance: {kind: documented, source: 'docs/authentication.md "A link lasts three days"'}
@@ -1609,7 +1665,7 @@ properties_claimed:
     kind: confidentiality
     components: [assistant]
     tier: correctness-only
-    conditions: "Once an assistant answer has read text from outside Lens (a tool result other than Lens's own, the page it was asked from, a namespace assistant's memories, a message in a chat room with no bridge.users, or an earlier answer in the conversation that read any of these), tools that could carry it out of Lens (the person's own read web tools, a web search or page read neither the person nor a tool gave it, other servers' MCP tools, Python tools with the network) and an admin setup conversation's own changes wait for the person's approval. A chat room's answer keeps a web address linkable only when the person, the archive, a tool or Lens wrote it. A bypass is VALID-HARDENING (Q26). An automation's model and agent actions (ask_model, call_tool, ask_agent) run with nobody reading along: the activity and earlier steps reach the model marked as data, every change they would make (notes included) is an approval of the automation's person, and anything that could carry data out of Lens asks first whatever the run read (docs/automations.md \"The model and the agent\"). A saved variable a run set from outside text stays marked as data in later runs' prompts, and an action whose params read it counts as reading outside text (docs/automations.md \"Saved variables\")."
+    conditions: "Once an assistant answer has read text from outside Lens (a tool result other than Lens's own, the page it was asked from, a namespace assistant's memories, a message in a chat room with no bridge.users, or an earlier answer in the conversation that read any of these), tools that could carry it out of Lens (the person's own read web tools, a web search or page read neither the person nor a tool gave it, other servers' MCP tools, Python tools with the network) and an admin setup conversation's own changes wait for the person's approval. A chat room's answer keeps a web address linkable only when the person, the archive, a tool or Lens wrote it. A bypass is VALID-HARDENING (Q26). An automation's model and agent actions (ask_model, call_tool, ask_agent) run with nobody reading along: the activity and earlier steps reach the model marked as data, every change they would make (notes included) is an approval of the automation's person, and anything that could carry data out of Lens asks first whatever the run read (docs/automations.md \"The model and the agent\"). A saved variable a run set from outside text stays marked as data in later runs' prompts, and an action whose params read it counts as reading outside text (docs/automations.md \"Saved variables\"). Within a research run the person approved, the plan's web searches and page reads, and code with the network when the plan names the code sandbox, don't ask again (P-RESEARCH)."
     violation_symptoms: [info-leak]
     x-voided-by: "ai.untrusted_asks: false (domain/ai_tools.py:519); bridge.safe_links: false (domain/bridge.py:298); notes and memories are written at once; hooks run as their owners set them (P-EXT-SCOPE); an address the read text wrote itself stays linkable in a room; the person's browser asks first as P-BROWSER-GUARD says"
     provenance: {kind: documented, source: 'docs/assistant.md "it read out of Lens waits for your approval"'}
@@ -1714,9 +1770,9 @@ properties_claimed:
     kind: confidentiality
     components: [optional]
     tier: security-critical
-    conditions: "the NFS share is off until an admin turns it on, is read-only, shows only what one chosen account sees, and lets in only allowed_networks"
-    violation_symptoms: [info-leak]
-    x-voided-by: "nfs.allowed_networks set wide, or a spoofed client address on the local network (domain/share_relay.py); Docker publishing that rewrites client addresses"
+    conditions: "the NFS share is off until an admin turns it on, shows only what one chosen account sees, imports files written to it only where that account may import (never over what Lens made; nfs.add_files off: read-only), and lets in only allowed_networks"
+    violation_symptoms: [info-leak, integrity-bypass]
+    x-voided-by: "nfs.allowed_networks set wide, or a spoofed client address on the local network, who then reads and adds files as the share's account (domain/share_relay.py, domain/share_import.py); Docker publishing that rewrites client addresses"
     provenance: {kind: documented, source: 'docs/file-shares.md "NFS has no login"'}
   - id: P-SMB
     kind: confidentiality
@@ -1816,6 +1872,14 @@ properties_claimed:
     violation_symptoms: [integrity-bypass]
     x-voided-by: "isolation inside the sandbox is OpenShell's; landlock best_effort runs without Landlock where the kernel lacks it (domain/sandbox.py); whoever the gateway lets in (in the sandbox profile, a holder of its client certificate) can run sandboxes of their own; what the code prints is third-party text (N-PROMPT)"
     provenance: {kind: documented, source: 'docs/assistant.md "Code sandbox"'}
+  - id: P-RESEARCH
+    kind: integrity
+    components: [assistant]
+    tier: correctness-only
+    conditions: "a research plan runs only once its person approves it, signed in or with a yes in their chat room from someone in bridge.users; an API key, an app or an agent only declines it unless research.agents_skip_review; the run acts as the person with their access at run time, offered only its sources' read tools, within the plan's tool calls (research.max_tool_calls), research.max_minutes and the budgets of its namespaces and all, checked before each stage; its web searches and page reads (and code with the network, when the plan names the sandbox) don't ask again; one run per person at a time; one process at a time (research_run:<id>, a heartbeat every 10 s, taken over after 2 minutes of silence); every call in the ledger under research:<id>"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "research.agents_skip_review lets an agent's plan run without review (domain/research.py agents_may_approve); a run's web queries can carry archive text it read, within its tool calls (N-PROMPT); a yes in a room is the room's people's (N-BRIDGE)"
+    provenance: {kind: documented, source: 'docs/assistant.md "Deep research"'}
   - id: MX-AUTHZ-LIST-CAPS
     kind: resource-bound
     components: [authz]
@@ -1836,7 +1900,7 @@ properties_claimed:
 # ---------------------------------------------------------------- §1.12
 properties_disclaimed:
   - {id: N-ADMIN, components: [outbound, ingest, assistant, optional], tier: security-critical, false_friend: false, conditions: "protection from the instance admin or host operator (admin-set URLs reaching internal hosts, admin code, templates, regexes, component installs, api_key_env). Covers only operands an admin or operator alone can set. Excludes the guards Lens documents on them (P-ADMIN-GUARD): an escape of one is VALID. Excludes saved telemetry headers when the endpoint moves host (unresolved, Q35 -> MODEL-GAP). A non-admin reaching any admin operand is in model.", provenance: {kind: maintainer, date: "2026-10"}}
-  - {id: N-EGRESS, components: [outbound], tier: security-critical, false_friend: true, conditions: "an egress firewall; netguard guards web import, iCal and news feeds, extension http tools, notifications, the assistant's web search and page reads, and Chromium, nothing else; admin-set URLs other than iCal and news feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded", x-false-friend-note: "'public addresses only' reads as server-wide", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: N-EGRESS, components: [outbound], tier: security-critical, false_friend: true, conditions: "an egress firewall; netguard guards web import, iCal and news feeds, extension http tools, notifications, the assistant's web search and page reads, Chromium and the opt-in browser container (as browser-proxy), nothing else; admin-set URLs other than iCal and news feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded", x-false-friend-note: "'public addresses only' reads as server-wide", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: N-CODE-GUARD, components: [assistant], tier: security-critical, false_friend: true, conditions: "a sandbox for Python code tools; audit hooks, rlimits and an optional network namespace only raise the bar; admin-written code; runs as the Lens user", x-false-friend-note: "guard is not isolation", provenance: {kind: documented, source: 'domain/code_tools.py docstring "they aren''t a wall"'}}
   - {id: N-DOWNLOADS, components: [optional], tier: security-critical, false_friend: false, conditions: "integrity beyond HTTPS and the publisher for llama.cpp, cloudflared, pip installs and hf: models; catalog GGUF files are still checked (P-MODEL-CHECKSUM)", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: N-DB-PLAIN, components: [outbound], tier: security-critical, false_friend: true, conditions: "encryption of the SurrealDB content (assets' text, indexes), derived files, renditions, reports, exports and the storage-source cache; stated limit", x-false-friend-note: "vaults cover files only", provenance: {kind: documented, source: 'docs/encryption.md "the SurrealDB database itself"'}}
@@ -1909,7 +1973,7 @@ downstream_responsibilities:
   - {id: dr-untrusted-prompt-input, component: assistant, statement: "Treat asset text and MCP results as untrusted prompt input in your agents", enforces: [N-PROMPT, dmna-mcp-text-as-instructions], provenance: {kind: inferred, question_id: Q26}}
   - {id: dr-iiif-over-https, component: authz, statement: "Keep the IIIF cookie SameSite=None; Secure by serving IIIF over HTTPS", enforces: [], x-protects: "IIIF cookie", provenance: {kind: documented, source: 'docs/iiif.md "its cookie is `SameSite=None; Secure`"'}}
   - {id: dr-verify-webhook-signature, component: outbound, statement: "Verify webhook-signature on receipt; treat Slack and Discord target URLs as secrets", enforces: [dmna-chat-webhooks-signed], x-protects: "§1.8 webhook bodies", provenance: {kind: documented, source: 'domain/notify.py docstring "signed the Standard Webhooks way"'}}
-  - {id: dr-limit-nfs-share, component: optional, statement: "When the NFS share is on, list only your own networks and pick an account that sees only what the share should show", enforces: [P-NFS, enable-and-limit-nfs], provenance: {kind: documented, source: 'docs/file-shares.md "NFS has no login"'}}
+  - {id: dr-limit-nfs-share, component: optional, statement: "When the NFS share is on, list only your own networks and pick an account that sees only what the share should show (and may add only where the share should take files), or turn nfs.add_files off", enforces: [P-NFS, enable-and-limit-nfs], provenance: {kind: documented, source: 'docs/file-shares.md "NFS has no login"'}}
   - {id: dr-private-logs-push-tokens, component: optional, statement: "Keep logs that record request paths private when sensor push tokens are in use", enforces: [P-SENSORS], provenance: {kind: documented, source: 'docs/sensors.md "Ways in"'}}
 
 # ---------------------------------------------------------------- §1.14
@@ -1928,6 +1992,7 @@ known_misuses:
   - {id: km-wide-web-networks, components: [outbound], pattern: "Wide LENS_WEB_NETWORKS", x-why-unsafe: "Editors, and iCal and news feed redirects, can then reach those networks", safer_alternative: "List single hosts", x-provenance-basis: "§1.6 web_networks row; §1.13 private networks row", provenance: {kind: documented, source: 'docs/configuration.md "loopback and cloud metadata addresses stay out"'}}
   - {id: km-push-token-in-url, components: [optional], pattern: "Webhook push token in a URL that proxies log", x-why-unsafe: "The token is a credential in the path", safer_alternative: "Use the header form", x-provenance-basis: "§1.13 row 'Keep logs that record request paths private'", provenance: {kind: documented, source: 'docs/sensors.md "Ways in"'}}
   - {id: km-hosted-model-sensitive, components: [assistant], pattern: "Pointing the assistant at a hosted model for sensitive archives", x-why-unsafe: "Assets' text leaves the machine", safer_alternative: "Use a local model server", x-provenance-basis: "§1.13 row 'Pick model and speech servers you trust'", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: km-browser-sign-in, components: [assistant], pattern: "Signing in to a site in the assistant's browser", x-why-unsafe: "One browser serves everyone whose assistant uses it, so they are signed in too until it stops", safer_alternative: "Give the assistant only public pages, or an account made for it", provenance: {kind: documented, source: 'docs/assistant.md "One browser for everyone"'}}
 
 # ---------------------------------------------------------------- §1.15
 known_non_findings:

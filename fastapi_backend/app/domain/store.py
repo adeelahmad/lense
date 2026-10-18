@@ -322,6 +322,10 @@ DEFAULTS = {
     # searxng_url; brave and tavily need api_key. results: per search; read_chars: of a page's text the model reads;
     # render: a page that comes back nearly empty is loaded with Chromium (scripts run), when Chromium is installed
     "web": {"search": "off", "searxng_url": None, "api_key": None, "results": 5, "read_chars": 20000, "render": False},
+    # deep research (research.py, docs/assistant.md#deep-research): the most tool calls a plan may make, the minutes
+    # a run may take before it writes its report with what it found, a model for it (null: the conversation's), and
+    # whether an agent (an API key, an app, MCP) may start a run without the person reviewing its plan
+    "research": {"max_tool_calls": 40, "max_minutes": 20, "model": None, "agents_skip_review": False},
     # talking to Lens (voice.py): input auto uses the server's speech-to-text engine when it has one, else the
     # browser's; spoken answers come from tts_model (an OpenAI-compatible /audio/speech), else the browser reads them
     # stt: the engine that hears voice chat ("same": the transcription engine); tts_provider: who reads answers aloud
@@ -602,6 +606,7 @@ DEFAULTS = {
         "port": 2049,
         "allowed_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "fc00::/7", "::1/128"],
         "account": None,
+        "add_files": True,  # files written to the share are imported, as `account` (share_import.py); off: read-only
     },
     # the graph as files over S3 and WebDAV (shares.py, docs/file-tree.md): off until an admin turns it on. Then the process
     # that runs routines (`lens worker`) serves it on these ports; add_files imports the files people add to it
@@ -942,6 +947,7 @@ class DB:
         self._all = []
         # one connection now, the rest of the pool as concurrent queries need them: each server sign-in costs time
         self._size, self._grow_lock = size, threading.Lock()
+        self._held = threading.local()  # the connection the current thread is using, if any (conn)
         try:
             c = self._open()
             self._all.append(c)
@@ -1008,17 +1014,30 @@ class DB:
     def conn(self):
         """A connection from the pool. A server connection that has dropped (the server restarted, or a keepalive
         ping went unanswered while the machine slept) is replaced: without that, every query sent on it fails until
-        the process restarts."""
+        the process restarts.
+
+        A thread already inside a query gets its own connection again when the engine is embedded: the garbage
+        collector closes an abandoned streamed answer (its reader left) on whatever thread it runs on, mid-query, and
+        that answer's cleanup queries too; with the embedded engine's one connection held by that very thread, waiting
+        for it would hang the whole server. While Python runs, the outer query is between sends, so the inner one is
+        safe on it. A server connection is not shared: the SDK sends on it under a lock that the same thread cannot
+        take twice, so there the inner query takes another connection from the pool."""
+        outer = getattr(self._held, "c", None)
+        if outer is not None and self.embedded:
+            yield outer
+            return
         c = self._take()
         try:
             if _closed(c):
                 c = self._replace(c)
+            self._held.c = c
             yield c
         except Exception as e:
             if not self.embedded and _lost(e):
                 c = self._replace(c)
             raise
         finally:
+            self._held.c = outer
             self._pool.put(c)
 
     def _take(self):
@@ -1341,6 +1360,12 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS event_cursor SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS event_claim SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS event_claim_at ON event_claim FIELDS at",
+    # what automations keep between activities (domain/match.py): the last value a `changed` test saw, joins waiting
+    # for their other triggers and decide answers (automation_state:<hash>), and how many went to make room
+    "DEFINE TABLE IF NOT EXISTS automation_state SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS automation_state_automation ON automation_state FIELDS automation, at",
+    "DEFINE INDEX IF NOT EXISTS automation_state_expires ON automation_state FIELDS expires_at",
+    "DEFINE TABLE IF NOT EXISTS automation_state_dropped SCHEMALESS",
     # an automation trigger's webhook (domain/automation_hooks.py): automation_hook:<n>, the token kept only as a hash
     "DEFINE TABLE IF NOT EXISTS automation_hook SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS automation_hook_token ON automation_hook FIELDS token_hash UNIQUE",
@@ -1467,6 +1492,14 @@ SCHEMA = [
     # what a podcast episode was made from and of, beside its recording (app/domain/podcasts.py): podcast:<recording id>
     "DEFINE TABLE IF NOT EXISTS podcast SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS podcast_space ON podcast FIELDS space",
+    # published RSS and podcast feeds (app/domain/syndication.py): feed:<n>, its token kept sealed and as a hash, and
+    # its items, one per feed for what each is about (key: "<feed>:<guid>")
+    "DEFINE TABLE IF NOT EXISTS feed SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS feed_token ON feed FIELDS token_hash UNIQUE",
+    "DEFINE INDEX IF NOT EXISTS feed_space ON feed FIELDS space",
+    "DEFINE TABLE IF NOT EXISTS feed_item SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS feed_item_feed ON feed_item FIELDS feed",
+    "DEFINE INDEX IF NOT EXISTS feed_item_key ON feed_item FIELDS key UNIQUE",
     "DEFINE TABLE IF NOT EXISTS output SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS output_rec ON output FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS chat SCHEMALESS",
@@ -1485,6 +1518,12 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS browser_action_session ON browser_action FIELDS session, state",
     # each conversation's code sandbox on the OpenShell gateway (sandbox.py): its name, settings and last use
     "DEFINE TABLE IF NOT EXISTS code_sandbox SCHEMALESS",
+    # deep research (research.py): a goal's plan, its run's progress and report; research_run:<id> is the claim of
+    # the process carrying a run out, with its heartbeat
+    "DEFINE TABLE IF NOT EXISTS research SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS research_account ON research FIELDS account, status",
+    "DEFINE INDEX IF NOT EXISTS research_chat ON research FIELDS chat",
+    "DEFINE TABLE IF NOT EXISTS research_run SCHEMALESS",
     # files a conversation's sandbox handed the person to download (sandbox.share), kept with the conversation
     "DEFINE TABLE IF NOT EXISTS chat_file SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS chat_file_chat ON chat_file FIELDS chat",

@@ -648,8 +648,19 @@ function LlmBody({ ctx }: { ctx: BodyCtx }) {
   const key = ctx.state("llm.api_key");
   const baseUrl = ctx.state("llm.base_url");
   const model = ctx.state("llm.model");
+  // Test what is on screen, saved or not; the saved key goes only to the saved address
   const test = useMutation({
-    mutationFn: () => data(Admin.testLlm({ client })),
+    mutationFn: () =>
+      data(
+        Admin.testLlm({
+          client,
+          body: {
+            base_url: String(baseUrl.value ?? "") || null,
+            model: String(model.value ?? "") || null,
+            api_key: (key.value as string | undefined) || null,
+          },
+        }),
+      ),
   });
   // The setup wizard's provider step: a server found nearby or a cloud provider fills in the address and the model,
   // and a cloud provider's key is asked for next
@@ -2668,6 +2679,22 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
         </ul>
       </More>
       <WebSearch ctx={ctx} />
+      <More
+        ctx={ctx}
+        ids={["research.max_tool_calls", "research.max_minutes", "research.model", "research.agents_skip_review"]}
+        title="Deep research"
+      >
+        <p className="text-[13px] leading-normal text-fg-secondary">
+          A goal (the Deep research switch in chat, or /research) gets a plan to approve, then runs in the background
+          and brings back a cited report.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <F ctx={ctx} id="research.max_tool_calls" />
+          <F ctx={ctx} id="research.max_minutes" />
+          <F ctx={ctx} id="research.model" />
+        </div>
+        <F ctx={ctx} id="research.agents_skip_review" />
+      </More>
       <More ctx={ctx} ids={LIMITS} title="Approvals, steps, prices and long conversations">
         <div className="grid gap-3 sm:grid-cols-2">
           <F ctx={ctx} id="ai.confirm_over_recordings" />

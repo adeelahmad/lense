@@ -1,9 +1,11 @@
-"""The file tree over NFS (docs/file-tree.md, NFS): graph nodes as folders and assets as files, read-only, for the
-machines on the networks you allow (Settings → NFS share).
+"""The file tree over NFS (docs/file-tree.md, NFS): graph nodes as folders and assets as files, for the machines on
+the networks you allow (Settings → NFS share).
 
-Off by default. Turned on, one worker runs `rclone serve nfs --read-only` (rclone is in Lens's image already) over
-Lens's own S3 server, signed in with an S3 key made for the account the share shows the tree as (`nfs.account`;
-nobody picked: the first admin), so the share shows exactly what that person sees in the web app and nothing else.
+Off by default. Turned on, one worker runs `rclone serve nfs` (rclone is in Lens's image already) over Lens's own S3
+server, signed in with an S3 key made for the account the share shows the tree as (`nfs.account`; nobody picked: the
+first admin), so the share shows exactly what that person sees in the web app and nothing else. While `nfs.add_files`
+is on, rclone keeps files being written in a cache on disk and puts each one to the S3 server once it's closed, where
+it's imported as that account adds it (share_import.py); off, rclone serves it --read-only.
 NFS has no sign-in of its own, so rclone listens on 127.0.0.1 only and a relay (share_relay.py) on the published port
 lets in only `nfs.allowed_networks`.
 
@@ -16,6 +18,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import os
+import pathlib
 import shutil
 import socket
 import subprocess
@@ -68,8 +71,9 @@ def status(db, cfg):
         "refused": s.get("refused") or 0,
         "log": s.get("log") or [],
         "process": s.get("owner") if live else None,
-        "mount": f"sudo mount -t nfs -o port={published},mountport={published},tcp,vers=3,ro <this machine>:/ /mnt/lens",
+        "mount": f"sudo mount -t nfs -o port={published},mountport={published},tcp,vers=3{'' if c['add_files'] else ',ro'} <this machine>:/ /mnt/lens",
         "rclone": bool(rclone_binary()),
+        "add_files": bool(c["add_files"]),
     }
 
 
@@ -198,8 +202,13 @@ class Runner:
         account = _account(self.db, c)
         remote, env_extra = self.remote(self.db, self.cfg_fn, account)
         inner = _free_port()
-        cmd = [exe, "serve", "nfs", remote, "--addr", f"127.0.0.1:{inner}", "--read-only", "--vfs-cache-mode", "off",
-               "--dir-cache-time", "30s", "--no-checksum"]  # fmt: skip
+        cmd = [exe, "serve", "nfs", remote, "--addr", f"127.0.0.1:{inner}", "--dir-cache-time", "30s", "--no-checksum"]
+        if c["add_files"]:  # files are written to a cache on disk, then put to the S3 server (imported) once closed
+            cache = pathlib.Path(cfg["data_dir"]) / "cache" / "nfs"
+            cache.mkdir(parents=True, exist_ok=True, mode=0o700)
+            cmd += ["--vfs-cache-mode", "writes", "--cache-dir", str(cache), "--vfs-write-back", "2s", "--vfs-cache-max-age", "10m"]
+        else:
+            cmd += ["--read-only", "--vfs-cache-mode", "off"]
         env = {**os.environ, **env_extra}  # the key in the environment, not on the command line where `ps` shows it
         self.proc = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
         threading.Thread(target=self._read, args=(self.proc,), daemon=True, name="nfs-rclone-log").start()
@@ -218,7 +227,7 @@ class Runner:
             raise ShareError(f"port {c['port']}: {e.strerror or e}") from None
         self.account, self.account_id = account.get("email"), account["id"]
         self.phase, self.error, self.fails = "running", None, 0
-        self.log(f"nfs: serving the file tree as {self.account} on port {self.relay.port}")
+        self.log(f"nfs: serving the file tree as {self.account} on port {self.relay.port}" + ("" if c["add_files"] else " (read-only)"))
 
     def _drop_key(self):
         aid, self.account_id = self.account_id, None
@@ -243,7 +252,7 @@ class Runner:
             if self.proc or self.relay:
                 self.stop_serving()
             return
-        sig = json.dumps([c["port"], c["account"], c["bind"]])
+        sig = json.dumps([c["port"], c["account"], c["bind"], c["add_files"]])
         if sig != self.sig:
             self.stop_serving()
             self._drop_key()

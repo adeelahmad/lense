@@ -169,9 +169,9 @@ export const SECTIONS: SectionSpec[] = [
   {
     id: "ai",
     label: "AI assistant",
-    backend: ["ai", "web", "decisions", "voice"],
+    backend: ["ai", "web", "decisions", "voice", "research"],
     description:
-      "What the chat assistant may do with tools, whether it searches the web, which routine choices it makes for you, and when a batch run needs a typed confirmation.",
+      "What the chat assistant may do with tools, whether it searches the web, which routine choices it makes for you, deep research, and when a batch run needs a typed confirmation.",
   },
   {
     id: "sandbox",
@@ -341,7 +341,7 @@ export const SECTIONS: SectionSpec[] = [
     label: "NFS share",
     backend: ["nfs"],
     description:
-      "Off unless you turn it on. The archive as folders and files over NFS, read-only: namespaces, collections, topics and entities as folders, assets as files, for machines on the networks you allow.",
+      "Off unless you turn it on. The archive as folders and files over NFS: namespaces, collections, topics and entities as folders, assets as files, for machines on the networks you allow; files copied into a collection’s folder are imported there.",
   },
   {
     id: "smb",
@@ -1002,6 +1002,42 @@ export const FIELDS: FieldSpec[] = [
     hint: "The highest limit a question or a conversation can set on the tool calls of one answer.",
     min: 1,
     max: 500,
+  },
+  {
+    section: "research",
+    key: "max_tool_calls",
+    label: "Most tool calls a deep research may make",
+    kind: "int",
+    hint: "A plan asks for fewer; you can raise it on the plan up to this.",
+    min: 1,
+    max: 500,
+  },
+  {
+    section: "research",
+    key: "max_minutes",
+    label: "Longest a deep research may run",
+    kind: "int",
+    unit: "minutes",
+    hint: "It then writes its report from what it found.",
+    min: 1,
+    max: 240,
+  },
+  {
+    section: "research",
+    key: "model",
+    label: "Model for deep research",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "the conversation's model",
+    hint: "A cheaper or stronger model on the same provider.",
+  },
+  {
+    section: "research",
+    key: "agents_skip_review",
+    label: "Let agents start deep research without your review",
+    kind: "switch",
+    hint: "Off: a plan an API key, an app or an agent asks for waits for you to approve it.",
   },
   {
     section: "ai",
@@ -2605,7 +2641,14 @@ export const FIELDS: FieldSpec[] = [
     key: "enabled",
     label: "Share the file tree over NFS",
     kind: "switch",
-    hint: "Read-only. Off: nothing listens",
+    hint: "Off: nothing listens",
+  },
+  {
+    section: "nfs",
+    key: "add_files",
+    label: "Import files people add",
+    kind: "switch",
+    hint: "A file copied into a collection’s folder is imported there, as the account below adds it (NFS has no login). Off: read-only",
   },
   {
     section: "nfs",
@@ -2614,7 +2657,7 @@ export const FIELDS: FieldSpec[] = [
     kind: "select",
     nullable: true,
     options: [],
-    hint: "The share shows what this person sees in the web app, and nothing else",
+    hint: "The share shows what this person sees in the web app, and nothing else; files added to it are added as them",
   },
   {
     section: "nfs",

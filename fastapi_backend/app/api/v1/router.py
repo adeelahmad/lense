@@ -28,6 +28,7 @@ from app.api.v1.routes import (
     extensions,
     external,
     fedora,
+    feeds,
     fields,
     files,
     filetree,
@@ -55,6 +56,7 @@ from app.api.v1.routes import (
     rdf,
     recordings,
     requests,
+    research,
     routines,
     search,
     searches,
@@ -136,6 +138,7 @@ for module in (
     extensions,
     marketplaces,
     chats,
+    research,
     browser,
     collections,
     batches,
@@ -150,6 +153,7 @@ for module in (
     voice,
     vaults,
     podcasts,
+    feeds,
     specs,
 ):
     api_router.include_router(module.router)
