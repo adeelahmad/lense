@@ -175,9 +175,7 @@ function AudioCleanup({ ctx }: { ctx: BodyCtx }) {
           <F ctx={ctx} id="transcribe.cleanup.min_silence_ms" />
         )}
         <F ctx={ctx} id="transcribe.cleanup.only_if_poor" />
-        {ctx.form["transcribe.cleanup.only_if_poor"] === true && (
-          <F ctx={ctx} id="transcribe.cleanup.snr_floor_db" />
-        )}
+        {ctx.form["transcribe.cleanup.only_if_poor"] === true && <F ctx={ctx} id="transcribe.cleanup.snr_floor_db" />}
       </div>
     </div>
   );
