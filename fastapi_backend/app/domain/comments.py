@@ -10,7 +10,8 @@ A comment can be on an activity of the timeline instead (docs/timeline.md, React
 the activity's id and `about` its summary at the time, and `recording` is the asset the activity brought in when it is
 one's arrival (`create-recording-<id>`), so the same thread shows on the asset's page and on the timeline; otherwise
 `recording` is null. `audience` and `owner` are the activity's, so the comment's own activity (comment.added) is seen
-by the same people.
+by the same people. A comment that tags @lens gets the agent's answer on the thread, a comment with `author`
+assistant (comment_agent.py); the thread's first comment keeps that conversation's id in `chat`.
 """
 
 from __future__ import annotations
@@ -24,8 +25,8 @@ MAX_COMMENTS = 1000  # per person, on one resource
 TEXT_MAX = 5000
 ABOUT_MAX = 300
 FIELDS = (
-    "record::id(id) AS id, recording, activity, about, space, account, parent, text, t0, t1, quote, resolved ?? false AS resolved, "
-    "resolved_by, resolved_at, created_at, updated_at, edited_at"
+    "record::id(id) AS id, recording, activity, about, space, account, author, chat, parent, text, t0, t1, quote, "
+    "resolved ?? false AS resolved, resolved_by, resolved_at, created_at, updated_at, edited_at"
 )
 
 
@@ -131,11 +132,12 @@ def create(
     about=None,
     audience=None,
     owner=None,
+    author=None,
 ):
     """A new comment, or with `parent` a reply on that comment's thread; its id. On a resource (`rid`), or on an
     activity of the timeline (`activity`, with `about`, its summary; `rid` then is the asset it is the arrival of, or
-    None). ValueError for no text, a moment that doesn't fit the resource, a parent that isn't a comment on it, or too
-    many comments."""
+    None). `author` assistant: the agent wrote it, answering `account` (comment_agent.py). ValueError for no text, a
+    moment that doesn't fit the resource, a parent that isn't a comment on it, or too many comments."""
     text = _text(text)
     rid = int(rid) if rid is not None else None
     if rid is None and not activity:
@@ -162,6 +164,7 @@ def create(
         "about": " ".join(str(about or "").split())[:ABOUT_MAX] or None,
         "space": space,
         "account": account,
+        "author": "assistant" if author == "assistant" else None,
         "parent": parent,
         "text": text,
         "t0": t0,
@@ -175,6 +178,11 @@ def create(
     }
     db.q("CREATE $r CONTENT $d", r=R("comment", cid), d=store.clean(row))
     return cid
+
+
+def set_chat(db, cid, chat_id):
+    """Keep the conversation the agent answers this thread in, on its first comment."""
+    db.q("UPDATE $r SET chat = $c", r=R("comment", int(cid)), c=int(chat_id))
 
 
 def update(db, cid, text):

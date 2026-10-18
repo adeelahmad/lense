@@ -5684,7 +5684,7 @@
           "activities"
         ],
         "summary": "Comment On Activity",
-        "description": "Comment on an activity, or with `parent` reply on a thread (a reply to a reply goes on the thread too). Anyone\nwho sees the activity can, up to 1,000 each; everyone who sees it reads them, and each one is a `comment.added`\nactivity. On an asset's arrival the comment goes on the asset itself.",
+        "description": "Comment on an activity, or with `parent` reply on a thread (a reply to a reply goes on the thread too). Anyone\nwho sees the activity can, up to 1,000 each; everyone who sees it reads them, and each one is a `comment.added`\nactivity. On an asset's arrival the comment goes on the asset itself. A comment that tags @lens gets the agent's\nanswer on the thread.",
         "operationId": "comment_on_activity",
         "parameters": [
           {
@@ -13811,7 +13811,7 @@
           "comments"
         ],
         "summary": "Create Comment",
-        "description": "Comment on a moment or passage (`t0`\u2013`t1`, with the `quote` picked in the text) or on the whole resource, or\nwith `parent` reply on a thread (a reply to a reply goes on the thread too). Anyone who can read the resource\ncan, up to 1,000 each on a resource.",
+        "description": "Comment on a moment or passage (`t0`\u2013`t1`, with the `quote` picked in the text) or on the whole resource, or\nwith `parent` reply on a thread (a reply to a reply goes on the thread too). Anyone who can read the resource\ncan, up to 1,000 each on a resource. A comment that tags @lens gets the agent's answer on the thread.",
         "operationId": "create_comment",
         "parameters": [
           {
@@ -44411,7 +44411,13 @@
               }
             ],
             "title": "Created By Name",
-            "description": "its writer's name, when they gave one"
+            "description": "its writer's name, when they gave one; Lens for the agent's answer"
+          },
+          "by_agent": {
+            "type": "boolean",
+            "title": "By Agent",
+            "description": "the agent wrote it, answering a comment that tagged it",
+            "default": false
           },
           "created_at": {
             "anyOf": [

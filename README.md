@@ -206,7 +206,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   warnings) is kept as a stream of activities in W3C Activity Streams form, which agents read through the API, MCP and
   the assistant, and people review on the Timeline page (and Latest on Home), marking what they've seen, reacting with
   an emoji and commenting in threads everyone who sees the item shares (agents too, over MCP), and asking the
-  assistant about any item from the item. Automations act
+  assistant about any item from the item; a comment that tags @lens gets the agent's answer in the thread, with
+  every change it proposes waiting for a yes. Automations act
   on that stream, on a schedule, at a time or when their own webhook is called, alone or with their triggers joined (all
   of them, a number of times, one that doesn't come in time, or a batch): they test conditions (text, patterns,
   numbers, lists, times, days, whether a value changed and whether something like it happened before in their

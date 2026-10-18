@@ -4888,9 +4888,15 @@ export type Comment = {
   /**
    * Created By Name
    *
-   * its writer's name, when they gave one
+   * its writer's name, when they gave one; Lens for the agent's answer
    */
   created_by_name?: string | null;
+  /**
+   * By Agent
+   *
+   * the agent wrote it, answering a comment that tagged it
+   */
+  by_agent?: boolean;
   /**
    * Created At
    */

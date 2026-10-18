@@ -1122,6 +1122,13 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "ai",
+    key: "answer_comments",
+    label: "Answer when tagged in a comment",
+    kind: "switch",
+    hint: "A comment on the timeline or on an asset that tags @lens (or the assistant's own name) gets an answer from the agent in the same thread, as the person who tagged it. Changes it proposes wait for their approval.",
+  },
+  {
+    section: "ai",
     key: "max_steps",
     label: "Tool steps per answer",
     kind: "int",

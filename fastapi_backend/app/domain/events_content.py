@@ -1075,7 +1075,8 @@ def _and_more(names, most=1):
 
 # ---------- comments ----------
 COMMENT_FIELDS = (
-    "id AS rid, record::id(id) AS id, recording, activity, about, audience, owner, space, account, parent, text, t0, t1, quote, created_at"
+    "id AS rid, record::id(id) AS id, recording, activity, about, audience, owner, space, account, author, parent, text, t0, t1, "
+    "quote, created_at"
 )
 CONTENT_MAX = 1000  # characters of a comment an activity carries
 
@@ -1087,7 +1088,7 @@ def _comment_activities(db, rows):
         return []
     rids = list({r["recording"] for r in rows if _num(r.get("recording")) is not None})
     assets = {a["id"]: a for a in db.rows(f"SELECT {ASSET_FIELDS} FROM recording WHERE id IN $r", r=[R("recording", i) for i in rids])}
-    who = actors(db, [(r.get("account"), r.get("space")) for r in rows])
+    who = actors(db, [(_note_label(r, "account"), r.get("space")) for r in rows])
     types = _content_types(db)
     out = []
     for r in rows:
@@ -1115,7 +1116,7 @@ def _comment_activities(db, rows):
                 "t1": _num(r.get("t1")),
             }
         )
-        actor = who[(r.get("account"), r.get("space"))]
+        actor = who[(_note_label(r, "account"), r.get("space"))]
         out.append(
             events.build(
                 f"comment-{r['id']}",
