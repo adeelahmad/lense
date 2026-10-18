@@ -77,10 +77,10 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   server](docs/mcp.md#one-namespaces-mcp-server), [chat completions](docs/api.md#chat-completions-for-any-app),
   [API](docs/api.md), [the graph as files](docs/file-tree.md), [authentication](docs/authentication.md);
   [checks](docs/requirements.md#connect-your-agents))
-- **Ask, and get cited answers.** A chat assistant on every page, and by voice, searches your archive by words (and by
-  meaning, once turned on), reads it, cites it and acts on it with tools: changes wait for your approval. Ask it about
-  Lens itself ("what's the MCP address?", "is Telegram on?") and it answers from Lens's docs and this server, citing
-  both. Once an admin
+- **Ask, and get cited answers.** A chat assistant on every page, and by voice, searches your archive by words (with
+  "phrases", OR, and -word to leave lines out) and by meaning, once turned on, reads it, cites it and acts on it with
+  tools: changes wait for your approval. Ask it about Lens itself ("what's the MCP address?", "is Telegram on?") and it
+  answers from Lens's docs and this server, citing both. Once an admin
   turns them on, it also searches the web and reads pages, cited like the archive, and runs Python and bash in a sandbox
   of each conversation's own. An admin's assistant searches and reads the mail, calendars and files connected to Lens
   (Gmail, Google Calendar, Google Drive, S3 and the rest), cites messages and events, and brings them in once you
@@ -125,14 +125,16 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
 - **Bring in everything.** Watched folders on S3, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV or local disks (a
   local folder in four clicks); IMAP mail, Gmail and Google Workspace (routing rules send a shared inbox's mail to the
   right namespaces), iCal calendars, Google Calendar and RSS and Atom news feeds; a built-in MQTT broker, syslog and
-  webhook streams; import webhooks for scanners and phone shortcuts.
+  webhook streams; import webhooks for scanners and phone shortcuts, which can hand back the PDFs of Office files and
+  emails a light server can't convert itself.
   Google accounts connect with Connect with Google once Lens has a Google client, and Dropbox, OneDrive and Google
   Drive can sign in through rclone on the Lens server, with no app of your own to register. Upload audio, video, PDFs,
   Office files, photos, JSON and zip or tar archives, and, with an Apache Tika server (an opt-in extra), documents
   nothing else here can read; capture web pages one at a time, from a link list or a bookmarks file, by API or by asking
   the assistant, from private networks you allow in Settings too; and import videos and podcasts by their address (off
   by default). Say what a file or a page is as it comes in (a podcast, an interview, a scan), in Import, by API or
-  to the assistant, and its content type's pipeline runs from the start.
+  to the assistant, and its content type's pipeline runs from the start. A file, page or video the namespace already
+  has links to the one there instead of being imported again.
   ([Sensors](docs/sensors.md), [processing](docs/processing.md), [Apache Tika](docs/configuration.md#apache-tika),
   [import webhooks](docs/api.md#import-webhooks); [checks](docs/requirements.md#bring-in-everything))
 - **Clip from the browser.** The Lens web clipper for Chrome, Edge, Firefox and Safari turns a page, a selection or a
@@ -191,14 +193,15 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   workflow, pipeline or routine, or change assets and notes. The Schedules page is Lens's crontab: every routine,
   automation schedule and the backup in one list with when each runs next and last, to switch, re-time or run now, and
   agents do the same over the API and MCP. A Classify node in a workflow sorts an asset into labels, content types or
-  topics, acting only on a sure answer, and an Entity filter node keeps the entities you want. Graph workflows tidy the
+  topics, acting only on a sure answer, and an Entity filter node keeps the entities you want. An HTTP call node calls
+  a web address through the same guard as the assistant's web tools, with its keys sealed to their host. Graph workflows tidy the
   entities on a routine: look-alikes to merge or link, types the rules now read differently, noise to hide and topics
   to group under a broader one, making the changes they're sure of and proposing the rest, each one undoable. Anything that reaches outside Lens or changes
   more than what set it off asks first, until you let it run on its own: on the Approvals page or, for a change inside
   Lens, with a yes in the chat it told you in; agents can decline an approval but never give one. Each automation has
-  limits and budgets, and agents make, try and run them over MCP and in the assistant, or draft one from a sentence. An
-  automation's workflow is drawn and tried on the workflow canvas, with its actions in the palette, and the studio
-  lists your automations, builds one in When, If and Then (tested on a recent activity before you save it), and shows
+  limits and budgets, and agents make, try and run them over MCP and in the assistant, draft one from a sentence, or
+  start from one of five starters that stay off until you turn them on. An automation's workflow is drawn and tried
+  on the workflow canvas, with its actions in the palette, and the studio lists your automations, builds one in When, If and Then (tested on a recent activity before you save it), and shows
   its runs, what's coming up, its variables and its costs.
   ([Processing](docs/processing.md#workflows-and-the-canvas),
   [converting assets](docs/processing.md#converting-assets), [notifications](docs/notifications.md),
@@ -214,10 +217,16 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   schedule rules, within min and max and a monthly budget, with every launch, join and hour of cost in the activity
   ledger. A group launches nothing until you approve its terms in Settings › Auto scaling; agents propose and manage
   groups over the API, MCP and the assistant, and never approve one. It runs more workers on this machine today;
-  AWS EC2 (spot or on demand), DigitalOcean, Hetzner Cloud and Proxmox VE providers are in progress (built, with
-  machines that join over the mesh to transcribe and tell voices apart, not yet tried on a real cloud), and Linux and
-  model hosts are planned. ([Auto scaling](docs/scaling.md);
+  AWS EC2 (spot or on demand), DigitalOcean, Hetzner Cloud, Proxmox VE and Linux hosts over SSH providers are in
+  progress (built, with machines that join over the mesh to transcribe and tell voices apart, not yet tried on a real
+  cloud), and model hosts are planned. ([Auto scaling](docs/scaling.md);
   [checks](docs/requirements.md#scale-out))
+- **Run on more machines.** Add a Mac with a GPU, a box for the assistant's code or a server with more disk, and
+  Lens joins it over a private network of its own, a Nebula mesh it issues the certificates for: one install line
+  with a one-time token, and the machine needs nothing else. Worker nodes run jobs as their own user of the
+  database, never with Lens's keys; compute nodes run the assistant's code on a sandbox gateway of their own.
+  Settings › Nodes and Network show each machine and the mesh, and agents do the same over the API. Not yet tried
+  between two real machines. ([Nodes and the mesh](docs/mesh.md); [checks](docs/requirements.md#run-on-more-machines))
 - **Keep it up to date and backed up.** Lens checks for a new release once a day and tells admins by email or a
   notification. One click in Settings › Updates (or one API call) upgrades it through a small agent on the machine,
   showing each step, and rolls back when the new version doesn't start; nothing installs unless an admin says so. The
@@ -280,8 +289,6 @@ These are open pull requests, not yet part of Lens:
 - **Web clipper:** signing in, or using your API token, not only an import webhook's
   ([#406](https://github.com/adeelahmad/lense/pull/406)).
 - **Automations:** more operators for conditions ([#434](https://github.com/adeelahmad/lense/pull/434)).
-- **Nodes:** Lens's own private network between the machines it runs on, a Nebula mesh it issues the certificates
-  for ([#602](https://github.com/adeelahmad/lense/pull/602)).
 
 ## Planned
 
@@ -292,9 +299,8 @@ Next, and not in a pull request yet; each links to where it is tracked:
   topics, recordings and the other things that have pages ([notes](docs/notes.md)).
 - **Local models:** GPU builds of llama.cpp fetched by Lens, and local embedding models
   ([local models](docs/local-models.md)).
-- **Auto scaling:** providers for Linux hosts over SSH, joining over the Nebula mesh, model hosts
-  (RunPod, Lambda, Hugging Face, SageMaker, Bedrock), and making providers and groups in Settings
-  ([auto scaling](docs/scaling.md)).
+- **Auto scaling:** model hosts (RunPod, Lambda, Hugging Face, SageMaker, Bedrock), and making providers and groups
+  in Settings ([auto scaling](docs/scaling.md)).
 - **Speech providers:** their summaries, chapters and entities as optional imports, and per-minute prices in the
   activity ledger ([speech providers](docs/speech-providers.md)).
 - **Storage:** uploads and assets' media in the file store, and a storage key to download

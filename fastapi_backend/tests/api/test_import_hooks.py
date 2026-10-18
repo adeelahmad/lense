@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.domain import auth, convert, import_hooks, store, uploads
+from app.domain import auth, convert, import_hooks, jobs, store, uploads
 from tests.helpers import login, make_user, text_pdf, write_wav
 
 R = store.R
@@ -237,3 +237,82 @@ def test_the_clipper_signed_in_as_the_person(client, env):
     assert r.status_code == 202, r.text
     _, read_only = _grant(client, env["he"], scope="read")
     assert client.post(PUSH, headers=app_bearer(read_only), json={"text": "x"}).status_code == 403
+
+
+def _cant_convert(monkeypatch):
+    """A server with nothing that makes PDFs: no LibreOffice or Chromium (nor installed when needed), no anytopdf or
+    Tika, as on a Raspberry Pi."""
+    from app.domain import anytopdf, tika
+
+    monkeypatch.setattr(convert, "soffice", lambda cfg: None)
+    monkeypatch.setattr(convert, "chromium", lambda cfg: None)
+    monkeypatch.setattr(convert, "fetchable", lambda name: False)
+    monkeypatch.setattr(anytopdf, "available", lambda cfg: None)
+    monkeypatch.setattr(tika, "reads_text", lambda cfg: False)
+
+
+EML = (
+    b"From: Harbour Master <hm@port.example>\r\nTo: crew@port.example\r\nSubject: Tide tables\r\n"
+    b"Date: Sat, 17 Oct 2026 09:00:00 +0000\r\nContent-Type: text/plain\r\n\r\nNew tables are on the quay.\r\n"
+)
+
+
+def test_a_hook_hands_back_the_pdfs_of_documents_this_server_cant_convert(client, env, db, cfg, folder, monkeypatch):
+    from tests.helpers import drain, write_docx
+
+    _cant_convert(monkeypatch)
+    ho = env["ho"]
+    docx = folder / "minutes.docx"
+    write_docx(docx, ["Harbour minutes"])
+    plain = _bearer(_hook(client, ho)["token"])
+
+    # off by default: the Word file is refused, as an upload of it is
+    r = client.post(f"{PUSH}?filename=minutes.docx", headers=plain, content=docx.read_bytes())
+    assert r.status_code == 400 and "can't be read here" in r.json()["detail"]
+
+    # on: it's kept, waits for its PDF and runs nothing yet
+    made = _hook(client, ho, name="Converter", hand_back=True)
+    assert made["hook"]["hand_back"] is True
+    h = _bearer(made["token"])
+    r = client.post(f"{PUSH}?filename=minutes.docx", headers=h, content=docx.read_bytes())
+    assert r.status_code == 202, r.text
+    item = r.json()["items"][0]
+    assert item["needs_pdf"] is True and not item.get("job")
+    rid = item["recording"]
+    shown = client.get(f"/api/v1/recordings/{rid}", headers=ho).json()
+    assert shown["awaits_pdf"]["hook"] == made["hook"]["id"] and shown["awaits_pdf"]["since"]
+    jobs.enqueue_pending(db, store.ns_id(db, "pods", create=False))  # "run what's waiting" leaves it waiting
+    assert not db.values("SELECT VALUE id FROM job WHERE recording = $r", r=rid)
+
+    # only the hook it came through hands its PDF back, only a PDF, and a person's token never does
+    pdf = text_pdf([["Harbour minutes", "The lamp was lit at dusk."]])
+    assert client.post(f"{PUSH}?for={rid}", headers=plain, content=pdf).status_code == 404
+    assert client.post(f"{PUSH}?for={rid}", headers=ho, content=pdf).status_code == 400
+    r = client.post(f"{PUSH}?for={rid}", headers=h, content=b"not a pdf")
+    assert r.status_code == 400 and "PDF" in r.json()["detail"]
+    assert client.post(f"{PUSH}?for=999999", headers=h, content=pdf).status_code == 404
+
+    # its PDF: the rendition, made by "pushed", and its pipeline runs and reads it
+    r = client.post(f"{PUSH}?for={rid}", headers=h, files=[("file", ("minutes.pdf", pdf, "application/pdf"))])
+    assert r.status_code == 202, r.text
+    back = r.json()["items"][0]
+    assert (back["kind"], back["recording"]) == ("pdf", rid) and back["job"] and not back.get("needs_pdf")
+    assert convert.rendition_path(cfg, rid).is_file()
+    drain(db, cfg)
+    rec = db.one("SELECT status, rendition, awaits_pdf FROM $r", r=R("recording", rid))
+    assert rec["rendition"] == {"from": ".docx", "by": "pushed"} and not rec.get("awaits_pdf")
+    assert rec["status"] not in ("new", "error"), rec
+    assert "The lamp was lit at dusk." in " ".join(db.values("SELECT VALUE text FROM segment WHERE recording = $r", r=rid))
+    assert client.post(f"{PUSH}?for={rid}", headers=h, content=pdf).status_code == 404  # it waits no more
+
+    # an email keeps its sender and subject, read from its own file
+    r = client.post(f"{PUSH}?filename=tides.eml", headers=h, content=EML)
+    eml = r.json()["items"][0]
+    assert eml["needs_pdf"] is True
+    assert client.post(f"{PUSH}?for={eml['recording']}", headers=h, content=text_pdf([["Tide tables"]])).status_code == 202
+    drain(db, cfg)
+    got = db.one("SELECT title, email FROM $r", r=R("recording", eml["recording"]))
+    assert got["title"] == "Tide tables" and "Harbour Master" in str(got["email"]["from"])
+    by = db.rows("SELECT action, detail FROM audit_log WHERE action = 'import.hook' AND detail.hook = 'Converter'")
+    assert [b["detail"]["kind"] for b in by].count("pdf") == 2
+    assert not list(uploads.incoming(cfg).glob("hook-*"))

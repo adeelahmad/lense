@@ -256,7 +256,8 @@ class Report:
             page.pair(label, told.get(k))
         made = rec.get("rendition") or {}
         if made.get("from") and made.get("by"):
-            page.pair("Read from", f"a PDF {made['by']} made of its {made['from']} file")
+            who = "the service that sent it" if made["by"] == "pushed" else made["by"]
+            page.pair("Read from", f"a PDF {who} made of its {made['from']} file")
 
     def _nsfw(self):
         """Its NSFW classification, where classifying is on in its namespace (docs/nsfw.md)."""

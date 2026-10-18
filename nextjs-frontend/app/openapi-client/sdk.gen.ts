@@ -1144,6 +1144,8 @@ import type {
   ListSpeakersData,
   ListSpeakersErrors,
   ListSpeakersResponses,
+  ListStartersData,
+  ListStartersResponses,
   ListTagsData,
   ListTagsErrors,
   ListTagsResponses,
@@ -1279,6 +1281,9 @@ import type {
   NodeMediaData,
   NodeMediaErrors,
   NodeMediaResponses,
+  NodeSandboxData,
+  NodeSandboxErrors,
+  NodeSandboxResponses,
   NodeWorkerData,
   NodeWorkerResponses,
   NotSameSpeakerData,
@@ -4368,6 +4373,21 @@ export class Automations {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * List Starters
+   *
+   * Starter automations: each a draft to open, change and save (POST /automations), switched off until you turn
+   * it on.
+   */
+  public static listStarters<ThrowOnError extends boolean = false>(
+    options?: Options<ListStartersData, ThrowOnError>,
+  ): RequestResult<ListStartersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListStartersResponses, unknown, ThrowOnError>({
+      url: "/api/v1/automations/starters",
+      ...options,
     });
   }
 
@@ -12651,8 +12671,8 @@ export class ImportHooks {
   /**
    * Update Import Hook
    *
-   * Rename a hook, pause or resume it (`enabled`), or change its collection or pipeline (null for the namespace's
-   * own) (owners).
+   * Rename a hook, pause or resume it (`enabled`), turn PDF hand-back on or off (`hand_back`), or change its
+   * collection or pipeline (null for the namespace's own) (owners).
    */
   public static updateImportHook<ThrowOnError extends boolean = false>(
     options: Options<UpdateImportHookData, ThrowOnError>,
@@ -12711,9 +12731,12 @@ export class ImportHooks {
    * - JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as text), with an optional
    * `title`.
    *
-   * Each runs the hook's pipeline, or the namespace's. 401 for an unknown token, saying which kind it is; 403 while the
-   * hook is paused, for a read-only token, or without the import permission; 413 over uploads.max_mb. Audited as
-   * `import.hook` (by the hook) or `import.push` (by the person).
+   * Each runs the hook's pipeline, or the namespace's. A hook with `hand_back` on takes documents this server can't
+   * make into PDFs itself too: they're kept with `needs_pdf` and wait; push the PDF back (the raw body, or one form
+   * file) with `?for=<recording>` and it becomes the document's rendition and its pipeline runs (404 when that document
+   * doesn't wait for a PDF from this hook). 401 for an unknown token, saying which kind it is; 403 while the hook is
+   * paused, for a read-only token, or without the import permission; 413 over uploads.max_mb. Audited as `import.hook`
+   * (by the hook) or `import.push` (by the person).
    */
   public static pushToImportHook<ThrowOnError extends boolean = false>(
     options?: Options<PushToImportHookData, ThrowOnError>,
@@ -13785,9 +13808,28 @@ export class Mesh {
   }
 
   /**
+   * Node Sandbox
+   *
+   * The client certificate of the calling compute node's sandbox gateway, which Lens keeps sealed and reaches that
+   * gateway over the mesh with. 403 for a node of another role, 400 for what isn't a certificate and key.
+   */
+  public static nodeSandbox<ThrowOnError extends boolean = false>(
+    options: Options<NodeSandboxData, ThrowOnError>,
+  ): RequestResult<NodeSandboxResponses, NodeSandboxErrors, ThrowOnError> {
+    return (options.client ?? client).put<NodeSandboxResponses, NodeSandboxErrors, ThrowOnError>({
+      url: "/api/v1/mesh/node/sandbox",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Node Beat
    *
-   * The calling node's report, every minute: Nebula, its peers, its machine.
+   * The calling node's report, every minute: Nebula, its peers, its machine, its sandbox gateway.
    */
   public static nodeBeat<ThrowOnError extends boolean = false>(
     options: Options<NodeBeatData, ThrowOnError>,

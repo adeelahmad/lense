@@ -72,7 +72,7 @@ class ViewUpdate(RequestModel):
 class SearchState(RequestModel):
     """A search as /search takes it (its namespace is the saved search's)."""
 
-    q: str = Field(min_length=1, max_length=500, description='words, "phrases", OR between alternatives')
+    q: str = Field(min_length=1, max_length=500, description='words, "phrases", OR between alternatives, NOT or -word to leave out')
     speaker: int | None = None
     emotion: str | None = Field(None, max_length=40)
     recording: int | None = None

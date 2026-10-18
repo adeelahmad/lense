@@ -53,6 +53,7 @@ merged is called built.
 | Describing an automation in words: a draft from a sentence (`POST /api/v1/automations/draft`) | built |
 | The studio: the list at `/automations` and the When, If and Then builder, with a test panel ([The studio](#the-studio)) | built |
 | An automation's page: its runs, what's coming up, its variables and its costs, in tabs ([An automation's page](#an-automations-page)) | built |
+| Starters: five ready-made drafts, switched off, to open, change and save (`GET /api/v1/automations/starters`, [Starters](#starters)) | built |
 
 ## The studio
 
@@ -1198,6 +1199,21 @@ Nothing is saved: try the draft (`POST /automations/test`), change it, then save
 ledger](activity.md) for you and its namespaces, and isn't made once a budget they count for, or everything's, is
 used up.
 
+### Starters
+
+Built (`app/domain/automation_starters.py`). `GET /api/v1/automations/starters` lists ready-made drafts, each
+`{id, name, description, draft}`, with `draft` what `POST /automations` takes, switched off. Nothing is stored: a
+starter is saved only when someone saves it, and runs only once it is turned on. The description says what to change
+first, such as the school's address.
+
+| Starter | What it does |
+| --- | --- |
+| Tell me about school emails | An email from an address with “school” in it tells you in your chat app; posting it to the `family` Matterbridge room asks you first |
+| Router alerts | An alert in a sensor's log whose name has “router” in it tells you, at most once an hour |
+| Morning digest | Every weekday at 07:00 (UTC until you change it) the agent sums up yesterday's timeline items you haven't reviewed, then tells you |
+| No reply in two days | An email whose start asks something, with no email in your Sent mailbox within two days, reminds you; any email you send in that time calls it off |
+| Webhook to note | A call to its webhook writes a note with what was sent |
+
 ### Agents
 
 Built. Over [MCP](mcp.md) an agent uses `automations` (list them, read one with its latest runs, or one run),
@@ -1353,6 +1369,9 @@ held run until you pick.
 - Deleted automations kept for a time, then removed with their runs (today they stay until restored).
 - The studio: dragging actions and rows to reorder them (today the arrows move an action); sharing an automation as a
   file; a builder laid out for phones first.
+- Starters: "No reply in two days" matching the reply to the same conversation (emails carry no thread yet, so any
+  email you send calls it off); a starter picking its sensor, room or address from what is connected, instead of a
+  word to change.
 - Credentials in the headers of a saved event workflow an automation follows (`workflow`) sealed too (today only a
   graph saved with the automation is; the workflow's are sent as written).
 - Webhook triggers: a trigger option for a hook that takes only signed calls (`token_for(..., signed=True)`), and a
