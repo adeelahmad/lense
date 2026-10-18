@@ -1173,6 +1173,11 @@ import type {
   PageVersionData,
   PageVersionErrors,
   PageVersionResponses,
+  PasskeyAddressesData,
+  PasskeyAddressesResponses,
+  PasskeyElsewhereData,
+  PasskeyElsewhereErrors,
+  PasskeyElsewhereResponses,
   PasskeyLoginData,
   PasskeyLoginErrors,
   PasskeyLoginResponses,
@@ -2306,6 +2311,41 @@ export class Auth {
   ): RequestResult<RenamePasskeyResponses, RenamePasskeyErrors, ThrowOnError> {
     return (options.client ?? client).patch<RenamePasskeyResponses, RenamePasskeyErrors, ThrowOnError>({
       url: "/api/v1/auth/passkeys/{pid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Passkey Addresses
+   *
+   * The other https:// addresses Lens opens at (Settings › Remote access and HTTPS), and whether you have a passkey
+   * for each: a passkey works only on the address it was made at.
+   */
+  public static passkeyAddresses<ThrowOnError extends boolean = false>(
+    options?: Options<PasskeyAddressesData, ThrowOnError>,
+  ): RequestResult<PasskeyAddressesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<PasskeyAddressesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/auth/passkeys/elsewhere",
+      ...options,
+    });
+  }
+
+  /**
+   * Passkey Elsewhere
+   *
+   * A sign-in link of your own at another address Lens opens at, to sign in there and add a passkey for it, with no
+   * email and no admin. It lasts 15 minutes and works once; links others have are left alone. For people signed in
+   * themselves, not API tokens or apps. Audited as `passkey.elsewhere`.
+   */
+  public static passkeyElsewhere<ThrowOnError extends boolean = false>(
+    options: Options<PasskeyElsewhereData, ThrowOnError>,
+  ): RequestResult<PasskeyElsewhereResponses, PasskeyElsewhereErrors, ThrowOnError> {
+    return (options.client ?? client).post<PasskeyElsewhereResponses, PasskeyElsewhereErrors, ThrowOnError>({
+      url: "/api/v1/auth/passkeys/elsewhere",
       ...options,
       headers: {
         "Content-Type": "application/json",

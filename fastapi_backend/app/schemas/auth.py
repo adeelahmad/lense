@@ -167,6 +167,15 @@ class SigninLinkInfo(ResponseModel):
     name: str | None = None
 
 
+class PasskeyAddress(ResponseModel):
+    url: str = Field(description="an https:// address Lens opens at besides this one (Remote access, HTTPS)")
+    passkey: bool = Field(description="whether you have a passkey for it: a passkey works only where it was made")
+
+
+class PasskeyAddressAsk(RequestModel):
+    url: str = Field(description="one of GET /auth/passkeys/elsewhere's addresses", max_length=300)
+
+
 class SigninLink(ResponseModel):
     url: str = Field(description="open it on the device to sign in with; it works once")
     expires_at: str
