@@ -126,6 +126,17 @@ def conf(cfg):
     return {**store.DEFAULTS["local_llm"], **(cfg.get("local_llm") or {})}
 
 
+def serves(cfg, model=None):
+    """True when the LLM provider is this machine's llama-server running the local model (or `model`, when that's it),
+    so its context is local_llm.context."""
+    c, l = conf(cfg), cfg.get("llm") or {}
+    try:
+        port = urllib.parse.urlsplit(l.get("base_url") or "").port
+    except ValueError:
+        return False
+    return bool(c["enabled"] and c["model"] and (model or l.get("model")) == c["model"] and port == c["port"])
+
+
 def resolve(ref):
     """A catalog entry for a catalog id or an "hf:<owner>/<repo>/<file>.gguf" reference."""
     if ref in BY_ID:

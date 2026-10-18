@@ -39,12 +39,16 @@ export function shortTitle(title: string | null | undefined, max = 24): string {
   return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
 }
 
-/** A web page the assistant searched for or read (source "web"), rather than a moment of an asset. */
+/** Sources cited by their address rather than as a moment of an asset: a web page the assistant searched for or read,
+ * and a message ("mail") or event ("event") of an account connected to Lens. */
+const LINKED = new Set(["web", "mail", "event"]);
+
+/** A web page, message or event (opened at its address), rather than a moment of an asset. */
 export function isWeb(p: Pick<Passage, "source" | "url">): boolean {
-  return p.source === "web" && !!p.url;
+  return LINKED.has(p.source ?? "") && !!p.url;
 }
 
-/** A web page's site, as people say it: "example.com". */
+/** A web page's site, as people say it: "example.com"; a message's or event's connection: "Mara's mail". */
 export function siteOf(p: Pick<Passage, "site" | "url">): string {
   if (p.site) return p.site;
   try {
@@ -85,7 +89,7 @@ export function passageTitle(p: Pick<Passage, "title"> & Partial<Pick<Passage, "
 export function passageTime(
   p: Pick<Passage, "t0" | "time"> & Partial<Pick<Passage, "source" | "url" | "site">>,
 ): string {
-  if (p.source === "web") return siteOf(p);
+  if (LINKED.has(p.source ?? "")) return siteOf(p);
   if (isPage(p)) return "";
   if (p.time) return p.time;
   return tc(typeof p.t0 === "number" ? p.t0 : 0);
@@ -99,7 +103,8 @@ export function citeLabel(
   p: Pick<Passage, "title" | "t0" | "time" | "speaker"> & Partial<Pick<Passage, "source" | "url" | "site">>,
   withSpeaker = true,
 ): string {
-  if (p.source === "web") return [siteOf(p), withSpeaker ? shortTitle(p.title, 32) : null].filter(Boolean).join(" · ");
+  if (LINKED.has(p.source ?? ""))
+    return [siteOf(p), withSpeaker ? shortTitle(p.title, 32) : null].filter(Boolean).join(" · ");
   if (isPage(p)) return [isDocs(p) ? "Docs" : null, passageTitle(p, withSpeaker ? 36 : 24)].filter(Boolean).join(" · ");
   return [shortTitle(p.title), passageTime(p), withSpeaker ? p.speaker : null].filter(Boolean).join(" · ");
 }
@@ -131,7 +136,7 @@ export function quoteOf(p: Pick<Passage, "text" | "speaker" | "url">): QuoteLine
   );
 }
 
-/** Link to the cited moment, or the page's own address (a web page, Lens's docs, this server). */
+/** Link to the cited moment, or the page's own address (a web page, Lens's docs, this server, a message or an event). */
 export function passageHref(
   p: Pick<Passage, "recording_id" | "t0"> & Partial<Pick<Passage, "source" | "url">>,
 ): string {
@@ -143,6 +148,8 @@ export function passageHref(
 export function passageAction(p: Partial<Pick<Passage, "url" | "source">>): string {
   if (isDocs(p)) return "Opens Lens’s docs there";
   if (p.source === "web") return "Opens the page in a new tab";
+  if (p.source === "mail") return "Opens the message in a new tab";
+  if (p.source === "event") return "Opens the event in a new tab";
   return isPage(p) ? "Opens this Lens server" : "Opens the asset there";
 }
 
