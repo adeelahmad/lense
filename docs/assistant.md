@@ -49,7 +49,13 @@ then.
   the chat's model does. A long stretch folded at once (`/compact`, or a conversation from before summaries) is
   written in as many calls as it takes to fit that model's context, each in the [activity ledger](activity.md) as the
   conversation's. Settings › AI assistant › Summarise long conversations (`ai.compact`, on) turns it off; off, or with
-  no model, only the last six messages are read.
+  no model, only the last six messages are read. When the model server still says a request is too long for the
+  model (its context was smaller than Lens knew), the answer is tried again rather than failed: what tools returned
+  in that answer is shortened first (each result keeps its start and end), then all but the last two messages are
+  folded into the summary now and half of the excerpts are left out; the context the server named is kept as the
+  model's, so the next conversation is summarised before it fills. In the web app, a line under the last message a
+  summary covers says how many messages it stands for (or that `/clear` stopped the model reading them), and Show
+  summary opens the summary; `GET /api/v1/chats/<id>` gives it as `summary` (`text`, `upto`, `covers`).
 - **Titles:**{#titles} a conversation nobody named is titled with its first question's words as soon as it's asked,
   then, after the first answer, the model gives it a short title of a few words from the question and the answer
   (streamed as `title` at the end of the answer's stream). It's one small call, written by **Model for summaries**
@@ -576,8 +582,8 @@ Built: the web app, the API, MCP, chat rooms and the assistant's tools.
 Give the assistant a goal that needs many look-ups, and it comes back with a plan; once you approve it, the research
 runs in the background and a cited report comes back in the conversation.
 
-- **Asking.** Turn on the composer's Deep research switch (the telescope) and type the goal, start a question with
-  `/research` (`/research what changed in the capsid work this year?`), send it with
+- **Asking.** Turn on the composer's Deep research switch (the telescope; the cursor stays in the box) and type the
+  goal, start a question with `/research` (`/research what changed in the capsid work this year?`), send it with
   `research: true` (`POST /api/v1/chats/<id>/messages`), call `POST /api/v1/chats/<id>/research {goal}`, or ask the
   assistant for research: its `start_research` tool (the `research` [tool group](#choosing-tools-namespaces-and-a-limit))
   works from chat, voice and [chat rooms](chat-rooms.md). It needs a language model that uses tools.
@@ -644,8 +650,9 @@ runs in the background and a cited report comes back in the conversation.
   checking are two or three calls. Every call is in the activity ledger for the conversation and `research:<id>`.
 
 Refine later: sub-questions in parallel, research on a schedule, sharing a report with a namespace's members, research
-as an automation action, a report template people can edit, and the report posted back into the chat room it was
-asked in (today the room gets the plan, and the report is in the conversation in Lens).
+as an automation action, a report template people can edit, the report posted back into the chat room it was asked
+in (today the room gets the plan, and the report is in the conversation in Lens), and one way to read a report aloud
+(today its Read aloud and the answer's speaker button both do).
 
 ## Third-party content and prompt injection
 
@@ -904,7 +911,8 @@ switch shows the line to run on the machine instead. Agents use the same switche
 
 Admins also get the server tools: `server_status` (what's set up and what's missing), `find_model_servers`,
 `read_settings` and `change_settings` (the processing and AI sections, not the server's hosts, cookies or tokens),
-`create_namespace`, the news feed tools: `news_feeds`, `subscribe_feed` (follow a feed into a namespace in one step,
+`create_namespace`, `list_secrets` and `vault_items` (which secret fields refer to a [password manager](secrets.md),
+and the items they can refer to, never a value), the news feed tools: `news_feeds`, `subscribe_feed` (follow a feed into a namespace in one step,
 [News feeds](processing.md#news-feeds-rss-and-atom)) and `unsubscribe_feed`, and the people tools: `list_people`, `invite_person` (an account, optionally with a role in one
 namespace; Lens emails the sign-in link when mail is set up) and `change_person` (a role in a namespace, or disabling
 and enabling an account). Removing an account for good stays in the web app and the API. In an ordinary conversation
@@ -912,7 +920,7 @@ their changes are approval cards. In a **setup conversation**
 (`POST /api/v1/chats` with `"kind": "setup"`, or **Finish with the assistant** in the setup wizard once a model is
 connected) the admin has asked the assistant to set the server up, so it makes the changes itself and says what it
 changed. Every change is audited with `assistant` in its detail, and all of them stay changeable in Settings.
-Turning telemetry on or off, inviting people and changing their access always ask first, and so does every change once the answer has read text from outside
+Turning telemetry on or off, changing the Secrets section, inviting people and changing their access always ask first, and so does every change once the answer has read text from outside
 Lens ([third-party content](#third-party-content-and-prompt-injection)).
 
 ### Routine choices

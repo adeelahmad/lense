@@ -2,6 +2,22 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-18 · Secrets from Vaultwarden
+
+Adeel: a secrets manager, Vaultwarden first, with others to come. A secret field in Settings can hold a reference
+(`vaultwarden://OpenAI/password`) instead of the secret; `secret_providers.py` reads it when the settings are built,
+keeps it in memory for `secrets.cache_minutes` and reads it again in the background, and anything that shows settings
+shows the reference, never the value. The built-in sealed store stays the default. Vaultwarden is read with
+python-vaultwarden (Apache-2.0), fetched as a component once an address is set: the Bitwarden CLI is GPL and needs
+Node, and Bitwarden's SDK isn't permissively licensed and reads only its Secrets Manager product. Lens reads one
+folder of its own vault account. Tested against a fake Vaultwarden that encrypts with the library's own crypto.
+
+Next: Settings › Secrets in the web app, with a picker for the vault's items beside every secret field.
+
+Refine later: references in sources' credentials, MCP servers' environments and sign-in providers; checking a value
+read from the vault the way a typed one is checked; a custom CA for a self-hosted vault; an environment variable for
+the master password; more providers (1Password, HashiCorp Vault, Infisical).
+
 ## 2026-10-17 · Read any chat message aloud
 
 Adeel: play any message in the chat through the TTS model. A speaker button on every question and answer reads it by
@@ -619,7 +635,7 @@ Todo:
 - [x] Canvas editor in the web app (pipelines and workflows): drag nodes, connect ports, node settings, I/O, save versions
 - [x] Attach workflows from the pipeline editor
 - [x] Content-type mapping on the Pipelines page (By content type)
-- [ ] Asset converter steps (video → audio, document → images) as pipeline steps
+- [x] Asset converter steps (video → audio, document → images) as pipeline steps (the convert step, conversions.py)
 - [x] Workflow node types: HTTP call, template render, entity filter (HTTP call and entity filter added 2026-10-18; template render is the template primitive)
 - [x] Docs: processing.md section on workflows
 
