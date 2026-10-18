@@ -69,6 +69,8 @@ from app.domain import (
     render,
     research,
     rss,
+    scaling,
+    scaling_drivers,
     services,
     settings,
     sources,
@@ -2552,6 +2554,122 @@ def set_file_storage(
     settings.save(ctx.db, ctx.request.app.state.archive.base, "files", changes, ctx.user.email)
     auth.audit(ctx.db, ctx.user.as_audit(), "settings.save", "files", sorted(changes) + ["mcp"])
     return {"saved": changes, "check": checked}
+
+
+# ---------- auto scaling (admins) ----------
+def _scaler(ctx: Context, write: bool = False) -> None:
+    if not ctx.user.admin:
+        raise ToolError("only admins see or change auto scaling")
+    if write and not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to change auto scaling")
+
+
+def _scaling_do(ctx: Context, tool: str, args: dict[str, Any]) -> dict[str, Any]:
+    """A scaling tool's change, as an agent: never an approval of a group's terms (that's the person's, in the web app)."""
+    _scaler(ctx, write=True)
+    try:
+        out = scaling.apply_tool(ctx.db, ctx.cfg, tool, args, ctx.user.email, via="agent")
+    except scaling_drivers.DriverError as e:
+        raise ToolError(f"the provider refused: {e}") from None
+    what = out.get("group") or out.get("unit") or {}
+    table = "scale_group" if "group" in out else "scale_node"
+    auth.audit(ctx.db, ctx.user.as_audit(), f"scaling.{tool}", f"{table}:{what.get('id')}", ["mcp"])
+    if "group" in out and out["group"].get("waiting_for"):
+        out["approve"] = f"{ctx.web}/settings/scaling"
+    return out
+
+
+_GROUP_HOW = (
+    "A group: name, provider (its id), template (what each unit is, as the provider's driver asks), min, max, desired, "
+    "cooldown_seconds, warmup_seconds, terminate (oldest|newest), rules, at_cap (stop|min), enabled, budget (USD a "
+    "month, needed on a provider that charges). Rules: {type: target, metric, target}, {type: step, metric, "
+    'above|below, minutes, add|remove (a count or "50%")}, {type: schedule, cron, timezone, min, max, desired}'
+)
+
+
+@tool(
+    "scaling",
+    "Auto scaling",
+    "Auto scaling: whether it's on, the providers (where units launch: this machine, clouds, Proxmox, a Linux host, "
+    "or model hosts; credentials show only as set), the scaling groups with their rules in words, their budgets and "
+    "why one launches nothing now, the units, the drivers on offer and the metrics rules can watch. Admins only.",
+    admin=True,
+)
+def scaling_overview(ctx: Context) -> dict[str, Any]:
+    _scaler(ctx)
+    return {**scaling.overview(ctx.db, ctx.cfg), "about_metrics": scaling.METRICS, "settings": f"{ctx.web}/settings/scaling"}
+
+
+@tool(
+    "propose_scaling_group",
+    "Propose a scaling group",
+    "Make a scaling group: units launched on a provider between min and max, by its rules, within its budget. It "
+    "launches nothing until the person approves its terms, signed in to the web app (the answer links there); an agent "
+    f"can't approve them. {_GROUP_HOW}. Admins only, with a token that has the write scope.",
+    Arg("group", "object", "the group", required=True),
+    writes=True,
+    admin=True,
+)
+def propose_scaling_group(ctx: Context, group: dict[str, Any]) -> dict[str, Any]:
+    return _scaling_do(ctx, "propose_scaling_group", {"group": group})
+
+
+@tool(
+    "change_scaling_group",
+    "Change a scaling group",
+    "Change a scaling group: only the fields given change. A change that widens what the person approved (another "
+    "provider or unit, a higher max or budget, keeping min at the cap) waits for their approval again, in the web app. "
+    f"{_GROUP_HOW}. Admins only, with a token that has the write scope.",
+    Arg("group_id", "integer", "the group (from scaling)", required=True),
+    Arg("changes", "object", "the fields to change", required=True),
+    writes=True,
+    admin=True,
+)
+def change_scaling_group(ctx: Context, group_id: int, changes: dict[str, Any]) -> dict[str, Any]:
+    return _scaling_do(ctx, "change_scaling_group", {"group_id": group_id, "changes": changes})
+
+
+@tool(
+    "set_scaling_desired",
+    "Ask a scaling group for units",
+    "Ask a scaling group for a number of units now, within its min and max (what the person approved); its rules take "
+    "over again at their next change. Admins only, with a token that has the write scope.",
+    Arg("group_id", "integer", "the group (from scaling)", required=True),
+    Arg("desired", "integer", "units wanted now", required=True, minimum=0, maximum=scaling.MAX_UNITS),
+    writes=True,
+    admin=True,
+)
+def set_scaling_desired(ctx: Context, group_id: int, desired: int) -> dict[str, Any]:
+    return _scaling_do(ctx, "set_scaling_desired", {"group_id": group_id, "desired": desired})
+
+
+@tool(
+    "pause_scaling_group",
+    "Pause a scaling group",
+    "Pause a scaling group (nothing new launches; what runs stays) or resume it (paused false). Admins only, with a "
+    "token that has the write scope.",
+    Arg("group_id", "integer", "the group (from scaling)", required=True),
+    Arg("paused", "boolean", "pause (true) or resume (false)", default=True),
+    Arg("why", "string", "why, shown on the group", max_length=200),
+    writes=True,
+    admin=True,
+)
+def pause_scaling_group(ctx: Context, group_id: int, paused: bool = True, why: str | None = None) -> dict[str, Any]:
+    return _scaling_do(ctx, "pause_scaling_group", {"group_id": group_id, "paused": paused, "why": why})
+
+
+@tool(
+    "terminate_scaling_unit",
+    "Let a scaling unit go",
+    "Let one unit of a scaling group go now: a worker finishes or hands back its job first. Admins only, with a token "
+    "that has the write scope.",
+    Arg("unit_id", "integer", "the unit (from scaling)", required=True),
+    Arg("why", "string", "why, kept with the unit", max_length=200),
+    writes=True,
+    admin=True,
+)
+def terminate_scaling_unit(ctx: Context, unit_id: int, why: str | None = None) -> dict[str, Any]:
+    return _scaling_do(ctx, "terminate_scaling_unit", {"unit_id": unit_id, "why": why})
 
 
 # ---------- monitoring: Prometheus and Grafana next to Lens (admins) ----------

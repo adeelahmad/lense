@@ -33,6 +33,8 @@ export type PendingApproval = {
   tool: string;
   summary: string;
   estimate?: Estimate | null;
+  /** What would be sent or written, all of it (a message, an event, a file). */
+  preview?: string | null;
 };
 /** A namespace offered to a conversation over everything: an existing one, or a new one to create. */
 export type Suggested = { name: string; new: boolean };

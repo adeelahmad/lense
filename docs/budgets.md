@@ -1,6 +1,6 @@
 # Budgets
 
-A budget caps what a routine, automation, pipeline, workflow or namespace may cost. Budgets are off unless an admin sets one.
+A budget caps what a routine, automation, pipeline, workflow, namespace or [scaling group](scaling.md) may cost. Budgets are off unless an admin sets one.
 What has been spent comes from the [activity ledger](activity.md), so a budget counts everything done for that
 resource: a namespace's budget counts every job in it, and a routine's counts its runs and the jobs it queued.
 

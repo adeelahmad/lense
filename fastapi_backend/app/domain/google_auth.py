@@ -36,7 +36,9 @@ TOKEN_URL = "https://oauth2.googleapis.com/token"
 CAN = {
     "https://www.googleapis.com/auth/gmail.readonly": "View your email messages and settings",
     "https://mail.google.com/": "Read, compose, send and permanently delete all your email from Gmail",
+    "https://www.googleapis.com/auth/gmail.compose": "Manage drafts and send emails",
     "https://www.googleapis.com/auth/calendar.readonly": "See and download any calendar you can access using your Google Calendar",
+    "https://www.googleapis.com/auth/calendar.events": "View and edit events on all your calendars",
     "https://www.googleapis.com/auth/drive.readonly": "See and download all your Google Drive files",
     "https://www.googleapis.com/auth/drive": "See, edit, create, and delete all of your Google Drive files",
 }
@@ -229,12 +231,26 @@ def get(cfg, creds, scopes, url, params=None, api="api", what=None):
     """GET one of Google's APIs as the source signs in, as JSON. Signs in again once if Google says the token ended.
     sources.RateLimited when Google is throttling the account, FileNotFoundError when it has no such item, GoogleError
     when it refused."""
+    return _call("GET", cfg, creds, scopes, url, params, None, api, what)
+
+
+def post(cfg, creds, scopes, url, body, params=None, api="api", what=None):
+    """POST `body` as JSON to one of Google's APIs, as get does."""
+    return _call("POST", cfg, creds, scopes, url, params, body, api, what)
+
+
+def _call(method, cfg, creds, scopes, url, params, body, api, what):
     for attempt in (0, 1):
         token = access_token(cfg, creds, scopes, fresh=attempt == 1)
         with activity.call(f"google.{api}", cfg, detail={"call": what} if what else None) as row:
             try:
-                r = httpx.get(
-                    url, params=params, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"}, timeout=TIMEOUT
+                r = httpx.request(
+                    method,
+                    url,
+                    params=params,
+                    json=body,
+                    headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
+                    timeout=TIMEOUT,
                 )
             except httpx.HTTPError as e:
                 raise GoogleError(f"couldn't reach Google: {e}") from None
