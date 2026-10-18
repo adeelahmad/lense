@@ -375,7 +375,7 @@ def history(db, cid, ids=None):
     """A conversation's messages, oldest first: every version's, or only those with `ids` (a path)."""
     return db.rows(
         "SELECT record::id(id) AS id, role, content, passages, created_at, stopped ?? false AS stopped, steps ?? [] AS steps, "
-        "attachments ?? [] AS attachments, notice, error, check, model, context, parent, meta FROM chat_message WHERE chat = $c"
+        "attachments ?? [] AS attachments, notice, error, check, model, context, parent, meta, kind FROM chat_message WHERE chat = $c"
         + (" AND id IN $ids" if ids is not None else "")
         + " ORDER BY id",
         c=cid,
@@ -510,13 +510,15 @@ def add(
     parent=HEAD,
     mid=None,
     meta=None,
+    kind=None,
 ):
     """Save a message under `parent` (by default the head; None: a first message) and make it the head; an answer
     keeps the tool steps it took, any notice (e.g. the model can't use tools) and error; a question asked from a page
     keeps what it shared of it (shared_context). A question an automation asked keeps its `origin` ({automation, run,
     node}), so it isn't taken for a person's message (`chat.message`). `mid`: an id taken earlier with
     db.next_id("chat_message"), after the parent was saved (an answer's, so the ledger rows of the calls made for it
-    name it). `meta` is its record (Record; a question's: how it was sent)."""
+    name it). `meta` is its record (Record; a question's: how it was sent). `kind`: research for a research report,
+    research_plan for the plan it waits on (research.py)."""
     parent = head(db, cid) if parent == HEAD else parent
     mid = mid or db.next_id("chat_message")
     db.q(
@@ -539,6 +541,7 @@ def add(
                 "origin": origin or None,
                 "parent": parent,
                 "meta": meta or None,
+                "kind": kind,
             }
         ),
     )

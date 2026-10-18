@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import threading
 from unittest import mock
 
@@ -148,6 +149,54 @@ def test_api_tokens_cant_add_passkeys(app, client, db):
     h = _session(client, _setup(app, client, Authenticator()))
     raw = client.post("/api/v1/tokens", json={"name": "t", "scope": "write"}, headers=h).json()["token"]
     assert client.post("/api/v1/auth/passkeys/options", headers={"Authorization": f"Bearer {raw}", **WEB}).status_code == 403
+
+
+def test_taking_your_sign_in_to_another_address(app, client, db):
+    laptop = Authenticator()
+    h = _session(client, _setup(app, client, laptop))
+    here = {**h, **WEB}
+    assert client.get("/api/v1/auth/passkeys/elsewhere", headers=here).json() == []
+    me = client.get("/api/v1/auth/me", headers=h).json()["user"]["id"]
+    invite = client.post(f"/api/v1/users/{me}/signin-link", headers=here).json()["url"].split("#", 1)[1]
+    settings.save(db, app.state.archive.base, "https", {"enabled": True, "domains": ["lens.example.com"]})
+    there = {"x-forwarded-host": "lens.example.com", "x-forwarded-proto": "https"}
+    assert client.get("/api/v1/auth/passkeys/elsewhere", headers=here).json() == [{"url": "https://lens.example.com", "passkey": False}]
+    assert client.get("/api/v1/auth/passkeys/elsewhere", headers={**h, **there}).json() == []  # where you are already
+
+    assert client.post("/api/v1/auth/passkeys/elsewhere", json={"url": "https://evil.example"}, headers=here).status_code == 400
+    raw = client.post("/api/v1/tokens", json={"name": "t", "scope": "write"}, headers=h).json()["token"]
+    as_token = {"Authorization": f"Bearer {raw}", **WEB}
+    assert client.post("/api/v1/auth/passkeys/elsewhere", json={"url": "https://lens.example.com"}, headers=as_token).status_code == 403
+    r = client.post("/api/v1/auth/passkeys/elsewhere", json={"url": "https://Lens.example.com/"}, headers=here)
+    assert r.status_code == 200, r.text
+    url = r.json()["url"]
+    assert url.startswith("https://lens.example.com/signin-link#") and r.json()["emailed"] is False
+    left = dt.datetime.fromisoformat(r.json()["expires_at"]) - dt.datetime.now(dt.UTC)
+    assert dt.timedelta(minutes=14) < left <= dt.timedelta(minutes=15)
+    assert client.post("/api/v1/auth/signin-link/info", json={"token": invite}).status_code == 200  # an admin's link stays
+
+    # there: a passkey for that address, and signed in
+    token = url.split("#", 1)[1]
+    o = client.post("/api/v1/auth/signin-link/options", json={"token": token}, headers=there).json()
+    assert o["options"]["rp"]["id"] == "lens.example.com"
+    credential = laptop.create(o["options"], "https://lens.example.com")
+    r = client.post("/api/v1/auth/signin-link", json={"token": token, "flow": o["flow"], "credential": credential}, headers=there)
+    assert r.status_code == 200, r.text
+    assert _signin(client, laptop, headers=there, origin="https://lens.example.com").status_code == 200
+    assert client.get("/api/v1/auth/passkeys/elsewhere", headers=here).json() == [{"url": "https://lens.example.com", "passkey": True}]
+    assert client.post("/api/v1/auth/signin-link/info", json={"token": token}).status_code == 404  # used up
+    assert "passkey.elsewhere" in db.values("SELECT VALUE action FROM audit_log")
+
+
+def test_the_addresses_lens_opens_at(db, cfg, monkeypatch):
+    assert passkeys.addresses(db, cfg) == []
+    cfg["tunnel"] = {"mode": "managed", "hostname": "Lens.Example.com"}
+    cfg["https"] = {"enabled": True, "domains": ["lens.example.com", "home.example.org", "*.example.org"]}
+    monkeypatch.setenv("LENS_HTTPS_PORT", "8443")
+    assert passkeys.addresses(db, cfg) == ["https://lens.example.com", "https://lens.example.com:8443", "https://home.example.org:8443"]
+    cfg["tunnel"]["mode"] = "off"
+    cfg["https"]["enabled"] = False
+    assert passkeys.addresses(db, cfg) == []
 
 
 def test_sign_in_links_for_new_people(app, client, db):

@@ -474,6 +474,8 @@ function SettingsTab({ s }: { s: Detail }) {
                     s.type as StreamType,
                     typeof window === "undefined" ? "lens" : window.location.hostname,
                     hub ?? {},
+                    null,
+                    typeof window === "undefined" ? undefined : window.location.origin,
                   )}
                 </span>
                 .

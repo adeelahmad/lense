@@ -1,8 +1,10 @@
-"""Lens as a read-only SMB share: Finder, Explorer and Linux mount the file tree of the graph like any network drive.
+"""Lens as an SMB share: Finder, Explorer and Linux mount the file tree of the graph like any network drive.
 
 What the share holds is the shared file tree (filetree.py, docs/file-tree.md): graph nodes are folders, nested by their links, with the
-assets as files at the leaves. Each person sees what they may see in Lens, nothing more, and nobody can write: every
-call that would change something is refused before it reaches the tree.
+assets as files at the leaves. Each person sees what they may see in Lens, nothing more. While `smb.add_files` is on,
+a file someone copies in is imported where they put it (share_import.py: the same checks and permissions as an
+upload), and a new folder under Collections is a new collection; nothing Lens made can be changed or deleted. Off,
+every call that would change something is refused before it reaches the tree.
 
 The server is impacket's SMB server (Apache-style license, pure Python), run inside the worker while Settings ›
 File sharing › SMB is on. impacket serves folders on disk through `os`; here its module-level `os` is a small stand-in
@@ -22,6 +24,7 @@ talks to port 445: set LENS_SMB_PORT=445 for it. See docs/file-sharing.md.
 
 from __future__ import annotations
 
+import contextlib
 import errno
 import ipaddress
 import itertools
@@ -119,8 +122,35 @@ def nt_hash(secret: str) -> bytes:
 
 
 # ---------- the file system impacket sees ----------
+@dataclass
+class _Writing:
+    """A file open to write: whose, where in the tree (`rel`), its real file on the uploads disk (`src`) and fd."""
+
+    account: str
+    rel: str
+    src: object
+    real: int
+    adder: object
+    failed: bool = False  # a write was refused (too large, the disk full): it's dropped as it's closed
+
+
+def _refused(e, p):
+    """share_import's refusals as the OSError impacket turns into an SMB status."""
+    from . import filetree, share_import
+
+    if isinstance(e, filetree.NotFound):
+        return FileNotFoundError(errno.ENOENT, "no such folder", p)
+    if isinstance(e, share_import.TooLarge):
+        return OSError(errno.EFBIG, str(e), p)
+    if isinstance(e, share_import.Refused | share_import.Rejected):
+        return PermissionError(errno.EACCES, str(e), p)
+    return e
+
+
 class VirtualOS(types.ModuleType):
-    """Just enough of `os` for impacket.smbserver, answered from the tree: read-only, and nothing outside ROOT.
+    """Just enough of `os` for impacket.smbserver, answered from the tree, and nothing outside ROOT. Files people add
+    are written to real files on the uploads disk while they're open, and imported when they're closed
+    (share_import.Adder: begin, finish).
 
     Paths are ROOT/<key id>/<path>; the key says whose view of the tree it is (and is checked again as it ages)."""
 
@@ -132,6 +162,8 @@ class VirtualOS(types.ModuleType):
         self.getpid, self.urandom, self.fspath, self.environ = _os.getpid, _os.urandom, _os.fspath, {}
         self.tree, self.keys = tree, keys
         self.fds: dict[int, list] = {}
+        self.writing: dict[int, _Writing] = {}
+        self.dropping: set[int] = set()  # fds closed with delete-on-close: not imported
         self.lock = threading.Lock()
         self.next_fd = itertools.count(1 << 20)
         self.path = _Path(self)
@@ -169,9 +201,49 @@ class VirtualOS(types.ModuleType):
             raise NotADirectoryError(errno.ENOTDIR, "not a folder", p)
         return [c.name for c in self.tree.children(account, rel)]
 
+    def _adder(self, account, p):
+        adder = self.tree.adder(account)
+        if adder is None:
+            raise PermissionError(errno.EROFS, "the share is read-only", p)
+        return adder
+
+    def _open_to_write(self, p, flags):
+        """An fd writing a file someone adds, or None when the file is opened to read after all (a folder, or a file
+        that's there opened without changing it)."""
+        from . import filetree, share_import
+
+        account, rel = self._where(p)
+        e = self.tree.entry(account, rel)
+        if e is not None and e.is_dir:
+            return None
+        if e is None and not flags & _os.O_CREAT:
+            raise FileNotFoundError(errno.ENOENT, "no such file or folder", p)
+        if e is not None and not flags & (_os.O_WRONLY | _os.O_RDWR | _os.O_TRUNC | _os.O_APPEND):
+            return None
+        adder = self._adder(account, p)
+        added = getattr(e.source, "added", None) if e is not None else None
+        try:
+            if added == "pending":
+                src = adder.reopen(rel)
+                real = _os.open(src, _os.O_RDWR | (flags & _os.O_TRUNC))
+            elif e is None or flags & _os.O_TRUNC:
+                src = adder.begin(rel)  # written over: a new file (Refused for what Lens made)
+                real = _os.open(src, _os.O_RDWR)
+            else:
+                return None  # opened to change in place: it reads, and writing to it is refused
+        except (share_import.Refused, share_import.Rejected, filetree.NotFound) as x:
+            raise _refused(x, p) from None
+        with self.lock:
+            fd = next(self.next_fd)
+            self.fds[fd] = [None, e or Entry(posixpath.basename(rel), False), 0]
+            self.writing[fd] = _Writing(account, rel, src, real, adder)
+        return fd
+
     def open(self, p, flags, mode=0o777, **k):
         if flags & _WRITE:
-            raise PermissionError(errno.EROFS, "the share is read-only", p)
+            fd = self._open_to_write(p, flags)
+            if fd is not None:
+                return fd
         account, rel, e = self._entry(p)
         if account is None:
             raise PermissionError(errno.EACCES, "not a share", p)
@@ -188,11 +260,17 @@ class VirtualOS(types.ModuleType):
         return f
 
     def lseek(self, fd, pos, how):
+        w = self.writing.get(fd)
+        if w is not None:
+            return _os.lseek(w.real, pos, how)
         f = self._fd(fd)
         f[2] = max(0, pos if how == _os.SEEK_SET else (f[2] + pos if how == _os.SEEK_CUR else int(f[1].size or 0) + pos))
         return f[2]
 
     def read(self, fd, n):
+        w = self.writing.get(fd)
+        if w is not None:
+            return _os.read(w.real, int(n))
         f = self._fd(fd)
         if f[0] is None:
             raise IsADirectoryError(errno.EISDIR, "is a folder")
@@ -205,19 +283,125 @@ class VirtualOS(types.ModuleType):
         f[2] += len(data)
         return data
 
+    def write(self, fd, data):
+        w = self.writing.get(fd)
+        if w is None:
+            raise PermissionError(errno.EROFS, "only files added here can be written")
+        most = int(w.adder.cfg["uploads"]["max_mb"])
+        try:
+            if _os.lseek(w.real, 0, _os.SEEK_CUR) + len(data) > most * (1 << 20):
+                raise OSError(errno.EFBIG, f"files up to {most} MB")
+            return _os.write(w.real, data)
+        except OSError:
+            w.failed = True
+            raise
+
     def close(self, fd):
+        from . import filetree, share_import
+
         with self.lock:
             f = self.fds.pop(fd, None)
+            w = self.writing.pop(fd, None)
+            dropped = fd in self.dropping
+            self.dropping.discard(fd)
         if f and f[0] is not None:
             f[0].close()
+        if w is None:
+            return
+        _os.close(w.real)
+        if dropped:
+            return w.adder.abandon(w.rel, w.src)
+        if w.failed:  # part of a file: not imported, and not kept
+            w.adder.abandon(w.rel, w.src)
+            with contextlib.suppress(Exception):
+                w.adder.delete(w.rel)
+            return None
+        try:
+            w.adder.finish(w.rel, w.src)
+        except (share_import.Refused, share_import.Rejected, filetree.NotFound) as x:
+            raise _refused(x, w.rel) from None
+        finally:
+            self.tree.drop(w.account)
+
+    def drop(self, fd):
+        """The client deletes this file as it closes it: don't import it then."""
+        with self.lock:
+            if fd in self.writing:
+                self.dropping.add(fd)
+
+    def abandon_all(self, fds):
+        """A connection ended with these files still open: close them, and import none of them."""
+        for fd in fds:
+            self.drop(fd)
+            try:
+                self.close(fd)
+            except OSError:
+                pass
 
     def fsync(self, fd):
         return None
 
+    def mkdir(self, p, mode=0o777):
+        from . import filetree, share_import
+
+        account, rel = self._where(p)
+        adder = self._adder(account, p)
+        e = self.tree.entry(account, rel)
+        if e is not None and e.is_dir:
+            return None  # impacket makes the folder of any create that may make one, even when it's there
+        try:
+            made = adder.folder(rel)
+        except (share_import.Refused, share_import.Rejected, filetree.NotFound) as x:
+            raise _refused(x, p) from None
+        finally:
+            self.tree.drop(account)
+        if not made:
+            raise FileExistsError(errno.EEXIST, "there's a folder there already", p)
+        return None
+
+    def remove(self, p):
+        from . import share_import
+
+        account, rel = self._where(p)
+        try:
+            self._adder(account, p).delete(rel)
+        except share_import.Refused as x:
+            raise _refused(x, p) from None
+
+    unlink = remove
+
+    def rename(self, src, dst):
+        from . import filetree, share_import
+
+        account, rel = self._where(src)
+        to_account, to = self._where(dst)
+        if to_account != account:
+            raise PermissionError(errno.EXDEV, "another person's view", dst)
+        try:
+            self._adder(account, src).move(rel, to)
+        except (share_import.Refused, share_import.Rejected, filetree.NotFound) as x:
+            raise _refused(x, src) from None
+        finally:
+            self.tree.drop(account)
+        with self.lock:
+            for w in self.writing.values():
+                if w.account == account and w.rel == rel:
+                    w.rel = to
+
+    replace = rename
+
+    def utime(self, p, times=None, **k):
+        """impacket passes (LastWriteTime, ChangeTime): the first is the file's own time."""
+        account, rel = self._where(p)
+        adder = self._adder(account, p)
+        when = times[0] if times else time.time()
+        if not adder.touch(rel, when):
+            raise PermissionError(errno.EACCES, "only files just added can have their time set", p)
+
     def _read_only(self, *a, **k):
         raise PermissionError(errno.EROFS, "the share is read-only")
 
-    write = remove = unlink = mkdir = makedirs = rmdir = rename = replace = utime = chmod = _read_only
+    makedirs = rmdir = chmod = _read_only
 
     def setreuid(self, *a):
         return None
@@ -278,20 +462,40 @@ class FileTree:
         self.trees: dict[str, tuple[float, object]] = {}
         self.lock = threading.Lock()
 
-    def _tree(self, account):
+    def _view(self, account):
+        """(their Tree, their account row)."""
         from . import auth, filetree
 
         with self.lock:
             hit = self.trees.get(account)
         if hit and time.monotonic() - hit[0] < TREE_SECONDS:
-            return hit[1]
+            return hit[1], hit[2]
         row = auth.get_account(self.db, account)
         if not row or row.get("disabled"):
             raise PermissionError(errno.EACCES, "no such account")
         t = filetree.Tree(self.db, self.cfg_fn(), filetree.Viewer.of(self.db, row))
         with self.lock:
-            self.trees[account] = (time.monotonic(), t)
-        return t
+            self.trees[account] = (time.monotonic(), t, row)
+        return t, row
+
+    def _tree(self, account):
+        return self._view(account)[0]
+
+    def adder(self, account):
+        """Someone adding files (share_import.Adder, with their view of the tree), or None while the share doesn't
+        take files (smb.add_files)."""
+        from . import share_import
+
+        cfg = self.cfg_fn()
+        if not share_import.accepting(cfg, "smb"):
+            return None
+        tree, row = self._view(account)
+        return share_import.Adder(self.db, cfg, row, "smb", tree)
+
+    def drop(self, account):
+        """Their view of the tree afresh from the next call (after they added a file or made a folder)."""
+        with self.lock:
+            self.trees.pop(account, None)
 
     @staticmethod
     def _entry(e):
@@ -406,7 +610,7 @@ def _impacket():
 class Server:
     """One SMB server on (bind, port), serving `tree` to holders of file access keys, in its own threads."""
 
-    def __init__(self, bind, port, tree, keys: Keys, networks=None, name="Lens", log=None):
+    def __init__(self, bind, port, tree, keys: Keys, networks=None, name="Lens", log=None, add_files=False):
         smbserver = _impacket()
         self.log = log or (lambda *a: None)
         self.networks = list(networks if networks is not None else store.DEFAULTS["smb"]["allowed_networks"])
@@ -451,6 +655,15 @@ class Server:
                     raise ConnectionAbortedError("SMB1 is not served")
                 return super().processRequest(conn_id, data)
 
+            def removeConnection(self, name):  # noqa: N802
+                """A connection ended: files it still had open to write aren't imported (they're incomplete)."""
+                try:
+                    opened = self.getConnectionData(name, False).get("OpenedFiles") or {}
+                    vos.abandon_all([f.get("FileHandle") for f in opened.values() if f.get("FileHandle") in vos.writing])
+                except Exception:  # noqa: BLE001 - it was never set up
+                    pass
+                super().removeConnection(name)
+
         creds = Credentials(keys)
         cfg = smbserver.configparser.ConfigParser()
         cfg.add_section("global")
@@ -465,13 +678,15 @@ class Server:
             "SMB2Support": "True",
         }.items():
             cfg.set("global", k, v)
-        for share, path, comment, kind in (("IPC$", "", "", "3"), (SHARE, ROOT, "Lens: the graph as files (read-only)", "0")):
+        comment = "Lens: the graph as files" + ("; files added are imported" if add_files else " (read-only)")
+        for share, path, note, kind, ro in (("IPC$", "", "", "3", "yes"), (SHARE, ROOT, comment, "0", "no" if add_files else "yes")):
             cfg.add_section(share)
-            for k, v in {"comment": comment, "read only": "yes", "share type": kind, "path": path}.items():
+            for k, v in {"comment": note, "read only": ro, "share type": kind, "path": path}.items():
                 cfg.set(share, k, v)
         self.server = LensSMB((bind, int(port)), config_parser=cfg, ipv6=":" in bind)
         self.server.keys = keys
         self.server.processConfigFile()
+        plain_close = self.server.hookSmb2Command(smbserver.smb2.SMB2_CLOSE, lambda c, s, r: _closing(vos, plain_close, c, s, r))
         self.port = self.server.server_address[1]
         self.extras = [smbserver.SRVSServer(), smbserver.WKSTServer()]  # share lists for Explorer and Finder
         for x in self.extras:
@@ -509,6 +724,23 @@ class Server:
                     pass
 
 
+def _closing(vos, plain, conn_id, server, packet):
+    """SMB2 CLOSE: a file marked delete-on-close is deleted as it's closed, so it isn't imported first."""
+    try:
+        from impacket import smb3structs as smb2
+
+        conn = server.getConnectionData(conn_id, False)
+        fid = smb2.SMB2Close(packet["Data"])["FileID"].getData()
+        if fid == b"\xff" * 16:
+            fid = conn["LastRequest"]["SMB2_CREATE"]["FileID"]
+        f = conn["OpenedFiles"].get(fid) or {}
+        if f.get("DeleteOnClose"):
+            vos.drop(f.get("FileHandle"))
+    except Exception:  # noqa: BLE001 - impacket answers a malformed close itself
+        pass
+    return plain(conn_id, server, packet)
+
+
 # ---------- following the settings ----------
 def conf(cfg):
     return {**store.DEFAULTS["smb"], **(cfg.get("smb") or {})}
@@ -534,7 +766,7 @@ class Runner:
 
     def apply(self):
         s = conf(self.cfg_fn())
-        want = (s["bind"], int(s["port"])) if s.get("enabled") else None
+        want = (s["bind"], int(s["port"]), bool(s.get("add_files"))) if s.get("enabled") else None
         if self.server is not None:
             self.server.networks = list(s.get("allowed_networks") or [])
         if want == self.want and (self.server is not None or want is None or time.monotonic() < self.retry):
@@ -546,8 +778,8 @@ class Runner:
         try:
             self.tree = self.tree or FileTree(self.db, self.cfg_fn)
             self.keys = self.keys or _keys(self.db, self.cfg_fn)
-            self.server = Server(want[0], want[1], self.tree, self.keys, s.get("allowed_networks"), log=self.log).start()
-            self.log(f"smb: serving the file tree on port {self.server.port} (read-only)")
+            self.server = Server(want[0], want[1], self.tree, self.keys, s.get("allowed_networks"), log=self.log, add_files=want[2]).start()
+            self.log(f"smb: serving the file tree on port {self.server.port}" + ("" if want[2] else " (read-only)"))
         except (OSError, ImportError) as e:
             self.error = (
                 f"port {want[1]}: {e.strerror or e}" if isinstance(e, OSError) else "impacket isn't installed (pip install impacket)"
@@ -625,5 +857,6 @@ def status(db, cfg):
         "process": running[0].get("process") if running else None,
         "installed": installed,
         "address": f"smb://{host}{'' if port == 445 else f':{port}'}/{SHARE}",
-        "mount": f"sudo mount -t cifs -o port={port},username=<key id>,ro,vers=2.0 //{host}/{SHARE} /mnt/lens",
+        "mount": f"sudo mount -t cifs -o port={port},username=<key id>,{'' if s.get('add_files') else 'ro,'}vers=2.0 //{host}/{SHARE} /mnt/lens",
+        "add_files": bool(s.get("add_files")),
     }

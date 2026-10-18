@@ -96,6 +96,7 @@ class HubStatus(ResponseModel):
     enabled: bool
     mqtt: bool
     mqtt_port: int | None = None
+    mqtt_web: bool = Field(False, description="the broker over WebSockets too, which the web app relays at /mqtt")
     syslog: bool
     syslog_port: int | None = None
     processes: list[dict[str, Any]] = Field(description="the processes running the hub now, and what they listen on")

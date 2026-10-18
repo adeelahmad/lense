@@ -19,6 +19,7 @@ import { parseBlocks, RichText } from "@/components/chat/rich-text";
 import { applyEvent, newTurn, savedSteps, stepCall } from "@/components/chat/stream";
 import { UserBubble } from "@/components/chat/user-bubble";
 
+jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
 jest.mock("@/components/chat/attachments", () => ({
   SentFiles: ({ files }: { files: { filename: string }[] }) => (
     <ul aria-label="Files sent">
