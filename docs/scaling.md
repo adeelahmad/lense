@@ -13,8 +13,9 @@ progress: **AWS EC2** (spot or on demand), **DigitalOcean** and **Hetzner Cloud*
 checked, prices, launching, watching and deleting machines), and their machines join over the [mesh](mesh.md) as
 worker nodes that transcribe and tell voices apart; so are **Proxmox VE**, clones of a VM template on your own server,
 and **Linux hosts over SSH**, workers started on machines you have. They haven't been tried on a real cloud machine
-yet. Also in progress: **RunPod** GPUs and **Hugging Face** Inference Endpoints, which serve a model with vLLM and
-take Lens's model calls while one runs. Planned: more model hosts (Lambda, SageMaker, Bedrock).
+yet. Also in progress: **RunPod** GPUs, **Hugging Face** Inference Endpoints and **Amazon SageMaker** real-time
+endpoints, which serve a model with vLLM and take Lens's model calls while one runs. Planned: more model hosts
+(Lambda, Bedrock).
 
 Auto scaling is **off** until an admin turns it on, and a group launches nothing until a person approves its terms
 signed in to the web app. Agents can propose and manage groups, but never approve one.
@@ -78,6 +79,7 @@ carries none of them.
 | `digitalocean` | droplets in `region`, with `token` (sealed), optional `ssh_keys` and `vpc_uuid` | DigitalOcean's hourly list price | `size` (`s-1vcpu-2gb`), `image` (`ubuntu-24-04-x64`), `steps` |
 | `proxmox` (Proxmox VE) | clones of a VM template on `node`, at `url` with an API token (`token_id`, `token_secret` sealed); `verify_tls` (on) and `ca_cert` for a private CA | nothing, unless you give it a price | `vm_template` (its id), `full_clone` (off: linked), `storage`, `pool`, `steps` |
 | `huggingface` (Hugging Face, a model host) | Inference Endpoints serving `model` with vLLM, with `token` (sealed, one that may manage endpoints); `namespace` (the user or organization; none: the token's user) | the hardware's `pricePerHour` in Hugging Face's list | `model`, `hardware` (`aws-us-east-1-nvidia-l4-x1`), `max_model_len`, `image` (vLLM's), `args`, `use_as_provider` (on) |
+| `sagemaker` (Amazon SageMaker, a model host) | real-time endpoints serving `model` with AWS's vLLM container, in `region` with `access_key_id` and `secret_access_key` (sealed) and `role_arn` (the execution role SageMaker runs them as); `hf_token` (sealed) for gated models | the instance type's hosting price in the AWS Price List, an estimate | `model`, `instance_type` (`ml.g5.xlarge`), `max_model_len`, `image` (AWS's vLLM container), `env`, `use_as_provider` (on) |
 | `runpod` (RunPod, a model host) | GPU pods serving `model` with vLLM, with `token` (sealed); `cloud_type` (`SECURE` or `COMMUNITY`), `data_centers`, `hf_token` (sealed) for gated models | what RunPod charges for the pod it found | `model`, `gpu_types` (`NVIDIA L4`), `gpu_count` (1), `disk_gb` (60), `max_model_len`, `interruptible` (spot, off), `image` (vLLM's), `args`, `use_as_provider` (on) |
 | `ssh` (Linux hosts over SSH) | `lens worker` started on `hosts` (`user@host` or `user@host:port`), signed in with `private_key` (sealed; `passphrase` if it has one) | nothing, unless you give it a price | `per_host` (1): workers on each host; `steps` |
 | `hetzner` (Hetzner Cloud) | servers in `location`, with `token` (sealed), optional `ssh_keys` | Hetzner's hourly gross price in euros, times `usd_per_eur` (1.1; set your rate) | `server_type` (`cx22`), `image` (`ubuntu-24.04`), `steps` |
@@ -137,6 +139,30 @@ Face's address, and vLLM asks for the unit's own key, which goes to the endpoint
 Face says the endpoint runs. One that fails, is paused or scaled to zero at Hugging Face counts as gone and is
 deleted, with Hugging Face's reason (a gated model it may not download, say) in the unit's `why`.
 
+A SageMaker unit is a real-time endpoint in your AWS account serving the template's `model` with AWS's vLLM container
+for SageMaker on one `instance_type` instance. It is three things at SageMaker, a model, an endpoint configuration and
+the endpoint, all named after the unit and tagged `lens-unit` with its name and `lens` with Lens's tag; terminating a
+unit deletes all three. The container's `SM_VLLM_*` settings are vLLM's options: Lens sets the model, its served name,
+the context length and, from the Price List, one tensor-parallel shard per GPU of the instance; `env` adds more as
+`NAME=value` (`SM_VLLM_QUANTIZATION=awq`). The unit is running once SageMaker says the endpoint is in service; one that
+fails or goes out of service counts as gone, with SageMaker's `FailureReason` in the unit's `why`.
+
+SageMaker endpoints take only calls signed with an AWS key, so while a SageMaker unit serves Lens's model calls, the
+LLM provider's address is the endpoint's (`https://runtime.sagemaker.<region>.amazonaws.com/endpoints/<name>`) and
+its key is the provider's AWS key as `<access key id>:<secret access key>`. Lens posts chat requests to the
+endpoint's `/invocations`, signed with AWS Signature Version 4; the secret key itself is never sent. You can also set
+such an endpoint as the LLM provider yourself in Settings → LLM provider. Search by meaning and the voice don't use a
+SageMaker endpoint for their calls: give them a server of their own.
+
+AWS's vLLM container is published by account `763104351884` in most regions (`vllm:<version>-sagemaker`);
+[AWS's list of its containers](https://aws.github.io/deep-learning-containers/reference/available_images/) has the
+others. The keys need `sagemaker:ListEndpoints`, `sagemaker:DescribeEndpoint`, `sagemaker:CreateModel`,
+`sagemaker:CreateEndpointConfig`, `sagemaker:CreateEndpoint`, `sagemaker:DeleteEndpoint`,
+`sagemaker:DeleteEndpointConfig`, `sagemaker:DeleteModel`, `sagemaker:AddTags`, `sagemaker:InvokeEndpoint`,
+`iam:PassRole` on the execution role, and `pricing:GetProducts` for prices you don't give yourself. The execution role
+is one SageMaker may assume (the `AmazonSageMakerFullAccess` managed policy, or one that only pulls from ECR and
+writes logs).
+
 A unit that never comes up, whether it doesn't join within `join_minutes` or its provider reports it failed, counts
 as a failed launch: three in a row pause the group (with the reason in its `paused_why`), and a unit that comes up
 clears the count.
@@ -144,8 +170,10 @@ clears the count.
 The tests hold the fakes of Hugging Face, RunPod, DigitalOcean and Hetzner Cloud to each provider's own published
 API document (trimmed copies in `fastapi_backend/tests/data/openapi/`, each with where and when it was fetched): a
 request the real API wouldn't take, an answer it couldn't give, or a field Lens reads that the document doesn't have,
-fails the test. AWS runs against [moto](https://github.com/getmoto/moto), which keeps instances, tags, volumes and spot
-markets the way EC2 does, so the driver and the scaler go from launch to scale-in as they would on a real account.
+fails the test. AWS runs against [moto](https://github.com/getmoto/moto), which keeps EC2's instances, tags, volumes
+and spot markets and SageMaker's models, endpoint configurations and endpoints the way AWS does, so the drivers and the
+scaler go from launch to scale-in as they would on a real account; Lens's signed SageMaker calls are held to
+botocore's own model of SageMaker's runtime API.
 Proxmox and SSH hosts have no published document to hold their fakes to yet.
 
 While a model group's unit runs, it is Lens's LLM provider (the template's `use_as_provider`, on by default): the
@@ -303,7 +331,8 @@ Turning scaling on (`change_settings scaling`) always asks.
 ## Refine later
 
 Spreading model calls across a group's units, and serving only some kinds of call (chat, decisions); more model
-hosts (Lambda, SageMaker, Bedrock); Hugging Face's scale to zero and private endpoints; RunPod network volumes, so a model is downloaded once; Proxmox LXC containers; revoking a unit's mesh
+hosts (Lambda, Bedrock); SageMaker's streamed invocations (`InvokeEndpointWithResponseStream`), so a SageMaker answer
+streams as it is written; Hugging Face's scale to zero and private endpoints; RunPod network volumes, so a model is downloaded once; Proxmox LXC containers; revoking a unit's mesh
 certificate when it goes; reporting machines with Lens's tag that Lens has no unit for (`listing`); a live euro rate;
 preemptible and spot instances at clouds other than AWS and RunPod; draining an AWS spot unit on its two-minute notice
 (the node agent reading the instance's metadata) and handing its job back at once; following the spot price as it

@@ -44,7 +44,7 @@ import threading
 import time
 
 from . import activity, budgets, jobs, schedule, settings, store
-from . import scaling_clouds, scaling_models, scaling_proxmox, scaling_ssh  # noqa: F401 - registers their drivers
+from . import scaling_clouds, scaling_models, scaling_proxmox, scaling_sagemaker, scaling_ssh  # noqa: F401 - registers their drivers
 from . import scaling_drivers as drivers
 from .store import R
 
