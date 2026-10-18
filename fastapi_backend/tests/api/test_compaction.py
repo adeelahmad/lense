@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from urllib.parse import urlsplit
 
 import pytest
@@ -184,6 +185,72 @@ def test_a_long_conversation_is_folded_in_runs_that_fit_the_summary_model(db, cf
     assert len(rows) == 3 and all(f"chat:{cid}" in r["resources"] for r in rows)
 
 
+def test_the_server_saying_the_context_is_full_is_understood(cfg, llm):
+    """A 400 that says the request is too long is llm.ContextFull, and the window it names is kept as the model's."""
+    forget_windows()
+    llm.context = 500
+    with pytest.raises(llm_mod.ContextFull) as e:
+        llm_mod.chat(cfg, [{"role": "user", "content": "word " * 1000}])
+    assert e.value.window == 500 and llm_mod.context_window(cfg) == 500 and chat.window(cfg) == 500
+    assert llm_mod.chat(cfg, [{"role": "user", "content": "hi"}]) == "OK"
+
+
+class BigBox:
+    """A toolbox with one tool, whose result is far too long for a small model."""
+
+    flagged: list[str] = []
+    approvals: list[dict] = []
+
+    def specs(self):
+        return [{"type": "function", "function": {"name": "read_big", "parameters": {"type": "object", "properties": {}}}}]
+
+    def call(self, name, args, model=False):
+        return json.dumps({"text": "line " * 6000}), "Read something big"
+
+    def take_detail(self):
+        return {}
+
+
+def test_what_tools_returned_is_cut_to_fit_the_model(cfg, llm):
+    forget_windows()
+    llm.context = 2000
+    llm.tool_script = [
+        {"content": "", "tool_calls": [{"id": "1", "type": "function", "function": {"name": "read_big", "arguments": "{}"}}]},
+        {"content": "Done [1]."},
+    ]
+    out = list(chat.tool_answer(cfg, BigBox(), "what's in it?", (), 6))
+    assert out[-1] == ("answer", "Done [1].") and out[0][0] == "step"
+    sent = [b for b in llm.seen if b.get("tools")]
+    results = [m["content"] for b in sent for m in b["messages"] if m["role"] == "tool"]
+    assert len(results[0]) > 20000 and "left out, to fit the model's context" not in results[0]  # as sent first: refused
+    assert "left out, to fit the model's context" in results[-1] and len(results[-1]) < 2000 * 4  # cut, then answered
+    assert results[-1].startswith('{"text": "line') and results[-1].endswith('"}')  # its ends kept, the middle gone
+    assert llm_mod.context_window(cfg) == 2000  # what the server said, kept for the next answer
+
+
+def test_a_conversation_that_doesnt_fit_is_folded_in_and_asked_again(client, db, cfg, folder, llm):
+    """The model says the conversation is too long for it (nothing said it had a small context): all but the last two
+    messages are folded into the summary now, and the question is asked again with that."""
+    cfg["ai"]["tools"] = False
+    seed(db, cfg, folder)
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    h = login(client, "root@x.io", "root password 1")
+    cid = client.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    long_talk(db, cid, 10)
+    forget_windows()
+    llm.context = 900  # ten long messages don't fit; two and a summary do
+    out = sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "shipment Friday?"}).text)
+    assert "error" not in out and "".join(t["text"] for t in out["token"]) == "The shipment leaves on Friday [1]."
+    folded = summaries(llm.seen)
+    assert folded and "long message 7 " in folded[-1]["messages"][1]["content"] and "long message 8 " not in str(folded)
+    answered = [b for b in llm.seen if b.get("stream")]
+    assert len(answered) == 2 and "long message 0 " in str(answered[0]["messages"])  # refused, then asked again
+    assert "Earlier in this conversation" in answered[1]["messages"][0]["content"]
+    assert [m["content"][:14] for m in answered[1]["messages"][1:]] == ["long message 8", "long message 9", "Excerpts:\n\n<un"]
+    assert chat.memory(db, cfg, cid)["upto"] == chat.history(db, cid)[-5]["id"]  # up to message 7; 8, 9, the question and answer follow
+    assert client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"][-1]["content"] == "The shipment leaves on Friday [1]."
+
+
 def test_commands_are_read_from_the_message():
     assert chat.command("/clear") == ("clear", "")
     assert chat.command("  /Compact keep the dates\n") == ("compact", "keep the dates")
@@ -223,16 +290,20 @@ def test_commands_in_the_app(client, db, cfg, folder, llm):
     h = login(client, "root@x.io", "root password 1")
     cid = client.post("/api/v1/chats", headers=h, json={}).json()["id"]
     sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "shipment question"}).text)
+    assert client.get(f"/api/v1/chats/{cid}", headers=h).json()["summary"] is None  # nothing summarised yet
     asked = len(llm.seen)
     out = client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "/clear"}).text
     assert "event: cleared" in out and "Cleared." in out and len(llm.seen) == asked  # no model call
+    shown = client.get(f"/api/v1/chats/{cid}", headers=h).json()  # the app marks where the model stops reading
+    assert shown["summary"] == {"text": "", "upto": shown["messages"][-1]["id"], "at": shown["summary"]["at"], "covers": 4}
     sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "shipment Friday?"}).text)
     answered = [b for b in llm.seen if b.get("stream")][-1]["messages"]
     assert "shipment question" not in str(answered) and "/clear" not in str(answered)
     out = client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "/compact"}).text
     assert "event: compacted" in out and "Compacted 2 messages" in out
-    shown = client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"]
-    assert [m["content"] for m in shown][:3] == ["shipment question", "The shipment leaves on Friday [1].", "/clear"]
+    shown = client.get(f"/api/v1/chats/{cid}", headers=h).json()
+    assert [m["content"] for m in shown["messages"]][:3] == ["shipment question", "The shipment leaves on Friday [1].", "/clear"]
+    assert shown["summary"]["text"] == "OK" and shown["summary"]["covers"] == 8 == len(shown["messages"])
 
 
 def test_the_summary_settings_are_checked(client, db):

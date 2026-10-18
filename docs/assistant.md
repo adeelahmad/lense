@@ -49,7 +49,13 @@ then.
   the chat's model does. A long stretch folded at once (`/compact`, or a conversation from before summaries) is
   written in as many calls as it takes to fit that model's context, each in the [activity ledger](activity.md) as the
   conversation's. Settings › AI assistant › Summarise long conversations (`ai.compact`, on) turns it off; off, or with
-  no model, only the last six messages are read.
+  no model, only the last six messages are read. When the model server still says a request is too long for the
+  model (its context was smaller than Lens knew), the answer is tried again rather than failed: what tools returned
+  in that answer is shortened first (each result keeps its start and end), then all but the last two messages are
+  folded into the summary now and half of the excerpts are left out; the context the server named is kept as the
+  model's, so the next conversation is summarised before it fills. In the web app, a line under the last message a
+  summary covers says how many messages it stands for (or that `/clear` stopped the model reading them), and Show
+  summary opens the summary; `GET /api/v1/chats/<id>` gives it as `summary` (`text`, `upto`, `covers`).
 - **Titles:**{#titles} a conversation nobody named is titled with its first question's words as soon as it's asked,
   then, after the first answer, the model gives it a short title of a few words from the question and the answer
   (streamed as `title` at the end of the answer's stream). It's one small call, written by **Model for summaries**
@@ -576,8 +582,8 @@ Built: the web app, the API, MCP, chat rooms and the assistant's tools.
 Give the assistant a goal that needs many look-ups, and it comes back with a plan; once you approve it, the research
 runs in the background and a cited report comes back in the conversation.
 
-- **Asking.** Turn on the composer's Deep research switch (the telescope) and type the goal, start a question with
-  `/research` (`/research what changed in the capsid work this year?`), send it with
+- **Asking.** Turn on the composer's Deep research switch (the telescope; the cursor stays in the box) and type the
+  goal, start a question with `/research` (`/research what changed in the capsid work this year?`), send it with
   `research: true` (`POST /api/v1/chats/<id>/messages`), call `POST /api/v1/chats/<id>/research {goal}`, or ask the
   assistant for research: its `start_research` tool (the `research` [tool group](#choosing-tools-namespaces-and-a-limit))
   works from chat, voice and [chat rooms](chat-rooms.md). It needs a language model that uses tools.
@@ -644,8 +650,9 @@ runs in the background and a cited report comes back in the conversation.
   checking are two or three calls. Every call is in the activity ledger for the conversation and `research:<id>`.
 
 Refine later: sub-questions in parallel, research on a schedule, sharing a report with a namespace's members, research
-as an automation action, a report template people can edit, and the report posted back into the chat room it was
-asked in (today the room gets the plan, and the report is in the conversation in Lens).
+as an automation action, a report template people can edit, the report posted back into the chat room it was asked
+in (today the room gets the plan, and the report is in the conversation in Lens), and one way to read a report aloud
+(today its Read aloud and the answer's speaker button both do).
 
 ## Third-party content and prompt injection
 

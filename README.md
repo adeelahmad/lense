@@ -29,7 +29,9 @@ in PowerShell; or skip the terminal and double-click the launcher for your syste
 [Lens.app](docs/get-started.md#the-mac-app) from the same release installs Lens, runs it without Docker and keeps it in
 the menu bar (built, early: not signed yet).
 [Deployment](docs/deployment.md) covers servers and Cloudron; there are also packages for
-[Synology](packaging/synology/README.md), [QNAP](packaging/qnap/README.md) and [Proxmox](proxmox/README.md).
+[Synology](packaging/synology/README.md), [QNAP](packaging/qnap/README.md) and [Proxmox](proxmox/README.md), and each
+release publishes Lens's images for amd64 and arm64 (a Raspberry Pi) to GHCR ([prebuilt
+images](docs/deployment.md#prebuilt-images)).
 The [checks](docs/requirements.md#install) say which of these CI proves.
 
 To work on the code instead, `make run` builds and runs everything from a checkout, `make setup-code` prints the
@@ -150,7 +152,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [specs from transcripts](docs/notes.md#specs-from-transcripts), [notes](docs/notes.md),
   [evidence PDFs](docs/api.md#evidence-pdfs), [published feeds](docs/feeds.md);
   [checks](docs/requirements.md#learn-from-it))
-- **Automate it.** Pipelines and workflows on a canvas, routines on a schedule, batch runs over a collection, and
+- **Automate it.** Pipelines and workflows on a canvas (with Convert steps that make a video's soundtrack an audio
+  asset and a document's pages image assets), routines on a schedule, batch runs over a collection, and
   notifications to webhooks, Slack, Discord and Matterbridge. Everything that happens in Lens (new assets, emails,
   calendar events, files, feed posts, what people say to Lens, sensor readings, notes, graph changes, runs, budget
   warnings) is kept as a stream of activities in W3C Activity Streams form, which agents read through the API, MCP and
@@ -162,12 +165,13 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   namespaces) and let a decision model pick the branch, then tell you in
   your own chat app, ask the model or the agent, use a tool, call a web address (its credentials kept sealed), run a
   workflow, pipeline or routine, or change assets and notes. A Classify node in a workflow sorts an asset into labels,
-  content types or topics, acting only on a sure answer. Anything that reaches outside Lens or changes more than what
+  content types or topics, acting only on a sure answer, and an Entity filter node keeps the entities you want. Anything that reaches outside Lens or changes more than what
   set it off asks first, until you let it run on its own: on the Approvals page or, for a change inside Lens, with a yes
   in the chat it told you in; agents can decline an approval but never give one. Each automation has limits and budgets,
   and agents make, try and run them over MCP and in the assistant, or draft one from a sentence; the studio to draw them
   in the web app is planned. ([Processing](docs/processing.md#workflows-and-the-canvas),
-  [notifications](docs/notifications.md), [automations](docs/automations.md),
+  [converting assets](docs/processing.md#converting-assets), [notifications](docs/notifications.md),
+  [automations](docs/automations.md),
   [approvals](docs/automations.md#approvals), [timeline](docs/timeline.md); [checks](docs/requirements.md#automate-it))
 - **See what it costs.** An activity ledger of every model call, with reports, charts and budgets that cap spending.
   Setup asks for one overall budget after a cloud model, with a soft limit that warns and a hard limit that stops paid

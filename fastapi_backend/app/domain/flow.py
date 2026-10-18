@@ -26,6 +26,11 @@ as what the workflow does (`keeps`), and add a check of the whole graph (`check_
 - `template`: renders a template with what came in as `input` (and the recording or namespaces); `json` reads the
   result as JSON.
 - `filter`: keeps the items of a list that pass a test (or a match tree).
+- `entity_filter`: keeps the entities of a list ({name, type}, as extract nodes pass them on) that are of the types
+  it keeps (`types`) and not of those it skips (`skip_types`), aren't named in `skip_names` (a stop list, matched as
+  entities are joined: case and spacing aside), have names at least `min_length` characters long that match
+  `pattern` (a regular expression, case aside, checked as a match tree's are), and are said at least `min_mentions` times (their
+  `mentions`, else how often the list names them). Anything in the list that isn't an entity is left out.
 - `for_each`: runs its `body` (a graph) once per item of a list and passes on the list of what the body returned;
   an item the body returned nothing for is left out (so it maps and filters). The body starts from `arg` nodes:
   `item`, `index` and `input` (all of what came in).
@@ -55,9 +60,11 @@ PATH_RX = re.compile(r"^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*$")
 OPS = ("exists", "empty", "equals", "not_equals", "contains", "gt", "lt")
 MAX_NODES, MAX_DEPTH, MAX_STEPS = 100, 5, 20000
 MAX_ITEMS, MAX_ROUNDS, MAX_CASES, MAX_FIELDS = 1000, 50, 20, 50
+MAX_NAMES = 500  # names in an entity filter's stop list
+TYPE_RX = re.compile(r"^[A-Z][A-Z_]{0,30}$")
 PRIMITIVES = (
-    "input", "pick", "condition", "switch", "merge", "set", "template", "filter", "for_each", "repeat", "group", "custom",
-    "arg", "return",
+    "input", "pick", "condition", "switch", "merge", "set", "template", "filter", "entity_filter", "for_each", "repeat",
+    "group", "custom", "arg", "return",
 )  # fmt: skip
 CONFIG = {
     "input": set(),
@@ -68,6 +75,7 @@ CONFIG = {
     "set": {"inputs", "fields", "keep"},
     "template": {"template", "json"},
     "filter": {"path", "op", "value", "match"},
+    "entity_filter": {"types", "skip_types", "skip_names", "pattern", "min_length", "min_mentions"},
     "for_each": {"path", "body", "max_items"},
     "repeat": {"body", "max_rounds", "until"},
     "group": {"body"},
@@ -464,6 +472,8 @@ def _check_primitive(db, kit, nid, t, cfg, body, depth, here):
                 _check_template(nid, f["template"])
     elif t == "template":
         _check_template(nid, cfg.get("template"))
+    elif t == "entity_filter":
+        _check_entity_filter(nid, cfg)
     elif t == "for_each":
         if cfg.get("path") and not PATH_RX.match(str(cfg["path"])):
             raise ValueError(f"for each {nid}: give a path to the list, like action_items, or none")
@@ -505,6 +515,52 @@ def _check_template(nid, body):
         templates.check(body)
     except templates.TemplateProblem as e:
         raise ValueError(f"template node {nid}: {e}") from None
+
+
+def _check_entity_filter(nid, cfg):
+    from . import match
+
+    for k in ("types", "skip_types"):
+        v = cfg.get(k)
+        if v is not None and (not isinstance(v, list) or not all(TYPE_RX.match(str(x)) for x in v)):
+            raise ValueError(f"entity filter {nid}: types are names in capitals, e.g. PERSON, ORG")
+    names = cfg.get("skip_names")
+    if names is not None and (
+        not isinstance(names, list) or len(names) > MAX_NAMES or not all(isinstance(x, str) and x.strip() for x in names)
+    ):
+        raise ValueError(f"entity filter {nid}: names to skip are up to {MAX_NAMES} lines of text")
+    if cfg.get("pattern") is not None:
+        try:
+            match._pattern_value(cfg["pattern"])
+        except ValueError as e:
+            raise ValueError(f"entity filter {nid}: {e}") from None
+    for k, hi in (("min_length", 200), ("min_mentions", 10000)):
+        if cfg.get(k) is not None and not _whole(cfg[k], 1, hi):
+            raise ValueError(f"entity filter {nid}: {k.replace('_', ' ')} is a whole number from 1 to {hi}")
+
+
+def entity_filter(c, items):
+    """The entities of `items` an entity filter node keeps (its settings `c`), in their order."""
+    from . import match
+
+    ents = [x for x in items if is_entity(x)] if isinstance(items, list) else []
+    keep, skip = set(c.get("types") or []), set(c.get("skip_types") or [])
+    stop = {analyze.ent_key(x) for x in c.get("skip_names") or []}
+    counts: dict[str, int] = {}
+    for e in ents:
+        counts[analyze.ent_key(e["name"])] = counts.get(analyze.ent_key(e["name"]), 0) + 1
+    out = []
+    for e in ents:
+        name, key = e["name"].strip(), analyze.ent_key(e["name"])
+        said = e["mentions"] if _num(e.get("mentions")) else counts[key]
+        if (keep and e["type"] not in keep) or e["type"] in skip or key in stop:
+            continue
+        if len(name) < (c.get("min_length") or 1) or said < (c.get("min_mentions") or 1):
+            continue
+        if c.get("pattern") and not match._search(c["pattern"], name):
+            continue
+        out.append(e)
+    return out
 
 
 def _check_custom(db, kit, nid, cfg, depth, here):
@@ -674,6 +730,10 @@ def _step(run, f, node, vals, args, returned, trace):
     if t == "filter":
         kept = [x for x in v if passes(c, x, run.extra.get("env"))] if isinstance(v, list) else []
         run.say(f"{name}: kept {len(kept)}")
+        return {"out": kept}
+    if t == "entity_filter":
+        kept = entity_filter(c, v)
+        run.say(f"{name}: kept {len(kept)} of {len(v) if isinstance(v, list) else 0}")
         return {"out": kept}
     if t == "for_each":
         items = dig(v, c["path"]) if c.get("path") else v
