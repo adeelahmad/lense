@@ -194,6 +194,35 @@ class ValidateTest(unittest.TestCase):
         [error] = changed_since(self.model.root, "no-such-ref")
         self.assertIn("can't compare with 'no-such-ref'", error)
 
+    def test_cited_tests_must_exist(self):
+        tests = self.model.root / "fastapi_backend" / "tests"
+        tests.mkdir(parents=True)
+        (tests / "test_x.py").write_text(
+            "def test_a():\n    pass\n\n\nasync def test_b():\n    pass\n"
+        )
+        cited = "Tested by `fastapi_backend/tests/test_x.py` `test_a`, `test_b`."
+        self.model.write(
+            PROSE.replace("| P-ONE | One. |", f"| P-ONE | One. {cited} |"),
+            {**SIDECAR, "x-tests": ["fastapi_backend/tests/test_x.py::test_a"]},
+        )
+        self.assertEqual(validate(self.model.root), [])
+        self.model.write(
+            PROSE.replace(
+                "| P-ONE | One. |",
+                "| P-ONE | One. Tested by `fastapi_backend/tests/test_x.py` `test_a`, `test_gone`. |",
+            ),
+            {**SIDECAR, "x-tests": ["fastapi_backend/tests/test_y.py::test_a"]},
+        )
+        errors = validate(self.model.root)
+        self.assertEqual(len(errors), 2, errors)
+        self.assertIn(
+            "threat-model.md:7 cites test_gone in fastapi_backend/tests/test_x.py",
+            errors[0],
+        )
+        self.assertIn(
+            "cites fastapi_backend/tests/test_y.py, which doesn't exist", errors[1]
+        )
+
     def test_two_changes_to_the_prose_merge_cleanly(self):
         # Issue #507: each branch changes the prose and the companions in its own place, so they merge without a
         # conflict and the merge still validates. A hash of the whole prose in the YAML made every such pair conflict.
