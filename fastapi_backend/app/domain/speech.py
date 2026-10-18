@@ -12,8 +12,9 @@ a base URL (a proxy or a compatible server works too), a model and an API key, s
 * gemini: Google Gemini text to speech (its prebuilt voices).
 
 Text to speech can also come from macOS `say` when Lens runs on a Mac itself (not in Docker): nothing to set up, the
-Mac's own voices; or from StyleTTS2, the optional `styletts2` service (styletts2/), which reads in a voice like a
-short clip of someone speaking. voices() lists what each one can read in, for Settings and podcast hosts.
+Mac's own voices; from Kokoro v1.0 (kokoro.py), which reads on this machine in any of its 54 voices and is fetched once
+it's picked; or from StyleTTS2, the optional `styletts2` service (styletts2/), which reads in a voice like a short clip
+of someone speaking. voices() lists what each one can read in, for Settings and podcast hosts.
 
 A provider's transcript is the same list of segments a local engine returns, plus `provider_speaker`: the speaker
 separation step uses those labels (diarize.engine provider, or auto), and voice IDs still come from local voiceprints.
@@ -45,7 +46,7 @@ import wave
 
 import numpy as np
 
-from . import store, vocabulary
+from . import kokoro, store, vocabulary
 
 log = logging.getLogger("lens")
 SR = 16000
@@ -58,9 +59,10 @@ LABELS = {
     "deepgram": "Deepgram",
     "gemini": "Google Gemini",
     "say": "macOS say",
+    "kokoro": "Kokoro",
     "styletts2": "StyleTTS2",
 }
-TTS_PROVIDERS = ("openai", "elevenlabs", "deepgram", "gemini", "say", "styletts2")
+TTS_PROVIDERS = ("openai", "elevenlabs", "deepgram", "gemini", "say", "kokoro", "styletts2")
 QUIET_SECONDS = 30  # a recording too long for one request is cut at the quietest moment in the half minute before a limit
 QUIET_WINDOW = SR // 10  # ... measured in tenths of a second
 POLL_SECONDS = 3
@@ -81,6 +83,7 @@ DEFAULT_VOICE = {
     "deepgram": DEEPGRAM_TTS_MODEL,
     "gemini": GEMINI_VOICE,
     "say": None,
+    "kokoro": "af_heart",
     "styletts2": "default",
 }
 STYLETTS2_SECONDS = 600  # it reads on the CPU, a long answer slowly; the first call also loads the model
@@ -575,6 +578,8 @@ def tts_ready(cfg):
         return bool(v.get("tts_model") and (v.get("tts_base_url") or (cfg.get("llm") or {}).get("base_url")))
     if p == "say":
         return say_available()
+    if p == "kokoro":
+        return kokoro.ready(cfg)  # fetched once it's picked; until then the browser reads answers
     if p == "styletts2":
         return bool(v.get("styletts2_url"))  # its own service; when it isn't running the browser reads answers
     return p in TTS_PROVIDERS and bool(_key(cfg, p))
@@ -669,6 +674,19 @@ def _speak_openai(cfg, text, voice):
     return m, lambda: _request(base + "/audio/speech", data=json.dumps(body).encode(), headers=headers, timeout=60)
 
 
+def _speak_kokoro(cfg, text, voice):
+    def call():
+        try:
+            pcm, rate = kokoro.read(cfg, text, voice)
+        except kokoro.Missing as e:
+            raise ProviderError(str(e)) from None
+        except ValueError as e:  # a voice it doesn't have, or nothing it could read
+            raise ProviderError(f"Kokoro couldn't read it: {e}") from None
+        return wav(pcm, rate), "audio/wav"
+
+    return kokoro.name(cfg), call
+
+
 def _styletts2_url(cfg):
     return str((cfg.get("voice") or {}).get("styletts2_url") or "").rstrip("/")
 
@@ -687,6 +705,7 @@ SPEAK = {
     "deepgram": _speak_deepgram,
     "gemini": _speak_gemini,
     "say": _speak_say,
+    "kokoro": _speak_kokoro,
 }
 
 
@@ -770,6 +789,9 @@ def voices(cfg, provider=None):
             return _say_voices(), None
         except (OSError, subprocess.TimeoutExpired) as e:
             return [], f"say didn't list its voices: {e}"
+    if p == "kokoro":
+        found = [_voice(*v) for v in kokoro.voices()]
+        return found, None if kokoro.ready(cfg) else "Kokoro is fetched once it's saved as the voice (Settings → Components)"
     if p == "styletts2":
         try:
             names = _json(_styletts2_url(cfg) + "/v1/audio/voices", timeout=15).get("voices") or []

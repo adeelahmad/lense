@@ -174,6 +174,8 @@ function AudioCleanup({ ctx }: { ctx: BodyCtx }) {
         {ctx.form["transcribe.cleanup.trim_silence"] !== false && (
           <F ctx={ctx} id="transcribe.cleanup.min_silence_ms" />
         )}
+        <F ctx={ctx} id="transcribe.cleanup.only_if_poor" />
+        {ctx.form["transcribe.cleanup.only_if_poor"] === true && <F ctx={ctx} id="transcribe.cleanup.snr_floor_db" />}
       </div>
     </div>
   );
@@ -3016,6 +3018,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
       <F ctx={ctx} id="ai.organise_notes" />
       <F ctx={ctx} id="ai.compact" />
       <F ctx={ctx} id="ai.auto_title" />
+      <F ctx={ctx} id="ai.answer_comments" />
       <More
         ctx={ctx}
         ids={["ai.untrusted_marking", "ai.untrusted_asks", "ai.injection_check"]}
@@ -3107,8 +3110,16 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
           />
           {tts === "openai" && <F ctx={ctx} id="voice.tts_base_url" />}
           {tts === "styletts2" && <F ctx={ctx} id="voice.styletts2_url" />}
+          {tts === "kokoro" && <F ctx={ctx} id="voice.kokoro_model" />}
         </div>
-        {tts === "styletts2" ? (
+        {tts === "kokoro" ? (
+          <p className="text-[12.5px] text-fg-secondary">
+            Reads answers and podcasts on this machine with Kokoro v1.0: nothing is sent anywhere and nothing is billed.
+            It’s fetched once you save it (see <Link href="/settings/components">Components</Link>); until then the
+            browser reads answers. A voice’s first letter is its language (a: American English, b: British English, e:
+            Spanish, f: French, h: Hindi, i: Italian, j: Japanese, p: Portuguese, z: Mandarin).
+          </p>
+        ) : tts === "styletts2" ? (
           <p className="text-[12.5px] text-fg-secondary">
             Reads on this machine, in a voice like a short clip of someone speaking: put a few seconds of a .wav in the
             service’s voices folder and pick it here. Heavy, so it runs only when started with{" "}

@@ -28,7 +28,8 @@ class Comment(ResponseModel):
     resolved_by_name: str | None = None
     resolved_at: str | None = None
     created_by: str | None = Field(None, description="its writer's email")
-    created_by_name: str | None = Field(None, description="its writer's name, when they gave one")
+    created_by_name: str | None = Field(None, description="its writer's name, when they gave one; Lens for the agent's answer")
+    by_agent: bool = Field(False, description="the agent wrote it, answering a comment that tagged it")
     created_at: str | None = None
     updated_at: str | None = None
     edited_at: str | None = Field(None, description="when its text last changed")

@@ -41,13 +41,21 @@ until then. What it does is in Settings → Transcription → Audio cleanup (`tr
 | `high_pass` | on | Takes out the rumble below speech: traffic, handling noise, a knocked desk |
 | `echo` | `off` | Echo cancellation for a two-channel recording with what the speakers played on one channel (`left` or `right`) and the microphone on the other, as call recorders keep them; the far side's voice is taken out of the microphone, then both sides are mixed |
 | `trim_silence` | on | Pauses of `min_silence_ms` (2000) or longer, by WebRTC's voice detection, are left out of what's transcribed |
+| `only_if_poor` | off | Measure each recording and clean only the low quality ones; a clean-sounding recording is left as it is and transcribed from the original |
+| `snr_floor_db` | 20 | With `only_if_poor`, a recording at or above this signal-to-noise (in dB) counts as clean; below it, or if it clips, it's cleaned |
+
+With `only_if_poor` off (the default) every recording the step runs on is cleaned. Turned on, the step first reads the
+recording's signal-to-noise and clipping with a quick measurement (numpy only, no model) and leaves a clean-sounding
+one untouched, so a pipeline can carry the step for everything while only the noisy, quiet or clipped recordings are
+actually cleaned. The measured `snr_db` and `clip_pct` are kept on the asset either way; a skipped recording keeps no
+other cleanup options.
 
 Leaving silence out means a cloud engine bills fewer minutes (the activity ledger's seconds are what was sent), a
 local one finishes sooner and Whisper has no quiet stretch to imagine words in. The transcript's times are put back on
 the recording's own timeline, so the player and every citation stay where the words were said.
 
 The step measures how much of the recording is speech and keeps what it ran with on the asset (`audio_cleanup` in
-`GET /api/v1/recordings/{id}`: the options, `speech_ms`, `kept_ms`, the gain it ended on). From then on transcribing
+`GET /api/v1/recordings/{id}`: the options, `speech_ms`, `kept_ms`, `snr_db`, `clip_pct`, the gain it ended on). From then on transcribing
 that asset hears it cleaned up that way, also on a later Reprocess. The file is never changed and no second copy is
 stored: cleaning takes a fraction of a second per minute of audio, so it's done again each time. Speaker separation and
 voice IDs still listen to the original. Run the step with every option off to have the asset transcribed as it is

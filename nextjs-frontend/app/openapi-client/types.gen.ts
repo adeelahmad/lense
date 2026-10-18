@@ -1457,23 +1457,53 @@ export type AudioCleanup = {
    */
   min_silence_ms: number;
   /**
+   * Only If Poor
+   *
+   * clean only recordings measured as low quality; others are left as they are
+   */
+  only_if_poor?: boolean;
+  /**
+   * Snr Floor Db
+   *
+   * with only_if_poor, a recording at or above this signal-to-noise is left as it is
+   */
+  snr_floor_db?: number;
+  /**
+   * Skipped
+   *
+   * the quality gate left this recording as it is; it's transcribed from the original
+   */
+  skipped?: boolean;
+  /**
    * Duration Ms
    *
    * how long the recording is
    */
-  duration_ms: number;
+  duration_ms?: number | null;
   /**
    * Speech Ms
    *
    * how much of it WebRTC's voice detection heard as speech
    */
-  speech_ms: number;
+  speech_ms?: number | null;
   /**
    * Kept Ms
    *
    * how much of it is transcribed: all of it unless silence is trimmed
    */
-  kept_ms: number;
+  kept_ms?: number | null;
+  /**
+   * Snr Db
+   *
+   * its estimated signal-to-noise, in dB (null when it couldn't be judged)
+   */
+  snr_db?: number | null;
+  /**
+   * Clip Pct
+   *
+   * the percent of its samples that are clipped
+   */
+  clip_pct?: number | null;
   /**
    * Gain Db
    *
@@ -4888,9 +4918,15 @@ export type Comment = {
   /**
    * Created By Name
    *
-   * its writer's name, when they gave one
+   * its writer's name, when they gave one; Lens for the agent's answer
    */
   created_by_name?: string | null;
+  /**
+   * By Agent
+   *
+   * the agent wrote it, answering a comment that tagged it
+   */
+  by_agent?: boolean;
   /**
    * Created At
    */

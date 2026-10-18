@@ -210,6 +210,8 @@ def test_settings_are_checked(db, cfg):
         ({"echo": "both"}, "echo is one of"),
         ({"gain": "yes"}, "gain is true or false"),
         ({"min_silence_ms": 10}, "min_silence_ms"),
+        ({"only_if_poor": "sometimes"}, "only_if_poor is true or false"),
+        ({"snr_floor_db": 80}, "snr_floor_db is a number"),
         ({"denoise": True}, "has no setting denoise"),
     ):
         with pytest.raises(ValueError, match=says):
@@ -241,6 +243,40 @@ def test_an_agent_reads_what_the_step_did(client, db, cfg, recording):
         json={"name": "Clean then transcribe", "steps": ["clean_audio", "transcribe"]},
     )
     assert pid.status_code in (200, 201), pid.text
+
+
+def noisy():
+    """The same speech and pauses as talk(), but under loud, steady noise: a low signal-to-noise recording."""
+    x = np.concatenate([quiet_for(2), babble(4, 1), quiet_for(10), babble(3, 2), quiet_for(3)])
+    return (x + np.random.default_rng(1).normal(0, 0.06, len(x))).astype(np.float32)
+
+
+def test_quality_reads_signal_to_noise_and_clipping():
+    clean_snr, clip = audio_cleanup.quality(talk())
+    noisy_snr, _ = audio_cleanup.quality(noisy())
+    assert clean_snr is not None and noisy_snr is not None
+    assert clean_snr > noisy_snr  # the clean recording measures a higher signal-to-noise
+    assert clip < 1  # talk() isn't clipped
+    clipped = np.clip(talk() * 20, -1, 1)
+    assert audio_cleanup.quality(clipped)[1] > audio_cleanup.CLIP_MAX  # driven into clipping
+
+
+def test_quality_gate_leaves_a_clean_recording_as_it_is(db, cfg, recording):
+    cfg["transcribe"]["cleanup"] = {"only_if_poor": True}  # the clean-sounding talk() is over the default 20 dB floor
+    rid = recording()
+    log = _run(db, cfg, rid, "clean_audio")
+    assert db.one("SELECT audio_cleanup FROM $r", r=R("recording", rid)).get("audio_cleanup") is None
+    assert any("good quality" in line and "left as it is" in line for line in log)
+    assert Engine.heard[-1] == 22 * SR  # it transcribed the whole original, nothing trimmed or cleaned
+
+
+def test_quality_gate_still_cleans_a_low_quality_recording(db, cfg, recording):
+    cfg["transcribe"]["cleanup"] = {"only_if_poor": True, "trim_silence": False}
+    rid = recording(noisy())
+    _run(db, cfg, rid, "clean_audio")
+    saved = db.one("SELECT audio_cleanup FROM $r", r=R("recording", rid))["audio_cleanup"]
+    assert saved and not saved.get("skipped")
+    assert saved["snr_db"] < saved["snr_floor_db"]  # under the floor, so it was cleaned
 
 
 def _admin(db):

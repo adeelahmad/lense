@@ -69,6 +69,10 @@ sandbox = ["openshell>=0.1.4,<0.2"]
 # the assistant's web search through DuckDuckGo (web.py): ddgs (MIT), with its Rust HTTP client (primp) and lxml;
 # fetched when DuckDuckGo is picked in Settings › AI assistant › Web search
 web = ["ddgs>=9.16,<10"]
+# Kokoro v1.0 reading answers and podcasts aloud on this machine (kokoro.py, voice.tts_provider "kokoro"): kokoro-onnx
+# (MIT) on ONNX Runtime. It turns text into phonemes with espeak-ng through phonemizer, both GPL-3.0, so it's fetched
+# only once Kokoro is picked in Settings › AI assistant › Voice
+kokoro = ["kokoro-onnx>=0.6.1,<0.7"]
 # the clean_audio step (audio_cleanup.py): WebRTC's noise suppression, gain control, echo cancellation and voice
 # detection through pywebrtc-audio (Apache-2.0; about 0.5 MB, numpy only); fetched the first time a pipeline runs it
 webrtc = ["pywebrtc-audio>=0.2.0,<0.3"]
@@ -112,6 +116,7 @@ dev = [
     "impacket>=0.13",  # the SMB share's server, and the SMB client its tests sign in with
     "openshell>=0.1.4,<0.2",  # the code sandbox's client, tested against a fake OpenShell gateway
     "botocore>=1.43.113",
+    "kokoro-onnx>=0.6.1,<0.7",  # Kokoro's tests phonemize with espeak-ng and read with a tiny Kokoro-shaped model
     "pywebrtc-audio>=0.2.0,<0.3",  # the clean_audio step's WebRTC audio processing, tested on synthetic audio
     "python-vaultwarden>=1.1.2,<2",  # the Vaultwarden client, tested against a fake Vaultwarden
 ]

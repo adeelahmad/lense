@@ -1,13 +1,13 @@
 "use client";
 
-import { MessageSquare, Reply, SmilePlus, Trash2 } from "lucide-react";
+import { MessageSquare, Reply, SmilePlus, Sparkles, Trash2 } from "lucide-react";
 import { useState, type KeyboardEvent } from "react";
 
 import type { Comment, Reaction } from "@/app/openapi-client/types.gen";
 import { threads, type Thread } from "@/components/recording/comments-model";
 import { writer } from "@/components/recording/notes-model";
 import type { Activity } from "@/components/timeline/model";
-import { EMOJIS, EMOJI_LABEL, commentsLabel } from "@/components/timeline/social-model";
+import { EMOJIS, EMOJI_LABEL, commentsLabel, linked } from "@/components/timeline/social-model";
 import { useActivityCommentActions, useActivityComments } from "@/components/timeline/use-social";
 import { Button, IconButton } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/field";
@@ -189,7 +189,10 @@ function CommentLine({
   return (
     <li className={cn("flex flex-col gap-0.5 py-1", c.parent != null && "ml-5 border-l border-border pl-3")}>
       <span className="flex items-center gap-2 text-[12px] text-fg-muted">
-        <span className="font-semibold text-fg">{writer(c)}</span>
+        <span className="inline-flex items-center gap-1 font-semibold text-fg">
+          {c.by_agent && <Sparkles className="size-3 text-fg-accent" aria-label="the agent" />}
+          {writer(c)}
+        </span>
         <span title={c.created_at ?? undefined}>{relative(c.created_at)}</span>
         {c.edited_at && <span>· edited</span>}
         <span className="ml-auto flex items-center gap-0.5">
@@ -209,7 +212,19 @@ function CommentLine({
           )}
         </span>
       </span>
-      <p className="whitespace-pre-wrap text-[13px] text-fg">{c.text}</p>
+      <p className="whitespace-pre-wrap text-[13px] text-fg">
+        {c.by_agent
+          ? linked(c.text).map((part, i) =>
+              part.url ? (
+                <a key={i} href={part.url} className="text-fg-accent underline-offset-2 hover:underline">
+                  {part.text}
+                </a>
+              ) : (
+                <span key={i}>{part.text}</span>
+              ),
+            )
+          : c.text}
+      </p>
     </li>
   );
 }
@@ -294,7 +309,9 @@ export function CommentThread({ a, bump }: { a: Activity; bump: (id: string, by:
       <Composer
         label="Comment"
         placeholder={
-          all.length ? "Add a comment… (Enter sends)" : "Comment… everyone who sees this reads it (Enter sends)"
+          all.length
+            ? "Add a comment, or ask @lens… (Enter sends)"
+            : "Comment, or ask @lens… everyone who sees this reads it (Enter sends)"
         }
         pending={pending}
         onSend={(text) => send(text)}

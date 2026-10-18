@@ -146,6 +146,8 @@ DEFAULTS = {
             "echo": "off",
             "trim_silence": True,
             "min_silence_ms": 2000,
+            "only_if_poor": False,  # clean every recording the step runs on; True cleans only ones measured low quality
+            "snr_floor_db": 20,  # with only_if_poor, a recording at or above this signal-to-noise is left as it is
         },
         "vocabulary": False,  # give each recording's engine the names its namespace knows (vocabulary.py)
     },
@@ -326,6 +328,7 @@ DEFAULTS = {
         "untrusted_asks": True,  # after reading it, tools that send data out or change the server ask first (ai_tools.py)
         "browser": True,  # people may connect their browser's Lens side panel for the assistant to use (browser.py)
         "browser_steps": 25,  # at most this many tool steps in an answer that uses the browser
+        "answer_comments": True,  # a comment that tags @lens gets the agent's answer on its thread (comment_agent.py)
         "injection_check": "patterns",  # flag text that reads like instructions to an AI: patterns, classifier, model, off
         "disabled_tools": [],
         "max_steps": 6,
@@ -349,8 +352,9 @@ DEFAULTS = {
     # browser's; spoken answers come from tts_model (an OpenAI-compatible /audio/speech), else the browser reads them
     # stt: the engine that hears voice chat ("same": the transcription engine); tts_provider: who reads answers aloud
     # (openai: the OpenAI-compatible speech server below; elevenlabs, deepgram, gemini: the keys in speech; say: macOS's
-    # own voices, when Lens runs on a Mac itself; styletts2: the optional service at styletts2_url); tts_voice: the
-    # voice they read in (null: the provider's default)
+    # own voices, when Lens runs on a Mac itself; kokoro: Kokoro v1.0 on this machine, fetched once it's picked, its
+    # model kokoro_model (fp32 or int8); styletts2: the optional service at styletts2_url); tts_voice: the voice
+    # they read in (null: the provider's default)
     "voice": {
         "input": "auto",
         "stt": "same",
@@ -359,6 +363,7 @@ DEFAULTS = {
         "tts_model": None,
         "tts_voice": None,
         "tts_api_key": None,
+        "kokoro_model": "fp32",
         "styletts2_url": "http://styletts2:8880",
     },
     # podcast episodes made from what someone picked (domain/podcasts.py): where they go, the hosts' names, how much

@@ -106,6 +106,16 @@ FILES = {
         5,
     ),
 }
+# Kokoro v1.0 (hexgrad's Kokoro-82M, Apache-2.0) as kokoro-onnx exports it, from its model-files-v1.1 release
+# (kokoro.py): the model in full precision and 8-bit (its fp16 export reads nothing on arm64, see kokoro.py), and every
+# voice: {file: (sha256, size in MB)}
+KOKORO = {
+    "kokoro-v1.0.onnx": ("beb0d1848dee9a49da392cc3df26958d46cfa35d321edf434f52949153f0df3a", 326),
+    "kokoro-v1.0.int8.onnx": ("ae315a79b623f244700e4afb9246c46a26066782e049ba174bf3ba433970ee9c", 114),
+    "voices-v1.0.bin": ("bca610b8308e8d99f32e6fe4197e7ec01679264efed0cac9140fe9c29f1fbf7d", 28),
+}
+for _name, (_sha, _mb) in KOKORO.items():
+    FILES[_name] = (f"https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/{_name}", _sha, _mb)
 # Florence-2-base-ft and -large-ft (MIT), the 8-bit ONNX exports at onnx-community, at fixed revisions (florence.py):
 # {size: (revision, {file: (sha256, size in MB)})}
 FLORENCE = {
@@ -630,6 +640,38 @@ class InjectionModel(Component):
             fetch_file(cfg, n, say)
 
 
+class Kokoro(Component):
+    """kokoro-onnx, the Kokoro model and its voices (kokoro.py), when Settings → AI assistant → Voice has Kokoro read
+    answers and podcasts aloud. Fetched as soon as it's picked, since spoken answers aren't jobs; podcasts (its steps)
+    wait while it's being fetched."""
+
+    kind = "model"
+
+    def needed(self, cfg, m):
+        return (cfg.get("voice") or {}).get("tts_provider") == "kokoro"
+
+    def serves(self, cfg, m):
+        return set()
+
+    def present(self, cfg):
+        from . import kokoro
+
+        return kokoro.ready(cfg)
+
+    def fetch(self, cfg, m, say):
+        from . import kokoro
+
+        if not importable("kokoro_onnx"):
+            pip_install(cfg, "kokoro", say)
+        for n in kokoro.files(cfg):
+            fetch_file(cfg, n, say)
+
+    def detail(self, cfg):
+        from . import kokoro
+
+        return kokoro.name(cfg)
+
+
 SPACY_MODELS = {"en_core_web_sm": "en_core_web_sm-3.8.0-py3-none-any.whl", "de_core_news_sm": "de_core_news_sm-3.8.0-py3-none-any.whl", "xx_ent_wiki_sm": "xx_ent_wiki_sm-3.8.0-py3-none-any.whl"}  # fmt: skip
 
 
@@ -1020,6 +1062,14 @@ COMPONENTS = [
         steps={"describe"},
         size_mb=280,
         license="MIT",
+    ),
+    Kokoro(
+        "kokoro",
+        "Kokoro",
+        "reads answers and podcasts aloud on this machine, in 54 voices (voice.tts_provider kokoro; about 450 MB, 240 MB with the int8 model)",
+        steps={"podcast"},
+        size_mb=450,
+        license="Apache-2.0 (model), MIT (kokoro-onnx), GPL-3.0 (espeak-ng, phonemizer)",
     ),
     Moondream(
         "moondream",

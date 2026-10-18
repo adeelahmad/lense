@@ -1,4 +1,4 @@
-import { applyReaction, commentsLabel, sumReactions } from "@/components/timeline/social-model";
+import { applyReaction, commentsLabel, linked, sumReactions } from "@/components/timeline/social-model";
 
 test("a reaction moves the count by one and keeps the palette's order", () => {
   const list = [{ emoji: "❤️", count: 2, mine: false }];
@@ -29,4 +29,13 @@ test("a line sums its items' reactions, yours when you gave it on any", () => {
   expect(commentsLabel(0)).toBe("");
   expect(commentsLabel(1)).toBe("1 comment");
   expect(commentsLabel(4)).toBe("4 comments");
+});
+
+test("the agent's reply links its addresses", () => {
+  expect(linked("Done.\nDecide in Lens: Write the note\nhttps://lens.local/approvals?id=3 (soon)")).toEqual([
+    { text: "Done.\nDecide in Lens: Write the note\n" },
+    { text: "https://lens.local/approvals?id=3", url: "https://lens.local/approvals?id=3" },
+    { text: " (soon)" },
+  ]);
+  expect(linked("no links here")).toEqual([{ text: "no links here" }]);
 });
