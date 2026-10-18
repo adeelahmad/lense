@@ -9,7 +9,7 @@ import urllib.parse
 
 import pytest
 
-from app.domain import calendars, gcal, google_auth, sources
+from app.domain import calendars, gcal, gmail, google_auth, sources
 from tests import fake_google
 from tests.helpers import drain, login, make_user
 
@@ -128,7 +128,7 @@ def test_a_shared_calendar_read_as_a_service_account(google, client, db, cfg, ad
     key = _service_account(google)
     assert client.get("/api/v1/sources/backends", headers=h).json()["gcal"] == {
         "label": "Google Calendar",
-        "fields": {"calendars": "", "impersonate": "", "days_back": "365", "account": ""},
+        "fields": {"calendars": "", "impersonate": "", "days_back": "365", "account": "", "write": ""},
         "secrets": ["token", "service_account_credentials"],
         "oauth": None,
         "google": True,
@@ -311,7 +311,7 @@ def test_connecting_a_google_account_in_the_browser(google, client, new_client, 
     assert client.get("/api/v1/sources/google-client", headers=h).json()["origin"] == "sign-in"
     url = client.post(f"/api/v1/sources/{sid}/google", headers=h, json={}).json()["url"]
     q = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(url).query))
-    assert q["client_id"] == "lens-web" and q["scope"].split() == ["openid", "email", *gcal.SCOPES]
+    assert q["client_id"] == "lens-web" and q["scope"].split() == ["openid", "email", gcal.READ]
     path, back = _back(client.get(google.consent(url, MARA), follow_redirects=False))
     assert path == "/sources" and back == {"google": "connected", "source": str(sid), "account": MARA}
     src = client.get("/api/v1/sources", headers=h).json()[0]
@@ -370,7 +370,11 @@ def test_connecting_a_google_account_in_the_browser(google, client, new_client, 
 
 def test_scopes_by_type(monkeypatch):
     src = {"type": "gcal", "params": {"via": "imap"}}
-    assert google_auth.scopes_for(src) == gcal.SCOPES
+    assert google_auth.scopes_for(src) == (gcal.READ,)
+    # adding events, once an admin lets the connection, asks Google for that too
+    assert google_auth.scopes_for({"type": "gcal", "params": {"write": "yes"}}) == (gcal.READ, gcal.EVENTS)
+    assert google_auth.scopes_for({"type": "gmail", "params": {"write": "yes"}}) == (gmail.GMAIL_READ, gmail.COMPOSE)
+    assert google_auth.scopes_for({"type": "gmail", "params": {"via": "imap", "write": "yes"}}) == (gmail.MAIL,)
     # a type whose scopes depend on its settings (Gmail over IMAP needs all of Gmail)
     monkeypatch.setattr(gcal, "SCOPES", lambda p: ["https://mail.google.com/"] if p.get("via") == "imap" else ["x"])
     assert google_auth.scopes_for(src) == ("https://mail.google.com/",)

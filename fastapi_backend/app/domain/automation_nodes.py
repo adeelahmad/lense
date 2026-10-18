@@ -11,9 +11,8 @@ automation, the person it acts for, now, what each node passed on so far in `ste
   back passes on and goes in `steps.<node id>`. One that asks first waits for the person's pick, and one with a delay
   (or a time, `when`) waits for its time: such a node passes nothing on, so the nodes after it are skipped and the
   run says why.
-- `decide`: asks the decision model which of its options fits, with an output port per option and `unsure`. It comes
-  with the conditions module (match.check_decide, match.run_decide); until then a decide node is refused as coming
-  soon.
+- `decide`: asks the decision model which of its options fits, with an output port per option and `unsure`
+  (match.check_decide, match.run_decide); `steps.<node id>` gets {port, choice, confidence, sure}.
 
 The leaf rule (`check_graph`, on every path a graph is saved by): an action that reaches outside Lens or other people
 (effect `out`, worked out from its params when it is saved) or that waits has nothing wired after it, since it can't
@@ -278,7 +277,9 @@ def run_node(r, f, node, value, vals):
         if run_decide is None:
             raise ValueError(f"{flow._label(node)}: deciding with the model is coming soon")
         out = run_decide(r, f, node, value)
-        _steps(r)[node["id"]] = {"choice": next(iter(out), None)}
+        port, got = next(iter(out.items()), (None, None))
+        d = got if isinstance(got, dict) and "sure" in got else {}
+        _steps(r)[node["id"]] = {"port": port, "choice": d.get("choice", port), "confidence": d.get("confidence"), "sure": d.get("sure")}
         return out
     return _action(r, f, node)
 

@@ -581,6 +581,13 @@ importing chosen ones and watching work as above. [News feeds](#news-feeds-rss-a
     (`google.token`, `google.calendar`); Google throttling the account shows as working, slowly, and a scan it
     interrupts is tried again at the next poll. The token endpoint is always Google's own, whatever a key file says. Without a Google Cloud project,
     a Google calendar's secret address in iCal format (Settings › Integrate calendar) works as a calendar feed.
+
+    **The assistant** (`write`): "Only reads" (empty, the default), or "Also adds events, after your yes" (`yes`),
+    which lets an admin's [assistant](assistant.md#mail-calendars-and-files) add an event once the person approves it,
+    with all of it shown first. That asks Google for `calendar.events` too, so a connected account connects again
+    (Connect again), a service account needs the calendars shared with it with "Make changes to events", and in
+    Workspace an admin allows `calendar.events` for it as well. Adding an event is a row in the activity ledger
+    (`google.calendar`, call `events.insert`) and in the audit log (`calendar.add`).
 - `.eml` and `.ics` files in any source, and uploaded through Import, can be read as text this way too.
 
 ### News feeds (RSS and Atom)
@@ -657,6 +664,14 @@ starts the source's watches again as new ones (taking what's there only if they 
 and messages differently: check their folders. Each access token Google gives, each listing and each message read is a
 row in the activity ledger (`google.token`, `gmail.list`, `gmail.read`); none costs anything.
 
+**The assistant** (`write`): "Only reads" (empty, the default), or "Also sends mail and saves drafts, after your yes"
+(`yes`), which lets an admin's [assistant](assistant.md#mail-calendars-and-files) send a message or save a draft once
+the person approves it, having read the whole message. Through the Gmail API that asks Google for `gmail.compose` too,
+so a connected account connects again (Connect again), and a Workspace admin allows
+`https://www.googleapis.com/auth/gmail.compose` for a service account as well; over IMAP, all of Gmail already covers
+it. Lens sends through the Gmail API either way. Each message sent or draft saved is a row in the activity ledger
+(`gmail.send`, `gmail.draft`) and in the audit log (`mail.send`, `mail.draft`).
+
 ## Pipelines and templates
 
 A pipeline is a named, versioned list of steps; each namespace can choose its default (otherwise: transcribe, diarize,
@@ -696,8 +711,10 @@ node passes what it makes along its connections.
 
 - **Entities:** Extract entities (rules) runs the extractor analyze uses (the rules, or spaCy), plus your terms (`Name|TYPE`) and
   regular expressions (`TYPE: pattern`); Extract entities (LLM) asks the model for structured entities and keeps,
-  corrects or adds to any passed in; Merge joins lists; Save entities makes them the asset's entities (people's
-  corrections kept) and redoes keywords and chapters.
+  corrects or adds to any passed in; Merge joins lists; Entity filter keeps the entities you want (only some types,
+  without others, without names on a stop list, names at least so long or matching a pattern, or said at least so
+  many times; anything in the list that isn't an entity is left out); Save entities makes them the asset's entities
+  (people's corrections kept) and redoes keywords and chapters.
 - **AI and logic:** LLM prompt (a prompt template, with what came in as `{{ input }}`), Classify (which of your
   labels, the content types or the namespace's topics fits the asset, or what came in as text; it passes on `choice`,
   `confidence`, `sure` and `ranked`, so a Condition or Switch can branch on them; [classifying](#classifying)), Pick
@@ -787,3 +804,31 @@ undo applied changes; an admin can undo everything a run applied at once (`POST 
 Merges are undone exactly as from an entity's page; a type or a hide someone has changed since stays as they left it.
 Agents do the same through the API, and `undo_graph_change` over MCP. To tidy types and noise, add a workflow that
 looks for wrong types and noise (no built-in workflow does, so nothing changes until you add one).
+
+### Publishing from the graph
+
+Graph workflows also publish, so a routine fills a [feed](feeds.md) or makes a [podcast episode](podcasts.md) on a
+schedule. Their nodes:
+
+- **Select assets** passes on the resources in the routine's namespaces (or the *namespaces* named), newest first,
+  *limit* at most (50, up to 500): those that came in *since* the routine's last run (the default; on its first run,
+  the past week), or in the past *day*, *week* or *month*, or *all* of them; matching *q* (words in the title),
+  *topics*, *entities* and *status*. Podcast episodes are left out unless *include episodes* is on, so an episode about
+  the week's resources isn't a source for the next one.
+- **Select activities** passes on the [timeline](timeline.md)'s activities in those namespaces, of the *kinds* named
+  (with their descendants), *since* the same choices, matching *q* and a *where* match tree, newest first, *limit* at
+  most (50, up to 200). Only what everyone who reads the namespace sees, never someone's own.
+- **Publish to feed** adds what comes in to the *feed*: resources and episodes, activities, or text (a template
+  node's output becomes a text item, with the node's *title*). What's in the feed already isn't added again, so a
+  routine that runs again adds only what's new; what the feed's readers couldn't read is refused and said in the run's
+  log. The feed's namespace is one the routine covers.
+- **Podcast episode** makes an episode about the resources that come in (*max sources*, 10, of those with text; none
+  under *min sources*), with the *title*, *prompt*, *length* and *style* of [Podcasts](podcasts.md), placed in the
+  *namespace* named, else the *feed*'s, else where an admin's episode goes; a source its readers couldn't read is left
+  out. With a *feed*, the episode is added to it and listed once it's made.
+
+A run's result counts what was `published` and the `episodes` made, and its log says what each node did. Try on the
+canvas runs a graph workflow over the namespaces you pick and says what each node would do, without publishing. So
+Select assets → Podcast episode (feed *Weekly*, length 10) on a routine that runs every Monday makes an episode about
+the week's new resources and puts it in your podcast app; Select activities (kinds `asset.added`) → Publish to feed
+puts the timeline in your feed reader.
