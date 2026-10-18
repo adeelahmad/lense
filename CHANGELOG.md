@@ -63,7 +63,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   `POST /api/v1/secrets/test`), the MCP tools `list_secrets`, `list_vault_items` and `set_secret_reference`, and the
   assistant's `list_secrets` and `vault_items` show references and whether they could be read, never a value. The
   client (python-vaultwarden, Apache-2.0) is fetched once a Vaultwarden address is set. Secrets saved in Lens stay
-  the default ([Secrets](docs/secrets.md)).
+  the default. In the web app, Settings › Secrets sets the vault up and tests it, and every secret field gets From
+  Vaultwarden, a picker of the vault's items that fills in the reference ([Secrets](docs/secrets.md)).
 - **A decide node for judgement calls.** An automation's workflow can ask the decision model a question with a few
   options ("Does this need me today?") and go on along the option it picked, or along `unsure` when it isn't sure
   enough, none is set up or the budget is spent. The email it reads is marked as outside text, the answer is kept per

@@ -81,6 +81,7 @@ export type SectionId =
   | "https"
   | "sign-in"
   | "encryption"
+  | "secrets"
   | "notifications"
   | "mail"
   | "bridge"
@@ -225,6 +226,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["encryption"],
     description:
       "Whether the files Lens keeps (uploads, renditions, frames, reports, exports) are encrypted on disk with their namespace’s key. Vaults stay encrypted either way.",
+  },
+  {
+    id: "secrets",
+    label: "Secrets",
+    backend: ["secrets"],
+    description:
+      "Keep API keys, tokens and passwords in a Vaultwarden vault: any secret field can refer to an item there instead of holding it. Secrets saved in Lens stay the default.",
   },
   {
     id: "components",
@@ -1157,6 +1165,55 @@ export const FIELDS: FieldSpec[] = [
     hint: "Its JSON output must be on (search.formats: json in its settings.yml).",
   },
   { section: "web", key: "api_key", label: "Search API key", kind: "secret" },
+  // Secrets: a password manager secret fields can refer to (docs/secrets.md)
+  {
+    section: "secrets",
+    key: "vaultwarden_url",
+    label: "Vaultwarden address",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "https://vault.example.com",
+    hint: "The address of your Vaultwarden server, as you open it in a browser.",
+  },
+  {
+    section: "secrets",
+    key: "vaultwarden_email",
+    label: "Lens’s account",
+    kind: "text",
+    nullable: true,
+    placeholder: "lens@example.com",
+    hint: "The email of an account of Lens’s own on the vault: everything it holds, Lens can read.",
+  },
+  {
+    section: "secrets",
+    key: "vaultwarden_client_id",
+    label: "API key client_id",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "user.…",
+    hint: "In that account: Settings › Security › Keys › View API key.",
+  },
+  { section: "secrets", key: "vaultwarden_client_secret", label: "API key client_secret", kind: "secret" },
+  { section: "secrets", key: "vaultwarden_password", label: "Master password", kind: "secret" },
+  {
+    section: "secrets",
+    key: "vaultwarden_folder",
+    label: "Folder Lens reads",
+    kind: "text",
+    hint: "Only the items in this folder can be referred to; put the ones Lens needs there, or share them into it.",
+  },
+  {
+    section: "secrets",
+    key: "cache_minutes",
+    label: "Read values again after",
+    kind: "int",
+    min: 1,
+    max: 1440,
+    unit: "minutes",
+    hint: "Values are kept in memory this long, then read again in the background, so a key changed in the vault reaches Lens by itself.",
+  },
   {
     section: "web",
     key: "results",
@@ -3950,6 +4007,12 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   const mx = n("diarize.max_speakers");
   if (typeof mn === "number" && typeof mx === "number" && mn > mx)
     e["diarize.max_speakers"] = "Max speakers can’t be below min speakers";
+  const vault = values["secrets.vaultwarden_url"];
+  if (typeof vault === "string" && vault && !/^https?:\/\/[^\s/?#@]+(\/[^\s?#]*)?$/i.test(vault))
+    e["secrets.vaultwarden_url"] = "An http:// or https:// address, with no user name, password or query in it";
+  const account = values["secrets.vaultwarden_email"];
+  if (typeof account === "string" && account && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(account))
+    e["secrets.vaultwarden_email"] = "The email address of the account Lens signs in as";
   const hosts = values["server.allowed_hosts"] as string[] | undefined;
   if (hosts) {
     if (!hosts.length) e["server.allowed_hosts"] = "List at least one host name (or * for any)";
