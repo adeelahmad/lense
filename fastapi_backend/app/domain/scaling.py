@@ -44,6 +44,7 @@ import threading
 import time
 
 from . import activity, budgets, jobs, schedule, settings, store
+from . import scaling_clouds  # noqa: F401 - registers the cloud drivers
 from . import scaling_drivers as drivers
 from .store import R
 
@@ -539,6 +540,7 @@ def group_view(db, g, now=None):
     st = budgets.status(db, _budget_ref(g["id"]), b, now) if b else None
     approval = g.get("approval")
     t = terms({**g, "budget": b.get("usd") if b else None})  # the budget lives in the budget table, not on the row
+    drv = drivers.DRIVERS.get((db.one("SELECT driver FROM $r", r=R("scale_provider", int(g["provider"]))) or {}).get("driver"))
     out = {
         "id": g["id"],
         "name": g.get("name"),
@@ -560,6 +562,7 @@ def group_view(db, g, now=None):
         "approval": approval,
         "approved": bool(approval) and not widens(approval.get("terms") or {}, t),
         "terms": t,
+        "needs_join": bool(drv and drv.needs_join),
         "budget": {"usd": b.get("usd"), "period": b.get("period"), "state": st["state"], "spent": st["spent"], "left": st["left"]}
         if b
         else None,
@@ -593,6 +596,8 @@ def waiting_for(view, cfg=None):
         return "a person's approval of its terms, in Settings › Auto scaling"
     if view.get("capped"):
         return f"its budget: {view['capped']}"
+    if cfg is not None and view.get("needs_join") and not can_join(cfg):
+        return "the mesh's install line, which other machines join Lens with (in progress, docs/mesh.md)"
     return None
 
 
@@ -951,7 +956,7 @@ def evaluate(g, m, units, now, state=None):
 
 # ---------- the scaler ----------
 def mesh_module():
-    """The Nebula mesh (mesh.py, docs/network.md) when this Lens has it, else None."""
+    """The Nebula mesh (mesh.py, docs/mesh.md) when this Lens has it, else None."""
     try:
         from . import mesh
     except ImportError:
@@ -959,18 +964,24 @@ def mesh_module():
     return mesh
 
 
+def can_join(cfg):
+    """Whether another machine can join Lens now: the mesh is on and has the install line machines join with."""
+    mesh = mesh_module()
+    if mesh is None or not (getattr(mesh, "conf", lambda c: {})(cfg) or {}).get("enabled"):
+        return False
+    return bool(getattr(mesh, "make_token", None) and getattr(mesh, "join_line", None))
+
+
 def bootstrap(db, cfg, g, name):
     """How a unit joins Lens: a worker started here gets its name and inherits the rest; a machine elsewhere gets the
     mesh's install line (`LENS_JOIN=… LENS_JOIN_TOKEN=… sh install.sh`) with a one-time join token good for an hour,
     named for the unit, so the provider's user-data carries no long-lived secret: the database credential travels
-    inside the sealed join answer. {env, line, token_id} (line and token_id None without the mesh)."""
-    boot = {"env": {"LENS_SCALING_UNIT": name}, "line": None, "token_id": None}
+    inside the sealed join answer. {env, line, token_id, tag} (line and token_id None without the mesh)."""
+    boot = {"env": {"LENS_SCALING_UNIT": name}, "line": None, "token_id": None, "tag": conf(cfg)["tag"]}
+    if not can_join(cfg):
+        return boot
     mesh = mesh_module()
-    if mesh is None or not (getattr(mesh, "conf", lambda c: {})(cfg) or {}).get("enabled"):
-        return boot
-    make, line = getattr(mesh, "make_token", None), getattr(mesh, "join_line", None)
-    if not (make and line):
-        return boot
+    make, line = mesh.make_token, mesh.join_line
     row, token = make(db, cfg, by="scaling", role="worker", name=name, hours=1, uses=1)
     boot["line"], boot["token_id"] = line(cfg, token), (row or {}).get("id")
     return boot
@@ -1035,6 +1046,7 @@ class Scaler:
         launching = [n for n in units if n.get("state") == "launching"]
         view = group_view(db, g, now)
         may_launch = enabled(cfg) and view["enabled"] and not view["paused"] and view["approved"] and not capped
+        joinable = not drv.needs_join or can_join(cfg)
         lo, hi, desired = g.get("min") or 0, g.get("max") or 0, g.get("desired") or 0
         if may_launch and g.get("rules"):
             want, state, said, new_min, new_max = evaluate(
@@ -1057,7 +1069,7 @@ class Scaler:
             target = 0
         elif capped:
             target = lo if g.get("at_cap") == "min" else 0
-        elif not view["approved"] or view["paused"]:
+        elif not view["approved"] or view["paused"] or not joinable:
             target = min(target, len(running) + len(launching))  # nothing new; what runs stays
         have = len(running) + len(launching)
         if target > have:
