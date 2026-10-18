@@ -1509,7 +1509,8 @@ built yet is in [Refine later](#refine-later); the [Timeline](timeline.md) has i
   source pages, so narrow it by account if that proves slow.
 - The studio: dragging actions and rows to reorder them (today the arrows move an action); sharing an automation as a
   file; a builder laid out for phones first; the builder showing and editing an automation's own limits (`cooldown`,
-  `max_per_hour`), which today it keeps as they came.
+  `max_per_hour`), which today it keeps as they came. On a phone, Save and turn on sits under the bottom bar, so making one from a
+  starter takes a swipe (5 taps and a swipe, against 4 clicks on a computer, in the clicks survey).
 - Agents: MCP tools for drafting from a sentence, the starters, delete and restore, and deciding a held run (today
   through the API); the assistant's own `automation_actions` and variable tools.
 - Starters: "No reply in two days" matching the reply to the same conversation (emails carry no thread yet, so any
