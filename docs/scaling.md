@@ -10,9 +10,10 @@ Status: in progress. Built: groups, rules, approvals, budgets, the scaler, the A
 Settings › Auto scaling (the switch, and each group's terms to approve or pause), and **This machine**, a provider that
 runs more `lens worker` processes where Lens runs. In progress: **DigitalOcean** and **Hetzner Cloud** providers are
 built (credentials checked, list prices, launching, watching and deleting machines), and launch once the mesh's
-install line, which another machine joins Lens with, lands ([the mesh](mesh.md)); so is **Proxmox VE**, clones of a
-VM template on your own server. Planned: providers for AWS and any Linux host over SSH; model hosts (RunPod, Lambda, Hugging Face, SageMaker, Bedrock) for models; and making
-providers and groups in Settings.
+install line, which another machine joins Lens with, lands ([the mesh](mesh.md)); so are **Proxmox VE**, clones of a
+VM template on your own server, and **Linux hosts over SSH**, workers started on machines you have. Planned: a
+provider for AWS; model hosts (RunPod, Lambda, Hugging Face, SageMaker, Bedrock) for models; and making providers and
+groups in Settings.
 
 Auto scaling is **off** until an admin turns it on, and a group launches nothing until a person approves its terms
 signed in to the web app. Agents can propose and manage groups, but never approve one.
@@ -57,6 +58,7 @@ carries none of them.
 | `local` (This machine) | more `lens worker` processes where the scaler runs | nothing | `steps`: the steps they run (none: every step) |
 | `digitalocean` | droplets in `region`, with `token` (sealed), optional `ssh_keys` and `vpc_uuid` | DigitalOcean's hourly list price | `size` (`s-1vcpu-2gb`), `image` (`ubuntu-24-04-x64`), `steps` |
 | `proxmox` (Proxmox VE) | clones of a VM template on `node`, at `url` with an API token (`token_id`, `token_secret` sealed); `verify_tls` (on) and `ca_cert` for a private CA | nothing, unless you give it a price | `vm_template` (its id), `full_clone` (off: linked), `storage`, `pool`, `steps` |
+| `ssh` (Linux hosts over SSH) | `lens worker` started on `hosts` (`user@host` or `user@host:port`), signed in with `private_key` (sealed; `passphrase` if it has one) | nothing, unless you give it a price | `per_host` (1): workers on each host; `steps` |
 | `hetzner` (Hetzner Cloud) | servers in `location`, with `token` (sealed), optional `ssh_keys` | Hetzner's hourly gross price in euros, times `usd_per_eur` (1.1; set your rate) | `server_type` (`cx22`), `image` (`ubuntu-24.04`), `steps` |
 
 A worker on This machine stops with the process that started it, and the scaler that takes over starts them again where
@@ -78,6 +80,15 @@ script stays in Lens's memory until then; a clone whose boot was cut short, by L
 deleted. Letting a unit go stops the clone and deletes it with its disks. The API token needs to clone, configure,
 start, stop and delete VMs and use their guest agent (the `PVEVMAdmin` role on the template and the clones' pool is
 enough).
+
+An SSH unit is the first-boot script started on one of the provider's hosts, the first with fewer than `per_host` of
+Lens's workers running, in its own process group (`setsid`) under `~/.lens-scaling/`: the script is written there
+readable only by that user and deletes itself as it starts, since it holds the unit's join token; the unit's process
+id and log stay beside it. Letting a unit go stops its process group and removes its files. Host keys are trusted on
+first use: saving or checking the provider records each host's key on it (`check.host_keys`, kept when a later check
+fails), and every other call refuses a host whose key differs. A host whose key changed for a good reason is taken off
+the provider and added back. The SSH client is Paramiko (LGPL-2.1, used unmodified), the `ssh` extra, fetched the
+first time an SSH provider is saved.
 
 Until the mesh is on and has its install line, a group on these providers waits (`waiting_for` says so) and launches
 nothing, since its machines couldn't join. They call the providers' REST APIs with httpx, so they install nothing.
@@ -170,7 +181,7 @@ Turning scaling on (`change_settings scaling`) always asks.
 
 ## Refine later
 
-Providers for SSH hosts and model hosts; Proxmox LXC containers; the AWS provider (in its own pull request); revoking a unit's mesh
+Providers for model hosts; Proxmox LXC containers; the AWS provider (in its own pull request); revoking a unit's mesh
 certificate when it goes; reporting machines with Lens's tag that Lens has no unit for (`listing`); a live euro
 rate; spot and preemptible instances; warm pools; predictive scaling; health checks beyond
 joining; prices fetched from providers' pricing APIs.

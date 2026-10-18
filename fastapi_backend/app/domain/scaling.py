@@ -44,7 +44,7 @@ import threading
 import time
 
 from . import activity, budgets, jobs, schedule, settings, store
-from . import scaling_clouds, scaling_proxmox  # noqa: F401 - registers their drivers
+from . import scaling_clouds, scaling_proxmox, scaling_ssh  # noqa: F401 - registers their drivers
 from . import scaling_drivers as drivers
 from .store import R
 
@@ -224,6 +224,8 @@ def _check_call(db, cfg, p, drv):
         result = {"ok": True, **(out if isinstance(out, dict) else {})}
     except Exception as e:  # noqa: BLE001 - what the provider said, for the person
         result = {"ok": False, "error": f"{type(e).__name__}: {e}"[:500] if not isinstance(e, drivers.DriverError) else str(e)[:500]}
+        before = p.get("check") or {}
+        result |= {k: before[k] for k in drv.kept if k in before}  # what a failed check mustn't forget (SSH host keys)
     db.q("UPDATE $r SET checked_at = $t, check = $c", r=R("scale_provider", p["id"]), t=store.now(), c=result)
     return result
 
