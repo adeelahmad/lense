@@ -43,6 +43,7 @@ const view = (voice: Record<string, unknown>) =>
         price_out: null,
         compact_model: null,
         context_tokens: null,
+        compact_at: 50,
       },
     },
     decisions: {
