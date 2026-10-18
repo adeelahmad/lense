@@ -160,6 +160,9 @@ import type {
   CombineBatchData,
   CombineBatchErrors,
   CombineBatchResponses,
+  CommentOnActivityData,
+  CommentOnActivityErrors,
+  CommentOnActivityResponses,
   ConnectData,
   ConnectErrors,
   ConnectGoogleData,
@@ -332,6 +335,9 @@ import type {
   DefineEntityData,
   DefineEntityErrors,
   DefineEntityResponses,
+  DeleteActivityCommentData,
+  DeleteActivityCommentErrors,
+  DeleteActivityCommentResponses,
   DeleteAutomationData,
   DeleteAutomationErrors,
   DeleteAutomationResponses,
@@ -923,6 +929,9 @@ import type {
   ListActivitiesData,
   ListActivitiesErrors,
   ListActivitiesResponses,
+  ListActivityCommentsData,
+  ListActivityCommentsErrors,
+  ListActivityCommentsResponses,
   ListActivityKindsData,
   ListActivityKindsResponses,
   ListAllTokensData,
@@ -1405,6 +1414,9 @@ import type {
   QueueStepData,
   QueueStepErrors,
   QueueStepResponses,
+  ReactToActivityData,
+  ReactToActivityErrors,
+  ReactToActivityResponses,
   ReadFeedAudioData,
   ReadFeedAudioErrors,
   ReadFeedAudioResponses,
@@ -1907,6 +1919,9 @@ import type {
   UpcomingData,
   UpcomingErrors,
   UpcomingResponses,
+  UpdateActivityCommentData,
+  UpdateActivityCommentErrors,
+  UpdateActivityCommentResponses,
   UpdateAssistantMemoryData,
   UpdateAssistantMemoryErrors,
   UpdateAssistantMemoryResponses,
@@ -4341,6 +4356,94 @@ export class Activities {
   ): RequestResult<MarkActivityResponses, MarkActivityErrors, ThrowOnError> {
     return (options.client ?? client).post<MarkActivityResponses, MarkActivityErrors, ThrowOnError>({
       url: "/api/v1/activities/{activity_id}/mark",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * React To Activity
+   *
+   * React to an activity with an emoji from the palette (👍 ❤️ 🎉 👀 😂 😮 😢 🙏), or with `on` false take yours
+   * back. Everyone who sees the activity sees the reactions; a new one is a `reaction.added` activity automations
+   * can act on. The answer is the reactions on it now.
+   */
+  public static reactToActivity<ThrowOnError extends boolean = false>(
+    options: Options<ReactToActivityData, ThrowOnError>,
+  ): RequestResult<ReactToActivityResponses, ReactToActivityErrors, ThrowOnError> {
+    return (options.client ?? client).post<ReactToActivityResponses, ReactToActivityErrors, ThrowOnError>({
+      url: "/api/v1/activities/{activity_id}/react",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Activity Comments
+   *
+   * The activity's comments, threaded: each thread followed by its replies, the earliest first. On an asset's
+   * arrival (`create-recording-<id>`) they are the asset's own comments, the same ones its page shows.
+   */
+  public static listActivityComments<ThrowOnError extends boolean = false>(
+    options: Options<ListActivityCommentsData, ThrowOnError>,
+  ): RequestResult<ListActivityCommentsResponses, ListActivityCommentsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListActivityCommentsResponses, ListActivityCommentsErrors, ThrowOnError>({
+      url: "/api/v1/activities/{activity_id}/comments",
+      ...options,
+    });
+  }
+
+  /**
+   * Comment On Activity
+   *
+   * Comment on an activity, or with `parent` reply on a thread (a reply to a reply goes on the thread too). Anyone
+   * who sees the activity can, up to 1,000 each; everyone who sees it reads them, and each one is a `comment.added`
+   * activity. On an asset's arrival the comment goes on the asset itself.
+   */
+  public static commentOnActivity<ThrowOnError extends boolean = false>(
+    options: Options<CommentOnActivityData, ThrowOnError>,
+  ): RequestResult<CommentOnActivityResponses, CommentOnActivityErrors, ThrowOnError> {
+    return (options.client ?? client).post<CommentOnActivityResponses, CommentOnActivityErrors, ThrowOnError>({
+      url: "/api/v1/activities/{activity_id}/comments",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Activity Comment
+   *
+   * Delete it: its writer, or an owner of the namespace. A thread's first comment takes its replies with it.
+   * Audited (`comment.delete`).
+   */
+  public static deleteActivityComment<ThrowOnError extends boolean = false>(
+    options: Options<DeleteActivityCommentData, ThrowOnError>,
+  ): RequestResult<DeleteActivityCommentResponses, DeleteActivityCommentErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteActivityCommentResponses, DeleteActivityCommentErrors, ThrowOnError>(
+      { url: "/api/v1/activities/{activity_id}/comments/{cid}", ...options },
+    );
+  }
+
+  /**
+   * Update Activity Comment
+   *
+   * Change its text (its writer only), or resolve or reopen its thread (`resolved`, on the thread's first comment:
+   * its writer, or an editor of the namespace).
+   */
+  public static updateActivityComment<ThrowOnError extends boolean = false>(
+    options: Options<UpdateActivityCommentData, ThrowOnError>,
+  ): RequestResult<UpdateActivityCommentResponses, UpdateActivityCommentErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateActivityCommentResponses, UpdateActivityCommentErrors, ThrowOnError>({
+      url: "/api/v1/activities/{activity_id}/comments/{cid}",
       ...options,
       headers: {
         "Content-Type": "application/json",

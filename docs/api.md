@@ -226,6 +226,11 @@ GET    /api/v1/activities/kinds
 GET    /api/v1/activities/{activity_id}
 POST   /api/v1/activities/mark
 POST   /api/v1/activities/{activity_id}/mark
+POST   /api/v1/activities/{activity_id}/react
+GET    /api/v1/activities/{activity_id}/comments
+POST   /api/v1/activities/{activity_id}/comments
+PATCH  /api/v1/activities/{activity_id}/comments/{cid}
+DELETE /api/v1/activities/{activity_id}/comments/{cid}
 ```
 
 `GET /activities` is what happened in Lens, newest first, from every source: Activity Streams 2.0 activities with a
@@ -243,6 +248,16 @@ Each person marks activities `reviewed`, `important` or `hidden` for themselves 
 `POST /activities/{id}/mark` with any of the three (true or false; one left out stays) answers the marks on it now,
 and `POST /activities/mark` with `ids` (up to 500) answers `{marks, unknown}`. `GET /activities` has your marks on
 the page in `marks` and filters by them with `reviewed`, `important` and `hidden` (true or false).
+
+Reactions and comments are shared by everyone who sees the activity
+([Timeline](timeline.md#reactions-and-comments)). `POST /activities/{id}/react` with `{"emoji": "👍"}` (one of
+👍 ❤️ 🎉 👀 😂 😮 😢 🙏; `"on": false` takes yours back) answers `{reactions: [{emoji, count, mine}]}` and logs a
+`reaction.added` activity when it is new. `/activities/{id}/comments` is the activity's thread, shaped as
+[comments on a resource](#comments): `GET` lists them threaded, `POST` with `text` (and `parent` for a reply) writes
+one, `PATCH` changes its text (its writer) or resolves the thread (`resolved`: its writer or an editor of the
+namespace), `DELETE` deletes it (its writer or an owner). On an asset's arrival (`create-recording-<id>`) they are the
+asset's own comments. `GET /activities` carries everyone's reactions on the page in `reactions` and each item's
+comment count in `comments`, by id. Writing needs a session or a write-scope key; a read-only key reads them.
 
 ## automations
 

@@ -1150,3 +1150,4 @@ from . import events_content  # noqa: E402, F401 - the recordings source, regist
 from . import events_streams  # noqa: E402, F401 - sensors, chat, webhooks and system kinds, the same way
 from . import events_approvals  # noqa: E402, F401 - approvals waiting and decided, after the content sources it reuses
 from . import events_automations  # noqa: E402, F401 - automations' runs, and the automation kinds
+from . import event_reactions  # noqa: E402, F401 - reactions on activities (reaction.added), logged by people and agents
