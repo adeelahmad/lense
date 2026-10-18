@@ -468,6 +468,7 @@ export const LAYERS: Opt[] = [
 
 /** The chat assistant's tools (app/domain/ai_tools.py), with whether they change anything. */
 export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
+  { name: "lens_help", label: "Answer questions about Lens from its docs and this server", acts: false },
   { name: "search_transcripts", label: "Search assets’ text", acts: false },
   {
     name: "list_recordings",
@@ -738,6 +739,18 @@ export const FIELDS: FieldSpec[] = [
       { value: "spacy", label: "spaCy" },
     ],
     hint: "spaCy finds people, organisations, places and dates with a small language model, fetched the first time it's needed (about 60 MB). Defined entities still come first",
+  },
+  {
+    section: "analysis",
+    key: "typing",
+    label: "Names the rules can't type",
+    kind: "select",
+    options: [
+      { value: "auto", label: "Ask the decision model, when one is set up" },
+      { value: "model", label: "Ask the decision model, else the language model" },
+      { value: "rules", label: "Leave them terms" },
+    ],
+    hint: "A single unknown word, such as a brand or a project, is a term to the rules. The model reads the lines it's said in and gives it a type only when it's sure. Calls count in Activity and stop at the budget's hard limit.",
   },
   {
     section: "analysis",

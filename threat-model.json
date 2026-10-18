@@ -55,6 +55,7 @@
         "admin machine setup requests",
         "admin optional container requests",
         "entity and topic curation tools",
+        "lens help tool",
         "microsandbox program requests"
       ],
       "touches": [
@@ -702,6 +703,15 @@
       "caller_must_enforce": "none — served only to the conversation's person (404 otherwise, or for another conversation's id) as an attachment with nosniff and a sandbox content policy, never rendered; random 96-bit id checked against the conversation; kept AES-256-GCM encrypted with a key derived from the server's secret, bound to the file and conversation; at most 20 a conversation, 25 MB each; deleted with the conversation or the account",
       "provenance": "documented",
       "source": "docs/assistant.md \"Code sandbox\""
+    },
+    {
+      "entry_point": "lens help tool",
+      "parameter": "assistant and MCP lens_help: a question's words, a docs page's name",
+      "attacker_controllable": "yes",
+      "component": "authz",
+      "caller_must_enforce": "none — it only reads: docs from a fixed folder (a page picked by name from the indexed ones, never opened by path) in an in-memory index; this server's facts carry no keys, tokens or model server addresses, and the settings pages only for admins",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"Questions about Lens itself\""
     },
     {
       "entry_point": "deep research",

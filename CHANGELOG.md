@@ -94,6 +94,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   stream could wait for a database connection its own thread already held, and every request after it waited too.
   A query made inside another on the same thread now runs on that connection
   ([Concurrency](docs/database.md#concurrency)).
+- **The decision model types the names the rules can't.** When Jev or Laya is set up, analysis asks it what each new
+  Term of a recording is (a person, an organisation, a product...), with the lines it's said in, in one call per
+  recording, and keeps the types it is sure of. Settings › Analysis › Names the rules can't type (`analysis.typing`)
+  can also let the language model answer, or turn it off; the language model is never asked by default
+  ([Names the rules can't type](docs/processing.md#entities-and-the-graph-explorer)).
 
 - **Published feeds.** A namespace publishes a private RSS feed, or a podcast feed with Apple Podcasts' tags, that any
   feed reader or podcast app follows at its address: resources (with their audio as the enclosure), podcast episodes

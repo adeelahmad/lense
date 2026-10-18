@@ -648,6 +648,15 @@ entry_points:
         control_kinds: [data, x-prompt-injection]
         caller_must_enforce: "none — served only to the conversation's person (404 otherwise, or for another conversation's id) as an attachment with nosniff and a sandbox content policy, never rendered; random 96-bit id checked against the conversation; kept AES-256-GCM encrypted with a key derived from the server's secret, bound to the file and conversation; at most 20 a conversation, 25 MB each; deleted with the conversation or the account"
         provenance: {kind: documented, source: 'docs/assistant.md "Code sandbox"'}
+  - id: "lens help tool"
+    component: authz
+    parameters:
+      - name: "assistant and MCP lens_help: a question's words, a docs page's name"
+        attacker_controllable: true
+        x-condition: "any signed-in person or agent with a read token; indirectly through content the model reads"
+        control_kinds: [data, x-prompt-injection]
+        caller_must_enforce: "none — it only reads: docs from a fixed folder (a page picked by name from the indexed ones, never opened by path) in an in-memory index; this server's facts carry no keys, tokens or model server addresses, and the settings pages only for admins"
+        provenance: {kind: documented, source: 'docs/assistant.md "Questions about Lens itself"'}
   - id: "deep research"
     component: assistant
     parameters:
@@ -1993,6 +2002,7 @@ known_misuses:
   - {id: km-push-token-in-url, components: [optional], pattern: "Webhook push token in a URL that proxies log", x-why-unsafe: "The token is a credential in the path", safer_alternative: "Use the header form", x-provenance-basis: "§1.13 row 'Keep logs that record request paths private'", provenance: {kind: documented, source: 'docs/sensors.md "Ways in"'}}
   - {id: km-hosted-model-sensitive, components: [assistant], pattern: "Pointing the assistant at a hosted model for sensitive archives", x-why-unsafe: "Assets' text leaves the machine", safer_alternative: "Use a local model server", x-provenance-basis: "§1.13 row 'Pick model and speech servers you trust'", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: km-browser-sign-in, components: [assistant], pattern: "Signing in to a site in the assistant's browser", x-why-unsafe: "One browser serves everyone whose assistant uses it, so they are signed in too until it stops", safer_alternative: "Give the assistant only public pages, or an account made for it", provenance: {kind: documented, source: 'docs/assistant.md "One browser for everyone"'}}
+  - {id: km-hosted-decision-model-sensitive, components: [assistant], pattern: "A hosted decision model (Jev) for sensitive archives", x-why-unsafe: "Routine choices send it excerpts, notes and the lines that name what analysis can't type", safer_alternative: "Use Laya, or set Settings › Analysis › Names the rules can't type to Leave them terms", x-provenance-basis: "§1.13 row 'Pick model and speech servers you trust'", provenance: {kind: maintainer, date: "2026-10"}}
 
 # ---------------------------------------------------------------- §1.15
 known_non_findings:

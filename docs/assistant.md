@@ -163,9 +163,9 @@ Exports carry each tool call's arguments and summary, never its raw result, whic
 export the same way over MCP: `list_chats`, `read_chat` and `export_chat` ([MCP](mcp.md)) work on the person's own
 conversations.
 
-In the web app, an answer's copy button offers **Copy as Markdown** (its citations as footnotes linking back to Lens,
-as in the Markdown export) and **Copy text** (without Markdown or citation numbers), then exports that answer with
-its question as Markdown, PDF or JSON. A question has its own copy button, shown on hover, and each code block in an
+In the web app, an answer's copy button copies it as Markdown in one click (its citations as footnotes linking back to
+Lens, as in the Markdown export); the arrow beside it also offers **Copy text** (without Markdown or citation numbers)
+and exports that answer with its question as Markdown, PDF or JSON. A question has its own copy button, shown on hover, and each code block in an
 answer has one that copies the code as written. The download icon in a conversation's header exports the whole
 conversation. When the server can't make a PDF, the browser's print dialog opens on the conversation (or that one
 answer), without the app around it, so Save as PDF still works.
@@ -283,6 +283,29 @@ When the configured model supports function calling, chat becomes an agent.
   conversation's own, to compute, analyse or convert files. See [Code sandbox](#code-sandbox).
 - **The web:** when an admin turns on web search, `web_search` and `web_read` look up what the archive doesn't hold,
   cited like excerpts ([below](#web-search-and-reading-pages)).
+- **Lens itself:** questions about Lens rather than the archive go to `lens_help` ([below](#questions-about-lens-itself)).
+
+### Questions about Lens itself
+
+Ask the assistant about Lens, not only about the archive: "what's the MCP address?", "how do I connect Claude?",
+"how do I back up?", "is Telegram on?". It answers with the `lens_help` tool, from two things, and cites both:
+
+- **This server:** its version and addresses (the web app as you're using it, the MCP address, the API, the API tokens
+  page, the remote access and HTTPS addresses when they're on), whether apps can sign in with OAuth, the chat model,
+  what is turned on (the model provider, search by meaning, chat rooms, Telegram, Slack, email, remote access, HTTPS,
+  sensors, file shares, encryption, backups, update checks, telemetry, analytics...), and your own access: admin or
+  not, and the namespaces you read and edit. Admins also get the settings page of each. Nothing secret: no keys,
+  tokens or model server addresses. Cited as "This Lens server", linking to the web app.
+- **Lens's docs:** these pages, cut at their headings and found by words (SQLite FTS5 with English stemming, in
+  memory, built on first use and again when a page changes; no model and no network). A question gets the four
+  sections that match best; `page` reads one page whole. Every answer also carries the docs' contents, each page by
+  its title. Each section is cited as "Docs · MCP server › Connecting" and opens that heading on GitHub.
+
+The docs are read from `LENS_DOCS_DIR`, else the `docs/` folder next to the code: the Docker Compose files mount the
+install's own `docs/` read-only at `/docs`, so the assistant reads the docs of the version you run (Cloudron's image
+has them too). Without them, the assistant still has this server's facts and the link to the docs online. Agents get
+the same tool over [MCP](mcp.md), and the [chat rooms](chat-rooms.md) list its sources with their links.
+`ai.disabled_tools: [lens_help]` turns it off.
 
 ### Web search and reading pages
 
@@ -349,6 +372,7 @@ tools it may use, how many tool calls it may make, and which namespaces it reads
     - `research` ([deep research](#deep-research): `start_research` plans research that waits for your approval);
     - `extensions`;
     - `server` (admins);
+    - `help` (Lens's docs and this server's facts: [questions about Lens itself](#questions-about-lens-itself));
     - `browser`;
     - `mcp:<name>` and `ext:<name>`, one for each of the person's extensions.
 
@@ -824,6 +848,8 @@ The assistant makes routine choices for you instead of asking. The first is wher
 `import_files` without a namespace picks one from the namespaces you can add to, judging from their descriptions,
 what's in them lately, the file names and your message. You're asked only when it isn't sure: below
 `decisions.act_above` (0.8) confidence it lists the namespaces, its best guess first.
+Analysis takes routine choices too: what a name the rules can't type is (a person, an organisation, a product...;
+[Names the rules can't type](processing.md#entities-and-the-graph-explorer)).
 
 A **decision model** answers these: Jev, typesafe.ai's System One, which takes a few hundred milliseconds and costs a
 fraction of an LLM call. Set its key in **Settings → AI assistant → Routine choices**, or `TYPESAFE_API_KEY` in `.env`.
