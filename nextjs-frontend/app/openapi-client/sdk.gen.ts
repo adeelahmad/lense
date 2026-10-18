@@ -1281,6 +1281,9 @@ import type {
   NodeMediaData,
   NodeMediaErrors,
   NodeMediaResponses,
+  NodeSandboxData,
+  NodeSandboxErrors,
+  NodeSandboxResponses,
   NodeWorkerData,
   NodeWorkerResponses,
   NotSameSpeakerData,
@@ -13780,9 +13783,28 @@ export class Mesh {
   }
 
   /**
+   * Node Sandbox
+   *
+   * The client certificate of the calling compute node's sandbox gateway, which Lens keeps sealed and reaches that
+   * gateway over the mesh with. 403 for a node of another role, 400 for what isn't a certificate and key.
+   */
+  public static nodeSandbox<ThrowOnError extends boolean = false>(
+    options: Options<NodeSandboxData, ThrowOnError>,
+  ): RequestResult<NodeSandboxResponses, NodeSandboxErrors, ThrowOnError> {
+    return (options.client ?? client).put<NodeSandboxResponses, NodeSandboxErrors, ThrowOnError>({
+      url: "/api/v1/mesh/node/sandbox",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Node Beat
    *
-   * The calling node's report, every minute: Nebula, its peers, its machine.
+   * The calling node's report, every minute: Nebula, its peers, its machine, its sandbox gateway.
    */
   public static nodeBeat<ThrowOnError extends boolean = false>(
     options: Options<NodeBeatData, ThrowOnError>,

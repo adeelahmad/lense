@@ -26,6 +26,7 @@ from app.schemas.mesh import (
     MeshNodeChange,
     MeshNodeConfig,
     MeshRenew,
+    MeshSandboxGateway,
     MeshStatus,
     MeshToken,
     MeshTokenCreate,
@@ -117,7 +118,9 @@ def make_mesh_token(body: MeshTokenCreate, user: AdminWriter, request: Request, 
             auth.audit(db, user.as_audit(), "settings.save", "mesh", ["enabled"])
     auth.audit(db, user.as_audit(), "mesh.token.create", f"mesh_token:{tok['id']}", {"role": body.role, "uses": body.uses})
     url = web_origin(request)
-    return MeshTokenCreated(token=MeshToken(**tok), secret=secret, join_url=url, install_line=mesh.join_line(cfg, secret, url))
+    return MeshTokenCreated(
+        token=MeshToken(**tok), secret=secret, join_url=url, install_line=mesh.join_line(cfg, secret, url, role=body.role)
+    )
 
 
 @router.delete("/tokens/{token_id}")
@@ -220,8 +223,23 @@ def node_media(recording_id: int, node: Node, request: Request, db: Db, cfg: Cfg
     return StreamingResponse(chunks(), media_type="application/octet-stream", headers={"ETag": tag})
 
 
+@router.put("/node/sandbox")
+def node_sandbox(body: MeshSandboxGateway, node: Node, db: Db, cfg: Cfg) -> Ok:
+    """The client certificate of the calling compute node's sandbox gateway, which Lens keeps sealed and reaches that
+    gateway over the mesh with. 403 for a node of another role, 400 for what isn't a certificate and key."""
+    try:
+        mesh.sandbox_gateway(db, cfg, node, body.model_dump())
+    except PermissionError as e:
+        raise HTTPException(403, str(e)) from None
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    return Ok()
+
+
 @router.post("/node/beat")
 def node_beat(body: MeshBeat, node: Node, db: Db) -> Ok:
-    """The calling node's report, every minute: Nebula, its peers, its machine."""
+    """The calling node's report, every minute: Nebula, its peers, its machine, its sandbox gateway."""
     mesh.beat(db, node, body.model_dump(exclude_none=True))
+    if node["role"] == "compute":
+        mesh.offer_sandboxes(db)  # this process may have started since the node gave its gateway's certificate
     return Ok()
