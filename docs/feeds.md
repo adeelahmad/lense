@@ -92,4 +92,5 @@ Agents use the MCP tools `list_feeds` (each feed's address, or one feed with its
 
 Refine later: artwork Lens makes for a feed without an `image`; Atom and JSON Feed alongside RSS; chapters and
 transcripts in a podcast feed (`podcast:transcript`); an automation action that publishes to a feed when something
-happens.
+happens; a preview of the feed's XML on its page; Try on the canvas listing what Publish to feed would add, item by
+item.
