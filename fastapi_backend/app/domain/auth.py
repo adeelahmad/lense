@@ -194,6 +194,7 @@ def remove_account(db, uid, lose_vaults=False):
                     "highlight",
                     "event_mark",
                     "event_reaction",
+                    "event_mute",
                 )
             ),
             "DELETE note WHERE account = $a AND (shared ?? false) = false",

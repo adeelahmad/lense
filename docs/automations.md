@@ -1366,7 +1366,7 @@ month, and each run what it cost.
 
 Everything in the studio is open to agents. People and agents use the same API (`/api/v1`, [API](api.md#automations)),
 and agents also have MCP tools ([MCP](mcp.md#tools)). The [assistant](#agents) has `automations`, `save_automation`,
-`test_automation`, `run_automation`, `timeline`, `mark_activities`, `approvals` and `decline_approval`. Asked how to
+`test_automation`, `run_automation`, `timeline`, `mark_activities`, `mute_activities`, `approvals` and `decline_approval`. Asked how to
 do something in this guide, the assistant and MCP clients look it up here with `lens_help`.
 
 | To | API | MCP |
@@ -1384,7 +1384,7 @@ do something in this guide, the assistant and MCP clients look it up here with `
 | Saved variables | `GET`/`PUT /automations/{id}/vars`, `/namespaces/{name}/automation-vars` | `automation_vars`, `set_automation_vars` |
 | The variable picker and a template's preview | `POST /automations/variables`, `POST /automations/preview` | `automation_variables`, `preview_template` |
 | Approvals | `GET /approvals`, `GET /approvals/count`, `POST /approvals/{aid}` | `approvals`, `decline_approval` (never approve) |
-| The stream and its kinds | `GET /activities`, `GET /activities/kinds`, `POST /activities/mark` | `timeline`, `event_kinds`, `mark_activities` |
+| The stream and its kinds | `GET /activities`, `GET /activities/kinds`, `POST /activities/mark`, `POST /activities/mute` | `timeline`, `event_kinds`, `mark_activities`, `mute_activities` |
 | Set an automation off from outside | `POST /automations/hooks/{token}` ([Webhook trigger](#webhook-trigger)) | not needed: anything that sends HTTP calls it |
 
 ## Built, in progress, planned

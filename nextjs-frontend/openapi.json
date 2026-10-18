@@ -5176,7 +5176,7 @@
           "activities"
         ],
         "summary": "List Activities",
-        "description": "What happened in Lens, newest first: new assets and everything else the stream holds, each an Activity Streams\n2.0 activity with a Lens kind. Give `next` as `before` for the page after. Noisy kinds (like sensor readings) are\nleft out unless named in `kinds`. Text from outside Lens is listed in each activity's `lens.untrusted`. `marks`\nhas your own marks on the page's activities; `reviewed`, `important` and `hidden` filter by them. `order=for_you`\nputs what you react to, comment on and mark important first, and what you hid last (docs/timeline.md, For you).",
+        "description": "What happened in Lens, newest first: new assets and everything else the stream holds, each an Activity Streams\n2.0 activity with a Lens kind. Give `next` as `before` for the page after. Noisy kinds (like sensor readings) are\nleft out unless named in `kinds`. Text from outside Lens is listed in each activity's `lens.untrusted`. `marks`\nhas your own marks on the page's activities; `reviewed`, `important` and `hidden` filter by them; what you muted\n(`/activities/mutes`) is left out unless `hidden=true`. `order=for_you` puts what you react to, comment on and\nmark important first, and what you hid last (docs/timeline.md, For you).",
         "operationId": "list_activities",
         "parameters": [
           {
@@ -5511,6 +5511,70 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MarksOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/activities/mutes": {
+      "get": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "List Activity Mutes",
+        "description": "Your mutes: the sources, people and kinds whose activities the timeline leaves out for you, each for good or\nuntil a time (docs/timeline.md, Muting). Nobody else's timeline changes.",
+        "operationId": "list_activity_mutes",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutesOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/activities/mute": {
+      "post": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "Mute Activities",
+        "description": "Mute a source or person (`actor`, by id) or a kind of activity (`kind`, the kinds under it too) for yourself,\nfor good or `until` a time (snooze it for a day), or lift the mute with `on` false. Muting hides, it never\ndeletes: the activities stay, still trigger automations and still show to everyone else, and `hidden=true` on\nthe timeline shows them to you. The answer is your mutes now.",
+        "operationId": "mute_activities",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MuteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutesOut"
                 }
               }
             }
@@ -60928,6 +60992,157 @@
           "month"
         ],
         "title": "MonthStats"
+      },
+      "Mute": {
+        "properties": {
+          "actor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor",
+            "description": "the muted actor's id, like lens:source/12"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind",
+            "description": "the muted kind, like sensor.reading (the kinds under it count too)"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "the actor's name as the page showed it, or the kind's label"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Until",
+            "description": "when it runs out (ISO 8601); null for good"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "Mute",
+        "description": "One of your mutes: an actor or a kind, until a time or for good."
+      },
+      "MuteIn": {
+        "properties": {
+          "actor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 240
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor",
+            "description": "an actor's id, like lens:source/12 or lens:account/1"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind",
+            "description": "a kind, like sensor.reading"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "the actor's name, for the Muted list"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Until",
+            "description": "until this time (ISO 8601); left out: for good"
+          },
+          "on": {
+            "type": "boolean",
+            "title": "On",
+            "description": "mute (true) or lift the mute (false)",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "MuteIn",
+        "description": "Mute an actor or a kind (one of the two) for yourself, for good or until a time; `on` false lifts it."
+      },
+      "MutesOut": {
+        "properties": {
+          "mutes": {
+            "items": {
+              "$ref": "#/components/schemas/Mute"
+            },
+            "type": "array",
+            "title": "Mutes",
+            "description": "your mutes now, the latest first"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "mutes"
+        ],
+        "title": "MutesOut"
       },
       "Namespace": {
         "properties": {

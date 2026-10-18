@@ -1,10 +1,17 @@
 "use client";
 
-import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 
 import { Activities } from "@/app/openapi-client";
-import type { ActivityKind, ActivityMark, ActivityPage, MarksOut } from "@/app/openapi-client/types.gen";
+import type {
+  ActivityKind,
+  ActivityMark,
+  ActivityPage,
+  MarksOut,
+  Mute,
+  MutesOut,
+} from "@/app/openapi-client/types.gen";
 import { markOf, toQuery, type Activity, type Filters, type ListQuery, type Mark } from "@/components/timeline/model";
 import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
@@ -122,3 +129,49 @@ export function useMarks(server: Record<string, ActivityMark | undefined>) {
 }
 
 export type { Activity };
+
+/** The person's mutes (docs/timeline.md, Muting): the sources, people and kinds the timeline leaves out for them.
+ * `mute` mutes an actor (with its name, for the chips) or a kind, says so with an Undo, and `unmute` lifts one; both
+ * reload the timeline, which leaves muted activities out on the server. */
+export function useMutes() {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const list = useQuery({
+    queryKey: ["timeline-mutes"],
+    queryFn: () => data(Activities.listActivityMutes({ client })) as Promise<MutesOut>,
+    staleTime: 60_000,
+  });
+  const { mutate } = useMutation({
+    mutationFn: (body: { actor?: string; kind?: string; name?: string; on: boolean }) =>
+      data(Activities.muteActivities({ client, body })) as Promise<MutesOut>,
+    onSuccess: (got) => {
+      qc.setQueryData(["timeline-mutes"], got);
+      qc.invalidateQueries({ queryKey: ["timeline"] });
+      qc.invalidateQueries({ queryKey: ["timeline-new"] });
+    },
+    onError: (e) => toast({ tone: "red", title: "Couldn’t save the mute", body: (e as Error).message }),
+  });
+  const mute = useCallback(
+    (target: { actor: string; name: string } | { kind: string; name: string }) => {
+      mutate(
+        { ...target, on: true },
+        {
+          onSuccess: () =>
+            toast({
+              tone: "green",
+              title: `Muted ${target.name}`,
+              body: "Its activities stay, for everyone else and for your automations; hidden=true shows them to you.",
+              action: { label: "Undo", onClick: () => mutate({ ...target, on: false }) },
+            }),
+        },
+      );
+    },
+    [mutate, toast],
+  );
+  const unmute = useCallback(
+    (m: Mute) => mutate({ actor: m.actor ?? undefined, kind: m.kind ?? undefined, on: false }),
+    [mutate],
+  );
+  return useMemo(() => ({ mutes: list.data?.mutes ?? [], mute, unmute }), [list.data, mute, unmute]);
+}

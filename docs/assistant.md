@@ -254,8 +254,9 @@ When the configured model supports function calling, chat becomes an agent.
   types or topics fits an asset or a text, and how sure that is (`classify`, [Classifying](processing.md#classifying));
   it changes nothing.
 - **The person's review marks:** `mark_activities` marks activities of the timeline reviewed, important or hidden for
-  the person ([Timeline](timeline.md#review-marks)). After it has read text from outside Lens, hiding or marking
-  reviewed waits for their yes; marking important or bringing things back acts at once.
+  the person ([Timeline](timeline.md#review-marks)), and `mute_activities` mutes a source, person or kind for them,
+  for good or until a time ([Muting](timeline.md#muting)). After it has read text from outside Lens, hiding, muting
+  or marking reviewed waits for their yes; marking important, lifting a mute or bringing things back acts at once.
 - **The person's approvals:** `approvals` lists what waits for their pick ([Approvals](automations.md#approvals)):
   automations' actions about the namespaces the conversation reads, and its own proposals in this conversation.
   `decline_approval` declines one; after it has read text from outside Lens (the approvals' own summaries count),
