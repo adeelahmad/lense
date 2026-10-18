@@ -332,9 +332,9 @@ class Adder:
                 raise Rejected(f"collections go at most {hierarchy.MAX_DEPTH} deep")
         elif not self.may_import(where.space, self._target(where)):
             raise Refused("adding files here needs the import permission (an editor's role)")
-        if not junk(where.name) and size:
+        if not junk(where.name) and size != 0:  # an empty file is kept aside: its bytes may follow (Finder, Explorer)
             try:
-                uploads.check(self.cfg, where.name, size)
+                uploads.check(self.cfg, where.name, size if size is not None else 1)  # no size yet: its type
             except uploads.TooLarge as e:
                 raise TooLarge(str(e)) from None
             except ValueError as e:
@@ -395,8 +395,8 @@ class Adder:
         return True
 
     def touch(self, path, modified):
-        """Set the time of a file just added (an S3 client copying it onto itself with new metadata); False when it
-        isn't one."""
+        """Set the time of a file just added (an S3 client copying it onto itself with new metadata, an SMB client
+        setting it); False when it isn't one. A file kept aside is imported with it."""
         parts = filetree.Tree.split(path)
         if not parts or _seconds(modified) is None:
             return False
@@ -405,6 +405,8 @@ class Adder:
             if it is None:
                 return False
             it.mtime = str(modified)
+            if it.kind == "pending":
+                it.modified = _iso(_seconds(modified))
         return True
 
     def put(self, path, src, modified=None, md5=None):
@@ -460,11 +462,17 @@ class Adder:
             _remove(it.path)
 
     def move(self, src, dst):
-        """Rename a file kept aside: to an ordinary name, it's imported then. Everything else is Refused."""
+        """Rename a file kept aside: to an ordinary name, it's imported then (once it's closed, when it's still being
+        written: finish). Everything else is Refused."""
         it = self.pending(src)
         if it is None or not it.path:
             raise Refused("files can be added here, not moved or renamed")
         parts = filetree.Tree.split(src)
+        if it.holds:
+            where = self.check(dst)
+            REGISTRY.pop(self.account["id"], tuple(parts[:-1]), parts[-1])
+            REGISTRY.put(self.account["id"], where.folder, where.name, it)
+            return {"kind": "pending"}
         moving = spool(self.cfg)
         os.replace(it.path, moving)
         REGISTRY.pop(self.account["id"], tuple(parts[:-1]), parts[-1])
@@ -475,3 +483,55 @@ class Adder:
                 os.replace(moving, it.path)
                 REGISTRY.put(self.account["id"], tuple(parts[:-1]), parts[-1], it)
             raise
+
+    # ---------- written in place (SMB) ----------
+    def begin(self, path):
+        """A file a client makes at `path` and writes in place (SMB), its size not known yet: checked as check()
+        checks it, then a new, empty file on the uploads disk (returned) that shows under its name, kept aside and
+        held, until finish()."""
+        where = self.check(path)
+        src = spool(self.cfg)
+        src.touch(mode=0o600)
+        item = Item("pending", time.monotonic() + PENDING_SECONDS, path=str(src), modified=_iso(), holds=1)
+        REGISTRY.put(self.account["id"], where.folder, where.name, item)
+        return src
+
+    def reopen(self, path):
+        """A file kept aside at `path`, opened to write again: its file on the uploads disk, held until finish()."""
+        it = self.pending(path)
+        if it is None or not it.path:
+            raise Refused("files can be added here, not changed")
+        parts = filetree.Tree.split(path)
+        REGISTRY.hold(self.account["id"], tuple(parts[:-1]), parts[-1], 1)
+        return pathlib.Path(it.path)
+
+    def _held(self, path, src):
+        it = self.pending(path)
+        if it is None or it.path != str(src):
+            return None  # deleted, or written over by another file, meanwhile
+        parts = filetree.Tree.split(path)
+        REGISTRY.hold(self.account["id"], tuple(parts[:-1]), parts[-1], -1)
+        return it
+
+    def finish(self, path, src):
+        """A file written in place (begin, reopen) at `path` was closed: it's imported now when it's an ordinary file
+        with something in it and nobody else has it open; else it stays kept aside. put()'s answer, or None when it
+        was deleted or written over meanwhile."""
+        it = self._held(path, src)
+        parts = filetree.Tree.split(path)
+        if it is None:
+            return None
+        if it.holds or junk(parts[-1]) or os.path.getsize(src) == 0:
+            return {"kind": "pending"}
+        REGISTRY.pop(self.account["id"], tuple(parts[:-1]), parts[-1])  # put() files it again
+        try:
+            return self.put(path, src, it.mtime)
+        except BaseException:
+            if os.path.exists(src):  # kept aside again: the client can delete it, or rename it and try again
+                REGISTRY.put(self.account["id"], tuple(parts[:-1]), parts[-1], it)
+            raise
+
+    def abandon(self, path, src):
+        """A file written in place that won't be finished (its client went away, or deleted it as it closed it): it
+        stays kept aside, not imported, until it expires or is deleted."""
+        self._held(path, src)

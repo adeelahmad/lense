@@ -54,7 +54,13 @@ The tunnel serves the web app and what the web app serves at its own address:
 | The MCP server (`/mcp`, with OAuth) | Yes ([MCP server](mcp.md)) |
 | Sensors that push over HTTP (`/api/v1/sensors/push/…`) | Yes ([Sensors](sensors.md)) |
 | The file shares: S3 at `/s3` and WebDAV at `/dav` | Once an admin turns on **At the web app's address too** in Settings › File shares ([The graph as files](file-tree.md#at-the-web-apps-address)) |
-| MQTT, syslog, SMB and NFS | No: they aren't HTTP, so they stay on their own ports, for the local network |
+| The sensor hub's MQTT broker, over WebSockets at `/mqtt` | Once an admin turns on **MQTT at the web app's address too** in Settings › Sensors ([Sensors](sensors.md#at-the-web-apps-address)) |
+| MQTT on port 1883, syslog, SMB and NFS | No: they aren't HTTP, so they stay on their own ports, for the local network |
+
+SMB and NFS stay on the local network: neither travels over HTTP, and both are made for a LAN (NFS has no sign-in at
+all). To open the graph's files from elsewhere, use WebDAV at `/dav`, which macOS, Windows and Linux mount as a drive,
+or S3 at `/s3`. Syslog has no sign-in either, so it stays local too; devices elsewhere send readings to a
+[webhook](sensors.md#ways-in) or publish over MQTT at `/mqtt`.
 
 ## Where it sends visitors
 

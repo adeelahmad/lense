@@ -34,7 +34,6 @@ PROTOCOLS: dict[str, tuple[type[http.server.BaseHTTPRequestHandler], str]] = {
 
 # protocol -> the path the web app relays it at (nextjs-frontend/lens-relay.js)
 WEB_PATHS = {"s3": "/s3", "webdav": "/dav"}
-LOOPBACK = ("127.0.0.0/8", "::1/128")
 
 
 def _row(proto):
@@ -87,12 +86,9 @@ def remote(cfg):
 
 
 def visitor(handler, cfg):
-    """The address a request comes from, for throttles: what the web app (and proxies it trusts: server.trusted_proxies,
-    LENS_TRUSTED_PROXY_HOSTS, this machine) report in X-Forwarded-For, else the connection's peer."""
+    """The address a request comes from, for throttles (ipgroups.visitor)."""
     peer, port = handler.client_address[0], handler.client_address[1]
-    trusted = tuple((cfg.get("server") or {}).get("trusted_proxies") or ()) + ipgroups.proxy_hosts() + LOOPBACK
-    addr = ipgroups.client_address(peer, port or 1, handler.headers.get("x-forwarded-for", ""), trusted)
-    return str(addr) if addr else peer
+    return ipgroups.visitor(cfg, peer, port, handler.headers.get("x-forwarded-for", ""))
 
 
 def wanted(cfg):

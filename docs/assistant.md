@@ -206,6 +206,17 @@ Voice goes through one hook, `useVoice()` in `nextjs-frontend/lib/voice.ts` (`li
   or by ElevenLabs, Deepgram, Google Gemini, macOS `say`, or Kokoro on this machine
   ([Speech providers](speech-providers.md#kokoro)); else by the browser.
 
+#### Read a message aloud
+
+Every question and answer in a conversation has a speaker button: one click reads it aloud, another stops it. It goes
+through the same `POST /voice/speak` as voice mode, so it uses the speech model and the voice picked in Settings → AI
+assistant → Voice, without citation marks or Markdown, and falls back to the browser's own speech when the server has
+none. One message is read at a time (starting another stops the first, and so does leaving the conversation). Long
+answers are sent in pieces of at most 1,500 characters, cut after a sentence, under every provider's limit; the next
+piece is asked for while one plays. Each piece's audio is kept in the page (the 32 most recently played), so playing
+a message again doesn't call the speech model again. Each call is a `model.speech` row in the
+[activity ledger](activity.md), like voice mode's.
+
 Settings → AI assistant → Voice holds these. The API: `GET /voice` (what the server does; it also starts loading the
 engine), `POST /voice/transcribe` (a clip as the raw body; nothing is kept), `POST /voice/speak` (`{text, voice?}`;
 204 when the browser should read it), `GET /voice/voices` (the voices a provider reads in).

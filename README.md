@@ -70,8 +70,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   answer OpenAI's chat completions API for any app, cited from that namespace alone, each off until its owner turns it
   on, with API keys that open that one namespace and nothing else. The same folders and files can be mounted over S3,
   WebDAV, NFS or SMB (S3 and WebDAV also at the web app's address, through remote access), so file managers and scripts
-  read Lens too, and a file copied in over S3 or WebDAV is imported where it was put. The web app runs on the same REST
-  API, so an agent can do what a person can. ([MCP](docs/mcp.md), [one namespace's MCP
+  read Lens too, and a file copied in over S3, WebDAV or SMB is imported where it was put. The web app runs on the same
+  REST API, so an agent can do what a person can. ([MCP](docs/mcp.md), [one namespace's MCP
   server](docs/mcp.md#one-namespaces-mcp-server), [chat completions](docs/api.md#chat-completions-for-any-app),
   [API](docs/api.md), [the graph as files](docs/file-tree.md), [authentication](docs/authentication.md);
   [checks](docs/requirements.md#connect-your-agents))
@@ -81,9 +81,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   of each conversation's own. Regenerating an answer or editing a question makes a new version beside the old one, and
   nothing is lost. Each answer keeps a record of what produced it (the model, its tools, how long it took and what it
   cost), opened from its header. It reads answers aloud with a speech provider, macOS `say`, or Kokoro (54 voices,
-  fetched once picked) or StyleTTS2 on this machine (opt-in), and `/clear` and `/compact` keep long conversations
-  short. Conversations title themselves after their first answer, unless you name them. Each namespace can have its
-  own assistant with
+  fetched once picked) or StyleTTS2 on this machine (opt-in), any message in one click, and `/clear` and `/compact`
+  keep long conversations short. Conversations title themselves after their first answer, unless you name them. Each
+  namespace can have its own assistant with
   its own name, instructions and memory, answering in Telegram and Slack (built in, with voice notes and files), in
   Discord, Matrix, WhatsApp and other chat rooms through Matterbridge, and by email at an address of its own that you
   email or forward things to. ([Chat](docs/assistant.md), [web search](docs/assistant.md#web-search-and-reading-pages),
@@ -123,10 +123,10 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   asset, with Undo instead of a confirm. Names get their real types (people, places, organisations, events, works) by
   rules, without a model. Find what is most like a passage, an asset, a topic or an entity, in a Similar
   tab on every asset or by selecting text anywhere, and, with anytopdf, photos by what they show. Pages and shots are
-  described in words by the model provider's vision model or, off by default, by Florence-2 on your own server.
-  Transcripts can be cleaned up before analysis (stutters, "um"s, spacing and, with a local model, punctuation put
-  back), entities found by spaCy instead of the rules, and the dates people say read as days on the calendar, each off
-  by default.
+  described in words by the model provider's vision model or, off by default, by Florence-2 or Moondream on your own
+  server. Transcripts can be cleaned up before analysis (stutters, "um"s, spacing and, with a local model, punctuation
+  put back), entities found by spaCy instead of the rules, and the dates people say read as days on the calendar, each
+  off by default.
   ([Graph](docs/graph.md), [entity pages](docs/notes.md#entity-pages),
   [similar content](docs/processing.md#similar-content), [graph history](docs/graph-history.md),
   [topics](docs/topics.md), [video](docs/video.md), [NSFW classification](docs/nsfw.md),
@@ -192,7 +192,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   agents over MCP get the archive as data, and what Lens caught goes into the audit log. Serve Lens over HTTPS, set
   up in Settings, with certificates from Let's Encrypt or ZeroSSL that renew on their own, answering only for its own
   domains and, if you choose, only to devices holding a client certificate; or reach it from anywhere through a
-  Cloudflare tunnel with nothing opened on your router. ([Encryption](docs/encryption.md), [access](docs/access.md),
+  Cloudflare tunnel with nothing opened on your router. Either way, the S3 and WebDAV shares and the MQTT hub answer at
+  that same address once you turn them on. ([Encryption](docs/encryption.md), [access](docs/access.md),
   [prompt injection](docs/assistant.md#third-party-content-and-prompt-injection), [HTTPS](docs/https.md),
   [remote access](docs/remote-access.md); [checks](docs/requirements.md#stay-private-and-safe))
 - **Use open standards.** RDF and Dublin Core for every record, OAuth for apps and OpenID Connect sign-in, MCP, MQTT,

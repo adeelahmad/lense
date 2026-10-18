@@ -152,6 +152,18 @@ def client_address(peer, port, forwarded, trusted):
     return None
 
 
+LOOPBACK = ("127.0.0.0/8", "::1/128")
+
+
+def visitor(cfg, peer, port, forwarded):
+    """The address a connection to one of Lens's own servers (the file shares, MQTT over WebSockets) comes from, for
+    throttles: what the web app relaying it (and proxies it trusts: server.trusted_proxies, LENS_TRUSTED_PROXY_HOSTS,
+    this machine) report in X-Forwarded-For, else the connection's peer."""
+    trusted = tuple((cfg.get("server") or {}).get("trusted_proxies") or ()) + proxy_hosts() + LOOPBACK
+    addr = client_address(peer, port or 1, forwarded or "", trusted)
+    return str(addr) if addr else peer
+
+
 # ---------- what an address opens ----------
 class Network(NamedTuple):
     """What the visitor's address opens: whole namespaces and chosen recordings, each with the name of the IP group

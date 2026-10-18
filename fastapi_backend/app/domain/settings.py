@@ -68,12 +68,14 @@ EDITABLE = {
     "nfs": ("enabled", "port", "allowed_networks", "account"),
     # bind is a startup setting only
     # the SMB share of the file tree (smb_share.py): bind and port are startup settings only (Docker publishes the port)
-    "smb": ("enabled", "allowed_networks"),
+    "smb": ("enabled", "allowed_networks", "add_files"),
     "sensors": (
         "enabled",
         "mqtt",
         "mqtt_port",
         "mqtt_anonymous",
+        "mqtt_web",
+        "mqtt_web_port",
         "syslog",
         "syslog_port",
         "syslog_networks",
@@ -162,8 +164,9 @@ ENUMS = {
     ("search", "stemming"): {"english", "none"},
     ("search", "engine"): set(store.SEARCH_ENGINES),
     ("reports", "audio"): {"link", "embed", "none"},
-    ("llm", "describe_engine"): {"llm", "florence-2"},
+    ("llm", "describe_engine"): {"llm", "florence-2", "moondream"},
     ("llm", "florence_model"): {"base", "large"},
+    ("llm", "moondream_model"): {"moondream3-preview", "moondream2"},
     ("video", "ocr_engine"): {"auto", "tesseract", "apple-vision", "rapidocr", "doctr", "none"},
     ("video", "face_engine"): {"opencv", "insightface", "anytopdf", "none"},
     ("video", "object_engine"): {"yolox", "ultralytics", "anytopdf", "off"},
@@ -1193,6 +1196,7 @@ def _notify_setting(key, value):
 
 SENSOR_RANGES = {
     "mqtt_port": (1, 65535),
+    "mqtt_web_port": (1, 65535),
     "syslog_port": (1, 65535),
     "max_payload_kb": (1, 16384),
     "raw_days": (1, 36500),
@@ -1203,7 +1207,7 @@ SENSOR_RANGES = {
 
 
 def _sensor_setting(key, value):
-    if key in ("enabled", "mqtt", "mqtt_anonymous", "syslog", "triage"):
+    if key in ("enabled", "mqtt", "mqtt_anonymous", "mqtt_web", "syslog", "triage"):
         if not isinstance(value, bool):
             raise ValueError(f"sensors.{key} is true or false")
         return value
@@ -1307,9 +1311,9 @@ def _nfs_setting(key, value):
 
 
 def _smb_setting(key, value):
-    if key == "enabled":
+    if key in ("enabled", "add_files"):
         if not isinstance(value, bool):
-            raise ValueError("smb.enabled is true or false")
+            raise ValueError(f"smb.{key} is true or false")
         return value
     if not isinstance(value, list) or len(value) > 100:
         raise ValueError("smb.allowed_networks is a list of networks like 192.168.1.0/24")

@@ -9298,6 +9298,12 @@ export type HubStatus = {
    */
   mqtt_port?: number | null;
   /**
+   * Mqtt Web
+   *
+   * the broker over WebSockets too, which the web app relays at /mqtt
+   */
+  mqtt_web?: boolean;
+  /**
    * Syslog
    */
   syslog: boolean;
@@ -20759,6 +20765,12 @@ export type SmbStatus = {
    * the command that mounts it on Linux
    */
   mount: string;
+  /**
+   * Add Files
+   *
+   * whether files people copy in are imported (smb.add_files); off: read-only
+   */
+  add_files?: boolean;
   [key: string]: unknown;
 };
 
