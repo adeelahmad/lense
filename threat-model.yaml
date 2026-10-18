@@ -807,7 +807,7 @@ contract_dimensions:
   - {component: query, dimension: concurrency-reentrancy, status: unresolved, conditions: "SPARQL sets a process-global rdflib flag per call", question_id: Q19, x-prose-provenance-kind: assumption, provenance: {kind: inferred, question_id: Q19}}
   - {component: query, dimension: resource-complexity, status: unresolved, conditions: "SPARQL has a row cap only; the Cypher regex guard is heuristic", question_id: Q25, x-also-questions: [Q16], provenance: {kind: inferred, question_id: Q25}}
   # --- Assistant
-  - {component: assistant, dimension: numeric-domain, status: claimed, property_id: P-RETRIEVAL, conditions: "tool loop capped by ai.max_steps and ai.max_transcript_reads", provenance: {kind: documented, source: 'docs/assistant.md "capped by"'}}
+  - {component: assistant, dimension: numeric-domain, status: claimed, property_id: P-RETRIEVAL, conditions: "tool loop capped by ai.max_steps (or a question's max_tool_calls, at most ai.max_tool_calls) and ai.max_transcript_reads", provenance: {kind: documented, source: 'docs/assistant.md "capped by"'}}
   - {component: assistant, dimension: failure-atomicity, status: claimed, property_id: P-APPROVAL, conditions: "change tools become approval cards; approval re-checks the role; notes and setup excepted", provenance: {kind: documented, source: 'docs/assistant.md "Approvals"'}}
   - {component: assistant, dimension: recursive-cyclic-topology, status: claimed, property_id: P-FLOW, conditions: "flow graphs never loop back; step budget", provenance: {kind: documented, source: 'domain/flow.py docstring "Graphs never loop back"'}}
   - {component: assistant, dimension: callback-execution, status: claimed, property_id: P-RETRIEVAL, conditions: "tools see only the person's reads; Python tools from admins only", x-routes-to: "P-RETRIEVAL, P-NO-CODE", provenance: {kind: documented, source: 'docs/assistant.md "limited to what the person can read"'}}
@@ -1694,7 +1694,7 @@ properties_claimed:
     components: [assistant, authz]
     tier: security-critical
     x-tier-detail: "security-critical (scope); correctness-only (caps)"
-    conditions: "chat, assistant tools and MCP return only what the person can read, within the conversation's scope, and the tool loop stops at ai.max_steps and ai.max_transcript_reads; a namespace's chat completions answer from that namespace alone, with only the read tools its owners offered"
+    conditions: "chat, assistant tools and MCP return only what the person can read, within the conversation's scope, and the tool loop stops at ai.max_steps (or the tool calls a question allows, at most ai.max_tool_calls) and ai.max_transcript_reads; a namespace's chat completions answer from that namespace alone, with only the read tools its owners offered"
     violation_symptoms: [info-leak, hang]
     x-voided-by: "admins read everything; an admin setup conversation adds server tools and the act flag (domain/ai_tools.py:287-289); ai.extensions: false turns extensions off"
     provenance: {kind: documented, source: 'docs/assistant.md "limited to what the person can read"'}
