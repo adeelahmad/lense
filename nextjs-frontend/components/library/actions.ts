@@ -5,9 +5,11 @@ import { useSession } from "next-auth/react";
 import { useCallback } from "react";
 
 import { Jobs, Resources } from "@/app/openapi-client";
+import type { RecordingSummary } from "@/app/openapi-client/types.gen";
 import { useToast } from "@/components/ui/toast";
-import { deletedToast, hasSound, movedToast } from "@/components/library/model";
+import { catalogueRows, deletedToast, hasSound, movedToast } from "@/components/library/model";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
+import { saveText, toCsvText } from "@/lib/csv";
 import { plural } from "@/lib/format";
 
 export const EXPORT_FORMATS = [
@@ -157,6 +159,16 @@ export function useRecordingActions() {
     [toast, token],
   );
 
+  /** The selected rows as one catalogue CSV, made here from what the list already has: nothing more is fetched. */
+  const exportCatalogue = useCallback(
+    (rows: RecordingSummary[]) => {
+      if (!rows.length) return;
+      saveText(toCsvText(catalogueRows(rows, window.location.origin)), "lens-catalogue.csv");
+      toast({ title: `Saved a catalogue of ${plural(rows.length, "asset")}`, tone: "green" });
+    },
+    [toast],
+  );
+
   /** Delete recordings one by one (owners). Returns the ids that went. */
   const deleteMany = useCallback(
     async (recs: readonly { id: number; title?: string | null }[], onProgress?: (n: number) => void) => {
@@ -238,5 +250,5 @@ export function useRecordingActions() {
     [client, qc, refresh, toast],
   );
 
-  return { retryJob, reprocess, exportMany, deleteMany, moveMany, retag };
+  return { retryJob, reprocess, exportMany, exportCatalogue, deleteMany, moveMany, retag };
 }

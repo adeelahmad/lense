@@ -510,3 +510,52 @@ export function tagsOn(rows: readonly { tags?: string[] | null }[]): { tag: stri
     }
   return [...by.values()].sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
 }
+
+/** The catalogue columns of a CSV of library rows, in order. */
+export const CATALOGUE_COLUMNS = [
+  "id",
+  "title",
+  "namespace",
+  "collection",
+  "kind",
+  "recorded",
+  "length",
+  "words",
+  "people",
+  "tags",
+  "language",
+  "status",
+  "access",
+  "origin",
+  "link",
+] as const;
+
+/**
+ * Library rows as a catalogue, one row per asset, for a spreadsheet: what the table shows, with people and tags joined
+ * by semicolons and a link to each asset's page on `origin` (this Lens's address).
+ */
+export function catalogueRows(rows: RecordingSummary[], origin: string): string[][] {
+  const out: string[][] = [[...CATALOGUE_COLUMNS]];
+  for (const r of rows)
+    out.push([
+      String(r.id),
+      r.title ?? "",
+      r.namespace ?? "",
+      r.collection_name ?? "",
+      r.media_kind,
+      r.recorded_at ?? "",
+      lengthText(r) === "—" ? "" : lengthText(r),
+      r.words != null ? String(r.words) : "",
+      speakerList(r.speakers)
+        .filter((s) => !s.unnamed)
+        .map((s) => s.name)
+        .join("; "),
+      (r.tags ?? []).join("; "),
+      r.language ?? "",
+      r.status ?? "",
+      r.access ?? "",
+      r.origin_name ?? r.origin ?? "",
+      `${origin.replace(/\/$/, "")}/resources/${r.id}`,
+    ]);
+  return out;
+}

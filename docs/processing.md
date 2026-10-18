@@ -456,6 +456,12 @@ first; otherwise the newest. Nothing here calls a model, apart from `text` searc
 The Library list (`GET /resources`) takes the same attributes as ids: `face`, `entity`, `topic` (as it is, without its
 narrower topics), `content_type` and `emotion`, besides its other filters ([API](api.md#resources)).
 
+**A catalogue to keep.** Select assets in the Library and choose Export › Catalogue of all selected (.csv): one
+spreadsheet row per asset with its id, title, namespace, collection, kind, date, length, words, the people named in
+it, tags, language, status, access, where it came from and a link to its page. It is made in the browser from the rows
+already listed, so it costs nothing; a cell that would start a spreadsheet formula gets a leading apostrophe. Agents
+get the same rows as JSON from `GET /resources`.
+
 Planned, not built yet: these filters in the Library's filter bar and in saved collections, finding by what a photo
 shows (`GET /search/photos`) inside the same filter, and ranking by more than the best matching moment.
 

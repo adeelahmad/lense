@@ -8,7 +8,7 @@ import { hasSound, tagsFromText, tagsOn } from "@/components/library/model";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Checkbox, Field, Input, Select } from "@/components/ui/field";
-import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from "@/components/ui/menu";
+import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { count, plural } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -62,6 +62,7 @@ export function BulkBar({
   moveTargets,
   onReprocess,
   onExport,
+  onCatalogue,
   onMove,
   onPlace,
   placeReason,
@@ -79,6 +80,8 @@ export function BulkBar({
   moveTargets: string[];
   onReprocess: () => void;
   onExport: (fmt: ExportFormat) => void;
+  /** Save the selection as one catalogue spreadsheet (CSV). */
+  onCatalogue?: () => void;
   onMove: () => void;
   /** File them in a collection of their namespace. */
   onPlace?: () => void;
@@ -145,6 +148,12 @@ export function BulkBar({
                 {f.label}
               </MenuItem>
             ))}
+            {onCatalogue && (
+              <>
+                <MenuSeparator />
+                <MenuItem onSelect={onCatalogue}>Catalogue of all selected (.csv)</MenuItem>
+              </>
+            )}
           </MenuContent>
         </Menu>
         <BarButton icon={Trash2} label="Delete" danger onClick={onDelete} disabledReason={deleteReason} />
