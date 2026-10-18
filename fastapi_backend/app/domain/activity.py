@@ -251,7 +251,7 @@ class Call:
         cost, unpriced = self.cost, self.unpriced
         ms = int((time.monotonic() - self.t0) * 1000)
         if cost is None and self.price is not None:
-            cost, unpriced = self.price(self.model, self.tin, self.tout, ms)
+            cost, unpriced = self.price(self.model, self.tin, self.tout, ms, self.detail)
         record(
             "out",
             self.action,
@@ -285,21 +285,32 @@ def model_cost(cfg):
 
     * by tokens: {input, output} USD per million tokens (the default unit), as cloud providers charge;
     * by time: {unit: "time", per_hour} USD per hour the call took, for a local model on your own machine;
+    * by audio: {unit: "minute", per_minute} USD per minute of audio heard (the row's detail.seconds), as speech to
+      text providers charge;
+    * by characters: {unit: "characters", per_million} USD per million characters read aloud (detail.chars), as text
+      to speech providers charge;
     * off: a model with no price (or {unit: "off"}) isn't costed, so it counts tokens and time but no money.
 
-    Returns (USD or None, unpriced): unpriced when the model has a price by tokens but the server didn't say how many
-    it used, so the figure is missing and totals that include it are estimates."""
+    Returns (USD or None, unpriced): unpriced when the model has a price but the call didn't say how much it used (the
+    tokens, the audio's length or the characters), so the figure is missing and totals that include it are
+    estimates."""
     from . import telemetry
 
     prices = telemetry.prices(cfg)
 
-    def price(model, tin, tout, ms):
+    def price(model, tin, tout, ms, detail=None):
         p = prices.get(model)
         unit = (p or {}).get("unit") or "tokens"
         if not isinstance(p, dict) or unit == "off":
             return None, False
         if unit == "time":
             return (round(float(p.get("per_hour") or 0) * (ms or 0) / 3_600_000, 8) if ms is not None else None), ms is None
+        if unit in ("minute", "characters"):
+            key, rate, per = ("seconds", "per_minute", 60) if unit == "minute" else ("chars", "per_million", 1_000_000)
+            n = (detail or {}).get(key)
+            if not isinstance(n, (int, float)) or isinstance(n, bool):
+                return None, True
+            return round(float(p.get(rate) or 0) * n / per, 8), False
         if tin is None and tout is None:
             return None, True
         return telemetry.cost(model, tin or 0, tout or 0, prices), False

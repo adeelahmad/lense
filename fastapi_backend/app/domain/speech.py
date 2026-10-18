@@ -46,7 +46,7 @@ import wave
 
 import numpy as np
 
-from . import kokoro, store, vocabulary
+from . import kokoro, llm, store, vocabulary
 
 log = logging.getLogger("lens")
 SR = 16000
@@ -158,7 +158,8 @@ def _ledger(action, cfg, model_, detail):
     except ImportError:
         yield _NoLedger()
         return
-    with activity.call(action, cfg, model_, detail=detail) as row:
+    # costed by the provider's price in telemetry.prices, per minute of audio or per million characters
+    with activity.call(action, cfg, model_, detail=detail, price=activity.model_cost(cfg)) as row:
         yield row
 
 
@@ -667,8 +668,11 @@ def _speak_say(cfg, text, voice):
 def _speak_openai(cfg, text, voice):
     v = cfg.get("voice") or {}
     m = v["tts_model"]
-    base = (v.get("tts_base_url") or cfg["llm"]["base_url"]).rstrip("/")
-    key = v.get("tts_api_key") or (cfg["llm"].get("api_key") if not v.get("tts_base_url") else None)
+    llm_base, llm_key = llm.shared(cfg)
+    if not (v.get("tts_base_url") or llm_base):
+        raise ProviderError("the model provider has no speech: give the voice a server of its own (voice.tts_base_url)")
+    base = (v.get("tts_base_url") or llm_base).rstrip("/")
+    key = v.get("tts_api_key") or (llm_key if not v.get("tts_base_url") else None)
     headers = {"Content-Type": "application/json", **({"Authorization": f"Bearer {key}"} if key else {})}
     body = {"model": m, "input": text, "voice": voice, "response_format": "mp3"}
     return m, lambda: _request(base + "/audio/speech", data=json.dumps(body).encode(), headers=headers, timeout=60)
@@ -740,8 +744,9 @@ def _say_voices():
 
 def _openai_voices(cfg):
     v = cfg.get("voice") or {}
-    base = (v.get("tts_base_url") or (cfg.get("llm") or {}).get("base_url") or "").rstrip("/")
-    key = v.get("tts_api_key") or ((cfg.get("llm") or {}).get("api_key") if not v.get("tts_base_url") else None)
+    llm_base, llm_key = llm.shared(cfg)
+    base = (v.get("tts_base_url") or llm_base or "").rstrip("/")
+    key = v.get("tts_api_key") or (llm_key if not v.get("tts_base_url") else None)
     if base and "api.openai.com" not in base:  # Kokoro-FastAPI, speaches and others list their own
         with contextlib.suppress(ProviderError, AttributeError, TypeError):
             j = _json(base + "/audio/voices", headers={"Authorization": f"Bearer {key}"} if key else {}, timeout=15)

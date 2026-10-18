@@ -673,7 +673,10 @@ of each); an asset of another namespace is a 400 (move it to that namespace firs
 their IIIF Manifests change (`partOf`), so harvesters see an Update. Audited as `recording.collection`.
 `GET /resources/origins`, `GET /resources/languages` and `GET /resources/objects` (`ns` for one namespace) list the
 origins, languages and kinds of object of the assets you can read with how many have each, most first, for the
-Library's Source, Language and Objects filters.
+Library's Source, Language and Objects filters. `GET /resources/origins?storage=true` adds the space each origin takes
+on this server, read from the disk: `media_bytes`, the assets' own files (the media or document, and supplementary
+files), and `made_bytes`, what Lens made of them (frames, pages, reports, exports, cached copies of files on storage
+connections). Admin › System health shows it under Disk.
 
 `PATCH /resources/{rid}/segments/{idx}` corrects a line of text: its `text`, its `speaker` (a person id in the
 namespace, or `null`), or both (editors). `POST …/segments/{idx}/split {at, t?, speaker?}` splits a line in two at

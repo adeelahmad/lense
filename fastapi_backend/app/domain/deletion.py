@@ -132,6 +132,11 @@ def _files(db, cfg, rec, rid, ns):
     return out
 
 
+def folders(cfg, rid):
+    """The folders Lens keeps for a recording: its frames, its supplementary files and an episode's audio."""
+    return [video.frames_dir(cfg, rid), filemod.folder(cfg, rid), pathlib.Path(cfg["data_dir"]) / "podcasts" / str(int(rid))]
+
+
 def orphans(db, speakers, faces):
     """Speakers and faces nothing else has, which nobody named: they only existed for the deleted recording."""
     for s in sorted(speakers):
@@ -194,9 +199,8 @@ def delete(db, cfg, rid, by=None):
         rec=R("recording", rid),
     )
     notebook.release(db, f"recording:{rid}")
-    shutil.rmtree(video.frames_dir(cfg, rid), ignore_errors=True)
-    shutil.rmtree(filemod.folder(cfg, rid), ignore_errors=True)
-    shutil.rmtree(pathlib.Path(cfg["data_dir"]) / "podcasts" / str(int(rid)), ignore_errors=True)  # an episode's audio
+    for d in folders(cfg, rid):  # its frames, its supplementary files and an episode's audio
+        shutil.rmtree(d, ignore_errors=True)
     for f in files:
         f.unlink(missing_ok=True)
     orphans(db, speakers, faces)

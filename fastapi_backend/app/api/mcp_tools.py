@@ -3910,6 +3910,26 @@ def activity_comments(ctx: Context, id: str) -> dict[str, Any]:  # noqa: A002 - 
 
 
 @tool(
+    "activity_caused",
+    "What an activity caused",
+    "What an activity of the timeline caused: the runs it started of the automations the person manages (each with "
+    "its status and counts) and the approvals those runs asked the person for, each with what it would do, its "
+    "status and what you may do (can: decline, with decline_approval; approving is the person's). On an "
+    'approval.waiting activity, that approval itself. The answer to "what happened because of this email?".',
+    Arg("id", "string", "the activity's id, like create-recording-7", required=True, max_length=120),
+)
+def activity_caused(ctx: Context, id: str) -> dict[str, Any]:  # noqa: A002 - the API's name
+    try:
+        got = activity_routes.caused(ctx.db, ctx.cfg, ctx.user, ctx.acl, id)
+    except HTTPException as e:
+        raise ToolError(f"no activity {id} you can see" if e.status_code == 404 else str(e.detail)) from None
+    return {
+        "runs": [r.model_dump(exclude_none=True) for r in got.runs],
+        "approvals": [approvals.brief(a.model_dump(), ctx.web) for a in got.approvals],
+    }
+
+
+@tool(
     "comment_on_activity",
     "Comment on an activity",
     "Write a comment on an activity of the timeline, for the person you act for, or with parent reply on one of its "
@@ -3948,8 +3968,9 @@ def _my_approval(ctx: Context, aid: int) -> dict[str, Any]:
     "What waits for the person's pick, newest first: automations' actions that ask first and the assistant's proposals, "
     "each with what it would do (summary, which holds text the automation read from outside Lens), why (the activity "
     "that caused it), when it expires, where the person decides it (url) and what you may do (can). Give id for one; "
-    "filter by status (pending, the default, or any), origin (automation or chat) or automation; give next as before "
-    "for more. Only the person approves, signed in to Lens or in their own chat app: an agent can list and decline.",
+    "filter by status (pending, the default, or any), origin (automation or chat), automation or the activity that "
+    "caused them; give next as before for more. Only the person approves, signed in to Lens or in their own chat "
+    "app: an agent can list and decline.",
     Arg("id", "integer", "one approval, by its id", minimum=1),
     Arg(
         "status",
@@ -3959,16 +3980,24 @@ def _my_approval(ctx: Context, aid: int) -> dict[str, Any]:
     ),
     Arg("origin", "string", "automation or chat (the assistant's proposals)", enum=("automation", "chat")),
     Arg("automation", "integer", "one automation's, by its id", minimum=1),
+    Arg("activity", "string", "those an activity caused, by its id (like create-recording-7)", max_length=120),
     Arg("before", "integer", "the next of the page before", minimum=1),
     Arg("limit", "integer", "how many", default=20, minimum=1, maximum=100),
 )
 def approvals_list(
-    ctx: Context, id: int | None, status: str | None, origin: str | None, automation: int | None, before: int | None, limit: int
+    ctx: Context,
+    id: int | None,
+    status: str | None,
+    origin: str | None,
+    automation: int | None,
+    activity: str | None,
+    before: int | None,
+    limit: int,
 ) -> dict[str, Any]:
     if id is not None:
         return {"approval": approvals.brief(_my_approval(ctx, id), ctx.web)}
     st = None if status == "any" else status or "pending"
-    rows = approvals.listing(ctx.db, ctx.user.id, st, origin, automation, None, before, limit, _approval_space(ctx))
+    rows = approvals.listing(ctx.db, ctx.user.id, st, origin, automation, None, before, limit, _approval_space(ctx), activity=activity)
     out: dict[str, Any] = {"approvals": [approvals.brief(a, ctx.web) for a in rows], "next": rows[-1]["id"] if len(rows) >= limit else None}
     if not ctx.ns:
         out["waiting"] = approvals.count(ctx.db, ctx.user.id)

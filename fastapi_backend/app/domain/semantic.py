@@ -24,7 +24,7 @@ import urllib.error
 import urllib.request
 from collections import OrderedDict
 
-from . import activity, store
+from . import activity, llm, store
 
 R = store.R
 log = logging.getLogger("lens")
@@ -75,12 +75,13 @@ def _section(cfg):
 
 def endpoint(cfg):
     """(base URL, API key, model) of the embeddings server: its own, else the LLM provider's."""
-    e, l = _section(cfg), cfg["llm"]
+    e = _section(cfg)
     own = bool(e.get("base_url"))
-    base = e.get("base_url") if own else l.get("base_url")
+    llm_base, llm_key = llm.shared(cfg)
+    base = e.get("base_url") if own else llm_base
     key = e.get("api_key") or (os.environ.get(e["api_key_env"]) if e.get("api_key_env") else None)
     if not key and not own:
-        key = l.get("api_key") or (os.environ.get(l["api_key_env"]) if l.get("api_key_env") else None)
+        key = llm_key
     return (base or "").rstrip("/") or None, key, (e.get("model") or "").strip() or None
 
 

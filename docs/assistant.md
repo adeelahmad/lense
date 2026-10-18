@@ -260,7 +260,8 @@ When the configured model supports function calling, chat becomes an agent.
 - **The person's circles:** `circles` reads their [circles of trust](circles.md) and, when asked, what was shared
   with them or by them. `share_with_circle` tells people in a circle about an activity or an asset with a note in the
   person's words; it always waits for their yes, since telling other people is their pick.
-- **The person's approvals:** `approvals` lists what waits for their pick ([Approvals](automations.md#approvals)):
+- **The person's approvals:** `approvals` lists what waits for their pick, or what one timeline activity caused
+  (`activity`) ([Approvals](automations.md#approvals)):
   automations' actions about the namespaces the conversation reads, and its own proposals in this conversation.
   `decline_approval` declines one; after it has read text from outside Lens (the approvals' own summaries count),
   declining waits for the person's yes. It can't approve: that is the person's pick. An automation's agent doesn't

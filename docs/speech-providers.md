@@ -4,8 +4,8 @@ Lens transcribes, tells speakers apart and reads emotion on your own machine by 
 SpeechBrain). Nothing changes until an admin picks a provider. Any of these voice tasks can go to a speech provider
 instead, which helps on a small machine such as a Raspberry Pi, or when you want a provider's accuracy.
 
-Status: built (transcription, speakers, language, sentiment, audio events, text to speech). Planned: provider
-summaries, chapters and entities as optional imports, per-minute prices in the activity ledger.
+Status: built (transcription, speakers, language, sentiment, audio events, text to speech, prices per minute and per
+character in the activity ledger). Planned: provider summaries, chapters and entities as optional imports.
 
 ## Providers
 
@@ -69,7 +69,10 @@ How a recording is cut:
 - The provider numbers speakers afresh in every request, so a speaker label belongs to its piece (`c0:S1`, `c1:S1`).
   Voice IDs still come from local voiceprints and match voices already known; a new voice heard in two pieces shows as
   two speakers until you merge them.
-- The activity ledger keeps one row for the recording, with its length in seconds and the number of pieces.
+- The activity ledger keeps one row for the recording, with its length in seconds and the number of pieces. Give the
+  provider a price per minute (`deepgram:nova-3 0.0043 per minute` in Settings › Telemetry › prices) and the row is
+  costed by that length, counting toward budgets; reading an answer aloud is costed per million characters the same
+  way ([costs](activity.md#costs)).
 
 ## Voices
 

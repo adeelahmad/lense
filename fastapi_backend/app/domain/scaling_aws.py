@@ -55,57 +55,42 @@ PRICE_SECONDS = 600  # prices and images are looked up again after this long
 PRICING_REGION = "us-east-1"  # the Price List API answers for every region from here
 
 
+def on_demand_usd(out):
+    """The first on-demand USD price in a Price List API answer, with that product's attributes; (None, {}) when it
+    has none."""
+    for item in out.get("PriceList") or []:
+        try:
+            doc = json.loads(item) if isinstance(item, str) else item
+        except ValueError:
+            continue
+        for term in ((doc.get("terms") or {}).get("OnDemand") or {}).values():
+            for dim in (term.get("priceDimensions") or {}).values():
+                try:
+                    usd = float((dim.get("pricePerUnit") or {}).get("USD"))
+                except (TypeError, ValueError):
+                    continue
+                if usd > 0:
+                    return usd, (doc.get("product") or {}).get("attributes") or {}
+    return None, {}
+
+
 def _now():
     return dt.datetime.now(dt.timezone.utc)
 
 
-class Ec2(Driver):
-    id = "aws"
-    kind = "node"
-    label = "AWS EC2"
-    about = (
-        "Launches EC2 instances that join Lens over the mesh and run its workers: spot instances for a fraction of the "
-        "price, falling back to on demand when AWS has no spot capacity, or on demand only."
-    )
-    priced = True
-    needs_join = True  # its units are EC2 instances, which join over the mesh's install line
-    delete_gone = False  # describe terminates a stopped instance itself; one AWS took back is already gone
+class AwsApi:
+    """Talking to AWS with an admin's access key, for every AWS driver: botocore clients per account, region and
+    service, AWS's errors as DriverErrors, and lookups kept a while."""
+
     extra = "aws"
     modules = ("botocore",)
     license = "Apache-2.0"
-    fields = {
-        "region": _field("Region", required=True, default="us-east-1", help="the AWS region units launch in, such as eu-west-1"),
-        "access_key_id": _field(
-            "Access key ID", required=True, secret=True, help="an IAM user's key; docs/scaling.md has the policy it needs"
-        ),
-        "secret_access_key": _field("Secret access key", required=True, secret=True),
-        "subnet_id": _field("Subnet", help="the subnet units launch in; none: the region's default VPC"),
-        "security_group_ids": _field("Security groups", "list", help="none: the VPC's default group (units only need to reach out)"),
-        "key_name": _field("SSH key pair", help="a key pair's name, to sign in to units yourself; none: no SSH key"),
-    }
-    template = {
-        "instance_type": _field("Instance type", required=True, default="t4g.medium", help="such as t4g.medium (Arm) or m7i.large"),
-        "market": _field(
-            "Market", default="spot", options=["spot", "on-demand"], help="spot: AWS's spare capacity, which it may take back"
-        ),
-        "max_price": _field("Spot max price (USD per hour)", "number", help="none: up to the on-demand price"),
-        "fallback": _field("On demand when there's no spot", "boolean", default=True),
-        "image": _field("AMI", help="none: the latest Ubuntu 24.04 for the instance type's architecture"),
-        "disk_gb": _field("Disk (GB)", "integer", default=30),
-        "steps": _field(
-            "Steps",
-            "list",
-            help="the steps these workers run (transcribe, analyze, embed...); none: every step",
-            options=sorted(jobs.STEPS),
-        ),
-    }
 
     def __init__(self):
         self.lock = threading.Lock()
         self.clients: dict = {}
         self.cache: dict = {}
 
-    # ---------- talking to AWS ----------
     def client(self, p, service="ec2", region=None):
         """A botocore client for the provider's account (one per account, region and service, reused)."""
         s = p.get("secrets") or {}
@@ -154,6 +139,45 @@ class Ec2(Driver):
 
     def _region(self, p):
         return (p.get("settings") or {}).get("region") or "us-east-1"
+
+
+class Ec2(AwsApi, Driver):
+    id = "aws"
+    kind = "node"
+    label = "AWS EC2"
+    about = (
+        "Launches EC2 instances that join Lens over the mesh and run its workers: spot instances for a fraction of the "
+        "price, falling back to on demand when AWS has no spot capacity, or on demand only."
+    )
+    priced = True
+    needs_join = True  # its units are EC2 instances, which join over the mesh's install line
+    delete_gone = False  # describe terminates a stopped instance itself; one AWS took back is already gone
+    fields = {
+        "region": _field("Region", required=True, default="us-east-1", help="the AWS region units launch in, such as eu-west-1"),
+        "access_key_id": _field(
+            "Access key ID", required=True, secret=True, help="an IAM user's key; docs/scaling.md has the policy it needs"
+        ),
+        "secret_access_key": _field("Secret access key", required=True, secret=True),
+        "subnet_id": _field("Subnet", help="the subnet units launch in; none: the region's default VPC"),
+        "security_group_ids": _field("Security groups", "list", help="none: the VPC's default group (units only need to reach out)"),
+        "key_name": _field("SSH key pair", help="a key pair's name, to sign in to units yourself; none: no SSH key"),
+    }
+    template = {
+        "instance_type": _field("Instance type", required=True, default="t4g.medium", help="such as t4g.medium (Arm) or m7i.large"),
+        "market": _field(
+            "Market", default="spot", options=["spot", "on-demand"], help="spot: AWS's spare capacity, which it may take back"
+        ),
+        "max_price": _field("Spot max price (USD per hour)", "number", help="none: up to the on-demand price"),
+        "fallback": _field("On demand when there's no spot", "boolean", default=True),
+        "image": _field("AMI", help="none: the latest Ubuntu 24.04 for the instance type's architecture"),
+        "disk_gb": _field("Disk (GB)", "integer", default=30),
+        "steps": _field(
+            "Steps",
+            "list",
+            help="the steps these workers run (transcribe, analyze, embed...); none: every step",
+            options=sorted(jobs.STEPS),
+        ),
+    }
 
     # ---------- what a unit is ----------
     def arch(self, p, itype):
@@ -246,20 +270,7 @@ class Ec2(Driver):
                 Filters=[{"Type": "TERM_MATCH", "Field": k, "Value": v} for k, v in match.items()],
                 MaxResults=10,
             )
-            for item in out.get("PriceList") or []:
-                try:
-                    doc = json.loads(item) if isinstance(item, str) else item
-                except ValueError:
-                    continue
-                for term in ((doc.get("terms") or {}).get("OnDemand") or {}).values():
-                    for dim in (term.get("priceDimensions") or {}).values():
-                        try:
-                            usd = float((dim.get("pricePerUnit") or {}).get("USD"))
-                        except (TypeError, ValueError):
-                            continue
-                        if usd > 0:
-                            return usd
-            return None
+            return on_demand_usd(out)[0]
 
         try:
             return self._cached(("demand", self._region(p), itype), look)

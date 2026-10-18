@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import AdminReader, AdminWriter, Cfg, Db, domain_errors
-from app.domain import auth, sensor_patterns, sensors
+from app.domain import auth, events_content, sensor_patterns, sensors
 from app.schemas.common import Created, Ok
 from app.schemas.sensors import (
     HubLogin,
@@ -94,8 +94,11 @@ def update_sensor(sid: int, body: SensorUpdate, user: AdminWriter, db: Db, cfg: 
     if "handling" in changes and body.handling is not None:
         changes["handling"] = body.handling.model_dump(exclude_unset=True)
     with domain_errors():
+        before = sensors.get(db, sid)
         sensors.update(db, sid, cfg, **changes)
     auth.audit(db, user.as_audit(), "sensor.update", f"storage_source:{sid}", sorted(changes))
+    if changes.get("status"):  # switched on or off: on the timeline, for automations ("when the kitchen sensor is paused")
+        events_content.sensor_changed(db, before, changes["status"], user.email)
     return Ok()
 
 

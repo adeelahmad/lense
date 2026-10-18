@@ -12,11 +12,24 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer, domain_errors
 from app.api.v1.routes.comments import _comments_out
-from app.domain import auth, comment_agent, comments, event_marks, event_mutes, event_reactions, events, events_content, for_you, store
+from app.domain import (
+    auth,
+    comment_agent,
+    comments,
+    event_marks,
+    event_mutes,
+    event_reactions,
+    events,
+    events_approvals,
+    events_content,
+    for_you,
+    store,
+)
 from app.schemas.activities import (
     ActivityKind,
     ActivityMark,
     ActivityPage,
+    Caused,
     MarkIn,
     MarksIn,
     MarksOut,
@@ -211,6 +224,38 @@ def get_activity(activity_id: str, user: CurrentUser, acl: Acl, db: Db, cfg: Cfg
     if not a:
         raise HTTPException(404, "not found")
     return StreamActivity(**a)
+
+
+def caused(db: Any, cfg: dict[str, Any], user: Principal, acl: Access, activity_id: str) -> Caused:
+    """What an activity caused: the runs it started of the automations the person manages, and the approvals those
+    asked them for. On an approval.waiting activity, the approval itself is what it is about, so it is listed (404
+    when they can't see the activity)."""
+    from app.api.v1.routes import automations as automation_routes
+    from app.api.v1.routes import chats as chat_routes
+    from app.domain import approvals
+
+    a = events.get(db, cfg, activity_id, viewer(db, user, acl))
+    if not a:
+        raise HTTPException(404, "not found")
+    via = chat_routes._via(user)
+    rows = approvals.listing(db, user.id, None, None, None, None, None, 50, activity=activity_id)
+    own = events_approvals.waiting_id(activity_id)
+    if own is not None and all(r["id"] != own for r in rows):
+        mine = approvals.get(db, own)
+        if mine and mine.get("account") == user.id:
+            rows.insert(0, mine)
+    return Caused(
+        runs=automation_routes.caused_runs(db, user, acl, activity_id),
+        approvals=[chat_routes.approval_view(r, via, cfg) for r in rows],
+    )
+
+
+@router.get("/{activity_id}/caused")
+def activity_caused(activity_id: str, user: CurrentUser, acl: Acl, db: Db, cfg: Cfg) -> Caused:
+    """What an activity caused: the runs of your automations it started and the approvals they asked you for, each
+    with what you can do (approve, decline) at `POST /api/v1/approvals/{id}`. On an approval.waiting activity, that
+    approval."""
+    return caused(db, cfg, user, acl, activity_id)
 
 
 @router.post("/{activity_id}/mark")
