@@ -179,6 +179,17 @@ export function passkeyErrorMessage(err: unknown, making = false): string {
   return err instanceof Error && err.message ? err.message : "Something went wrong with the passkey.";
 }
 
+/**
+ * What to tell someone whose passkey sign-in failed. A passkey belongs to the address it was made at, so a closed
+ * prompt at a new address (a tunnel or domain) usually means their passkey lives at the other one.
+ */
+export function passkeySignInMessage(err: unknown): string {
+  const name = err instanceof DOMException || err instanceof Error ? err.name : "";
+  const text = passkeyErrorMessage(err);
+  if (name !== "NotAllowedError" && name !== "AbortError") return text;
+  return `${text} A passkey works only at the address it was made at. Made yours at another address? Sign in there, then choose Open signed in under Profile › Passkeys.`;
+}
+
 /** A suggested name for a new passkey: the kind of device it's made on. */
 export function deviceName(ua = typeof navigator === "undefined" ? "" : navigator.userAgent): string {
   if (/iPhone/.test(ua)) return "iPhone";

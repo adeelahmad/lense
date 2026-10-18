@@ -1,10 +1,10 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Fingerprint, Pencil, Trash2 } from "lucide-react";
+import { Fingerprint, Globe, Pencil, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { Auth, type Passkey } from "@/app/openapi-client";
+import { Auth, type Passkey, type PasskeyAddress } from "@/app/openapi-client";
 import { Banner } from "@/components/ui/banner";
 import { Button, IconButton } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
@@ -13,6 +13,7 @@ import { DateTime, Skeleton } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
 import { createPasskey, deviceName, passkeyErrorMessage, passkeysUnavailableReason } from "@/lib/auth/webauthn";
+import { navigate } from "@/lib/navigate";
 
 /** Your passkeys: add one on this device (or a phone), rename them, remove ones you no longer use (never the last). */
 export function PasskeysPanel() {
@@ -26,6 +27,11 @@ export function PasskeysPanel() {
   // an outside account (Google, GitHub, ...) is another way in, so then the last passkey can go too
   const identities = useQuery({ queryKey: ["identities"], queryFn: () => data(Auth.listIdentities({ client })) });
   const refresh = () => void qc.invalidateQueries({ queryKey: ["passkeys"] });
+  // the other https:// addresses Lens opens at (Remote access, HTTPS): a passkey works only on the one it was made at
+  const elsewhere = useQuery({
+    queryKey: ["passkeys", "elsewhere"],
+    queryFn: () => data(Auth.passkeyAddresses({ client })),
+  });
 
   const add = useMutation({
     mutationFn: async () => {
@@ -86,8 +92,44 @@ export function PasskeysPanel() {
             No passkeys yet. Add one so you can sign in without a password.
           </p>
         )}
+        {elsewhere.data?.length ? <OtherAddresses addresses={elsewhere.data} onError={setError} /> : null}
       </div>
     </Panel>
+  );
+}
+
+/** Opens another address Lens is at signed in (a sign-in link of your own, 15 minutes), to add a passkey there. */
+function OtherAddresses({ addresses, onError }: { addresses: PasskeyAddress[]; onError: (e: string) => void }) {
+  const client = useApiClient();
+  const go = useMutation({
+    mutationFn: (url: string) => data(Auth.passkeyElsewhere({ client, body: { url } })),
+    onSuccess: (link) => navigate.assign(link.url),
+    onError: (e) => onError(e.message),
+  });
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-[13px] text-fg-secondary">
+        Lens also opens at {addresses.length === 1 ? "this address" : "these addresses"}. Open one signed in and add a
+        passkey there, with no sign-in link to ask for.
+      </p>
+      <ul className="flex flex-col divide-y divide-border rounded-sm border border-border">
+        {addresses.map((a) => (
+          <li key={a.url} className="flex flex-wrap items-center gap-3 px-3 py-2.5 text-[13.5px]">
+            <Globe className="size-4 text-fg-muted" aria-hidden />
+            <span className="min-w-0 flex-1 truncate font-mono text-fg">{a.url}</span>
+            {a.passkey ? (
+              <Button asChild size="sm" variant="secondary">
+                <a href={a.url}>Open</a>
+              </Button>
+            ) : (
+              <Button size="sm" onClick={() => go.mutate(a.url)} disabled={go.isPending}>
+                {go.isPending && go.variables === a.url ? "Opening…" : "Open signed in"}
+              </Button>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

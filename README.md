@@ -70,8 +70,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   answer OpenAI's chat completions API for any app, cited from that namespace alone, each off until its owner turns it
   on, with API keys that open that one namespace and nothing else. The same folders and files can be mounted over S3,
   WebDAV, NFS or SMB (S3 and WebDAV also at the web app's address, through remote access), so file managers and scripts
-  read Lens too, and a file copied in over S3 or WebDAV is imported where it was put. The web app runs on the same REST
-  API, so an agent can do what a person can. ([MCP](docs/mcp.md), [one namespace's MCP
+  read Lens too, and a file copied in over S3, WebDAV or SMB is imported where it was put. The web app runs on the same
+  REST API, so an agent can do what a person can. ([MCP](docs/mcp.md), [one namespace's MCP
   server](docs/mcp.md#one-namespaces-mcp-server), [chat completions](docs/api.md#chat-completions-for-any-app),
   [API](docs/api.md), [the graph as files](docs/file-tree.md), [authentication](docs/authentication.md);
   [checks](docs/requirements.md#connect-your-agents))
@@ -81,8 +81,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   of each conversation's own. Regenerating an answer or editing a question makes a new version beside the old one, and
   nothing is lost. Each answer keeps a record of what produced it (the model, its tools, how long it took and what it
   cost), opened from its header. It reads answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine
-  (opt-in), and `/clear` and `/compact` keep long conversations short. Conversations title themselves after their
-  first answer, unless you name them. Each namespace can have its own assistant with
+  (opt-in), any message in one click, and `/clear` and `/compact` keep long conversations short. Conversations title
+  themselves after their first answer, unless you name them. Each namespace can have its own assistant with
   its own name, instructions and memory, answering in Telegram and Slack (built in, with voice notes and files), in
   Discord, Matrix, WhatsApp and other chat rooms through Matterbridge, and by email at an address of its own that you
   email or forward things to. ([Chat](docs/assistant.md), [web search](docs/assistant.md#web-search-and-reading-pages),
@@ -181,17 +181,19 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   machine; the same daily events can also go to a Google Analytics 4 property of your own (off unless you turn it on).
   ([Logging](docs/logging.md), [telemetry](docs/telemetry.md), [Prometheus](docs/prometheus.md),
   [usage analytics](docs/analytics.md); [checks](docs/requirements.md#watch-it-run))
-- **Stay private and safe.** Passkeys instead of passwords, encryption at rest with a key per namespace, roles per
-  namespace (viewer, editor, owner, or custom roles made of permissions), email invitations, removing someone for
-  good, and an audit log. Prompt injection meets several layers: what the assistant reads (recordings,
-  documents, web pages, tool results) reaches the model marked as data, not instructions, and text that reads like
-  instructions to an AI is flagged (by free patterns, or an optional classifier model that runs on your machine and is
-  fetched only when you pick it). Once an answer has read such text, sending anything out, or the browser opening or
-  typing what the assistant wrote, waits for your yes. Chat-room answers have links they built themselves broken up,
-  agents over MCP get the archive as data, and what Lens caught goes into the audit log. Serve Lens over HTTPS, set
+- **Stay private and safe.** Passkeys instead of passwords (one at Lens's remote address added from a signed-in one with
+  Open signed in), encryption at rest with a key per namespace, roles per namespace (viewer, editor, owner, or custom
+  roles made of permissions), email invitations, removing someone for good, and an audit log. Prompt injection meets
+  several layers: what the assistant reads (recordings, documents, web pages, tool results) reaches the model marked as
+  data, not instructions, and text that reads like instructions to an AI is flagged (by free patterns, or an optional
+  classifier model that runs on your machine and is fetched only when you pick it). Once an answer has read such text,
+  sending anything out, or the browser opening or typing what the assistant wrote, waits for your yes. Chat-room answers
+  have links they built themselves broken up, agents over MCP get the archive as data, and what Lens caught goes into
+  the audit log. Serve Lens over HTTPS, set
   up in Settings, with certificates from Let's Encrypt or ZeroSSL that renew on their own, answering only for its own
   domains and, if you choose, only to devices holding a client certificate; or reach it from anywhere through a
-  Cloudflare tunnel with nothing opened on your router. ([Encryption](docs/encryption.md), [access](docs/access.md),
+  Cloudflare tunnel with nothing opened on your router. Either way, the S3 and WebDAV shares and the MQTT hub answer at
+  that same address once you turn them on. ([Encryption](docs/encryption.md), [access](docs/access.md),
   [prompt injection](docs/assistant.md#third-party-content-and-prompt-injection), [HTTPS](docs/https.md),
   [remote access](docs/remote-access.md); [checks](docs/requirements.md#stay-private-and-safe))
 - **Use open standards.** RDF and Dublin Core for every record, OAuth for apps and OpenID Connect sign-in, MCP, MQTT,

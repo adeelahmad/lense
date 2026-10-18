@@ -1204,6 +1204,72 @@
         }
       }
     },
+    "/api/v1/auth/passkeys/elsewhere": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Passkey Addresses",
+        "description": "The other https:// addresses Lens opens at (Settings \u203a Remote access and HTTPS), and whether you have a passkey\nfor each: a passkey works only on the address it was made at.",
+        "operationId": "passkey_addresses",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PasskeyAddress"
+                  },
+                  "type": "array",
+                  "title": "Response Auth-Passkey Addresses"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Passkey Elsewhere",
+        "description": "A sign-in link of your own at another address Lens opens at, to sign in there and add a passkey for it, with no\nemail and no admin. It lasts 15 minutes and works once; links others have are left alone. For people signed in\nthemselves, not API tokens or apps. Audited as `passkey.elsewhere`.",
+        "operationId": "passkey_elsewhere",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyAddressAsk"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SigninLink"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/external": {
       "get": {
         "tags": [
@@ -47933,6 +47999,12 @@
             ],
             "title": "Mqtt Port"
           },
+          "mqtt_web": {
+            "type": "boolean",
+            "title": "Mqtt Web",
+            "description": "the broker over WebSockets too, which the web app relays at /mqtt",
+            "default": false
+          },
           "syslog": {
             "type": "boolean",
             "title": "Syslog"
@@ -57237,6 +57309,43 @@
           "created_at"
         ],
         "title": "Passkey"
+      },
+      "PasskeyAddress": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "an https:// address Lens opens at besides this one (Remote access, HTTPS)"
+          },
+          "passkey": {
+            "type": "boolean",
+            "title": "Passkey",
+            "description": "whether you have a passkey for it: a passkey works only where it was made"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "url",
+          "passkey"
+        ],
+        "title": "PasskeyAddress"
+      },
+      "PasskeyAddressAsk": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 300,
+            "title": "Url",
+            "description": "one of GET /auth/passkeys/elsewhere's addresses"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "PasskeyAddressAsk"
       },
       "PasskeyAnswer": {
         "properties": {
@@ -68313,6 +68422,12 @@
             "type": "string",
             "title": "Mount",
             "description": "the command that mounts it on Linux"
+          },
+          "add_files": {
+            "type": "boolean",
+            "title": "Add Files",
+            "description": "whether files people copy in are imported (smb.add_files); off: read-only",
+            "default": false
           }
         },
         "additionalProperties": true,
