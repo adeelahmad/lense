@@ -1,7 +1,7 @@
 # Logging
 
 Every Lens process (the API, each `lens worker`, `lens watch`) writes one structured record per log line, and sends it
-to up to three places:
+to up to four places:
 
 - **The console**, which is what `docker logs` and `docker compose logs` show: as text, or as one JSON object per line
   for a log shipper (**Format**).
@@ -9,6 +9,8 @@ to up to three places:
   line, rotated at **File size** and kept **Files kept** times. **Settings → Logs** reads these, so its viewer shows the
   workers' lines as well as the API's. A file no process has written for 14 days (an old container's) is removed.
 - **A syslog server**, off by default (below).
+- **An HTTP endpoint**: Grafana Loki's push API, or JSON for Vector, Fluent Bit, Logstash and the like; off by default
+  (below).
 
 Change any of it in **Settings → Logs**; the API and every worker follow within a few seconds, without a restart.
 `LENS_LOG_LEVEL` and `LENS_LOG_FORMAT` in .env win over Settings, which then show those fields locked.
@@ -57,4 +59,32 @@ and Settings → Logs shows how many lines the API has sent and dropped and the 
 rsyslog, syslog-ng, Graylog, Grafana Loki (through promtail or Alloy's syslog receiver), Splunk, Papertrail and most
 log tools take RFC 5424 syslog.
 
-Not yet built: sending straight to Loki or another HTTP endpoint, and client certificates for TLS.
+Not yet built: client certificates for TLS.
+
+## Sending to Loki or another HTTP endpoint
+
+Turn on **Send to an HTTP endpoint** and set its **Address**. Lines are POSTed in batches (up to 500 lines, or what
+arrived in 2 seconds), in one of three **Formats**:
+
+| Format | Request | Takes it |
+| --- | --- | --- |
+| Loki push API (default) | `POST /loki/api/v1/push`, `{"streams": [...]}` | Grafana Loki, Grafana Cloud Logs, Alloy's `loki.source.api` |
+| JSON array | one array of records | Fluent Bit's `http` input, Logstash's `http` input, Vector's `http_server` |
+| One JSON object per line | `application/x-ndjson` | Vector, OpenObserve and other NDJSON receivers |
+
+For Loki the server's address is enough (`http://loki:3100`); `/loki/api/v1/push` is added when the address has no
+path. Each Loki line is the whole record above as JSON (`| json` in LogQL reads its fields), in a stream labelled
+`service_name="lens"`, `host`, `process` and `level`. The other formats send the records as they are.
+
+**Headers** are for a server that wants a token: `key=value` pairs separated by commas, values URL-encoded, like
+`Authorization=Bearer%20abc,X-Scope-OrgID=home` (Grafana Cloud takes `Authorization=Basic%20<base64 of user:token>`).
+They're stored encrypted and never shown again, and they're dropped when the address moves to another server, so a
+token never goes somewhere it wasn't meant for. The address can't carry a user name or password, and can't be a
+link-local address (169.254.0.0/16, fe80::/10, where cloud metadata lives); Lens follows no redirects and uses no proxy
+from the environment for it. **Verify the certificate** (on) checks an https server's certificate.
+
+Only lines at **HTTP level** or above are sent. As with syslog, lines wait in a queue of up to 10,000 sent from a
+background thread, so a slow or unreachable endpoint never holds up Lens; a batch that fails is tried again, waiting up
+to 30 seconds between tries. **Send a test line** sends one line to the saved endpoint even while sending is off, and
+Settings → Logs shows how many lines the API has sent and dropped and the last error. Agents do the same with
+`PUT /api/v1/settings/logs`, `POST /api/v1/settings/logs/test?to=http` and `GET /api/v1/settings/logs/status`.

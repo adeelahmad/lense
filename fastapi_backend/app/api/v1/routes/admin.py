@@ -446,14 +446,19 @@ def usage_events(user: AdminReader, db: Db, limit: int = Query(200, ge=1, le=100
 
 @router.get("/settings/logs/status")
 def log_status(user: AdminReader, cfg: Cfg) -> LogStatus:
-    """The API process's log level, its log file, and how sending to syslog is going (off by default)."""
+    """The API process's log level, its log file, and how sending to syslog and to an HTTP endpoint is going (both off
+    by default)."""
     return LogStatus.model_validate(logs.status(cfg))
 
 
 @router.post("/settings/logs/test")
-def test_logs(user: AdminWriter, cfg: Cfg) -> LogTestResult:
-    """Send one line to the saved syslog server now (on or off), to check the address, port and transport."""
-    ok, error, ms = logs.test_send(cfg)
+def test_logs(
+    user: AdminWriter,
+    cfg: Cfg,
+    to: Literal["syslog", "http"] = Query("syslog", description="the syslog server, or the HTTP endpoint (Loki or JSON)"),
+) -> LogTestResult:
+    """Send one line to the saved syslog server or HTTP endpoint now (on or off), to check its address and settings."""
+    ok, error, ms = logs.test_http(cfg) if to == "http" else logs.test_send(cfg)
     return LogTestResult(ok=ok, error=error, ms=ms)
 
 

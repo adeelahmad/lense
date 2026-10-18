@@ -264,7 +264,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [the upgrade check](docs/database.md#checked-before-every-release);
   [checks](docs/requirements.md#keep-it-up-to-date-and-backed-up))
 - **Watch it run.** Structured logs from every process, read in Settings › Logs and optionally sent to a syslog
-  server. OpenTelemetry traces and metrics, and a Prometheus `/metrics` endpoint, both off until you turn them on, and
+  server, or straight to Grafana Loki or another HTTP endpoint. OpenTelemetry traces and metrics, and a Prometheus `/metrics` endpoint, both off until you turn them on, and
   sending nothing anywhere else. On a Docker install, one switch in the web app (or one API call from an agent) starts
   Prometheus, node-exporter and Grafana next to Lens, already connected, with the Lens dashboard as Grafana's home.
   Activity clears the job queue, reorders it by drag and drop and retries every failed run at once; agents do the
@@ -329,8 +329,7 @@ Next, and not in a pull request yet; each links to where it is tracked:
 - **Storage:** uploads and assets' media in the file store, and a storage key to download
   ([storage](docs/storage.md)).
 - **Secrets:** references in sources' credentials and MCP servers ([secrets](docs/secrets.md)).
-- **Logging:** sending straight to Loki or another HTTP endpoint, and client certificates for TLS
-  ([logging](docs/logging.md)).
+- **Logging:** client certificates for syslog over TLS ([logging](docs/logging.md)).
 - **Proof:** the install timed on a real Raspberry Pi, where GitHub's faster arm64 runner gives only a floor
   ([scorecard](docs/contributing.md#scorecard)).
 

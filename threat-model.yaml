@@ -8,7 +8,7 @@ project: lens
 prose_version: "threat-model.md@same-commit"
 model_status: under-review
 triage_policy: strict
-confidence: {documented: 211, maintainer: 46, inferred: 91, assumption: 8}
+confidence: {documented: 212, maintainer: 46, inferred: 91, assumption: 8}
 
 generation:
   model: "Claude Opus 5.5 (claude-opus-5-5)"
@@ -995,6 +995,14 @@ outputs:
       - {id: inv-telemetry-no-content, statement: "never sends content, names, addresses or error messages", property_id: P-TELEMETRY, provenance: {kind: documented, source: 'docs/telemetry.md "Never sent"'}}
     downstream_must_not_assume:
       - {id: dmna-collector-private, statement: "that the operator's collector is private", provenance: {kind: documented, source: 'docs/telemetry.md "Never sent"'}}
+  - component: outbound
+    channel: "Log shipping, syslog and HTTP (logs.py)"
+    taint: constrained
+    x-taint-note: "every log line at the chosen level, redacted; off by default; HTTP headers dropped when the address moves host"
+    taint_provenance: {kind: documented, source: 'docs/logging.md "so a token never goes somewhere it wasn''t meant for"'}
+    invariants: []
+    downstream_must_not_assume:
+      - {id: dmna-log-server-private, statement: "that the log server is private, or that a line is free of personal data", provenance: {kind: documented, source: 'docs/logging.md "so a token never goes somewhere it wasn''t meant for"'}}
   - component: identity
     channel: "Server log (API)"
     taint: same-as-input

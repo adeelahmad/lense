@@ -470,6 +470,19 @@ class UsageEvent(ResponseModel):
     sent: bool | None = None
 
 
+class LogHttpStatus(ResponseModel):
+    """How sending to an HTTP endpoint (Loki or JSON) is going, from the API process."""
+
+    on: bool = Field(description="whether lines are being sent to an HTTP endpoint")
+    target: str | None = Field(None, description="the address lines are POSTed to")
+    sent: int = 0
+    dropped: int = Field(0, description="lines dropped because the endpoint couldn't keep up or was unreachable")
+    queued: int = 0
+    last_sent: float | None = None
+    last_error: str | None = None
+    error_at: float | None = None
+
+
 class LogStatus(ResponseModel):
     """What the API process does with its logs now; each worker follows the same settings on its own."""
 
@@ -483,6 +496,7 @@ class LogStatus(ResponseModel):
     last_sent: float | None = None
     last_error: str | None = None
     error_at: float | None = None
+    http: LogHttpStatus = Field(default_factory=lambda: LogHttpStatus(on=False))
 
 
 class LogTestResult(ResponseModel):

@@ -798,7 +798,9 @@ DEFAULTS = {
     },
     # logging (docs/logging.md): level and format for the console (docker logs) and a file per process under
     # data_dir/logs (what Settings → Logs shows); levels sets single loggers, like {"httpx": "warning"}. syslog sends
-    # every line at syslog_level or above to a syslog server (RFC 5424 over udp, tcp or tls); off by default
+    # every line at syslog_level or above to a syslog server (RFC 5424 over udp, tcp or tls); http sends them in batches to
+    # http_url: Grafana Loki's push API (loki), a JSON array (json) or one JSON object per line (ndjson), with the sealed
+    # http_headers (key=value pairs, like telemetry.headers); both off by default
     "logs": {
         "level": "info",
         "format": "text",
@@ -816,6 +818,12 @@ DEFAULTS = {
         "syslog_framing": "octet",
         "syslog_verify": True,
         "syslog_app_name": "lens",
+        "http": False,
+        "http_url": None,
+        "http_kind": "loki",
+        "http_level": "info",
+        "http_headers": None,
+        "http_verify": True,
     },
     # usage analytics (docs/analytics.md): the numbers are worked out locally from the activity ledger; Google Analytics
     # is off unless an admin turns it on with a GA4 measurement id and a Measurement Protocol API secret (sealed)
