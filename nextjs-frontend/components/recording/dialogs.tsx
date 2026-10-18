@@ -22,7 +22,7 @@ import { orderedSteps, reprocessOptions, STEP_HELP, toggleStep, type StepKey } f
 import { cleanTitle } from "@/components/recording/model";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { Checkbox, Field, Input } from "@/components/ui/field";
+import { Checkbox, Field, Input, Switch } from "@/components/ui/field";
 import { STEP_LABEL } from "@/components/ui/loop";
 import { useToast } from "@/components/ui/toast";
 import { Skeleton } from "@/components/ui/states";
@@ -122,7 +122,7 @@ export function AccessDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   const q = useRecordingAccess(id, open);
   const save = useSaveAccess(id);
   const saved: AccessValue | null = q.data
-    ? { access: q.data.access, open: q.data.open, featured: q.data.featured }
+    ? { access: q.data.access, open: q.data.open, featured: q.data.featured, downloads: q.data.downloads ?? true }
     : null;
   const [draft, setDraft] = useState<AccessValue | null>(null);
   useEffect(() => {
@@ -152,6 +152,21 @@ export function AccessDialog({ open, onOpenChange }: { open: boolean; onOpenChan
             onChange={setDraft}
             disabled={!canPublish || save.isPending}
             disabledReason={needRole("owner", ns)}
+          />
+          <Switch
+            checked={value.downloads ?? true}
+            onCheckedChange={(on) => setDraft({ ...value, downloads: on })}
+            disabled={!canPublish || save.isPending}
+            label={
+              <span className="flex flex-col">
+                <span className="text-[13.5px] font-semibold text-fg">Downloads</span>
+                <span className="text-[12px] text-fg-muted">
+                  {(value.downloads ?? true)
+                    ? "People who see it can save its files"
+                    : "Only owners save its files; everyone else still plays it, sees its pages and reads its text"}
+                </span>
+              </span>
+            }
           />
           {saved?.access === "public" && <PublicPageLink id={id} />}
           {nsDefault && (

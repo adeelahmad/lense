@@ -96,22 +96,26 @@ function PagesCard({
     <Card
       title={title}
       extra={
-        <div className="flex flex-wrap justify-end gap-1">
-          {m.pdf && (
+        rec.downloads === false ? (
+          <span className="text-[12px] text-fg-muted">Downloads are turned off</span>
+        ) : (
+          <div className="flex flex-wrap justify-end gap-1">
+            {m.pdf && (
+              <Button asChild size="sm" variant="ghost">
+                <a href={m.pdf} download aria-label="Download the PDF">
+                  <Download aria-hidden />
+                  PDF
+                </a>
+              </Button>
+            )}
             <Button asChild size="sm" variant="ghost">
-              <a href={m.pdf} download aria-label="Download the PDF">
+              <a href={m.url} download aria-label={`Download the ${own === "PDF" ? own : own.toLowerCase()}`}>
                 <Download aria-hidden />
-                PDF
+                {m.pdf ? own : `Download the ${own === "PDF" ? own : own.toLowerCase()}`}
               </a>
             </Button>
-          )}
-          <Button asChild size="sm" variant="ghost">
-            <a href={m.url} download aria-label={`Download the ${own === "PDF" ? own : own.toLowerCase()}`}>
-              <Download aria-hidden />
-              {m.pdf ? own : `Download the ${own === "PDF" ? own : own.toLowerCase()}`}
-            </a>
-          </Button>
-        </div>
+          </div>
+        )
       }
     >
       {pages.length > 1 && (

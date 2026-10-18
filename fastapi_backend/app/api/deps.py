@@ -344,7 +344,26 @@ class Access:
 
     def signed(self) -> bool:
         q = self.request.query_params
-        return security.verify_path(self.request.url.path, q.get("exp"), q.get("sig"), full=q.get("full") == "1")
+        return security.verify_path(self.request.url.path, q.get("exp"), q.get("sig"), full=q.get("full") == "1", save=q.get("save") == "1")
+
+    def owns(self, rec: dict[str, Any]) -> bool:
+        """Whether this person acts as the recording's owner: the publish permission in its namespace, or admin of its
+        collection (admins have every permission)."""
+        if not self.user:
+            return False
+        coll = hierarchy.ROLES.get(self.collection_role(rec["space"], rec.get("collection")) or "", 0)
+        return self.can(rec["space"], "publish") or coll >= auth.ROLES[rl.minimum("publish")]
+
+    def saves(self, rec: dict[str, Any]) -> bool:
+        """Whether this request may save the recording's files (docs/access.md#downloads): its downloads are on, or the
+        requester acts as its owner, or the link was signed for one (`save`)."""
+        q = self.request.query_params
+        return acc.saves(rec, self.owns(rec) or (q.get("save") == "1" and self.signed()))
+
+    def may_save(self, rec: dict[str, Any]) -> None:
+        """403 unless this request may save the recording's files."""
+        if not self.saves(rec):
+            raise HTTPException(403, acc.DOWNLOADS_OFF)
 
     def member(self, rec: dict[str, Any]) -> bool:
         """Whether this request is a member's: a role in the recording's namespace or on its collection, or a link

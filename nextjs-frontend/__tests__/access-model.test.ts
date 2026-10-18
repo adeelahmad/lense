@@ -8,6 +8,7 @@ import {
   permissionLine,
   rangesFromText,
   rangesText,
+  saveBlocked,
   togglePart,
   type AccessValue,
 } from "@/components/access/model";
@@ -55,6 +56,23 @@ describe("access", () => {
     });
     // closing every part is a change of its own
     expect(accessPatch(saved, { ...saved, open: [] })).toEqual({ open: [] });
+  });
+
+  it("sends the downloads switch only when it changes, on by default", () => {
+    const saved: AccessValue = { access: "private", open: ["media"], featured: false, downloads: true };
+    expect(accessPatch(saved, saved)).toEqual({});
+    expect(accessPatch(saved, { ...saved, downloads: false })).toEqual({ downloads: false });
+    expect(accessPatch({ ...saved, downloads: false }, { ...saved, downloads: true })).toEqual({ downloads: true });
+    // the metadata editor and the IIIF panel don't carry it: nothing to send
+    const plain: AccessValue = { access: "private", open: ["media"], featured: false };
+    expect(accessPatch(plain, plain)).toEqual({});
+  });
+
+  it("says why the files can't be saved, only when they can't", () => {
+    expect(saveBlocked({ can_save: false })).toMatch(/turned downloads off: you can play and read it here/);
+    expect(saveBlocked({ can_save: true })).toBeNull();
+    expect(saveBlocked({})).toBeNull(); // an older server: as before
+    expect(saveBlocked(undefined)).toBeNull();
   });
 
   it("keeps no open parts as a value when saving metadata, and describes it", () => {

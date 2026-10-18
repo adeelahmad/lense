@@ -765,8 +765,11 @@ gone) opens a neutral page with status 410 that says nothing about the asset.
 
 `GET /resources/{rid}/access` says who may see an asset (members): `access` (`public`, `restricted` or
 `private`), `open` (the parts a public asset opens to everyone: `media`, `transcript`, `index`), `featured`,
-`inherited` (the access comes from the namespace) and the namespace's `default`. `PUT` changes any of them (owners);
-`null` follows the namespace again. Changes are audited as `recording.access`, kept in the metadata history, and
+`inherited` (the access comes from the namespace), the namespace's `default` and `downloads`. `PUT` changes any of
+them (owners); `null` follows the namespace again. `downloads: false` keeps the asset's files (its own file, the PDF
+made of it, its supplementary files) for its owners: everyone else gets 403 from `/media`, `/pdf` and `…/files/{id}/download`
+but still plays it through `/audio`, sees its pages and reads its text ([Downloads](access.md#downloads)).
+`GET /resources/{rid}` and `GET /resources/{rid}/files` say `downloads` and `can_save` (whether you may save them). Changes are audited as `recording.access`, kept in the metadata history, and
 announced in the IIIF change feed. [Access](access.md) explains what each level lets people do.
 
 `/resources/{rid}/permissions` lists the people given permission on the asset (owners), each with `expires_at` and

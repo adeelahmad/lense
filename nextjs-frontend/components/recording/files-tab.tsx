@@ -29,6 +29,7 @@ import { useNamespaceFields } from "@/components/fields/use-fields";
 import { uploadKindName } from "@/components/import/files";
 import { chooseFiles } from "@/components/import/pending";
 import { usePlayerApi, usePlayerState } from "@/components/player/media";
+import { saveBlocked } from "@/components/access/model";
 import { useRec } from "@/components/recording/context";
 import {
   READ,
@@ -77,6 +78,7 @@ const chip =
 export function FilesTab() {
   const { id, ns, canEdit, fileFocus } = useRec();
   const files = useFiles(id);
+  const blocked = saveBlocked(files.data);
   const [adding, setAdding] = useState(false);
   const [picked, setPicked] = useState<File | null>(null);
   const [over, setOver] = useState(false);
@@ -130,7 +132,12 @@ export function FilesTab() {
         </EmptyState>
       ) : (
         <>
-          {files.data?.primary && <Primary p={files.data.primary} />}
+          {blocked && (
+            <p role="note" className="rounded-md bg-surface px-3 py-2.5 text-[12.5px] leading-[1.45] text-fg-secondary">
+              {blocked}.
+            </p>
+          )}
+          {files.data?.primary && <Primary p={files.data.primary} blocked={blocked} />}
           {list.length === 0 ? (
             <EmptyState icon={<Paperclip />} title="No other files yet" className="py-6">
               {canEdit
@@ -142,7 +149,12 @@ export function FilesTab() {
               <Label as="h3">Supplementary files</Label>
               <ul className="flex flex-col">
                 {list.map((f) => (
-                  <FileRow key={f.id} f={f} focus={fileFocus?.file === f.id ? (fileFocus.line ?? -1) : null} />
+                  <FileRow
+                    key={f.id}
+                    f={f}
+                    blocked={blocked}
+                    focus={fileFocus?.file === f.id ? (fileFocus.line ?? -1) : null}
+                  />
                 ))}
               </ul>
             </section>
@@ -168,7 +180,7 @@ const PRIMARY = {
   image: { icon: FileImage, word: "Image" },
 } as const;
 
-function Primary({ p }: { p: PrimaryFile }) {
+function Primary({ p, blocked }: { p: PrimaryFile; blocked: string | null }) {
   const { icon: Icon, word: kindWord } = PRIMARY[p.kind] ?? PRIMARY.audio;
   const word = p.kind === "document" ? uploadKindName("document", p.name ?? "") : kindWord;
   return (
@@ -183,26 +195,34 @@ function Primary({ p }: { p: PrimaryFile }) {
           {["Primary", word, p.size != null ? bytes(p.size) : null].filter(Boolean).join(" · ")}
         </p>
       </div>
-      {p.pdf && (
-        <Button asChild size="sm" variant="ghost">
-          <a href={p.pdf} download aria-label="Download the PDF made of it">
-            <Download />
-            PDF
-          </a>
-        </Button>
-      )}
-      <Button asChild size="sm" variant="ghost">
-        <a href={p.download} download={p.name ?? true} aria-label={`Download ${p.name ?? "the media"}`}>
-          <Download />
+      {blocked ? (
+        <Button size="sm" variant="ghost" icon={<Download />} disabled disabledReason={blocked}>
           Download
-        </a>
-      </Button>
+        </Button>
+      ) : (
+        <>
+          {p.pdf && (
+            <Button asChild size="sm" variant="ghost">
+              <a href={p.pdf} download aria-label="Download the PDF made of it">
+                <Download />
+                PDF
+              </a>
+            </Button>
+          )}
+          <Button asChild size="sm" variant="ghost">
+            <a href={p.download} download={p.name ?? true} aria-label={`Download ${p.name ?? "the media"}`}>
+              <Download />
+              Download
+            </a>
+          </Button>
+        </>
+      )}
     </section>
   );
 }
 
 /** One file: what it is, who added it, its lines (when it has them), and what you may do with it. */
-function FileRow({ f, focus }: { f: ResourceFile; focus: number | null }) {
+function FileRow({ f, focus, blocked }: { f: ResourceFile; focus: number | null; blocked: string | null }) {
   const { id, ns, canEdit } = useRec();
   const { remove } = useFileActions(id);
   const [open, setOpen] = useState(focus != null && Boolean(f.lines));
@@ -222,13 +242,17 @@ function FileRow({ f, focus }: { f: ResourceFile; focus: number | null }) {
           {ICON[f.role]}
         </span>
         <div className="min-w-0 flex-1">
-          <a
-            href={f.download}
-            download={f.name}
-            className="block truncate text-[14px] font-semibold text-fg hover:text-fg-accent hover:underline"
-          >
-            {fileTitle(f)}
-          </a>
+          {blocked ? (
+            <span className="block truncate text-[14px] font-semibold text-fg">{fileTitle(f)}</span>
+          ) : (
+            <a
+              href={f.download}
+              download={f.name}
+              className="block truncate text-[14px] font-semibold text-fg hover:text-fg-accent hover:underline"
+            >
+              {fileTitle(f)}
+            </a>
+          )}
           <p className="truncate text-[12px] text-fg-muted">{fileMeta(f)}</p>
         </div>
         {f.public && (
@@ -255,12 +279,18 @@ function FileRow({ f, focus }: { f: ResourceFile; focus: number | null }) {
             </button>
           </MenuTrigger>
           <MenuContent align="end" className="min-w-[220px]">
-            <MenuItem asChild>
-              <a href={f.download} download={f.name}>
-                <Download />
-                Download
-              </a>
-            </MenuItem>
+            {blocked ? (
+              <MenuItem icon={<Download />} disabled>
+                Download (turned off)
+              </MenuItem>
+            ) : (
+              <MenuItem asChild>
+                <a href={f.download} download={f.name}>
+                  <Download />
+                  Download
+                </a>
+              </MenuItem>
+            )}
             {f.lines ? (
               <MenuItem icon={<Rows3 />} onSelect={() => setOpen((o) => !o)}>
                 {open ? "Hide its lines" : "Show its lines"}

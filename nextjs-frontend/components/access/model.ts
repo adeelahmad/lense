@@ -7,7 +7,7 @@
 export type Access = "public" | "restricted" | "private";
 /** The parts of a public recording anyone may use. */
 export type AccessPart = "media" | "transcript" | "index";
-export type AccessValue = { access: Access; open: AccessPart[]; featured: boolean };
+export type AccessValue = { access: Access; open: AccessPart[]; featured: boolean; downloads?: boolean };
 
 export const ACCESS: {
   value: Access;
@@ -85,12 +85,21 @@ export function togglePart(open: readonly AccessPart[], part: AccessPart, on: bo
 export function accessPatch(
   saved: AccessValue,
   draft: AccessValue,
-): Partial<{ access: Access; open: AccessPart[]; featured: boolean }> {
-  const out: Partial<{ access: Access; open: AccessPart[]; featured: boolean }> = {};
+): Partial<{ access: Access; open: AccessPart[]; featured: boolean; downloads: boolean }> {
+  const out: Partial<{ access: Access; open: AccessPart[]; featured: boolean; downloads: boolean }> = {};
   if (draft.access !== saved.access) out.access = draft.access;
   if (draft.open.join() !== saved.open.join()) out.open = draft.open;
   if (draft.featured !== saved.featured) out.featured = draft.featured;
+  if (draft.downloads !== undefined && draft.downloads !== (saved.downloads ?? true)) out.downloads = draft.downloads;
   return out;
+}
+
+/** Why someone can't save an asset's files (docs/access.md#downloads), or null when they can: downloads are on, or
+ * they're one of its owners (`can_save`, from the API). */
+export function saveBlocked(rec: { can_save?: boolean | null } | null | undefined): string | null {
+  return rec?.can_save === false
+    ? "Its owners turned downloads off: you can play and read it here, but not save its files"
+    : null;
 }
 
 /** Under a person with permission: who gave it and when ("Given by ana@example.org on 30 Sep 2026"). */

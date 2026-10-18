@@ -82,9 +82,9 @@ def _out(db: DB, rows: list[dict[str, Any]], a: dict[str, Any]) -> list[Resource
     ]
 
 
-def _signed(out: Any) -> Any:
-    """The response with its download links signed."""
-    return type(out).model_validate(sign_urls(out.model_dump(), full=True))
+def _signed(out: Any, save: bool = False) -> Any:
+    """The response with its download links signed (`save`: for an owner, so they save even with downloads off)."""
+    return type(out).model_validate(sign_urls(out.model_dump(), full=True, save=save))
 
 
 def _file(db: DB, rid: int, fid: int) -> dict[str, Any]:
@@ -97,7 +97,8 @@ def _file(db: DB, rid: int, fid: int) -> dict[str, Any]:
 @router.get("")
 def list_files(rid: int, acl: Acl, db: Db, cfg: Cfg) -> ResourceFiles:
     """The resource's primary file (its audio or video, if it has one) and its supplementary files, with signed links to
-    download them."""
+    download them; `downloads` and `can_save` say whether its owners turned downloads off and whether you may save
+    them anyway (owners do)."""
     rec = acl.recording(rid)
     can_change = acl.rank_in(rec["space"], rec.get("collection")) >= auth.ROLES["editor"]
     out = ResourceFiles(
@@ -105,8 +106,10 @@ def list_files(rid: int, acl: Acl, db: Db, cfg: Cfg) -> ResourceFiles:
         files=_out(db, files.of(db, rid), acc.of(db, rid)),
         max_mb=cfg["server"]["max_upload_mb"],
         can_change=can_change,
+        downloads=acc.downloads(rec),
+        can_save=acl.saves(rec),
     )
-    return _signed(out)
+    return _signed(out, save=acl.owns(rec))
 
 
 async def _receive(request: Request, cfg: dict[str, Any]) -> pathlib.Path:
@@ -203,8 +206,9 @@ def delete_file(rid: int, fid: int, acl: Acl, user: Writer, db: Db, cfg: Cfg) ->
 
 @router.get("/{fid}/download", response_class=FileResponse, responses={200: {"content": {"application/octet-stream": {}}}})
 def download_file(rid: int, fid: int, request: Request, acl: Acl, db: Db, cfg: Cfg) -> Response:
-    """The file as it was added, to save. Accepts a bearer token or a signed link (from the list)."""
-    acl.recording(rid)
+    """The file as it was added, to save. Accepts a bearer token or a signed link (from the list). With the asset's
+    downloads off, 403 for anyone below its owners."""
+    acl.may_save(acl.recording(rid))
     f = _file(db, rid, fid)
     path = files.path_of(cfg, f)
     if not path.is_file():

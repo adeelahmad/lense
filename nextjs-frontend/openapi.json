@@ -10981,7 +10981,7 @@
           "resources"
         ],
         "summary": "Update Recording Access",
-        "description": "Make an asset public, restricted or private, choose what a public one opens, feature it (owners).\n\naccess or open set to null follow the namespace's default again. The change is kept in the metadata history, and\nIIIF harvesters hear when the asset is published, changed or withdrawn.",
+        "description": "Make an asset public, restricted or private, choose what a public one opens, feature it, turn its downloads off\nor on (owners).\n\naccess or open set to null follow the namespace's default again. The change is kept in the metadata history, and\nIIIF harvesters hear when the asset is published, changed or withdrawn. `downloads: false` keeps its files for its\nowners: everyone else still plays it, sees its pages and reads its text (docs/access.md#downloads).",
         "operationId": "update_recording_access",
         "parameters": [
           {
@@ -14616,7 +14616,7 @@
           "files"
         ],
         "summary": "List Files",
-        "description": "The resource's primary file (its audio or video, if it has one) and its supplementary files, with signed links to\ndownload them.",
+        "description": "The resource's primary file (its audio or video, if it has one) and its supplementary files, with signed links to\ndownload them; `downloads` and `can_save` say whether its owners turned downloads off and whether you may save\nthem anyway (owners do).",
         "operationId": "list_files",
         "parameters": [
           {
@@ -14891,7 +14891,7 @@
           "files"
         ],
         "summary": "Download File",
-        "description": "The file as it was added, to save. Accepts a bearer token or a signed link (from the list).",
+        "description": "The file as it was added, to save. Accepts a bearer token or a signed link (from the list). With the asset's\ndownloads off, 403 for anyone below its owners.",
         "operationId": "download_file",
         "parameters": [
           {
@@ -21842,7 +21842,7 @@
           "video"
         ],
         "summary": "Get Media",
-        "description": "The video or audio file, with byte ranges; a document's or an image's file, to save. Accepts a bearer token, a\nshare link (``?s=``) or a signed link.",
+        "description": "The video or audio file, with byte ranges; a document's or an image's file, to save. Accepts a bearer token, a\nshare link (``?s=``) or a signed link. With the asset's downloads off, 403 for anyone below its owners (players\nstream /recordings/{rid}/audio, which stays open).",
         "operationId": "get_media",
         "parameters": [
           {
@@ -71510,6 +71510,12 @@
             "description": "how many of its files this visitor can't download",
             "default": 0
           },
+          "downloads": {
+            "type": "boolean",
+            "title": "Downloads",
+            "description": "this visitor may save its files; false when its owners turned downloads off (it still plays and reads here, and its files aren't listed)",
+            "default": true
+          },
           "can_request": {
             "type": "boolean",
             "title": "Can Request",
@@ -72712,6 +72718,18 @@
             "description": "the access comes from the namespace's default",
             "default": true
           },
+          "downloads": {
+            "type": "boolean",
+            "title": "Downloads",
+            "description": "whether its downloads are on (docs/access.md#downloads)",
+            "default": true
+          },
+          "can_save": {
+            "type": "boolean",
+            "title": "Can Save",
+            "description": "you may download its files: downloads are on, or you're an owner",
+            "default": true
+          },
           "tags": {
             "items": {
               "type": "string"
@@ -72909,6 +72927,12 @@
           "default": {
             "$ref": "#/components/schemas/NamespaceAccess",
             "description": "the namespace's default"
+          },
+          "downloads": {
+            "type": "boolean",
+            "title": "Downloads",
+            "description": "people below its owners may save its files (its own file, the PDF made of it, supplementary files); off, they still play it, see its pages and read its text (docs/access.md#downloads)",
+            "default": true
           }
         },
         "additionalProperties": true,
@@ -72970,6 +72994,18 @@
               }
             ],
             "title": "Featured"
+          },
+          "downloads": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Downloads",
+            "description": "false: only its owners save its files; true: everyone who sees them"
           }
         },
         "additionalProperties": false,
@@ -75747,6 +75783,18 @@
             "type": "boolean",
             "title": "Can Change",
             "description": "you may add, change and delete its files (editors)"
+          },
+          "downloads": {
+            "type": "boolean",
+            "title": "Downloads",
+            "description": "whether its downloads are on (docs/access.md#downloads)",
+            "default": true
+          },
+          "can_save": {
+            "type": "boolean",
+            "title": "Can Save",
+            "description": "you may download its files: downloads are on, or you're an owner",
+            "default": true
           }
         },
         "additionalProperties": true,

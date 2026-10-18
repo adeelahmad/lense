@@ -17,6 +17,7 @@ import type { ReactNode } from "react";
 
 import type { Enrichment } from "@/app/openapi-client";
 
+import { saveBlocked } from "@/components/access/model";
 import { uploadKindName } from "@/components/import/files";
 import { NsfwDetail } from "@/components/nsfw/nsfw";
 import { ContentTypePicker } from "@/components/recording/content-type";
@@ -152,13 +153,18 @@ export function DetailsTab() {
         <p className="flex-1 text-[12.5px] leading-snug text-fg-muted">
           From the asset&apos;s own record. Codec and loudness details aren&apos;t measured yet.
         </p>
-        {model.audio && (
-          <Button asChild variant="secondary" size="sm" icon={<Download />}>
-            <a href={model.audio} download={name ?? undefined}>
+        {model.audio &&
+          (saveBlocked(rec) ? (
+            <Button variant="secondary" size="sm" icon={<Download />} disabled disabledReason={saveBlocked(rec)}>
               Original
-            </a>
-          </Button>
-        )}
+            </Button>
+          ) : (
+            <Button asChild variant="secondary" size="sm" icon={<Download />}>
+              <a href={model.audio} download={name ?? undefined}>
+                Original
+              </a>
+            </Button>
+          ))}
       </div>
       <Group icon={video ? FileVideo : model.audio ? FileAudio : FileText} title="File" rows={file} />
       {(video || rec.channels) && <Group icon={Film} title={video ? "Video and audio" : "Audio"} rows={media} />}

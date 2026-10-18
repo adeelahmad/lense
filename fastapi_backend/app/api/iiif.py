@@ -33,7 +33,7 @@ from app.api.streaming import LOCKED, picture_response, stored_file
 from app.api.v1.routes.recordings import serve_audio
 from app.api.v1.routes.video import serve_document
 from app.domain import access as acc
-from app.domain import auth, convert, documents, faces, iiif, iiif_auth, keyring, render, store, video
+from app.domain import auth, convert, documents, faces, hierarchy, iiif, iiif_auth, keyring, render, store, video
 from app.domain import files as filemod
 from app.domain import metadata as md
 from app.domain.store import DB, R
@@ -72,6 +72,27 @@ def _permitted(db: DB, user: Principal | None, rid: int, space: int) -> bool:
 def _account_permitted(db: DB, acct: dict[str, Any], rid: int, space: int) -> bool:
     """The same, for the account behind an IIIF access token or cookie."""
     return acc.permitted(db, auth.roles(db, acct), acct["id"], rid, space)
+
+
+def _owner(db: DB, perms: dict[int, frozenset[str]], account: int | None, rec: dict[str, Any]) -> bool:
+    if "publish" in perms.get(rec["space"], frozenset()):
+        return True
+    return bool(account) and hierarchy.roles_of(db, account).get(rec["space"], {}).get(rec.get("collection")) == "admin"
+
+
+def _may_save(request: Request, db: DB, user: Principal | None, rid: int) -> None:
+    """With the asset's downloads off (docs/access.md#downloads), its files (its own, the PDF made of it, the
+    supplementary ones) are for its owners: the requester's, or the IIIF access cookie's account's. 403 for anyone
+    else; playing it, its pages, captions and text stay as its access allows."""
+    rec = db.one("SELECT space, collection, downloads FROM $r", r=R("recording", rid)) or {}
+    if acc.downloads(rec):
+        return
+    if user and _owner(db, user.perms, user.id, rec):
+        return
+    acct, _ = iiif_auth.cookie_account(db, request.cookies.get(iiif_auth.COOKIE))
+    if acct and _owner(db, auth.permissions(db, acct), acct["id"], rec):
+        return
+    raise HTTPException(403, acc.DOWNLOADS_OFF)
 
 
 def _member(request: Request, db: DB, user: Principal | None, space: int) -> bool:
@@ -450,6 +471,7 @@ def iiif_audio(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg)
         raise HTTPException(401, "sign in through the viewer to play this recording")
     full = db.one("SELECT * FROM $r", r=R("recording", rid))
     if full.get("source") in documents.KINDS:  # a document or an image: its file, to save
+        _may_save(request, db, user, rid)
         return serve_document(db, cfg, full, request)
     return serve_audio(db, cfg, full, rid, request)
 
@@ -464,6 +486,7 @@ def iiif_pdf(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -
     path = convert.rendition_path(cfg, rid)
     if rec.get("source") != "document" or not path.is_file():
         raise HTTPException(404, "not found")
+    _may_save(request, db, user, rid)
     stem = pathlib.PurePosixPath(str((rec.get("remote") or {}).get("path") or rec.get("path") or "document")).stem or "document"
     return stored_file(db, cfg, path, request, "application/pdf", f"{stem}.pdf", filemod.HEADERS)
 
@@ -533,6 +556,8 @@ def iiif_file(rid: int, name: str, request: Request, user: OptionalUser, db: Db,
         raise HTTPException(401, "sign in through the viewer to open this file")
     if vtt:
         return Response(filemod.as_vtt(db, f), media_type="text/vtt; charset=utf-8")
+    if f["role"] != "thumbnail":  # a thumbnail is how the manifest shows the asset; the rest are files to save
+        _may_save(request, db, user, rid)
     path = filemod.path_of(cfg, f)
     if not path.is_file():
         raise HTTPException(404, "not found")

@@ -38,30 +38,34 @@ def decode_access_token(token: str) -> AccessClaims | None:
         return None
 
 
-def _media_sig(path: str, exp: int, full: bool = False) -> str:
-    what = f"media|{path}|{exp}" + ("|full" if full else "")
+def _media_sig(path: str, exp: int, full: bool = False, save: bool = False) -> str:
+    what = f"media|{path}|{exp}" + ("|full" if full else "") + ("|save" if save else "")
     mac = hmac.new(settings.ACCESS_SECRET_KEY.encode(), what.encode(), hashlib.sha256).digest()
     return base64.urlsafe_b64encode(mac[:18]).decode().rstrip("=")
 
 
-def sign_path(path: str, ttl: int | None = None, full: bool = False, **params: str | int | float | None) -> str:
+def sign_path(path: str, ttl: int | None = None, full: bool = False, save: bool = False, **params: str | int | float | None) -> str:
     """``path?...&exp=..&sig=..``: grants read access to exactly this path until it expires.
 
     Only hand these out to people who may read the resource. `full` marks a link handed to a member of the
     recording's namespace (``full=1``, signed with the rest): it opens pictures as they are where a namespace
-    pixelates faces for visitors. Extra query parameters are kept but not signed.
+    pixelates faces for visitors. `save` marks a link handed to an owner of the asset (``save=1``, signed too): it
+    saves the asset's files even with its downloads off (docs/access.md#downloads). Extra query parameters are kept
+    but not signed.
     """
     exp = int(time.time()) + (ttl or settings.MEDIA_URL_EXPIRE_SECONDS)
     query = {k: v for k, v in params.items() if v not in (None, "")}
     if full:
         query["full"] = 1
-    query.update(exp=exp, sig=_media_sig(path, exp, full))
+    if save:
+        query["save"] = 1
+    query.update(exp=exp, sig=_media_sig(path, exp, full, save))
     return f"{path}?{urllib.parse.urlencode(query)}"
 
 
-def verify_path(path: str, exp: str | int | None, sig: str | None, full: bool = False) -> bool:
+def verify_path(path: str, exp: str | int | None, sig: str | None, full: bool = False, save: bool = False) -> bool:
     try:
         e = int(exp or 0)
     except (TypeError, ValueError):
         return False
-    return bool(sig) and e >= time.time() and hmac.compare_digest(_media_sig(path, e, full), str(sig))
+    return bool(sig) and e >= time.time() and hmac.compare_digest(_media_sig(path, e, full, save), str(sig))
