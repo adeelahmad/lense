@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ArrowRightLeft,
   AudioLines,
   AudioWaveform,
   Captions,
@@ -38,6 +39,7 @@ import {
   PROVIDES,
   cleanSpec,
   moveStep,
+  newStep,
   sameSteps,
   specProblems,
   stepSummary,
@@ -72,6 +74,7 @@ const ICON: Record<string, LucideIcon> = {
   objects: Shapes,
   nsfw: EyeOff,
   describe: Eye,
+  convert: ArrowRightLeft,
   clean: Eraser,
   analyze: TextSearch,
   embed: ScanSearch,
@@ -91,6 +94,7 @@ const LIB_ORDER = [
   "objects",
   "nsfw",
   "describe",
+  "convert",
   "clean",
   "analyze",
   "embed",
@@ -343,7 +347,7 @@ export function PipelineEditor({ id }: { id?: number }) {
   const add = (type: string) => {
     const at = steps.length ? Math.min(sel + 1, steps.length) : 0;
     const next = steps.slice();
-    next.splice(at, 0, { type, ...(type === "llm" ? { key: "" } : {}) });
+    next.splice(at, 0, newStep(type));
     setSteps(next);
     setSel(at);
     setMoveMsg(null);

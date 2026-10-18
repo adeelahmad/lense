@@ -375,6 +375,10 @@ def _answer(db, cfg, base, account, cid, q, files, act_on, outside):
         steps, approvals, notice = [], [], None
         wrote = cfg["llm"].get("model") if llm.configured(cfg) else None
 
+        def shrink():
+            """The model said the conversation doesn't fit its context: fold it into the summary now (chat.shrink)."""
+            return chat.shrink(db, cfg, cid, past)
+
         def said(words, cited, outcome, **kw):
             """The answer, saved with its record."""
             meta = record.meta(db, outcome, spent)
@@ -397,7 +401,8 @@ def _answer(db, cfg, base, account, cid, q, files, act_on, outside):
             )
             try:
                 text, how = None, "answered"
-                for kind, data in chat.tool_answer(cfg, box, asked, past, cfg["ai"].get("max_steps") or 6, summary=summary, record=record):
+                steps_max = cfg["ai"].get("max_steps") or 6
+                for kind, data in chat.tool_answer(cfg, box, asked, past, steps_max, summary=summary, record=record, shrink=shrink):
                     if kind == "step":
                         steps.append(data)
                     elif kind == "direct" and passages and not box.cited(data):  # unless it cites what it remembers
@@ -415,7 +420,7 @@ def _answer(db, cfg, base, account, cid, q, files, act_on, outside):
                 return "I couldn't answer that: " + str(e), box.approvals, keep | box.links
         error = None
         try:
-            text = llm.chat(cfg, chat.messages_for(asked, passages, past, summary, cfg)) if llm.configured(cfg) else chat.fallback(passages)
+            text = chat.reply_fitted(cfg, asked, passages, past, summary, shrink=shrink) if llm.configured(cfg) else chat.fallback(passages)
         except llm.LLMError as e:
             text, error = "I couldn't answer that: " + str(e), str(e)
         how = "error" if error else "fallback" if notice or not llm.configured(cfg) else "answered"

@@ -36,7 +36,7 @@ from .events import _s, _sample
 R = store.R
 FIELDS = (
     "id AS rid, record::id(id) AS id, space, title, source, media, remote, content_type, created_at, path, web, engine, "
-    "created_by, mail, event, post, email, size, duration_ms, attached_to, sensor, form"
+    "created_by, mail, event, post, email, size, duration_ms, attached_to, converted_from, sensor, form"
 )
 TYPES = {"audio": "Audio", "video": "Video", "image": "Image", "document": "Document", "transcript": "Document"}
 AUTOMATION_RX = re.compile(r"^automation:(\d+)$")
@@ -335,8 +335,8 @@ def _imported(r, actor):
 
 def _kind(r, ctype, source_type, actor):
     """The most specific kind the row tells (module docstring)."""
-    if r.get("attached_to"):
-        return "asset.added"  # a file an email or archive held: the email is what arrived
+    if r.get("attached_to") or r.get("converted_from"):
+        return "asset.added"  # a file an email or archive held (the email is what arrived), or one a convert step made
     if ctype == "email" or source_type in MAIL_SOURCES:
         return "email.received"
     if ctype == "calendar_event" or source_type in CALENDAR_SOURCES:

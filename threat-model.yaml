@@ -8,7 +8,7 @@ project: lens
 prose_version: "threat-model.md@same-commit"
 model_status: under-review
 triage_policy: strict
-confidence: {documented: 208, maintainer: 46, inferred: 91, assumption: 8}
+confidence: {documented: 210, maintainer: 46, inferred: 91, assumption: 8}
 
 generation:
   model: "Claude Opus 5.5 (claude-opus-5-5)"
@@ -403,11 +403,11 @@ entry_points:
   - id: "the assistant's connection tools"
     component: assistant
     parameters:
-      - name: "a connection's id or name, a Gmail search, a message id, a time span, a path; the mail, events and files that come back"
+      - name: "a connection's id or name, a Gmail search, a message id, a time span, a path; the mail, events and files that come back; the message, event or text file the model would send or write"
         attacker_controllable: true
         x-condition: "admins who use the assistant, and indirectly whatever it read, through the model; mail and events: anyone who can email the account or invite it; files: whoever writes to the storage"
         control_kinds: [resource-name, x-prompt-injection, size]
-        caller_must_enforce: "none — admins only, and only the tools for the kinds connected; each connection reads as it is set up to (Gmail and Google Calendar read only), so nothing changes in the account; a file is read up to 20 MB and a message's or file's text up to 11,000 characters; mail, events and files reach the model marked as data, and once read, tools that could carry it out of Lens ask first (P-INJECTION-EGRESS); bringing anything into a namespace waits for the person's yes; the ledger keeps what was called, never what came back"
+        caller_must_enforce: "none — admins only, and only the tools for the connections there are; reading changes nothing in the account; a file is read up to 20 MB and a message's or file's text up to 11,000 characters; mail, events and files reach the model marked as data, and once read, tools that could carry it out of Lens ask first (P-INJECTION-EGRESS); bringing anything into a namespace waits for the person's yes; sending mail, saving a draft, adding an event and writing a file always wait for the person's yes, even in a setup conversation, with all of it shown (and a note when the answer read outside text), and the model is told never to act on what it read; sending and adding work only on a Gmail or Google Calendar connection an admin let do so (write, which asks Google for gmail.compose or calendar.events), checked again when approved; at most 50 addresses a field, 50,000 characters a message and 200,000 a file; a file is replaced only when asked and approved, and Google Drive connected read only is never written; each change is in the audit log; the ledger keeps what was called, never what came back"
         provenance: {kind: documented, source: 'docs/assistant.md "Mail, calendars and files"'}
   - id: "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search)"
     component: outbound
@@ -638,6 +638,16 @@ entry_points:
         obligation_id: admin-is-trusted
         caller_must_enforce: "admin is trusted; audited (lens.services, lens.monitoring); unknown profiles are a 404; one change at a time; reaches the machine only as an inbox request the agent checks again"
         provenance: {kind: documented, source: 'docs/assistant.md "Optional containers"'}
+  - id: "admin auto scaling"
+    component: authz
+    parameters:
+      - name: "/api/v1/scaling (providers, groups, units, tick), PUT /api/v1/settings/scaling, MCP and assistant scaling tools: provider credentials, a group's terms and rules, a unit id"
+        attacker_controllable: false
+        x-condition: "admin only (MCP: with the write scope)"
+        control_kinds: [x-credential, x-env-config]
+        obligation_id: admin-is-trusted
+        caller_must_enforce: "admin is trusted; off until turned on; audited (scaling.*) and in the activity ledger; credentials sealed and shown only as set; a group launches nothing until a person signed in to the web app approves its terms (P-SCALING)"
+        provenance: {kind: documented, source: 'docs/scaling.md "The person approves"'}
   - id: "admin sandbox gateway"
     component: authz
     parameters:
@@ -1531,6 +1541,14 @@ properties_claimed:
     violation_symptoms: [info-leak]
     x-voided-by: "the token is sealed with the server key, not only hashed, so the namespace's readers and whoever holds secret.key see the address again (domain/syndication.py token_of); anyone given the address reads the feed until it is rotated; editors choose what goes in, as does a routine (admins make them) whose workflow nodes publish what they pick, bounded the same way; a resource's title and summary show as they are now; the fit is by namespace roles (domain/syndication.py Fit), not per-asset grants"
     provenance: {kind: documented, source: 'docs/feeds.md "Private by default"'}
+  - id: P-SCALING
+    kind: integrity
+    components: [authz, optional]
+    tier: security-critical
+    conditions: "auto scaling launches nothing unless a person signed in to the web app approved the group's terms (its provider, what each unit is, its max, its budget, what happens at its cap); an API key, an app, MCP and the assistant acting on its own never approve, and a change that widens the terms takes the approval away; a provider's credentials are sealed per provider and field, opened only for a call to it and never shown; a unit is handed no long-lived Lens secret"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "an admin's web session approves, and an admin is trusted; a yes on the Approvals page to the assistant's proposal approves the terms that proposal names; within the terms agents may raise the desired count up to max, spending up to the budget; costs are estimates from list prices (domain/scaling.py accrue), not bills, so a provider can charge more than the budget counts"
+    provenance: {kind: documented, source: 'docs/scaling.md "The person approves"'}
   - id: P-AUTH-REQ
     kind: authentication
     components: [web, identity]

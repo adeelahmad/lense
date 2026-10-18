@@ -1,7 +1,8 @@
 """Pipelines: named, versioned lists of steps a recording goes through. Each namespace can choose its default; without
 one, recordings get the standard pipeline. Steps: clean_audio (a recording's sound cleaned up before it's transcribed,
 audio_cleanup.py), transcribe (speech to text), read (a document's or an
-image's pages and their text), diarize, shots, ocr, faces, objects, nsfw (NSFW classification, nsfw.py), describe,
+image's pages and their text), convert (new assets made from one: a video's soundtrack as audio, a document's pages
+as images, conversions.py), diarize, shots, ocr, faces, objects, nsfw (NSFW classification, nsfw.py), describe,
 clean (a transcript tidied before analysis, cleanup.py), analyze, embed (passages for search by meaning, semantic.py),
 summarize, llm (a prompt template whose structured result is saved as a named output), spec (a technical spec from the
 transcript, written to a note linked to the recording, specs.py), report (built in, or from a report template) and
@@ -30,14 +31,42 @@ STANDARD = [
 ]  # fmt: skip
 TYPES = {
     "clean_audio", "transcribe", "read", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "clean", "analyze", "embed", "summarize",
+    "convert",
     "llm",
     "spec",
     "report",
     "export",
     "workflow",
 }  # fmt: skip
-ASSET_STEPS = ("transcribe", "read", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe")  # they make something of the media
-KEYS = {"type", "name", "when", "template", "version", "key", "filename", "destination", "model", "force", "workflow"}
+ASSET_STEPS = (
+    "transcribe",
+    "read",
+    "diarize",
+    "shots",
+    "ocr",
+    "faces",
+    "objects",
+    "nsfw",
+    "describe",
+    "convert",
+)  # they make something of the media
+KEYS = {
+    "type",
+    "name",
+    "when",
+    "template",
+    "version",
+    "key",
+    "filename",
+    "destination",
+    "model",
+    "force",
+    "workflow",
+    "to",
+    "format",
+    "pipeline",
+}
+ONLY = {"to": "convert", "format": "convert", "pipeline": "convert"}  # settings only one type of step has
 NODE_RX = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
 WHEN = {"min_minutes": (int, float), "max_minutes": (int, float), "source": str, "languages": list}
 KEY_RX = re.compile(r"^[a-z][a-z0-9_]{0,40}$")
@@ -53,6 +82,9 @@ def validate_steps(db, steps):
         extra = sorted(set(s) - KEYS)
         if extra:
             raise ValueError(f"{t} step has no setting {extra[0]}")
+        other = next((k for k in s if ONLY.get(k, t) != t), None)
+        if other:
+            raise ValueError(f"{t} step has no setting {other}")
         for k, v in (s.get("when") or {}).items():
             if k not in WHEN or not isinstance(v, WHEN[k]):
                 raise ValueError(f"conditions are {', '.join(WHEN)}")
@@ -65,6 +97,15 @@ def validate_steps(db, steps):
                 raise ValueError("workflow step: choose a workflow") from None
             if w["scope"] != "recording":
                 raise ValueError(f"workflow step: {w['name']} {workflows.RUN_BY.get(w['scope'], 'runs elsewhere')}")
+        if t == "convert":
+            from . import conversions
+
+            conversions.check(s)
+            if s.get("pipeline") not in (None, "none"):
+                try:
+                    get(db, s["pipeline"])
+                except KeyError:
+                    raise ValueError("convert step: choose a pipeline for the new assets") from None
         need = {"llm": "prompt", "spec": "prompt", "export": "export", "report": "report"}.get(t)
         if need and (s.get("template") or t not in ("report", "spec")):  # a report or a spec has a built-in one
             try:

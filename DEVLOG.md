@@ -619,7 +619,7 @@ Todo:
 - [x] Canvas editor in the web app (pipelines and workflows): drag nodes, connect ports, node settings, I/O, save versions
 - [x] Attach workflows from the pipeline editor
 - [x] Content-type mapping on the Pipelines page (By content type)
-- [ ] Asset converter steps (video → audio, document → images) as pipeline steps
+- [x] Asset converter steps (video → audio, document → images) as pipeline steps (the convert step, conversions.py)
 - [ ] Workflow node types: HTTP call, template render, entity filter
 - [x] Docs: processing.md section on workflows
 
