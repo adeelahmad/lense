@@ -4,6 +4,41 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+## 0.18.0 <small>October 18, 2026</small> {id="0.18.0"}
+
+- **Client certificates for log servers.** Settings → Logs takes this machine's certificate and key (PEM, stored
+  encrypted) for syslog over TLS and https log endpoints that ask for one (mutual TLS), and a private CA's certificate
+  to check the log server against ([Logging](docs/logging.md#client-certificates-and-a-private-ca)).
+
+The Mute button on a timeline item now has a small menu beside it: mute the source or person for a day (a snooze that
+runs out by itself), or mute the item's kind, for good or for a day, without leaving the page. The Muted row shows
+when a snooze ends.
+
+- **Voice recognition off, per namespace.** An owner can turn off People › Recognise voices across recordings: voices
+  are still told apart in each recording, but no voiceprint is kept and the namespace's voiceprints are deleted
+  ([People and namespaces](docs/processing.md#people-and-namespaces)).
+
+- **Circles of trust.** Put the people close to you in circles of your own (Immediate family, Close family, Friends,
+  Colleagues are suggested) and share an activity from your timeline or a resource with a circle and a note: each of
+  them gets it in their own timeline as `share.received`, which their automations can follow, and you get
+  `share.sent`. *With the item* also gives them permission on that one resource (it needs `publish`); undo takes the
+  share back everywhere, with the permissions it gave. Nothing in a vault can be shared. Works through
+  `/api/v1/circles`, MCP (`list_circles`, `save_circle`, `share_with_circle`, `undo_share`) and the assistant, which
+  asks first ([Circles of trust](docs/circles.md)).
+
+- **Ask where budgets stand.** The assistant answers "where do my budgets stand?" with a new `budgets` tool, and agents
+  call it over MCP: what each namespace you can read spent this period against its budget, what's left and whether
+  it's ok, near or over, and for admins all of Lens against the overall budget and every other budget
+  ([Budgets](docs/budgets.md#asking-the-assistant-or-an-agent)).
+
+The timeline opens one item by its id (`/timeline?item=<id>`), above the rest with its details and actions and a way
+back. A comment or a reaction on an item, and an approval's "because", now link to that item rather than to the
+timeline as a whole.
+
+**Reinstalling in a microsandbox no longer stops at "Getting uv".** A sandbox whose volume an earlier install had
+built in asked the backend's virtualenv, which has no pip, for uv and failed with "No module named pip". It now asks
+the image's own Python. Rerun the install line to pick it up.
+
 ## 0.17.0 <small>October 18, 2026</small> {id="0.17.0"}
 
 ### Features
