@@ -9,6 +9,7 @@ import {
   CheckCheck,
   FileText,
   Group,
+  ListFilter,
   ListTree,
   Puzzle,
   Repeat,
@@ -344,6 +345,18 @@ export const NODES: Record<string, Info> = {
     gives: "the items that pass",
     group: "Data",
   },
+  entity_filter: {
+    label: "Entity filter",
+    describe:
+      "Keeps the entities of a list by type, name, length or how often they’re said, e.g. people only, without a stop list",
+    icon: ListFilter,
+    tone: "green",
+    inputs: 1,
+    outputs: ["out"],
+    takes: "entities[]",
+    gives: "the entities kept",
+    group: "Entities",
+  },
   apply_changes: {
     label: "Apply changes",
     describe: "Merges or links the pairs it’s sure of and proposes the rest for someone to accept; all can be undone",
@@ -380,6 +393,7 @@ export const PRIMITIVES = [
   "set",
   "template",
   "filter",
+  "entity_filter",
   "for_each",
   "repeat",
   "group",
@@ -791,6 +805,20 @@ export function nodeSummary(
           .replace(/\s+/g, " ")
           .slice(0, 60) + (c.json ? " · JSON" : "")
       );
+    case "entity_filter": {
+      const types = (c.types as string[] | undefined) ?? [];
+      const skip = [
+        ...((c.skip_types as string[] | undefined) ?? []),
+        ...((c.skip_names as string[] | undefined) ?? []),
+      ];
+      const parts = [
+        types.length ? types.join(", ") : "all types",
+        skip.length ? `not ${skip.slice(0, 3).join(", ")}${skip.length > 3 ? "…" : ""}` : "",
+        c.min_mentions ? `said ${Number(c.min_mentions)}+ times` : "",
+        c.pattern ? `/${String(c.pattern)}/` : "",
+      ];
+      return parts.filter(Boolean).join(" · ");
+    }
     case "for_each":
       return `each of ${c.path ? String(c.path) : "the list"}${c.max_items ? ` · up to ${Number(c.max_items)}` : ""}`;
     case "repeat":
@@ -957,6 +985,16 @@ export function problems(
         fail(`Start each path with an input: ${ins.join(", ")}.`);
       else if (ins.some((x) => !NAME_RX.test(x))) fail("Input names are lowercase letters, digits and _.");
     } else if (n.type === "template" && !String(c.template ?? "").trim()) fail("Write the template.");
+    else if (
+      n.type === "entity_filter" &&
+      [c.types, c.skip_types].some((v) => ((v as string[] | undefined) ?? []).some((x) => !TYPE_RX.test(x)))
+    )
+      fail("Types are names in capitals, e.g. PERSON, ORG.");
+    else if (
+      n.type === "entity_filter" &&
+      [c.min_length, c.min_mentions].some((v) => v != null && (!Number.isInteger(v) || Number(v) < 1))
+    )
+      fail("Counts are whole numbers from 1.");
     else if (n.type === "ask_model" && !String(c.prompt ?? "").trim()) fail("Write its prompt.");
     else if (n.type === "call_tool" && !/^[a-z][a-z0-9_]{1,40}$/.test(String(c.tool ?? "")))
       fail("Name the tool it calls.");

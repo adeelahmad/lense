@@ -457,6 +457,9 @@ class Approval(ResponseModel):
     chat: int | None = None
     tool: str
     summary: str | None = None
+    preview: str | None = Field(
+        default=None, description="what would be sent or written, all of it, for the person to read first (a message, an event, a file)"
+    )
     estimate: Any = None
     status: str = Field(description="pending (waiting), running, done, failed, declined or expired")
     created_at: str | None = None

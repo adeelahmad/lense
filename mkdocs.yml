@@ -108,6 +108,7 @@ nav:
       - Speech providers: speech-providers.md
       - Activity and costs: activity.md
       - Budgets: budgets.md
+      - Auto scaling: scaling.md
   - Operate:
       - Encryption: encryption.md
       - Storage: storage.md

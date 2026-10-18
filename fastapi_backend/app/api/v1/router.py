@@ -60,6 +60,7 @@ from app.api.v1.routes import (
     requests,
     research,
     routines,
+    scaling,
     search,
     searches,
     sensors,
@@ -158,6 +159,7 @@ for module in (
     podcasts,
     feeds,
     specs,
+    scaling,
     mesh,
 ):
     api_router.include_router(module.router)
