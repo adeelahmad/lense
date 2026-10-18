@@ -486,8 +486,8 @@ docker compose -f docker-compose.prod.yml --profile sandbox up -d openshell-gate
 - **Size.** About 300 MB of images on disk (the gateway, the supervisor and the sandbox runtime), downloaded the first
   time it starts, plus `sandbox.image`. Each sandbox is a container with its own CPU, memory and process limits.
 
-In progress: the upgrade agent that starts the profile ships with the agent's next release; until this machine's agent
-knows the `sandbox` profile, Settings says to start it by hand and shows the line above.
+The upgrade agent knows the `sandbox` profile from this release on; a machine whose agent is older (it updates itself
+with the next release it installs) says so in Settings and shows the line above to run by hand until then.
 
 Refine later: automations' agent runs without a conversation get no sandbox yet; running admins' Python extension
 tools in the sandbox so people who aren't admins can write them; asking the person before a run reaches a host that
@@ -809,8 +809,8 @@ machine** under **Ready-made** in **Add MCP server**, then **Add Browser**, whic
 
 ### Optional containers
 
-The MCP runner, the browser and monitoring ([Prometheus and Grafana](prometheus.md)) are containers Lens can run next
-to it, off until an admin turns one on. The web app can't start containers itself, so the machine's upgrade agent does
+The MCP runner, the browser, the [code sandbox](#the-gateway)'s gateway and monitoring
+([Prometheus and Grafana](prometheus.md)) are containers Lens can run next to it, off until an admin turns one on. The web app can't start containers itself, so the machine's upgrade agent does
 ([Updates](updates.md)): it adds the profile to `COMPOSE_PROFILES` in Lens's `.env`, or takes it out, and starts or
 stops that profile's containers, one change at a time. Without an agent (Lens wasn't installed with `install.sh`), the
 switch shows the line to run on the machine instead. Agents use the same switches: `GET /api/v1/admin/services` and

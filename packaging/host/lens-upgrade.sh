@@ -13,7 +13,8 @@
 # ran before and starts that (rolled-back). Run by hand: sh packaging/host/lens-upgrade.sh <install folder>
 #
 # A request with action=services turns one of Lens's optional containers on or off instead (profile=<name>
-# turn=on|off): the MCP runner (mcp), the browser (browser, docs/assistant.md) or monitoring (docs/prometheus.md). It
+# turn=on|off): the MCP runner (mcp), the browser (browser, docs/assistant.md), the code sandbox's gateway (sandbox,
+# docs/assistant.md) or monitoring (docs/prometheus.md). It
 # adds or removes the profile in COMPOSE_PROFILES in .env and starts or stops that profile's containers, those named in
 # services_of below and nothing else, and says how it went in .lens-control/services-status. A request from before
 # profiles, monitoring=on|off, is the monitoring profile. It comes in the same file as an upgrade, the one every agent
@@ -27,6 +28,7 @@ services_of() {
     monitoring) echo "prometheus node-exporter grafana" ;;
     mcp) echo "mcp" ;;
     browser) echo "browser browser-proxy" ;;
+    sandbox) echo "openshell-init openshell-key openshell-gateway" ;; # the certificates, the client's key, the gateway
   esac
 }
 
