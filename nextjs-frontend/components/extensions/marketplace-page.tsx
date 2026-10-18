@@ -218,11 +218,15 @@ function Plugins({ market, onInstall }: { market: Marketplace; onInstall: (name:
                           href={`/extensions/${p.installed}`}
                           className="text-[12.5px] text-fg-accent hover:underline"
                         >
-                          Installed
+                          {p.installed_version ? `Installed ${p.installed_version}` : "Installed"}
                         </Link>
                       ) : null}
-                      <Button size="xs" variant={p.installed ? "ghost" : "primary"} onClick={() => onInstall(p.name)}>
-                        {p.installed ? "Update" : "Install"}
+                      <Button
+                        size="xs"
+                        variant={p.installed && !p.update ? "ghost" : "primary"}
+                        onClick={() => onInstall(p.name)}
+                      >
+                        {p.update ? `Update to ${p.version}` : p.installed ? "Update" : "Install"}
                       </Button>
                     </span>
                   ) : (

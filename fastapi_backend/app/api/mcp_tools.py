@@ -87,6 +87,7 @@ from app.domain import (
 from app.domain import classify as classifymod
 from app.domain import entities as ents
 from app.domain import find as findmod
+from app.domain import marketplace as marketmod
 from app.domain import sandbox as sandboxmod
 from app.domain import speakers as spk
 from app.domain import topics as topicmod
@@ -3249,6 +3250,69 @@ def add_mcp_server(
         raise ToolError(str(e)) from None
     auth.audit(ctx.db, ctx.user.as_audit(), "extension.create", f"extension:{eid}", {"origin": "code", "via": "mcp"})
     return _server_line(ctx, extensions.visible_one(ctx.db, _extension_me(ctx), eid))
+
+
+# ---------- plugins and skills from the marketplaces an admin added (marketplace.py) ----------
+@tool(
+    "find_plugins",
+    "Find plugins",
+    "Plugins and skills in the marketplaces an admin added (Anthropic's open plugin format): those whose name, "
+    "description, category or author has every word of query, or all of them; updates true lists only the ones you "
+    "installed that their marketplace now lists another version of. Each says its marketplace, version, whether Lens "
+    "can install it (why_not when it can't), and your extension installed from it. Install one with install_plugin.",
+    Arg("query", "string", "words to look for", max_length=200),
+    Arg("marketplace", "integer", "only this marketplace's plugins"),
+    Arg("updates", "boolean", "only the ones you installed that have another version listed", default=False),
+    Arg("limit", "integer", "at most this many", default=50, minimum=1, maximum=500),
+    personal=True,
+)
+def find_plugins(ctx: Context, query: str | None, marketplace: int | None, updates: bool, limit: int) -> dict[str, Any]:
+    found, matched = marketmod.find(ctx.db, _extension_me(ctx), query, marketplace, bool(updates), limit)
+    out: dict[str, Any] = {"plugins": found, "matched": matched, "page": f"{ctx.web}/extensions/marketplace"}
+    if marketplace is None and not ctx.db.one("SELECT id FROM marketplace LIMIT 1"):
+        out["note"] = "no marketplace is added yet: an admin adds one in the web app (Anthropic's are one click there)"
+    return out
+
+
+@tool(
+    "install_plugin",
+    "Install a plugin",
+    "Install a plugin or skill from a marketplace (find_plugins gives the marketplace and plugin) as your own "
+    "extension, private until you share it and switched on; installing it again brings the version the marketplace "
+    "lists now. preview true installs nothing and says what it would add to the assistant (tools, skills, MCP servers) "
+    "and what Lens leaves out. Needs an API key with the write scope.",
+    Arg("marketplace", "integer", "the marketplace's id", required=True),
+    Arg("plugin", "string", "the plugin's name in it", required=True, max_length=200),
+    Arg("preview", "boolean", "only say what it would add", default=False),
+    writes=True,
+    personal=True,
+)
+def install_plugin(ctx: Context, marketplace: int, plugin: str, preview: bool) -> dict[str, Any]:
+    _writer(ctx, "install plugins")
+    me = _extension_me(ctx)
+    try:
+        if preview:
+            got = marketmod.preview(ctx.db, ctx.cfg, me, marketplace, plugin)
+            m = got["manifest"]
+            items = [store.clean({"kind": i["kind"], "name": i["name"], "description": i.get("description")}) for i in m.get("items") or []]
+            return {
+                "name": m["name"],
+                "description": m.get("description"),
+                "adds": items,
+                "leaves_out": got["skipped"],
+                "source": got["source"],
+            }
+        eid, n = marketmod.install(ctx.db, ctx.cfg, me, marketplace, plugin)
+    except PermissionError as e:
+        raise ToolError(str(e)) from None
+    auth.audit(
+        ctx.db,
+        ctx.user.as_audit(),
+        "extension.import",
+        f"extension:{eid}",
+        {"marketplace": marketplace, "plugin": plugin, "version": n, "via": "mcp"},
+    )
+    return {"id": eid, "version": n, "page": f"{ctx.web}/extensions/{eid}"}
 
 
 # ---------- how install.sh set this machine up: reachable on the network, and the edition (admins) ----------

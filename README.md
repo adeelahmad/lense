@@ -115,7 +115,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   ones that run as a program (`npx`, `uvx`) run in a sandboxed container of their own, off until you turn it on. Add
   one with a form or by pasting another app's config, its tokens sealed and each of its tools switched on or off.
   Install skills and plugins from marketplaces in the open plugin format, or from a repository or an archive, and keep
-  your own as files in a folder with `lens ext` (pull, push, check).
+  your own as files in a folder with `lens ext` (pull, push, check). Agents find and install them too, and an
+  installed plugin says when a new version is listed.
   ([Extending the assistant](docs/assistant.md#extending-the-assistant-tools-skills-hooks-and-plugins),
   [adding an MCP server](docs/assistant.md#adding-an-mcp-server), [the MCP runner](docs/assistant.md#the-mcp-runner);
   [checks](docs/requirements.md#extend-the-assistant))
