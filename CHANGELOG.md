@@ -80,6 +80,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   rclone keeps files being written in a cache on Lens's disk and puts them to Lens once they're closed; a file Lens
   can't take shows in the share's log. **Import files people add** in Settings, NFS share (`nfs.add_files`, on) turns it
   off and serves the share read-only again ([Adding files](docs/file-shares.md#adding-files)).
+- **A private network between Lens's machines** (in progress). Lens is the certificate authority of a Nebula mesh
+  between the machines it runs on: an admin adds a node with a join token (`POST /api/v1/mesh/tokens`), the machine
+  joins without ever sending the token (`POST /api/v1/mesh/join`: an HMAC proves it, the answer comes back sealed with
+  a key derived from it) and gets an address, a certificate naming its role and namespaces, and its Nebula config,
+  whose firewall lets worker nodes reach the database and every node the API, and nothing else; a node renews, reports
+  and refreshes its config with its own node token, and removing one blocklists its certificates on every machine.
+  Off until a node is added; settings in `mesh`. Nebula running on the primary, the install line that joins a machine
+  and the Settings pages follow in their own pull requests ([Nodes and the mesh](docs/mesh.md)).
 - **Export a conversation.** `GET /api/v1/chats/<id>/export.md`, `.pdf` or `.json` gives the version showing, one
   message (`?message=`) or, as JSON, every version (`?all=true`). The Markdown has each question and answer, its
   citations as footnotes linking back to the moment in Lens and the tools it used; the PDF is that Markdown printed by
@@ -123,6 +131,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   recording, and keeps the types it is sure of. Settings › Analysis › Names the rules can't type (`analysis.typing`)
   can also let the language model answer, or turn it off; the language model is never asked by default
   ([Names the rules can't type](docs/processing.md#entities-and-the-graph-explorer)).
+- **A loading bar, as in Gmail.** A thin blue bar runs along the top of the web app while a page or its data loads:
+  on every page change, and while a page waits for its first answers from the API. Refreshing what's already on screen
+  and anything quicker than a blink don't show it ([The web app](docs/frontend.md#data)).
 
 - **Published feeds.** A namespace publishes a private RSS feed, or a podcast feed with Apple Podcasts' tags, that any
   feed reader or podcast app follows at its address: resources (with their audio as the enclosure), podcast episodes
@@ -262,6 +273,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   machine's upgrade agent starts and stops them), and agents do the same with `PUT /api/v1/admin/services/<profile>`
   or the MCP tools `services` and `set_service`. A server whose spec says `keep: true` keeps one session between
   calls ([The browser](docs/assistant.md#the-browser), [Optional containers](docs/assistant.md#optional-containers)).
+- **MCP servers in Settings, and for agents.** Settings › AI assistant now lists the MCP servers the assistant calls,
+  each with how many of its tools are on and a link to its page, next to Add MCP server and the switches for the MCP
+  runner and the browser. Agents list them with the MCP tool `mcp_servers` and add one, ready-made or their own, with
+  `add_mcp_server` (an admin's API key with the write scope)
+  ([Adding an MCP server](docs/assistant.md#adding-an-mcp-server)).
 - **Describe an automation in words.** `POST /api/v1/automations/draft` asks the model once to turn a sentence into
   a draft automation to try and save, and says what didn't fit and what it couldn't express
   ([Describe it in words](docs/automations.md#describe-it-in-words)).

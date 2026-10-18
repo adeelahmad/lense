@@ -42,6 +42,7 @@ from app.api.v1.routes import (
     integrations,
     jobs,
     marketplaces,
+    mesh,
     metadata,
     namespaces,
     notebook,
@@ -155,5 +156,6 @@ for module in (
     podcasts,
     feeds,
     specs,
+    mesh,
 ):
     api_router.include_router(module.router)

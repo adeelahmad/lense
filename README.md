@@ -83,9 +83,10 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   approve. Regenerating an answer or editing a question makes a new version beside the old one, and
   nothing is lost. Each answer keeps a record of what produced it (the model, its tools, how long it took and what it
   cost), opened from its header. It reads answers aloud with a speech provider, macOS `say`, or Kokoro (54 voices,
-  fetched once picked) or StyleTTS2 on this machine (opt-in), any message in one click, and `/clear` and `/compact`
-  keep long conversations short. Conversations title themselves after their first answer, unless you name them. Each
-  namespace can have its own assistant with
+  fetched once picked) or StyleTTS2 on this machine (opt-in), any message in one click. Long conversations are
+  summarised before they fill the model's context, and `/clear` and `/compact` start afresh or summarise now.
+  Conversations title themselves after their first answer, unless you name them. Each namespace can have its own
+  assistant with
   its own name, instructions and memory, answering in Telegram and Slack (built in, with voice notes and files), in
   Discord, Matrix, WhatsApp and other chat rooms through Matterbridge, and by email at an address of its own that you
   email or forward things to. ([Chat](docs/assistant.md), [web search](docs/assistant.md#web-search-and-reading-pages),
@@ -218,7 +219,8 @@ server, the NSFW model, the MCP runner, Fedora) stay off or download only when y
 swapped for a cloud provider instead. Setup asks only what has no default: the model, and a budget for a cloud model.
 Picking a cloud model provider fills in its address and a model, so only its key is left to paste. Every setting lives
 in the web app, which works on a phone too: settings are in named groups, a search finds any one by name, and the
-options most people leave as they are stay folded. ([Components](docs/components.md),
+options most people leave as they are stay folded. A thin bar along the top of the web app shows a page or its data is
+still loading. ([Components](docs/components.md),
 [speech providers](docs/speech-providers.md), [local models](docs/local-models.md),
 [cloud model providers](docs/configuration.md#cloud-model-providers); [checks](docs/requirements.md#light-by-default))
 
@@ -233,6 +235,8 @@ These are open pull requests, not yet part of Lens:
 - **Web clipper:** signing in, or using your API token, not only an import webhook's
   ([#406](https://github.com/adeelahmad/lense/pull/406)).
 - **Automations:** more operators for conditions ([#434](https://github.com/adeelahmad/lense/pull/434)).
+- **Nodes:** Lens's own private network between the machines it runs on, a Nebula mesh it issues the certificates
+  for ([#546](https://github.com/adeelahmad/lense/pull/546)).
 
 ## Planned
 
