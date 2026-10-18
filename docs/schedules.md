@@ -2,7 +2,9 @@
 
 Status: built. The Schedules page (Automate → Schedules) is Lens's crontab: everything that runs on a clock, in one
 list, soonest first, with a switch, Run now and a way to change when it runs. Agents get the same list and the same
-changes over the API and MCP.
+changes over the API and MCP. It has the place Routines had in the nav, so the nav still fits a phone screen: for
+admins, the [Routines](processing.md#routines) page (the list, proposed graph changes and history) and New routine
+are at the top of it.
 
 ## What is on it
 

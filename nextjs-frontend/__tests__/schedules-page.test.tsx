@@ -102,6 +102,9 @@ function wrap(ui: ReactNode) {
 test("lists every routine, automation schedule and the backup, each linking to its own page", async () => {
   wrap(<SchedulesPage />);
   const table = await screen.findByRole("table", { name: "Schedules" });
+  // the Routines page and a new routine are one click away, since Schedules has Routines' place in the nav
+  expect(screen.getByRole("link", { name: "Routines" })).toHaveAttribute("href", "/routines");
+  expect(screen.getByRole("link", { name: "New routine" })).toHaveAttribute("href", "/routines/new");
   expect(within(table).getByRole("link", { name: "Sync nightly" })).toHaveAttribute("href", "/routines/3");
   expect(within(table).getByRole("link", { name: "Mornings" })).toHaveAttribute("href", "/automations/4");
   expect(within(table).getByRole("link", { name: "Back up the database" })).toHaveAttribute(
@@ -162,4 +165,5 @@ test("someone who isn't an admin sees their automations' schedules and no filter
   await screen.findByRole("table", { name: "Schedules" });
   expect(screen.getByText(/your automations/)).toBeInTheDocument();
   expect(screen.queryByRole("radiogroup", { name: "Show" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "New routine" })).not.toBeInTheDocument();
 });

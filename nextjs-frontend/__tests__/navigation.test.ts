@@ -33,12 +33,16 @@ describe("navigation", () => {
     ).toEqual(["Costs", "Analytics", "Settings", "Admin"]);
   });
 
-  it("has Schedules, everything that runs on a clock, under Automate for everyone", () => {
+  it("has Schedules, everything that runs on a clock, under Automate for everyone, where Routines was", () => {
     for (const admin of [true, false]) {
       expect(navFor(admin).find((i) => i.href === "/schedules")?.group).toBe("Automate");
+      // the Routines page opens from Schedules, so the nav is no longer than before (one phone screen)
+      expect(navFor(admin).find((i) => i.href === "/routines")).toBeUndefined();
     }
     expect(isActive("/schedules", "/schedules")).toBe(true);
-    expect(isActive("/schedules", "/routines")).toBe(false);
+    expect(isActive("/routines", "/schedules")).toBe(true);
+    expect(isActive("/routines/3", "/schedules")).toBe(true);
+    expect(isActive("/routines/history", "/schedules")).toBe(true);
   });
 
   it("matches the active section", () => {

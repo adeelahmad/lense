@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlarmClock, Pencil, Play } from "lucide-react";
+import { AlarmClock, Pencil, Play, Plus } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -212,7 +212,22 @@ export function SchedulesPage() {
   return (
     <div className="flex flex-col gap-4 px-4 pb-10 pt-[18px] md:px-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-[24px] font-bold leading-tight tracking-[-.015em] text-fg">Schedules</h1>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <h1 className="flex-1 text-[24px] font-bold leading-tight tracking-[-.015em] text-fg">Schedules</h1>
+          {admin && (
+            <>
+              {/* the Routines page (the list, proposed graph changes, history) lives behind this one */}
+              <Button asChild size="sm">
+                <Link href="/routines">Routines</Link>
+              </Button>
+              <Button asChild size="sm" variant="primary">
+                <Link href="/routines/new">
+                  <Plus /> New routine
+                </Link>
+              </Button>
+            </>
+          )}
+        </div>
         <p className="text-[13px] text-fg-secondary">
           Everything that runs on a clock, in one place:{" "}
           {admin ? "routines, your automations and backups" : "your automations"}.
