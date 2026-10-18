@@ -81,7 +81,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   of each conversation's own. Regenerating an answer or editing a question makes a new version beside the old one, and
   nothing is lost. Each answer keeps a record of what produced it (the model, its tools, how long it took and what it
   cost), opened from its header. It reads answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine
-  (opt-in), and `/clear` and `/compact` keep long conversations short. Each namespace can have its own assistant with
+  (opt-in), and `/clear` and `/compact` keep long conversations short. Conversations title themselves after their
+  first answer, unless you name them. Each namespace can have its own assistant with
   its own name, instructions and memory, answering in Telegram and Slack (built in, with voice notes and files), in
   Discord, Matrix, WhatsApp and other chat rooms through Matterbridge, and by email at an address of its own that you
   email or forward things to. ([Chat](docs/assistant.md), [web search](docs/assistant.md#web-search-and-reading-pages),
@@ -121,10 +122,10 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   asset, with Undo instead of a confirm. Names get their real types (people, places, organisations, events, works) by
   rules, without a model. Find what is most like a passage, an asset, a topic or an entity, in a Similar
   tab on every asset or by selecting text anywhere, and, with anytopdf, photos by what they show. Pages and shots are
-  described in words by the model provider's vision model or, off by default, by Florence-2 on your own server.
-  Transcripts can be cleaned up before analysis (stutters, "um"s, spacing and, with a local model, punctuation put
-  back), entities found by spaCy instead of the rules, and the dates people say read as days on the calendar, each off
-  by default.
+  described in words by the model provider's vision model or, off by default, by Florence-2 or Moondream on your own
+  server. Transcripts can be cleaned up before analysis (stutters, "um"s, spacing and, with a local model, punctuation
+  put back), entities found by spaCy instead of the rules, and the dates people say read as days on the calendar, each
+  off by default.
   ([Graph](docs/graph.md), [entity pages](docs/notes.md#entity-pages),
   [similar content](docs/processing.md#similar-content), [graph history](docs/graph-history.md),
   [topics](docs/topics.md), [video](docs/video.md), [NSFW classification](docs/nsfw.md),
