@@ -45,7 +45,6 @@ const view = (voice: Record<string, unknown>) =>
         compact_model: null,
         context_tokens: null,
         compact_at: 50,
-        answer_comments: true,
       },
     },
     decisions: {
