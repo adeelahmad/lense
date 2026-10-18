@@ -13,8 +13,8 @@ progress: **AWS EC2** (spot or on demand), **DigitalOcean** and **Hetzner Cloud*
 checked, prices, launching, watching and deleting machines), and their machines join over the [mesh](mesh.md) as
 worker nodes that transcribe and tell voices apart; so are **Proxmox VE**, clones of a VM template on your own server,
 and **Linux hosts over SSH**, workers started on machines you have. They haven't been tried on a real cloud machine
-yet. Also in progress: **RunPod**, GPUs that serve a model with vLLM, which Lens's model calls go to while one runs.
-Planned: more model hosts (Lambda, Hugging Face, SageMaker, Bedrock).
+yet. Also in progress: **RunPod** GPUs and **Hugging Face** Inference Endpoints, which serve a model with vLLM and
+take Lens's model calls while one runs. Planned: more model hosts (Lambda, SageMaker, Bedrock).
 
 Auto scaling is **off** until an admin turns it on, and a group launches nothing until a person approves its terms
 signed in to the web app. Agents can propose and manage groups, but never approve one.
@@ -77,6 +77,7 @@ carries none of them.
 | `aws` (AWS EC2) | EC2 instances that join over the mesh and run `lens worker` | the spot or on-demand price, an estimate | `instance_type`, `market` (`spot` or `on-demand`), `max_price`, `fallback`, `image`, `disk_gb`, `steps` |
 | `digitalocean` | droplets in `region`, with `token` (sealed), optional `ssh_keys` and `vpc_uuid` | DigitalOcean's hourly list price | `size` (`s-1vcpu-2gb`), `image` (`ubuntu-24-04-x64`), `steps` |
 | `proxmox` (Proxmox VE) | clones of a VM template on `node`, at `url` with an API token (`token_id`, `token_secret` sealed); `verify_tls` (on) and `ca_cert` for a private CA | nothing, unless you give it a price | `vm_template` (its id), `full_clone` (off: linked), `storage`, `pool`, `steps` |
+| `huggingface` (Hugging Face, a model host) | Inference Endpoints serving `model` with vLLM, with `token` (sealed, one that may manage endpoints); `namespace` (the user or organization; none: the token's user) | the hardware's `pricePerHour` in Hugging Face's list | `model`, `hardware` (`aws-us-east-1-nvidia-l4-x1`), `max_model_len`, `image` (vLLM's), `args`, `use_as_provider` (on) |
 | `runpod` (RunPod, a model host) | GPU pods serving `model` with vLLM, with `token` (sealed); `cloud_type` (`SECURE` or `COMMUNITY`), `data_centers`, `hf_token` (sealed) for gated models | what RunPod charges for the pod it found | `model`, `gpu_types` (`NVIDIA L4`), `gpu_count` (1), `disk_gb` (60), `max_model_len`, `interruptible` (spot, off), `image` (vLLM's), `args`, `use_as_provider` (on) |
 | `ssh` (Linux hosts over SSH) | `lens worker` started on `hosts` (`user@host` or `user@host:port`), signed in with `private_key` (sealed; `passphrase` if it has one) | nothing, unless you give it a price | `per_host` (1): workers on each host; `steps` |
 | `hetzner` (Hetzner Cloud) | servers in `location`, with `token` (sealed), optional `ssh_keys` | Hetzner's hourly gross price in euros, times `usd_per_eur` (1.1; set your rate) | `server_type` (`cx22`), `image` (`ubuntu-24.04`), `steps` |
@@ -126,6 +127,23 @@ with the pod, as it does `HF_TOKEN`), and Lens keeps it sealed on the unit; the 
 unit is running once vLLM answers its health check, after the weights are downloaded and loaded, so `join_minutes`
 has to leave room for a big model. A pod stopped at RunPod (a spot pod taken back) counts as gone and is deleted,
 since a stopped pod's disk still costs.
+
+A Hugging Face unit is an Inference Endpoint serving the template's `model` with vLLM on `hardware`, an id from
+Hugging Face's hardware list that names the cloud, region, GPU and how many (`aws-us-east-1-nvidia-l4-x4`: four L4s
+in AWS us-east-1, so vLLM splits the model across four). Lens reads the price, the cloud and the instance from that
+list, and makes one endpoint per unit with one replica (Lens scales by units). The endpoint is public at Hugging
+Face's address, and vLLM asks for the unit's own key, which goes to the endpoint as an encrypted secret
+(`VLLM_API_KEY`); Lens's model calls carry that key, never the Hugging Face token. The unit is running once Hugging
+Face says the endpoint runs. One that fails, is paused or scaled to zero at Hugging Face counts as gone and is
+deleted, with Hugging Face's reason (a gated model it may not download, say) in the unit's `why`.
+
+A unit that never comes up, whether it doesn't join within `join_minutes` or its provider reports it failed, counts
+as a failed launch: three in a row pause the group (with the reason in its `paused_why`), and a unit that comes up
+clears the count.
+
+The tests hold the Hugging Face fake to Hugging Face's own published API document (a trimmed copy in
+`fastapi_backend/tests/data/openapi/`, with where and when it was fetched): a request the real API wouldn't take, or
+an answer it couldn't give, fails the test.
 
 While a model group's unit runs, it is Lens's LLM provider (the template's `use_as_provider`, on by default): the
 scaler points Settings › LLM provider at the unit's address, model and key, keeping the provider that was there
@@ -282,7 +300,7 @@ Turning scaling on (`change_settings scaling`) always asks.
 ## Refine later
 
 Spreading model calls across a group's units, and serving only some kinds of call (chat, decisions); more model
-hosts; RunPod network volumes, so a model is downloaded once; Proxmox LXC containers; revoking a unit's mesh
+hosts (Lambda, SageMaker, Bedrock); Hugging Face's scale to zero and private endpoints; RunPod network volumes, so a model is downloaded once; Proxmox LXC containers; revoking a unit's mesh
 certificate when it goes; reporting machines with Lens's tag that Lens has no unit for (`listing`); a live euro rate;
 preemptible and spot instances at clouds other than AWS and RunPod; draining an AWS spot unit on its two-minute notice
 (the node agent reading the instance's metadata) and handing its job back at once; following the spot price as it

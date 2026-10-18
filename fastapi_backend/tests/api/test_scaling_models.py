@@ -12,6 +12,8 @@ import pytest
 
 from app.domain import scaling, settings, store
 from app.domain import scaling_drivers as drivers
+from tests import fake_hf_endpoints
+from tests import openapi_contract as contract
 from tests.helpers import login, make_user
 
 R = store.R
@@ -198,3 +200,114 @@ def test_a_provider_a_person_picks_while_a_unit_serves_stays(client, db, cfg, h,
         pod["desiredStatus"] = "EXITED"
     scaler.tick(now=NOW + dt.timedelta(minutes=3), lease=False)
     assert llm()["base_url"] == "http://mine.home/v1" and not (db.one("SELECT serving FROM $r", r=scaling.ROW) or {}).get("serving")
+
+
+@pytest.fixture
+def hf(monkeypatch):
+    api = fake_hf_endpoints.Endpoints()
+    monkeypatch.setattr(drivers.get("huggingface"), "transport", httpx.MockTransport(api))
+    return api
+
+
+def test_a_hugging_face_group_serves_a_model_on_an_inference_endpoint(client, db, cfg, h, hf):
+    base = cfg
+    settings.save(db, base, "scaling", {"enabled": True}, "root@x.io")
+    settings.save(db, base, "llm", {"base_url": "http://old.home:8080/v1", "model": "big"}, "root@x.io")
+    scaler = scaling.Scaler(db, lambda: settings.effective(db, base), "test")
+    body = {"name": "HF", "driver": "huggingface", "secrets": {"token": "hf_manage"}}
+    p = client.post("/api/v1/scaling/providers", headers=h, json=body).json()
+    assert p["check"] == {"ok": True, "account": "ada", "endpoints": 0}
+    assert hf.calls[0][3] == "Bearer hf_manage"
+
+    g = client.post(
+        "/api/v1/scaling/groups",
+        headers=h,
+        json={
+            "name": "A rather long group name",
+            "provider": p["id"],
+            "min": 1,
+            "max": 1,
+            "budget": 50,
+            "template": {"model": "Qwen/Qwen3-8B", "hardware": "aws-us-east-1-nvidia-l4-x4", "max_model_len": 8192},
+        },
+    ).json()
+    assert g["kind"] == "model" and g["template"]["use_as_provider"] is True
+    scaler.tick(now=NOW, lease=False)
+
+    (e,) = hf.endpoints.values()
+    (n,) = scaling.nodes(db, g["id"])
+    assert len(e["name"]) <= 32 and e["name"].endswith(f"-{n['id']}") and n["external_id"] == f"ada/{e['name']}"
+    assert e["type"] == "public" and e["provider"] == {"vendor": "aws", "region": "us-east-1"}
+    assert e["compute"]["instanceType"] == "nvidia-l4" and e["compute"]["instanceSize"] == "x4"
+    assert e["compute"]["scaling"] == {"minReplica": 1, "maxReplica": 1}
+    assert e["model"]["repository"] == "Qwen/Qwen3-8B" and list(e["model"]["image"]) == ["vLLM"]
+    assert e["model"]["args"] == ["--served-model-name", "Qwen/Qwen3-8B", "--tensor-parallel-size", "4", "--max-model-len", "8192"]
+    key = e["model"]["secrets"]["VLLM_API_KEY"]
+    assert "hf_manage" not in json.dumps(e) and len(key) > 30  # model calls never carry the account's token
+    assert n["price"] == pytest.approx(3.8) and n["state"] == "launching"
+
+    scaler.tick(now=NOW + dt.timedelta(minutes=1), lease=False)
+    assert scaling.nodes(db, g["id"])[0]["state"] == "launching"  # still pending at Hugging Face
+    hf.set_state(e["name"], "running", url="https://abc.us-east-1.aws.endpoints.huggingface.cloud")
+    scaler.tick(now=NOW + dt.timedelta(minutes=2), lease=False)
+    (n,) = scaling.nodes(db, g["id"])
+    assert n["state"] == "running"
+    llm = settings.effective(db, base)["llm"]
+    assert llm["base_url"] == "https://abc.us-east-1.aws.endpoints.huggingface.cloud/v1" and llm["api_key"] == key
+
+    client.patch(f"/api/v1/scaling/groups/{g['id']}", headers=h, json={"min": 0, "desired": 0})
+    scaler.tick(now=NOW + dt.timedelta(minutes=3), lease=False)
+    assert hf.endpoints == {} and settings.effective(db, base)["llm"]["base_url"] == "http://old.home:8080/v1"
+
+
+def test_endpoints_that_never_come_up_pause_the_group(client, db, cfg, h, hf):
+    settings.save(db, cfg, "scaling", {"enabled": True}, "root@x.io")
+    cfg = settings.effective(db, cfg)
+    p = client.post(
+        "/api/v1/scaling/providers",
+        headers=h,
+        json={"name": "HF", "driver": "huggingface", "settings": {"namespace": "ada"}, "secrets": {"token": "t"}},
+    ).json()
+    with pytest.raises(drivers.DriverError, match="no hardware 'aws-mars-1-h100'"):
+        drivers.get("huggingface").price(scaling.opened(db, cfg, p["id"]), {"hardware": "aws-mars-1-h100"})
+    g = client.post(
+        "/api/v1/scaling/groups",
+        headers=h,
+        json={
+            "name": "Gated",
+            "provider": p["id"],
+            "min": 1,
+            "max": 1,
+            "budget": 50,
+            "cooldown_seconds": 0,
+            "template": {"model": "meta/gated"},
+        },
+    ).json()
+    made = set()
+    for i in range(8):
+        tick(db, cfg, NOW + dt.timedelta(minutes=i))
+        for name in list(hf.endpoints):
+            made.add(name)
+            hf.set_state(name, "failed", error="403: the model is gated")
+        if client.get("/api/v1/scaling", headers=h).json()["groups"][0]["paused"]:
+            break
+    view = client.get("/api/v1/scaling", headers=h).json()["groups"][0]
+    assert view["paused"] and "3 units in a row failed to come up" in view["paused_why"]
+    assert len(made) == 3 and hf.endpoints == {}  # each one deleted at Hugging Face
+    (last, *_) = scaling.nodes(db, g["id"])
+    assert last["state"] == "failed" and "Hugging Face: 403: the model is gated" in last["why"]
+    assert not any(c[1].startswith("https://huggingface.co") for c in hf.calls)  # the account was given: no whoami
+
+
+def test_lens_reads_only_fields_hugging_face_answers_with():
+    spec = fake_hf_endpoints.SPEC
+    contract.check_fields(spec, "EndpointWithStatus", "name", "model.repository", "status.state", "status.url")
+    contract.check_fields(spec, "EndpointWithStatus", "status.message", "status.errorMessage")
+    contract.check_fields(spec, "EndpointWithStatusList", "items")
+    for f in ("id", "accelerator", "instanceType", "instanceSize", "numAccelerators", "pricePerHour"):
+        contract.check_fields(spec, "Vendors", f"vendors.regions.computes.{f}")
+    contract.check_fields(spec, "Vendors", "vendors.name", "vendors.regions.name")
+    with pytest.raises(AssertionError, match="compute"):  # the fake would refuse what Hugging Face refuses
+        contract.check_request(
+            spec, "POST", "/v2/endpoint/ada", {"name": "x", "type": "public", "provider": {"vendor": "aws", "region": "r"}}
+        )

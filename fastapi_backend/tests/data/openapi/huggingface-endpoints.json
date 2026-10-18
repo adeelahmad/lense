@@ -1,0 +1,2283 @@
+{
+ "components": {
+  "schemas": {
+   "Accelerator": {
+    "enum": [
+     "cpu",
+     "gpu",
+     "neuron",
+     "zero_gpu"
+    ],
+    "type": "string"
+   },
+   "BaseContainer": {
+    "properties": {
+     "healthRoute": {
+      "description": "Container health route",
+      "example": "/health",
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "port": {
+      "description": "Endpoint API port. If not specified, uses the container's default port.",
+      "example": 80,
+      "format": "int32",
+      "minimum": 0,
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "url": {
+      "description": "URL for the container",
+      "example": "https://host/image:tag",
+      "type": "string"
+     }
+    },
+    "required": [
+     "url"
+    ],
+    "type": "object"
+   },
+   "BaseTgiContainer": {
+    "properties": {
+     "maxBatchPrefillTokens": {
+      "deprecated": true,
+      "description": "Deprecated: set `--max-batch-prefill-tokens` in `args`",
+      "example": 2048,
+      "format": "int32",
+      "minimum": 0,
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "maxBatchTotalTokens": {
+      "deprecated": true,
+      "description": "Deprecated: set `--max-batch-total-tokens` in `args`",
+      "example": 2048,
+      "format": "int32",
+      "minimum": 0,
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "maxInputLength": {
+      "deprecated": true,
+      "description": "Deprecated: set `--max-input-length` (`--max-input-tokens` on Neuron) in `args`",
+      "example": 1024,
+      "format": "int32",
+      "minimum": 0,
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "maxTotalTokens": {
+      "deprecated": true,
+      "description": "Deprecated: set `--max-total-tokens` in `args`",
+      "example": 1512,
+      "format": "int32",
+      "minimum": 0,
+      "type": [
+       "integer",
+       "null"
+      ]
+     }
+    },
+    "type": "object"
+   },
+   "Compute": {
+    "description": "Hardware configuration for endpoint replicas",
+    "properties": {
+     "accelerator": {
+      "$ref": "#/components/schemas/Accelerator",
+      "description": "Hardware accelerator type (cpu, gpu, neuron)"
+     },
+     "architecture": {
+      "description": "Hardware architecture description",
+      "example": "NVIDIA T4",
+      "type": "string"
+     },
+     "gpuMemoryGb": {
+      "description": "GPU memory per accelerator in GB",
+      "example": 16,
+      "format": "int32",
+      "minimum": 0,
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "id": {
+      "description": "Unique compute identifier (vendor-region-type-size)",
+      "example": "aws-us-east-1-nvidia-t4-x1",
+      "type": "string"
+     },
+     "instanceSize": {
+      "description": "Instance size multiplier",
+      "example": "x1",
+      "type": "string"
+     },
+     "instanceType": {
+      "description": "Instance type identifier",
+      "example": "nvidia-t4",
+      "type": "string"
+     },
+     "memoryGb": {
+      "description": "RAM per replica in GB",
+      "example": 16.0,
+      "format": "float",
+      "type": "number"
+     },
+     "numAccelerators": {
+      "description": "Number of accelerator units per replica",
+      "example": 1,
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "numCpus": {
+      "description": "Number of vCPUs per replica",
+      "example": 4,
+      "format": "int32",
+      "minimum": 0,
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "pricePerHour": {
+      "description": "Cost per replica per hour (USD)",
+      "example": 0.6,
+      "format": "float",
+      "type": "number"
+     },
+     "quota": {
+      "$ref": "#/components/schemas/ComputeQuota",
+      "description": "Usage quota for this compute type"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ComputeStatus",
+      "description": "Availability status"
+     }
+    },
+    "required": [
+     "id",
+     "accelerator",
+     "numAccelerators",
+     "memoryGb",
+     "instanceType",
+     "instanceSize",
+     "architecture",
+     "status",
+     "pricePerHour",
+     "quota"
+    ],
+    "type": "object"
+   },
+   "ComputeQuota": {
+    "description": "Accelerator quota limits and current usage",
+    "properties": {
+     "maxAccelerators": {
+      "description": "Maximum accelerators allowed for this compute type",
+      "example": 10,
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "usedAccelerators": {
+      "description": "Currently allocated accelerators",
+      "example": 3,
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "maxAccelerators",
+     "usedAccelerators"
+    ],
+    "type": "object"
+   },
+   "ComputeStatus": {
+    "enum": [
+     "available",
+     "low_availability",
+     "not_available",
+     "reserved",
+     "deprecated"
+    ],
+    "type": "string"
+   },
+   "CustomContainer": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/BaseContainer"
+     },
+     {
+      "properties": {
+       "credentials": {
+        "oneOf": [
+         {
+          "type": "null"
+         },
+         {
+          "$ref": "#/components/schemas/EndpointImageCredentials",
+          "description": "Credentials to download the image"
+         }
+        ]
+       }
+      },
+      "type": "object"
+     }
+    ],
+    "description": "Model served by a custom container"
+   },
+   "CustomRouterFeature": {
+    "description": "Custom-router sidecar configuration",
+    "properties": {
+     "env": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "description": "Additional environment variables to set on the custom-router sidecar",
+      "propertyNames": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "grpcPort": {
+      "description": "Port of the sidecar's Envoy `ExternalProcessor` gRPC service, used with `protocol: extProc`.\nDefaults to 9002.",
+      "format": "int32",
+      "minimum": 0,
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "port": {
+      "description": "Port the custom-router sidecar listens on. Defaults to 3000.",
+      "format": "int32",
+      "minimum": 0,
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "protocol": {
+      "$ref": "#/components/schemas/CustomRouterProtocol",
+      "description": "How the proxy hands requests to the sidecar. Defaults to `http`."
+     },
+     "tag": {
+      "description": "Custom-router sidecar image tag. When null or absent, the custom router is removed.",
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "type": "object"
+   },
+   "CustomRouterProtocol": {
+    "enum": [
+     "http",
+     "extProc"
+    ],
+    "type": "string"
+   },
+   "Empty": {
+    "description": "Empty",
+    "type": "object"
+   },
+   "Endpoint": {
+    "description": "Endpoint",
+    "properties": {
+     "cacheHttpResponses": {
+      "type": "boolean"
+     },
+     "compute": {
+      "$ref": "#/components/schemas/EndpointCompute",
+      "description": "Compute resources allocated for each endpoint replica"
+     },
+     "customRouter": {
+      "oneOf": [
+       {
+        "type": "null"
+       },
+       {
+        "$ref": "#/components/schemas/CustomRouterFeature",
+        "description": "Use a custom-router sidecar to load balance requests between replicas"
+       }
+      ]
+     },
+     "experimentalFeatures": {
+      "$ref": "#/components/schemas/ExperimentalFeatures",
+      "description": "Experimental features, may be accessible on demand"
+     },
+     "model": {
+      "$ref": "#/components/schemas/EndpointModel",
+      "description": "Model served by the endpoint"
+     },
+     "name": {
+      "description": "Endpoint name. Must only contains lowercase alphanumeric characters or '-' and have a length of 32 characters\nmaximum",
+      "example": "my-endpoint",
+      "type": "string"
+     },
+     "network": {
+      "oneOf": [
+       {
+        "type": "null"
+       },
+       {
+        "$ref": "#/components/schemas/NetworkSpec",
+        "description": "Network specification"
+       }
+      ]
+     },
+     "notifications": {
+      "$ref": "#/components/schemas/EndpointNotifications",
+      "description": "Configure endpoint events notifications"
+     },
+     "privateService": {
+      "oneOf": [
+       {
+        "type": "null"
+       },
+       {
+        "$ref": "#/components/schemas/EndpointPrivateService",
+        "description": "Endpoint private service specification (for private endpoints only)"
+       }
+      ]
+     },
+     "provider": {
+      "$ref": "#/components/schemas/EndpointProvider",
+      "description": "Provider on which the endpoint is deployed"
+     },
+     "route": {
+      "oneOf": [
+       {
+        "type": "null"
+       },
+       {
+        "$ref": "#/components/schemas/RouteSpec",
+        "description": "Route spec for multipath routing behind a custom domain"
+       }
+      ]
+     },
+     "tags": {
+      "description": "Endpoint tags",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "type": {
+      "$ref": "#/components/schemas/EndpointType",
+      "description": "Endpoint type"
+     }
+    },
+    "required": [
+     "name",
+     "type",
+     "provider",
+     "compute",
+     "model"
+    ],
+    "type": "object"
+   },
+   "EndpointAccount": {
+    "description": "Account",
+    "properties": {
+     "id": {
+      "description": "Account id",
+      "type": "string"
+     },
+     "name": {
+      "description": "Account name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name"
+    ],
+    "type": "object"
+   },
+   "EndpointCompute": {
+    "description": "Endpoint compute",
+    "properties": {
+     "accelerator": {
+      "$ref": "#/components/schemas/Accelerator",
+      "description": "Accelerator type"
+     },
+     "id": {
+      "description": "Only informational, ignored at specification",
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "instanceSize": {
+      "example": "x1",
+      "type": "string"
+     },
+     "instanceType": {
+      "description": "Compute instance type",
+      "example": "intel-spr",
+      "type": "string"
+     },
+     "scaling": {
+      "$ref": "#/components/schemas/EndpointScaling",
+      "description": "Scaling"
+     }
+    },
+    "required": [
+     "accelerator",
+     "instanceType",
+     "instanceSize",
+     "scaling"
+    ],
+    "type": "object"
+   },
+   "EndpointFramework": {
+    "description": "ML framework used by the model",
+    "enum": [
+     "custom",
+     "pytorch",
+     "llamacpp"
+    ],
+    "type": "string"
+   },
+   "EndpointImageCredentials": {
+    "description": "Model served by the endpoint",
+    "properties": {
+     "password": {
+      "oneOf": [
+       {
+        "type": "null"
+       },
+       {
+        "type": "string"
+       }
+      ]
+     },
+     "username": {
+      "description": "Registry username",
+      "type": "string"
+     }
+    },
+    "required": [
+     "username",
+     "password"
+    ],
+    "type": "object"
+   },
+   "EndpointLoadBalancerStrategy": {
+    "description": "Load balancer strategy for distributing requests across replicas",
+    "enum": [
+     "random",
+     "sticky",
+     "least_connections"
+    ],
+    "type": "string"
+   },
+   "EndpointModel": {
+    "description": "Model and container configuration",
+    "properties": {
+     "args": {
+      "description": "Arguments passed to the container command",
+      "items": {
+       "type": "string"
+      },
+      "type": [
+       "array",
+       "null"
+      ]
+     },
+     "command": {
+      "description": "Override container entrypoint command",
+      "items": {
+       "type": "string"
+      },
+      "type": [
+       "array",
+       "null"
+      ]
+     },
+     "env": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "description": "Environment variables",
+      "example": {
+       "MAX_CONCURRENT_REQUESTS": "128"
+      },
+      "propertyNames": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "framework": {
+      "$ref": "#/components/schemas/EndpointFramework",
+      "description": "ML framework"
+     },
+     "fromCatalog": {
+      "description": "Indicates the endpoint was created from a catalog template",
+      "type": [
+       "boolean",
+       "null"
+      ]
+     },
+     "image": {
+      "$ref": "#/components/schemas/EndpointModelImage",
+      "description": "Container image configuration"
+     },
+     "repository": {
+      "description": "HuggingFace model repository (e.g., \"meta-llama/Llama-2-7b-hf\")",
+      "example": "meta-llama/Llama-2-7b-hf",
+      "type": "string"
+     },
+     "revision": {
+      "description": "Git commit SHA or branch name (defaults to latest main)",
+      "example": "main",
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "secrets": {
+      "additionalProperties": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "description": "Secret environment variables (values are encrypted at rest)",
+      "example": {
+       "HF_TOKEN": "hf_xxx"
+      },
+      "propertyNames": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "task": {
+      "$ref": "#/components/schemas/EndpointTask",
+      "description": "Model task type for inference"
+     }
+    },
+    "required": [
+     "repository",
+     "framework",
+     "image"
+    ],
+    "type": "object"
+   },
+   "EndpointModelImage": {
+    "oneOf": [
+     {
+      "properties": {
+       "huggingface": {
+        "$ref": "#/components/schemas/HuggingfaceContainer"
+       }
+      },
+      "required": [
+       "huggingface"
+      ],
+      "type": "object"
+     },
+     {
+      "properties": {
+       "huggingfaceNeuron": {
+        "$ref": "#/components/schemas/HuggingfaceNeuronContainer"
+       }
+      },
+      "required": [
+       "huggingfaceNeuron"
+      ],
+      "type": "object"
+     },
+     {
+      "properties": {
+       "tgi": {
+        "$ref": "#/components/schemas/TgiContainer"
+       }
+      },
+      "required": [
+       "tgi"
+      ],
+      "type": "object"
+     },
+     {
+      "properties": {
+       "tgiNeuron": {
+        "$ref": "#/components/schemas/TgiNeuronContainer"
+       }
+      },
+      "required": [
+       "tgiNeuron"
+      ],
+      "type": "object"
+     },
+     {
+      "properties": {
+       "tei": {
+        "$ref": "#/components/schemas/TeiContainer"
+       }
+      },
+      "required": [
+       "tei"
+      ],
+      "type": "object"
+     },
+     {
+      "properties": {
+       "llamacpp": {
+        "$ref": "#/components/schemas/LlamacppContainer"
+       }
+      },
+      "required": [
+       "llamacpp"
+      ],
+      "type": "object"
+     },
+     {
+      "properties": {
+       "vLLM": {
+        "$ref": "#/components/schemas/VLLMContainer"
+       }
+      },
+      "required": [
+       "vLLM"
+      ],
+      "type": "object"
+     },
+     {
+      "properties": {
+       "vLLMOmni": {
+        "$ref": "#/components/schemas/VLLMOmniContainer"
+       }
+      },
+      "required": [
+       "vLLMOmni"
+      ],
+      "type": "object"
+     },
+     {
+      "properties": {
+       "vLLMNeuron": {
+        "$ref": "#/components/schemas/VLLMNeuronContainer"
+       }
+      },
+      "required": [
+       "vLLMNeuron"
+      ],
+      "type": "object"
+     },
+     {
+      "properties": {
+       "sGLang": {
+        "$ref": "#/components/schemas/SGLangContainer"
+       }
+      },
+      "required": [
+       "sGLang"
+      ],
+      "type": "object"
+     },
+     {
+      "properties": {
+       "hfServe": {
+        "$ref": "#/components/schemas/HfServeContainer"
+       }
+      },
+      "required": [
+       "hfServe"
+      ],
+      "type": "object"
+     },
+     {
+      "properties": {
+       "custom": {
+        "$ref": "#/components/schemas/CustomContainer"
+       }
+      },
+      "required": [
+       "custom"
+      ],
+      "type": "object"
+     }
+    ]
+   },
+   "EndpointNotifications": {
+    "description": "Endpoint notifications configuration",
+    "properties": {
+     "email": {
+      "description": "Enable email notifications",
+      "type": "boolean"
+     },
+     "push": {
+      "description": "Enable front push notifications",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "email",
+     "push"
+    ],
+    "type": "object"
+   },
+   "EndpointPrivateService": {
+    "description": "AWS PrivateLink configuration for VPC-connected endpoints",
+    "properties": {
+     "accountId": {
+      "description": "AWS account ID allowed to connect via PrivateLink",
+      "example": "123456789012",
+      "type": "string"
+     },
+     "region": {
+      "$ref": "#/components/schemas/PrivateLinkRegion",
+      "description": "AWS region of the PrivateLink entry point, independent of where the endpoint computes"
+     },
+     "shared": {
+      "description": "Share the PrivateLink service across all endpoints for this owner (reduces costs)",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "accountId",
+     "region"
+    ],
+    "type": "object"
+   },
+   "EndpointProvider": {
+    "description": "Endpoint provider",
+    "properties": {
+     "region": {
+      "description": "Provider region",
+      "example": "us-east-1",
+      "type": "string"
+     },
+     "vendor": {
+      "description": "Provider vendor",
+      "example": "aws",
+      "type": "string"
+     }
+    },
+    "required": [
+     "vendor",
+     "region"
+    ],
+    "type": "object"
+   },
+   "EndpointScaling": {
+    "description": "Autoscaling configuration",
+    "properties": {
+     "maxReplica": {
+      "description": "Maximum number of replicas",
+      "example": 4,
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "measure": {
+      "oneOf": [
+       {
+        "type": "null"
+       },
+       {
+        "$ref": "#/components/schemas/ScalingMeasure",
+        "description": "Scaling metric and threshold"
+       }
+      ]
+     },
+     "minReplica": {
+      "description": "Minimum number of replicas (set to 0 to enable scale-to-zero)",
+      "example": 1,
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "scaleToZeroTimeout": {
+      "description": "Minutes of inactivity before scaling to zero (default: 15, requires minReplica=0)",
+      "example": 15,
+      "format": "int32",
+      "minimum": 0,
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "schedule": {
+      "description": "Daily scaling schedule (UTC): the entry in effect replaces minReplica, maxReplica and scaleToZeroTimeout",
+      "items": {
+       "$ref": "#/components/schemas/ScalingScheduleEntry"
+      },
+      "type": [
+       "array",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "minReplica",
+     "maxReplica"
+    ],
+    "type": "object"
+   },
+   "EndpointState": {
+    "description": "State of the endpoint",
+    "enum": [
+     "pending",
+     "initializing",
+     "updating",
+     "updateFailed",
+     "running",
+     "paused",
+     "failed",
+     "scaledToZero"
+    ],
+    "type": "string"
+   },
+   "EndpointStatus": {
+    "description": "Status of the endpoint",
+    "properties": {
+     "agentMessage": {
+      "description": "Diagnostic message generated by the debugger agent",
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "createdAt": {
+      "description": "Date of creation",
+      "format": "date-time",
+      "type": "string"
+     },
+     "createdBy": {
+      "$ref": "#/components/schemas/EndpointAccount",
+      "description": "User who created the endpoint"
+     },
+     "errorMessage": {
+      "description": "Extra information about the state if in error",
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "inferenceMetricsEnabled": {
+      "description": "Whether this endpoint exposes inference metrics (KV cache, requests, TTFT, ITL, prefix\ncache): vLLM, SGLang launched with metrics enabled, or a custom container running either\nengine on the exposed port. Derived from the spec, so independent of the endpoint state.",
+      "type": "boolean"
+     },
+     "lastUsedAt": {
+      "description": "Date of last activity on this endpoint (most recent inference request, or the\nmoment the endpoint transitioned to Running, whichever is later). Null if the\nendpoint has never been active.",
+      "format": "date-time",
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "message": {
+      "description": "Information about the state of the endpoint",
+      "type": "string"
+     },
+     "private": {
+      "oneOf": [
+       {
+        "type": "null"
+       },
+       {
+        "$ref": "#/components/schemas/EndpointStatusPrivate",
+        "description": "Status of a private endpoint"
+       }
+      ]
+     },
+     "readyReplica": {
+      "description": "Number of replica ready to handle requests",
+      "example": 2,
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "state": {
+      "$ref": "#/components/schemas/EndpointState",
+      "description": "State of the endpoint"
+     },
+     "targetReplica": {
+      "description": "Target number of replica to handle requests",
+      "example": 4,
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "updatedAt": {
+      "description": "Date of last update",
+      "format": "date-time",
+      "type": "string"
+     },
+     "updatedBy": {
+      "$ref": "#/components/schemas/EndpointAccount",
+      "description": "User who last updated the endpoint"
+     },
+     "url": {
+      "description": "URL the endpoint is reachable at",
+      "example": "https://68a0f3b5c6ee5c9dcc0e0a01.endpoints.huggingface.cloud",
+      "type": "string"
+     }
+    },
+    "required": [
+     "createdAt",
+     "createdBy",
+     "updatedAt",
+     "updatedBy",
+     "state",
+     "message",
+     "url",
+     "readyReplica",
+     "targetReplica"
+    ],
+    "type": "object"
+   },
+   "EndpointStatusPrivate": {
+    "description": "Status of a private endpoint",
+    "properties": {
+     "serviceName": {
+      "description": "VPC service name used to add the private service",
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "type": "object"
+   },
+   "EndpointTask": {
+    "description": "Model task type defining the inference API",
+    "enum": [
+     "custom",
+     "any-to-any",
+     "audio-classification",
+     "automatic-speech-recognition",
+     "feature-extraction",
+     "fill-mask",
+     "image-classification",
+     "image-segmentation",
+     "image-text-to-text",
+     "object-detection",
+     "question-answering",
+     "sentence-embeddings",
+     "sentence-ranking",
+     "sentence-similarity",
+     "summarization",
+     "table-question-answering",
+     "text-classification",
+     "text-generation",
+     "text-ranking",
+     "text-to-image",
+     "token-classification",
+     "translation",
+     "zero-shot-classification"
+    ],
+    "type": "string"
+   },
+   "EndpointType": {
+    "description": "Endpoint visibility and authentication mode",
+    "enum": [
+     "public",
+     "authenticated",
+     "private"
+    ],
+    "type": "string"
+   },
+   "EndpointWithStatus": {
+    "description": "Endpoint with its status",
+    "properties": {
+     "compute": {
+      "$ref": "#/components/schemas/EndpointCompute",
+      "description": "Compute resources allocated for each endpoint replica"
+     },
+     "customRouter": {
+      "oneOf": [
+       {
+        "type": "null"
+       },
+       {
+        "$ref": "#/components/schemas/CustomRouterFeature",
+        "description": "Use a custom-router sidecar to load balance requests between replicas"
+       }
+      ]
+     },
+     "experimentalFeatures": {
+      "$ref": "#/components/schemas/ExperimentalFeatures",
+      "description": "Experimental features, may be accessible on demand"
+     },
+     "healthRoute": {
+      "description": "Endpoint health route",
+      "type": "string"
+     },
+     "model": {
+      "$ref": "#/components/schemas/EndpointModel",
+      "description": "Model served by the endpoint"
+     },
+     "name": {
+      "description": "Endpoint name. Must only contains lowercase alphanumeric characters or '-' and have a length of 32 characters\nmaximum",
+      "example": "my-endpoint",
+      "type": "string"
+     },
+     "network": {
+      "oneOf": [
+       {
+        "type": "null"
+       },
+       {
+        "$ref": "#/components/schemas/NetworkSpec"
+       }
+      ]
+     },
+     "notifications": {
+      "$ref": "#/components/schemas/EndpointNotifications",
+      "description": "Endpoint events notifications configuration"
+     },
+     "privateService": {
+      "oneOf": [
+       {
+        "type": "null"
+       },
+       {
+        "$ref": "#/components/schemas/EndpointPrivateService",
+        "description": "Endpoint private service specification (for private endpoints only)"
+       }
+      ]
+     },
+     "provider": {
+      "$ref": "#/components/schemas/EndpointProvider",
+      "description": "Provider on which the endpoint is deployed"
+     },
+     "route": {
+      "oneOf": [
+       {
+        "type": "null"
+       },
+       {
+        "$ref": "#/components/schemas/RouteSpec"
+       }
+      ]
+     },
+     "status": {
+      "$ref": "#/components/schemas/EndpointStatus",
+      "description": "Endpoint status"
+     },
+     "tags": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "type": {
+      "$ref": "#/components/schemas/EndpointType",
+      "description": "Endpoint type"
+     }
+    },
+    "required": [
+     "name",
+     "type",
+     "provider",
+     "compute",
+     "experimentalFeatures",
+     "notifications",
+     "model",
+     "healthRoute",
+     "status",
+     "tags"
+    ],
+    "type": "object"
+   },
+   "EndpointWithStatusList": {
+    "description": "List of endpoints with their statuses",
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/EndpointWithStatus"
+      },
+      "type": "array"
+     },
+     "nextCursor": {
+      "description": "Use as query param `cursor` to fetch previous cursor results",
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "prevCursor": {
+      "description": "Use as query param `cursor` to fetch next cursor results",
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "totalItems": {
+      "description": "Total number of endpoints matching the filters, ignoring `limit`/`cursor`",
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "items",
+     "totalItems"
+    ],
+    "type": "object"
+   },
+   "ExperimentalFeatures": {
+    "description": "Endpoint experimental features",
+    "properties": {
+     "cacheHttpResponses": {
+      "description": "Enable caching of successful HTTP responses. When enabled, responses are\ncached with a 60min TTL (reset on each cache hit) and served instantly\non identical requests. With 100% cache hit rates, endpoints can\nautomatically scale to zero while still serving cached responses,\noptimizing both latency and cost. Cache hits are indicated by the\n'x-cache: HIT' response header, and requests can bypass the cache using\n'x-use-cache: false'.\nCurrently only available for HuggingFace Admins.",
+      "type": "boolean"
+     },
+     "loadBalancer": {
+      "oneOf": [
+       {
+        "type": "null"
+       },
+       {
+        "$ref": "#/components/schemas/EndpointLoadBalancerStrategy",
+        "description": "Load balancer strategy for distributing requests across replicas.\nDefaults to `random`. Has no effect when `custom_router` or `mcp_lb` is set."
+       }
+      ]
+     },
+     "mcpLb": {
+      "oneOf": [
+       {
+        "type": "null"
+       },
+       {
+        "$ref": "#/components/schemas/McpLbFeature",
+        "description": "Use MCP to load balance requests between replicas"
+       }
+      ]
+     },
+     "skipRepoDownload": {
+      "description": "Skip model repository download on initialization",
+      "type": [
+       "boolean",
+       "null"
+      ]
+     }
+    },
+    "type": "object"
+   },
+   "HFAutoCastType": {
+    "deprecated": true,
+    "enum": [
+     "bf16",
+     "fp16"
+    ],
+    "type": "string"
+   },
+   "HfServeContainer": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/BaseContainer"
+     }
+    ],
+    "description": "Model served by the HF-serve framework"
+   },
+   "HuggingfaceContainer": {
+    "description": "Model served by a Hugging Face container",
+    "type": "object"
+   },
+   "HuggingfaceNeuronContainer": {
+    "description": "Model served by a Hugging Face container specific to Neuronx accelerators",
+    "properties": {
+     "batchSize": {
+      "deprecated": true,
+      "description": "Deprecated: set `HF_BATCH_SIZE` in `env`",
+      "format": "int32",
+      "minimum": 0,
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "neuronCache": {
+      "deprecated": true,
+      "description": "Deprecated: set `CUSTOM_CACHE_REPO` in `env`",
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "sequenceLength": {
+      "deprecated": true,
+      "description": "Deprecated: set `HF_OPTIMUM_SEQUENCE_LENGTH` in `env`",
+      "format": "int32",
+      "minimum": 0,
+      "type": [
+       "integer",
+       "null"
+      ]
+     }
+    },
+    "type": "object"
+   },
+   "InferenceLoadMeasure": {
+    "description": "Targets of the `inferenceLoad` measure, per replica",
+    "properties": {
+     "kvCacheUsage": {
+      "description": "KV cache utilization percentage (> 0, <= 100, default: 80)",
+      "example": 80.0,
+      "format": "double",
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "requestsWaiting": {
+      "description": "Average requests waiting in the engine queue (> 0, default: 5)",
+      "example": 5.0,
+      "format": "double",
+      "type": [
+       "number",
+       "null"
+      ]
+     }
+    },
+    "type": "object"
+   },
+   "LlamacppContainer": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/BaseContainer"
+     },
+     {
+      "properties": {
+       "ctxSize": {
+        "deprecated": true,
+        "description": "Deprecated: set `--ctx-size` in `args` (unset: fit to the GPU memory, 8192 on CPU)",
+        "example": 8192,
+        "format": "int32",
+        "minimum": 0,
+        "type": [
+         "integer",
+         "null"
+        ]
+       },
+       "mmprojModelPath": {
+        "description": "Path to the .gguf vision model file",
+        "example": "mmproj-my_model.Q8_0.gguf",
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "mode": {
+        "oneOf": [
+         {
+          "type": "null"
+         },
+         {
+          "$ref": "#/components/schemas/LlamacppMode",
+          "description": "Deprecated: set `--embeddings` or `--reranking` in `args`"
+         }
+        ]
+       },
+       "modelPath": {
+        "description": "Path to the .gguf file to be loaded",
+        "example": "my_model.Q8_0.gguf",
+        "type": "string"
+       },
+       "nGpuLayers": {
+        "deprecated": true,
+        "description": "Deprecated: set `--n-gpu-layers` in `args`",
+        "example": 9999,
+        "format": "int32",
+        "minimum": 0,
+        "type": [
+         "integer",
+         "null"
+        ]
+       },
+       "nParallel": {
+        "deprecated": true,
+        "description": "Deprecated: set `--parallel` in `args`",
+        "example": 1,
+        "format": "int32",
+        "minimum": 0,
+        "type": [
+         "integer",
+         "null"
+        ]
+       },
+       "pooling": {
+        "oneOf": [
+         {
+          "type": "null"
+         },
+         {
+          "$ref": "#/components/schemas/LlamacppPooling",
+          "description": "Deprecated: set `--pooling` in `args`"
+         }
+        ]
+       },
+       "specModelPath": {
+        "description": "Path to the .gguf draft model file, used for speculative decoding",
+        "example": "mtp-my_model.Q8_0.gguf",
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "threadsHttp": {
+        "deprecated": true,
+        "description": "Deprecated: set `--threads-http` in `args`",
+        "example": 64,
+        "format": "int32",
+        "minimum": 0,
+        "type": [
+         "integer",
+         "null"
+        ]
+       },
+       "variant": {
+        "description": "Pattern of .gguf files to load",
+        "example": "*",
+        "type": [
+         "string",
+         "null"
+        ]
+       }
+      },
+      "required": [
+       "modelPath"
+      ],
+      "type": "object"
+     }
+    ],
+    "description": "Model served by llama.cpp. User-defined args full list can be found at https://github.com/ggerganov/llama.cpp/tree/master/examples/server/README.md"
+   },
+   "LlamacppMode": {
+    "deprecated": true,
+    "enum": [
+     "embeddings",
+     "reranking"
+    ],
+    "type": "string"
+   },
+   "LlamacppPooling": {
+    "deprecated": true,
+    "enum": [
+     "mean",
+     "cls",
+     "last",
+     "rank"
+    ],
+    "type": "string"
+   },
+   "McpLbFeature": {
+    "properties": {
+     "stateful": {
+      "description": "If true, we forward the request following the mcp session id",
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "NetworkSpec": {
+    "description": "Network access control specification",
+    "properties": {
+     "cidrBlock": {
+      "description": "Enable CIDR-based access restriction",
+      "type": [
+       "boolean",
+       "null"
+      ]
+     },
+     "cidrList": {
+      "description": "List of allowed CIDR blocks (e.g., [\"10.0.0.0/8\", \"192.168.1.0/24\"])",
+      "example": [
+       "10.0.0.0/8"
+      ],
+      "items": {
+       "type": "string"
+      },
+      "type": [
+       "array",
+       "null"
+      ]
+     }
+    },
+    "type": "object"
+   },
+   "PrivateLinkRegion": {
+    "description": "Regions a private link can enter through: one per AWS proxy cluster",
+    "enum": [
+     "us-east-1",
+     "eu-west-1"
+    ],
+    "type": "string"
+   },
+   "Quantize": {
+    "deprecated": true,
+    "enum": [
+     "awq",
+     "bitsandbytes",
+     "eetq",
+     "gptq"
+    ],
+    "type": "string"
+   },
+   "RouteSpec": {
+    "description": "Custom domain routing specification",
+    "properties": {
+     "domain": {
+      "description": "Custom domain name",
+      "example": "api.example.com",
+      "type": "string"
+     },
+     "path": {
+      "description": "Path prefix for routing",
+      "example": "/v1/models/gpt2",
+      "type": "string"
+     }
+    },
+    "required": [
+     "domain",
+     "path"
+    ],
+    "type": "object"
+   },
+   "SGLangContainer": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/BaseContainer"
+     },
+     {
+      "properties": {
+       "chunkedPrefillSize": {
+        "deprecated": true,
+        "description": "Deprecated: set `--chunked-prefill-size` in `args`",
+        "example": 4096,
+        "format": "int32",
+        "minimum": 0,
+        "type": [
+         "integer",
+         "null"
+        ]
+       },
+       "kvCacheDtype": {
+        "oneOf": [
+         {
+          "type": "null"
+         },
+         {
+          "$ref": "#/components/schemas/SGLangKvCacheDtype",
+          "description": "Deprecated: set `--kv-cache-dtype` in `args`"
+         }
+        ]
+       },
+       "maxPrefillTokens": {
+        "deprecated": true,
+        "description": "Deprecated: set `--max-prefill-tokens` in `args`",
+        "example": 8192,
+        "format": "int32",
+        "minimum": 0,
+        "type": [
+         "integer",
+         "null"
+        ]
+       },
+       "maxRunningRequests": {
+        "deprecated": true,
+        "description": "Deprecated: set `--max-running-requests` in `args`",
+        "example": 64,
+        "format": "int32",
+        "minimum": 0,
+        "type": [
+         "integer",
+         "null"
+        ]
+       },
+       "tensorParallelSize": {
+        "deprecated": true,
+        "description": "Deprecated: set `--tp-size` in `args`",
+        "example": 2,
+        "format": "int32",
+        "minimum": 0,
+        "type": [
+         "integer",
+         "null"
+        ]
+       }
+      },
+      "type": "object"
+     }
+    ],
+    "description": "Model served by"
+   },
+   "SGLangKvCacheDtype": {
+    "deprecated": true,
+    "description": "From https://docs.sglang.ai/backend/server_arguments.html#model-processor-and-tokenizer",
+    "enum": [
+     "fp8-e4-m3",
+     "fp8-e5-m2"
+    ],
+    "type": "string"
+   },
+   "ScalingMeasure": {
+    "description": "Scaling metric with threshold",
+    "oneOf": [
+     {
+      "description": "Scale when hardware utilization exceeds threshold (0-100%)",
+      "example": {
+       "hardwareUsage": 80.0
+      },
+      "properties": {
+       "hardwareUsage": {
+        "description": "Scale when hardware utilization exceeds threshold (0-100%)",
+        "format": "double",
+        "type": [
+         "number",
+         "null"
+        ]
+       }
+      },
+      "required": [
+       "hardwareUsage"
+      ],
+      "type": "object"
+     },
+     {
+      "description": "Scale when pending requests exceed threshold",
+      "example": {
+       "pendingRequests": 10.0
+      },
+      "properties": {
+       "pendingRequests": {
+        "description": "Scale when pending requests exceed threshold",
+        "format": "double",
+        "type": [
+         "number",
+         "null"
+        ]
+       }
+      },
+      "required": [
+       "pendingRequests"
+      ],
+      "type": "object"
+     },
+     {
+      "description": "Scale on inference engine saturation: KV cache utilization, plus a waiting-queue\ntarget so a burst is absorbed before the cache fills. Only valid for endpoints\nrunning a vLLM or SGLang server with its metrics on, from a managed image or a\ncustom container launching one.",
+      "example": {
+       "inferenceLoad": {
+        "kvCacheUsage": 80.0,
+        "requestsWaiting": 5.0
+       }
+      },
+      "properties": {
+       "inferenceLoad": {
+        "$ref": "#/components/schemas/InferenceLoadMeasure",
+        "description": "Scale on inference engine saturation: KV cache utilization, plus a waiting-queue\ntarget so a burst is absorbed before the cache fills. Only valid for endpoints\nrunning a vLLM or SGLang server with its metrics on, from a managed image or a\ncustom container launching one."
+       }
+      },
+      "required": [
+       "inferenceLoad"
+      ],
+      "type": "object"
+     }
+    ]
+   },
+   "ScalingScheduleEntry": {
+    "description": "Scaling from `at` (UTC time of day) until the next entry, wrapping around midnight. Raising `minReplica` above 0\nstarts a scaled-to-zero endpoint; lowering `maxReplica` removes the replicas above it at once.",
+    "properties": {
+     "at": {
+      "description": "UTC time of day the entry starts at",
+      "example": "07:30",
+      "type": "string"
+     },
+     "maxReplica": {
+      "description": "Maximum number of replicas, at most the endpoint maxReplica",
+      "example": 4,
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "minReplica": {
+      "description": "Minimum number of replicas (set to 0 to enable scale-to-zero)",
+      "example": 1,
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "scaleToZeroTimeout": {
+      "description": "Minutes of inactivity before scaling to zero (default: 15, requires minReplica=0)",
+      "example": 15,
+      "format": "int32",
+      "minimum": 0,
+      "type": [
+       "integer",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "at",
+     "minReplica",
+     "maxReplica"
+    ],
+    "type": "object"
+   },
+   "Status": {
+    "enum": [
+     "available",
+     "not_available"
+    ],
+    "type": "string"
+   },
+   "TEIPooling": {
+    "deprecated": true,
+    "enum": [
+     "mean",
+     "cls"
+    ],
+    "type": "string"
+   },
+   "TeiContainer": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/BaseContainer"
+     },
+     {
+      "properties": {
+       "maxBatchTokens": {
+        "deprecated": true,
+        "description": "Deprecated: set `--max-batch-tokens` in `args`",
+        "example": 2048,
+        "format": "int32",
+        "minimum": 0,
+        "type": [
+         "integer",
+         "null"
+        ]
+       },
+       "maxConcurrentRequests": {
+        "deprecated": true,
+        "description": "Deprecated: set `--max-concurrent-requests` in `args`",
+        "example": 100,
+        "format": "int32",
+        "minimum": 0,
+        "type": [
+         "integer",
+         "null"
+        ]
+       },
+       "pooling": {
+        "oneOf": [
+         {
+          "type": "null"
+         },
+         {
+          "$ref": "#/components/schemas/TEIPooling",
+          "description": "Deprecated: set `--pooling` in `args`"
+         }
+        ]
+       }
+      },
+      "type": "object"
+     }
+    ],
+    "description": "Model served by Text Embedding Inference"
+   },
+   "TgiContainer": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/BaseContainer"
+     },
+     {
+      "$ref": "#/components/schemas/BaseTgiContainer"
+     },
+     {
+      "properties": {
+       "disableCustomKernels": {
+        "deprecated": true,
+        "description": "Deprecated: set `--disable-custom-kernels` in `args`",
+        "example": true,
+        "type": [
+         "boolean",
+         "null"
+        ]
+       },
+       "quantize": {
+        "oneOf": [
+         {
+          "type": "null"
+         },
+         {
+          "$ref": "#/components/schemas/Quantize",
+          "description": "Deprecated: set `--quantize` in `args`"
+         }
+        ]
+       }
+      },
+      "type": "object"
+     }
+    ],
+    "description": "Model served by Text Generation Inference"
+   },
+   "TgiNeuronContainer": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/BaseContainer"
+     },
+     {
+      "$ref": "#/components/schemas/BaseTgiContainer"
+     },
+     {
+      "properties": {
+       "hfAutoCastType": {
+        "oneOf": [
+         {
+          "type": "null"
+         },
+         {
+          "$ref": "#/components/schemas/HFAutoCastType",
+          "description": "Deprecated: set `HF_AUTO_CAST_TYPE` in `env`"
+         }
+        ]
+       },
+       "hfNumCores": {
+        "deprecated": true,
+        "description": "Deprecated: set `HF_NUM_CORES` in `env`",
+        "format": "int32",
+        "minimum": 0,
+        "type": [
+         "integer",
+         "null"
+        ]
+       }
+      },
+      "type": "object"
+     }
+    ],
+    "description": "Model served by a Text Generation Inference specific to Neuronx accelerators"
+   },
+   "VLLMContainer": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/BaseContainer"
+     },
+     {
+      "properties": {
+       "dataParallelSize": {
+        "deprecated": true,
+        "description": "Deprecated: set `--data-parallel-size` in `args`",
+        "example": 2,
+        "format": "int32",
+        "minimum": 0,
+        "type": [
+         "integer",
+         "null"
+        ]
+       },
+       "kvCacheDtype": {
+        "oneOf": [
+         {
+          "type": "null"
+         },
+         {
+          "$ref": "#/components/schemas/VllmKvCacheDtype",
+          "description": "Deprecated: set `--kv-cache-dtype` in `args`"
+         }
+        ]
+       },
+       "maxNumBatchedTokens": {
+        "deprecated": true,
+        "description": "Deprecated: set `--max-num-batched-tokens` in `args`",
+        "example": 256,
+        "format": "int32",
+        "minimum": 0,
+        "type": [
+         "integer",
+         "null"
+        ]
+       },
+       "maxNumSeqs": {
+        "deprecated": true,
+        "description": "Deprecated: set `--max-num-seqs` in `args`",
+        "example": 8096,
+        "format": "int32",
+        "minimum": 0,
+        "type": [
+         "integer",
+         "null"
+        ]
+       },
+       "tensorParallelSize": {
+        "deprecated": true,
+        "description": "Deprecated: set `--tensor-parallel-size` in `args`",
+        "example": 8,
+        "format": "int32",
+        "minimum": 0,
+        "type": [
+         "integer",
+         "null"
+        ]
+       }
+      },
+      "type": "object"
+     }
+    ],
+    "description": "Model served by vLLM"
+   },
+   "VLLMNeuronContainer": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/BaseContainer"
+     }
+    ],
+    "description": "Model served by vLLM on Neuronx accelerators"
+   },
+   "VLLMOmniContainer": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/BaseContainer"
+     },
+     {
+      "properties": {
+       "deployConfig": {
+        "deprecated": true,
+        "description": "Deprecated: set `--deploy-config` in `args`",
+        "example": "/repository/deploy.yaml",
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "maxNumSeqs": {
+        "deprecated": true,
+        "description": "Deprecated: set `--max-num-seqs` in `args`",
+        "example": 16,
+        "format": "int32",
+        "minimum": 0,
+        "type": [
+         "integer",
+         "null"
+        ]
+       }
+      },
+      "type": "object"
+     }
+    ],
+    "description": "Model served by vLLM-Omni"
+   },
+   "Vendor": {
+    "description": "Cloud provider (e.g., AWS, GCP, Azure)",
+    "properties": {
+     "name": {
+      "description": "Provider identifier",
+      "example": "aws",
+      "type": "string"
+     },
+     "regions": {
+      "description": "Available regions for this provider",
+      "items": {
+       "$ref": "#/components/schemas/VendorRegion"
+      },
+      "type": "array"
+     },
+     "status": {
+      "$ref": "#/components/schemas/Status",
+      "description": "Provider availability status"
+     }
+    },
+    "required": [
+     "name",
+     "status",
+     "regions"
+    ],
+    "type": "object"
+   },
+   "VendorRegion": {
+    "description": "Geographic region within a cloud provider",
+    "properties": {
+     "computes": {
+      "description": "Available compute configurations in this region",
+      "items": {
+       "$ref": "#/components/schemas/Compute"
+      },
+      "type": "array"
+     },
+     "label": {
+      "description": "Human-readable region name",
+      "example": "N. Virginia",
+      "type": "string"
+     },
+     "name": {
+      "description": "Region identifier",
+      "example": "us-east-1",
+      "type": "string"
+     },
+     "status": {
+      "$ref": "#/components/schemas/Status",
+      "description": "Region availability status"
+     }
+    },
+    "required": [
+     "name",
+     "label",
+     "status",
+     "computes"
+    ],
+    "type": "object"
+   },
+   "Vendors": {
+    "description": "List of provider vendors",
+    "properties": {
+     "vendors": {
+      "description": "Vendors list",
+      "items": {
+       "$ref": "#/components/schemas/Vendor"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "vendors"
+    ],
+    "type": "object"
+   },
+   "VllmKvCacheDtype": {
+    "deprecated": true,
+    "description": "From https://docs.vllm.ai/en/stable/api/vllm/config.html#vllm.config.CacheDType",
+    "enum": [
+     "fp8",
+     "fp8-e4-m3",
+     "fp8-e5-m2"
+    ],
+    "type": "string"
+   }
+  }
+ },
+ "info": {
+  "title": "HF Inference Endpoints API",
+  "version": "2.0.0",
+  "x-lens-fetched": "2026-10-18",
+  "x-lens-source": "https://api.endpoints.huggingface.cloud/openapi.json"
+ },
+ "openapi": "3.1.0",
+ "paths": {
+  "/v2/endpoint/{namespace}": {
+   "get": {
+    "operationId": "list_endpoint",
+    "parameters": [
+     {
+      "description": "User or organization name",
+      "example": "johnDoe",
+      "in": "path",
+      "name": "namespace",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "description": "Filter by tags (comma-separated)",
+      "example": "tag1,tag2",
+      "in": "query",
+      "name": "tags",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "description": "Filter by name substring",
+      "example": "qwen",
+      "in": "query",
+      "name": "search",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "description": "Pagination cursor",
+      "example": "3",
+      "in": "query",
+      "name": "cursor",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "description": "Max results (default: 20)",
+      "example": "100",
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "format": "int32",
+       "minimum": 0,
+       "type": "integer"
+      }
+     },
+     {
+      "description": "Filter by endpoint type(s) (comma-separated): public, authenticated, private",
+      "example": "public,private",
+      "in": "query",
+      "name": "type",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "description": "Filter by model task(s) (comma-separated)",
+      "example": "text-generation",
+      "in": "query",
+      "name": "task",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "description": "Filter by endpoint state(s) (comma-separated): updating, running, paused, failed, scaledToZero",
+      "example": "running,paused",
+      "in": "query",
+      "name": "state",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "description": "Field to sort on: createdAt (default), updatedAt, name",
+      "example": "updatedAt",
+      "in": "query",
+      "name": "sortBy",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "description": "Sort direction: asc or desc (default)",
+      "example": "asc",
+      "in": "query",
+      "name": "direction",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/EndpointWithStatusList"
+        }
+       }
+      },
+      "description": "Endpoints listed successfully"
+     }
+    },
+    "security": [
+     {
+      "token": []
+     }
+    ],
+    "summary": "List endpoints [READ]",
+    "tags": [
+     "Endpoints"
+    ]
+   },
+   "post": {
+    "operationId": "create_endpoint",
+    "parameters": [
+     {
+      "description": "User or organization name",
+      "example": "johnDoe",
+      "in": "path",
+      "name": "namespace",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/Endpoint"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/EndpointWithStatus"
+        }
+       }
+      },
+      "description": "Endpoint created"
+     }
+    },
+    "security": [
+     {
+      "token": []
+     }
+    ],
+    "summary": "Create endpoint [WRITE]",
+    "tags": [
+     "Endpoints"
+    ]
+   }
+  },
+  "/v2/endpoint/{namespace}/{name}": {
+   "delete": {
+    "operationId": "delete_endpoint",
+    "parameters": [
+     {
+      "description": "User or organization name",
+      "example": "johnDoe",
+      "in": "path",
+      "name": "namespace",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "description": "Endpoint name",
+      "example": "my-endpoint",
+      "in": "path",
+      "name": "name",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Empty"
+        }
+       }
+      },
+      "description": "Endpoint deleted successfully"
+     }
+    },
+    "security": [
+     {
+      "token": []
+     }
+    ],
+    "summary": "Delete endpoint [WRITE]",
+    "tags": [
+     "Endpoints"
+    ]
+   },
+   "get": {
+    "operationId": "get_endpoint",
+    "parameters": [
+     {
+      "description": "User or organization name",
+      "example": "johnDoe",
+      "in": "path",
+      "name": "namespace",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "description": "Endpoint name",
+      "example": "my-endpoint",
+      "in": "path",
+      "name": "name",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/EndpointWithStatus"
+        }
+       }
+      },
+      "description": "Endpoint returned successfully"
+     }
+    },
+    "security": [
+     {
+      "token": []
+     }
+    ],
+    "summary": "Get endpoint [READ]",
+    "tags": [
+     "Endpoints"
+    ]
+   }
+  },
+  "/v2/provider/{namespace}": {
+   "get": {
+    "operationId": "list_vendors_namespace",
+    "parameters": [
+     {
+      "description": "User or organization name",
+      "example": "johnDoe",
+      "in": "path",
+      "name": "namespace",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Vendors"
+        }
+       }
+      },
+      "description": "Providers listed successfully"
+     }
+    },
+    "security": [
+     {
+      "token": []
+     }
+    ],
+    "summary": "List providers for namespace [READ]",
+    "tags": [
+     "Providers"
+    ]
+   }
+  }
+ }
+}
