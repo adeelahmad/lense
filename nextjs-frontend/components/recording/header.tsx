@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ArrowRightLeft,
   ChevronDown,
   ChevronRight,
   Clock3,
@@ -142,6 +143,21 @@ export function RecordingHeader() {
                 className="font-semibold text-fg-accent hover:underline"
               >
                 {rec.attached_to.title || "an email"}
+              </Link>
+            </span>
+          </Meta>
+        )}
+        {rec.converted_from && (
+          <Meta icon={<ArrowRightLeft />}>
+            <span>
+              {rec.converted_from.to === "images" && rec.converted_from.page != null
+                ? `Page ${rec.converted_from.page + 1} of `
+                : "Soundtrack of "}
+              <Link
+                href={`/resources/${rec.converted_from.resource}`}
+                className="font-semibold text-fg-accent hover:underline"
+              >
+                {rec.converted_from.title || "another asset"}
               </Link>
             </span>
           </Meta>

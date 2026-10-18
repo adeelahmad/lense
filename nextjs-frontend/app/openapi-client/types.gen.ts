@@ -5331,6 +5331,33 @@ export type ConversionNodeTestResult = {
 };
 
 /**
+ * ConvertedFrom
+ *
+ * The asset a convert step made this one from (docs/processing.md#converting-assets).
+ */
+export type ConvertedFrom = {
+  /**
+   * Resource
+   */
+  resource: number;
+  /**
+   * To
+   */
+  to: "audio" | "images";
+  /**
+   * Page
+   *
+   * the page it is, from 0, for images made of a document's pages
+   */
+  page?: number | null;
+  /**
+   * Title
+   */
+  title?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * Converters
  *
  * What this server can make into PDFs to read as documents (docs/api.md#documents-and-images).
@@ -18779,6 +18806,10 @@ export type Recording = {
    * an email's attachment made a resource of its own: that email
    */
   attached_to?: AttachedTo | null;
+  /**
+   * made by a convert step: the asset it was made from
+   */
+  converted_from?: ConvertedFrom | null;
   /**
    * a web page captured as a document
    */
