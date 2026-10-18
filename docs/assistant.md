@@ -38,11 +38,18 @@ then.
   every answer gets that summary plus the messages it doesn't cover yet. Room conversations (chat-rooms.md) go on for
   good, so they rely on it most. A summary covers the version it was written on: on a version that leaves what it
   covers, the model reads that version's messages, and the next summary is made from them. A conversation that fills
-  half of the model's context window (**Chat model's context**, `ai.context_tokens`, 16000 when empty; about four
-  characters a token) is folded in early, before the next answer, whatever the count.
+  half of its model's context window (**Summarise when a conversation fills**, `ai.compact_at`, 50 %; about four
+  characters a token) is folded in early, before the next answer, whatever the count, so the excerpts, tools and the
+  answer fit in the rest. The context window is the conversation's model's: **Chat model's context**
+  (`ai.context_tokens`) when it's set; otherwise the context Lens's own [local model](local-models.md) runs with
+  (`local_llm.context`) when it's the provider; otherwise what the model server says (its model list's
+  `context_length`, `max_model_len`, `max_context_length` or `context_window`, as OpenRouter, vLLM, Mistral, Groq and
+  others give it, or llama.cpp's `/props`), asked once every ten minutes; otherwise 16000 tokens.
   **Model for summaries** (`ai.compact_model`) writes them with a smaller, cheaper model on the same provider; empty,
-  the chat's model does. Settings › AI assistant › Summarise long conversations (`ai.compact`, on) turns it off; off,
-  or with no model, only the last six messages are read.
+  the chat's model does. A long stretch folded at once (`/compact`, or a conversation from before summaries) is
+  written in as many calls as it takes to fit that model's context, each in the [activity ledger](activity.md) as the
+  conversation's. Settings › AI assistant › Summarise long conversations (`ai.compact`, on) turns it off; off, or with
+  no model, only the last six messages are read.
 - **Titles:**{#titles} a conversation nobody named is titled with its first question's words as soon as it's asked,
   then, after the first answer, the model gives it a short title of a few words from the question and the answer
   (streamed as `title` at the end of the answer's stream). It's one small call, written by **Model for summaries**
