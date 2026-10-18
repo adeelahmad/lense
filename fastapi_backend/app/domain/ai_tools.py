@@ -13,6 +13,7 @@ import logging
 from . import (
     auth,
     batches,
+    budgets,
     chat as chatmod,
     classify as classifymod,
     connection_tools,
@@ -63,6 +64,17 @@ _I = {"type": "integer"}
 _S = {"type": "string"}
 _LIST = {"type": "array", "items": {"type": ["string", "integer"]}}
 TOOLS = [
+    (
+        "budgets",
+        "Where spending stands: what each namespace in scope spent this day, week or month (its budget's period, else "
+        "the month) against its budget, and for admins all of Lens against the overall budget and every other budget "
+        "(routines, automations, pipelines, workflows, scaling groups) with its state: ok, near (past its warning share) "
+        "or over. Money is USD from the activity ledger; estimate: true means a figure is a floor. Use it for questions "
+        "like where do my budgets stand or what have I spent. namespace: just that one.",
+        {"namespace": _S},
+        [],
+        False,
+    ),
     (
         "lens_help",
         "Lens itself rather than the archive: what it does and how (setting it up, its settings, the assistant, chat "
@@ -687,6 +699,7 @@ OWN_RESULTS = {
     "mesh",
     "connections",
     "lens_help",
+    "budgets",
 } | {
     t[0]
     for t in TOOLS
@@ -770,6 +783,7 @@ GROUPS = {
     "extensions": {"label": "Extensions and skills", "tools": [t[0] for t in AUTHOR_TOOLS] + ["use_skill"]},
     "server": {"label": "The server", "tools": [t[0] for t in ops_tools.ADMIN_TOOLS]},
     "help": {"label": "Lens's docs", "tools": ["lens_help"]},
+    "costs": {"label": "Costs and budgets", "tools": ["budgets"]},
     "browser": {"label": "Your browser", "tools": [t[0] for t in browsermod.TOOLS]},
 }
 
@@ -1706,6 +1720,16 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
     def _about_allowed(self, a):
         """Whether an activity is about the assets of a conversation about some assets (any, in one that isn't)."""
         return self.allowed is None or events.ref_id((a.get("object") or {}).get("id"), "recording") in self.allowed
+
+    def t_budgets(self, namespace=None):
+        spaces = self.readable
+        if namespace:
+            names = store.space_names(self.db)
+            spaces = {s for s in self.readable if names.get(s) == namespace}
+            if not spaces:
+                raise ValueError(f"namespace {namespace} isn't in this conversation")
+        view = budgets.overview(self.db, spaces, self.admin and not namespace)
+        return view, budgets.said(view)
 
     def t_timeline(
         self, kinds=None, namespace=None, tag=None, since=None, until=None, q=None, unreviewed=None, order=None, before=None, limit=20

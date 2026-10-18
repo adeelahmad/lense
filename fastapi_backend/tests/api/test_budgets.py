@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.domain import activity, budgets, decide, jobs, routines, store
+from app.domain import activity, ai_tools, budgets, decide, jobs, routines, store
+from tests.api.test_mcp import tool
 from tests.helpers import drain, login, make_user, seed
 
 R = store.R
@@ -231,3 +232,52 @@ def test_the_meter_follows_the_namespace_and_its_budget(client, db, h):
     assert client.get("/api/v1/budgets/meter", headers=e, params={"ns": "pods"}).json()["spent"]["usd"] == 0.3
     assert client.get("/api/v1/budgets/meter", headers=e).status_code == 403
     assert client.get("/api/v1/budgets/meter", headers=e, params={"ns": "news"}).status_code == 404
+
+
+def test_agents_ask_where_budgets_stand(client, db, cfg, h):
+    sid, other = store.ns_id(db, "pods"), store.ns_id(db, "news")
+    rid = routine(client, h, "Digest")
+    activity.record("out", "model.chat", [f"space:{sid}", f"routine:{rid}"], db=db, model="gpt", cost_usd=0.3, tokens_in=100)
+    activity.record("out", "model.chat", [f"space:{other}"], db=db, model="gpt", cost_usd=2.0, tokens_in=10)
+    budgets.put(db, "all", usd=5)
+    budgets.put(db, f"space:{sid}", usd=0.5)
+    budgets.put(db, f"routine:{rid}", usd=0.35)
+
+    # an admin over MCP: all of Lens, each namespace, and every other budget with its state
+    out = tool(client, h, "budgets")
+    assert out["all"]["spent"]["usd"] == 2.3 and out["all"]["budget"]["usd"] == 5 and out["all"]["budget"]["state"] == "ok"
+    pods = next(n for n in out["namespaces"] if n["namespace"] == "pods")
+    assert pods["spent"]["usd"] == 0.3 and pods["budget"]["left"]["usd"] == 0.2 and pods["budget"]["state"] == "ok"
+    assert next(n for n in out["namespaces"] if n["namespace"] == "news")["budget"] is None
+    assert out["budgets"] == [
+        {
+            "resource": f"routine:{rid}",
+            "name": "Digest",
+            "usd": 0.35,
+            "tokens": None,
+            "period": "month",
+            "spent": {"usd": 0.3, "tokens": 100, "estimate": False},
+            "state": "near",
+            "share": 0.8571,
+            "left": {"usd": 0.05},
+        }
+    ]
+    one = tool(client, h, "budgets", namespace="news")
+    assert [n["namespace"] for n in one["namespaces"]] == ["news"] and "all" not in one and "budgets" not in one
+
+    # someone who isn't an admin sees only the namespaces they can read
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    e = login(client, "ed@x.io", "editor password 1")
+    mine = tool(client, e, "budgets")
+    assert [n["namespace"] for n in mine["namespaces"]] == ["pods"] and "all" not in mine and "budgets" not in mine
+
+    # the assistant: the same, said in a line
+    box = ai_tools.Toolbox(db, cfg, {"id": 1, "email": "root@x.io"}, {sid, other}, {sid, other}, {}, None, admin=True)
+    view, said = box.t_budgets()
+    assert view["all"]["spent"]["usd"] == 2.3
+    assert said == "Read budgets: all of Lens: $2.30 of $5 this month (ok); near or over: Digest"
+    assert "budgets" in {s["function"]["name"] for s in box.specs()}
+    viewer = ai_tools.Toolbox(db, cfg, {"id": 2, "email": "v@x.io"}, {sid}, set(), {}, None)
+    view, said = viewer.t_budgets()
+    assert [n["namespace"] for n in view["namespaces"]] == ["pods"] and "all" not in view
+    assert said == "Read budgets: pods: $0.30 of $0.5 this month (ok)"

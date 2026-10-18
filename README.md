@@ -244,8 +244,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
 - **See what it costs.** An activity ledger of every model call, with reports, charts and budgets that cap spending.
   Setup asks for one overall budget after a cloud model, with a soft limit that warns and a hard limit that stops paid
   calls. A meter in the top bar shows spend against the budget, and the Costs page breaks it down by day, model and
-  what cost most. Models are priced by tokens or by the hour, and speech providers by the minute of audio or the
-  character read aloud. Routine choices go to small decision models, and the LLM only when it adds value.
+  what cost most; ask the assistant, or an agent over MCP, where budgets stand. Models are priced by tokens or by the
+  hour, and speech providers by the minute of audio or the character read aloud. Routine choices go to small decision
+  models, and the LLM only when it adds value.
   ([Activity and costs](docs/activity.md), [budgets](docs/budgets.md#one-budget-for-everything),
   [the meter](docs/budgets.md#the-meter-and-the-costs-page); [checks](docs/requirements.md#see-what-it-costs))
 - **Scale out.** Scaling groups add workers when work waits and let them go when it doesn't, by target, step and
