@@ -3,7 +3,9 @@ a folder and each event a file `<calendar id>/<event id>.ics`, so browsing, choo
 work as they do for any source.
 
 It signs in as a service account or a connected Google account (google_auth.py), with read-only access
-(calendar.readonly): nothing is changed in the calendar. `calendars` (calendar ids, comma separated) limits it to
+(calendar.readonly): nothing is changed in the calendar, unless an admin lets the connection add events (`write`
+"yes", which asks Google for calendar.events too): then the assistant adds one when the person approves it
+(connection_tools.py). `calendars` (calendar ids, comma separated) limits it to
 those; otherwise it reads the account's own calendar list, which a service account only has when it acts as a
 Workspace user (`impersonate`): share a calendar with the service account's address and give its id instead.
 Watching the whole account (no path) takes every calendar in it but Google's own (holidays, birthdays, week
@@ -28,10 +30,12 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from . import calendars, google_auth
 
 API = "https://www.googleapis.com/calendar/v3"
-SCOPES = ("https://www.googleapis.com/auth/calendar.readonly",)
+READ = "https://www.googleapis.com/auth/calendar.readonly"
+EVENTS = "https://www.googleapis.com/auth/calendar.events"  # adding events, once a connection allows it (write)
 TYPE = {
     "label": "Google Calendar",
-    "fields": {"calendars": "", "impersonate": "", "days_back": "365", "account": ""},  # account: the one connected
+    # account: the one connected; write "yes": the assistant may add events, each once the person approves it
+    "fields": {"calendars": "", "impersonate": "", "days_back": "365", "account": "", "write": ""},
     "secrets": ["token", "service_account_credentials"],
     "google": True,  # signs in through google_auth.py
 }
@@ -46,13 +50,33 @@ _CALENDARS: dict = {}  # source id -> (monotonic time, its calendars)
 PARTSTAT = {"needsAction": "NEEDS-ACTION", "accepted": "ACCEPTED", "declined": "DECLINED", "tentative": "TENTATIVE"}
 
 
+def SCOPES(params):  # noqa: N802 (google_auth reads a module's SCOPES)
+    """What Google is asked for: reading calendars, and adding events when the connection allows it."""
+    return (READ, EVENTS) if writes({"params": params}) else (READ,)
+
+
+def writes(src):
+    """Whether the assistant may add events to this connection's calendars (each once the person approves)."""
+    return str((src.get("params") or {}).get("write") or "").strip() == "yes"
+
+
 def _params(src):
     return {k: str(v).strip() for k, v in (src.get("params") or {}).items() if v is not None}
 
 
 def _call(cfg, src, path, params=None, what=None):
     creds = google_auth.credentials(cfg, src)
-    return google_auth.get(cfg, creds, SCOPES, API + path, params, api="calendar", what=what)
+    return google_auth.get(cfg, creds, SCOPES(src.get("params") or {}), API + path, params, api="calendar", what=what)
+
+
+def add(cfg, src, cal_id, event, notify=False):
+    """Add `event` (Google's event resource) to a calendar: the event Google made, with its id and htmlLink."""
+    if not writes(src):
+        raise ValueError("this calendar connection only reads: an admin lets it add events in Settings › Sources")
+    creds = google_auth.credentials(cfg, src)
+    url = f"{API}/calendars/{_q(cal_id)}/events"
+    q = {"sendUpdates": "all" if notify else "none"}
+    return google_auth.post(cfg, creds, SCOPES(src.get("params") or {}), url, event, q, api="calendar", what="events.insert")
 
 
 def _q(cal_id):

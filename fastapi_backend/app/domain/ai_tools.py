@@ -563,7 +563,7 @@ def builtin_names():
 
 # the built-in tools that carry what the model gives them to another host (the words searched for, the address read):
 # once an answer has read text from outside Lens, they ask first (Toolbox.wary)
-SENDS_OUT = set(webmod.NAMES)
+SENDS_OUT = set(webmod.NAMES) | connection_tools.SENDS
 
 
 # tools whose results the model may take as Lens's own word: the server's state and settings, its docs, the skills the
@@ -1965,7 +1965,8 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
         return {"paths": chains, "found": bool(chains)}, f"Looked for paths from {from_node} to {to_node}"
 
     # ---- tools that need approval ----
-    def _approval(self, tool, args, summary, estimate=None):
+    def _approval(self, tool, args, summary, estimate=None, preview=None):
+        """Ask the person: `summary` says what, and `preview` shows what would be sent or written, all of it."""
         aid = self.db.next_id("approval")
         self.db.q(
             "CREATE $r CONTENT $d",
@@ -1978,13 +1979,16 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
                     "tool": tool,
                     "args": args,
                     "summary": summary,
+                    "preview": preview,
                     "estimate": estimate,
                     "status": "pending",
                     "created_at": store.now(),
                 }
             ),
         )
-        self.approvals.append({"id": aid, "tool": tool, "summary": summary, "estimate": estimate})
+        self.approvals.append(
+            {"id": aid, "tool": tool, "summary": summary, "estimate": estimate, **({"preview": preview} if preview else {})}
+        )
         return {"status": "waiting for the person's approval", "approval": aid, "summary": summary}, f"Asked for approval: {summary}"
 
     def t_run_template(self, template_id, recording_ids=None, collection_id=None):
@@ -2312,8 +2316,8 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
     elif a["tool"] == "mark_activities":  # the person's own marks, on activities they could see when it was asked
         flags = {k: v for k, v in args.items() if k in event_marks.FLAGS}
         result = {"marked": len(event_marks.mark(db, user["id"], args["ids"], flags))}
-    elif a["tool"] == "import_from_connection":
-        result = connection_tools.apply(db, cfg, args, user, admin)
+    elif a["tool"] in connection_tools.ASKS:  # bringing things in, sending mail, adding an event, writing a file
+        result = connection_tools.carry_out(db, cfg, a["tool"], args, user, admin)
     elif a["tool"] in webmod.NAMES:  # the person's yes to a search or page read after the answer read outside text
         result = {"output": webmod.run(cfg, a["tool"], args)}
     elif a["tool"] in ("write_note", "update_note"):  # proposed by an automation's agent (actions_ai.Box)

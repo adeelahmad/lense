@@ -191,6 +191,26 @@ describe("the approvals inbox", () => {
     expect(within(card).queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
   });
 
+  it("shows the assistant's whole message before it is sent", async () => {
+    const mail = "From: mara@x.io\nTo: sam@x.io\nSubject: Trip\n\nThe bus leaves at nine.";
+    waiting = [
+      approval(14, {
+        origin: null,
+        intent: null,
+        tool: "send_mail",
+        chat: 3,
+        automation: null,
+        summary: "Send “Trip” to sam@x.io from Work Gmail",
+        preview: mail,
+        can: { approve: true, decline: true },
+      }),
+    ];
+    serve();
+    wrap(<ApprovalsPage />);
+    const card = await screen.findByRole("group", { name: "Approval needed" });
+    expect(within(card).getByLabelText("What would be sent or written")).toHaveTextContent("The bus leaves at nine.");
+  });
+
   it("says when nothing waits", async () => {
     waiting = [];
     serve();

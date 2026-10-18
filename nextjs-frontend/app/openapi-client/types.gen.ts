@@ -955,6 +955,12 @@ export type Approval = {
    */
   summary?: string | null;
   /**
+   * Preview
+   *
+   * what would be sent or written, all of it, for the person to read first (a message, an event, a file)
+   */
+  preview?: string | null;
+  /**
    * Estimate
    */
   estimate?: unknown;
