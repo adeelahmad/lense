@@ -92,3 +92,9 @@ repos:
         language: system
         files: ^ci/(check|test_check)_requirements\.py$
         pass_filenames: false
+      - id: release-tests
+        name: tests of the release script (changelog fragments)
+        entry: python3 .github/scripts/test_release.py
+        language: system
+        files: ^\.github/scripts/(release|test_release)\.py$
+        pass_filenames: false

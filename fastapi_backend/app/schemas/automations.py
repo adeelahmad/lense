@@ -49,7 +49,13 @@ class Automation(ResponseModel):
     cost_month: dict[str, Any] | None = Field(
         None, description="in lists: what it cost this month {cost_usd, estimate (true when some calls had no price)}"
     )
-    next_at: str | None = Field(None, description="in lists: when it runs next, from its schedules (coming soon)")
+    next_at: str | None = Field(
+        None, description="in lists: when it runs next, from its schedule, at and relative triggers and its joins' timers"
+    )
+    runs_today: int | None = Field(None, description="in lists: its runs since midnight (UTC), tries left out")
+    reads: str | None = Field(
+        None, description="in lists: what sets it off, in words: each trigger, then its join (match.describe_triggers)"
+    )
 
 
 class AutomationCatalog(ResponseModel):
