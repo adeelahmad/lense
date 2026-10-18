@@ -30,6 +30,7 @@ FIELDS = (
 )
 MEDIA_STEPS = {
     "enhance",
+    "clean_audio",
     "transcribe",
     "diarize",
     "shots",
@@ -69,10 +70,40 @@ def _read(db, cfg, rid, say, spec=None):
         raise Skip("only documents and images are read; audio and video are transcribed")
     from . import documents
 
-    return documents.transcribe(db, cfg, rid, say)
+    return documents.transcribe(db, _converter(cfg, spec, say), rid, say)
+
+
+def _converter(cfg, spec, say):
+    """The settings a read step runs with: its own `converter` (auto, anytopdf or lens) in place of documents.converter,
+    so one pipeline can make its PDFs with anytopdf while the rest keep the server's choice."""
+    how = (spec or {}).get("converter")
+    if how is None:
+        return cfg
+    if how not in pipelines.CONVERTERS:
+        raise ValueError(f"read step: the converter is one of {', '.join(pipelines.CONVERTERS)}")
+    if how == "anytopdf":
+        from . import anytopdf
+
+        if not anytopdf.available(cfg):
+            say("this step asks for anytopdf, but it isn't installed here and no conversion node is set: Lens converts it")
+    return {**cfg, "documents": {**(cfg.get("documents") or {}), "converter": how}}
 
 
 def _transcribe(db, cfg, rid, say, spec=None):
+    """A recording transcribed (or a document read), then, with Settings › Video › Playable copies on, a copy of its
+    media every browser plays made (playable.py), even when the transcript came with the media."""
+    from . import playable
+
+    try:
+        done = _transcribe_media(db, cfg, rid, say, spec)
+    except Skip:
+        playable.ensure(db, cfg, rid, say)
+        raise
+    playable.ensure(db, cfg, rid, say)
+    return done
+
+
+def _transcribe_media(db, cfg, rid, say, spec=None):
     rec = db.one("SELECT source, engine, status, envelope, web, path, space, title FROM $r", r=R("recording", rid)) or {}
     if rec.get("source") in ("document", "image"):  # a run queued before documents had a step of their own
         return _read(db, cfg, rid, say, spec)
@@ -88,6 +119,19 @@ def _transcribe(db, cfg, rid, say, spec=None):
 
         mediaurl.ensure(db, cfg, rid, rec, say)
     ingest.transcribe_one(db, cfg, rid, say)
+
+
+def _clean_audio(db, cfg, rid, say, spec=None):
+    """A recording's sound cleaned up before it's transcribed (audio_cleanup.py), as Settings → Transcription → Audio
+    cleanup sets it."""
+    from . import audio_cleanup
+
+    source = _source(db, rid)
+    if source in ("document", "image"):
+        raise Skip(f"{'an image' if source == 'image' else 'a document'} has no sound to clean up")
+    if source != "audio":
+        raise Skip("imported text has no sound to clean up")
+    say(audio_cleanup.summary(audio_cleanup.step(db, cfg, rid, say)))
 
 
 def _diarize(db, cfg, rid, say, spec=None):
@@ -241,6 +285,7 @@ def _describe(db, cfg, rid, say, spec=None):
 
 VIDEO_STEPS = {"shots", "ocr", "faces", "objects", "describe"}  # added after workers.steps lists were first written
 STEPS = {
+    "clean_audio": _clean_audio,
     "enhance": _enhance,
     "transcribe": _transcribe,
     "read": _read,
@@ -279,14 +324,14 @@ def for_source(steps, source):
     if source not in ENHANCED:
         steps = [s for s in steps if s.get("type") != "enhance"] or steps
     if source == "transcript":
-        return [s for s in steps if s.get("type") not in ("transcribe", "diarize")] or steps
+        return [s for s in steps if s.get("type") not in ("clean_audio", "transcribe", "diarize")] or steps
     if source not in ("document", "image"):
         return steps
     out = []
     for s in steps:
         if s.get("type") == "transcribe":
             s = {**s, "type": "read"}
-        if s.get("type") == "diarize" or (s.get("type") == "read" and any(o.get("type") == "read" for o in out)):
+        if s.get("type") in ("clean_audio", "diarize") or (s.get("type") == "read" and any(o.get("type") == "read" for o in out)):
             continue
         out.append(s)
     return out
@@ -1108,6 +1153,8 @@ class Worker:
             self.can |= VIDEO_STEPS
         if self.can & {"analyze", "summarize"}:  # embedding needs what they need; lists written before it existed run it too
             self.can.add("embed")
+        if not steps and "transcribe" in self.can:  # cleaning up the sound needs no more than transcribing; older lists run it
+            self.can.add("clean_audio")
         if "analyze" in self.can:  # cleaning up a transcript needs no more than analysing it; older lists run it too
             self.can.add("clean")
         if not steps and self.can & {"transcribe", "read"}:  # converting needs what they need; older lists run it too

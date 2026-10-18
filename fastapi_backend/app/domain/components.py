@@ -819,6 +819,19 @@ class ClipModel(Component):
         photos.fetch_model(cfg, say)
 
 
+class WebrtcAudio(Component):
+    """pywebrtc-audio, for the clean_audio step (audio_cleanup.py): fetched the first time a job waits for that step."""
+
+    def needed(self, cfg, m):
+        return True  # it waits for first use: an archive whose pipelines never clean up audio fetches nothing
+
+    def present(self, cfg):
+        return importable("pywebrtc_audio")
+
+    def fetch(self, cfg, m, say):
+        pip_install(cfg, "webrtc", say)
+
+
 class Msg(Component):
     def needed(self, cfg, m):
         return False  # only when asked for (components.also): it's GPL-3.0
@@ -1093,6 +1106,14 @@ COMPONENTS = [
     ),
     OllamaModel("llm-model", "Chat model", "the LLM provider's model, pulled on Ollama", section="llm"),
     OllamaModel("embedding-model", "Embedding model", "search by meaning's model, pulled on Ollama", section="embeddings", steps={"embed"}),
+    WebrtcAudio(
+        "webrtc-audio",
+        "WebRTC audio processing",
+        "cleans up a recording's sound before it's transcribed: noise, gain, echo and silence (the clean_audio step; pywebrtc-audio)",
+        steps={"clean_audio"},
+        size_mb=1,
+        license="Apache-2.0",
+    ),
     Smb("smb", "SMB server", "shares the file tree over SMB, read-only (smb.enabled; impacket)", size_mb=15, license="Apache-1.1"),
     SandboxClient(
         "sandbox",

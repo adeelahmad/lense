@@ -11,8 +11,21 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer, domain_errors
-from app.domain import event_marks, events, store
-from app.schemas.activities import ActivityKind, ActivityMark, ActivityPage, MarkIn, MarksIn, MarksOut, StreamActivity
+from app.api.v1.routes.comments import _comments_out
+from app.domain import auth, comments, event_marks, event_reactions, events, events_content, store
+from app.schemas.activities import (
+    ActivityKind,
+    ActivityMark,
+    ActivityPage,
+    MarkIn,
+    MarksIn,
+    MarksOut,
+    ReactIn,
+    ReactionsOut,
+    StreamActivity,
+)
+from app.schemas.comments import ActivityCommentCreate, Comment, CommentUpdate
+from app.schemas.common import Ok
 
 router = APIRouter(prefix="/activities", tags=["activities"])
 # activities come back as the stream has them: fields a source leaves out stay out, rather than null
@@ -79,14 +92,21 @@ def timeline(
     limit: int,
     marked: dict[str, bool] | None = None,
 ) -> dict[str, Any]:
-    """A page of the timeline with the namespaces it names and the viewer's own marks on it; `marked` ({reviewed,
-    important, hidden}: true or false) keeps the activities whose marks are so."""
+    """A page of the timeline with the namespaces it names, the viewer's own marks on it, everyone's reactions and
+    how many comments each item has; `marked` ({reviewed, important, hidden}: true or false) keeps the activities
+    whose marks are so."""
     with domain_errors():
         page = events.page(db, cfg, who, before, flt, limit, keep=event_marks.keeper(db, who["account"], marked))
     names = store.space_names(db)
     used = {s for a in page["items"] for s in events.spaces_of(a)}
-    marks = event_marks.of(db, who["account"], [a["id"] for a in page["items"]])
-    return {**page, "namespaces": {str(s): names[s] for s in sorted(used) if s in names}, "marks": marks}
+    ids = [a["id"] for a in page["items"]]
+    return {
+        **page,
+        "namespaces": {str(s): names[s] for s in sorted(used) if s in names},
+        "marks": event_marks.of(db, who["account"], ids),
+        "reactions": event_reactions.of(db, who["account"], ids),
+        "comments": comments.counts(db, ids),
+    }
 
 
 @router.get("", response_model_exclude_unset=True)
@@ -162,3 +182,141 @@ def mark_activity(activity_id: str, body: MarkIn, user: Writer, acl: Acl, db: Db
     if got["unknown"]:
         raise HTTPException(404, "not found")
     return ActivityMark(**got["marks"][activity_id])
+
+
+# ---------- reactions and comments: a feed everyone who sees an activity talks on (docs/timeline.md) ----------
+def _seen(db: Any, cfg: dict[str, Any], activity_id: str, who: dict[str, Any]) -> dict[str, Any]:
+    a = events.get(db, cfg, activity_id, who)
+    if not a:
+        raise HTTPException(404, "not found")
+    return a
+
+
+def _person(db: Any, user: Principal, space: int | None) -> dict[str, Any]:
+    """The person as an actor, as the stream names people."""
+    return events_content.actors(db, [(user.id, space)])[(user.id, space)]
+
+
+def react(
+    db: Any, cfg: dict[str, Any], who: dict[str, Any], user: Principal, activity_id: str, emoji: str, on: bool = True
+) -> list[dict[str, Any]]:
+    """Give `emoji` to the activity (or take it back) for `user`, logging reaction.added when it is new; the reactions
+    on it now."""
+    a = _seen(db, cfg, activity_id, who)
+    with domain_errors():
+        reactions, changed = event_reactions.react(db, user.id, a["id"], emoji, on)
+    if changed and on:
+        event_reactions.log(db, a, _person(db, user, a.get("space")), emoji)
+    return reactions
+
+
+@router.post("/{activity_id}/react")
+def react_to_activity(activity_id: str, body: ReactIn, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> ReactionsOut:
+    """React to an activity with an emoji from the palette (👍 ❤️ 🎉 👀 😂 😮 😢 🙏), or with `on` false take yours
+    back. Everyone who sees the activity sees the reactions; a new one is a `reaction.added` activity automations
+    can act on. The answer is the reactions on it now."""
+    return ReactionsOut(reactions=react(db, cfg, viewer(db, user, acl), user, activity_id, body.emoji, body.on))
+
+
+def _rank(acl: Access, user: Principal, a: dict[str, Any]) -> int:
+    """What the person may do with comments on the activity: an owner for admins, else their role in its namespace
+    (at least a viewer, since they see it)."""
+    if user.admin:
+        return auth.ROLES["owner"]
+    return max(acl.rank_in(a["space"], None) if a.get("space") is not None else 0, auth.ROLES["viewer"])
+
+
+def _comment(db: Any, activity_id: str, cid: int) -> dict[str, Any]:
+    try:
+        c = comments.get(db, cid)
+    except KeyError:
+        raise HTTPException(404, "not found") from None
+    rid = comments.recording_of(activity_id)
+    if (c.get("recording") != rid) if rid is not None else (c.get("activity") != activity_id):
+        raise HTTPException(404, "not found")
+    return c
+
+
+def comments_on(db: Any, cfg: dict[str, Any], who: dict[str, Any], user: Principal, acl: Access, activity_id: str) -> list[Comment]:
+    a = _seen(db, cfg, activity_id, who)
+    return _comments_out(db, comments.on_activity(db, a["id"]), _rank(acl, user, a), user)
+
+
+@router.get("/{activity_id}/comments")
+def list_activity_comments(activity_id: str, user: CurrentUser, acl: Acl, db: Db, cfg: Cfg) -> list[Comment]:
+    """The activity's comments, threaded: each thread followed by its replies, the earliest first. On an asset's
+    arrival (`create-recording-<id>`) they are the asset's own comments, the same ones its page shows."""
+    return comments_on(db, cfg, viewer(db, user, acl), user, acl, activity_id)
+
+
+def comment(
+    db: Any, cfg: dict[str, Any], who: dict[str, Any], user: Principal, acl: Access, activity_id: str, text: str, parent: int | None
+) -> Comment:
+    """Comment on the activity, or with `parent` reply on a thread; the comment."""
+    a = _seen(db, cfg, activity_id, who)
+    lens = a.get("lens") or {}
+    with domain_errors():
+        cid = comments.create(
+            db,
+            comments.recording_of(a["id"]),
+            a.get("space"),
+            user.id,
+            text,
+            parent=parent,
+            activity=a["id"],
+            about=a.get("summary"),
+            audience=lens.get("audience"),
+            owner=lens.get("owner"),
+        )
+    return _comments_out(db, [comments.get(db, cid)], _rank(acl, user, a), user)[0]
+
+
+@router.post("/{activity_id}/comments")
+def comment_on_activity(activity_id: str, body: ActivityCommentCreate, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> Comment:
+    """Comment on an activity, or with `parent` reply on a thread (a reply to a reply goes on the thread too). Anyone
+    who sees the activity can, up to 1,000 each; everyone who sees it reads them, and each one is a `comment.added`
+    activity. On an asset's arrival the comment goes on the asset itself."""
+    return comment(db, cfg, viewer(db, user, acl), user, acl, activity_id, body.text, body.parent)
+
+
+@router.patch("/{activity_id}/comments/{cid}")
+def update_activity_comment(activity_id: str, cid: int, body: CommentUpdate, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> Comment:
+    """Change its text (its writer only), or resolve or reopen its thread (`resolved`, on the thread's first comment:
+    its writer, or an editor of the namespace)."""
+    a = _seen(db, cfg, activity_id, viewer(db, user, acl))
+    c = _comment(db, activity_id, cid)
+    rank = _rank(acl, user, a)
+    if body.text is None and body.resolved is None:
+        raise HTTPException(400, "change the text, or resolve or reopen the thread")
+    if body.text is not None and c["account"] != user.id:
+        raise HTTPException(403, "only its writer can change a comment")
+    if body.resolved is not None and c["account"] != user.id and rank < auth.ROLES["editor"]:
+        raise HTTPException(403, "only its writer or an editor of the namespace can resolve a thread")
+    with domain_errors():
+        if body.text is not None:
+            comments.update(db, cid, body.text)
+        if body.resolved is not None and body.resolved != bool(c.get("resolved")):
+            comments.resolve(db, cid, user.id, body.resolved)
+            auth.audit(
+                db, user.as_audit(), "comment.resolve" if body.resolved else "comment.reopen", f"activity:{a['id']}", {"comment": cid}
+            )
+    return _comments_out(db, [comments.get(db, cid)], rank, user)[0]
+
+
+@router.delete("/{activity_id}/comments/{cid}")
+def delete_activity_comment(activity_id: str, cid: int, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> Ok:
+    """Delete it: its writer, or an owner of the namespace. A thread's first comment takes its replies with it.
+    Audited (`comment.delete`)."""
+    a = _seen(db, cfg, activity_id, viewer(db, user, acl))
+    c = _comment(db, activity_id, cid)
+    if c["account"] != user.id and _rank(acl, user, a) < auth.ROLES["owner"]:
+        raise HTTPException(403, "only its writer or an owner of the namespace can delete it")
+    replies = comments.delete(db, cid)
+    auth.audit(
+        db,
+        user.as_audit(),
+        "comment.delete",
+        f"activity:{a['id']}",
+        {"comment": cid, "writer": c["account"] == user.id, "replies": replies},
+    )
+    return Ok()

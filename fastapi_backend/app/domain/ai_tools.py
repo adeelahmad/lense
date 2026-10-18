@@ -2499,6 +2499,11 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable, via=
         result = {"marked": len(event_marks.mark(db, user["id"], args["ids"], flags))}
     elif a["tool"] in connection_tools.ASKS:  # bringing things in, sending mail, adding an event, writing a file
         result = connection_tools.carry_out(db, cfg, a["tool"], args, user, admin)
+    elif a["tool"] == "send_reply":  # an email's reply an agent asked to send (responder.ask): the approved text
+        from . import responder
+
+        r = responder.send(db, cfg, int(args["recording"]), user, admin, bool(args.get("draft")), args["text"])
+        result = {"status": r["status"], **{k: v for k, v in (r.get("sent") or {}).items() if k in ("id", "thread", "url")}}
     elif a["tool"] in webmod.NAMES:  # the person's yes to a search or page read after the answer read outside text
         result = {"output": webmod.run(cfg, a["tool"], args)}
     elif a["tool"] in ("write_note", "update_note"):  # proposed by an automation's agent (actions_ai.Box)

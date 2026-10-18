@@ -20,6 +20,7 @@ import {
 import Link from "next/link";
 import { forwardRef, type KeyboardEvent, type ReactNode } from "react";
 
+import type { Reaction } from "@/app/openapi-client/types.gen";
 import { askAbout } from "@/components/page-chat/page-chat-model";
 import {
   askQuote,
@@ -33,6 +34,8 @@ import {
   type Group,
   type Mark,
 } from "@/components/timeline/model";
+import { SocialSummary } from "@/components/timeline/social";
+import { sumReactions } from "@/components/timeline/social-model";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DateTime } from "@/components/ui/states";
@@ -119,11 +122,14 @@ export function AskButton({ items }: { items: Activity[] }) {
 export function ActivityDetail({
   a,
   caused,
+  social,
   onHide,
 }: {
   a: Activity;
   /** What this activity caused (automation runs, approvals), from the modules that know. */
   caused?: ReactNode;
+  /** Its reactions and comments (timeline/social.tsx). */
+  social?: ReactNode;
   onHide?: () => void;
 }) {
   const fields = objectFields(a);
@@ -153,6 +159,8 @@ export function ActivityDetail({
           {caused}
         </div>
       )}
+      {social}
+      {/* the item's actions: Open, Hide, and what other modules add (Share) */}
       <div className="flex flex-wrap gap-2">
         {href && (
           <Button asChild size="xs" variant="secondary">
@@ -185,6 +193,11 @@ type RowProps = {
   focused?: boolean;
   onFocus?: () => void;
   caused?: (a: Activity) => ReactNode;
+  /** Everyone's reactions on an item, and how many comments it has, for the closed line's summary. */
+  reactionsOf?: (id: string) => Reaction[];
+  commentsOf?: (id: string) => number;
+  /** An opened item's reactions and comments (timeline/social.tsx). */
+  social?: (a: Activity) => ReactNode;
   /** Plain rows with no toggles (Home's card). */
   compact?: boolean;
 };
@@ -202,7 +215,23 @@ export function groupMark(g: Group, markOf: (id: string) => Mark): Mark {
 /** One line of the timeline: an activity, or a run of the same actor and kind ("Work Gmail received 37 emails"),
  * opened with a click to its items or its details. */
 export const TimelineRow = forwardRef<HTMLLIElement, RowProps>(function TimelineRow(
-  { group, namespaces, labels, markOf, onMark, onHide, open, onToggle, focused, onFocus, caused, compact },
+  {
+    group,
+    namespaces,
+    labels,
+    markOf,
+    onMark,
+    onHide,
+    open,
+    onToggle,
+    focused,
+    onFocus,
+    caused,
+    reactionsOf,
+    commentsOf,
+    social,
+    compact,
+  },
   ref,
 ) {
   const first = group.items[0];
@@ -213,6 +242,8 @@ export const TimelineRow = forwardRef<HTMLLIElement, RowProps>(function Timeline
   const ns = first.space != null ? namespaces[String(first.space)] : undefined;
   const href = !many ? objectHref(first) : null;
   const summary = groupSummary(group, labels[first.kind]);
+  const reactions = reactionsOf ? sumReactions(group.items.map((a) => reactionsOf(a.id))) : [];
+  const comments = commentsOf ? group.items.reduce((n, a) => n + commentsOf(a.id), 0) : 0;
   const onKey = (e: KeyboardEvent) => {
     if (e.target !== e.currentTarget) return;
     if (e.key === "Enter" || e.key === "o") {
@@ -290,6 +321,7 @@ export const TimelineRow = forwardRef<HTMLLIElement, RowProps>(function Timeline
         </span>
         {!compact && <MarkToggles mark={mark} onMark={(flags) => onMark(ids, flags)} />}
       </div>
+      {!open && !compact && <SocialSummary reactions={reactions} comments={comments} />}
       {open &&
         !compact &&
         (many ? (
@@ -302,11 +334,17 @@ export const TimelineRow = forwardRef<HTMLLIElement, RowProps>(function Timeline
                 onMark={(flags) => onMark([a.id], flags)}
                 onHide={onHide ? () => onHide([a.id]) : undefined}
                 caused={caused?.(a)}
+                social={social?.(a)}
               />
             ))}
           </ul>
         ) : (
-          <ActivityDetail a={first} caused={caused?.(first)} onHide={onHide ? () => onHide(ids) : undefined} />
+          <ActivityDetail
+            a={first}
+            caused={caused?.(first)}
+            social={social?.(first)}
+            onHide={onHide ? () => onHide(ids) : undefined}
+          />
         ))}
     </li>
   );
@@ -318,12 +356,14 @@ function SubItem({
   onMark,
   onHide,
   caused,
+  social,
 }: {
   a: Activity;
   mark: Mark;
   onMark: (flags: Partial<Mark>) => void;
   onHide?: () => void;
   caused?: ReactNode;
+  social?: ReactNode;
 }) {
   const href = objectHref(a);
   return (
@@ -343,6 +383,7 @@ function SubItem({
         </span>
         <MarkToggles mark={mark} onMark={onMark} />
       </div>
+      {social}
       <div className="flex flex-wrap gap-2">
         {caused}
         <AskButton items={[a]} />

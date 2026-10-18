@@ -160,6 +160,9 @@ import type {
   CombineBatchData,
   CombineBatchErrors,
   CombineBatchResponses,
+  CommentOnActivityData,
+  CommentOnActivityErrors,
+  CommentOnActivityResponses,
   ConnectData,
   ConnectErrors,
   ConnectGoogleData,
@@ -332,6 +335,9 @@ import type {
   DefineEntityData,
   DefineEntityErrors,
   DefineEntityResponses,
+  DeleteActivityCommentData,
+  DeleteActivityCommentErrors,
+  DeleteActivityCommentResponses,
   DeleteAutomationData,
   DeleteAutomationErrors,
   DeleteAutomationResponses,
@@ -923,6 +929,9 @@ import type {
   ListActivitiesData,
   ListActivitiesErrors,
   ListActivitiesResponses,
+  ListActivityCommentsData,
+  ListActivityCommentsErrors,
+  ListActivityCommentsResponses,
   ListActivityKindsData,
   ListActivityKindsResponses,
   ListAllTokensData,
@@ -1405,6 +1414,9 @@ import type {
   QueueStepData,
   QueueStepErrors,
   QueueStepResponses,
+  ReactToActivityData,
+  ReactToActivityErrors,
+  ReactToActivityResponses,
   ReadFeedAudioData,
   ReadFeedAudioErrors,
   ReadFeedAudioResponses,
@@ -1673,6 +1685,9 @@ import type {
   SendMessageData,
   SendMessageErrors,
   SendMessageResponses,
+  SendReplyData,
+  SendReplyErrors,
+  SendReplyResponses,
   SetBudgetData,
   SetBudgetErrors,
   SetBudgetResponses,
@@ -1706,6 +1721,9 @@ import type {
   SetServiceData,
   SetServiceErrors,
   SetServiceResponses,
+  SetSharedRoutesData,
+  SetSharedRoutesErrors,
+  SetSharedRoutesResponses,
   SetupData,
   SetupErrors,
   SetupResponses,
@@ -1907,6 +1925,9 @@ import type {
   UpcomingData,
   UpcomingErrors,
   UpcomingResponses,
+  UpdateActivityCommentData,
+  UpdateActivityCommentErrors,
+  UpdateActivityCommentResponses,
   UpdateAssistantMemoryData,
   UpdateAssistantMemoryErrors,
   UpdateAssistantMemoryResponses,
@@ -4348,6 +4369,94 @@ export class Activities {
       },
     });
   }
+
+  /**
+   * React To Activity
+   *
+   * React to an activity with an emoji from the palette (👍 ❤️ 🎉 👀 😂 😮 😢 🙏), or with `on` false take yours
+   * back. Everyone who sees the activity sees the reactions; a new one is a `reaction.added` activity automations
+   * can act on. The answer is the reactions on it now.
+   */
+  public static reactToActivity<ThrowOnError extends boolean = false>(
+    options: Options<ReactToActivityData, ThrowOnError>,
+  ): RequestResult<ReactToActivityResponses, ReactToActivityErrors, ThrowOnError> {
+    return (options.client ?? client).post<ReactToActivityResponses, ReactToActivityErrors, ThrowOnError>({
+      url: "/api/v1/activities/{activity_id}/react",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Activity Comments
+   *
+   * The activity's comments, threaded: each thread followed by its replies, the earliest first. On an asset's
+   * arrival (`create-recording-<id>`) they are the asset's own comments, the same ones its page shows.
+   */
+  public static listActivityComments<ThrowOnError extends boolean = false>(
+    options: Options<ListActivityCommentsData, ThrowOnError>,
+  ): RequestResult<ListActivityCommentsResponses, ListActivityCommentsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListActivityCommentsResponses, ListActivityCommentsErrors, ThrowOnError>({
+      url: "/api/v1/activities/{activity_id}/comments",
+      ...options,
+    });
+  }
+
+  /**
+   * Comment On Activity
+   *
+   * Comment on an activity, or with `parent` reply on a thread (a reply to a reply goes on the thread too). Anyone
+   * who sees the activity can, up to 1,000 each; everyone who sees it reads them, and each one is a `comment.added`
+   * activity. On an asset's arrival the comment goes on the asset itself.
+   */
+  public static commentOnActivity<ThrowOnError extends boolean = false>(
+    options: Options<CommentOnActivityData, ThrowOnError>,
+  ): RequestResult<CommentOnActivityResponses, CommentOnActivityErrors, ThrowOnError> {
+    return (options.client ?? client).post<CommentOnActivityResponses, CommentOnActivityErrors, ThrowOnError>({
+      url: "/api/v1/activities/{activity_id}/comments",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Activity Comment
+   *
+   * Delete it: its writer, or an owner of the namespace. A thread's first comment takes its replies with it.
+   * Audited (`comment.delete`).
+   */
+  public static deleteActivityComment<ThrowOnError extends boolean = false>(
+    options: Options<DeleteActivityCommentData, ThrowOnError>,
+  ): RequestResult<DeleteActivityCommentResponses, DeleteActivityCommentErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteActivityCommentResponses, DeleteActivityCommentErrors, ThrowOnError>(
+      { url: "/api/v1/activities/{activity_id}/comments/{cid}", ...options },
+    );
+  }
+
+  /**
+   * Update Activity Comment
+   *
+   * Change its text (its writer only), or resolve or reopen its thread (`resolved`, on the thread's first comment:
+   * its writer, or an editor of the namespace).
+   */
+  public static updateActivityComment<ThrowOnError extends boolean = false>(
+    options: Options<UpdateActivityCommentData, ThrowOnError>,
+  ): RequestResult<UpdateActivityCommentResponses, UpdateActivityCommentErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateActivityCommentResponses, UpdateActivityCommentErrors, ThrowOnError>({
+      url: "/api/v1/activities/{activity_id}/comments/{cid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
 }
 
 export class Automations {
@@ -6009,7 +6118,9 @@ export class Resources {
   /**
    * Get Audio
    *
-   * The audio, with byte ranges. Accepts a bearer token, a share link (``?s=``) or a signed link.
+   * The audio (or video) for the player, with byte ranges: a copy every browser plays when Settings › Video made one,
+   * else the file itself (``/media`` always gives the file). Accepts a bearer token, a share link (``?s=``) or a signed
+   * link.
    */
   public static getAudio<ThrowOnError extends boolean = false>(
     options: Options<GetAudioData, ThrowOnError>,
@@ -9574,6 +9685,25 @@ export class Sources {
   ): RequestResult<UpdateSourceResponses, UpdateSourceErrors, ThrowOnError> {
     return (options.client ?? client).patch<UpdateSourceResponses, UpdateSourceErrors, ThrowOnError>({
       url: "/api/v1/sources/{sid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Set Shared Routes
+   *
+   * Save an email account's shared routing rules, which every watch on it tries after its own (none: unchanged
+   * behaviour). They apply to messages that arrive after they're saved.
+   */
+  public static setSharedRoutes<ThrowOnError extends boolean = false>(
+    options: Options<SetSharedRoutesData, ThrowOnError>,
+  ): RequestResult<SetSharedRoutesResponses, SetSharedRoutesErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetSharedRoutesResponses, SetSharedRoutesErrors, ThrowOnError>({
+      url: "/api/v1/sources/{sid}/routes",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -13887,6 +14017,28 @@ export class Replies {
   ): RequestResult<DraftReplyResponses, DraftReplyErrors, ThrowOnError> {
     return (options.client ?? client).post<DraftReplyResponses, DraftReplyErrors, ThrowOnError>({
       url: "/api/v1/resources/{rid}/reply",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Send Reply
+   *
+   * Send this email's reply through the Gmail connection the email came in on, in its thread and without its
+   * citations, or keep it in Gmail's drafts (`draft`). It's your pick, so it needs you signed in to Lens: an API key, an
+   * app or an agent asks with the MCP tool `send_reply`, which waits in Approvals. Only admins send from a connection,
+   * and only from one an admin let send; nothing marked [to confirm: …] may be left in it (400). Audited as
+   * `reply.send`.
+   */
+  public static sendReply<ThrowOnError extends boolean = false>(
+    options: Options<SendReplyData, ThrowOnError>,
+  ): RequestResult<SendReplyResponses, SendReplyErrors, ThrowOnError> {
+    return (options.client ?? client).post<SendReplyResponses, SendReplyErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/reply/send",
       ...options,
       headers: {
         "Content-Type": "application/json",

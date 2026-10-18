@@ -50,6 +50,9 @@ class Source(ResponseModel):
     health: SourceHealth | None = None
     created_at: str | None = None
     watches: int = 0
+    routes: list[RouteView] = Field(
+        default=[], description="an email account's shared routing rules, used by every watch on it after its own"
+    )
 
 
 class SourceCreate(RequestModel):
@@ -144,6 +147,12 @@ ROUTES_HELP = (
 )
 
 
+SHARED_HELP = (
+    "an email account's shared routing rules: every watch on the account tries its own rules first, then these, in "
+    "order; a message none matches goes to the watch's namespace. They're written like a watch's rules."
+)
+
+
 class Route(RequestModel):
     match: dict[RouteField, str | list[str]] = Field(
         description="conditions, all of which must match; each holds patterns, any of which may"
@@ -221,11 +230,18 @@ class Watch(ResponseModel):
     last_error: str | None = None
 
 
+class SharedRoutes(RequestModel):
+    routes: list[Route] = Field(default=[], description=SHARED_HELP)
+
+
 class RoutePreviewRequest(RequestModel):
     source: int
     path: str = ""
-    namespace: str = Field(description="the watch's own namespace, for messages no rule matches")
-    routes: list[Route] = []
+    namespace: str = Field(default="", description="the watch's own namespace, for messages no rule matches")
+    routes: list[Route] = Field(default=[], description="the watch's own rules")
+    shared_routes: list[Route] | None = Field(
+        default=None, description="the account's shared rules to try after the watch's; left out, the saved ones"
+    )
 
 
 class RoutedMessage(ResponseModel):
@@ -236,4 +252,5 @@ class RoutedMessage(ResponseModel):
     to: list[str] = []
     namespace: str | None = None
     skipped: bool = False
-    rule: int | None = Field(default=None, description="the rule that decided, counted from 1; None: no rule matched")
+    rule: int | None = Field(default=None, description="the rule that decided, counted from 1 in its list; None: no rule matched")
+    shared: bool = Field(default=False, description="the rule that decided is one of the account's shared rules")

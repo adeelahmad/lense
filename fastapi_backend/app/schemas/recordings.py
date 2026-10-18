@@ -55,6 +55,24 @@ class NsfwHit(ResponseModel):
     frame: str | None = Field(None, description="a signed link to the frame or page")
 
 
+class AudioCleanup(ResponseModel):
+    """How the clean_audio step cleaned up a recording's sound for transcription (docs/processing.md, Cleaning up audio)."""
+
+    noise: str = Field(description="noise suppression: off, low, moderate, high or very_high (6, 12, 18 or 21 dB)")
+    gain: bool = Field(description="automatic gain control")
+    high_pass: bool = Field(description="the rumble below speech taken out")
+    echo: str = Field(description="echo cancellation: off, or the channel (left or right) holding what the speakers played")
+    trim_silence: bool = Field(description="silences of min_silence_ms or longer left out of what's transcribed")
+    min_silence_ms: int = Field(description="the shortest pause left out when trimming silence")
+    duration_ms: int = Field(description="how long the recording is")
+    speech_ms: int = Field(description="how much of it WebRTC's voice detection heard as speech")
+    kept_ms: int = Field(description="how much of it is transcribed: all of it unless silence is trimmed")
+    gain_db: float | None = Field(None, description="the gain applied by the end of the recording, in dB")
+    echo_note: str | None = Field(None, description="why echo wasn't cancelled though it was asked for")
+    engine: str | None = Field(None, description="what cleaned it up, with its version")
+    at: str | None = Field(None, description="when the step ran")
+
+
 class NsfwState(ResponseModel):
     """What NSFW classification found (docs/nsfw.md), where it's on in the resource's namespace."""
 
@@ -338,6 +356,7 @@ class Recording(ResponseModel):
     web: WebPage | None = Field(None, description="a web page captured as a document")
     enrichment: Enrichment | None = Field(None, description="the places and dates anytopdf found (analysis.anytopdf)")
     nsfw: NsfwState | None = Field(None, description="NSFW classification, where it's on in its namespace and it was classified")
+    audio_cleanup: AudioCleanup | None = Field(None, description="how its clean_audio step cleaned up its sound before transcription")
     enhanced: Enhanced | None = Field(None, description="an image the enhance step looked at: what it found, and its enhanced copy")
 
 

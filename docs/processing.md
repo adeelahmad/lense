@@ -7,6 +7,8 @@ How assets move through Lens: where they come from, what each step does, and how
 - `scan` finds audio under each namespace's paths and fingerprints it: moved files keep their history, duplicates are skipped,
   and so are files whose asset someone deleted or moved to another namespace (at the same path, or a copy of the same
   file).
+- `clean_audio` (only in a pipeline that has it) cleans up the sound before it's transcribed: noise, volume, rumble,
+  echo, and silence left out of what's transcribed ([Cleaning up audio](#cleaning-up-audio)).
 - `transcribe` uses SenseVoice, faster-whisper or mlx-whisper. When the configured engine isn't installed on a worker (or
   doesn't import there), it uses the next one that is and says so in the job log; with none at all the step fails,
   saying how to add one. A file that fails is marked and the batch carries on. For a
@@ -22,6 +24,36 @@ How assets move through Lens: where they come from, what each step does, and how
   per namespace, with word clouds.
 
 Every step takes `--ns`, `--limit` and `--force`; `run` does them all, and a lock stops two runs overlapping.
+
+### Cleaning up audio
+
+A phone on a table, a fan, a quiet voice across the room or a call with the other side coming back through the
+speakers: speech-to-text hears all of it. The `clean_audio` step (Clean up audio in the pipeline editor and Reprocess)
+runs a recording through WebRTC's audio processing, the code a browser runs on a call, with
+[pywebrtc-audio](https://github.com/strands-labs/pywebrtc-audio) (Apache-2.0, about 0.5 MB; fetched the first time
+the step runs, [Components](components.md)). No pipeline has it until you add it before Transcribe, so nothing changes
+until then. What it does is in Settings → Transcription → Audio cleanup (`transcribe.cleanup`):
+
+| Setting | Default | What it does |
+|---|---|---|
+| `noise` | `moderate` | Noise suppression: `off`, `low`, `moderate`, `high` or `very_high` (6, 12, 18 or 21 dB) |
+| `gain` | on | Automatic gain control, so a quiet voice is as loud as a near one |
+| `high_pass` | on | Takes out the rumble below speech: traffic, handling noise, a knocked desk |
+| `echo` | `off` | Echo cancellation for a two-channel recording with what the speakers played on one channel (`left` or `right`) and the microphone on the other, as call recorders keep them; the far side's voice is taken out of the microphone, then both sides are mixed |
+| `trim_silence` | on | Pauses of `min_silence_ms` (2000) or longer, by WebRTC's voice detection, are left out of what's transcribed |
+
+Leaving silence out means a cloud engine bills fewer minutes (the activity ledger's seconds are what was sent), a
+local one finishes sooner and Whisper has no quiet stretch to imagine words in. The transcript's times are put back on
+the recording's own timeline, so the player and every citation stay where the words were said.
+
+The step measures how much of the recording is speech and keeps what it ran with on the asset (`audio_cleanup` in
+`GET /api/v1/recordings/{id}`: the options, `speech_ms`, `kept_ms`, the gain it ended on). From then on transcribing
+that asset hears it cleaned up that way, also on a later Reprocess. The file is never changed and no second copy is
+stored: cleaning takes a fraction of a second per minute of audio, so it's done again each time. Speaker separation and
+voice IDs still listen to the original. Run the step with every option off to have the asset transcribed as it is
+again. A worker that can't fetch pywebrtc-audio transcribes the original and says so in the job log. Run it on one
+asset with Reprocess → Clean up audio, or `POST /api/v1/recordings/{id}/reprocess` with
+`{"steps": ["clean_audio", "transcribe"]}`; workers whose `workers.steps` list has `transcribe` run it too.
 
 ### Your own names in transcription
 
@@ -570,6 +602,13 @@ importing chosen ones and watching work as above. [News feeds](#news-feeds-rss-a
   exists (rules never create one); mail for a namespace deleted since goes to the watch's. Rules apply to messages that
   arrive after they're saved. `POST /api/v1/watches/routes/preview` shows where the latest messages would go before
   saving, and a scan's stats count the messages `routed` elsewhere.
+  An email account can also carry **shared rules**, written once for every watch on it (in the web app the account's
+  More menu on the Sources page, Routing rules; or `PUT /api/v1/sources/{id}/routes`): mail to support@ goes to support, newsletters are skipped, whichever mailbox a watch
+  takes. A watch tries its own rules first, then the account's, then sends the message to its namespace, so a watch's
+  rule can make an exception to the account's. With no shared rules nothing changes. The preview uses the saved
+  shared rules, or `shared_routes` to try ones not saved yet, and says which list decided (`shared`). Agents read
+  every account's and watch's rules with the MCP tool `mail_routing` and change them with `set_mail_routing`, as
+  lines like `from: *@acme.com; subject: invoice = finance`.
 - **Gmail and Google Workspace**: see [below](#gmail-and-google-workspace).
 - **Calendar feed (iCal)**: the calendar's iCal address (`https://` or `webcal://`; a user and password if it asks for
   one). The address is kept encrypted like a password and never shown again, since a private calendar's address is
@@ -712,8 +751,8 @@ A pipeline is a named, versioned list of steps; each namespace can choose its de
 analyze, summarize, report). Imports, watched folders and reprocessing use the namespace's pipeline; steps that need
 audio skip themselves for imported text. Steps:
 
-- `transcribe`, `diarize`, `clean` ([Cleaning up transcripts](#cleaning-up-transcripts)), `analyze`, `summarize`, and
-  `report` (the built-in report).
+- `clean_audio` ([Cleaning up audio](#cleaning-up-audio)), `transcribe`, `diarize`, `clean`
+  ([Cleaning up transcripts](#cleaning-up-transcripts)), `analyze`, `summarize`, and `report` (the built-in report).
 - `llm`: renders a prompt template, sends it to the configured model, checks the reply against the template's JSON
   Schema and saves it as a named output (e.g. `meeting_notes`).
 - `spec`: writes a technical spec from the transcript into a note linked to the asset, with the Spec from transcript
@@ -738,6 +777,16 @@ the model.
 New pipelines, workflows, templates and routines don't need a name typed: the web app guesses one (from a pipeline's
 steps, what a workflow runs on, a template's kind, a routine's schedule and actions), numbered when it's taken
 ("Prompt template 2"). The pencil next to the name on its page renames it later, as does `PATCH` on its address.
+
+### Choosing the converter for a Read step
+
+A Read step makes an Office file, email, web page or photographed page into a PDF before it reads it. Which program
+does that is the server's choice, `documents.converter` in Settings → Documents ([anytopdf](configuration.md#anytopdf)),
+unless the step names its own: `{"type": "read", "converter": "anytopdf"}` makes every document and image in that
+pipeline into a PDF with anytopdf (flattening a photographed page first), `"lens"` uses Lens's own converters only, and
+`"auto"` uses anytopdf only for what Lens can't convert. Other pipelines keep the server's choice. In the pipeline
+editor it's the Read step's **Make PDFs with** setting. Where a step asks for anytopdf but it isn't installed here and
+no conversion node is set, Lens converts the file itself and the run's log says so.
 
 ### Converting assets
 

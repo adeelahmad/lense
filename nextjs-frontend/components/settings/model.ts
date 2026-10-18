@@ -668,6 +668,60 @@ export const FIELDS: FieldSpec[] = [
     kind: "text",
     mono: true,
   },
+  // Audio cleanup: what the Clean up audio step (clean_audio) does before transcription, in a pipeline that has it
+  {
+    section: "transcribe",
+    key: "cleanup.noise",
+    label: "Noise suppression",
+    kind: "select",
+    options: [
+      { value: "off", label: "Off" },
+      { value: "low", label: "Low (6 dB)" },
+      { value: "moderate", label: "Moderate (12 dB)" },
+      { value: "high", label: "High (18 dB)" },
+      { value: "very_high", label: "Very high (21 dB)" },
+    ],
+  },
+  {
+    section: "transcribe",
+    key: "cleanup.echo",
+    label: "Echo cancellation",
+    kind: "select",
+    options: [
+      { value: "off", label: "Off" },
+      { value: "left", label: "Speakers on the left channel" },
+      { value: "right", label: "Speakers on the right channel" },
+    ],
+    hint: "For call recordings with what the speakers played on one channel and the microphone on the other",
+  },
+  {
+    section: "transcribe",
+    key: "cleanup.gain",
+    label: "Even out the volume",
+    kind: "switch",
+  },
+  {
+    section: "transcribe",
+    key: "cleanup.high_pass",
+    label: "Take out low rumble",
+    kind: "switch",
+  },
+  {
+    section: "transcribe",
+    key: "cleanup.trim_silence",
+    label: "Leave silence out of what’s transcribed",
+    kind: "switch",
+    hint: "Fewer minutes for a cloud engine to bill, and faster on this server; times stay the recording’s own",
+  },
+  {
+    section: "transcribe",
+    key: "cleanup.min_silence_ms",
+    label: "Shortest silence left out",
+    kind: "int",
+    min: 500,
+    max: 60000,
+    unit: "ms",
+  },
   {
     section: "transcribe",
     key: "vocabulary",
@@ -2554,6 +2608,25 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "video",
+    key: "playable_copies",
+    label: "Playable copies",
+    kind: "switch",
+    hint: "Make a copy every browser plays of HEVC, AVI, MTS, AMR and other media phones and cameras record",
+  },
+  {
+    section: "video",
+    key: "playable_height",
+    label: "Playable copy size",
+    kind: "select",
+    options: [
+      { value: "360", label: "360 lines" },
+      { value: "480", label: "480 lines" },
+      { value: "720", label: "720 lines" },
+      { value: "1080", label: "1080 lines" },
+    ],
+  },
+  {
+    section: "video",
     key: "publish_faces",
     label: "Publish faces in IIIF",
     kind: "switch",
@@ -4118,7 +4191,7 @@ export function parse(f: FieldSpec, ui: unknown): Parsed {
       return { value: n };
     }
     case "select":
-      if (f.key === "frame_width") return { value: Number(ui) };
+      if (f.key === "frame_width" || f.key === "playable_height") return { value: Number(ui) };
       if (f.section === "nfs" && f.key === "account") return { value: ui === "" || ui == null ? null : Number(ui) };
       if ((f.section === "files" || f.section === "backups") && f.key === "connection")
         return { value: ui === "" || ui == null ? null : Number(ui) };

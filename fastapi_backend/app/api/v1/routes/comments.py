@@ -60,7 +60,8 @@ def _comments_out(db: DB, rows: list[dict[str, Any]], rank: int, user: Principal
         out.append(
             Comment(
                 id=c["id"],
-                recording=c["recording"],
+                recording=c.get("recording"),
+                activity=c.get("activity"),
                 parent=c.get("parent"),
                 text=c["text"],
                 t0=c.get("t0"),

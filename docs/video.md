@@ -48,6 +48,24 @@ videos, documents and images.
 A published video recording becomes a IIIF Video on a Canvas with its width, height and duration. It gets a thumbnail,
 a "Text on screen" annotation layer targeting `#xywh=…&t=…`, and its shots as a Range.
 
+## Playable copies
+
+Phones and cameras write files many browsers can't play: HEVC video in a .mov, AVI, MPEG transport streams, AMR voice
+memos, Windows Media. Turn on Settings › Video › Playable copies (`video.playable_copies`, off by default, since
+transcoding a long video keeps a small machine busy for a while) and the transcribe step makes one copy of such a
+recording's media, even when its transcript came with it:
+
+- video becomes H.264 at most `video.playable_height` lines high (360, 480, 720 or 1080; 720 by default) with AAC sound
+  in MP4, and sound alone becomes AAC in MP4;
+- the copy is kept in `data_dir/playable/`, encrypted like the rest when the namespace is, and deleted with the
+  recording;
+- the player (`/api/v1/recordings/<id>/audio`) gets the copy, while `/api/v1/recordings/<id>/media`, IIIF and feeds
+  still give the file itself;
+- a file browsers already play (H.264, VP8, VP9 or AV1 video; AAC, MP3, Opus, Vorbis, FLAC or PCM sound, in MP4,
+  WebM, Ogg, MP3, FLAC or WAV) gets no copy.
+
+Recordings transcribed before the setting was on get their copy when their transcribe step runs again.
+
 ## The video recording page
 
 Video recordings open in their own layout.

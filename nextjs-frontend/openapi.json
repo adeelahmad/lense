@@ -5580,6 +5580,269 @@
         }
       }
     },
+    "/api/v1/activities/{activity_id}/react": {
+      "post": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "React To Activity",
+        "description": "React to an activity with an emoji from the palette (\ud83d\udc4d \u2764\ufe0f \ud83c\udf89 \ud83d\udc40 \ud83d\ude02 \ud83d\ude2e \ud83d\ude22 \ud83d\ude4f), or with `on` false take yours\nback. Everyone who sees the activity sees the reactions; a new one is a `reaction.added` activity automations\ncan act on. The answer is the reactions on it now.",
+        "operationId": "react_to_activity",
+        "parameters": [
+          {
+            "name": "activity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Activity Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReactIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReactionsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/activities/{activity_id}/comments": {
+      "get": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "List Activity Comments",
+        "description": "The activity's comments, threaded: each thread followed by its replies, the earliest first. On an asset's\narrival (`create-recording-<id>`) they are the asset's own comments, the same ones its page shows.",
+        "operationId": "list_activity_comments",
+        "parameters": [
+          {
+            "name": "activity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Activity Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Comment"
+                  },
+                  "title": "Response Activities-List Activity Comments"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "Comment On Activity",
+        "description": "Comment on an activity, or with `parent` reply on a thread (a reply to a reply goes on the thread too). Anyone\nwho sees the activity can, up to 1,000 each; everyone who sees it reads them, and each one is a `comment.added`\nactivity. On an asset's arrival the comment goes on the asset itself.",
+        "operationId": "comment_on_activity",
+        "parameters": [
+          {
+            "name": "activity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Activity Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivityCommentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/activities/{activity_id}/comments/{cid}": {
+      "patch": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "Update Activity Comment",
+        "description": "Change its text (its writer only), or resolve or reopen its thread (`resolved`, on the thread's first comment:\nits writer, or an editor of the namespace).",
+        "operationId": "update_activity_comment",
+        "parameters": [
+          {
+            "name": "activity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Activity Id"
+            }
+          },
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "Delete Activity Comment",
+        "description": "Delete it: its writer, or an owner of the namespace. A thread's first comment takes its replies with it.\nAudited (`comment.delete`).",
+        "operationId": "delete_activity_comment",
+        "parameters": [
+          {
+            "name": "activity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Activity Id"
+            }
+          },
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/automations/hooks/{token}": {
       "post": {
         "tags": [
@@ -10988,7 +11251,7 @@
           "resources"
         ],
         "summary": "Get Audio",
-        "description": "The audio, with byte ranges. Accepts a bearer token, a share link (``?s=``) or a signed link.",
+        "description": "The audio (or video) for the player, with byte ranges: a copy every browser plays when Settings \u203a Video made one,\nelse the file itself (``/media`` always gives the file). Accepts a bearer token, a share link (``?s=``) or a signed\nlink.",
         "operationId": "get_audio",
         "parameters": [
           {
@@ -22950,6 +23213,63 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sources/{sid}/routes": {
+      "put": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Set Shared Routes",
+        "description": "Save an email account's shared routing rules, which every watch on it tries after its own (none: unchanged\nbehaviour). They apply to messages that arrive after they're saved.",
+        "operationId": "set_shared_routes",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SharedRoutes"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RouteView"
+                  },
+                  "title": "Response Sources-Set Shared Routes"
                 }
               }
             }
@@ -35370,6 +35690,7 @@
                 "drafting",
                 "skipped",
                 "dismissed",
+                "saved",
                 "sent",
                 "failed",
                 "none",
@@ -35557,6 +35878,66 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ReplyEdit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{rid}/reply/send": {
+      "post": {
+        "tags": [
+          "replies"
+        ],
+        "summary": "Send Reply",
+        "description": "Send this email's reply through the Gmail connection the email came in on, in its thread and without its\ncitations, or keep it in Gmail's drafts (`draft`). It's your pick, so it needs you signed in to Lens: an API key, an\napp or an agent asks with the MCP tool `send_reply`, which waits in Approvals. Only admins send from a connection,\nand only from one an admin let send; nothing marked [to confirm: \u2026] may be left in it (400). Audited as\n`reply.send`.",
+        "operationId": "send_reply",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ReplySend"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
               }
             }
           }
@@ -35887,6 +36268,34 @@
           "name"
         ],
         "title": "ActivityActor"
+      },
+      "ActivityCommentCreate": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "reply on this comment's thread"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "ActivityCommentCreate"
       },
       "ActivityCosts": {
         "properties": {
@@ -36375,6 +36784,25 @@
             "type": "object",
             "title": "Marks",
             "description": "your marks on items, by id (those you marked)"
+          },
+          "reactions": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/Reaction"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Reactions",
+            "description": "everyone's reactions on items, by id (those with any)"
+          },
+          "comments": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Comments",
+            "description": "how many comments items have, by id (those with any)"
           }
         },
         "additionalProperties": true,
@@ -37881,6 +38309,118 @@
           "size"
         ],
         "title": "Attachment"
+      },
+      "AudioCleanup": {
+        "properties": {
+          "noise": {
+            "type": "string",
+            "title": "Noise",
+            "description": "noise suppression: off, low, moderate, high or very_high (6, 12, 18 or 21 dB)"
+          },
+          "gain": {
+            "type": "boolean",
+            "title": "Gain",
+            "description": "automatic gain control"
+          },
+          "high_pass": {
+            "type": "boolean",
+            "title": "High Pass",
+            "description": "the rumble below speech taken out"
+          },
+          "echo": {
+            "type": "string",
+            "title": "Echo",
+            "description": "echo cancellation: off, or the channel (left or right) holding what the speakers played"
+          },
+          "trim_silence": {
+            "type": "boolean",
+            "title": "Trim Silence",
+            "description": "silences of min_silence_ms or longer left out of what's transcribed"
+          },
+          "min_silence_ms": {
+            "type": "integer",
+            "title": "Min Silence Ms",
+            "description": "the shortest pause left out when trimming silence"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "title": "Duration Ms",
+            "description": "how long the recording is"
+          },
+          "speech_ms": {
+            "type": "integer",
+            "title": "Speech Ms",
+            "description": "how much of it WebRTC's voice detection heard as speech"
+          },
+          "kept_ms": {
+            "type": "integer",
+            "title": "Kept Ms",
+            "description": "how much of it is transcribed: all of it unless silence is trimmed"
+          },
+          "gain_db": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gain Db",
+            "description": "the gain applied by the end of the recording, in dB"
+          },
+          "echo_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Echo Note",
+            "description": "why echo wasn't cancelled though it was asked for"
+          },
+          "engine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine",
+            "description": "what cleaned it up, with its version"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "when the step ran"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "noise",
+          "gain",
+          "high_pass",
+          "echo",
+          "trim_silence",
+          "min_silence_ms",
+          "duration_ms",
+          "speech_ms",
+          "kept_ms"
+        ],
+        "title": "AudioCleanup",
+        "description": "How the clean_audio step cleaned up a recording's sound for transcription (docs/processing.md, Cleaning up audio)."
       },
       "AuditEntry": {
         "properties": {
@@ -43734,8 +44274,28 @@
             "title": "Id"
           },
           "recording": {
-            "type": "integer",
-            "title": "Recording"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording",
+            "description": "the resource it is on; null for a comment on an activity that isn't an asset's arrival"
+          },
+          "activity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity",
+            "description": "the activity of the timeline it was made on, when it was"
           },
           "parent": {
             "anyOf": [
@@ -43907,7 +44467,6 @@
         "type": "object",
         "required": [
           "id",
-          "recording",
           "text",
           "mine",
           "can_resolve",
@@ -69241,6 +69800,71 @@
         ],
         "title": "RdfUnmatched"
       },
+      "ReactIn": {
+        "properties": {
+          "emoji": {
+            "type": "string",
+            "maxLength": 8,
+            "title": "Emoji",
+            "description": "one of the palette: \ud83d\udc4d \u2764\ufe0f \ud83c\udf89 \ud83d\udc40 \ud83d\ude02 \ud83d\ude2e \ud83d\ude22 \ud83d\ude4f"
+          },
+          "on": {
+            "type": "boolean",
+            "title": "On",
+            "description": "give it (true) or take yours back (false)",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "emoji"
+        ],
+        "title": "ReactIn"
+      },
+      "Reaction": {
+        "properties": {
+          "emoji": {
+            "type": "string",
+            "title": "Emoji"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "mine": {
+            "type": "boolean",
+            "title": "Mine",
+            "default": false
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "emoji",
+          "count"
+        ],
+        "title": "Reaction",
+        "description": "One emoji on an activity: how many people gave it, and whether you did."
+      },
+      "ReactionsOut": {
+        "properties": {
+          "reactions": {
+            "items": {
+              "$ref": "#/components/schemas/Reaction"
+            },
+            "type": "array",
+            "title": "Reactions",
+            "description": "the reactions on the activity now, in the palette's order"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "reactions"
+        ],
+        "title": "ReactionsOut"
+      },
       "Reading": {
         "properties": {
           "id": {
@@ -69757,6 +70381,17 @@
               }
             ],
             "description": "NSFW classification, where it's on in its namespace and it was classified"
+          },
+          "audio_cleanup": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AudioCleanup"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "how its clean_audio step cleaned up its sound before transcription"
           },
           "enhanced": {
             "anyOf": [
@@ -70845,11 +71480,12 @@
               "draft",
               "skipped",
               "dismissed",
+              "saved",
               "sent",
               "failed"
             ],
             "title": "Status",
-            "description": "draft: waiting for the person; drafting: a job is on it (job); skipped: mail not to answer (why); failed: the last job to draft it failed (error)"
+            "description": "draft: waiting for the person; drafting: a job is on it (job); skipped: mail not to answer (why); failed: the last job to draft it failed (error); saved: kept in Gmail's drafts; sent: sent (sent)"
           },
           "why": {
             "anyOf": [
@@ -71107,6 +71743,29 @@
               }
             ],
             "description": "the text it had before the last edit or draft, to undo it"
+          },
+          "sends": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sends",
+            "description": "it can go out through the Gmail connection the email came in on"
+          },
+          "sent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReplySent"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "when and how it was sent or kept in Gmail's drafts"
           },
           "drafted_at": {
             "anyOf": [
@@ -71414,6 +72073,107 @@
           "drafts"
         ],
         "title": "ReplyList"
+      },
+      "ReplySend": {
+        "properties": {
+          "draft": {
+            "type": "boolean",
+            "title": "Draft",
+            "description": "keep it in Gmail's drafts instead of sending it",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ReplySend"
+      },
+      "ReplySent": {
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By"
+          },
+          "connection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connection",
+            "description": "the mail connection it went out through"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "description": "Gmail's id of the message"
+          },
+          "draft": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft",
+            "description": "Gmail's id of the draft, when it was kept as one"
+          },
+          "thread": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thread"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "the message in Gmail"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "ReplySent"
       },
       "ReplySource": {
         "properties": {
@@ -72932,7 +73692,8 @@
           "namespace": {
             "type": "string",
             "title": "Namespace",
-            "description": "the watch's own namespace, for messages no rule matches"
+            "description": "the watch's own namespace, for messages no rule matches",
+            "default": ""
           },
           "routes": {
             "items": {
@@ -72940,14 +73701,29 @@
             },
             "type": "array",
             "title": "Routes",
+            "description": "the watch's own rules",
             "default": []
+          },
+          "shared_routes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Route"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shared Routes",
+            "description": "the account's shared rules to try after the watch's; left out, the saved ones"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "source",
-          "namespace"
+          "source"
         ],
         "title": "RoutePreviewRequest"
       },
@@ -73069,7 +73845,13 @@
               }
             ],
             "title": "Rule",
-            "description": "the rule that decided, counted from 1; None: no rule matched"
+            "description": "the rule that decided, counted from 1 in its list; None: no rule matched"
+          },
+          "shared": {
+            "type": "boolean",
+            "title": "Shared",
+            "description": "the rule that decided is one of the account's shared rules",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -77786,6 +78568,22 @@
         "title": "SharedContext",
         "description": "What a question shared from the page it was asked on. The page's text itself isn't kept."
       },
+      "SharedRoutes": {
+        "properties": {
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/Route"
+            },
+            "type": "array",
+            "title": "Routes",
+            "description": "an email account's shared routing rules: every watch on the account tries its own rules first, then these, in order; a message none matches goes to the watch's namespace. They're written like a watch's rules.",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SharedRoutes"
+      },
       "SigninLink": {
         "properties": {
           "url": {
@@ -78503,6 +79301,15 @@
             "type": "integer",
             "title": "Watches",
             "default": 0
+          },
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/RouteView"
+            },
+            "type": "array",
+            "title": "Routes",
+            "description": "an email account's shared routing rules, used by every watch on it after its own",
+            "default": []
           }
         },
         "additionalProperties": true,

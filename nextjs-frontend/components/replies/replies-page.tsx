@@ -1,10 +1,10 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Copy, Mail, Reply as ReplyIcon, RotateCw, Undo2 } from "lucide-react";
+import { Copy, ExternalLink, Mail, Reply as ReplyIcon, RotateCw, Send, Undo2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 
 import { Replies } from "@/app/openapi-client";
 import type { Reply, ReplyEdit, ReplyEmail } from "@/app/openapi-client/types.gen";
@@ -35,7 +35,9 @@ const why = (e: unknown) => (e instanceof ApiError ? e.message : "Please try aga
 
 /** Email replies (docs/email-replies.md): the mail that may need an answer, newest first, each with its draft. A draft
  * is written from your archive, cited [n] to the excerpts below it, with what the archive doesn't say marked to
- * confirm; you edit it, copy it or open it in your mail app. Lens sends nothing. `?email=` brings that email first. */
+ * confirm; you edit it, copy it, open it in your mail app, or (an admin, when its Gmail connection may send) send it or
+ * keep it in Gmail's drafts. Sending offers Undo for a few seconds instead of a question. `?email=` brings that email
+ * first. */
 export function RepliesPage() {
   const client = useApiClient();
   const toast = useToast();
@@ -99,6 +101,71 @@ export function RepliesPage() {
     [client, changed, hide, toast],
   );
 
+  // sending waits UNDO_MS for an Undo, then saves the edit it was sent with and sends; leaving the page sends what
+  // waits, since Undo was only open while the notice was
+  const [sending, setSending] = useState<Set<number>>(() => new Set());
+  const timers = useRef(new Map<number, { t: ReturnType<typeof setTimeout>; go: () => void }>());
+  useEffect(() => {
+    const pending = timers.current;
+    return () => {
+      for (const { t, go } of pending.values()) {
+        clearTimeout(t);
+        go();
+      }
+    };
+  }, []);
+  const send = useCallback(
+    (e: ReplyEmail, draft: boolean, save: ReplyEdit | null) => {
+      const rid = e.recording;
+      const mark = (on: boolean) =>
+        setSending((x) => {
+          const out = new Set(x);
+          if (on) out.add(rid);
+          else out.delete(rid);
+          return out;
+        });
+      const go = () => {
+        timers.current.delete(rid);
+        void (save ? data(Replies.editReply({ client, path: { rid }, body: save })) : Promise.resolve())
+          .then(() => data(Replies.sendReply({ client, path: { rid }, body: { draft } })))
+          .then((r) => {
+            const url = r.sent?.url;
+            toast({
+              tone: "green",
+              title: draft ? "Kept in Gmail’s drafts" : `Sent “${r.subject ?? e.subject}”`,
+              action: url
+                ? { label: "Open in Gmail", onClick: () => window.open(url, "_blank", "noopener") }
+                : undefined,
+            });
+          })
+          .catch((err: unknown) =>
+            toast({ tone: "red", title: draft ? "Couldn’t keep it in Gmail" : "Couldn’t send it", body: why(err) }),
+          )
+          .finally(() => {
+            mark(false);
+            changed();
+          });
+      };
+      mark(true);
+      if (draft) return go(); // a draft in Gmail sends nothing: no wait
+      timers.current.set(rid, { t: setTimeout(go, UNDO_MS), go });
+      toast({
+        title: `Sending “${e.reply.subject ?? e.subject}”`,
+        body: `To ${(save?.to ?? e.reply.to ?? []).join(", ") || "its sender"}, from ${e.reply.from ?? "your mailbox"}.`,
+        duration: UNDO_MS,
+        action: {
+          label: "Undo",
+          onClick: () => {
+            clearTimeout(timers.current.get(rid)?.t);
+            timers.current.delete(rid);
+            mark(false);
+          },
+        },
+      });
+    },
+    [client, changed, toast],
+  );
+
   const emails = useMemo(() => {
     const all = list.data?.emails ?? [];
     const extra: ReplyEmail[] =
@@ -129,8 +196,8 @@ export function RepliesPage() {
         }
       >
         <p className="m-0 mt-1 text-[13px] text-fg-secondary">
-          Drafts are written from your archive, each fact cited to where it came from. Nothing is sent: copy a draft, or
-          open it in your mail app.
+          Drafts are written from your archive, each fact cited to where it came from. Nothing goes until you say so:
+          send it, copy it, or open it in your mail app.
         </p>
       </PageHeader>
       {list.isPending ? (
@@ -150,7 +217,7 @@ export function RepliesPage() {
         <ul className="m-0 flex list-none flex-col gap-3 p-0" aria-label="Email waiting for an answer">
           {emails.map((e, i) => (
             <li key={e.recording}>
-              <EmailCard e={e} first={i === 0} onSetAside={setAside} />
+              <EmailCard e={e} first={i === 0} onSetAside={setAside} onSend={send} sending={sending.has(e.recording)} />
             </li>
           ))}
         </ul>
@@ -159,7 +226,21 @@ export function RepliesPage() {
   );
 }
 
-function EmailCard({ e, first, onSetAside }: { e: ReplyEmail; first: boolean; onSetAside: (e: ReplyEmail) => void }) {
+type SendFn = (e: ReplyEmail, draft: boolean, save: ReplyEdit | null) => void;
+
+function EmailCard({
+  e,
+  first,
+  onSetAside,
+  onSend,
+  sending,
+}: {
+  e: ReplyEmail;
+  first: boolean;
+  onSetAside: (e: ReplyEmail) => void;
+  onSend: SendFn;
+  sending: boolean;
+}) {
   const client = useApiClient();
   const toast = useToast();
   const changed = useRepliesChanged();
@@ -194,7 +275,7 @@ function EmailCard({ e, first, onSetAside }: { e: ReplyEmail; first: boolean; on
     ev.preventDefault();
     if (canAct && !draft.isPending) draft.mutate(say);
   };
-  const drafted = r.status === "draft" || r.status === "dismissed" || r.status === "sent";
+  const drafted = r.status === "draft" || r.status === "dismissed" || r.status === "saved" || r.status === "sent";
   const asking = drafted ? again : r.status !== "drafting";
 
   return (
@@ -224,10 +305,33 @@ function EmailCard({ e, first, onSetAside }: { e: ReplyEmail; first: boolean; on
       {r.status !== "none" && (
         <p role="status" className="m-0 text-[13px] text-fg-secondary">
           {statusLine(r)}
+          {r.sent?.url && (
+            <>
+              {" "}
+              <a
+                href={r.sent.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-fg-accent hover:underline"
+              >
+                Open in Gmail <ExternalLink className="size-3" />
+              </a>
+            </>
+          )}
         </p>
       )}
 
-      {drafted && <DraftEditor key={`${r.drafted_at}-${r.updated_at}`} e={e} r={r} canAct={canAct} edit={edit} />}
+      {drafted && (
+        <DraftEditor
+          key={`${r.drafted_at}-${r.updated_at}`}
+          e={e}
+          r={r}
+          canAct={canAct && r.status !== "sent"}
+          edit={edit}
+          onSend={onSend}
+          sending={sending}
+        />
+      )}
 
       {asking && (
         <form onSubmit={ask} className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -253,7 +357,7 @@ function EmailCard({ e, first, onSetAside }: { e: ReplyEmail; first: boolean; on
         </form>
       )}
 
-      {(drafted || r.status === "drafting" || r.status === "failed") && canAct && (
+      {(drafted || r.status === "drafting" || r.status === "failed") && canAct && r.status !== "sent" && (
         <div className="flex flex-wrap gap-2">
           {drafted && !again && (
             <Button size="sm" variant="ghost" icon={<RotateCw />} onClick={() => setAgain(true)}>
@@ -287,16 +391,21 @@ function DraftEditor({
   r,
   canAct,
   edit,
+  onSend,
+  sending,
 }: {
   e: ReplyEmail;
   r: Reply;
   canAct: boolean;
+  onSend: SendFn;
+  sending: boolean;
   edit: {
     mutate: (b: ReplyEdit, o?: { onSuccess?: (r: Reply) => void; onError?: (e: Error) => void }) => void;
     isPending: boolean;
   };
 }) {
   const toast = useToast();
+  const { admin } = useArchive();
   const [to, setTo] = useState((r.to ?? []).join(", "));
   const [cc, setCc] = useState((r.cc ?? []).join(", "));
   const [subject, setSubject] = useState(r.subject ?? "");
@@ -343,6 +452,17 @@ function DraftEditor({
       save();
     }
   };
+  // sending goes through the Gmail connection the email came in on, when an admin let it send
+  const sends = Boolean(r.sends) && canAct && admin;
+  const unsendable = left
+    ? "Fill in what’s marked to confirm first"
+    : wrong
+      ? "Fix the address first"
+      : !toList.list.length
+        ? "Say who it goes to"
+        : undefined;
+  const sendIt = (draft: boolean) =>
+    onSend(e, draft, dirty ? { text, subject, to: toList.list, cc: ccList.list } : null);
   const cited = new Set(Array.from(text.matchAll(/\[(\d+)\]/g), (m) => Number(m[1])));
 
   return (
@@ -412,7 +532,24 @@ function DraftEditor({
         </p>
       )}
       <div className="flex flex-wrap items-center gap-2">
-        <Button asChild variant="primary" size="sm" icon={<Mail />}>
+        {sends && (
+          <>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={<Send />}
+              onClick={() => sendIt(false)}
+              disabled={Boolean(unsendable) || sending}
+              disabledReason={unsendable}
+            >
+              {sending ? "Sending…" : "Send"}
+            </Button>
+            <Button size="sm" onClick={() => sendIt(true)} disabled={Boolean(wrong) || sending}>
+              Keep in Gmail drafts
+            </Button>
+          </>
+        )}
+        <Button asChild variant={sends ? "secondary" : "primary"} size="sm" icon={<Mail />}>
           <a href={mailtoHref({ to: toList.list, cc: ccList.list, subject, text })}>Open in your mail app</a>
         </Button>
         <Button size="sm" icon={<Copy />} onClick={() => void copy()}>

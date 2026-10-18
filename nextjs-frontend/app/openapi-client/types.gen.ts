@@ -179,6 +179,22 @@ export type ActivityActor = {
 };
 
 /**
+ * ActivityCommentCreate
+ */
+export type ActivityCommentCreate = {
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Parent
+   *
+   * reply on this comment's thread
+   */
+  parent?: number | null;
+};
+
+/**
  * ActivityCosts
  */
 export type ActivityCosts = {
@@ -489,6 +505,22 @@ export type ActivityPage = {
    */
   marks?: {
     [key: string]: ActivityMark;
+  };
+  /**
+   * Reactions
+   *
+   * everyone's reactions on items, by id (those with any)
+   */
+  reactions?: {
+    [key: string]: Array<Reaction>;
+  };
+  /**
+   * Comments
+   *
+   * how many comments items have, by id (those with any)
+   */
+  comments?: {
+    [key: string]: number;
   };
   [key: string]: unknown;
 };
@@ -1379,6 +1411,93 @@ export type Attachment = {
    * the asset it became, once imported
    */
   recording?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * AudioCleanup
+ *
+ * How the clean_audio step cleaned up a recording's sound for transcription (docs/processing.md, Cleaning up audio).
+ */
+export type AudioCleanup = {
+  /**
+   * Noise
+   *
+   * noise suppression: off, low, moderate, high or very_high (6, 12, 18 or 21 dB)
+   */
+  noise: string;
+  /**
+   * Gain
+   *
+   * automatic gain control
+   */
+  gain: boolean;
+  /**
+   * High Pass
+   *
+   * the rumble below speech taken out
+   */
+  high_pass: boolean;
+  /**
+   * Echo
+   *
+   * echo cancellation: off, or the channel (left or right) holding what the speakers played
+   */
+  echo: string;
+  /**
+   * Trim Silence
+   *
+   * silences of min_silence_ms or longer left out of what's transcribed
+   */
+  trim_silence: boolean;
+  /**
+   * Min Silence Ms
+   *
+   * the shortest pause left out when trimming silence
+   */
+  min_silence_ms: number;
+  /**
+   * Duration Ms
+   *
+   * how long the recording is
+   */
+  duration_ms: number;
+  /**
+   * Speech Ms
+   *
+   * how much of it WebRTC's voice detection heard as speech
+   */
+  speech_ms: number;
+  /**
+   * Kept Ms
+   *
+   * how much of it is transcribed: all of it unless silence is trimmed
+   */
+  kept_ms: number;
+  /**
+   * Gain Db
+   *
+   * the gain applied by the end of the recording, in dB
+   */
+  gain_db?: number | null;
+  /**
+   * Echo Note
+   *
+   * why echo wasn't cancelled though it was asked for
+   */
+  echo_note?: string | null;
+  /**
+   * Engine
+   *
+   * what cleaned it up, with its version
+   */
+  engine?: string | null;
+  /**
+   * At
+   *
+   * when the step ran
+   */
+  at?: string | null;
   [key: string]: unknown;
 };
 
@@ -4702,8 +4821,16 @@ export type Comment = {
   id: number;
   /**
    * Recording
+   *
+   * the resource it is on; null for a comment on an activity that isn't an asset's arrival
    */
-  recording: number;
+  recording?: number | null;
+  /**
+   * Activity
+   *
+   * the activity of the timeline it was made on, when it was
+   */
+  activity?: string | null;
   /**
    * Parent
    *
@@ -19619,6 +19746,58 @@ export type RdfUnmatched = {
 };
 
 /**
+ * ReactIn
+ */
+export type ReactIn = {
+  /**
+   * Emoji
+   *
+   * one of the palette: 👍 ❤️ 🎉 👀 😂 😮 😢 🙏
+   */
+  emoji: string;
+  /**
+   * On
+   *
+   * give it (true) or take yours back (false)
+   */
+  on?: boolean;
+};
+
+/**
+ * Reaction
+ *
+ * One emoji on an activity: how many people gave it, and whether you did.
+ */
+export type Reaction = {
+  /**
+   * Emoji
+   */
+  emoji: string;
+  /**
+   * Count
+   */
+  count: number;
+  /**
+   * Mine
+   */
+  mine?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * ReactionsOut
+ */
+export type ReactionsOut = {
+  /**
+   * Reactions
+   *
+   * the reactions on the activity now, in the palette's order
+   */
+  reactions: Array<Reaction>;
+  [key: string]: unknown;
+};
+
+/**
  * Reading
  */
 export type Reading = {
@@ -19894,6 +20073,10 @@ export type Recording = {
    * NSFW classification, where it's on in its namespace and it was classified
    */
   nsfw?: NsfwState | null;
+  /**
+   * how its clean_audio step cleaned up its sound before transcription
+   */
+  audio_cleanup?: AudioCleanup | null;
   /**
    * an image the enhance step looked at: what it found, and its enhanced copy
    */
@@ -20547,9 +20730,9 @@ export type Reply = {
   /**
    * Status
    *
-   * draft: waiting for the person; drafting: a job is on it (job); skipped: mail not to answer (why); failed: the last job to draft it failed (error)
+   * draft: waiting for the person; drafting: a job is on it (job); skipped: mail not to answer (why); failed: the last job to draft it failed (error); saved: kept in Gmail's drafts; sent: sent (sent)
    */
-  status: "none" | "drafting" | "draft" | "skipped" | "dismissed" | "sent" | "failed";
+  status: "none" | "drafting" | "draft" | "skipped" | "dismissed" | "saved" | "sent" | "failed";
   /**
    * Why
    */
@@ -20650,6 +20833,16 @@ export type Reply = {
    * the text it had before the last edit or draft, to undo it
    */
   previous?: ReplyBefore | null;
+  /**
+   * Sends
+   *
+   * it can go out through the Gmail connection the email came in on
+   */
+  sends?: boolean | null;
+  /**
+   * when and how it was sent or kept in Gmail's drafts
+   */
+  sent?: ReplySent | null;
   /**
    * Drafted At
    */
@@ -20792,6 +20985,61 @@ export type ReplyList = {
    * drafts waiting in these namespaces
    */
   drafts: number;
+  [key: string]: unknown;
+};
+
+/**
+ * ReplySend
+ */
+export type ReplySend = {
+  /**
+   * Draft
+   *
+   * keep it in Gmail's drafts instead of sending it
+   */
+  draft?: boolean;
+};
+
+/**
+ * ReplySent
+ */
+export type ReplySent = {
+  /**
+   * At
+   */
+  at?: string | null;
+  /**
+   * By
+   */
+  by?: string | null;
+  /**
+   * Connection
+   *
+   * the mail connection it went out through
+   */
+  connection?: number | null;
+  /**
+   * Id
+   *
+   * Gmail's id of the message
+   */
+  id?: string | null;
+  /**
+   * Draft
+   *
+   * Gmail's id of the draft, when it was kept as one
+   */
+  draft?: string | null;
+  /**
+   * Thread
+   */
+  thread?: string | null;
+  /**
+   * Url
+   *
+   * the message in Gmail
+   */
+  url?: string | null;
   [key: string]: unknown;
 };
 
@@ -21729,11 +21977,19 @@ export type RoutePreviewRequest = {
    *
    * the watch's own namespace, for messages no rule matches
    */
-  namespace: string;
+  namespace?: string;
   /**
    * Routes
+   *
+   * the watch's own rules
    */
   routes?: Array<Route>;
+  /**
+   * Shared Routes
+   *
+   * the account's shared rules to try after the watch's; left out, the saved ones
+   */
+  shared_routes?: Array<Route> | null;
 };
 
 /**
@@ -21798,9 +22054,15 @@ export type RoutedMessage = {
   /**
    * Rule
    *
-   * the rule that decided, counted from 1; None: no rule matched
+   * the rule that decided, counted from 1 in its list; None: no rule matched
    */
   rule?: number | null;
+  /**
+   * Shared
+   *
+   * the rule that decided is one of the account's shared rules
+   */
+  shared?: boolean;
   [key: string]: unknown;
 };
 
@@ -24457,6 +24719,18 @@ export type SharedContext = {
 };
 
 /**
+ * SharedRoutes
+ */
+export type SharedRoutes = {
+  /**
+   * Routes
+   *
+   * an email account's shared routing rules: every watch on the account tries its own rules first, then these, in order; a message none matches goes to the watch's namespace. They're written like a watch's rules.
+   */
+  routes?: Array<Route>;
+};
+
+/**
  * SigninLink
  */
 export type SigninLink = {
@@ -24923,6 +25197,12 @@ export type Source = {
    * Watches
    */
   watches?: number;
+  /**
+   * Routes
+   *
+   * an email account's shared routing rules, used by every watch on it after its own
+   */
+  routes?: Array<RouteView>;
   [key: string]: unknown;
 };
 
@@ -32785,6 +33065,166 @@ export type MarkActivityResponses = {
 };
 
 export type MarkActivityResponse = MarkActivityResponses[keyof MarkActivityResponses];
+
+export type ReactToActivityData = {
+  body: ReactIn;
+  path: {
+    /**
+     * Activity Id
+     */
+    activity_id: string;
+  };
+  query?: never;
+  url: "/api/v1/activities/{activity_id}/react";
+};
+
+export type ReactToActivityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ReactToActivityError = ReactToActivityErrors[keyof ReactToActivityErrors];
+
+export type ReactToActivityResponses = {
+  /**
+   * Successful Response
+   */
+  200: ReactionsOut;
+};
+
+export type ReactToActivityResponse = ReactToActivityResponses[keyof ReactToActivityResponses];
+
+export type ListActivityCommentsData = {
+  body?: never;
+  path: {
+    /**
+     * Activity Id
+     */
+    activity_id: string;
+  };
+  query?: never;
+  url: "/api/v1/activities/{activity_id}/comments";
+};
+
+export type ListActivityCommentsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListActivityCommentsError = ListActivityCommentsErrors[keyof ListActivityCommentsErrors];
+
+export type ListActivityCommentsResponses = {
+  /**
+   * Response Activities-List Activity Comments
+   *
+   * Successful Response
+   */
+  200: Array<Comment>;
+};
+
+export type ListActivityCommentsResponse = ListActivityCommentsResponses[keyof ListActivityCommentsResponses];
+
+export type CommentOnActivityData = {
+  body: ActivityCommentCreate;
+  path: {
+    /**
+     * Activity Id
+     */
+    activity_id: string;
+  };
+  query?: never;
+  url: "/api/v1/activities/{activity_id}/comments";
+};
+
+export type CommentOnActivityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CommentOnActivityError = CommentOnActivityErrors[keyof CommentOnActivityErrors];
+
+export type CommentOnActivityResponses = {
+  /**
+   * Successful Response
+   */
+  200: Comment;
+};
+
+export type CommentOnActivityResponse = CommentOnActivityResponses[keyof CommentOnActivityResponses];
+
+export type DeleteActivityCommentData = {
+  body?: never;
+  path: {
+    /**
+     * Activity Id
+     */
+    activity_id: string;
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/activities/{activity_id}/comments/{cid}";
+};
+
+export type DeleteActivityCommentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteActivityCommentError = DeleteActivityCommentErrors[keyof DeleteActivityCommentErrors];
+
+export type DeleteActivityCommentResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteActivityCommentResponse = DeleteActivityCommentResponses[keyof DeleteActivityCommentResponses];
+
+export type UpdateActivityCommentData = {
+  body: CommentUpdate;
+  path: {
+    /**
+     * Activity Id
+     */
+    activity_id: string;
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/activities/{activity_id}/comments/{cid}";
+};
+
+export type UpdateActivityCommentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateActivityCommentError = UpdateActivityCommentErrors[keyof UpdateActivityCommentErrors];
+
+export type UpdateActivityCommentResponses = {
+  /**
+   * Successful Response
+   */
+  200: Comment;
+};
+
+export type UpdateActivityCommentResponse = UpdateActivityCommentResponses[keyof UpdateActivityCommentResponses];
 
 export type CallAutomationHookData = {
   body?: unknown;
@@ -43294,6 +43734,38 @@ export type UpdateSourceResponses = {
 
 export type UpdateSourceResponse = UpdateSourceResponses[keyof UpdateSourceResponses];
 
+export type SetSharedRoutesData = {
+  body: SharedRoutes;
+  path: {
+    /**
+     * Sid
+     */
+    sid: number;
+  };
+  query?: never;
+  url: "/api/v1/sources/{sid}/routes";
+};
+
+export type SetSharedRoutesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetSharedRoutesError = SetSharedRoutesErrors[keyof SetSharedRoutesErrors];
+
+export type SetSharedRoutesResponses = {
+  /**
+   * Response Sources-Set Shared Routes
+   *
+   * Successful Response
+   */
+  200: Array<RouteView>;
+};
+
+export type SetSharedRoutesResponse = SetSharedRoutesResponses[keyof SetSharedRoutesResponses];
+
 export type StartRcloneSigninData = {
   body: RcloneSignInStart;
   path?: never;
@@ -50954,7 +51426,7 @@ export type ListRepliesData = {
     /**
      * Show
      */
-    show?: "waiting" | "draft" | "drafting" | "skipped" | "dismissed" | "sent" | "failed" | "none" | "all";
+    show?: "waiting" | "draft" | "drafting" | "skipped" | "dismissed" | "saved" | "sent" | "failed" | "none" | "all";
     /**
      * Namespace
      */
@@ -51077,3 +51549,36 @@ export type DraftReplyResponses = {
 };
 
 export type DraftReplyResponse = DraftReplyResponses[keyof DraftReplyResponses];
+
+export type SendReplyData = {
+  /**
+   * Body
+   */
+  body?: ReplySend | null;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/reply/send";
+};
+
+export type SendReplyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SendReplyError = SendReplyErrors[keyof SendReplyErrors];
+
+export type SendReplyResponses = {
+  /**
+   * Successful Response
+   */
+  200: Reply;
+};
+
+export type SendReplyResponse = SendReplyResponses[keyof SendReplyResponses];

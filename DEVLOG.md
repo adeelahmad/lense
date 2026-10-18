@@ -488,29 +488,34 @@ authority records (variant names, external identifiers); topic history and undo 
 to accept analysis suggestions without asking, or to stop offering new topics; matching labels of three or more words
 in transcripts (only summaries match them now).
 
-## 2026-10-04 · anytopdf as the conversion engine (not started: wait for Adeel's go)
+## 2026-10-04 · anytopdf as the conversion engine (started 2026-10-06; status 2026-10-18)
 
-Goal (Adeel): use the sister project [anytopdf-rs](https://github.com/adeelahmad/anytopdf-rs) (README on its sprint2
-branch) to turn any source into one searchable, cited PDF: OCR, captions, transcripts, keyframes and metadata as an
-invisible text layer, with an embedded manifest, chunks, source anchors and provenance. Do not start until Adeel says go.
+Goal (Adeel): use the sister project [anytopdf-rs](https://github.com/adeelahmad/anytopdf-rs) to turn any source into
+one searchable, cited PDF: OCR, captions, transcripts, keyframes and metadata as an invisible text layer, with an
+embedded manifest, chunks, source anchors and provenance.
 
 Why it fits: one static Rust binary (Linux x86_64 and arm64 musl, so a Raspberry Pi) that Lens can download as a
 component, instead of LibreOffice and Chromium in the full image; provenance per fact matches "trusted, cited memory".
 
-Todo (when started):
+Todo:
 
-- [ ] Wait for anytopdf's JSON output (`--json`, schemas, exit codes) and `extract --json` manifest to land
-- [ ] anytopdf as a component Lens installs itself (settings: auto, on, off), with its version recorded
-- [ ] A pipeline / workflow node "Make evidence PDF": inputs a recording or resource, outputs the PDF as a rendition
-      and its manifest chunks and anchors as Lens chunks (citations jump to time span, box or byte range)
-- [ ] Use it where Lens has no converter first (images, captions, mixed folders); keep LibreOffice and Chromium as
-      the default for Office, HTML and email until anytopdf reads them (its roadmap: PDF, HTML, EML, Office)
-- [ ] Reuse Lens's own OCR and transcripts as sidecars rather than running them twice
-- [ ] Run it with no network, size and time caps, plugins off unless an admin allows them (its plugins run with full
-      user rights until its sandbox lands)
+- [x] anytopdf as a component Lens fetches itself, checked against its release checksum (`documents.converter` auto,
+      anytopdf, lens), or a conversion node (#210 #220 #224); release 0.4.0 pinned in anytopdf.py
+- [x] Use it where Lens has no converter first; LibreOffice and Chromium stay the default for Office, HTML and email
+      on `auto` (#210); web pages and emails drawn as they look, with its OCR word boxes used as page text (#222 #223)
+- [x] Run it with no network, no plugins and no config file for conversions; face and object plugins only sandboxed
+      (#221 #227 #228); camera RAW and HEIC photos (#233)
+- [x] Evidence PDF of an asset or a collection, with Lens's transcripts handed over as sidecars (#226 #370)
+- [x] Places, dates and photo GPS as graph hints, CLIP photo search (#229 #230)
+- [x] A pipeline's Read step picks its own converter, so one pipeline can use anytopdf while the server's choice stays
+- [ ] An evidence PDF as a pipeline step (today an endpoint and an Export menu item)
+- [ ] Read anytopdf's structured output (manifest chunks and anchors as Lens chunks, citations jumping to a time span
+      or a box) once it ships a portable graph bundle
+- [ ] Hand Lens's own OCR to anytopdf as a sidecar where Lens read a page first, so it isn't run twice
 
 Refine later: anytopdf's intake channels (IMAP, webhooks, watched folders) and printing overlap Lens's sources and
 sensors; decide which side owns them. MCP server mode could be an extension.
+
 ## 2026-10-04 · Notes: a page for everything
 
 Goal (Adeel): every resource, entity and topic has its own page (its note), next to free notes written by people or

@@ -11,6 +11,7 @@ import { SensorsTabs } from "@/components/sensors/parts";
 import { ConnectionDialog } from "@/components/sources/connection-dialog";
 import { DeleteConnectionDialog } from "@/components/sources/delete-connection";
 import { FolderBrowser } from "@/components/sources/folder-browser";
+import { SharedRoutesDialog } from "@/components/sources/shared-routes";
 import { TypeTile } from "@/components/sources/source-icons";
 import { healthOf, sourceSubtitle, suggestName, type BackendSpec } from "@/components/sources/source-model";
 import { WatchCard } from "@/components/sources/watch-card";
@@ -71,6 +72,7 @@ export function SourcesPage() {
   const [browsing, setBrowsing] = useState<Source | null>(null);
   const [watching, setWatching] = useState<Watching>(null);
   const [deleting, setDeleting] = useState<Source | null>(null);
+  const [routing, setRouting] = useState<Source | null>(null);
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -243,6 +245,11 @@ export function SourcesPage() {
             <MenuItem onSelect={() => setBrowsing(s)}>Browse folders</MenuItem>
             <MenuItem onSelect={() => test.mutate(s)}>Test now</MenuItem>
             <MenuItem onSelect={() => setEditing({ source: s })}>Edit connection</MenuItem>
+            {(s.type === "imap" || s.type === "gmail") && (
+              <MenuItem onSelect={() => setRouting(s)}>
+                Routing rules{s.routes?.length ? ` (${s.routes.length})` : ""}
+              </MenuItem>
+            )}
             {oauth && <MenuItem onSelect={() => setEditing({ source: s })}>Sign in again</MenuItem>}
             <MenuSeparator />
             <MenuItem danger onSelect={() => setDeleting(s)}>
@@ -294,6 +301,7 @@ export function SourcesPage() {
           watch={watching.watch}
         />
       )}
+      {routing && <SharedRoutesDialog open source={routing} onOpenChange={(o) => !o && setRouting(null)} />}
       {deleting && (
         <DeleteConnectionDialog
           open

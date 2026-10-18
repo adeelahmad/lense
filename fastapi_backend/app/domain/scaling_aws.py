@@ -69,6 +69,7 @@ class Ec2(Driver):
     )
     priced = True
     needs_join = True  # its units are EC2 instances, which join over the mesh's install line
+    delete_gone = False  # describe terminates a stopped instance itself; one AWS took back is already gone
     extra = "aws"
     modules = ("botocore",)
     license = "Apache-2.0"

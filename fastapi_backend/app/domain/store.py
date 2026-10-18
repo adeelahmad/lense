@@ -137,6 +137,16 @@ DEFAULTS = {
         "sensevoice": {"model": "iic/SenseVoiceSmall", "hub": "ms", "vad_max_segment_ms": 30000, "batch_size": 16},
         "whisper": {"model": "large-v3-turbo", "compute_type": "default"},
         "mlx_whisper": {"model": "mlx-community/whisper-large-v3-turbo"},
+        # what the clean_audio step does to a recording's sound before it's transcribed (audio_cleanup.py); a pipeline only
+        # runs it when the step is in it
+        "cleanup": {
+            "noise": "moderate",
+            "gain": True,
+            "high_pass": True,
+            "echo": "off",
+            "trim_silence": True,
+            "min_silence_ms": 2000,
+        },
         "vocabulary": False,  # give each recording's engine the names its namespace knows (vocabulary.py)
     },
     "diarize": {
@@ -278,6 +288,7 @@ DEFAULTS = {
         "max_attempts": 3,
         "steps": [
             "enhance",
+            "clean_audio",
             "transcribe",
             "read",
             "diarize",
@@ -543,6 +554,9 @@ DEFAULTS = {
         "yolox_model": None,
         "ultralytics_model": None,
         "object_min_score": 0.4,
+        # playable copies (playable.py): off by default, since transcoding a long video takes a small machine a while
+        "playable_copies": False,
+        "playable_height": 720,
     },
     # NSFW classification (nsfw.py, docs/nsfw.md): off until an admin turns it on here, or an owner for their namespace
     # (which can also choose its own threshold and display). A local model (ViT, Apache-2.0, fetched on first use) scores
@@ -1470,6 +1484,11 @@ SCHEMA = [
     # hidden flags on an activity, event_mark:<hash of account and activity> (the id keeps the pair unique)
     "DEFINE TABLE IF NOT EXISTS event_mark SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS event_mark_account ON event_mark FIELDS account",
+    # reactions on the timeline (domain/event_reactions.py): the emojis each person gave an activity, one row per pair
+    # (event_reaction:<hash of account and activity>), seen by everyone who sees the activity
+    "DEFINE TABLE IF NOT EXISTS event_reaction SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS event_reaction_activity ON event_reaction FIELDS activity",
+    "DEFINE INDEX IF NOT EXISTS event_reaction_account ON event_reaction FIELDS account",
     # every line of a run's log, in chunks (jobs.RunLog): job_log:<random>
     "DEFINE TABLE IF NOT EXISTS job_log SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_log_job ON job_log FIELDS job",
@@ -1685,9 +1704,11 @@ SCHEMA = [
     # the files on a note page (images, attachments), kept where Settings → Storage says (notebook.py, blobs.py)
     "DEFINE TABLE IF NOT EXISTS note_file SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS note_file_page ON note_file FIELDS page, key",
-    # comments on resources, threaded, by everyone who can read them (app/domain/comments.py)
+    # comments on resources, and on activities of the timeline (`activity`), threaded, by everyone who can read them
+    # (app/domain/comments.py)
     "DEFINE TABLE IF NOT EXISTS comment SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS comment_rec ON comment FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS comment_activity ON comment FIELDS activity",
     "DEFINE INDEX IF NOT EXISTS comment_parent ON comment FIELDS parent",
     "DEFINE INDEX IF NOT EXISTS comment_created ON comment FIELDS created_at",
     # passages of resources marked in colour by their editors (app/domain/highlights.py)

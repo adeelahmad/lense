@@ -13,7 +13,8 @@ stand-in for the threat-model plugin's validator, which lives outside the repo a
 - the claimed (P-), disclaimed (N-) and known-non-finding (KNF-) ids are the same set in all three files, and the
   matrix-derived (MX-) ids are the same in both companions;
 - every P-, N-, KNF- or MX- id mentioned anywhere is one of those defined ids;
-- the open questions are numbered Q1..Qn in the JSON, and every Qn cited anywhere is one of them.
+- the open questions are numbered Q1..Qn in the JSON, and every Qn cited anywhere is one of them;
+- every test cited (a "Tested by" in the prose, x-tests in the companions) is defined in the file it names.
 
 Usage: python ci/validate_threat_model.py [--base REF] [repo_root]. CI passes --base HEAD^1; locally, use
 --base origin/main. Exits 1 and lists every problem when anything disagrees.
@@ -40,6 +41,13 @@ ID_RE = re.compile(
 )
 Q_RE = re.compile(r"(?<![A-Za-z0-9_-])Q(\d+)(?![0-9])")
 ROW_RE = re.compile(r"^\|\s*((?:P|N|KNF)-[A-Z0-9-]+)\s*\|", re.MULTILINE)
+# A cited test: path::test in the companions, `path` `test`, `test` in the prose. Paths are from the repository root.
+TEST_REF_RE = re.compile(
+    r"(?P<path>fastapi_backend/tests/[\w/]+\.py)::(?P<test>test_\w+)"
+)
+TEST_LIST_RE = re.compile(
+    r"`(?P<path>fastapi_backend/tests/[\w/]+\.py)`(?P<tests>(?:,? `test_\w+`)+)"
+)
 
 YAML_KEYS = (
     "schema prose_version components entry_points adversaries properties_claimed properties_disclaimed "
@@ -175,7 +183,35 @@ def validate(root: Path) -> list[str]:
                 errors.append(
                     f"{name}:{line} cites {m.group(0)}; there are {count} open questions"
                 )
+
+    # Cited tests exist, so a "Tested by" can't outlive the test it names.
+    for name, text in (
+        ("threat-model.md", prose),
+        ("threat-model.yaml", yaml_text),
+        ("threat-model.json", json_text),
+    ):
+        for path, test, at in cited_tests(text):
+            source = root / path
+            if not source.is_file():
+                problem = f"cites {path}, which doesn't exist"
+            elif not re.search(
+                rf"^\s*(?:async\s+)?def {test}\(", source.read_text(), re.MULTILINE
+            ):
+                problem = f"cites {test} in {path}, which doesn't define it"
+            else:
+                continue
+            errors.append(f"{name}:{text[:at].count(chr(10)) + 1} {problem}")
     return errors
+
+
+def cited_tests(text: str) -> list[tuple[str, str, int]]:
+    """(path, test, offset) for each test cited: `path` `test_a`, `test_b` in the prose, path::test_a in the companions."""
+    found = [(m["path"], m["test"], m.start()) for m in TEST_REF_RE.finditer(text)]
+    for m in TEST_LIST_RE.finditer(text):
+        found += [
+            (m["path"], t, m.start()) for t in re.findall(r"`(test_\w+)`", m["tests"])
+        ]
+    return found
 
 
 def changed_since(root: Path, base: str) -> list[str]:

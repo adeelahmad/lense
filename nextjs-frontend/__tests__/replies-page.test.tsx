@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import type { ReactNode } from "react";
 
@@ -7,12 +7,18 @@ import { Replies } from "@/app/openapi-client";
 import type { Reply, ReplyEmail } from "@/app/openapi-client/types.gen";
 import { NAV } from "@/components/app-shell/nav-config";
 import { addresses, isEmail, mailtoHref, plainText, sourceHref, unconfirmed } from "@/components/replies/model";
-import { RepliesPage } from "@/components/replies/replies-page";
+import { RepliesPage, UNDO_MS } from "@/components/replies/replies-page";
 import { ToastProvider } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 jest.mock("@/app/openapi-client", () => ({
-  Replies: { listReplies: jest.fn(), getReply: jest.fn(), draftReply: jest.fn(), editReply: jest.fn() },
+  Replies: {
+    listReplies: jest.fn(),
+    getReply: jest.fn(),
+    draftReply: jest.fn(),
+    editReply: jest.fn(),
+    sendReply: jest.fn(),
+  },
 }));
 let search = "";
 jest.mock("next/navigation", () => ({
@@ -22,9 +28,10 @@ jest.mock("next/navigation", () => ({
 }));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
 let editor = true;
+let admin = false;
 jest.mock("@/lib/hooks/session", () => ({
   ...jest.requireActual("@/lib/hooks/session"),
-  useArchive: () => ({ namespace: null, can: () => editor }),
+  useArchive: () => ({ namespace: null, can: () => editor, admin }),
 }));
 
 const ok = (data: unknown) => Promise.resolve({ data, response: { ok: true, status: 200 } });
@@ -87,6 +94,13 @@ function serve() {
       return ok(emails.find((e) => e.recording === path.rid)?.reply);
     },
   );
+  m(Replies.sendReply).mockImplementation(({ path, body }: { path: { rid: number }; body: { draft: boolean } }) => {
+    const sent = { at: new Date().toISOString(), by: "root@x.io", url: "https://mail.google.com/mail/u/me/#all/m1" };
+    emails = emails.map((e) =>
+      e.recording === path.rid ? { ...e, reply: { ...e.reply, status: body.draft ? "saved" : "sent", sent } } : e,
+    );
+    return ok(emails.find((e) => e.recording === path.rid)?.reply);
+  });
 }
 
 function wrap(ui: ReactNode) {
@@ -103,6 +117,7 @@ function wrap(ui: ReactNode) {
 beforeEach(() => {
   search = "";
   editor = true;
+  admin = false;
   emails = [email(1), email(2, DRAFT)];
   jest.clearAllMocks();
   serve();
@@ -175,6 +190,59 @@ describe("the replies page", () => {
       expect(Replies.editReply).toHaveBeenLastCalledWith(expect.objectContaining({ body: { status: "draft" } })),
     );
     expect(await screen.findByRole("article", { name: "Harbour report 2" })).toBeInTheDocument();
+  });
+
+  it("sends through Gmail after a few seconds unless undone, once nothing is left to confirm", async () => {
+    admin = true;
+    const ready = { ...DRAFT, sends: true, text: "Hi Mara, the ships arrived at dawn [1].", unconfirmed: 0 };
+    emails = [email(2, { ...DRAFT, sends: true }), email(3, ready)];
+    jest.useFakeTimers();
+    try {
+      wrap(<RepliesPage />);
+      const waiting = await screen.findByRole("article", { name: "Harbour report 2" });
+      expect(within(waiting).getByRole("button", { name: "Send" })).toHaveAttribute("aria-disabled", "true");
+      const card = screen.getByRole("article", { name: "Harbour report 3" });
+      fireEvent.click(within(card).getByRole("button", { name: "Send" }));
+      expect(screen.getByText("Sending “Re: Harbour report”")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+      act(() => jest.advanceTimersByTime(UNDO_MS + 100));
+      expect(Replies.sendReply).not.toHaveBeenCalled(); // taken back: nothing sent
+      // an edit not saved yet is saved, then sent
+      fireEvent.change(within(card).getByRole("textbox", { name: "The reply" }), {
+        target: { value: "Hi Mara, see you Tuesday." },
+      });
+      fireEvent.click(within(card).getByRole("button", { name: "Send" }));
+      act(() => jest.advanceTimersByTime(UNDO_MS + 100));
+      await waitFor(() =>
+        expect(Replies.sendReply).toHaveBeenCalledWith(
+          expect.objectContaining({ path: { rid: 3 }, body: { draft: false } }),
+        ),
+      );
+      expect(Replies.editReply).toHaveBeenCalledWith(
+        expect.objectContaining({
+          path: { rid: 3 },
+          body: expect.objectContaining({ text: "Hi Mara, see you Tuesday." }),
+        }),
+      );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("keeps a draft in Gmail at once, and offers no Send without a connection that sends or to members", async () => {
+    admin = true;
+    emails = [email(3, { ...DRAFT, sends: true }), email(4, DRAFT)];
+    wrap(<RepliesPage />);
+    const card = await screen.findByRole("article", { name: "Harbour report 3" });
+    fireEvent.click(within(card).getByRole("button", { name: "Keep in Gmail drafts" }));
+    await waitFor(() =>
+      expect(Replies.sendReply).toHaveBeenCalledWith(
+        expect.objectContaining({ path: { rid: 3 }, body: { draft: true } }),
+      ),
+    );
+    expect(await screen.findByText("Kept in Gmail’s drafts")).toBeInTheDocument();
+    const plain = screen.getByRole("article", { name: "Harbour report 4" });
+    expect(within(plain).queryByRole("button", { name: "Send" })).not.toBeInTheDocument();
   });
 
   it("brings the email it was sent for first, and viewers read without acting", async () => {

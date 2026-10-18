@@ -4,7 +4,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { Activities, Automations } from "@/app/openapi-client";
-import type { ActivityKind } from "@/app/openapi-client/types.gen";
+import type { ActivityKind, AutomationStarter } from "@/app/openapi-client/types.gen";
 import type { ActionDef } from "@/components/workflows/workflow-model";
 import { data, useApiClient } from "@/lib/api/browser";
 
@@ -30,6 +30,17 @@ export function useKinds() {
   return useQuery({
     queryKey: ["activity-kinds"],
     queryFn: async () => (await data(Activities.listActivityKinds({ client }))) as ActivityKind[],
+    staleTime: 300_000,
+  });
+}
+
+/** Ready-made drafts to start from (they save switched off). */
+export function useStarters(enabled = true) {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: ["automation-starters"],
+    queryFn: async () => (await data(Automations.listStarters({ client }))).starters as AutomationStarter[],
+    enabled,
     staleTime: 300_000,
   });
 }

@@ -1,5 +1,6 @@
 """Email replies (app/domain/responder.py, docs/email-replies.md): draft a cited reply to an email as a job, read it,
-edit it or set it aside, and list the mail that waits for an answer. Nothing here sends mail."""
+edit it or set it aside, list the mail that waits for an answer, and send it (or keep it in Gmail's drafts) when the
+person, signed in, says so."""
 
 from __future__ import annotations
 
@@ -10,7 +11,7 @@ from fastapi import APIRouter, HTTPException, Query
 from app.api.deps import Acl, Cfg, CurrentUser, Db, Writer
 from app.domain import auth, responder
 from app.schemas.recordings import JobQueued
-from app.schemas.replies import Reply, ReplyDraft, ReplyEdit, ReplyEmail, ReplyList
+from app.schemas.replies import Reply, ReplyDraft, ReplyEdit, ReplyEmail, ReplyList, ReplySend
 
 router = APIRouter(tags=["replies"])
 
@@ -20,7 +21,7 @@ def list_replies(
     acl: Acl,
     user: CurrentUser,
     db: Db,
-    show: Literal["waiting", "draft", "drafting", "skipped", "dismissed", "sent", "failed", "none", "all"] = "waiting",
+    show: Literal["waiting", "draft", "drafting", "skipped", "dismissed", "saved", "sent", "failed", "none", "all"] = "waiting",
     namespace: str | None = None,
     limit: int = Query(50, ge=1, le=200),
 ) -> ReplyList:
@@ -66,4 +67,27 @@ def edit_reply(rid: int, body: ReplyEdit, acl: Acl, user: Writer, db: Db) -> Rep
     except responder.Problem as e:
         raise HTTPException(400, str(e)) from None
     auth.audit(db, user.as_audit(), "reply.edit", f"recording:{rid}", {k: True for k, v in body.model_dump().items() if v is not None})
+    return Reply.model_validate(out)
+
+
+@router.post("/recordings/{rid}/reply/send")
+def send_reply(rid: int, acl: Acl, user: Writer, db: Db, cfg: Cfg, body: ReplySend | None = None) -> Reply:
+    """Send this email's reply through the Gmail connection the email came in on, in its thread and without its
+    citations, or keep it in Gmail's drafts (`draft`). It's your pick, so it needs you signed in to Lens: an API key, an
+    app or an agent asks with the MCP tool `send_reply`, which waits in Approvals. Only admins send from a connection,
+    and only from one an admin let send; nothing marked [to confirm: …] may be left in it (400). Audited as
+    `reply.send`."""
+    acl.recording(rid, "process")
+    body = body or ReplySend()
+    if user.via != "access":
+        raise HTTPException(403, "sending is the person's own pick, signed in to Lens: an agent asks with send_reply")
+    try:
+        out = responder.send(db, cfg, rid, user.as_audit(), user.admin, body.draft)
+    except responder.Problem as e:
+        raise HTTPException(400, str(e)) from None
+    except PermissionError as e:
+        raise HTTPException(403, str(e)) from None
+    except ValueError as e:  # what Gmail refused
+        raise HTTPException(502, str(e)) from None
+    auth.audit(db, user.as_audit(), "reply.send", f"recording:{rid}", {"draft": body.draft})
     return Reply.model_validate(out)
