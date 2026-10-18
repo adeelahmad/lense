@@ -99,6 +99,15 @@ request, to another check that proves the same thing; loosening a requirement or
 | Other chat rooms through Matterbridge | [test_bridge.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_bridge.py) `test_it_answers_what_is_said_to_it_and_nothing_else`; [test_matterbridge_run.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_matterbridge_run.py) `test_chat_networks_are_set_in_the_app_and_become_matterbridges_config`, `test_the_bridge_talks_to_the_matterbridge_lens_runs`; [matterbridge.yml](https://github.com/adeelahmad/lense/blob/main/.github/workflows/matterbridge.yml) `Lens writes a config, and Matterbridge starts with it` |
 | By email, at an address of its own | [test_mailbox.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_mailbox.py) `test_mail_is_answered_by_email_in_its_thread`, `test_the_mailbox_is_set_up_and_checked_in_the_app`, `test_answers_list_the_excerpts_they_cite` |
 
+## Work toward a goal in projects
+
+| Requirement | Checks |
+|---|---|
+| A project with a goal, instructions and namespaces, a coordinator conversation and threads scoped to its namespaces, marked done, brought in or taken out; deleting it keeps its conversations | [test_projects.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_projects.py) `test_a_project_with_a_goal_namespaces_and_threads`, `test_changing_its_namespaces_moves_its_conversations` |
+| A project is its owner's alone and draws only on namespaces they can read | [test_projects.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_projects.py) `test_projects_are_their_owners_and_draw_on_readable_namespaces` |
+| Every answer in a project reads its goal and instructions; the coordinator is told about the threads, as data | [test_projects.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_projects.py) `test_every_answer_in_a_project_reads_what_it_is_for` |
+| Agents list, read, start and change projects over MCP | [test_projects.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_projects.py) `test_agents_use_projects_over_mcp` |
+
 ## Extend the assistant
 
 | Requirement | Checks |

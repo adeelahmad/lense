@@ -3426,6 +3426,18 @@ export type Chat = {
    */
   max_tool_calls?: number | null;
   /**
+   * Project
+   *
+   * the project it's in (GET /projects/{id}): one of its threads, or its coordinator
+   */
+  project?: number | null;
+  /**
+   * Done
+   *
+   * a project's thread marked done
+   */
+  done?: boolean;
+  /**
    * Created At
    */
   created_at?: string | null;
@@ -3866,6 +3878,18 @@ export type ChatSummary = {
    * at most this many tool calls in each answer; null: no limit but the rounds
    */
   max_tool_calls?: number | null;
+  /**
+   * Project
+   *
+   * the project it's in (GET /projects/{id}): one of its threads, or its coordinator
+   */
+  project?: number | null;
+  /**
+   * Done
+   *
+   * a project's thread marked done
+   */
+  done?: boolean;
   /**
    * Created At
    */
@@ -17591,6 +17615,245 @@ export type PrimaryFile = {
 };
 
 /**
+ * Project
+ */
+export type Project = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Goal
+   */
+  goal?: string;
+  /**
+   * Namespaces
+   *
+   * the namespaces it draws on, which its conversations are scoped to
+   */
+  namespaces?: Array<string>;
+  /**
+   * Coordinator
+   *
+   * the project's own conversation (a chat)
+   */
+  coordinator?: number | null;
+  /**
+   * Archived
+   */
+  archived?: boolean;
+  /**
+   * Threads
+   *
+   * how many threads it has, besides the coordinator
+   */
+  threads?: number;
+  /**
+   * Open
+   *
+   * how many of them aren't done
+   */
+  open?: number;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Instructions
+   *
+   * what its owner tells the assistant in every one of its conversations
+   */
+  instructions?: string;
+  /**
+   * Thread List
+   *
+   * its threads, the most recently added to first
+   */
+  thread_list?: Array<ProjectThread>;
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectCreate
+ */
+export type ProjectCreate = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Goal
+   *
+   * what the project is for, in your words: every answer in it reads it
+   */
+  goal?: string;
+  /**
+   * Instructions
+   *
+   * how the assistant should work in it
+   */
+  instructions?: string;
+  /**
+   * Namespaces
+   *
+   * the namespaces it draws on (ones you can read)
+   */
+  namespaces: Array<string>;
+};
+
+/**
+ * ProjectSummary
+ */
+export type ProjectSummary = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Goal
+   */
+  goal?: string;
+  /**
+   * Namespaces
+   *
+   * the namespaces it draws on, which its conversations are scoped to
+   */
+  namespaces?: Array<string>;
+  /**
+   * Coordinator
+   *
+   * the project's own conversation (a chat)
+   */
+  coordinator?: number | null;
+  /**
+   * Archived
+   */
+  archived?: boolean;
+  /**
+   * Threads
+   *
+   * how many threads it has, besides the coordinator
+   */
+  threads?: number;
+  /**
+   * Open
+   *
+   * how many of them aren't done
+   */
+  open?: number;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectThread
+ */
+export type ProjectThread = {
+  /**
+   * Id
+   *
+   * the conversation (GET /chats/{id}, POST /chats/{id}/messages)
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Title By
+   */
+  title_by?: string | null;
+  /**
+   * Coordinator
+   *
+   * the project's own conversation, about the project as a whole
+   */
+  coordinator?: boolean;
+  /**
+   * Done
+   *
+   * marked done: it stays to read and to go on with
+   */
+  done?: boolean;
+  /**
+   * Answering
+   *
+   * an answer is being written in it now
+   */
+  answering?: boolean;
+  /**
+   * Messages
+   *
+   * how many messages it has, every version's
+   */
+  messages?: number;
+  /**
+   * its last message, of the version showing
+   */
+  last?: ThreadLast | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectUpdate
+ *
+ * Only the fields you send change.
+ */
+export type ProjectUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Goal
+   */
+  goal?: string | null;
+  /**
+   * Instructions
+   */
+  instructions?: string | null;
+  /**
+   * Namespaces
+   *
+   * its conversations draw on these from now on
+   */
+  namespaces?: Array<string> | null;
+  /**
+   * Archived
+   *
+   * archived projects are listed apart; nothing in them changes
+   */
+  archived?: boolean | null;
+};
+
+/**
  * Protected
  */
 export type Protected = {
@@ -25285,6 +25548,59 @@ export type Terminate = {
    * Why
    */
   why?: string | null;
+};
+
+/**
+ * ThreadCreate
+ */
+export type ThreadCreate = {
+  /**
+   * Title
+   *
+   * left out, Lens titles it after its first answer
+   */
+  title?: string | null;
+  /**
+   * Chat
+   *
+   * bring in one of your conversations instead of starting a new one
+   */
+  chat?: number | null;
+};
+
+/**
+ * ThreadLast
+ */
+export type ThreadLast = {
+  /**
+   * Role
+   *
+   * user (a question) or assistant (an answer)
+   */
+  role: string;
+  /**
+   * Text
+   *
+   * its first 300 characters
+   */
+  text: string;
+  /**
+   * At
+   */
+  at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ThreadUpdate
+ */
+export type ThreadUpdate = {
+  /**
+   * Done
+   *
+   * mark it done, or not done
+   */
+  done: boolean;
 };
 
 /**
@@ -44324,6 +44640,288 @@ export type DecideApprovalResponses = {
 };
 
 export type DecideApprovalResponse = DecideApprovalResponses[keyof DecideApprovalResponses];
+
+export type ListProjectsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Archived
+     *
+     * true: only archived ones; left out: every one
+     */
+    archived?: boolean | null;
+  };
+  url: "/api/v1/projects";
+};
+
+export type ListProjectsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListProjectsError = ListProjectsErrors[keyof ListProjectsErrors];
+
+export type ListProjectsResponses = {
+  /**
+   * Response Projects-List Projects
+   *
+   * Successful Response
+   */
+  200: Array<ProjectSummary>;
+};
+
+export type ListProjectsResponse = ListProjectsResponses[keyof ListProjectsResponses];
+
+export type CreateProjectData = {
+  body: ProjectCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/projects";
+};
+
+export type CreateProjectErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateProjectError = CreateProjectErrors[keyof CreateProjectErrors];
+
+export type CreateProjectResponses = {
+  /**
+   * Successful Response
+   */
+  200: Project;
+};
+
+export type CreateProjectResponse = CreateProjectResponses[keyof CreateProjectResponses];
+
+export type DeleteProjectData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/projects/{pid}";
+};
+
+export type DeleteProjectErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteProjectError = DeleteProjectErrors[keyof DeleteProjectErrors];
+
+export type DeleteProjectResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteProjectResponse = DeleteProjectResponses[keyof DeleteProjectResponses];
+
+export type GetProjectData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/projects/{pid}";
+};
+
+export type GetProjectErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetProjectError = GetProjectErrors[keyof GetProjectErrors];
+
+export type GetProjectResponses = {
+  /**
+   * Successful Response
+   */
+  200: Project;
+};
+
+export type GetProjectResponse = GetProjectResponses[keyof GetProjectResponses];
+
+export type UpdateProjectData = {
+  body: ProjectUpdate;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/projects/{pid}";
+};
+
+export type UpdateProjectErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateProjectError = UpdateProjectErrors[keyof UpdateProjectErrors];
+
+export type UpdateProjectResponses = {
+  /**
+   * Successful Response
+   */
+  200: Project;
+};
+
+export type UpdateProjectResponse = UpdateProjectResponses[keyof UpdateProjectResponses];
+
+export type ListThreadsData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/projects/{pid}/threads";
+};
+
+export type ListThreadsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListThreadsError = ListThreadsErrors[keyof ListThreadsErrors];
+
+export type ListThreadsResponses = {
+  /**
+   * Response Projects-List Threads
+   *
+   * Successful Response
+   */
+  200: Array<ProjectThread>;
+};
+
+export type ListThreadsResponse = ListThreadsResponses[keyof ListThreadsResponses];
+
+export type StartThreadData = {
+  /**
+   * Body
+   */
+  body?: ThreadCreate | null;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/projects/{pid}/threads";
+};
+
+export type StartThreadErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type StartThreadError = StartThreadErrors[keyof StartThreadErrors];
+
+export type StartThreadResponses = {
+  /**
+   * Successful Response
+   */
+  200: Created;
+};
+
+export type StartThreadResponse = StartThreadResponses[keyof StartThreadResponses];
+
+export type ReleaseThreadData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/projects/{pid}/threads/{cid}";
+};
+
+export type ReleaseThreadErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ReleaseThreadError = ReleaseThreadErrors[keyof ReleaseThreadErrors];
+
+export type ReleaseThreadResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type ReleaseThreadResponse = ReleaseThreadResponses[keyof ReleaseThreadResponses];
+
+export type UpdateThreadData = {
+  body: ThreadUpdate;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/projects/{pid}/threads/{cid}";
+};
+
+export type UpdateThreadErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateThreadError = UpdateThreadErrors[keyof UpdateThreadErrors];
+
+export type UpdateThreadResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UpdateThreadResponse = UpdateThreadResponses[keyof UpdateThreadResponses];
 
 export type StartResearchData = {
   body: ResearchStart;

@@ -26771,6 +26771,455 @@
         }
       }
     },
+    "/api/v1/projects": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "List Projects",
+        "description": "Your projects, the most recently changed first (not archived ones, unless asked).",
+        "operationId": "list_projects",
+        "parameters": [
+          {
+            "name": "archived",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "true: only archived ones; left out: every one",
+              "default": false,
+              "title": "Archived"
+            },
+            "description": "true: only archived ones; left out: every one"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectSummary"
+                  },
+                  "title": "Response Projects-List Projects"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Create Project",
+        "description": "A project: its name, goal, instructions and the namespaces it draws on, with its coordinator conversation.",
+        "operationId": "create_project",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{pid}": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get Project",
+        "description": "A project with its threads, the most recently added to first.",
+        "operationId": "get_project",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Update Project",
+        "description": "Rename it, change its goal, instructions or namespaces (its conversations draw on the new ones), or archive it.",
+        "operationId": "update_project",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Delete Project",
+        "description": "Delete a project. Its conversations stay, as ordinary ones in Chat.",
+        "operationId": "delete_project",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{pid}/threads": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "List Threads",
+        "description": "The project's threads, the most recently added to first, the coordinator among them.",
+        "operationId": "list_threads",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectThread"
+                  },
+                  "title": "Response Projects-List Threads"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Start Thread",
+        "description": "A new thread: a conversation in the project's namespaces (ask in it with POST /chats/{id}/messages). With `chat`,\none of your conversations joins the project instead, drawing on its namespaces from then on.",
+        "operationId": "start_thread",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ThreadCreate"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{pid}/threads/{cid}": {
+      "patch": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Update Thread",
+        "description": "Mark a thread done (it stays to read and to go on with), or not done.",
+        "operationId": "update_thread",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          },
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ThreadUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Release Thread",
+        "description": "Take a thread out of the project: the conversation stays in Chat (DELETE /chats/{id} deletes it).",
+        "operationId": "release_thread",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          },
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chats/{cid}/research": {
       "post": {
         "tags": [
@@ -40167,6 +40616,24 @@
             "title": "Max Tool Calls",
             "description": "at most this many tool calls in each answer; null: no limit but the rounds"
           },
+          "project": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project",
+            "description": "the project it's in (GET /projects/{id}): one of its threads, or its coordinator"
+          },
+          "done": {
+            "type": "boolean",
+            "title": "Done",
+            "description": "a project's thread marked done",
+            "default": false
+          },
           "created_at": {
             "anyOf": [
               {
@@ -40947,6 +41414,24 @@
             ],
             "title": "Max Tool Calls",
             "description": "at most this many tool calls in each answer; null: no limit but the rounds"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project",
+            "description": "the project it's in (GET /projects/{id}): one of its threads, or its coordinator"
+          },
+          "done": {
+            "type": "boolean",
+            "title": "Done",
+            "description": "a project's thread marked done",
+            "default": false
           },
           "created_at": {
             "anyOf": [
@@ -64544,6 +65029,387 @@
         "title": "PrimaryFile",
         "description": "The audio, video, document or image the resource's pipeline runs on."
       },
+      "Project": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "goal": {
+            "type": "string",
+            "title": "Goal",
+            "default": ""
+          },
+          "namespaces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Namespaces",
+            "description": "the namespaces it draws on, which its conversations are scoped to"
+          },
+          "coordinator": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coordinator",
+            "description": "the project's own conversation (a chat)"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived",
+            "default": false
+          },
+          "threads": {
+            "type": "integer",
+            "title": "Threads",
+            "description": "how many threads it has, besides the coordinator",
+            "default": 0
+          },
+          "open": {
+            "type": "integer",
+            "title": "Open",
+            "description": "how many of them aren't done",
+            "default": 0
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "instructions": {
+            "type": "string",
+            "title": "Instructions",
+            "description": "what its owner tells the assistant in every one of its conversations",
+            "default": ""
+          },
+          "thread_list": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectThread"
+            },
+            "type": "array",
+            "title": "Thread List",
+            "description": "its threads, the most recently added to first"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Project"
+      },
+      "ProjectCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "title": "Name"
+          },
+          "goal": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Goal",
+            "description": "what the project is for, in your words: every answer in it reads it",
+            "default": ""
+          },
+          "instructions": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Instructions",
+            "description": "how the assistant should work in it",
+            "default": ""
+          },
+          "namespaces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Namespaces",
+            "description": "the namespaces it draws on (ones you can read)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "namespaces"
+        ],
+        "title": "ProjectCreate"
+      },
+      "ProjectSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "goal": {
+            "type": "string",
+            "title": "Goal",
+            "default": ""
+          },
+          "namespaces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Namespaces",
+            "description": "the namespaces it draws on, which its conversations are scoped to"
+          },
+          "coordinator": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coordinator",
+            "description": "the project's own conversation (a chat)"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived",
+            "default": false
+          },
+          "threads": {
+            "type": "integer",
+            "title": "Threads",
+            "description": "how many threads it has, besides the coordinator",
+            "default": 0
+          },
+          "open": {
+            "type": "integer",
+            "title": "Open",
+            "description": "how many of them aren't done",
+            "default": 0
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ProjectSummary"
+      },
+      "ProjectThread": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "the conversation (GET /chats/{id}, POST /chats/{id}/messages)"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "title_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title By"
+          },
+          "coordinator": {
+            "type": "boolean",
+            "title": "Coordinator",
+            "description": "the project's own conversation, about the project as a whole",
+            "default": false
+          },
+          "done": {
+            "type": "boolean",
+            "title": "Done",
+            "description": "marked done: it stays to read and to go on with",
+            "default": false
+          },
+          "answering": {
+            "type": "boolean",
+            "title": "Answering",
+            "description": "an answer is being written in it now",
+            "default": false
+          },
+          "messages": {
+            "type": "integer",
+            "title": "Messages",
+            "description": "how many messages it has, every version's",
+            "default": 0
+          },
+          "last": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ThreadLast"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "its last message, of the version showing"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "ProjectThread"
+      },
+      "ProjectUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "goal": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal"
+          },
+          "instructions": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instructions"
+          },
+          "namespaces": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 20,
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespaces",
+            "description": "its conversations draw on these from now on"
+          },
+          "archived": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived",
+            "description": "archived projects are listed apart; nothing in them changes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ProjectUpdate",
+        "description": "Only the fields you send change."
+      },
       "Protected": {
         "properties": {
           "protected": {
@@ -77781,6 +78647,85 @@
         "additionalProperties": false,
         "type": "object",
         "title": "Terminate"
+      },
+      "ThreadCreate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "left out, Lens titles it after its first answer"
+          },
+          "chat": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chat",
+            "description": "bring in one of your conversations instead of starting a new one"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ThreadCreate"
+      },
+      "ThreadLast": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "title": "Role",
+            "description": "user (a question) or assistant (an answer)"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "its first 300 characters"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "role",
+          "text"
+        ],
+        "title": "ThreadLast"
+      },
+      "ThreadUpdate": {
+        "properties": {
+          "done": {
+            "type": "boolean",
+            "title": "Done",
+            "description": "mark it done, or not done"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "done"
+        ],
+        "title": "ThreadUpdate"
       },
       "TicketRequest": {
         "properties": {

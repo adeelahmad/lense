@@ -83,6 +83,8 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "undo_topic_change",
         "write_note",
         "rename_chat",
+        "create_project",
+        "update_project",
         "create_podcast",
         "create_feed",
         "publish_to_feed",
