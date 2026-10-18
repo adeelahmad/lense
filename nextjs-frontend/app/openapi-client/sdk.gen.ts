@@ -23,6 +23,9 @@ import type {
   AddAssistantMemoryData,
   AddAssistantMemoryErrors,
   AddAssistantMemoryResponses,
+  AddClipData,
+  AddClipErrors,
+  AddClipResponses,
   AddFileData,
   AddFileErrors,
   AddFileResponses,
@@ -276,6 +279,9 @@ import type {
   CreatePipelineVersionData,
   CreatePipelineVersionErrors,
   CreatePipelineVersionResponses,
+  CreatePlaylistData,
+  CreatePlaylistErrors,
+  CreatePlaylistResponses,
   CreatePodcastData,
   CreatePodcastErrors,
   CreatePodcastResponses,
@@ -440,6 +446,9 @@ import type {
   DeletePageFileErrors,
   DeletePageFileResponses,
   DeletePageResponses,
+  DeletePlaylistData,
+  DeletePlaylistErrors,
+  DeletePlaylistResponses,
   DeletePodcastData,
   DeletePodcastErrors,
   DeletePodcastResponses,
@@ -752,6 +761,9 @@ import type {
   GetPlayerData,
   GetPlayerErrors,
   GetPlayerResponses,
+  GetPlaylistData,
+  GetPlaylistErrors,
+  GetPlaylistResponses,
   GetPodcastData,
   GetPodcastErrors,
   GetPodcastResponses,
@@ -1143,6 +1155,8 @@ import type {
   ListPendingAccessRequestsResponses,
   ListPipelinesData,
   ListPipelinesResponses,
+  ListPlaylistsData,
+  ListPlaylistsResponses,
   ListPodcastsData,
   ListPodcastsErrors,
   ListPodcastsResponses,
@@ -1530,6 +1544,9 @@ import type {
   RemoveBudgetData,
   RemoveBudgetErrors,
   RemoveBudgetResponses,
+  RemoveClipData,
+  RemoveClipErrors,
+  RemoveClipResponses,
   RemoveFeedItemData,
   RemoveFeedItemErrors,
   RemoveFeedItemResponses,
@@ -1581,6 +1598,9 @@ import type {
   RenewNodeData,
   RenewNodeErrors,
   RenewNodeResponses,
+  ReorderPlaylistData,
+  ReorderPlaylistErrors,
+  ReorderPlaylistResponses,
   ReprocessRecordingData,
   ReprocessRecordingErrors,
   ReprocessRecordingResponses,
@@ -2029,6 +2049,9 @@ import type {
   UpdateCircleData,
   UpdateCircleErrors,
   UpdateCircleResponses,
+  UpdateClipData,
+  UpdateClipErrors,
+  UpdateClipResponses,
   UpdateCollectionData,
   UpdateCollectionErrors,
   UpdateCollectionResponses,
@@ -2104,6 +2127,9 @@ import type {
   UpdatePipelineData,
   UpdatePipelineErrors,
   UpdatePipelineResponses,
+  UpdatePlaylistData,
+  UpdatePlaylistErrors,
+  UpdatePlaylistResponses,
   UpdateProjectData,
   UpdateProjectErrors,
   UpdateProjectResponses,
@@ -12145,6 +12171,160 @@ export class Collections {
     return (options.client ?? client).post<RotateCollectionFeedResponses, RotateCollectionFeedErrors, ThrowOnError>({
       url: "/api/v1/collections/{cid}/feed/token",
       ...options,
+    });
+  }
+}
+
+export class Playlists {
+  /**
+   * List Playlists
+   *
+   * Your playlists, the latest used first (the first is where a clip goes when none is named), then the ones others
+   * shared; each counts only the clips of resources you can read.
+   */
+  public static listPlaylists<ThrowOnError extends boolean = false>(
+    options?: Options<ListPlaylistsData, ThrowOnError>,
+  ): RequestResult<ListPlaylistsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListPlaylistsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/playlists",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Playlist
+   *
+   * Make a playlist, with a name unique among yours. Up to 200 each.
+   */
+  public static createPlaylist<ThrowOnError extends boolean = false>(
+    options: Options<CreatePlaylistData, ThrowOnError>,
+  ): RequestResult<CreatePlaylistResponses, CreatePlaylistErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreatePlaylistResponses, CreatePlaylistErrors, ThrowOnError>({
+      url: "/api/v1/playlists",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Playlist
+   *
+   * Delete your playlist and its clips.
+   */
+  public static deletePlaylist<ThrowOnError extends boolean = false>(
+    options: Options<DeletePlaylistData, ThrowOnError>,
+  ): RequestResult<DeletePlaylistResponses, DeletePlaylistErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeletePlaylistResponses, DeletePlaylistErrors, ThrowOnError>({
+      url: "/api/v1/playlists/{pid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Playlist
+   *
+   * The playlist and its clips in order, each with what a player needs: the resource's kind, its signed audio or
+   * video link (null when it has none: play its text), the clip's times and its page's link. Only clips of
+   * resources you can read; `hidden` counts the others in your own playlist.
+   */
+  public static getPlaylist<ThrowOnError extends boolean = false>(
+    options: Options<GetPlaylistData, ThrowOnError>,
+  ): RequestResult<GetPlaylistResponses, GetPlaylistErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetPlaylistResponses, GetPlaylistErrors, ThrowOnError>({
+      url: "/api/v1/playlists/{pid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Playlist
+   *
+   * Rename your playlist, change its description, or share or unshare it. Sharing and unsharing are audited
+   * (`playlist.share`, `playlist.unshare`).
+   */
+  public static updatePlaylist<ThrowOnError extends boolean = false>(
+    options: Options<UpdatePlaylistData, ThrowOnError>,
+  ): RequestResult<UpdatePlaylistResponses, UpdatePlaylistErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdatePlaylistResponses, UpdatePlaylistErrors, ThrowOnError>({
+      url: "/api/v1/playlists/{pid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Add Clip
+   *
+   * Add a clip to your playlist: a resource you can read (`recording`) from `t0` to `t1`, or a `highlight` on one
+   * (its passage and label, unless given), with a `title` and a `note`, at `position` (default: the end). Up to 500
+   * in a playlist.
+   */
+  public static addClip<ThrowOnError extends boolean = false>(
+    options: Options<AddClipData, ThrowOnError>,
+  ): RequestResult<AddClipResponses, AddClipErrors, ThrowOnError> {
+    return (options.client ?? client).post<AddClipResponses, AddClipErrors, ThrowOnError>({
+      url: "/api/v1/playlists/{pid}/items",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove Clip
+   *
+   * Take a clip out of your playlist. To undo, add it again with its `position`.
+   */
+  public static removeClip<ThrowOnError extends boolean = false>(
+    options: Options<RemoveClipData, ThrowOnError>,
+  ): RequestResult<RemoveClipResponses, RemoveClipErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveClipResponses, RemoveClipErrors, ThrowOnError>({
+      url: "/api/v1/playlists/{pid}/items/{iid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Clip
+   *
+   * Change a clip's title or note (empty clears it), or its times.
+   */
+  public static updateClip<ThrowOnError extends boolean = false>(
+    options: Options<UpdateClipData, ThrowOnError>,
+  ): RequestResult<UpdateClipResponses, UpdateClipErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateClipResponses, UpdateClipErrors, ThrowOnError>({
+      url: "/api/v1/playlists/{pid}/items/{iid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Reorder Playlist
+   *
+   * Put your playlist's clips in this order (their ids); clips not named follow, as they were.
+   */
+  public static reorderPlaylist<ThrowOnError extends boolean = false>(
+    options: Options<ReorderPlaylistData, ThrowOnError>,
+  ): RequestResult<ReorderPlaylistResponses, ReorderPlaylistErrors, ThrowOnError> {
+    return (options.client ?? client).put<ReorderPlaylistResponses, ReorderPlaylistErrors, ThrowOnError>({
+      url: "/api/v1/playlists/{pid}/order",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }

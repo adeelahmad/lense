@@ -970,6 +970,14 @@ outputs:
     downstream_must_not_assume:
       - {id: dmna-evidence-pdf-less, statement: "that a PDF handed on holds less than its reader could see (pick its parts)", provenance: {kind: documented, source: 'docs/api.md "never anyone''s private notes"'}}
   - component: authz
+    channel: "Playlists (domain/playlists.py, routes/playlists.py)"
+    taint: same-as-input
+    x-taint-note: "a shared playlist's clips (titles, notes, quotes, signed media links) only where its reader has a role on the clip's resource; its name and description to everyone signed in"
+    taint_provenance: {kind: documented, source: 'docs/api.md "whoever made it"'}
+    invariants: []
+    downstream_must_not_assume:
+      - {id: dmna-playlist-name-private, statement: "that a shared playlist's name and description stay among the people who can read its clips", provenance: {kind: documented, source: 'docs/api.md "whoever made it"'}}
+  - component: authz
     channel: "Recording description (IIIF, public pages)"
     taint: same-as-input
     x-taint-note: "never a closed part; anyone who may see the page sees it"

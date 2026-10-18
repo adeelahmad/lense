@@ -1845,6 +1845,46 @@ assets with audio or video that you can read) and when an app last read it, made
 `POST /{cid}/feed/token` gives it a new address and `DELETE /{cid}/feed` stops it
 ([A collection's podcast feed](feeds.md#a-collections-podcast-feed)).
 
+## playlists
+
+Clips of moments of any resources, kept in order to play back to back.
+
+```
+GET    /api/v1/playlists
+POST   /api/v1/playlists
+GET    /api/v1/playlists/{pid}
+PATCH  /api/v1/playlists/{pid}
+DELETE /api/v1/playlists/{pid}
+POST   /api/v1/playlists/{pid}/items
+PATCH  /api/v1/playlists/{pid}/items/{iid}
+DELETE /api/v1/playlists/{pid}/items/{iid}
+PUT    /api/v1/playlists/{pid}/order
+```
+
+A playlist is its maker's: a `name` unique among theirs (up to 120 characters), a `description`, and `shared`. A
+private one is theirs alone; a shared one is read by everyone signed in, and each reader gets only the clips of
+resources they have a role on (in the resource's namespace, or on its collection), whoever made it. Only its maker
+changes it. Up to 200 each. Sharing and unsharing are audited (`playlist.share`, `playlist.unshare`).
+
+A clip is a moment of a resource you can read: `POST /{pid}/items` with the `recording` and `t0` and `t1` (ms from
+the start; a document's pages have a reading-pace clock; without `t1`, or with one not after `t0`, it lasts 30
+seconds, and it stops at the end of the resource), a `title` (up to 200 characters), a `note` (up to 2,000) and the
+`quote` picked in the text, at `position` (from 0; default the end). With `highlight` it clips that
+[highlight](#highlights): its resource, passage and label, unless given; the clip stays when the highlight goes.
+Clips aren't highlights: anyone who can read a resource keeps a clip of it, and only for themselves, where an editor
+makes a highlight for everyone. Up to 500 in a playlist. `PATCH` changes a clip's title, note (empty clears them) or
+times; `DELETE` takes it out, and Undo adds it again with its `position`. `PUT /{pid}/order` with `items`, clip ids
+in their new order, puts those first, as named, and the clips not named after them, as they were.
+
+`GET /playlists` lists yours, the latest used first (the first is where a clip goes when none is named; adding,
+changing, removing or reordering clips uses a playlist), then the ones others shared, each with `count` and
+`duration_ms` of the clips you can read in it. `GET /{pid}` is everything a player needs: the clips in order, each
+with its resource's `recording_title`, `namespace` and `media` kind, its signed `audio` link (the resource's audio or
+video, as the recording player gets it; `null` when it has none, so play its text), its times and `link`, its page in
+the web app at the clip's start. `hidden` counts the clips of your own playlist whose resources you can no longer
+read. Clips go when their resource is deleted; private playlists go when their maker's account is removed, shared ones
+stay. Agents use them through [MCP](mcp.md) (`list_playlists`, `add_to_playlist`).
+
 ## views
 
 ```
