@@ -536,8 +536,8 @@ importing chosen ones and watching work as above. [News feeds](#news-feeds-rss-a
   exists (rules never create one); mail for a namespace deleted since goes to the watch's. Rules apply to messages that
   arrive after they're saved. `POST /api/v1/watches/routes/preview` shows where the latest messages would go before
   saving, and a scan's stats count the messages `routed` elsewhere.
-  An email account can also carry **shared rules**, written once for every watch on it (`PUT
-  /api/v1/sources/{id}/routes`): mail to support@ goes to support, newsletters are skipped, whichever mailbox a watch
+  An email account can also carry **shared rules**, written once for every watch on it (in the web app the account's
+  More menu on the Sources page, Routing rules; or `PUT /api/v1/sources/{id}/routes`): mail to support@ goes to support, newsletters are skipped, whichever mailbox a watch
   takes. A watch tries its own rules first, then the account's, then sends the message to its namespace, so a watch's
   rule can make an exception to the account's. With no shared rules nothing changes. The preview uses the saved
   shared rules, or `shared_routes` to try ones not saved yet, and says which list decided (`shared`). Agents read

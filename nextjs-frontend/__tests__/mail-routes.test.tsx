@@ -14,10 +14,15 @@ import {
   SKIP,
 } from "@/components/sources/route-model";
 import { RoutingRules } from "@/components/sources/routing-rules";
+import { SharedRoutesDialog } from "@/components/sources/shared-routes";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-jest.mock("@/app/openapi-client", () => ({ Sources: { previewRoutes: jest.fn() } }));
+jest.mock("@/app/openapi-client", () => ({ Sources: { previewRoutes: jest.fn(), setSharedRoutes: jest.fn() } }));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
+jest.mock("@/lib/hooks/session", () => ({
+  useArchive: () => ({ namespaces: [{ name: "family" }, { name: "finance" }] }),
+}));
+jest.mock("@/components/ui/toast", () => ({ useToast: () => jest.fn() }));
 
 const ok = (data: unknown) => Promise.resolve({ data, response: { ok: true, status: 200 } });
 
@@ -95,6 +100,50 @@ describe("routing rules editor", () => {
         path: "INBOX",
         namespace: "family",
         routes: [{ match: { from: ["*@acme.com"] }, namespace: "finance" }],
+      }),
+    );
+  });
+});
+
+describe("an account's shared routing rules", () => {
+  it("previews them for every watch and saves them", async () => {
+    (Sources.previewRoutes as jest.Mock).mockReset().mockImplementation(() =>
+      ok([
+        { path: "INBOX/7-1.eml", title: "Invoice 2231", namespace: "finance", skipped: false, rule: 1, shared: true },
+        { path: "INBOX/7-2.eml", title: "Lunch?", namespace: "", skipped: false, rule: null, shared: false },
+      ]),
+    );
+    (Sources.setSharedRoutes as jest.Mock).mockReset().mockImplementation(() => ok([]));
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <TooltipProvider>
+          <SharedRoutesDialog
+            open
+            onOpenChange={() => {}}
+            source={{ id: 3, name: "shared", type: "imap", label: "Email", params: {}, secrets: {}, routes: [] }}
+          />
+        </TooltipProvider>
+      </QueryClientProvider>,
+    );
+    expect(screen.getByText("Shared routing rules")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Add a rule" }));
+    expect(screen.getByLabelText("Send to")).toHaveValue("family"); // any namespace: there's no watch's own here
+    fireEvent.change(screen.getByLabelText("Patterns"), { target: { value: "*@acme.com" } });
+    expect(await screen.findByText("→ the watch’s namespace", undefined, { timeout: 5000 })).toBeInTheDocument();
+    await waitFor(() =>
+      expect((Sources.previewRoutes as jest.Mock).mock.calls.at(-1)[0].body).toEqual({
+        source: 3,
+        path: "",
+        namespace: "",
+        routes: [],
+        shared_routes: [{ match: { from: ["*@acme.com"] }, namespace: "family" }],
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect((Sources.setSharedRoutes as jest.Mock).mock.calls[0][0]).toMatchObject({
+        path: { sid: 3 },
+        body: { routes: [{ match: { from: ["*@acme.com"] }, namespace: "family" }] },
       }),
     );
   });
