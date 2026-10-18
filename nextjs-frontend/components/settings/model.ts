@@ -3950,6 +3950,13 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "documents",
+    key: "video_captions",
+    label: "Use a video’s own captions",
+    kind: "switch",
+    hint: "When people wrote captions for it, they become its transcript and nothing is transcribed; else it’s transcribed",
+  },
+  {
+    section: "documents",
     key: "converter",
     label: "Make PDFs with anytopdf",
     kind: "select",

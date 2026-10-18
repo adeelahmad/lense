@@ -275,6 +275,7 @@ DEFAULTS = {
         "chromium": None,
         "web_networks": [],
         "video_urls": False,  # mediaurl.py: videos and podcasts imported by their address, downloaded by yt-dlp
+        "video_captions": False,  # and their own captions, written by people, used as the transcript instead of transcribing
         "converter": "auto",  # anytopdf.py: auto (where Lens can't convert), anytopdf (every document and image), lens
         "anytopdf": None,  # the anytopdf program; None: the one downloaded on first use, else one on PATH
         "anytopdf_url": None,  # a conversion node: `anytopdf queue serve` on another machine

@@ -118,6 +118,8 @@ def _transcribe_media(db, cfg, rid, say, spec=None):
         from . import mediaurl
 
         mediaurl.ensure(db, cfg, rid, rec, say)
+        if mediaurl.use_captions(db, cfg, rid, say):  # captions people wrote came with it: no need to transcribe
+            return None
     ingest.transcribe_one(db, cfg, rid, say)
 
 
