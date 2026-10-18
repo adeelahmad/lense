@@ -25,6 +25,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     research_plan = None  # a research plan (research.plan) to come back with, else a built-in one about the capsid
     research_report = None  # a research report (research._write) to come back with, else one citing [1] and [2]
     title = None  # a conversation's title (chat.suggest_title), else the first question, labelled and quoted as models do
+    context = None  # tokens (characters / 4): a request over it gets a 400 saying the context is full, as OpenAI's does
 
     def _json(self, obj):
         data = json.dumps(obj).encode()
@@ -48,6 +49,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if self.path.endswith("/embeddings"):
             return self._embeddings(body)
         Handler.seen.append(body)
+        if Handler.context:
+            asked = sum(len(json.dumps(m.get("content") or "")) + len(json.dumps(m.get("tool_calls") or "")) for m in body["messages"])
+            asked = (asked + len(json.dumps(body.get("tools") or []))) // 4
+            if asked > Handler.context:
+                said = f"This model's maximum context length is {Handler.context} tokens. However, you requested {asked} tokens."
+                data = json.dumps({"error": {"message": said, "type": "invalid_request_error", "code": "context_length_exceeded"}}).encode()
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+                return
         if body.get("tools"):
             if Handler.reject_tools:
                 data = b'{"error": "tools are not supported by this model"}'
