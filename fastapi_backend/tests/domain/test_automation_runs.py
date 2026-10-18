@@ -282,6 +282,7 @@ def test_intents_wait_for_a_pick_or_a_time_and_settle_later(db, cfg, env, monkey
     run = automations.get_run(db, run_id)
     assert run["status"] == "waiting" and run["counts"] == {"done": 0, "waiting": 1, "scheduled": 1, "failed": 0}
     assert run["trace"]["s"]["status"] == "skipped" and any("waiting for your pick" in line for line in run["log"])
+    assert run["trace"]["t"]["status"] == "waiting" and run["trace"]["w"]["status"] == "scheduled"  # not done yet
     by = {i["node"]: i for i in run["intents"]}
     assert by["t"]["status"] == "waiting" and by["t"]["result"] == {"approval": 77} and asked[0][0]["key"] == by["t"]["key"]
     assert asked[0][1]["id"] == SAMPLE["id"]  # the approval says which activity it's about

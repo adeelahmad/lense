@@ -160,7 +160,16 @@ export function NodeSettings({
       {peek && (
         <div className="flex flex-col gap-1 rounded-sm border border-border bg-surface px-3 py-2">
           <span className="label-caps">
-            Last try: {peek.status === "done" ? "ran" : peek.status === "failed" ? "failed" : "skipped"}
+            Last try:{" "}
+            {peek.status === "done"
+              ? "ran"
+              : peek.status === "failed"
+                ? "failed"
+                : peek.status === "waiting"
+                  ? "would ask you first"
+                  : peek.status === "scheduled"
+                    ? "would wait for its time"
+                    : "skipped"}
           </span>
           {peek.error && <p className="text-[12.5px] text-red-dark">{peek.error}</p>}
           {peek.value && (
