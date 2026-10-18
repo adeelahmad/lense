@@ -154,7 +154,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [evidence PDFs](docs/api.md#evidence-pdfs), [published feeds](docs/feeds.md);
   [checks](docs/requirements.md#learn-from-it))
 - **Automate it.** Pipelines and workflows on a canvas (with Convert steps that make a video's soundtrack an audio
-  asset and a document's pages image assets), routines on a schedule, batch runs over a collection, and
+  asset and a document's pages image assets, and Read steps that pick their own converter, such as anytopdf), routines on a schedule, batch runs over a collection, and
   notifications to webhooks, Slack, Discord and Matterbridge. Everything that happens in Lens (new assets, emails,
   calendar events, files, feed posts, what people say to Lens, sensor readings, notes, graph changes, runs, budget
   warnings) is kept as a stream of activities in W3C Activity Streams form, which agents read through the API, MCP and

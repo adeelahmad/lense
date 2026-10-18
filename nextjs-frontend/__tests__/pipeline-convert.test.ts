@@ -36,3 +36,13 @@ describe("the convert step in a pipeline", () => {
     expect(r.error).toBe("Convert needs Read pages’s output, so it has to come after it.");
   });
 });
+
+describe("the read step's converter", () => {
+  it("is kept only on a read step, and said in its summary", () => {
+    expect(cleanSpec({ type: "read", converter: "anytopdf" })).toEqual({ type: "read", converter: "anytopdf" });
+    expect(cleanSpec({ type: "read" })).toBe("read");
+    expect(cleanSpec({ type: "analyze", converter: "anytopdf" })).toBe("analyze");
+    expect(stepSummary({ type: "read", converter: "anytopdf" })).toBe("with anytopdf");
+    expect(stepSummary({ type: "read" })).toBe("");
+  });
+});

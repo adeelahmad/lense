@@ -705,6 +705,16 @@ New pipelines, workflows, templates and routines don't need a name typed: the we
 steps, what a workflow runs on, a template's kind, a routine's schedule and actions), numbered when it's taken
 ("Prompt template 2"). The pencil next to the name on its page renames it later, as does `PATCH` on its address.
 
+### Choosing the converter for a Read step
+
+A Read step makes an Office file, email, web page or photographed page into a PDF before it reads it. Which program
+does that is the server's choice, `documents.converter` in Settings → Documents ([anytopdf](configuration.md#anytopdf)),
+unless the step names its own: `{"type": "read", "converter": "anytopdf"}` makes every document and image in that
+pipeline into a PDF with anytopdf (flattening a photographed page first), `"lens"` uses Lens's own converters only, and
+`"auto"` uses anytopdf only for what Lens can't convert. Other pipelines keep the server's choice. In the pipeline
+editor it's the Read step's **Make PDFs with** setting. Where a step asks for anytopdf but it isn't installed here and
+no conversion node is set, Lens converts the file itself and the run's log says so.
+
 ### Converting assets
 
 A Convert step makes new assets from the one it runs on. Default pipelines have none; add one in the pipeline editor

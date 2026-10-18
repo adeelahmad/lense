@@ -548,6 +548,8 @@ def transcribe(db, cfg, rid, say):
     patch = {"status": "transcribed", "engine": how, "media": media, "transcribed_at": store.now()}
     if learnt.get("by"):
         patch["rendition"] = None if read else {"from": convert.ext_of(path), "by": learnt["by"]}
+    elif source == "image":  # read from the picture itself: a PDF an earlier run made of it isn't where its pages are
+        patch["rendition"] = None
     if source == "document":
         patch["described"] = learnt.get("described") or None  # what it says about itself (Tika), else nothing kept
         patch.update(_named(rec, path, learnt))
