@@ -3,78 +3,38 @@
 The containers can't start other containers, so the machine's upgrade agent does it, as it installs releases
 (updates.py, packaging/host/lens-upgrade.sh). Turning monitoring on makes sure /metrics is on with a scrape token
 (generated when none is set), writes that token where the monitoring Prometheus reads it (`<control>/prometheus-token`),
-then drops a request in the agent's inbox: the agent adds `monitoring` to COMPOSE_PROFILES in the install's .env and
-starts the three containers; off removes it and stops them. How it went is in `<control>/services-status`.
-
-The request goes in the inbox under the same name as an upgrade (`inbox/upgrade`, with `action=services`), because that
-file is what every agent installed so far watches for; the agent never installs anything for it.
+then asks the agent to turn the monitoring profile on (services.py): it adds `monitoring` to COMPOSE_PROFILES in the
+install's .env and starts the three containers; off removes it and stops them.
 """
 
 from __future__ import annotations
 
-import datetime as dt
-import os
 import secrets
 
-from . import settings, store, updates
+from . import services, settings, store, updates
 
 ROW = store.R("app_service", "monitoring")
-ACTIVE = ("queued", "running")
 TOKEN_FILE = "prometheus-token"
-STATUS_FILE = "services-status"
 GRAFANA_PORT = 3001
-
-
-class MonitoringError(RuntimeError):
-    """Monitoring can't be turned on or off; the message says why, for the admin."""
+# Monitoring can't be turned on or off; the message says why, for the admin
+MonitoringError = services.ServiceError
 
 
 def _row(db):
     return db.one("SELECT * OMIT id FROM $r", r=ROW) or {}
 
 
-def _put(db, run):
-    db.q("UPSERT $r CONTENT $d", r=ROW, d=run)
-
-
 def manual():
     """The line to run on the machine when there is no agent."""
-    where = os.environ.get("LENS_HOST_DIR") or ""
-    cd = f"cd {where} && " if where and updates.REF.match(where.lstrip("/~")) else ""
-    return f"{cd}docker compose -f docker-compose.prod.yml --profile monitoring up -d"
+    return services.manual("monitoring")
 
 
 def view(db):
     """Whether monitoring is on (as last asked), and how the agent's last run went."""
-    run = _row(db)
-    out = {
-        "on": bool(run.get("on")),
-        "state": run.get("state"),
-        "error": run.get("error"),
-        "asked_at": run.get("asked_at"),
-        "finished_at": None,
-        "grafana_port": GRAFANA_PORT,
-        "agent": updates.agent(),
-        "manual": manual(),
-    }
-    d = updates.control_dir()
-    if d and run:
-        s = updates._kv(d / STATUS_FILE)
-        if s.get("id") == run.get("run"):
-            out["state"] = s.get("state") or out["state"]
-            out["finished_at"] = s.get("finished_at")
-            if s.get("grafana_port", "").isdigit():
-                out["grafana_port"] = int(s["grafana_port"])
-            if s.get("state") == "failed":
-                out["error"] = s.get("error") or f"the machine couldn't change it (exit {s.get('code', '?')})"
-        if out["state"] == "queued" and (d / "inbox" / "upgrade").exists():
-            try:
-                waited = (dt.datetime.now(dt.timezone.utc) - dt.datetime.fromisoformat(str(run.get("asked_at")))).total_seconds()
-            except ValueError:
-                waited = 0
-            if waited > updates.PICKUP_SECONDS:
-                out["error"] = "the machine hasn't picked it up yet: is its upgrade agent running?"
-    return out
+    v = services.view(db, "monitoring", probe=False)
+    port = services.reported(db, "monitoring").get("grafana_port", "")
+    keys = ("on", "state", "error", "asked_at", "finished_at", "agent", "manual")
+    return {k: v[k] for k in keys} | {"grafana_port": int(port) if port.isdigit() else GRAFANA_PORT}
 
 
 def sync_token(cfg, create=False):
@@ -97,14 +57,8 @@ def sync_token(cfg, create=False):
 
 def turn(db, base, cfg, on, by=None):
     """Ask the machine to start (on) or stop the monitoring containers; returns view()."""
-    if not updates.agent():
-        raise MonitoringError("this machine has no upgrade agent to start containers: run the line shown on it instead")
-    d = updates.control_dir()
-    if (d / "inbox" / "upgrade").exists():
-        raise MonitoringError("the machine is busy with another request (an upgrade?): try again in a minute")
-    run, now_ = _row(db), view(db)
-    if now_["state"] in ACTIVE and not now_["error"]:
-        raise MonitoringError("the machine is still changing it: wait for that to finish")
+    services.ready(db, "monitoring")
+    run = _row(db)
     t = cfg.get("telemetry") or {}
     locked = settings.locked("telemetry")
     changes, ours = {}, bool(run.get("turned_on_metrics"))
@@ -122,10 +76,5 @@ def turn(db, base, cfg, on, by=None):
     if on:
         token = changes.get("prometheus_token") or t.get("prometheus_token")
         sync_token({"telemetry": {"prometheus_token": token}}, create=True)
-    rid = secrets.token_hex(8)
-    now = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
-    part = d / "inbox" / f".upgrade.{rid}"
-    part.write_text(f"id={rid}\naction=services\nmonitoring={'on' if on else 'off'}\nby={by or ''}\nat={now}\n", encoding="utf-8")
-    part.replace(d / "inbox" / "upgrade")
-    _put(db, {"run": rid, "on": bool(on), "by": by, "asked_at": now, "state": "queued", "error": None, "turned_on_metrics": ours})
+    services.ask(db, "monitoring", on, by, turned_on_metrics=ours)
     return view(db)

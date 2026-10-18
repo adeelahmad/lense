@@ -41,6 +41,12 @@ class FakeTree:
         names = {p[len(pre) :].split("/")[0] for p in [*self.FILES[account], *self._dirs(account)] if p.startswith(pre) and p[len(pre) :]}
         return [self.entry(account, pre + n) for n in sorted(names)]
 
+    def adder(self, account):
+        return None  # files can't be added (smb.add_files off)
+
+    def drop(self, account):
+        pass
+
     def open(self, account, e):
         data = self.FILES[account][e.source]
         return smb_share.Reader(lambda start, end: (data[i : min(i + 1000, end + 1)] for i in range(start, end + 1, 1000)), len(data))

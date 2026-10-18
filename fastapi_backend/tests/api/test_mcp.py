@@ -91,12 +91,14 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "set_picture_descriptions",
         "set_file_storage",
         "set_monitoring",
+        "set_service",
         "set_sandbox_gateway",
         "set_install_settings",
         "subscribe_feed",
         "unsubscribe_feed",
         "mark_activities",
         "decline_approval",
+        "start_research",
         "set_automation_vars",
         "save_automation",
         "run_automation",
@@ -532,6 +534,11 @@ def test_monitoring_tools(client, db, env, monkeypatch):
     got = tool(client, ha, "monitoring")
     assert (got["on"], got["agent"]) == (False, None) and got["settings"].endswith("/settings/telemetry")
     assert "no upgrade agent" in tool_error(client, ha, "set_monitoring", on=True)
+    # and every optional container, the same way
+    got = tool(client, ha, "services")
+    assert [s["profile"] for s in got["services"]] == ["mcp", "browser", "monitoring"]
+    assert "no upgrade agent" in tool_error(client, ha, "set_service", profile="browser", on=True)
+    assert "only admins" in tool_error(client, env["h"], "set_service", profile="browser", on=True)
 
 
 def test_install_tools(client, db, env, tmp_path, monkeypatch):

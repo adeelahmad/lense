@@ -8,6 +8,10 @@ local network works.
 A server that runs as a program (stdio: a command, usually `npx` or `uvx`) runs in the MCP runner, a container of its
 own with none of Lens's data or keys (mcp-runner/runner.py, the optional `mcp` service), which Lens tells what to run
 and then reaches over HTTP like any other. Without the runner, such servers aren't run.
+
+A server whose spec says `keep` remembers things between calls (the browser: the page it has open), so its tools are
+called in one session, kept from one call to the next for KEEP seconds, and opened again when the server no longer
+knows it. That session is the server's, shared by everyone whose assistant uses it, as its address and token are.
 """
 
 from __future__ import annotations
@@ -16,6 +20,8 @@ import hashlib
 import itertools
 import json
 import os
+import threading
+import time
 import urllib.error
 import urllib.request
 
@@ -26,11 +32,18 @@ CLIENT = {"name": "lens", "version": "1"}
 MAX_REPLY = 2_000_000
 MAX_TOOLS = 100
 TIMEOUT = 60
+KEEP = 600  # seconds a kept session waits for its next call
 _ids = itertools.count(1)
+_kept: dict[str, tuple[Session, float]] = {}
+_lock = threading.Lock()
 
 
 class McpError(ValueError):
     pass
+
+
+class Refused(McpError):
+    """The server turned the request away before running anything (it doesn't know the session, or the token)."""
 
 
 def _events(raw):
@@ -72,8 +85,9 @@ def runner():
 
 
 NO_RUNNER = (
-    "MCP servers that run as a program need the MCP runner, a sandbox of their own: add COMPOSE_PROFILES=mcp to "
-    "Lens's .env and run the install command again (docs/assistant.md)"
+    "MCP servers that run as a program need the MCP runner, a sandbox of their own: turn it on in Extensions › Add "
+    "MCP server › Command (or add COMPOSE_PROFILES=mcp to Lens's .env and run the install command again; "
+    "docs/assistant.md)"
 )
 
 
@@ -123,7 +137,7 @@ class Session:
             return None
         if status >= 400:
             hint = ": does it need a token in its headers?" if status in (401, 403) else ""
-            raise McpError(f"the MCP server answered {status}{hint}")
+            raise (Refused if status in (400, 401, 403, 404) else McpError)(f"the MCP server answered {status}{hint}")
         msgs = list(_events(text)) if "text/event-stream" in low.get("content-type", "") else [json.loads(text or "null")]
         for m in msgs:
             if isinstance(m, dict) and m.get("id") == body["id"]:
@@ -164,10 +178,36 @@ def discover(server):
     return out
 
 
+def _call(run, args):
+    """tools/call in a new session, or, for a server that keeps its session, in the one kept for it (a new one when
+    that one is too old or the server turns it away)."""
+    if not run.get("keep"):
+        return Session(run).call(run["tool"], args)
+    where = {k: run.get(k) for k in ("url", "headers", "command", "args", "env")}
+    key = hashlib.sha256(json.dumps(where, sort_keys=True, default=str).encode()).hexdigest()
+    now = time.monotonic()
+    with _lock:
+        for k, (_, used) in list(_kept.items()):
+            if now - used > KEEP:
+                del _kept[k]
+        kept = _kept.get(key)
+    session = kept[0] if kept else Session(run)
+    try:
+        got = session.call(run["tool"], args)
+    except Refused:
+        if not kept:
+            raise
+        session = Session(run)  # the server restarted or let it go: nothing ran, so once more in a new one
+        got = session.call(run["tool"], args)
+    with _lock:
+        _kept[key] = (session, time.monotonic())
+    return got
+
+
 def call(run, args):
     """Call one of a server's tools: its text, and anything structured it gave back."""
     with activity.call("mcp.call", detail={"url": run.get("url") or run.get("command"), "tool": run["tool"]}):
-        got = Session(run).call(run["tool"], args)
+        got = _call(run, args)
     texts = [c.get("text") for c in got.get("content") or [] if isinstance(c, dict) and c.get("type") == "text"]
     out = {"text": "\n".join(t for t in texts if t)}
     if got.get("structuredContent") is not None:

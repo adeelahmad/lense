@@ -341,14 +341,14 @@ export const SECTIONS: SectionSpec[] = [
     label: "NFS share",
     backend: ["nfs"],
     description:
-      "Off unless you turn it on. The archive as folders and files over NFS, read-only: namespaces, collections, topics and entities as folders, assets as files, for machines on the networks you allow.",
+      "Off unless you turn it on. The archive as folders and files over NFS: namespaces, collections, topics and entities as folders, assets as files, for machines on the networks you allow; files copied into a collection’s folder are imported there.",
   },
   {
     id: "smb",
     label: "SMB share",
     backend: ["smb"],
     description:
-      "Off unless you turn it on. The graph as folders and files over SMB, read-only, for Finder, Explorer and Linux: each person signs in with a file access key and sees what they see in the web app.",
+      "Off unless you turn it on. The graph as folders and files over SMB, for Finder, Explorer and Linux: each person signs in with a file access key, sees what they see in the web app, and files they copy into a collection’s folder are imported there.",
   },
   {
     id: "shares",
@@ -2594,7 +2594,14 @@ export const FIELDS: FieldSpec[] = [
     key: "enabled",
     label: "Share the file tree over NFS",
     kind: "switch",
-    hint: "Read-only. Off: nothing listens",
+    hint: "Off: nothing listens",
+  },
+  {
+    section: "nfs",
+    key: "add_files",
+    label: "Import files people add",
+    kind: "switch",
+    hint: "A file copied into a collection’s folder is imported there, as the account below adds it (NFS has no login). Off: read-only",
   },
   {
     section: "nfs",
@@ -2603,7 +2610,7 @@ export const FIELDS: FieldSpec[] = [
     kind: "select",
     nullable: true,
     options: [],
-    hint: "The share shows what this person sees in the web app, and nothing else",
+    hint: "The share shows what this person sees in the web app, and nothing else; files added to it are added as them",
   },
   {
     section: "nfs",
@@ -2666,7 +2673,14 @@ export const FIELDS: FieldSpec[] = [
     key: "enabled",
     label: "Share the file tree over SMB",
     kind: "switch",
-    hint: "Read-only. Off: nothing listens",
+    hint: "Off: nothing listens",
+  },
+  {
+    section: "smb",
+    key: "add_files",
+    label: "Import files people add",
+    kind: "switch",
+    hint: "A file copied into a collection’s folder is imported there, as an upload; a new folder under Collections is a new collection. Off: read-only",
   },
   {
     section: "smb",
@@ -2730,6 +2744,22 @@ export const FIELDS: FieldSpec[] = [
     label: "Let devices in without a login",
     kind: "switch",
     hint: "Off: devices sign in with a hub login (Sensors → Hub logins)",
+  },
+  {
+    section: "sensors",
+    key: "mqtt_web",
+    label: "MQTT at the web app’s address too",
+    kind: "switch",
+    hint: "Over WebSockets at /mqtt wherever the web app opens, Remote access and HTTPS included, for devices with a hub login. Off: only on the MQTT port",
+  },
+  {
+    section: "sensors",
+    key: "mqtt_web_port",
+    label: "MQTT over WebSockets port",
+    kind: "int",
+    min: 1,
+    max: 65535,
+    hint: "Where the web app passes /mqtt on to (LENS_MQTT_WS_URL)",
   },
   { section: "sensors", key: "syslog", label: "Syslog", kind: "switch" },
   {

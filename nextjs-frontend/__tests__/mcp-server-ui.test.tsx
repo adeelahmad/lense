@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import type { ReactNode } from "react";
 
-import { Extensions } from "@/app/openapi-client";
+import { Extensions, Updates } from "@/app/openapi-client";
 import { ExtensionEditor } from "@/components/extensions/extension-editor";
 import { McpServerForm } from "@/components/extensions/mcp-server-form";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -18,7 +18,9 @@ jest.mock("@/app/openapi-client", () => ({
     testExtension: jest.fn(),
     updateExtension: jest.fn(),
     deleteExtension: jest.fn(),
+    mcpPresets: jest.fn(),
   },
+  Updates: { listServices: jest.fn(), setService: jest.fn() },
 }));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
 const push = jest.fn();
@@ -53,10 +55,109 @@ const fetcher = {
   fill: [],
 };
 
+const service = {
+  profile: "browser",
+  label: "Browser",
+  description: "A headless Chromium the assistant drives",
+  on: false,
+  running: false,
+  state: null,
+  agent: "systemd",
+  manual: "docker compose -f docker-compose.prod.yml --profile browser up -d",
+};
+const browser = {
+  name: "browser",
+  label: "Browser",
+  description: "Opens web pages, reads them, clicks and types",
+  spec: {
+    url: "http://browser:8931/mcp",
+    keep: true,
+    off: ["browser_run_code_unsafe"],
+    ask: { browser_navigate: false },
+  },
+  fill: [],
+  needs: "browser",
+};
+const github = {
+  name: "github",
+  label: "GitHub",
+  description: "Issues, pull requests and code on GitHub",
+  spec: { url: "https://api.githubcopilot.com/mcp/", headers: { Authorization: "Bearer ${GITHUB_TOKEN}" } },
+  fill: ["GITHUB_TOKEN"],
+  needs: null,
+  service: null,
+};
+
 describe("adding an MCP server", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     archive.admin = true;
+    m(Extensions.mcpPresets).mockReturnValue(ok({ presets: [] }));
+  });
+
+  it("adds the browser with one click once its container runs", async () => {
+    m(Extensions.mcpPresets).mockReturnValue(
+      ok({ presets: [{ ...browser, service: { ...service, on: true, running: true, state: "done" } }, github] }),
+    );
+    m(Extensions.createExtension).mockReturnValue(ok({ ok: true, id: 7 }));
+    wrap(<McpServerForm />);
+    fireEvent.click(await screen.findByRole("button", { name: "Add Browser" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/extensions/7"));
+    // with what the form doesn't show: one session for its calls, running code off, going to a page without asking
+    expect(m(Extensions.createExtension).mock.calls[0][0].body.manifest).toEqual({
+      name: "browser",
+      kind: "mcp",
+      description: "Opens web pages, reads them, clicks and types",
+      url: "http://browser:8931/mcp",
+      keep: true,
+      off: ["browser_run_code_unsafe"],
+      ask: { browser_navigate: false },
+    });
+  });
+
+  it("turns the browser's container on first, when it isn't running", async () => {
+    m(Extensions.mcpPresets).mockReturnValue(ok({ presets: [{ ...browser, service }] }));
+    m(Updates.listServices).mockReturnValue(ok({ services: [service] }));
+    m(Updates.setService).mockReturnValue(ok({ ...service, on: true, state: "queued" }));
+    wrap(<McpServerForm />);
+    expect(await screen.findByRole("button", { name: "Add Browser" })).toBeDisabled();
+    const on = await screen.findByRole("switch", { name: "Run the browser on this machine" });
+    expect(screen.getByText(/^Off\. A headless Chromium/)).toBeInTheDocument();
+    fireEvent.click(on);
+    await waitFor(() => expect(m(Updates.setService)).toHaveBeenCalled());
+    expect(m(Updates.setService).mock.calls[0][0]).toMatchObject({ path: { profile: "browser" }, body: { on: true } });
+  });
+
+  it("says what to run on a machine without an upgrade agent", async () => {
+    const none = { ...service, agent: null };
+    m(Extensions.mcpPresets).mockReturnValue(ok({ presets: [{ ...browser, service: none }] }));
+    m(Updates.listServices).mockReturnValue(ok({ services: [none] }));
+    wrap(<McpServerForm />);
+    expect(await screen.findByText(service.manual)).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Run the browser on this machine" })).toBeDisabled();
+  });
+
+  it("sets GitHub up with the token typed in its place", async () => {
+    m(Extensions.mcpPresets).mockReturnValue(ok({ presets: [github] }));
+    m(Extensions.createExtension).mockReturnValue(ok({ ok: true, id: 8 }));
+    wrap(<McpServerForm />);
+    fireEvent.click(await screen.findByRole("button", { name: "Set up GitHub" }));
+    expect(screen.getByLabelText("Name")).toHaveValue("github");
+    const token = screen.getByLabelText("GITHUB_TOKEN");
+    expect(token).toHaveFocus();
+    expect(token).toHaveAttribute("type", "password");
+    expect(screen.getByText(/Fill in GITHUB_TOKEN/)).toBeInTheDocument();
+    fireEvent.change(token, { target: { value: "ghp_$&x" } });
+    expect(screen.queryByText(/Fill in GITHUB_TOKEN/)).not.toBeInTheDocument();
+    fireEvent.submit(token);
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/extensions/8"));
+    expect(m(Extensions.createExtension).mock.calls[0][0].body.manifest).toEqual({
+      name: "github",
+      kind: "mcp",
+      description: "Issues, pull requests and code on GitHub",
+      url: "https://api.githubcopilot.com/mcp/",
+      headers: { Authorization: "Bearer ghp_$&x" },
+    });
   });
 
   it("reads a pasted config, fills in its token, tests it and saves it with Enter", async () => {

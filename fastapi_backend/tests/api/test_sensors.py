@@ -11,7 +11,7 @@ import time
 
 import pytest
 
-from app.domain import mqtt, routines, sensors, sources, store, syslog
+from app.domain import auth, mqtt, routines, sensors, sources, store, syslog
 from tests.helpers import login, make_user
 
 R = store.R
@@ -29,8 +29,18 @@ def _cfg_fn(cfg):
 
 # ---------- a tiny MQTT client for the tests ----------
 class Device:
-    def __init__(self, port, client_id="dev", user=None, password=None, level=4):
-        self.sock = socket.create_connection(("127.0.0.1", port), timeout=5)
+    """`web`: over WebSockets (with these request headers, when a dict), as a browser or the web app's /mqtt connects."""
+
+    def __init__(self, port, client_id="dev", user=None, password=None, level=4, web=None):
+        if web is None:
+            self.sock = socket.create_connection(("127.0.0.1", port), timeout=5)
+        else:
+            from websockets.sync.client import connect
+
+            ws = connect(f"ws://127.0.0.1:{port}/mqtt", subprotocols=["mqtt"], additional_headers=web or None, open_timeout=5)
+            assert ws.subprotocol == "mqtt"
+            self.sock = mqtt._WebSocket(ws)
+            self.sock.settimeout(5)
         self.f = self.sock.makefile("rb")
         flags = 0x02 | (0x80 if user else 0) | (0x40 if password else 0)
         body = mqtt.string("MQTT") + bytes([level, flags]) + struct.pack("!H", 30) + mqtt.string(client_id)
@@ -226,6 +236,55 @@ def test_bridge_client_reads_another_broker():
         b.stop()
 
 
+def test_broker_over_websockets():
+    from websockets.sync.client import connect
+
+    got, seen = [], []
+    b = mqtt.Broker("127.0.0.1", 0, lambda *a: {"tcp": 1}, lambda t, p, lg, a: got.append((t, p, lg, a[0]))).start()
+
+    def where(headers, peer):
+        seen.append(headers.get("x-forwarded-for"))
+        return ("198.51.100.7", peer[1])
+
+    w = mqtt.WebSockets(b, "127.0.0.1", 0, lambda u, p, cid, a: {"web": u} if (u, p) == ("dev", "secret12") else None, where).start()
+    try:
+        assert Device(w.port, "x", "dev", "wrong", web={}).code == mqtt.BAD_LOGIN
+        assert Device(w.port, "y", web={}).code == mqtt.NOT_AUTHORIZED  # its own check, not the broker's
+        sub = Device(b.port, "sub", "u", "p")  # on TCP
+        assert sub.subscribe("home/#") == [0]
+        pub = Device(w.port, "pub", "dev", "secret12", web={"X-Forwarded-For": "203.0.113.5"})
+        pub.publish("home/door", "open", qos=1, retain=True)
+        assert sub.receive() == ("home/door", b"open", False)
+        _wait(lambda: got)
+        assert got == [("home/door", b"open", {"web": "dev"}, "198.51.100.7")]
+        assert "203.0.113.5" in seen
+        web_sub = Device(w.port, "wsub", "dev", "secret12", web={})
+        assert web_sub.subscribe("home/#") == [0]
+        assert web_sub.receive() == ("home/door", b"open", True)  # retained, across transports
+        Device(b.port, "tcp-pub", "u", "p").publish("home/hall", "21")
+        assert web_sub.receive() == ("home/hall", b"21", False)
+        assert _wait(lambda: b.clients() == 3)  # tcp-pub's goodbye reaches the broker a moment later
+
+        # packets split across messages, and two in one message, as clients may send them
+        raw = connect(f"ws://127.0.0.1:{w.port}/mqtt", open_timeout=5)  # asking for no subprotocol is fine too
+        body = mqtt.string("MQTT") + bytes([4, 0xC2]) + struct.pack("!H", 30) + mqtt.string("raw")
+        body += mqtt.string("dev") + mqtt.string("secret12")
+        connect_packet = mqtt.packet(mqtt.CONNECT, 0, body)
+        raw.send(connect_packet[:3])
+        raw.send(connect_packet[3:])
+        assert raw.recv(timeout=5) == mqtt.packet(mqtt.CONNACK, 0, bytes([0, mqtt.ACCEPTED]))
+        raw.send(mqtt.publish_packet("home/a", b"1") + mqtt.publish_packet("home/b", b"2"))
+        assert web_sub.receive() == ("home/a", b"1", False)
+        assert web_sub.receive() == ("home/b", b"2", False)
+        raw.send("text frames aren't MQTT")  # closed for it
+        assert _wait(lambda: b.clients() == 3)
+        for d in (sub, pub, web_sub):
+            d.close()
+    finally:
+        w.stop()
+        b.stop()
+
+
 # ---------- the hub ----------
 @pytest.fixture
 def hub(db, cfg):
@@ -300,6 +359,48 @@ def test_hub_logins_and_anonymous(client, admin, db, cfg, hub):
     assert Device(port, "d").code == 0
     assert client.delete(f"/api/v1/sensor-logins/{lid}", headers=admin).status_code == 200
     assert Device(port, "e", "router", "long-enough").code == mqtt.BAD_LOGIN
+
+
+def test_mqtt_over_websockets_takes_hub_logins_only(client, admin, db, cfg, hub):
+    ns = store.ns_id(db, "pods")
+    sensors.create_login(db, "phone", "phone-pass", space=ns)
+    assert hub.web is None and hub.state["mqtt_web"] == {}  # off by default
+    cfg["sensors"].update(mqtt_web=True, mqtt_web_port=0, mqtt_anonymous=True)
+    hub.apply()
+    assert hub.state["mqtt_web"]["running"]
+    port = hub.state["mqtt_web"]["port"]
+    away = {"X-Forwarded-For": "203.0.113.9"}  # through the web app, which runs on this machine here
+    assert Device(port, "a", web=away).code == mqtt.NOT_AUTHORIZED  # anonymous clients stay on the TCP port
+    assert Device(hub.state["mqtt"]["port"], "a").code == 0
+    d = Device(port, "phone-1", "phone", "phone-pass", web=away)
+    assert d.code == 0
+    d.publish("owntracks/phone/me", '{"lat": 51.5, "lon": -0.12, "batt": 80}')
+    d.close()
+    _wait(lambda: hub.intake.rows)
+    hub.intake.flush()
+    row = sensors._by_key(db, "mqtt:owntracks/phone")
+    assert row and row["space"] == ns  # the login's namespace, as on TCP
+
+    # too many wrong passwords from one visitor turn them away for a while; others are still let in
+    try:
+        for _ in range(8):
+            assert Device(port, "x", "phone", "wrong-pass", web=away).code == mqtt.BAD_LOGIN
+        assert Device(port, "x", "phone", "phone-pass", web=away).code == mqtt.BAD_LOGIN
+        assert Device(port, "y", "phone", "phone-pass", web={"X-Forwarded-For": "203.0.113.10"}).code == 0
+    finally:
+        auth._FAILS.pop("mqtt-web:203.0.113.9", None)
+
+    hub.heartbeat()
+    assert sensors.hub_status(db, cfg)["processes"][0]["mqtt_web"]["running"]
+    cfg["sensors"]["mqtt"] = False  # it serves the broker: off with it
+    hub.apply()
+    assert hub.web is None and hub.broker is None
+    cfg["sensors"]["mqtt"] = True
+    hub.apply()
+    assert hub.state["mqtt_web"]["running"]
+    cfg["sensors"]["mqtt_web"] = False
+    hub.apply()
+    assert hub.web is None and hub.broker is not None
 
 
 def test_syslog_senders_become_sensors(client, admin, db, cfg, hub):
@@ -515,6 +616,12 @@ def test_sensor_settings(client, admin):
     assert put({"store": "maybe"}).status_code == 400
     assert put({"syslog_networks": ["not a network"]}).status_code == 400
     assert put({"bind": "0.0.0.0"}).status_code == 400
+    assert put({"mqtt_web": True, "mqtt_web_port": 9884}).status_code == 200
+    got = client.get("/api/v1/settings", headers=admin).json()["sensors"]["values"]
+    assert got["mqtt_web"] is True and got["mqtt_web_port"] == 9884
+    assert client.get("/api/v1/sensors", headers=admin).json()["hub"]["mqtt_web"] is True
+    assert put({"mqtt_web": "yes"}).status_code == 400
+    assert put({"mqtt_web_port": 0}).status_code == 400
 
 
 # ---------- log patterns and triage ----------

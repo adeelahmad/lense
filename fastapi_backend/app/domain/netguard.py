@@ -10,10 +10,16 @@ there, for the same end.
 Capturing a web page, the proxy also forwards requests to the web (`forward`), on ports 80 and 443 only, to public
 addresses only: it resolves each host itself, refuses it when any of its addresses isn't public (or in a network an
 admin allowed), and connects to the address it checked, so a name can't be made to point elsewhere in between.
+
+Run on its own (`python netguard.py`, the optional `browser-proxy` service: standard library only), it is that
+forwarding proxy for the assistant's browser, the `browser` service, whose network has no other way out
+(docs/assistant.md, The browser).
 """
 
 from __future__ import annotations
 
+import argparse
+import collections
 import ipaddress
 import select
 import socket
@@ -125,6 +131,11 @@ class _Handler(socketserver.StreamRequestHandler):
         self.server.refused.append(why[:300])
         self.wfile.write(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
 
+    def _budget(self):
+        """What may still come back: the Guard's, shared by every request the page makes, or (serve) this
+        connection's own."""
+        return [self.server.each] if self.server.each else self.server.budget
+
     def _connect(self, host, port):
         if port not in PORTS:
             raise ValueError(f"port {port} isn't a web port")
@@ -137,7 +148,7 @@ class _Handler(socketserver.StreamRequestHandler):
         with upstream:
             self.wfile.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
             self.wfile.flush()
-            _pipe(self.connection, upstream, self.server.budget)
+            _pipe(self.connection, upstream, self._budget())
 
     def _relay(self, method, url, headers):
         """A plain http:// request, sent on to the address checked as one request on its own connection."""
@@ -152,7 +163,7 @@ class _Handler(socketserver.StreamRequestHandler):
             length = next((int(h.split(b":", 1)[1]) for h in kept if h.lower().startswith(b"content-length:")), 0)
             if length:
                 upstream.sendall(self.rfile.read(length))
-            _pipe(self.connection, upstream, self.server.budget)
+            _pipe(self.connection, upstream, self._budget())
 
 
 class _Server(socketserver.ThreadingTCPServer):
@@ -163,6 +174,7 @@ class _Server(socketserver.ThreadingTCPServer):
     forward: bool
     allow: object
     budget: list[int]
+    each: int
 
 
 class Guard:
@@ -186,6 +198,7 @@ class Guard:
     def __enter__(self):
         srv = _Server(("127.0.0.1", 0), _Handler)
         srv.pages, srv.refused, srv.asked, srv.forward, srv.budget = self.pages, self.refused, self.asked, self.forward, [self.max_bytes]
+        srv.each = 0
         networks = self.networks
         srv.allow = lambda ip: public_ip(ip, networks)
         threading.Thread(target=srv.serve_forever, name="netguard", daemon=True).start()
@@ -244,3 +257,32 @@ def nowhere_env(env):
     for k in ("no_proxy", "NO_PROXY"):
         out.pop(k, None)
     return out
+
+
+# ---------- on its own: the browser's way out (the browser-proxy service) ----------
+class _Said(collections.deque):
+    """What a proxy that runs for days keeps of what it refused: the last few, each also written to its log."""
+
+    def append(self, x):
+        print(f"refused {x}", flush=True)
+        super().append(x)
+
+
+def forwarder(listen="0.0.0.0:3128", max_bytes=500 * 2**20):
+    """The forwarding proxy, listening (`serve_forever` runs it): to public addresses, on the web's ports, with at
+    most `max_bytes` coming back on each connection."""
+    host, _, port = listen.rpartition(":")
+    srv = _Server((host or "0.0.0.0", int(port)), _Handler)
+    srv.pages, srv.refused, srv.asked = {}, _Said(maxlen=50), collections.deque(maxlen=0)
+    srv.forward, srv.budget, srv.each = True, [0], max_bytes
+    srv.allow = public_ip
+    return srv
+
+
+if __name__ == "__main__":
+    a = argparse.ArgumentParser(description="A forwarding proxy that reaches public web addresses only.")
+    a.add_argument("--listen", default="0.0.0.0:3128", help="host:port (default 0.0.0.0:3128)")
+    listen = a.parse_args().listen
+    srv = forwarder(listen)
+    print(f"Forwarding to public addresses on ports 80 and 443, on {listen}", flush=True)
+    srv.serve_forever()

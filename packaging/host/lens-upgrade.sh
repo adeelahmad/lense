@@ -12,43 +12,65 @@
 # this one only) and target=full or lean (the edition). If the new version doesn't start, it goes back to the code that
 # ran before and starts that (rolled-back). Run by hand: sh packaging/host/lens-upgrade.sh <install folder>
 #
-# A request with action=services turns the monitoring containers on or off instead (docs/prometheus.md): it adds or
-# removes `monitoring` in COMPOSE_PROFILES in .env and starts or stops Prometheus, node-exporter and Grafana, and says
-# how it went in .lens-control/services-status. It comes in the same file as an upgrade, the one every agent watches.
+# A request with action=services turns one of Lens's optional containers on or off instead (profile=<name>
+# turn=on|off): the MCP runner (mcp), the browser (browser, docs/assistant.md) or monitoring (docs/prometheus.md). It
+# adds or removes the profile in COMPOSE_PROFILES in .env and starts or stops that profile's containers, those named in
+# services_of below and nothing else, and says how it went in .lens-control/services-status. A request from before
+# profiles, monitoring=on|off, is the monitoring profile. It comes in the same file as an upgrade, the one every agent
+# watches.
 set -eu
 umask 022 # the containers read the status and the log
 
-# Monitoring on or off (action=services): COMPOSE_PROFILES in .env, then Docker Compose starts or stops the three
+# The containers each optional profile starts (action=services); a profile not named here isn't turned on or off
+services_of() {
+  case "$1" in
+    monitoring) echo "prometheus node-exporter grafana" ;;
+    mcp) echo "mcp" ;;
+    browser) echo "browser browser-proxy" ;;
+  esac
+}
+
+# A profile on or off (action=services): COMPOSE_PROFILES in .env, then Docker Compose starts or stops its containers
 services() {
   sstatus() { # state [extra key=value lines]
     {
       echo "id=$id"
-      echo "monitoring=$monitoring"
+      echo "profile=$profile"
+      echo "turn=$turn"
       echo "state=$1"
       echo "started_at=$started"
-      echo "grafana_port=$port"
+      if [ "$profile" = monitoring ]; then echo "grafana_port=$port"; fi
       shift
       for kv in "$@"; do echo "$kv"; done
     } >"$CTL/services-status.tmp" && mv "$CTL/services-status.tmp" "$CTL/services-status"
   }
   started="$(now)"
+  if [ -z "$profile" ] && [ -n "$monitoring" ]; then # a request from before profiles
+    profile=monitoring
+    turn="$monitoring"
+  fi
   port="$(env_of LENS_GRAFANA_PORT | tr -cd 0-9)"
   port="${port:-3001}"
-  case "$monitoring" in
+  names="$(services_of "$profile")"
+  if [ -z "$names" ]; then
+    sstatus failed "finished_at=$(now)" "code=2" "error=Lens has no optional containers called '$profile'"
+    return 0
+  fi
+  case "$turn" in
     on | off) ;;
     *)
-      sstatus failed "finished_at=$(now)" "code=2" "error=monitoring is on or off"
+      sstatus failed "finished_at=$(now)" "code=2" "error=$profile is turned on or off"
       return 0
       ;;
   esac
   if [ "$(env_of LENS_BACKEND)" = microsandbox ]; then
-    sstatus failed "finished_at=$(now)" "code=2" "error=monitoring runs in Docker; this install runs in a microsandbox"
+    sstatus failed "finished_at=$(now)" "code=2" "error=$profile runs in Docker; this install runs in a microsandbox"
     return 0
   fi
   sstatus running
   # the other profiles stay as they are
-  profiles="$(env_of COMPOSE_PROFILES | tr ',' '\n' | tr -cd 'A-Za-z0-9_\n-' | grep -v -e '^monitoring$' -e '^$' | paste -s -d, - || true)"
-  [ "$monitoring" = on ] && profiles="${profiles:+$profiles,}monitoring"
+  profiles="$(env_of COMPOSE_PROFILES | tr ',' '\n' | tr -cd 'A-Za-z0-9_\n-' | grep -v -e "^$profile\$" -e '^$' | paste -s -d, - || true)"
+  [ "$turn" = on ] && profiles="${profiles:+$profiles,}$profile"
   if [ -f "$DIR/.env" ]; then # rewritten in place: it keeps its owner and permissions
     grep -v '^COMPOSE_PROFILES=' "$DIR/.env" >"$DIR/.env.tmp" || true
     [ -z "$profiles" ] || echo "COMPOSE_PROFILES=$profiles" >>"$DIR/.env.tmp"
@@ -59,10 +81,10 @@ services() {
   [ "$(env_of LENS_HTTPS)" = 1 ] && files="$files -f docker-compose.https.yml"
   set +e
   # shellcheck disable=SC2086
-  if [ "$monitoring" = on ]; then
-    (cd "$DIR" && $compose $files --profile monitoring up -d prometheus node-exporter grafana) >"$CTL/services.log" 2>&1 </dev/null
+  if [ "$turn" = on ]; then
+    (cd "$DIR" && $compose $files --profile "$profile" up -d $names) >"$CTL/services.log" 2>&1 </dev/null
   else
-    (cd "$DIR" && $compose $files --profile monitoring rm -s -f prometheus node-exporter grafana) >"$CTL/services.log" 2>&1 </dev/null
+    (cd "$DIR" && $compose $files --profile "$profile" rm -s -f $names) >"$CTL/services.log" 2>&1 </dev/null
   fi
   code=$?
   set -e
@@ -90,6 +112,8 @@ id="$(val id "$REQ")"
 ref="$(val ref "$REQ")"
 backup="$(val backup "$REQ")"
 action="$(val action "$REQ")"
+profile="$(val profile "$REQ")"
+turn="$(val turn "$REQ")"
 monitoring="$(val monitoring "$REQ")"
 https="$(val https "$REQ")"
 public="$(val public "$REQ")"

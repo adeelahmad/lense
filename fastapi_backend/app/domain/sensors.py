@@ -41,7 +41,7 @@ import socket
 import threading
 import time
 
-from . import auth, mqtt, settings, sources, store, syslog
+from . import auth, ipgroups, mqtt, settings, sources, store, syslog
 
 R = store.R
 STREAM_TYPES = {
@@ -1037,9 +1037,9 @@ class Hub:
         self.db, self.cfg_fn, self.log = db, cfg_fn, log or (lambda *a: None)
         self.name = name or f"{socket.gethostname()}-{id(self) % 10000}"
         self.intake = intake(db, cfg_fn, self.log)
-        self.broker = self.listener = None
-        self.state = {"mqtt": {}, "syslog": {}}
-        self.retry = {"mqtt": 0.0, "syslog": 0.0}
+        self.broker = self.listener = self.web = None
+        self.state = {"mqtt": {}, "syslog": {}, "mqtt_web": {}}
+        self.retry = {"mqtt": 0.0, "syslog": 0.0, "mqtt_web": 0.0}
         self.bridges: dict = {}  # sensor id -> {sig, stop, thread}
 
     def _on_mqtt(self, topic, payload, login, address):
@@ -1094,7 +1094,49 @@ class Hub:
                 self.retry[what] = time.monotonic() + RETRY_SECONDS
         if self.listener is not None and want["syslog"]:
             self.listener.networks = list(want["syslog"][2])
+        web = want["mqtt"] and s.get("mqtt_web") and self.broker is not None
+        self._web((bind, int(s.get("mqtt_web_port", 9883))) if web else None)
         self._bridges(on)
+
+    # ---------- MQTT over WebSockets ----------
+    def _web(self, want):
+        """MQTT over WebSockets beside the broker (sensors.mqtt_web), which the web app relays at /mqtt."""
+        have = self.state["mqtt_web"].get("want")
+        if want == have and (self.web is not None or want is None or time.monotonic() < self.retry["mqtt_web"]):
+            return  # as it should be, or it failed and waits to try again
+        self._stop_web()
+        if want is None:
+            return
+        try:
+            self.web = mqtt.WebSockets(self.broker, want[0], want[1], self._web_login, self._visitor).start()
+            self.state["mqtt_web"] = {"want": want, "running": True, "port": self.web.port, "since": store.now()}
+            self.log(f"sensors: MQTT over WebSockets listening on port {self.web.port}")
+        except OSError as e:
+            self.state["mqtt_web"] = {"want": want, "running": False, "error": f"port {want[1]}: {e.strerror or e}"}
+            self.retry["mqtt_web"] = time.monotonic() + RETRY_SECONDS
+
+    def _web_login(self, username, password, _client_id, address):
+        """A client over WebSockets always signs in with a hub login (anonymous clients stay on the local TCP port), and
+        is turned away for a while after too many wrong ones from its address, as sign-in is."""
+        key = f"mqtt-web:{address[0]}"
+        if not username or auth.throttled(key):
+            return None
+        login = authenticate(self.db, self.cfg_fn(), username, password)
+        if not login:
+            auth.hit(key)
+        return login
+
+    def _visitor(self, headers, peer):
+        return ipgroups.visitor(self.cfg_fn(), peer[0], peer[1], headers.get("x-forwarded-for", "")), peer[1]
+
+    def _stop_web(self):
+        if self.web is not None:
+            try:
+                self.web.stop()
+            except Exception:  # noqa: BLE001
+                pass
+        self.web = None
+        self.state["mqtt_web"] = {}
 
     # ---------- bridges to other brokers ----------
     def _bridges(self, on):
@@ -1180,6 +1222,8 @@ class Hub:
             wait = min(wait * 2, BRIDGE_WAIT[1])
 
     def _stop(self, what):
+        if what == "mqtt":
+            self._stop_web()  # it serves this broker
         thing = self.broker if what == "mqtt" else self.listener
         if thing is not None:
             try:
@@ -1204,6 +1248,7 @@ class Hub:
             "at": store.now(),
             "mqtt": {k: v for k, v in self.state["mqtt"].items() if k != "want"},
             "syslog": {k: v for k, v in self.state["syslog"].items() if k != "want"},
+            "mqtt_web": {k: v for k, v in self.state["mqtt_web"].items() if k != "want"},
             "bridges": sorted(self.bridges),
         }
         if self.broker is not None:
@@ -1253,6 +1298,7 @@ def hub_status(db, cfg):
         "enabled": bool(s.get("enabled")),
         "mqtt": bool(s.get("mqtt")),
         "mqtt_port": s.get("mqtt_port"),
+        "mqtt_web": bool(s.get("mqtt_web")),
         "syslog": bool(s.get("syslog")),
         "syslog_port": s.get("syslog_port"),
         "processes": rows,

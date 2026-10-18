@@ -266,11 +266,15 @@ def _check_hook(spec, me, db=None):
 def _check_mcp(spec, me, db=None):
     """An MCP server: its address and the headers it needs (a token), or the program it runs as (command, args, env:
     run in the MCP runner's sandbox), its tools as it listed them (mcp_client.py), the tools switched off (`off`) and
-    which ask first where that isn't the server's own read-only hint (`ask`: {tool: true or false})."""
-    if set(spec) - {"url", "headers", "command", "args", "env", "tools", "off", "ask"}:
+    which ask first where that isn't the server's own read-only hint (`ask`: {tool: true or false}), and `keep` for one
+    that remembers things between calls, so its calls share one session (mcp_client.py)."""
+    if set(spec) - {"url", "headers", "command", "args", "env", "tools", "off", "ask", "keep"}:
         raise ValueError(
-            "an MCP server is {url, headers, tools, off, ask}, or {command, args, env, tools, off, ask} for one that runs as a program"
+            "an MCP server is {url, headers, tools, off, ask, keep}, or {command, args, env, tools, off, ask, keep} for one "
+            "that runs as a program"
         )
+    if not isinstance(spec.get("keep", False), bool):
+        raise ValueError("an MCP server's keep is true or false: whether its calls share one session")
     if not me["admin"]:
         raise ValueError("only admins add MCP servers")
 
@@ -303,7 +307,7 @@ def _check_mcp(spec, me, db=None):
         from . import mcp_client
 
         tools = mcp_client.discover(store.clean(server))
-    server.update({"off": sorted(set(off)) or None, "ask": ask or None})
+    server.update({"off": sorted(set(off)) or None, "ask": ask or None, "keep": spec.get("keep") or None})
     if tools is not None:
         if not isinstance(tools, list) or len(tools) > 100:
             raise ValueError("an MCP server's tools are a list of at most 100")
@@ -335,7 +339,7 @@ def mcp_tools(item, ext=None):
         if t["name"] in off:
             continue
         name = re.sub(r"[^A-Za-z0-9_-]", "_", f"{item['name']}__{t['name']}")[:64]
-        where = {k: s.get(k) for k in ("url", "headers", "command", "args", "env")}
+        where = {k: s.get(k) for k in ("url", "headers", "command", "args", "env", "keep")}
         run = store.clean({"type": "mcp", **where, "tool": t["name"], "ext": ext, "server": item["name"]})
         spec = {
             "params": [],
