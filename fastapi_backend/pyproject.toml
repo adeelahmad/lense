@@ -80,6 +80,9 @@ msg = ["extract-msg"]
 # secrets read from a Vaultwarden or Bitwarden vault (vaultwarden_secrets.py): python-vaultwarden (Apache-2.0); fetched
 # when Settings › Secrets has a Vaultwarden address
 vaultwarden = ["python-vaultwarden>=1.1.2,<2"]
+# auto scaling on Linux hosts over SSH (scaling_ssh.py): Paramiko (LGPL-2.1, used unmodified as a library); fetched
+# when the first SSH provider is saved
+ssh = ["paramiko>=3.5,<5"]
 
 [project.scripts]
 lens = "app.cli:main"

@@ -112,7 +112,9 @@ export function DetailsTab() {
         ? [renditionNote(rec.rendition), transcriptOrigin(rec.engine) ?? "done", absolute(rec.transcribed_at)]
             .filter(Boolean)
             .join(" · ")
-        : "not run",
+        : rec.awaits_pdf
+          ? "waiting for its PDF from the import webhook that sent it"
+          : "not run",
     ],
     [
       "Diarize",

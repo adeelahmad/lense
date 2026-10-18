@@ -21,6 +21,7 @@ import {
   GitBranch,
   GitMerge,
   Gavel,
+  Globe,
   Milestone,
   Network,
   PlayCircle,
@@ -247,6 +248,18 @@ export const NODES: Record<string, Info> = {
     outputs: ["out"],
     takes: "anything",
     gives: "text or JSON",
+    group: "Data",
+  },
+  http: {
+    label: "HTTP call",
+    describe:
+      "Calls a web address (public ones, or networks an admin allowed) and passes on its answer; keys in headers are kept sealed",
+    icon: Globe,
+    tone: "blue",
+    inputs: 1,
+    outputs: ["out"],
+    takes: "anything ({{ input }} in the address, headers and body)",
+    gives: "status, body, json",
     group: "Data",
   },
   for_each: {
@@ -517,7 +530,17 @@ export const PRIMITIVES = [
 
 /** Node types per scope, for when the catalog hasn't said (it lists each type's scopes). */
 const SCOPE_NODES: Record<Scope, string[]> = {
-  recording: [...PRIMITIVES, "extract_rules", "extract_llm", "save_entities", "llm", "classify", "output", "field"],
+  recording: [
+    ...PRIMITIVES,
+    "extract_rules",
+    "extract_llm",
+    "save_entities",
+    "llm",
+    "classify",
+    "output",
+    "field",
+    "http",
+  ],
   graph: [
     ...PRIMITIVES,
     "candidates",
@@ -527,6 +550,7 @@ const SCOPE_NODES: Record<Scope, string[]> = {
     "select_activities",
     "publish_feed",
     "podcast_episode",
+    "http",
   ],
   tool: [...PRIMITIVES, "ask_model", "call_tool"],
   event: [...PRIMITIVES, "action", "decide"],
@@ -719,6 +743,7 @@ export function defaultConfig(type: string): Record<string, unknown> {
   if (type === "switch") return { cases: [{ port: "first", op: "exists" }] };
   if (type === "set") return { fields: [{ key: "value", path: "" }] };
   if (type === "template") return { template: "{{ input }}" };
+  if (type === "http") return { method: "GET", url: "https://" };
   if (type === "ask_model") return { prompt: "{{ input }}" };
   if (type === "call_tool") return { tool: "search_transcripts" };
   if (type === "classify") return { vocabulary: "topic" };
@@ -736,6 +761,8 @@ export const KEY_RX = /^[a-z][a-z0-9_]{0,40}$/;
 export const NAME_RX = /^[a-z][a-z0-9_]{0,30}$/;
 const PATH_RX = /^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*$/;
 const TYPE_RX = /^[A-Z][A-Z_]{0,30}$/;
+/** An HTTP node's address: its host written out, so what flows through can't change where it goes. */
+const HTTP_URL_RX = /^https?:\/\/[^/?#{}\s]+(?:[/?#]|$)/;
 
 /** A custom node as the catalog lists it (enough to draw and run it). */
 export type CustomDef = {
@@ -1037,6 +1064,8 @@ export function nodeSummary(
       ];
       return parts.filter(Boolean).join(" · ");
     }
+    case "http":
+      return `${String(c.method ?? "GET")} ${String(c.url ?? "")}`.slice(0, 70);
     case "for_each":
       return `each of ${c.path ? String(c.path) : "the list"}${c.max_items ? ` · up to ${Number(c.max_items)}` : ""}`;
     case "repeat":
@@ -1257,6 +1286,16 @@ export function problems(
     )
       fail("Counts are whole numbers from 1.");
     else if (n.type === "ask_model" && !String(c.prompt ?? "").trim()) fail("Write its prompt.");
+    else if (n.type === "http" && !HTTP_URL_RX.test(String(c.url ?? "").trim()))
+      fail("Give an address starting with https:// and a host written out; templates go in its path or query.");
+    else if (
+      n.type === "http" &&
+      c.body &&
+      (c.method ?? "GET") !== "POST" &&
+      c.method !== "PUT" &&
+      c.method !== "PATCH"
+    )
+      fail("Only POST, PUT and PATCH send a body.");
     else if (n.type === "call_tool" && !/^[a-z][a-z0-9_]{1,40}$/.test(String(c.tool ?? "")))
       fail("Name the tool it calls.");
     else if (n.type === "action" && (!c.action || (actions && !actions.some((a) => a.name === c.action))))

@@ -74,28 +74,28 @@ def create_import_hook(name: str, body: ImportHookCreate, acl: Acl, user: Writer
     `import_hook.create`."""
     sid = acl.namespace(name, "manage")
     with domain_errors():
-        hook, token = import_hooks.create(db, sid, body.name, body.collection, body.pipeline, user.email)
-    auth.audit(db, user.as_audit(), "import_hook.create", f"import_hook:{hook['id']}", {"namespace": name, "name": hook["name"]})
+        hook, token = import_hooks.create(db, sid, body.name, body.collection, body.pipeline, user.email, body.hand_back)
+    detail = {"namespace": name, "name": hook["name"], **({"hand_back": True} if hook["hand_back"] else {})}
+    auth.audit(db, user.as_audit(), "import_hook.create", f"import_hook:{hook['id']}", detail)
     return ImportHookCreated(hook=ImportHook.model_validate(hook), token=token, path=PUSH_PATH)
 
 
 @router.patch("/namespaces/{name}/import-hooks/{hid}")
 def update_import_hook(name: str, hid: int, body: ImportHookUpdate, acl: Acl, user: Writer, db: Db) -> ImportHook:
-    """Rename a hook, pause or resume it (`enabled`), or change its collection or pipeline (null for the namespace's
-    own) (owners)."""
+    """Rename a hook, pause or resume it (`enabled`), turn PDF hand-back on or off (`hand_back`), or change its
+    collection or pipeline (null for the namespace's own) (owners)."""
     sid = acl.namespace(name, "manage")
     changes = body.model_dump(exclude_unset=True)
-    if changes.get("name") is None:
-        changes.pop("name", None)
-    if changes.get("enabled") is None:
-        changes.pop("enabled", None)
+    for key in ("name", "enabled", "hand_back"):
+        if changes.get(key) is None:
+            changes.pop(key, None)
     if not changes:
-        raise HTTPException(400, "send name, enabled, collection or pipeline")
+        raise HTTPException(400, "send name, enabled, hand_back, collection or pipeline")
     with domain_errors():
         before, after = import_hooks.update(db, hid, sid, changes)
     detail = {
         k: {"from": before.get(k), "to": after.get(k)}
-        for k in ("name", "enabled", "collection", "pipeline")
+        for k in ("name", "enabled", "hand_back", "collection", "pipeline")
         if before.get(k) != after.get(k)
     }
     auth.audit(db, user.as_audit(), "import_hook.update", f"import_hook:{hid}", detail)
@@ -258,13 +258,16 @@ async def _push(
     filename: str | None,
     title: str | None,
     namespace: str | None,
+    for_: int | None = None,
 ) -> HookPushed:
     hook = await run_in_threadpool(_target, db, acl, token or _bearer(request), token is not None, namespace)
     ctype = (request.headers.get("content-type") or "").split(";")[0].strip().lower()
     items: list[dict[str, Any]] = []
     try:
         with _errors():
-            if ctype == "application/json":
+            if for_ is not None:
+                items.append(await _hand_back(request, db, cfg, hook, ctype, for_))
+            elif ctype == "application/json":
                 raw = b""
                 async for piece in request.stream():
                     raw += piece
@@ -324,6 +327,36 @@ async def _push(
     return HookPushed(namespace=hook["namespace"], items=[HookItem.model_validate(it) for it in items])
 
 
+async def _hand_back(request: Request, db: Any, cfg: Any, hook: dict[str, Any], ctype: str, rid: int) -> dict[str, Any]:
+    """A document's PDF, handed back with ?for=: the raw body, or the one file of a multipart form."""
+    if hook.get("person"):
+        raise HTTPException(400, "only an import webhook's token hands PDFs back with ?for=")
+    if ctype == "multipart/form-data":
+        form = await request.form(max_files=1, max_fields=5)
+        try:
+            files = [v for _, v in form.multi_items() if isinstance(v, UploadFile)]
+            if len(files) != 1:
+                raise HTTPException(400, "send the one PDF with ?for=")
+            path = await _spool(cfg, _upload_chunks(files[0]))
+        finally:
+            await form.close()
+    else:
+        length = request.headers.get("content-length")
+        if length and length.isdigit() and int(length) > cfg["uploads"]["max_mb"] * uploads.MB:
+            raise _too_big(cfg)
+        path = await _spool(cfg, request.stream())
+    try:
+        return await run_in_threadpool(import_hooks.hand_back, db, cfg, hook, rid, path)
+    except KeyError:
+        raise HTTPException(404, f"no document here waits for its PDF from this hook (recording {rid})") from None
+
+
+FOR = Query(
+    None,
+    alias="for",
+    ge=1,
+    description="hand back a document's PDF: the recording a push with needs_pdf became (the hook's own documents only)",
+)
 NAMESPACE = Query(
     None,
     max_length=40,
@@ -361,6 +394,7 @@ async def push_to_import_hook(
     filename: str | None = Query(None, max_length=1000, description="the file's name, for a raw body"),
     title: str | None = Query(None, max_length=200, description="its title (default: the file's name, or the page's)"),
     namespace: str | None = NAMESPACE,
+    for_: int | None = FOR,
 ) -> HookPushed:
     """Push something into an import webhook's namespace, with its token as a bearer token, or into one of your own
     namespaces with your own token (an API token with write access, an app's, or the web app's) and `?namespace=`.
@@ -373,10 +407,13 @@ async def push_to_import_hook(
     - JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as text), with an optional
       `title`.
 
-    Each runs the hook's pipeline, or the namespace's. 401 for an unknown token, saying which kind it is; 403 while the
-    hook is paused, for a read-only token, or without the import permission; 413 over uploads.max_mb. Audited as
-    `import.hook` (by the hook) or `import.push` (by the person)."""
-    return await _push(request, db, cfg, acl, None, filename, title, namespace)
+    Each runs the hook's pipeline, or the namespace's. A hook with `hand_back` on takes documents this server can't
+    make into PDFs itself too: they're kept with `needs_pdf` and wait; push the PDF back (the raw body, or one form
+    file) with `?for=<recording>` and it becomes the document's rendition and its pipeline runs (404 when that document
+    doesn't wait for a PDF from this hook). 401 for an unknown token, saying which kind it is; 403 while the hook is
+    paused, for a read-only token, or without the import permission; 413 over uploads.max_mb. Audited as `import.hook`
+    (by the hook) or `import.push` (by the person)."""
+    return await _push(request, db, cfg, acl, None, filename, title, namespace, for_)
 
 
 @router.post("/hooks/import/{token}", status_code=202, openapi_extra=FILE_BODY)
@@ -388,7 +425,8 @@ async def push_to_import_hook_token(
     acl: Acl,
     filename: str | None = Query(None, max_length=1000, description="the file's name, for a raw body"),
     title: str | None = Query(None, max_length=200),
+    for_: int | None = FOR,
 ) -> HookPushed:
     """The same, with an import webhook's token in the address, for services that can only be given a URL. Prefer the
     bearer token: addresses end up in logs. A person's own token is never taken here."""
-    return await _push(request, db, cfg, acl, token, filename, title, None)
+    return await _push(request, db, cfg, acl, token, filename, title, None, for_)

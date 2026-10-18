@@ -6,6 +6,7 @@ import { Projects } from "@/app/openapi-client";
 import { isActive } from "@/components/app-shell/nav-config";
 import { ProjectScreen } from "@/components/projects/project-screen";
 import { ProjectsScreen } from "@/components/projects/projects-screen";
+import { localZone } from "@/components/projects/schedules";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 jest.mock("@/app/openapi-client", () => ({
@@ -16,6 +17,9 @@ jest.mock("@/app/openapi-client", () => ({
     updateProject: jest.fn(),
     startThread: jest.fn(),
     updateThread: jest.fn(),
+    addSchedule: jest.fn(),
+    updateSchedule: jest.fn(),
+    removeSchedule: jest.fn(),
   },
 }));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
@@ -141,6 +145,64 @@ describe("a project", () => {
     expect(m(Projects.updateThread).mock.calls[0][0]).toMatchObject({
       path: { pid: 4, cid: 11 },
       body: { done: true },
+    });
+  });
+});
+
+describe("a project's schedules", () => {
+  const weekly = {
+    id: "s1",
+    prompt: "Weekly check-in",
+    cron: "0 9 * * 1",
+    timezone: "Europe/London",
+    thread: "same",
+    on: true,
+    chat: 15,
+    when: "every Monday at 09:00",
+    next_at: "2026-10-19T08:00:00+00:00",
+    last: null,
+  };
+
+  it("asks on a schedule picked from a list, in the person's time zone", async () => {
+    m(Projects.getProject).mockImplementation(() => ok(project));
+    m(Projects.addSchedule).mockImplementation(() => ok(weekly));
+    show(<ProjectScreen id={4} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Ask on a schedule" }));
+    const ask = await screen.findByLabelText("What to ask");
+    expect(ask).toHaveFocus();
+    fireEvent.change(ask, { target: { value: "Weekly check-in" } });
+    fireEvent.change(screen.getByLabelText("When"), { target: { value: "0 9 * * 1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add schedule" }));
+    await waitFor(() => expect(Projects.addSchedule).toHaveBeenCalled());
+    expect(m(Projects.addSchedule).mock.calls[0][0]).toMatchObject({
+      path: { pid: 4 },
+      body: { prompt: "Weekly check-in", cron: "0 9 * * 1", thread: "new", timezone: localZone() },
+    });
+  });
+
+  it("shows when each runs, switches one off in a click and removes one with Undo", async () => {
+    m(Projects.getProject).mockImplementation(() => ok({ ...project, schedules: [weekly] }));
+    m(Projects.updateSchedule).mockImplementation(() => ok({ ...weekly, on: false }));
+    m(Projects.removeSchedule).mockImplementation(() => ok({ ok: true }));
+    m(Projects.addSchedule).mockImplementation(() => ok(weekly));
+    show(<ProjectScreen id={4} />);
+    expect(await screen.findByText(/Every Monday at 09:00 \(Europe\/London\)/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "in its thread" })).toHaveAttribute("href", "/chat/15");
+    fireEvent.click(screen.getByRole("switch", { name: "Switch off" }));
+    await waitFor(() => expect(Projects.updateSchedule).toHaveBeenCalled());
+    expect(m(Projects.updateSchedule).mock.calls[0][0]).toMatchObject({
+      path: { pid: 4, sid: "s1" },
+      body: { on: false },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Remove schedule" }));
+    await waitFor(() => expect(toast).toHaveBeenCalled());
+    toast.mock.calls[0][0].action.onClick();
+    await waitFor(() => expect(Projects.addSchedule).toHaveBeenCalled());
+    expect(m(Projects.addSchedule).mock.calls[0][0].body).toEqual({
+      prompt: "Weekly check-in",
+      cron: "0 9 * * 1",
+      timezone: "Europe/London",
+      thread: "same",
     });
   });
 });

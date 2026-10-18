@@ -62,7 +62,7 @@ def get_public_collection(
 def search_public(
     acl: Acl,
     db: Db,
-    q: str = Query("", description='words, "phrases", OR between alternatives'),
+    q: str = Query("", description='words, "phrases", OR between alternatives, NOT or -word to leave out'),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
 ) -> PublicSearch:

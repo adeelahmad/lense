@@ -379,8 +379,12 @@ def steps_for(rec):
 
 def enqueue_pending(db, space=None, by=None):
     """Queue what scans and imports left waiting. A new file runs the pipeline its content type and namespace resolve
-    to, as an upload does; a transcript imported part-way runs what's left after import."""
-    q = "SELECT record::id(id) AS id, status, source FROM recording WHERE status IN ['new', 'error', 'transcribed', 'diarized']"
+    to, as an upload does; a transcript imported part-way runs what's left after import. A document waiting for the PDF
+    an import webhook hands back (import_hooks.hand_back) waits on."""
+    q = (
+        "SELECT record::id(id) AS id, status, source FROM recording "
+        "WHERE status IN ['new', 'error', 'transcribed', 'diarized'] AND awaits_pdf = NONE"
+    )
     out = []
     for r in db.rows(q + (" AND space = $s" if space else ""), s=space):
         steps = steps_for(r)

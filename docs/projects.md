@@ -7,9 +7,9 @@ it draws on. Every conversation in it reads all of that, so you don't explain th
 Status: **built**: projects with a goal, instructions and one or more namespaces; a coordinator conversation for the
 project as a whole, told about every thread, which starts threads with a brief, reads them and marks them done;
 threads, each a conversation in the project's namespaces, marked done when finished; briefs answered in the background;
-your own conversations brought in or taken out; through the REST API, MCP and the Projects page in the web app.
-**Planned**: scheduled threads, chat rooms and email routed to a project, members sharing one, and a project's own
-memory.
+your own conversations brought in or taken out; schedules that ask a prompt in a new thread each time or the same
+one; through the REST API, MCP and the Projects page in the web app. **Planned**: chat rooms and email routed to a
+project, members sharing one, and a project's own memory.
 
 ## What a project is
 
@@ -70,6 +70,17 @@ there (the conversation's choice of them) and the same approvals, every model ca
 Stop (`POST /api/v1/chats/{id}/stop`) stops it between steps. If Lens stops while a brief is being answered, the thread
 says so within a few minutes, so it's never left waiting: ask again.
 
+## Schedules
+
+A schedule asks a prompt on a schedule, as a brief: "every Monday at 9:00, what did we get done and what's next?". Each
+time it starts a new thread, or, with **The same thread each time**, it goes on in one thread it starts the first time.
+The schedule is five cron fields (minute, hour, day of month, month, day of week, or `@daily`, `@weekly`...) in a time
+zone; the web app uses yours. It is answered as you, with your tools, approvals and budgets, like any brief. A thread
+still answering the last time is left to finish, and the schedule says why it didn't ask. Switched off, or while the
+project is archived, a schedule waits; it runs again when it's switched on or the project is brought back. If Lens was
+off when one was due, it runs once when Lens is back, within `automations.catch_up` (an hour by default). A project has
+up to 20 schedules.
+
 ## In the web app
 
 **Projects** is at the top of the conversation list in Chat (`/projects`). **New project** asks for a name, the goal
@@ -79,7 +90,9 @@ field and the threads, open ones first. Type what a thread should work on and pr
 background and marked **Working** until the answer is written. Press Enter with the field empty to open a new thread
 and ask in it yourself. The box beside a thread marks it done. **Archive** in the project's menu moves it to the
 archived list, with Undo. A conversation in a project has a **Project** link at its top, and one answered in the
-background shows "Working on it" until its answer arrives.
+background shows "Working on it" until its answer arrives. **Ask on a schedule** under **Schedules** adds one: what
+to ask, when (from a list, or a cron of your own) and where. The switch beside a schedule turns it off or on, and the
+bin removes it, with Undo.
 
 ## The API
 
@@ -94,15 +107,19 @@ background shows "Working on it" until its answer arrives.
 | `POST /api/v1/projects/{id}/threads` | a new thread (`title`), or bring in one of your conversations (`chat`); with a `brief`, asked and answered there in the background |
 | `PATCH /api/v1/projects/{id}/threads/{chat}` | mark a thread done, or not (`done`) |
 | `DELETE /api/v1/projects/{id}/threads/{chat}` | take a thread out of the project |
+| `POST /api/v1/projects/{id}/schedules` | ask a `prompt` on a schedule (`cron`, `timezone`), in a new thread each time or the same one (`thread`: `new` or `same`) |
+| `PATCH /api/v1/projects/{id}/schedules/{schedule}` | change a schedule, or switch it off or on (`on`) |
+| `DELETE /api/v1/projects/{id}/schedules/{schedule}` | remove a schedule; the threads it started stay |
 
 Ask in a thread or the coordinator as in any conversation: `POST /api/v1/chats/{chat}/messages`
-([API](api.md)). Over [MCP](mcp.md), `list_projects`, `read_project`, `create_project` and `update_project` do the
-same for agents; the last two need a token with the write scope.
+([API](api.md)). Over [MCP](mcp.md), `list_projects`, `read_project`, `create_project`, `update_project` and
+`schedule_project` do the same for agents; the last three need a token with the write scope.
 
 ## Refine later
 
 - Threads answering their briefs at the same time as each other, with a limit per person.
-- Scheduled threads: a prompt asked on a schedule, in a new thread each time or the same one.
+- The coordinator setting schedules itself, after the person's yes.
+- Project schedules on the Schedules page, beside routines, automations and the backup.
 - Deleting a project from the web app (the API and MCP can), with Undo.
 - A project's threads in the Chat sidebar, grouped under it.
 - Chat rooms, Telegram, Slack and email routed to a project.
