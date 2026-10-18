@@ -80,24 +80,32 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
 - **Ask, and get cited answers.** A chat assistant on every page, and by voice, searches your archive by words (with
   "phrases", OR, and -word to leave lines out) and by meaning, once turned on, reads it, cites it and acts on it with
   tools: changes wait for your approval. Ask it about Lens itself ("what's the MCP address?", "is Telegram on?") and it
-  answers from Lens's docs and this server, citing both. Once an admin
-  turns them on, it also searches the web and reads pages, cited like the archive, and runs Python and bash in a sandbox
-  of each conversation's own. An admin's assistant searches and reads the mail, calendars and files connected to Lens
-  (Gmail, Google Calendar, Google Drive, S3 and the rest), cites messages and events, and brings them in once you
-  approve; where an admin allows it, it sends mail, adds events and writes files, each only after you read all of it
-  and say yes yourself (an API key, an app or an agent can only decline). Regenerating an answer or editing a question makes a new version beside the old one, and
-  nothing is lost. Each answer keeps a record of what produced it (the model, its tools, how long it took and what it
-  cost), opened from its header. It reads answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine
-  (opt-in), any message in one click. Long conversations are summarised before they fill the model's context, and
-  `/clear` and `/compact` start afresh or summarise now. It answers questions about Lens itself (how to back up,
-  whether Telegram is on) from its docs and this server, citing both. Conversations title themselves after their first answer, unless
-  you name them. Each namespace can have its own assistant with
-  its own name, instructions and memory, answering in Telegram and Slack (built in, with voice notes and files), in
-  Discord, Matrix, WhatsApp and other chat rooms through Matterbridge, and by email at an address of its own that you
-  email or forward things to. ([Chat](docs/assistant.md), [web search](docs/assistant.md#web-search-and-reading-pages),
-  [mail, calendars and files](docs/assistant.md#mail-calendars-and-files), [code sandbox](docs/assistant.md#code-sandbox), [answer records](docs/assistant.md#what-each-answer-records),
-  [questions about Lens](docs/assistant.md#questions-about-lens-itself), [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md), [speech providers](docs/speech-providers.md);
-  [checks](docs/requirements.md#ask-and-get-cited-answers))
+  answers from Lens's docs and this server, citing both. A Tools chip picks which tools an answer may use, how many
+  calls it may make and which namespaces it reads. Once an admin turns them on, it also searches the web and reads
+  pages, cited like the archive, and runs Python and bash in a sandbox of each conversation's own (on a Docker install,
+  Settings starts the sandbox's gateway next to Lens); each run opens under the answer with its code and output, and a
+  file it makes downloads from there. An admin's assistant searches and reads the mail, calendars and files connected to
+  Lens (Gmail, Google Calendar, Google Drive, S3 and the rest), cites messages and events, and brings them in once you
+  approve; where an admin allows it, it sends mail, adds events and writes files, each only after you read all of it and
+  say yes yourself (an API key, an app or an agent can only decline). Give it a goal that needs many look-ups and deep
+  research comes back with a plan to approve, edit or revise, then runs in the background and returns a cited report,
+  checked against its sources, to keep as a note, hear aloud or turn into a podcast. Regenerating an answer or editing a
+  question makes a new version beside the old one, and nothing is lost. Each answer keeps a record of what produced it
+  (the model, its tools, how long it took and what it cost), opened from its header. Copy an answer as Markdown or plain
+  text, a question or a code block, and export a conversation as Markdown, PDF or JSON, its citations as footnotes that
+  link back to the moment in Lens. It reads answers aloud with a speech provider, macOS `say` or StyleTTS2 on this
+  machine (opt-in), any message in one click. Long conversations are summarised before they fill the model's context,
+  and `/clear` and `/compact` start afresh or summarise now. Conversations title themselves after their first answer,
+  unless you name them. Each namespace can have its own assistant with its own name, instructions and memory, answering
+  in Telegram and Slack (built in, with voice notes and files), in Discord, Matrix, WhatsApp and other chat rooms
+  through Matterbridge, and by email at an address of its own that you email or forward things to.
+  ([Chat](docs/assistant.md), [questions about Lens](docs/assistant.md#questions-about-lens-itself), [choosing
+  tools](docs/assistant.md#choosing-tools-namespaces-and-a-limit), [web
+  search](docs/assistant.md#web-search-and-reading-pages), [code sandbox](docs/assistant.md#code-sandbox), [the
+  gateway](docs/assistant.md#the-gateway), [mail, calendars and files](docs/assistant.md#mail-calendars-and-files),
+  [deep research](docs/assistant.md#deep-research), [answer records](docs/assistant.md#what-each-answer-records), [copy
+  and export](docs/assistant.md#copy-and-export), [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md),
+  [speech providers](docs/speech-providers.md); [checks](docs/requirements.md#ask-and-get-cited-answers))
 - **Answer your email.** Lens drafts a reply to an email a watched mailbox brought in, from what that email's
   namespace holds: each fact cited to its excerpt, what the archive doesn't say marked for you to confirm, addressed
   and threaded as a reply to it. Drafts wait for you to edit or set aside, and nothing is sent on its own: you send it
@@ -115,13 +123,18 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   start and change projects over MCP and the API. ([Projects](docs/projects.md); [checks](docs/requirements.md#work-toward-a-goal-in-projects))
 - **Extend the assistant.** Add tools (a prompt, a web request, a graph drawn on the canvas, or sandboxed Python),
   skills, hooks and MCP servers, by code, on the canvas or just by asking. Remote MCP servers connect by address, and
-  ones that run as a program (`npx`, `uvx`) run in a sandboxed container of their own, off until you turn it on. Add
-  one with a form or by pasting another app's config, its tokens sealed and each of its tools switched on or off.
-  Install skills and plugins from marketplaces in the open plugin format, or from a repository or an archive, and keep
-  your own as files in a folder with `lens ext` (pull, push, check). Agents find and install them too, and an
-  installed plugin says when a new version is listed.
-  ([Extending the assistant](docs/assistant.md#extending-the-assistant-tools-skills-hooks-and-plugins),
-  [adding an MCP server](docs/assistant.md#adding-an-mcp-server), [the MCP runner](docs/assistant.md#the-mcp-runner);
+  ones that run as a program (`npx`, `uvx`) run in a sandboxed container of their own, off until you turn it on. Add one
+  with a form or by pasting another app's config, its tokens sealed and each of its tools switched on or off, or pick a
+  ready-made one: GitHub's own server, or a browser (a headless Chromium in a sandbox of its own) the assistant opens,
+  reads, clicks and types in, asking before anything that acts on a page. Settings › AI assistant › MCP servers lists
+  them all, and agents list and add them over MCP. The MCP runner, the browser and monitoring are containers Lens starts
+  next to itself from the web app, through the machine's upgrade agent, each off until an admin turns it on. Install
+  skills and plugins from marketplaces in the open plugin format, or from a repository or an archive, and keep your own
+  as files in a folder with `lens ext` (pull, push, check). Agents find and install them too, and an installed plugin
+  says when a new version is listed. ([Extending the
+  assistant](docs/assistant.md#extending-the-assistant-tools-skills-hooks-and-plugins), [adding an MCP
+  server](docs/assistant.md#adding-an-mcp-server), [the MCP runner](docs/assistant.md#the-mcp-runner), [the
+  browser](docs/assistant.md#the-browser), [optional containers](docs/assistant.md#optional-containers);
   [checks](docs/requirements.md#extend-the-assistant))
 - **Bring in everything.** Watched folders on S3, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV or local disks (a
   local folder in four clicks); IMAP mail, Gmail and Google Workspace, iCal calendars, Google Calendar and RSS and Atom
@@ -140,10 +153,12 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [import webhooks](docs/api.md#import-webhooks), [playable copies](docs/video.md#playable-copies);
   [checks](docs/requirements.md#bring-in-everything))
 - **Clip from the browser.** The Lens web clipper for Chrome, Edge, Firefox and Safari turns a page, a selection or a
-  part you pick into Markdown, lets you look it over, and sends it to a namespace. New releases reach installed copies
-  through the browser's store or a self-hosted update file. In Chrome and Edge, its side panel is a chat with the
+  part you pick into Markdown, lets you look it over, and sends it to a namespace. It signs in to Lens with nothing to
+  copy, or takes your API token or an import webhook's, and says why a token is refused. New releases reach installed
+  copies through the browser's store or a self-hosted update file. In Chrome and Edge, its side panel is a chat with the
   assistant, which can also use that browser on the sites you allow (open, read, click, type), asking before anything
-  that sends, deletes, buys or posts. ([Web clipper](docs/web-clipper.md),
+  that sends, deletes, buys or posts.
+  ([Web clipper](docs/web-clipper.md), [setting it up](docs/web-clipper.md#setting-it-up),
   [the assistant in your browser](docs/browser-assistant.md); [checks](docs/requirements.md#clip-from-the-browser))
 - **Understand it.** Transcription, which can expect the names your namespace knows (off by default), people
   recognised by voice (long recordings go to a speech provider in pieces that fit its limits), text on screen and in scans, faces (off by default), NSFW pictures flagged by a model on your own
@@ -288,10 +303,8 @@ still loading. ([Components](docs/components.md),
 
 These are open pull requests, not yet part of Lens:
 
-- **Chat:** a conversation exported as Markdown, PDF or JSON ([#474](https://github.com/adeelahmad/lense/pull/474)).
-- **Web clipper:** signing in, or using your API token, not only an import webhook's
-  ([#406](https://github.com/adeelahmad/lense/pull/406)).
-- **Automations:** more operators for conditions ([#434](https://github.com/adeelahmad/lense/pull/434)).
+- **Voice:** answers and podcasts read aloud with Kokoro on this machine
+  ([#538](https://github.com/adeelahmad/lense/pull/538)).
 
 ## Planned
 
@@ -311,9 +324,8 @@ Next, and not in a pull request yet; each links to where it is tracked:
 - **Secrets:** references in sources' credentials and MCP servers ([secrets](docs/secrets.md)).
 - **Logging:** sending straight to Loki or another HTTP endpoint, and client certificates for TLS
   ([logging](docs/logging.md)).
-- **Proof:** each release tested by upgrading an install of the last one, holding data
-  ([#482](https://github.com/adeelahmad/lense/issues/482)), and the scorecard's install-to-first-answer and Raspberry Pi
-  numbers, not measured yet ([#481](https://github.com/adeelahmad/lense/issues/481)).
+- **Proof:** the install timed on a real Raspberry Pi, where GitHub's faster arm64 runner gives only a floor
+  ([scorecard](docs/contributing.md#scorecard)).
 
 ## Stack
 
@@ -339,7 +351,7 @@ The guides are on the [docs site](https://adeelahmad.github.io/lense/) and in th
   [web clipper](docs/web-clipper.md), [the assistant in your browser](docs/browser-assistant.md),
   [sensors](docs/sensors.md), [processing](docs/processing.md), [video](docs/video.md),
   [NSFW classification](docs/nsfw.md), [enhancing images](docs/enhance.md), [notifications](docs/notifications.md),
-  [automations](docs/automations.md), [timeline](docs/timeline.md)
+  [automations](docs/automations.md), [timeline](docs/timeline.md), [published feeds](docs/feeds.md)
 - **Knowledge:** [graph and Cypher](docs/graph.md), [graph history](docs/graph-history.md), [topics](docs/topics.md),
   [the graph as files](docs/file-tree.md), [NFS share](docs/file-shares.md), [SMB share](docs/smb.md),
   [linked data (RDF)](docs/rdf.md), [IIIF](docs/iiif.md), [Fedora](docs/fedora.md)
@@ -350,7 +362,7 @@ The guides are on the [docs site](https://adeelahmad.github.io/lense/) and in th
   [usage analytics](docs/analytics.md)
 - **Build:** [architecture](docs/architecture.md), [web app](docs/frontend.md),
   [technology](docs/technology-selection.md), [API work the design needs](docs/backend-gaps.md),
-  [contributing](CONTRIBUTING.md), [agent rules](AGENTS.md)
+  [contributing](CONTRIBUTING.md), [requirements and checks](docs/requirements.md), [agent rules](AGENTS.md)
 
 [Security](SECURITY.md), [threat model](threat-model.md), [changelog](CHANGELOG.md).
 
