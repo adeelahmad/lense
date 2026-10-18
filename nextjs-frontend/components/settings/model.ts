@@ -907,13 +907,20 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "ai",
+    key: "auto_title",
+    label: "Title conversations",
+    kind: "switch",
+    hint: "After the first answer, the model gives a conversation a short title, with the model for summaries when one is set. A title you give it is kept. Off: it's titled with the first question.",
+  },
+  {
+    section: "ai",
     key: "compact_model",
     label: "Model for summaries",
     kind: "text",
     nullable: true,
     mono: true,
     placeholder: "the chat's model",
-    hint: "A smaller, cheaper model on the same provider to write them.",
+    hint: "A smaller, cheaper model on the same provider to write them, and conversations' titles.",
   },
   {
     section: "ai",

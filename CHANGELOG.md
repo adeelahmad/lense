@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Conversations title themselves.** After a conversation's first answer, the model gives it a short title from the
+  question and the answer, with the model for summaries (`ai.compact_model`) when one is set, in one call counted for
+  the conversation in the activity ledger; until then, and when there's no model, it's titled with the first
+  question's words. A title someone gives it is kept. `title_by` says who titled it, `POST /api/v1/chats/<id>/title`
+  and the MCP tool `rename_chat` (without a title) have Lens title it again, and `rename_chat` with a title renames it.
+  Settings → AI assistant → Title conversations (on) turns it off ([Titles](docs/assistant.md#titles)).
 - **Specs from transcripts.** Turn a voice session or a meeting into a technical spec, saved as a note linked to it:
   the model writes the spec, then lists every named decision, every "no" and "not that, this", every constraint and
   every gap the speaker left to decide later, each with its quote and a link to the moment it was said; a quote the
@@ -28,6 +34,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   Office's `~$` files) are kept aside, and renaming a file saved under a temporary name imports it. **Import files
   people add** in Settings, SMB share (`smb.add_files`, on) turns it off and makes the share read-only again ([Adding
   files](docs/smb.md#adding-files)).
+- **News feeds.** Subscribe to a blog's or a news site's RSS or Atom feed: add it on the Sources page (its address,
+  or just the site's) and watch it, and each new post comes into a namespace as text, with its link, author and date,
+  so answers cite it. Feeds are asked for again only when they've changed, and a private feed's address is kept like a
+  password ([News feeds](docs/processing.md#news-feeds-rss-and-atom)).
+- **Automations on feed posts.** Each new post of a news feed is a `feed_post.received` activity with its address,
+  site, feed, author, date and categories, so an automation can start on posts from one feed, author or category
+  ([Kinds](docs/automations.md#kinds)).
 
 ## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
 
@@ -80,10 +93,6 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   each run shows what its actions did. Try one on an activity without keeping or sending anything, or run it now;
   Settings → Automations switches them all off and sets how far they may go
   ([Running automations](docs/automations.md#running-automations)).
-- **News feeds.** Subscribe to a blog's or a news site's RSS or Atom feed: add it on the Sources page (its address,
-  or just the site's) and watch it, and each new post comes into a namespace as text, with its link, author and date,
-  so answers cite it. Feeds are asked for again only when they've changed, and a private feed's address is kept like a
-  password ([News feeds](docs/processing.md#news-feeds-rss-and-atom)).
 - **Each answer says what produced it.** The *i* in an answer's header shows the model and the host it ran on, the
   tools it was offered and used, the scope, its limits and what it used, tokens, cost (an estimate from your prices),
   how long it took, how it ended and which tool results read like instructions to an AI, with the calls made for it.
