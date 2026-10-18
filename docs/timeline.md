@@ -12,6 +12,7 @@ Status: in progress. The studio's timeline is built in steps; only what is merge
 | Review marks: reviewed, important and hidden, per person; the filters on them; `mark_activities` for agents | built |
 | The Timeline page under Explore: filters, grouping, review with keys, new items as they come | built |
 | A Latest card on Home with the newest unreviewed items | built |
+| Ask about an item: talk to the assistant about it from the item, in the chat beside the page | built |
 | What each item caused (automation runs, approvals), and Approve and Decline on waiting approvals | planned |
 
 ## What shows
@@ -30,8 +31,8 @@ unless you ask for them by kind.
 - A run of the same source or person and the same kind, each within 30 minutes of the one before, is one line
   ("Work Gmail received 37 emails"), so a first mailbox sync reads as one line. A click opens it to its items.
 - Each line has an icon by kind, the summary (a link to what it is about), who did it, the namespace, the kind and
-  how long ago. Opened, an item shows its object's fields, the automation run that caused it if one did, **Open** and
-  **Hide**.
+  how long ago. Opened, an item shows its object's fields, the automation run that caused it if one did, **Open**,
+  **Ask about this** and **Hide**.
 - Filters: words in the summary (Enter applies), **Unreviewed only**, **Important**, kinds by family (Email,
   Calendar, Files, Notes, Sensors, Chat, Automations, System; noisy kinds like sensor readings only when picked),
   source or person (from those on the timeline), namespace, entity (as activities tag it), a date range, and an
@@ -47,10 +48,21 @@ unless you ask for them by kind.
 | `Enter` | open or close the line |
 | `r` | mark it reviewed, or not |
 | `i` | mark it important, or not |
+| `a` | ask the assistant about it (every item of a line of several) |
 
 Hovering or focusing a line shows its **Important** (star) and **Reviewed** (circle) toggles; once set they stay in
 sight. On a line of several items they mark every item. **Mark all shown as reviewed** marks everything on the page
 you haven't reviewed, with **Undo** in the message rather than a confirm; **Hide** works the same way.
+
+### Asking about an item
+
+**Ask about this** on an opened item, or `a` on the line you are on, opens the chat beside the page
+([chat on any page](assistant.md)) with the item as what your question is about, the way highlighted text is: its
+id, kind and time, who did it, its line, where it opens and its fields (up to 4,000 characters; on a line of several,
+as many whole items as fit). Type the question and press Enter. The model reads the item as data, not as
+instructions, since its text may come from outside Lens, and it has the id, so "mark it important" or "what else came
+from this sender?" works with its `timeline` and `mark_activities` tools. Agents outside the web app read the same
+items through `timeline` over MCP and the API ([Agents](#agents)).
 
 ### Home
 
@@ -97,6 +109,9 @@ whole page of activities in one query, and the mark filters thin each page a sou
 go when the person is removed.
 
 ## Refine later
+
+- Ask about an item in the full Chat as well as beside the page, and keep which item a question was about as a link
+  back to it.
 
 - Server-sent updates instead of the page polling for new items.
 - Saved filter views.
