@@ -72,7 +72,8 @@ export function citeLabel(
   p: Pick<Passage, "title" | "t0" | "time" | "speaker"> & Partial<Pick<Passage, "source" | "url" | "site">>,
   withSpeaker = true,
 ): string {
-  if (LINKED.has(p.source ?? "")) return [siteOf(p), withSpeaker ? shortTitle(p.title, 32) : null].filter(Boolean).join(" · ");
+  if (LINKED.has(p.source ?? ""))
+    return [siteOf(p), withSpeaker ? shortTitle(p.title, 32) : null].filter(Boolean).join(" · ");
   return [shortTitle(p.title), passageTime(p), withSpeaker ? p.speaker : null].filter(Boolean).join(" · ");
 }
 

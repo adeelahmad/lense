@@ -322,7 +322,14 @@ function AnswerView({ text, passages, streaming }: { text: string; passages: Pas
           "mx-0.5 inline-flex h-[20px] items-center rounded-pill border border-blue-border bg-blue-surface px-1.5 align-[2px] font-sans text-[11.5px] font-semibold text-blue-dark hover:bg-blue hover:text-white";
         if (isWeb(ps))
           return (
-            <a key={i} href={ps.url ?? undefined} target="_blank" rel="noopener noreferrer" className={cls} title={ps.text}>
+            <a
+              key={i}
+              href={ps.url ?? undefined}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cls}
+              title={ps.text}
+            >
               {ps.site ?? ps.title ?? "Web page"}
             </a>
           );
