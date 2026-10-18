@@ -596,8 +596,8 @@ Built: the web app, the API, MCP, chat rooms and the assistant's tools.
 Give the assistant a goal that needs many look-ups, and it comes back with a plan; once you approve it, the research
 runs in the background and a cited report comes back in the conversation.
 
-- **Asking.** Turn on the composer's Deep research switch (the telescope) and type the goal, start a question with
-  `/research` (`/research what changed in the capsid work this year?`), send it with
+- **Asking.** Turn on the composer's Deep research switch (the telescope; the cursor stays in the box) and type the
+  goal, start a question with `/research` (`/research what changed in the capsid work this year?`), send it with
   `research: true` (`POST /api/v1/chats/<id>/messages`), call `POST /api/v1/chats/<id>/research {goal}`, or ask the
   assistant for research: its `start_research` tool (the `research` [tool group](#choosing-tools-namespaces-and-a-limit))
   works from chat, voice and [chat rooms](chat-rooms.md). It needs a language model that uses tools.
@@ -664,8 +664,9 @@ runs in the background and a cited report comes back in the conversation.
   checking are two or three calls. Every call is in the activity ledger for the conversation and `research:<id>`.
 
 Refine later: sub-questions in parallel, research on a schedule, sharing a report with a namespace's members, research
-as an automation action, a report template people can edit, and the report posted back into the chat room it was
-asked in (today the room gets the plan, and the report is in the conversation in Lens).
+as an automation action, a report template people can edit, the report posted back into the chat room it was asked
+in (today the room gets the plan, and the report is in the conversation in Lens), and one way to read a report aloud
+(today its Read aloud and the answer's speaker button both do).
 
 ## Third-party content and prompt injection
 

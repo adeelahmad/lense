@@ -711,8 +711,10 @@ node passes what it makes along its connections.
 
 - **Entities:** Extract entities (rules) runs the extractor analyze uses (the rules, or spaCy), plus your terms (`Name|TYPE`) and
   regular expressions (`TYPE: pattern`); Extract entities (LLM) asks the model for structured entities and keeps,
-  corrects or adds to any passed in; Merge joins lists; Save entities makes them the asset's entities (people's
-  corrections kept) and redoes keywords and chapters.
+  corrects or adds to any passed in; Merge joins lists; Entity filter keeps the entities you want (only some types,
+  without others, without names on a stop list, names at least so long or matching a pattern, or said at least so
+  many times; anything in the list that isn't an entity is left out); Save entities makes them the asset's entities
+  (people's corrections kept) and redoes keywords and chapters.
 - **AI and logic:** LLM prompt (a prompt template, with what came in as `{{ input }}`), Classify (which of your
   labels, the content types or the namespace's topics fits the asset, or what came in as text; it passes on `choice`,
   `confidence`, `sure` and `ranked`, so a Condition or Switch can branch on them; [classifying](#classifying)), Pick
