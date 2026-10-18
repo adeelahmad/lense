@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.api.deps import Acl, Cfg, CurrentUser, Db, Principal, Writer, domain_errors
 from app.api.v1.routes import activities as activity_routes
-from app.domain import auth, circles
+from app.domain import auth, circles, circles_ask
 from app.schemas.circles import (
     Circle,
     CircleCreate,
@@ -19,6 +19,8 @@ from app.schemas.circles import (
     Shared,
     ShareIn,
     ShareUndone,
+    WhenFree,
+    WhenFreeIn,
 )
 from app.schemas.common import Ok
 
@@ -48,7 +50,7 @@ def list_circle_people(user: CurrentUser, db: Db) -> list[Person]:
 def create_circle(body: CircleCreate, user: Writer, db: Db) -> Circle:
     """A new circle of yours. Audited as `circle.create`."""
     with domain_errors():
-        cid = circles.create(db, me(user), body.name, body.members)
+        cid = circles.create(db, me(user), body.name, body.members, body.lets)
     auth.audit(db, user.as_audit(), "circle.create", f"circle:{cid}", {"members": len(body.members)})
     return Circle.model_validate(circles.get(db, cid, user.id))
 
@@ -102,6 +104,27 @@ def undo_circle_share(sid: int, user: Writer, db: Db) -> ShareUndone:
     return ShareUndone.model_validate(out)
 
 
+@router.post("/when-free")
+def when_free(body: WhenFreeIn, user: CurrentUser, db: Db) -> WhenFree:
+    """When people in your circles are busy in a window, for those who let you see it (a circle of theirs with
+    `lets: free_busy`), and when you and all of them are free: only when, never what. Each person asked sees it in
+    their own timeline (agent.asked)."""
+    with domain_errors():
+        out = circles_ask.find_time(
+            db,
+            me(user),
+            body.people,
+            body.start,
+            body.end,
+            minutes=body.minutes,
+            tz=body.tz,
+            day_start=body.day_start,
+            day_end=body.day_end,
+            via="web" if user.via == "access" else user.via,
+        )
+    return WhenFree.model_validate(out)
+
+
 @router.get("/{cid}")
 def get_circle(cid: int, user: CurrentUser, db: Db) -> Circle:
     with domain_errors():
@@ -110,9 +133,10 @@ def get_circle(cid: int, user: CurrentUser, db: Db) -> Circle:
 
 @router.patch("/{cid}")
 def update_circle(cid: int, body: CircleUpdate, user: Writer, db: Db) -> Circle:
-    """Rename a circle of yours, set who is in it, or add and take people out."""
+    """Rename a circle of yours, set who is in it, add and take people out, or set what they may ask your agent
+    (`lets`: free_busy lets them see when you're free)."""
     with domain_errors():
-        out = circles.update(db, me(user), cid, body.name, body.members, body.add, body.remove)
+        out = circles.update(db, me(user), cid, body.name, body.members, body.add, body.remove, body.lets)
     auth.audit(db, user.as_audit(), "circle.update", f"circle:{cid}", None)
     return Circle.model_validate(out)
 

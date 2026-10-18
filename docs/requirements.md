@@ -291,6 +291,7 @@ request, to another check that proves the same thing; loosening a requirement or
 | Circles live under Profile, a suggested circle takes one click and deleting one is undone, not confirmed | [circles-ui.test.tsx](https://github.com/adeelahmad/lense/blob/main/nextjs-frontend/__tests__/circles-ui.test.tsx) `makes a suggested circle in one click`; [circles-ui.test.tsx](https://github.com/adeelahmad/lense/blob/main/nextjs-frontend/__tests__/circles-ui.test.tsx) `deletes a circle with Undo instead of a confirm` |
 | Share on a timeline item or a resource picks the only circle, takes a note and is undone from its toast | [circles-ui.test.tsx](https://github.com/adeelahmad/lense/blob/main/nextjs-frontend/__tests__/circles-ui.test.tsx) `picks the only circle, shares with a note, and undoes from the toast` |
 | A rule shares what comes in with a circle and a note, asking first until the person lets it run on its own | [test_circles.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_circles.py) `test_rules_share_on_their_own_only_when_let` |
+| A circle sees when you're free only once you let it, only when and never what, each ask in your timeline; agents and the assistant find a time | [test_circles.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_circles.py) `test_when_people_are_free`; [circles-ui.test.tsx](https://github.com/adeelahmad/lense/blob/main/nextjs-frontend/__tests__/circles-ui.test.tsx) `lets a circle see when you're free in one click` |
 
 ## See what it costs
 

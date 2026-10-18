@@ -159,7 +159,7 @@ def update_account(db, uid, name=None, admin=None, disabled=None, password=None)
 def remove_account(db, uid, lose_vaults=False):
     """Remove someone for good: every way they sign in (sessions, passkeys, sign-in links, connected accounts, API
     tokens, apps they gave access to), every role and permission they had, and what only they could see (their chats,
-    their own notes, highlights, saved views and collections, circles and what was shared with them, unfinished
+    their own notes, highlights, saved views and collections, circles, what was shared with them and what agents asked, unfinished
     uploads). What they shared stays (notes and views for everyone, comments, shares with circles), under their name: the account is kept as a marker without an email, so their
     address can be invited again. Refused (ValueError) when their passkeys are the only way into a vault, unless
     `lose_vaults`."""
@@ -200,6 +200,7 @@ def remove_account(db, uid, lose_vaults=False):
             ),
             "DELETE circle WHERE owner = $a",
             "UPDATE circle SET members -= $a WHERE members CONTAINS $a",
+            "DELETE agent_ask WHERE to = $a OR by = $a",
             "DELETE note WHERE account = $a AND (shared ?? false) = false",
             "DELETE saved_view WHERE account = $a AND (shared ?? false) = false",
             "DELETE saved_collection WHERE account = $a AND (shared ?? false) = false",

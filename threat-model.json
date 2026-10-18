@@ -6,7 +6,7 @@
   "scope_subpath": null,
   "description": "Lens is a self-hosted archive for documents, recordings, photos and messages: it reads, transcribes, indexes and publishes them, and people search and chat over them. One operator (the instance admin) runs an instance for their own people: a FastAPI API, a Next.js web app that proxies the API and holds the sign-in session, and background workers, around one SurrealDB database, with content split into namespaces and per-namespace roles. Exposing an instance to the internet behind HTTPS (reverse proxy or Cloudflare tunnel) is supported. Only the instance admin (equivalent to host code execution) and the host operator are trusted; everyone else is trusted only as far as their role.",
   "confidence": {
-    "documented": 262,
+    "documented": 263,
     "inferred": 99
   },
   "components": [
@@ -57,7 +57,8 @@
         "entity and topic curation tools",
         "lens help tool",
         "microsandbox program requests",
-        "POST /circles and /circles/shares, MCP save_circle and share_with_circle, the assistant's and automations' share_with_circle (circles and sharing with them)"
+        "POST /circles and /circles/shares, MCP save_circle and share_with_circle, the assistant's and automations' share_with_circle (circles and sharing with them)",
+        "POST /circles/when-free, MCP when_free, the assistant's when_free (when people in your circles are free)"
       ],
       "touches": [
         "filesystem"
@@ -601,6 +602,15 @@
       "caller_must_enforce": "members must be people the sharer may add; Lens checks the sharer can read the item, refuses vaults, caps the note, and needs publish to give the item; the assistant asks first",
       "provenance": "documented",
       "source": "docs/circles.md \"What keeps it safe\""
+    },
+    {
+      "entry_point": "POST /circles/when-free, MCP when_free, the assistant's when_free (when people in your circles are free)",
+      "parameter": "people, a window, a time zone, minutes, the hours of the day",
+      "attacker_controllable": "yes",
+      "component": "authz",
+      "caller_must_enforce": "the person asked must have let a circle with the asker see; Lens answers only start and end times, caps the window and the people, and records each ask in the asked person's timeline",
+      "provenance": "documented",
+      "source": "docs/circles.md \"When they're free\""
     },
     {
       "entry_point": "automations' params and prompts, POST /automations/preview and /automations/variables",
@@ -1168,6 +1178,14 @@
       "conditions": "auto scaling launches nothing unless a person signed in to the web app approved the group's terms (its provider, what each unit is, its max, its budget, what happens at its cap); an API key, an app, MCP and the assistant acting on its own never approve, and a change that widens the terms takes the approval away; a provider's credentials are sealed per provider and field, opened only for a call to it and never shown; a unit is handed no long-lived Lens secret",
       "provenance": "documented",
       "source": "docs/scaling.md \"The person approves\""
+    },
+    {
+      "property": "P-FREE-BUSY",
+      "violation_symptom": "info-leak",
+      "severity_tier": "security",
+      "conditions": "a person's busy times reach only themselves and people in a circle of theirs that lets free_busy, which nothing turns on but them; only each event's start and end, never what, where or with whom; never from a vault; a window is at most 31 days; every ask shows in the asked person's own timeline as agent.asked",
+      "provenance": "documented",
+      "source": "docs/circles.md \"When they're free\""
     },
     {
       "property": "P-AUTH-REQ",

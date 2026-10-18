@@ -4246,6 +4246,12 @@ export type Circle = {
    */
   members: Array<Person>;
   /**
+   * Lets
+   *
+   * what its people may ask your agent: free_busy, when you're free
+   */
+  lets?: Array<"free_busy">;
+  /**
    * Created At
    */
   created_at?: string | null;
@@ -4270,6 +4276,12 @@ export type CircleCreate = {
    * people by account id or email
    */
   members?: Array<number | string>;
+  /**
+   * Lets
+   *
+   * what its people may ask your agent: free_busy, when you're free
+   */
+  lets?: Array<"free_busy">;
 };
 
 /**
@@ -4366,6 +4378,12 @@ export type CircleUpdate = {
    * people to take out
    */
   remove?: Array<number | string>;
+  /**
+   * Lets
+   *
+   * what its people may ask your agent, replacing what they could
+   */
+  lets?: Array<"free_busy"> | null;
 };
 
 /**
@@ -25885,6 +25903,21 @@ export type SourceUpdated = {
 };
 
 /**
+ * Span
+ */
+export type Span = {
+  /**
+   * Start
+   */
+  start: string;
+  /**
+   * End
+   */
+  end: string;
+  [key: string]: unknown;
+};
+
+/**
  * SparqlQuery
  */
 export type SparqlQuery = {
@@ -27515,6 +27548,37 @@ export type TimelineViewUpdate = {
    * save what the timeline shows now into it
    */
   state?: TimelineViewState | null;
+};
+
+/**
+ * Times
+ */
+export type Times = {
+  /**
+   * Id
+   */
+  id?: number | null;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Busy
+   *
+   * when they're busy; never what, where or with whom
+   */
+  busy?: Array<Span> | null;
+  /**
+   * Person
+   *
+   * who was asked about, when they haven't let you see
+   */
+  person?: string | null;
+  /**
+   * Refused
+   */
+  refused?: string | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -29770,6 +29834,83 @@ export type WebPage = {
    */
   how?: "printed" | "pdf" | null;
   [key: string]: unknown;
+};
+
+/**
+ * WhenFree
+ */
+export type WhenFree = {
+  /**
+   * Start
+   */
+  start: string;
+  /**
+   * End
+   */
+  end: string;
+  /**
+   * Tz
+   */
+  tz: string;
+  /**
+   * People
+   */
+  people: Array<Times>;
+  /**
+   * Free
+   *
+   * when everyone who let you see, and you, are free, within the hours of the day asked for
+   */
+  free: Array<Span>;
+  [key: string]: unknown;
+};
+
+/**
+ * WhenFreeIn
+ */
+export type WhenFreeIn = {
+  /**
+   * People
+   *
+   * people by account id or email; you are counted too
+   */
+  people: Array<number | string>;
+  /**
+   * Start
+   *
+   * the window's start, an ISO time (without an offset, in tz)
+   */
+  start: string;
+  /**
+   * End
+   *
+   * the window's end, at most 31 days after its start
+   */
+  end: string;
+  /**
+   * Tz
+   *
+   * the time zone times are given and answered in, like Europe/London
+   */
+  tz?: string;
+  /**
+   * Minutes
+   *
+   * how long the free stretches must be
+   */
+  minutes?: number;
+  /**
+   * Day Start
+   *
+   * the hour each day starts, in tz
+   */
+  day_start?: number;
+  /**
+   * Day End
+   *
+   * the hour each day ends, in tz
+   */
+  day_end?: number;
 };
 
 /**
@@ -52434,6 +52575,31 @@ export type UndoCircleShareResponses = {
 };
 
 export type UndoCircleShareResponse = UndoCircleShareResponses[keyof UndoCircleShareResponses];
+
+export type WhenFreeData = {
+  body: WhenFreeIn;
+  path?: never;
+  query?: never;
+  url: "/api/v1/circles/when-free";
+};
+
+export type WhenFreeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type WhenFreeError = WhenFreeErrors[keyof WhenFreeErrors];
+
+export type WhenFreeResponses = {
+  /**
+   * Successful Response
+   */
+  200: WhenFree;
+};
+
+export type WhenFreeResponse = WhenFreeResponses[keyof WhenFreeResponses];
 
 export type DeleteCircleData = {
   body?: never;
