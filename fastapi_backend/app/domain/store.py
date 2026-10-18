@@ -805,7 +805,7 @@ DEFAULTS = {
     # data_dir/logs (what Settings → Logs shows); levels sets single loggers, like {"httpx": "warning"}. syslog sends
     # every line at syslog_level or above to a syslog server (RFC 5424 over udp, tcp or tls); http sends them in batches to
     # http_url: Grafana Loki's push API (loki), a JSON array (json) or one JSON object per line (ndjson), with the sealed
-    # http_headers (key=value pairs, like telemetry.headers); both off by default
+    # http_headers (key=value pairs, like telemetry.headers); both off by default. client_cert and server_ca are for TLS
     "logs": {
         "level": "info",
         "format": "text",
@@ -829,6 +829,10 @@ DEFAULTS = {
         "http_level": "info",
         "http_headers": None,
         "http_verify": True,
+        # for syslog over TLS and an https endpoint: this machine's certificate and key (PEM, sealed) for servers that
+        # ask for one (mutual TLS), and the CA (PEM) that signed the server's certificate when it isn't a public one
+        "client_cert": None,
+        "server_ca": None,
     },
     # usage analytics (docs/analytics.md): the numbers are worked out locally from the activity ledger; Google Analytics
     # is off unless an admin turns it on with a GA4 measurement id and a Measurement Protocol API secret (sealed)

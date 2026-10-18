@@ -3875,6 +3875,17 @@ export const FIELDS: FieldSpec[] = [
   },
   { section: "logs", key: "http_headers", label: "Headers", kind: "secret" },
   { section: "logs", key: "http_verify", label: "Verify the certificate", kind: "switch", hint: "For https" },
+  { section: "logs", key: "client_cert", label: "Client certificate", kind: "secret" },
+  {
+    section: "logs",
+    key: "server_ca",
+    label: "Server’s CA certificate",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "-----BEGIN CERTIFICATE-----…",
+    hint: "For a log server whose certificate a private CA signed; empty: the system’s CAs",
+  },
   {
     section: "tokens",
     key: "oauth_enabled",
@@ -4678,6 +4689,10 @@ export function why(c: Change): string | null {
     return c.after
       ? "The server and its workers start sending their log lines to the endpoint within a few seconds."
       : "Nothing more is sent; what was sent stays where it went.";
+  if (id === "logs.client_cert")
+    return c.after === ""
+      ? "Lens stops showing a certificate to log servers."
+      : "Shown to syslog over TLS and https endpoints that ask for one; stored encrypted.";
   if (id === "logs.http_headers")
     return c.after === "" ? "The headers are removed." : "Sent with every batch of lines; stored encrypted.";
   if (id === "logs.level" || id === "logs.levels")

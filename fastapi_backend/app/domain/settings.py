@@ -161,7 +161,7 @@ SECRETS = {
     "components": ("hf_token",),
     "web": ("api_key",),
     "secrets": ("vaultwarden_client_secret", "vaultwarden_password"),
-    "logs": ("http_headers",),
+    "logs": ("http_headers", "client_cert"),
 }
 ENUMS = {
     ("transcribe", "engine"): {"sensevoice", "whisper", "mlx-whisper", "openai", "elevenlabs", "assemblyai", "deepgram"},
@@ -1407,6 +1407,8 @@ def _logs_setting(key, value):
         if link_local:
             raise ValueError("logs.syslog_host can't be a link-local address (169.254.0.0/16, fe80::/10)")
         return v
+    if key == "server_ca":
+        return None if value in (None, "") else logs.pem(value)
     if key == "http_url":
         if value in (None, ""):
             return None
@@ -1803,6 +1805,8 @@ def save(db, base, section, changes, user=None):
                     telemetry.parse_headers(v)  # ValueError when malformed
                 if (section, k) == ("logs", "http_headers"):
                     logs.headers(v)  # ValueError when malformed
+                if (section, k) == ("logs", "client_cert"):
+                    v = logs.pem(v, key=True)  # ValueError unless it's a certificate and key ssl takes
                 if section == "matterbridge" and (len(v) > 500 or "\n" in v.strip()):
                     raise ValueError(f"matterbridge.{k} is one line of text")
                 if (section, k) in (

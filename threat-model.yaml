@@ -998,7 +998,7 @@ outputs:
   - component: outbound
     channel: "Log shipping, syslog and HTTP (logs.py)"
     taint: constrained
-    x-taint-note: "every log line at the chosen level, redacted; off by default; HTTP headers dropped when the address moves host"
+    x-taint-note: "every log line at the chosen level, redacted; off by default; HTTP headers dropped when the address moves host; client certificate key sealed, on disk only while ssl loads it"
     taint_provenance: {kind: documented, source: 'docs/logging.md "so a token never goes somewhere it wasn''t meant for"'}
     invariants: []
     downstream_must_not_assume:

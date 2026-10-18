@@ -2,15 +2,22 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import http.server
+import ipaddress
 import json
 import logging
 import socket
 import socketserver
+import ssl
 import threading
 import time
 
 import pytest
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.x509.oid import NameOID
 
 from app.domain import logs
 from tests.helpers import login, make_user
@@ -295,3 +302,100 @@ def test_unreachable_http_endpoint_never_blocks():
     finally:
         logging.getLogger("lens.unreachable").removeHandler(h)
         h.close()
+
+
+def _pem(obj):
+    if isinstance(obj, x509.Certificate):
+        return obj.public_bytes(serialization.Encoding.PEM).decode()
+    return obj.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()).decode()
+
+
+def _cert(subject, key, issuer_key=None, issuer=None, ca=False, ip=None):
+    now = dt.datetime.now(dt.UTC)
+    b = (
+        x509.CertificateBuilder()
+        .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, subject)]))
+        .issuer_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, issuer or subject)]))
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - dt.timedelta(minutes=1))
+        .not_valid_after(now + dt.timedelta(days=1))
+        .add_extension(x509.BasicConstraints(ca=ca, path_length=None), critical=True)
+    )
+    if ip:
+        b = b.add_extension(x509.SubjectAlternativeName([x509.IPAddress(ipaddress.ip_address(ip))]), critical=False)
+    return b.sign(issuer_key or key, hashes.SHA256())
+
+
+@pytest.fixture(scope="module")
+def pki(tmp_path_factory):
+    """A private CA, a log server's certificate for 127.0.0.1, and Lens's client certificate, all signed by it."""
+    ca_key, srv_key, cli_key = (ec.generate_private_key(ec.SECP256R1()) for _ in range(3))
+    ca = _cert("logs-ca", ca_key, ca=True)
+    srv = _cert("logs.home.lan", srv_key, ca_key, "logs-ca", ip="127.0.0.1")
+    cli = _cert("lens", cli_key, ca_key, "logs-ca")
+    d = tmp_path_factory.mktemp("pki")
+    (d / "server.pem").write_text(_pem(srv) + _pem(srv_key))
+    (d / "ca.pem").write_text(_pem(ca))
+    return {"ca": _pem(ca), "client": _pem(cli) + _pem(cli_key), "server": str(d / "server.pem"), "ca_file": str(d / "ca.pem")}
+
+
+def _mtls(pki):
+    """A server context that asks for a client certificate signed by the CA."""
+    ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    ctx.load_cert_chain(pki["server"])
+    ctx.load_verify_locations(pki["ca_file"])
+    ctx.verify_mode = ssl.CERT_REQUIRED
+    return ctx
+
+
+def test_client_certificates_for_syslog_over_tls_and_https(client, db, cfg, pki):
+    h = admin(client, db)
+    # a pasted certificate loses its line breaks in a password field: it's rebuilt, checked and sealed
+    flat = " ".join(pki["client"].split("\n"))
+    bad = [
+        {"client_cert": "not a certificate"},
+        {"client_cert": pki["ca"]},
+        {"server_ca": "-----BEGIN CERTIFICATE-----\nnope\n-----END CERTIFICATE-----"},
+    ]
+    for body in bad:
+        assert client.put("/api/v1/settings/logs", json=body, headers=h).status_code == 400, body
+    assert client.put("/api/v1/settings/logs", json={"client_cert": flat, "server_ca": pki["ca"]}, headers=h).status_code == 200
+    v = client.get("/api/v1/settings", headers=h).json()["logs"]["values"]
+    assert v["client_cert"] == {"secret": True, "set": True} and v["server_ca"].startswith("-----BEGIN CERTIFICATE-----\n")
+
+    # syslog over TLS to a server that wants a client certificate
+    _Tcp.got = []
+    srv = socketserver.TCPServer(("127.0.0.1", 0), _Tcp)
+    srv.socket = _mtls(pki).wrap_socket(srv.socket, server_side=True)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        body = {"syslog_host": "127.0.0.1", "syslog_port": srv.server_address[1], "syslog_transport": "tls"}
+        assert client.put("/api/v1/settings/logs", json=body, headers=h).status_code == 200
+        t = client.post("/api/v1/settings/logs/test", headers=h).json()
+        assert t["ok"], t
+        assert _wait(lambda: any(b"test message" in g for g in _Tcp.got))
+        # without the client certificate the server turns it away (over TLS 1.3 the sender learns only afterwards)
+        assert client.put("/api/v1/settings/logs", json={"client_cert": ""}, headers=h).status_code == 200
+        before = len(_Tcp.got)
+        client.post("/api/v1/settings/logs/test", headers=h)
+        time.sleep(1)
+        assert len(_Tcp.got) == before
+    finally:
+        srv.shutdown()
+
+    # an https endpoint that wants one too
+    _Http.got, _Http.status = [], 204
+    web = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _Http)
+    web.socket = _mtls(pki).wrap_socket(web.socket, server_side=True)
+    threading.Thread(target=web.serve_forever, daemon=True).start()
+    try:
+        url = f"https://127.0.0.1:{web.server_address[1]}/ingest"
+        assert client.put("/api/v1/settings/logs", json={"http_url": url, "http_kind": "json"}, headers=h).status_code == 200
+        assert client.post("/api/v1/settings/logs/test", params={"to": "http"}, headers=h).json()["ok"] is False
+        assert client.put("/api/v1/settings/logs", json={"client_cert": pki["client"]}, headers=h).status_code == 200
+        t = client.post("/api/v1/settings/logs/test", params={"to": "http"}, headers=h).json()
+        assert t["ok"], t
+        assert _Http.got[-1][0] == "/ingest"
+    finally:
+        web.shutdown()
