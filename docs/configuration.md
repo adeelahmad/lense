@@ -201,7 +201,10 @@ a new address is tested with the key typed for it. Over the API, `POST /api/v1/s
 
 The list is `GET /api/v1/setup/llm/providers` (admins), and the assistant's `find_model_servers` tool returns it with
 the servers it finds, so an agent setting Lens up uses the same addresses. Any other OpenAI-compatible service works
-by typing its address. Picking a provider changes nothing until you save; from then on, what Lens asks its model
+by typing its address. An Amazon SageMaker endpoint serving a model with vLLM works too: its address is
+`https://runtime.sagemaker.<region>.amazonaws.com/endpoints/<name>` and its key an AWS access key,
+`<access key id>:<secret access key>`, which Lens signs each call with and never sends ([Auto scaling](scaling.md#model-hosts)
+makes such endpoints). Picking a provider changes nothing until you save; from then on, what Lens asks its model
 (summaries, chat, descriptions, with the text they need) goes to that provider.
 
 ## Chat models

@@ -1,5 +1,11 @@
 """Any OpenAI-compatible chat server (LM Studio, Ollama, vLLM, llama.cpp, OpenAI): plain replies, streaming, and
-structured output checked against a JSON Schema."""
+structured output checked against a JSON Schema.
+
+An Amazon SageMaker endpoint whose container takes OpenAI's chat schema (vLLM, LMI) is one too: its address is
+`https://runtime.sagemaker.<region>.amazonaws.com/endpoints/<name>` and its key is an AWS access key,
+`<access key id>:<secret access key>` (`:<session token>` after them for temporary keys). Lens posts chat requests to
+the endpoint's `/invocations`, signed with AWS Signature Version 4 (botocore, the `aws` extra, fetched on first use),
+so the key itself is never sent."""
 
 from __future__ import annotations
 
@@ -58,10 +64,7 @@ def _post(cfg, payload):
     l = cfg["llm"]
     if not configured(cfg):
         raise LLMError("no language model is configured (Settings → LLM provider)")
-    headers = {"Content-Type": "application/json", **_headers(cfg)}
-    req = urllib.request.Request(
-        l["base_url"].rstrip("/") + "/chat/completions", data=json.dumps(payload).encode(), headers=headers, method="POST"
-    )
+    req = chat_request(cfg, payload)
     try:
         return urllib.request.urlopen(req, timeout=l.get("timeout") or 300)
     except urllib.error.HTTPError as e:
@@ -81,16 +84,77 @@ _MODELS = {}  # base_url -> (when, {name: what the server says of it}): the serv
 _WINDOWS = {}  # (base_url, model) -> (when, tokens or None): each model's context window, kept ten minutes
 
 
+def _key(l):
+    return l.get("api_key") or (os.environ.get(l["api_key_env"]) if l.get("api_key_env") else None)
+
+
 def _headers(cfg):
-    l = cfg["llm"]
-    key = l.get("api_key") or (os.environ.get(l["api_key_env"]) if l.get("api_key_env") else None)
+    key = _key(cfg["llm"])
     return {"Authorization": f"Bearer {key}"} if key else {}
+
+
+SAGEMAKER = re.compile(r"^https://runtime\.sagemaker\.([a-z0-9-]+)\.amazonaws\.com(?:\.cn)?/endpoints/[A-Za-z0-9-]{1,63}/?$")
+
+
+def sagemaker_region(cfg):
+    """The region of the SageMaker endpoint Lens's model calls go to; None when they go to an OpenAI-compatible server."""
+    m = SAGEMAKER.match((cfg["llm"].get("base_url") or "").strip())
+    return m.group(1) if m else None
+
+
+def shared(cfg):
+    """(base URL, key) of the LLM provider's server for its other OpenAI-compatible calls (embeddings, speech) when
+    they have no server of their own; (None, None) for a SageMaker endpoint, which serves chat only and whose AWS key
+    is only ever used to sign."""
+    l = cfg.get("llm") or {}
+    if sagemaker_region(cfg):
+        return None, None
+    return l.get("base_url"), _key(l)
+
+
+def chat_request(cfg, payload):
+    """The POST of a chat request to the configured server: `/chat/completions` with the key as a bearer token, or a
+    SageMaker endpoint's `/invocations` signed with the AWS key."""
+    l = cfg["llm"]
+    body = json.dumps(payload).encode()
+    region = sagemaker_region(cfg)
+    if region is None:
+        headers = {"Content-Type": "application/json", **_headers(cfg)}
+        return urllib.request.Request(l["base_url"].rstrip("/") + "/chat/completions", data=body, headers=headers, method="POST")
+    url = l["base_url"].strip().rstrip("/") + "/invocations"
+    headers = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream"}
+    return urllib.request.Request(url, data=body, headers=_aws_signed(cfg, region, url, body, headers), method="POST")
+
+
+def _aws_signed(cfg, region, url, body, headers):
+    """The headers with AWS Signature Version 4 for SageMaker's runtime, from the key `<id>:<secret>[:<token>]`."""
+    parts = (_key(cfg["llm"]) or "").split(":", 2)
+    if len(parts) < 2 or not all(parts[:2]):
+        raise LLMError("a SageMaker endpoint takes an AWS access key as its key: <access key id>:<secret access key>")
+    try:
+        from botocore.auth import SigV4Auth
+    except ImportError:
+        from . import components
+
+        try:
+            components.pip_install(cfg, "aws")
+            from botocore.auth import SigV4Auth
+        except Exception as e:  # noqa: BLE001 - why it couldn't, for the person
+            raise LLMError(f"calling SageMaker needs the aws packages, which couldn't be installed here: {e}") from None
+    from botocore.awsrequest import AWSRequest
+    from botocore.credentials import Credentials
+
+    req = AWSRequest(method="POST", url=url, data=body, headers=headers)
+    SigV4Auth(Credentials(parts[0], parts[1], parts[2] if len(parts) > 2 else None), "sagemaker", region).add_auth(req)
+    return dict(req.headers.items())
 
 
 def _listing(cfg, ttl=60):
     """The models the server offers (GET /models), each name with what the server says of it, kept for `ttl` seconds."""
     l = cfg["llm"]
     url = l["base_url"].rstrip("/")
+    if sagemaker_region(cfg):  # an endpoint serves the one model it was made with, and lists none
+        return {l["model"]: {"id": l["model"]}}
     hit = _MODELS.get(url)
     if hit and time.monotonic() - hit[0] < ttl:
         return hit[1]

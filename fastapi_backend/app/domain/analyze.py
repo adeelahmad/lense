@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import json
 import math
-import os
 import re
 import urllib.request
 from collections import Counter, defaultdict
 
-from . import enrich, entity_map, entity_setup, graph_history, name_types, store, telemetry
+from . import enrich, entity_map, entity_setup, graph_history, llm, name_types, store, telemetry
 
 STOP = set(
     """a about above after again against all almost also am an and any are aren as at be because been before being
@@ -758,13 +757,7 @@ def _llm(cfg, user, system=SUMMARY_SYSTEM):
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
         "response_format": {"type": "json_schema", "json_schema": {"name": "summary", "strict": True, "schema": SUMMARY_SCHEMA}},
     }
-    headers = {"Content-Type": "application/json"}
-    key = l.get("api_key") or (os.environ.get(l["api_key_env"]) if l.get("api_key_env") else None)
-    if key:
-        headers["Authorization"] = "Bearer " + key
-    req = urllib.request.Request(
-        l["base_url"].rstrip("/") + "/chat/completions", data=json.dumps(body).encode(), headers=headers, method="POST"
-    )
+    req = llm.chat_request(cfg, body)
     with telemetry.model_call(cfg, body) as call, urllib.request.urlopen(req, timeout=l.get("timeout", 300)) as r:
         text = call.reply(json.loads(r.read().decode()))["choices"][0]["message"]["content"]
     text = re.sub(r"^```(?:json)?|```$", "", text.strip()).strip()
