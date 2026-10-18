@@ -4,15 +4,17 @@ Devices on the network (routers, DNS servers, Zigbee and Tasmota gateways, Home 
 to Mosquitto, and anything can subscribe to it: it is an ordinary local broker for MQTT 3.1 and 3.1.1. Every message
 published to it is also handed to Lens (sensors.py), which is what makes it a hub rather than only a broker.
 
-What it does: CONNECT with a username and password (checked by the caller), PUBLISH at QoS 0, 1 and 2 (acknowledged
-as the level asks), SUBSCRIBE and UNSUBSCRIBE with + and # wildcards, retained messages, last wills, keep-alive and
-PING. What it doesn't (refine later): MQTT 5 (a client asking for it is told the protocol isn't supported, and most
-fall back to 3.1.1), persistent sessions (every session is clean), and delivery above QoS 0 to subscribers.
+What it does: CONNECT with a username and password (checked by the caller), PUBLISH at QoS 0, 1 and 2 (acknowledged as
+the level asks), SUBSCRIBE and UNSUBSCRIBE with + and # wildcards, retained messages, last wills, keep-alive and PING,
+over TCP and over WebSockets (`WebSockets`, which the web app relays at /mqtt). What it doesn't (refine later): MQTT 5
+(a client asking for it is told the protocol isn't supported, and most fall back to 3.1.1), persistent sessions (every
+session is clean), and delivery above QoS 0 to subscribers.
 """
 
 from __future__ import annotations
 
 import contextlib
+import logging
 import secrets
 import socket
 import socketserver
@@ -26,6 +28,9 @@ SUBSCRIBE, SUBACK, UNSUBSCRIBE, UNSUBACK, PINGREQ, PINGRESP, DISCONNECT = 8, 9, 
 # CONNACK return codes
 ACCEPTED, BAD_PROTOCOL, BAD_CLIENT_ID, BAD_LOGIN, NOT_AUTHORIZED = 0, 1, 2, 4, 5
 MAX_RETAINED = 10_000
+# what the WebSocket server says: every connection opening and closing is too much to keep (logs.levels can lower it)
+WS_LOG = logging.getLogger("lens.mqtt.websockets")
+WS_LOG.setLevel(logging.WARNING)
 
 
 class ProtocolError(Exception):
@@ -224,7 +229,7 @@ class Broker:
         for s in targets:
             s.send(data)
 
-    def _connect(self, f, sock, address):
+    def _connect(self, f, sock, address, authenticate):
         kind, _flags, body = read_packet(f, self.max_bytes)
         if kind != CONNECT:
             raise ProtocolError("the first packet must be CONNECT")
@@ -258,7 +263,7 @@ class Broker:
                 sock.sendall(packet(CONNACK, 0, bytes([0, BAD_CLIENT_ID])))
                 raise ProtocolError("an empty client id needs a clean session")
             client_id = "lens-" + secrets.token_hex(6)
-        login = self.authenticate(user, pw, client_id, address)
+        login = authenticate(user, pw, client_id, address)
         if not login:
             sock.sendall(packet(CONNACK, 0, bytes([0, BAD_LOGIN if user else NOT_AUTHORIZED])))
             raise ProtocolError(f"refused {user or 'an anonymous client'} from {address[0]}")
@@ -273,12 +278,12 @@ class Broker:
         session.send(packet(CONNACK, 0, bytes([0, ACCEPTED])))
         return session, keepalive
 
-    def _serve(self, sock, address):
+    def _serve(self, sock, address, authenticate=None):
         sock.settimeout(10)
         f = sock.makefile("rb")
         session = None
         try:
-            session, keepalive = self._connect(f, sock, address)
+            session, keepalive = self._connect(f, sock, address, authenticate or self.authenticate)
             sock.settimeout(keepalive * 1.5 if keepalive else None)
             while True:
                 kind, flags, body = read_packet(f, self.max_bytes)
@@ -363,6 +368,92 @@ class Broker:
         for topic, payload in kept:
             if any(matches(f, topic) for f in added):
                 session.send(publish_packet(topic, payload, retain=True))
+
+
+# ---------- over WebSockets ----------
+class _WebSocket:
+    """A WebSocket made to look like the socket the broker reads and writes. MQTT packets ride in binary messages, as
+    many to a message, or split across messages, as the client likes (MQTT 3.1.1, section 6)."""
+
+    def __init__(self, ws):
+        self.ws, self.buf, self.timeout = ws, bytearray(), None
+
+    def makefile(self, _mode="rb"):
+        return self
+
+    def read(self, n):
+        from websockets.exceptions import ConnectionClosed
+
+        while len(self.buf) < n:
+            try:
+                msg = self.ws.recv(timeout=self.timeout)  # TimeoutError (socket.timeout) when the client went quiet
+            except ConnectionClosed:
+                break
+            if isinstance(msg, str):
+                raise ProtocolError("MQTT over WebSockets comes in binary messages, not text")
+            self.buf += msg
+        data = bytes(self.buf[:n])
+        del self.buf[:n]
+        return data
+
+    def sendall(self, data):
+        from websockets.exceptions import ConnectionClosed
+
+        try:
+            self.ws.send(data)
+        except ConnectionClosed as e:
+            raise OSError("the WebSocket closed") from e
+
+    def settimeout(self, seconds):
+        self.timeout = seconds
+
+    def shutdown(self, _how):
+        pass
+
+    def close(self):
+        self.ws.close()
+
+
+def _subprotocol(_conn, offered):
+    """MQTT clients ask for "mqtt" (3.1.1) or "mqttv3.1"; one asking for neither is taken too."""
+    return next((p for p in ("mqtt", "mqttv3.1") if p in offered), None)
+
+
+class WebSockets:
+    """The broker over WebSockets, for MQTT clients in a browser and for those reaching Lens through the web app, which
+    relays /mqtt here (nextjs-frontend/lens-relay.js). Clients share the broker's topics, retained messages and
+    subscribers with those on TCP. `authenticate(username, password, client_id, address)` is checked in place of the
+    broker's; `address_of(headers, peer)` says where a connection comes from (the visitor behind the web app)."""
+
+    def __init__(self, broker, host, port, authenticate, address_of=None):
+        from websockets.sync.server import serve
+
+        def handler(ws):
+            peer = ws.remote_address[:2]
+            address = address_of(ws.request.headers, peer) if address_of else peer
+            broker._serve(_WebSocket(ws), address, authenticate)
+
+        self.server = serve(
+            handler,
+            host,
+            port,
+            select_subprotocol=_subprotocol,
+            compression=None,
+            max_size=broker.max_bytes + 1024,  # a message holds a packet or a few: the broker's own limit stands
+            server_header=None,
+            logger=WS_LOG,
+            family=socket.AF_INET6 if ":" in host else socket.AF_INET,
+        )
+        self.port = self.server.socket.getsockname()[1]
+        self.thread = None
+
+    def start(self):
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True, name=f"mqtt-ws-{self.port}")
+        self.thread.start()
+        return self
+
+    def stop(self):
+        self.server.shutdown()
 
 
 # ---------- a client, for bridges to another broker ----------

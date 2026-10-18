@@ -6,7 +6,7 @@
   "scope_subpath": null,
   "description": "Lens is a self-hosted archive for documents, recordings, photos and messages: it reads, transcribes, indexes and publishes them, and people search and chat over them. One operator (the instance admin) runs an instance for their own people: a FastAPI API, a Next.js web app that proxies the API and holds the sign-in session, and background workers, around one SurrealDB database, with content split into namespaces and per-namespace roles. Exposing an instance to the internet behind HTTPS (reverse proxy or Cloudflare tunnel) is supported. Only the instance admin (equivalent to host code execution) and the host operator are trusted; everyone else is trusted only as far as their role.",
   "confidence": {
-    "documented": 251,
+    "documented": 252,
     "inferred": 99
   },
   "components": [
@@ -53,6 +53,7 @@
         "workers and DB peers",
         "host control inbox and the monitoring scrape token",
         "admin machine setup requests",
+        "admin optional container requests",
         "entity and topic curation tools",
         "microsandbox program requests"
       ],
@@ -119,7 +120,7 @@
       "entry_points": [
         "chat, /graph/ask, MCP tools",
         "extensions (prompt, graph and http tools, hooks), custom nodes including template nodes",
-        "MCP servers: POST /extensions/mcp/read and /mcp/test, saving an extension of kind mcp, PATCH /extensions/{id}/tools",
+        "MCP servers: POST /extensions/mcp/read and /mcp/test, GET /extensions/mcp/presets, saving an extension of kind mcp, PATCH /extensions/{id}/tools",
         "Python code tools, shipped and admin-created templates, workflows, pipelines, routines",
         "Lens extension side panel",
         "automations",
@@ -288,6 +289,15 @@
       "source": "docs/authentication.md \"A link lasts three days\""
     },
     {
+      "entry_point": "POST /auth/passkeys/elsewhere",
+      "parameter": "an address to take your sign-in to",
+      "attacker_controllable": "yes",
+      "component": "identity",
+      "caller_must_enforce": "signed in themselves, not API tokens or apps; only an address Lens opens at; 15 minutes, once, other links left alone",
+      "provenance": "documented",
+      "source": "docs/authentication.md \"Lens opens at another address\""
+    },
+    {
       "entry_point": "/oauth/register, /authorize, /token, /revoke",
       "parameter": "redirect URIs, client metadata, code, verifier, refresh token",
       "attacker_controllable": "yes",
@@ -436,7 +446,7 @@
       "parameter": "the feed's address (or a site's page that names its feed), user and password; the feed's XML and its posts' HTML",
       "attacker_controllable": "yes",
       "component": "outbound",
-      "caller_must_enforce": "admin creates sources; fetched as iCal feeds are; feedparser reads the XML with external entities off and drops scripts, styles and event handlers from a post's HTML; each post kept as an Atom entry Lens writes, without the feed's address; post text is marked untrusted in prompts",
+      "caller_must_enforce": "admins add them (web app, API, MCP subscribe_feed with a write-scope token, or the assistant's tool, which asks first outside a setup conversation or once it has read outside text); fetched as iCal feeds are; feedparser reads the XML with external entities off and drops scripts, styles and event handlers from a post's HTML; each post kept as an Atom entry Lens writes, without the feed's address; post text is marked untrusted in prompts",
       "provenance": "documented",
       "source": "docs/processing.md \"News feeds (RSS and Atom)\""
     },
@@ -513,7 +523,7 @@
       "source": "docs/assistant.md \"other people's run only when an admin shared them\""
     },
     {
-      "entry_point": "MCP servers: POST /extensions/mcp/read and /mcp/test, saving an extension of kind mcp, PATCH /extensions/{id}/tools",
+      "entry_point": "MCP servers: POST /extensions/mcp/read and /mcp/test, GET /extensions/mcp/presets, saving an extension of kind mcp, PATCH /extensions/{id}/tools",
       "parameter": "config text (JSON or YAML), a server's address and headers, or a command, its arguments and env; a tool name and its switches",
       "attacker_controllable": "no",
       "component": "assistant",
@@ -576,6 +586,15 @@
       "source": "docs/smb.md \"What keeps it safe\""
     },
     {
+      "entry_point": "web app /mqtt and port 9883 (MQTT over WebSockets, relayed by lens-relay.js ahead of Next)",
+      "parameter": "the WebSocket handshake, MQTT packets in binary messages, hub logins",
+      "attacker_controllable": "yes",
+      "component": "optional",
+      "caller_must_enforce": "admin enables sensors.mqtt_web; a hub login on every connection, never anonymous; failed logins throttled per visitor from X-Forwarded-For as trusted proxies report it",
+      "provenance": "documented",
+      "source": "docs/sensors.md \"At the web app's address\""
+    },
+    {
       "entry_point": "web app /s3 and /dav (file shares relayed by lens-relay.js, ahead of Next)",
       "parameter": "any method, path, Host and body, passed to the share servers with X-Forwarded-Prefix and X-Forwarded-For",
       "attacker_controllable": "yes",
@@ -604,10 +623,10 @@
     },
     {
       "entry_point": "host control inbox and the monitoring scrape token",
-      "parameter": "inbox/upgrade request (release ref, empty for the version running, with https=0|1, public=0|1 and target=full|lean; or action=services with monitoring=on|off); /metrics scrape token and .lens-control/prometheus-token",
+      "parameter": "inbox/upgrade request (release ref, empty for the version running, with https=0|1, public=0|1 and target=full|lean; or action=services with profile=mcp|browser|monitoring and turn=on|off, or an older Lens's monitoring=on|off); /metrics scrape token and .lens-control/prometheus-token",
       "attacker_controllable": "yes",
       "component": "authz",
-      "caller_must_enforce": "the agent installs only a release tag or the install's branch, changes only the HTTPS ports, the web app's network reach and the edition (other values dropped), and only toggles the monitoring profile, so a writer can at most restart Lens with those choices or open it to the network; the token is compared in constant time and grants metrics only",
+      "caller_must_enforce": "the agent installs only a release tag or the install's branch, changes only the HTTPS ports, the web app's network reach and the edition (other values dropped), and only toggles the mcp, browser and monitoring profiles (any other refused), so a writer can at most restart Lens with those choices or open it to the network; the token is compared in constant time and grants metrics only",
       "provenance": "documented",
       "source": "docs/updates.md, docs/prometheus.md"
     },
@@ -619,6 +638,15 @@
       "caller_must_enforce": "admin is trusted; audited (lens.install, https.ports); reaches the machine only as an inbox request the agent checks again",
       "provenance": "documented",
       "source": "docs/updates.md \"Setting the machine up again\""
+    },
+    {
+      "entry_point": "admin optional container requests",
+      "parameter": "PUT /api/v1/admin/services/{profile} {on}, MCP set_service: profile mcp|browser|monitoring",
+      "attacker_controllable": "no",
+      "component": "authz",
+      "caller_must_enforce": "admin is trusted; audited (lens.services, lens.monitoring); unknown profiles are a 404; one change at a time; reaches the machine only as an inbox request the agent checks again",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"Optional containers\""
     },
     {
       "entry_point": "entity and topic curation tools",
@@ -666,6 +694,15 @@
       "source": "docs/assistant.md \"Code sandbox\""
     },
     {
+      "entry_point": "deep research",
+      "parameter": "/research <goal>, research: true, POST /chats/{cid}/research, /research/{id} (revise, stop, resume, note, podcast), start_research (assistant and MCP), research_status (MCP): a goal, answers to follow-up questions, plan edits; research.* settings (admins)",
+      "attacker_controllable": "yes",
+      "component": "assistant",
+      "caller_must_enforce": "none — the plan waits for the person's own approval (P-RESEARCH); the run uses only its sources' read tools, as the person, within its tool calls, minutes and budgets; its web searches and page reads don't ask again, bounded by the plan and the ledger; one run per person at a time; the report's claims are checked against what they cite",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"Deep research\""
+    },
+    {
       "entry_point": "microsandbox program requests",
       "parameter": "ask/NAME.want in /data/.lens/programs: a program's name",
       "attacker_controllable": "yes",
@@ -682,7 +719,7 @@
       "Expiry uses wall-clock time with no skew handling.",
       "Several API processes and workers may run at once; throttle counters and the setup code live in each process's memory.",
       "Child processes (rclone, ffmpeg, LibreOffice, Chromium, Tesseract, poppler, cloudflared, llama-server, code tools, uv/pip) run as argument lists.",
-      "Listening sockets: API and web app; a loopback netguard proxy during captures; MQTT 1883 and syslog 5514 when sensors are on; llama-server when enabled.",
+      "Listening sockets: API and web app; a loopback netguard proxy during captures; MQTT 1883 and syslog 5514 when sensors are on, MQTT over WebSockets on 9883 with sensors.mqtt_web; llama-server when enabled.",
       "Files live under data_dir, including secret.key when ARCHIVE_SECRET_KEY is unset; the server log carries the setup code and, without mail, sign-in links."
     ],
     "does_not": [
@@ -831,8 +868,8 @@
       "source": "docs/configuration.md \"runs with its sandbox where it can\""
     },
     {
-      "name": "sensors.enabled, sensors.mqtt_anonymous",
-      "default": "off (bind 0.0.0.0); off",
+      "name": "sensors.enabled, sensors.mqtt_anonymous, sensors.mqtt_web",
+      "default": "off (bind 0.0.0.0); off; off",
       "effect": "narrows P-SENSORS",
       "discouraged": false,
       "provenance": "documented",
@@ -1023,7 +1060,7 @@
       "property": "P-LIFETIMES",
       "violation_symptom": "bad-data-accepted",
       "severity_tier": "correctness",
-      "conditions": "access JWT 900 s; sign-in link 72 h, emailed links 60 min; OAuth code 5 min; app tokens 60 min / 30 days; API tokens default 90 days, never past tokens.max_days",
+      "conditions": "access JWT 900 s; sign-in link 72 h, emailed links 60 min, your own link to another address 15 min; OAuth code 5 min; app tokens 60 min / 30 days; API tokens default 90 days, never past tokens.max_days",
       "provenance": "documented",
       "source": "docs/authentication.md \"A link lasts three days\""
     },
@@ -1151,7 +1188,7 @@
       "property": "P-INJECTION-EGRESS",
       "violation_symptom": "info-leak",
       "severity_tier": "correctness",
-      "conditions": "Once an assistant answer has read text from outside Lens (a tool result other than Lens's own, the page it was asked from, a namespace assistant's memories, a message in a chat room with no bridge.users, or an earlier answer in the conversation that read any of these), tools that could carry it out of Lens (the person's own read web tools, a web search or page read neither the person nor a tool gave it, other servers' MCP tools, Python tools with the network) and an admin setup conversation's own changes wait for the person's approval. A chat room's answer keeps a web address linkable only when the person, the archive, a tool or Lens wrote it. A bypass is VALID-HARDENING (Q26). An automation's model and agent actions (ask_model, call_tool, ask_agent) run with nobody reading along: the activity and earlier steps reach the model marked as data, every change they would make (notes included) is an approval of the automation's person, and anything that could carry data out of Lens asks first whatever the run read (docs/automations.md \"The model and the agent\"). A saved variable a run set from outside text stays marked as data in later runs' prompts, and an action whose params read it counts as reading outside text (docs/automations.md \"Saved variables\").",
+      "conditions": "Once an assistant answer has read text from outside Lens (a tool result other than Lens's own, the page it was asked from, a namespace assistant's memories, a message in a chat room with no bridge.users, or an earlier answer in the conversation that read any of these), tools that could carry it out of Lens (the person's own read web tools, a web search or page read neither the person nor a tool gave it, other servers' MCP tools, Python tools with the network) and an admin setup conversation's own changes wait for the person's approval. A chat room's answer keeps a web address linkable only when the person, the archive, a tool or Lens wrote it. A bypass is VALID-HARDENING (Q26). An automation's model and agent actions (ask_model, call_tool, ask_agent) run with nobody reading along: the activity and earlier steps reach the model marked as data, every change they would make (notes included) is an approval of the automation's person, and anything that could carry data out of Lens asks first whatever the run read (docs/automations.md \"The model and the agent\"). A saved variable a run set from outside text stays marked as data in later runs' prompts, and an action whose params read it counts as reading outside text (docs/automations.md \"Saved variables\"). Within a research run the person approved, the plan's web searches and page reads, and code with the network when the plan names the code sandbox, don't ask again (P-RESEARCH).",
       "provenance": "documented",
       "source": "docs/assistant.md \"it read out of Lens waits for your approval\""
     },
@@ -1247,23 +1284,23 @@
       "property": "P-SENSORS",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",
-      "conditions": "sensors are off until an admin enables them; MQTT needs a hub login unless mqtt_anonymous is on; syslog hears only listed networks",
+      "conditions": "sensors are off until an admin enables them; MQTT needs a hub login unless mqtt_anonymous is on, and always over WebSockets (/mqtt, sensors.mqtt_web); syslog hears only listed networks",
       "provenance": "documented",
       "source": "docs/sensors.md \"Sensors are off until an admin turns them on\""
     },
     {
       "property": "P-NFS",
-      "violation_symptom": "info-leak",
+      "violation_symptom": "info-leak, integrity-bypass",
       "severity_tier": "security",
-      "conditions": "the NFS share is off until an admin turns it on, is read-only, shows only what one chosen account sees, and lets in only allowed_networks",
+      "conditions": "the NFS share is off until an admin turns it on, shows only what one chosen account sees, imports files written to it only where that account may import (never over what Lens made; nfs.add_files off: read-only), and lets in only allowed_networks",
       "provenance": "documented",
       "source": "docs/file-shares.md \"NFS has no login\""
     },
     {
       "property": "P-SMB",
-      "violation_symptom": "info-leak",
+      "violation_symptom": "info-leak, integrity-bypass",
       "severity_tier": "security",
-      "conditions": "the SMB share is off until an admin turns it on; read-only; per-person file access keys and views; no guests or SMB1; a random NTLM challenge per connection; allowed networks only",
+      "conditions": "the SMB share is off until an admin turns it on; files added are imported only where the key's owner may import, checked as uploads, never over what Lens made (smb.add_files off: read-only); per-person file access keys and views; no guests or SMB1; a random NTLM challenge per connection; allowed networks only",
       "provenance": "documented",
       "source": "docs/smb.md \"What keeps it safe\""
     },
@@ -1356,6 +1393,14 @@
       "source": "docs/assistant.md \"Code sandbox\""
     },
     {
+      "property": "P-RESEARCH",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "correctness",
+      "conditions": "a research plan runs only once its person approves it, signed in or with a yes in their chat room from someone in bridge.users; an API key, an app or an agent only declines it unless research.agents_skip_review; the run acts as the person with their access at run time, offered only its sources' read tools, within the plan's tool calls, research.max_minutes and the budgets of its namespaces and all, checked before each stage; its web searches and page reads (and code with the network, when the plan names the sandbox) don't ask again; one run per person at a time; one process at a time; every call in the ledger under research:<id>",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"Deep research\""
+    },
+    {
       "property": "MX-AUTHZ-LIST-CAPS",
       "violation_symptom": "x-cap-exceeded",
       "severity_tier": "correctness",
@@ -1382,7 +1427,7 @@
     },
     {
       "property": "N-EGRESS",
-      "reason": "an egress firewall; netguard guards web import, iCal and news feeds, extension http tools, notifications, the assistant's web search and page reads, and Chromium, nothing else; admin-set URLs other than iCal and news feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded",
+      "reason": "an egress firewall; netguard guards web import, iCal and news feeds, extension http tools, notifications, the assistant's web search and page reads, Chromium and the opt-in browser container (as browser-proxy), nothing else; admin-set URLs other than iCal and news feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded",
       "false_friend": true,
       "provenance": "documented",
       "source": "maintainer ruling, 2026-10"
@@ -1707,7 +1752,7 @@
     "Keep the IIIF cookie SameSite=None; Secure by serving IIIF over HTTPS",
     "Verify webhook-signature on receipt; treat Slack and Discord target URLs as secrets",
     "Keep logs that record request paths private when sensor push tokens are in use",
-    "When the NFS share is on, list only your own networks and pick an account that sees only what the share should show"
+    "When the NFS share is on, list only your own networks and pick an account that sees only what the share should show (and may add only where the share should take files), or turn nfs.add_files off"
   ],
   "known_misuse": [
     {
@@ -1764,6 +1809,11 @@
       "pattern": "Pointing the assistant at a hosted model for sensitive archives",
       "why_unsafe": "Assets' text leaves the machine",
       "instead": "Use a local model server"
+    },
+    {
+      "pattern": "Signing in to a site in the assistant's browser",
+      "why_unsafe": "One browser serves everyone whose assistant uses it, so they are signed in too until it stops",
+      "instead": "Give the assistant only public pages, or an account made for it"
     }
   ],
   "known_non_findings": [

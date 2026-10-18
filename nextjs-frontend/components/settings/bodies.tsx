@@ -648,8 +648,19 @@ function LlmBody({ ctx }: { ctx: BodyCtx }) {
   const key = ctx.state("llm.api_key");
   const baseUrl = ctx.state("llm.base_url");
   const model = ctx.state("llm.model");
+  // Test what is on screen, saved or not; the saved key goes only to the saved address
   const test = useMutation({
-    mutationFn: () => data(Admin.testLlm({ client })),
+    mutationFn: () =>
+      data(
+        Admin.testLlm({
+          client,
+          body: {
+            base_url: String(baseUrl.value ?? "") || null,
+            model: String(model.value ?? "") || null,
+            api_key: (key.value as string | undefined) || null,
+          },
+        }),
+      ),
   });
   // The setup wizard's provider step: a server found nearby or a cloud provider fills in the address and the model,
   // and a cloud provider's key is asked for next
@@ -693,13 +704,21 @@ function LlmBody({ ctx }: { ctx: BodyCtx }) {
       </More>
       <More
         ctx={ctx}
-        ids={["llm.describe_engine", "llm.vision_model", "llm.florence_model", "llm.describe_max"]}
+        ids={[
+          "llm.describe_engine",
+          "llm.vision_model",
+          "llm.florence_model",
+          "llm.moondream_model",
+          "llm.describe_max",
+        ]}
         title="Describing pictures"
       >
         <F ctx={ctx} id="llm.describe_engine" />
         <div className="grid gap-3 sm:grid-cols-2">
           {ctx.state("llm.describe_engine").value === "florence-2" ? (
             <F ctx={ctx} id="llm.florence_model" />
+          ) : ctx.state("llm.describe_engine").value === "moondream" ? (
+            <F ctx={ctx} id="llm.moondream_model" />
           ) : (
             <F ctx={ctx} id="llm.vision_model" />
           )}
@@ -1458,6 +1477,10 @@ function SensorsBody({ ctx }: { ctx: BodyCtx }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <F ctx={ctx} id="sensors.mqtt_port" />
         <F ctx={ctx} id="sensors.max_payload_kb" />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="sensors.mqtt_web" />
+        <F ctx={ctx} id="sensors.mqtt_web_port" />
       </div>
       <Sub>Syslog</Sub>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -2620,6 +2643,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
       <F ctx={ctx} id="ai.refine_notes" />
       <F ctx={ctx} id="ai.organise_notes" />
       <F ctx={ctx} id="ai.compact" />
+      <F ctx={ctx} id="ai.auto_title" />
       <More
         ctx={ctx}
         ids={["ai.untrusted_marking", "ai.untrusted_asks", "ai.injection_check"]}

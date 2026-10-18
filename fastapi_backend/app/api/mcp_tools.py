@@ -36,6 +36,7 @@ from app.api.v1.routes import graph as graph_routes
 from app.api.v1.routes import namespaces as namespace_routes
 from app.api.v1.routes import notebook as note_routes
 from app.api.v1.routes import recordings as recording_routes
+from app.api.v1.routes import research as research_routes
 from app.api.v1.routes import routines as routine_routes
 from app.api.v1.routes import schedules as schedule_routes
 from app.api.v1.routes import search as search_routes
@@ -58,10 +59,14 @@ from app.domain import (
     integrations,
     library,
     monitoring,
+    moondream,
     notebook,
     nsfw,
     rdf,
     render,
+    research,
+    rss,
+    services,
     settings,
     sources,
     store,
@@ -86,7 +91,7 @@ from app.schemas.automations import (
     AutomationTry,
     AutomationUpdate,
 )
-from app.schemas.chats import ChatSummary
+from app.schemas.chats import ChatScope, ChatSummary
 from app.schemas.entities import EntityHide, EntityList, EntityRename, EntityRetype, EntityUpdate
 from app.schemas.notebook import NotePage
 from app.schemas.schedules import ScheduleChange, ScheduleRun
@@ -1843,8 +1848,8 @@ def write_note(
 @tool(
     "list_chats",
     "List your conversations",
-    "Your conversations with Lens's assistant, most recent first: each one's id, title, kind, when it was last added "
-    "to, and its link. Only your own: conversations aren't shared.",
+    "Your conversations with Lens's assistant, most recent first: each one's id, title (`title_by` person when someone "
+    "named it), kind, when it was last added to, and its link. Only your own: conversations aren't shared.",
     Arg("words", "string", "only those whose title has all these words", max_length=200),
     Arg("limit", "integer", "how many", default=20, minimum=1, maximum=200),
     personal=True,
@@ -1859,6 +1864,7 @@ def list_chats(ctx: Context, words: str | None, limit: int) -> dict[str, Any]:
                 {
                     "chat_id": c.id,
                     "title": c.title,
+                    "title_by": c.title_by,
                     "kind": c.kind if c.kind != "chat" else None,
                     "updated_at": c.updated_at,
                     "url": f"{ctx.web}/chat/{c.id}",
@@ -1920,6 +1926,7 @@ def read_chat(ctx: Context, chat_id: int, message: int | None, tree: bool) -> di
         {
             "chat_id": c["id"],
             "title": c["title"],
+            "title_by": c.get("title_by"),
             "url": f"{ctx.web}/chat/{c['id']}",
             "draws_on": chat_export.scope_words(c.get("scope")),
             "model": c.get("model"),
@@ -1928,6 +1935,29 @@ def read_chat(ctx: Context, chat_id: int, message: int | None, tree: bool) -> di
             "tree": [store.clean(n) for n in nodes] if tree else None,
         }
     )
+
+
+@tool(
+    "rename_chat",
+    "Rename a conversation",
+    "Name one of your conversations, or leave `title` out to have Lens title it now from how it starts (one call to the "
+    "model for summaries, counted in the activity ledger). Lens titles a conversation after its first answer on its "
+    "own; one someone named keeps its name. Needs a token with the write scope.",
+    Arg("chat_id", "integer", "the conversation (from list_chats)", required=True),
+    Arg("title", "string", "its new name; left out, Lens writes one", max_length=120),
+    writes=True,
+    personal=True,
+)
+def rename_chat(ctx: Context, chat_id: int, title: str | None) -> dict[str, Any]:
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to rename conversations")
+    chat_routes._own_chat(ctx.db, chat_id, ctx.user)
+    if name := (title or "").strip():
+        chat.rename(ctx.db, chat_id, name)
+        named = {"title": name[:120], "title_by": "person"}
+    else:
+        named = chat_routes.title_chat(chat_id, ctx.user, ctx.db, ctx.cfg).model_dump()
+    return {"chat_id": chat_id, **named, "url": f"{ctx.web}/chat/{chat_id}"}
 
 
 @tool(
@@ -2291,7 +2321,8 @@ def read_file(ctx: Context, path: str, offset: int) -> dict[str, Any]:
     "picture_descriptions",
     "Describing pictures",
     "What describes the pages of documents and images and the shots of videos (the describe step; search finds what "
-    "it says): the LLM provider's model that can see images, or Florence-2 on this server. Its model, whether it's "
+    "it says): the LLM provider's model that can see images, or Florence-2 or Moondream on this server. Its model, "
+    "whether it's "
     "ready and why not, how many pages or shots of a resource are described at most, and the engines there are. "
     "Admins only.",
     admin=True,
@@ -2307,12 +2338,14 @@ def picture_descriptions(ctx: Context) -> dict[str, Any]:
     "Change how pictures are described",
     "Choose what describes the pages and shots of new and reprocessed resources: engine llm, the LLM provider's model "
     "that can see images (vision_model), or florence-2, Florence-2 (MIT) on this server's CPU, so no picture leaves it "
-    "(florence_model base, about 280 MB, or large, about 830 MB, fetched the first time a job needs it); and "
-    "describe_max, how many pages or shots of a resource are described at most. Admins only, with a token that has "
-    "the write scope.",
+    "(florence_model base, about 280 MB, or large, about 830 MB, fetched the first time a job needs it), or moondream, "
+    "Moondream on this server (moondream_model moondream3-preview, Moondream 3 under the BSL 1.1, not open source, "
+    "about 19 GB and a GPU; or moondream2, Apache-2.0, about 3.7 GB, on a CPU); and describe_max, how many pages or "
+    "shots of a resource are described at most. Admins only, with a token that has the write scope.",
     Arg("engine", "string", "what describes pictures", enum=tuple(descriptions.ENGINES)),
     Arg("vision_model", "string", "the LLM provider's model that can see images, for engine llm; empty for none", max_length=200),
     Arg("florence_model", "string", "Florence-2's size, for engine florence-2", enum=florence.SIZES),
+    Arg("moondream_model", "string", "which Moondream, for engine moondream", enum=tuple(moondream.MODELS)),
     Arg("describe_max", "integer", "pages or shots of a resource described at most, 1 to 1000"),
     writes=True,
     admin=True,
@@ -2322,6 +2355,7 @@ def set_picture_descriptions(
     engine: str | None = None,
     vision_model: str | None = None,
     florence_model: str | None = None,
+    moondream_model: str | None = None,
     describe_max: int | None = None,
 ) -> dict[str, Any]:
     if not ctx.user.admin:
@@ -2332,11 +2366,12 @@ def set_picture_descriptions(
         ("describe_engine", engine),
         ("vision_model", vision_model),
         ("florence_model", florence_model),
+        ("moondream_model", moondream_model),
         ("describe_max", describe_max),
     )
     changes = {k: v for k, v in given if v is not None}
     if not changes:
-        raise ToolError("say what to change: engine, vision_model, florence_model or describe_max")
+        raise ToolError("say what to change: engine, vision_model, florence_model, moondream_model or describe_max")
     settings.save(ctx.db, ctx.request.app.state.archive.base, "llm", changes, ctx.user.email)
     auth.audit(ctx.db, ctx.user.as_audit(), "settings.save", "llm", sorted(changes) + ["mcp"])
     return {"saved": changes, **descriptions.status(ctx.request.app.state.settings.current())}
@@ -2450,6 +2485,49 @@ def set_monitoring(ctx: Context, on: bool) -> dict[str, Any]:
     return got
 
 
+# ---------- Lens's optional containers: the MCP runner, the browser, monitoring (admins) ----------
+@tool(
+    "services",
+    "Optional containers",
+    "Lens's optional containers: the MCP runner (MCP servers that run as a program), the browser (a headless Chromium "
+    "the assistant drives) and monitoring. Whether each is on and answering, and how the machine's last change went. "
+    "Admins only.",
+    admin=True,
+)
+def services_status(ctx: Context) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins see or change Lens's optional containers")
+    return {"services": services.views(ctx.db), "settings": f"{ctx.web}/extensions/new/mcp"}
+
+
+@tool(
+    "set_service",
+    "Turn an optional container on or off",
+    "Have this machine start (on true) or stop one of Lens's optional containers: mcp (the MCP runner), browser, or "
+    "monitoring (which also turns /metrics on). The machine's upgrade agent does it; services follows along. Admins "
+    "only, with a token that has the write scope.",
+    Arg("profile", "string", "which", required=True, enum=tuple(services.PROFILES)),
+    Arg("on", "boolean", "start (true) or stop (false)", required=True),
+    writes=True,
+    admin=True,
+)
+def set_service(ctx: Context, profile: str, on: bool) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins see or change Lens's optional containers")
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to change them")
+    try:
+        if profile == "monitoring":
+            monitoring.turn(ctx.db, ctx.request.app.state.archive.base, ctx.cfg, bool(on), by=ctx.user.email)
+        else:
+            services.ask(ctx.db, profile, bool(on), by=ctx.user.email)
+    except services.ServiceError as e:
+        raise ToolError(str(e)) from None
+    action = "lens.monitoring" if profile == "monitoring" else "lens.services"
+    auth.audit(ctx.db, ctx.user.as_audit(), action, None, {"profile": profile, "on": bool(on), "via": "mcp"})
+    return services.view(ctx.db, profile)
+
+
 # ---------- the code sandbox's OpenShell gateway next to Lens (admins) ----------
 @tool(
     "sandbox_gateway",
@@ -2536,6 +2614,69 @@ def set_install_settings(ctx: Context, public: bool | None = None, target: str |
     return updates.install_view(ctx.db, ctx.cfg) | {"changing": asked}
 
 
+# ---------- news feeds (admins) ----------
+def _feeds_admin(ctx: Context, write: bool = False) -> None:
+    if not ctx.user.admin:
+        raise ToolError("only admins see or change the news feeds Lens follows")
+    if write and not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to change news feeds")
+
+
+@tool(
+    "news_feeds",
+    "News feeds",
+    "The news feeds (RSS or Atom) Lens follows: each one's id (feed), name, the feed's own title, whether it could be "
+    "read last time (health), and the namespaces it brings new posts into, with how each one's last scan went. Their "
+    "addresses stay sealed. Each post comes in as text with its link, author and date; a new one is a "
+    "feed_post.received activity. Admins only.",
+    admin=True,
+)
+def news_feeds(ctx: Context) -> dict[str, Any]:
+    _feeds_admin(ctx)
+    return {"feeds": rss.subscriptions(ctx.db), "settings": f"{ctx.web}/sources"}
+
+
+@tool(
+    "subscribe_feed",
+    "Subscribe to a news feed",
+    "Follow a news feed (RSS or Atom) into a namespace: url is the feed's address, or a page of the site that names its "
+    "feed. It's read first and kept only if it works; it's named by the feed's title unless name says. Each new post "
+    "then comes in as text, and with backfill also the posts the feed lists now. The namespace is made if it's new. "
+    "A feed already followed is reused. Feeds that need a password are added in the web app (Sources). Admins only, "
+    "with a token that has the write scope.",
+    Arg("url", "string", "the feed's address, or a page of the site", required=True, max_length=2000),
+    Arg("namespace", "string", "the namespace its posts go in", required=True, max_length=41),
+    Arg("name", "string", "what to call it (else the feed's title)", max_length=80),
+    Arg("backfill", "boolean", "also bring in the posts the feed lists now", default=False),
+    writes=True,
+    admin=True,
+)
+def subscribe_feed(ctx: Context, url: str, namespace: str, name: str | None = None, backfill: bool = False) -> dict[str, Any]:
+    _feeds_admin(ctx, write=True)
+    out = rss.subscribe(ctx.db, ctx.cfg, url, namespace, name, bool(backfill), by=ctx.user.email)
+    if out["added"]:
+        auth.audit(ctx.db, ctx.user.as_audit(), "source.create", f"storage_source:{out['feed']}", ["mcp"])
+    if not out["already"]:
+        auth.audit(ctx.db, ctx.user.as_audit(), "watch.create", f"watch_path:{out['watch']}", ["mcp"])
+    return out
+
+
+@tool(
+    "unsubscribe_feed",
+    "Stop following a news feed",
+    "Stop following a news feed (its id from news_feeds): no more posts come in from it. The posts it brought in stay. "
+    "Admins only, with a token that has the write scope.",
+    Arg("feed", "integer", "the feed's id, from news_feeds", required=True),
+    writes=True,
+    admin=True,
+)
+def unsubscribe_feed(ctx: Context, feed: int) -> dict[str, Any]:
+    _feeds_admin(ctx, write=True)
+    rss.unsubscribe(ctx.db, feed)
+    auth.audit(ctx.db, ctx.user.as_audit(), "source.delete", f"storage_source:{feed}", ["mcp"])
+    return {"unsubscribed": feed}
+
+
 # ---------- the stream of activities ----------
 @tool(
     "timeline",
@@ -2557,7 +2698,9 @@ def set_install_settings(ctx: Context, public: bool | None = None, target: str |
     Arg(
         "where",
         "string",
-        'a match tree on the activity as JSON, like {"all": [{"path": "object.name", "op": "contains", "value": "trip"}]}',
+        'a match tree on the activity as JSON, like {"all": [{"path": "object.name", "op": "matches", "value": "trip|outing"}]}; '
+        "op is exists, empty, equals, not_equals, contains, gt, lt, in, not_in, starts_with, ends_with, matches, between, "
+        "before, after, within, weekday or time_between (docs/automations.md, Operators)",
         max_length=20000,
     ),
     Arg("unreviewed", "boolean", "only those you haven't marked reviewed"),
@@ -2673,6 +2816,109 @@ def decline_approval(ctx: Context, id: int) -> dict[str, Any]:
     except ValueError as e:
         raise ToolError(str(e)) from None
     return {"approval": id, "status": out.get("status")}
+
+
+# ---------- deep research (docs/assistant.md#deep-research) ----------
+@tool(
+    "start_research",
+    "Start deep research",
+    "Research a goal for the person: one planning call makes a plan (the sub-questions, where it looks: the archive, the "
+    "graph, notes, the web or the code sandbox, the tool calls it may make, the report's outline) and up to three "
+    "follow-up questions. The plan waits for the person's approval in Lens (url), unless the admin let agents start "
+    "research without review (research.agents_skip_review); approved, it runs in the background and its cited report "
+    "comes back in the conversation: follow it with research_status. Needs a token with the write scope.",
+    Arg("goal", "string", "what to research, in the person's words", required=True, max_length=4000),
+    Arg("chat_id", "integer", "the conversation to research in; a new one when left out", minimum=1),
+    Arg("namespaces", "string[]", "only these namespaces (a new conversation's scope)"),
+    Arg("tools", "string[]", "what it may use: tool groups (archive, graph, notes, web, code) and tools; else the conversation's choice"),
+    Arg("max_tool_calls", "integer", "the most tool calls it may make (research.max_tool_calls at most)", minimum=1, maximum=500),
+    writes=True,
+)
+def start_research(
+    ctx: Context, goal: str, chat_id: int | None, namespaces: list[str] | None, tools: list[str] | None, max_tool_calls: int | None
+) -> dict[str, Any]:
+    _writer(ctx, "start research")
+    if not research.available(ctx.cfg):
+        raise ToolError("research needs a language model that uses tools: an admin sets one up in Settings › AI assistant")
+    asked = [ctx.ns] if ctx.ns else namespaces
+    scope = chat_routes._scope(ctx.acl, ctx.db, ChatScope(namespaces=asked)) if asked else None
+    if chat_id is not None:
+        c = chat_routes._own_chat(ctx.db, chat_id, ctx.user)
+        scope = scope if scope is not None else c.get("scope")
+    else:
+        chat_id = chat.create(ctx.db, ctx.user.id, goal[:80], scope)
+        c = chat.get(ctx.db, chat_id, ctx.user.id)
+    box = research_routes.toolbox(ctx.db, ctx.cfg, ctx.user, ctx.acl, chat_id, scope, None, ctx.request)
+    if tools is not None and box.unknown(tools):
+        raise ToolError(f"no tool or tool group {box.unknown(tools)[0]!r}")
+    box = research_routes.toolbox(
+        ctx.db, ctx.cfg, ctx.user, ctx.acl, chat_id, scope, tools if tools is not None else c.get("tools"), ctx.request
+    )
+    skip = research.settings(ctx.cfg)["agents_skip_review"]
+    out = research.start(
+        ctx.db,
+        ctx.cfg,
+        box,
+        " ".join(goal.split()),
+        "api",
+        model=research.model_for(ctx.cfg),
+        max_tool_calls=max_tool_calls,
+        options={"tools": tools, "max_tool_calls": max_tool_calls},
+        review=not skip,
+    )
+    if out.get("error"):
+        raise ToolError(out["error"])
+    r = research.view(ctx.db, out["research"])
+    return {
+        "research": r["id"],
+        "chat_id": chat_id,
+        "status": r["status"],
+        "plan": r["plan"],
+        "questions": r["questions"],
+        "estimate": r["estimate"],
+        "approval": r["approval"],
+        "url": f"{ctx.web}/chat/{chat_id}",
+        "next": "running: follow it with research_status"
+        if r["status"] in ("queued", "running")
+        else "waiting for the person to approve the plan in Lens (url); follow it with research_status",
+    }
+
+
+@tool(
+    "research_status",
+    "Research status",
+    "Where a deep research run stands: its plan and status (planned: waiting for the person's approval; queued, "
+    "running, held by a budget, done, stopped, failed), its stage (gather, write, check, done) and progress "
+    "(sub-questions done, sources found, tool calls and cost so far). Once it's done (or stopped), the report in "
+    "Markdown with its numbered sources, each with a link.",
+    Arg("id", "integer", "the research (start_research's)", required=True, minimum=1),
+)
+def research_status(ctx: Context, id: int) -> dict[str, Any]:  # noqa: A002 - the argument's name
+    try:
+        r = research.mine(ctx.db, id, ctx.user.id)
+    except KeyError:
+        raise ToolError(f"no research {id} of yours") from None
+    out = research.view(ctx.db, r)
+    out["url"] = f"{ctx.web}/chat/{r['chat']}"
+    if r.get("answer"):
+        m = ctx.db.one("SELECT content, passages FROM $r", r=R("chat_message", r["answer"])) or {}
+        ok = None if ctx.user.admin else set(ctx.acl.spaces())
+        spaces = {
+            x["id"]: x["space"]
+            for x in ctx.db.rows(
+                "SELECT record::id(id) AS id, space FROM recording WHERE id IN $ids",
+                ids=[R("recording", p["recording_id"]) for p in m.get("passages") or [] if p.get("recording_id") is not None],
+            )
+        }
+        sources = []
+        for p in m.get("passages") or []:
+            if p.get("source") == "web":
+                sources.append({"n": p["n"], "title": p.get("title"), "url": p.get("url"), "site": p.get("site")})
+            elif p.get("recording_id") in spaces and (ok is None or spaces[p["recording_id"]] in ok):
+                sources.append({"n": p["n"], "title": p.get("title"), "at": p.get("time"), "url": ctx.link(p["recording_id"], p.get("t0"))})
+        out["report"] = m.get("content")
+        out["sources"] = sources
+    return out
 
 
 @tool(

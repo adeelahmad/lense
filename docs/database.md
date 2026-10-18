@@ -90,7 +90,9 @@ Installs keep their data across updates (running `install.sh` again, a new image
 indexes arrive through `SCHEMA` on the next start. A field that is only added needs no step when its readers treat it
 as missing on older rows: a chat message's record (`meta`,
 [What each answer records](assistant.md#what-each-answer-records)) is one, and messages from before it simply have
-none. Anything else, such as rewriting stored values, moving data between
+none. [Deep research](assistant.md#deep-research) is another: its tables (`research`, and `research_run` for the claim
+of the process running one) are new, a message's `kind` is missing on older ones, and notes accept `chat` links
+without rewriting any. Anything else, such as rewriting stored values, moving data between
 tables, or changing or removing an index that already exists, is a named step in `app/domain/migrations.py`:
 
 * Every process that opens the database (the API, workers, `lens watch`, `lens` commands) runs the steps the database
@@ -161,7 +163,9 @@ are in `.upgrade-check/` (on GitHub, the run's `upgrade-check` artifact).
 ## Concurrency
 
 The handle (`store.DB`) is thread-safe. Against a server it keeps a small pool of connections; the embedded engine has
-one connection that queries take turns on. SurrealDB transactions are optimistic: when two touch the same record at
+one connection that queries take turns on, which a query made on a thread already inside one (Python closing an
+abandoned generator in the middle of a query, say) shares rather than waits for; against a server such a query takes
+another connection. SurrealDB transactions are optimistic: when two touch the same record at
 once, one fails with a retryable write conflict. The handle retries those automatically, with jittered backoff, for
 single statements and for `run()` transactions (which roll back as a whole, so retrying is safe).
 

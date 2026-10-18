@@ -13,9 +13,9 @@ An automation is an `automation:<id>` row:
 - What its runs left: `last_run_at`, `last_status`, `counters` ({runs, skipped, limited, missed}).
 - `removed_at`: deleted (switched off and hidden; restore brings it back).
 
-Parts of the studio built in their own steps are called once they are there (automation_nodes.provided): schedules
-and times (timers), webhooks (automation_hooks) and joins other than any (match.join_step). Until then a trigger or
-join that needs one is refused as coming soon.
+Parts of the studio built in their own steps are called through automation_nodes.provided: schedules and times
+(timers), webhooks (automation_hooks) and joins other than any (match.join_step, whose absent and batch modes wait
+on timers). A trigger or join whose part isn't there is refused as coming soon.
 """
 
 from __future__ import annotations
@@ -38,6 +38,7 @@ from . import (
     match,
     store,
     telemetry,
+    variables,
     workflows,
 )
 from . import activity as activity_mod
@@ -682,8 +683,9 @@ def run(db, cfg, aid, alias, activity, evs=None, dry=False, by=None, over_budget
     auto = {"id": row.get("id"), "name": row["name"], "version": version, "spaces": row.get("spaces")}
     trigger = {"as": trig["as"], "on": trig["on"], "timezone": trig.get("timezone")}
     ctx = automation_nodes.context(db, cfg, auto, {"id": run_id, "dry": dry}, trigger, activity, evs, person)
+    env = _env(db, cfg, row, trig["as"], ctx, account, dry)
     # the If first: a run it stops uses up no limit, holds no budget and makes no row
-    if row.get("condition") and not match.test(row["condition"], ctx):
+    if row.get("condition") and not match.test(row["condition"], ctx, env):
         if not dry:
             db.q("UPDATE $r SET counters.skipped += 1", r=R("automation", row["id"]))
         return {**out, "status": "skipped", "why": "its If was false"}
@@ -739,7 +741,16 @@ def run(db, cfg, aid, alias, activity, evs=None, dry=False, by=None, over_budget
     )
     who = f"automation:{row['id']}" if row.get("id") is not None else None
     r = flow.Run(
-        db, cfg, workflows.KITS["event"], ctx, say, dry=dry, user=who, origin={"automation": row.get("id"), "run": run_id}, intents=box
+        db,
+        cfg,
+        workflows.KITS["event"],
+        ctx,
+        say,
+        dry=dry,
+        user=who,
+        origin={"automation": row.get("id"), "run": run_id},
+        intents=box,
+        env=env,
     )
     run_refs = [x for x in (who, f"automation_run:{run_id}" if run_id else None) if x]
     error = None
@@ -803,6 +814,21 @@ def run(db, cfg, aid, alias, activity, evs=None, dry=False, by=None, over_budget
     telemetry.record("lens.automation.runs", 1, {"lens.outcome": status})
     events.wake()
     return got
+
+
+def _env(db, cfg, row, alias, ctx, account, dry):
+    """What a run's If and its graph's conditions test with (match.test's env): the run's clock and time zone, one
+    State for `changed` (so the If and a node testing the same thing agree), and its namespaces and person for
+    looking back (`seen`)."""
+    return {
+        "db": db,
+        "cfg": cfg,
+        "now": ctx.get("now"),
+        "timezone": ctx.get("timezone"),
+        "spaces": row.get("spaces"),
+        "viewer": _viewer(db, account) if account else None,
+        "state": match.State(db, row.get("id"), alias, dry=dry or row.get("id") is None),
+    }
 
 
 def _failed(db, cfg, row, alias, activity, evs, by, now, why):
@@ -921,6 +947,11 @@ def _after(t, since):
         return False
 
 
+def _where_env(db, a, t):
+    """What a trigger's where tests with: the trigger's time zone and its own State for `changed`."""
+    return {"timezone": variables.timezone_of(a, t), "state": match.State(db, a["id"], t["as"])}
+
+
 def _route(db, cfg, a, t, act, who, sec):
     """One activity against one trigger: the guards, a claim so it's handled once, then on to its run (or a join, or
     a timer). How many runs it started."""
@@ -938,7 +969,7 @@ def _route(db, cfg, a, t, act, who, sec):
         return 0
     if t["on"] == "webhook" and (act.get("object") or {}).get("hook") != t.get("hook"):
         return 0
-    if t.get("where") and not match.test(t["where"], act):
+    if t.get("where") and not match.test(t["where"], act, _where_env(db, a, t)):
         return 0
     if not events.claim(db, CONSUMER, f"{a['id']}|{t['as']}|{act['id']}"):
         return 0
@@ -950,7 +981,7 @@ def _route(db, cfg, a, t, act, who, sec):
     if a["join"]["mode"] != "any":
         step = provided("match", "join_step")
         done = step(db, cfg, a, t["as"], act) if step is not None else []
-        return sum(1 for c in done if fire(db, cfg, a["id"], t["as"], c.get("event") or act, c.get("events")) is not None)
+        return sum(1 for c in done if fire(db, cfg, a["id"], c.get("as") or t["as"], c.get("event") or act, c.get("events")) is not None)
     return 1 if fire(db, cfg, a["id"], t["as"], act, {t["as"]: act}) is not None else 0
 
 

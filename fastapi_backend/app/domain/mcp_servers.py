@@ -14,12 +14,15 @@ for each tool. The servers themselves are extensions of kind `mcp` (extensions.p
   same place (`opened`).
 - `off` (the tools switched off) and `ask` ({tool: whether it asks first}, where that differs from the server's own
   read-only hint) sit in the server's spec, so they survive its tools being listed again and travel with its manifest.
+- `presets` are servers ready to add: the browser Lens can run next to it (the optional `browser` profile, Playwright
+  MCP) and GitHub's own server, with a token to type in.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import urllib.parse
 
@@ -266,6 +269,43 @@ def read(text):
         out.append({"name": name, "description": f"The {given or name} MCP server", "spec": spec, "fill": _fill(spec)})
     skipped += [{"name": n or "a server", "why": f"a config adds at most {MAX_SERVERS} servers at once"} for n, _ in servers[MAX_SERVERS:]]
     return {"servers": out, "skipped": skipped}
+
+
+# ---------- ready-made servers (Add MCP server) ----------
+# The browser's tools that only go somewhere, and needn't ask before the conversation has read a page (they ask after,
+# as every tool that reaches another host does); clicking, typing and filling in forms always ask
+BROWSER_GOES = ("browser_navigate", "browser_navigate_back", "browser_wait_for")
+
+
+def presets():
+    """Servers to add with a click or two: [{name, label, description, spec, fill, needs}]. `fill` names the values to
+    type in first, written ${NAME} in the spec; `needs` is the optional profile it runs in (services.py), if any."""
+    browser = (os.environ.get("LENS_BROWSER_URL") or "http://browser:8931").rstrip("/")
+    return [
+        {
+            "name": "browser",
+            "label": "Browser",
+            "description": "Opens web pages, reads them, clicks, types and fills in forms (Playwright MCP, in Lens's browser container)",
+            # one session for all its calls: the page it has open stays open from one call to the next. Running code
+            # in the browser's own server process starts off: it reaches past the browser
+            "spec": {
+                "url": f"{browser}/mcp",
+                "keep": True,
+                "off": ["browser_run_code_unsafe"],
+                "ask": {t: False for t in BROWSER_GOES},
+            },
+            "fill": [],
+            "needs": "browser",
+        },
+        {
+            "name": "github",
+            "label": "GitHub",
+            "description": "Issues, pull requests and code on GitHub, with a personal access token (GitHub's own MCP server)",
+            "spec": {"url": "https://api.githubcopilot.com/mcp/", "headers": {"Authorization": "Bearer ${GITHUB_TOKEN}"}},
+            "fill": ["GITHUB_TOKEN"],
+            "needs": None,
+        },
+    ]
 
 
 # ---------- upgrading ----------

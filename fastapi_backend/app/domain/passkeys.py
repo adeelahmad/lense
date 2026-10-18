@@ -8,7 +8,8 @@ the site the person is on, while the session is started by the web app's server,
 
 A passkey belongs to the site it was made on (its RP ID, the host name): one made at https://lens.example.com doesn't
 work at http://localhost:3000, so the passkeys list shows each one's site. Browsers only offer passkeys on https://
-pages and on localhost.
+pages and on localhost. Someone signed in at one address carries their sign-in to the others Lens opens at (Remote
+access, HTTPS: addresses()) with a short sign-in link of their own (ELSEWHERE_MINUTES), and adds a passkey there.
 
 People without a passkey yet get one through a sign-in link (`signin_link`): an admin makes one for a new person or
 someone who lost theirs, `lens users link` prints one on the server, and "Lost your passkey?" emails one when mail is
@@ -45,6 +46,7 @@ R = store.R
 FLOW_MINUTES = 5
 TICKET_SECONDS = 120
 LINK_HOURS = 72
+ELSEWHERE_MINUTES = 15  # a sign-in link of your own, to take your sign-in to another address Lens opens at
 MAX_PER_ACCOUNT = 20
 NAME_MAX = 60
 TRANSPORTS = {t.value for t in AuthenticatorTransport}
@@ -250,6 +252,21 @@ def create_link(db, uid, hours=LINK_HOURS, by=None, replace=True):
         d=store.clean({"account": uid, "created_at": store.now(), "expires_at": _later(hours * 3600), "created_by": by}),
     )
     return raw
+
+
+def addresses(db, cfg):
+    """The https:// addresses Lens opens at besides the one it's set up at: the Cloudflare tunnel's (Settings › Remote
+    access) and HTTPS's domains (Settings › HTTPS), lower case, without a trailing slash."""
+    from . import https, tunnel
+
+    out = []
+    if ((cfg.get("tunnel") or {}).get("mode") or "off") != "off":
+        url = tunnel.status(db, cfg).get("url")
+        if url:
+            out.append(url)
+    port = https.public_port()
+    out += [f"https://{h}" + ("" if port == 443 else f":{port}") for h in https.hosts(cfg)]
+    return list(dict.fromkeys(u.rstrip("/").lower() for u in out))
 
 
 def link_url(raw, base=None):
