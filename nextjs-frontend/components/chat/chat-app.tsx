@@ -14,7 +14,7 @@ import { AttachmentChips, useAttachments } from "@/components/chat/attachments";
 import { shortTitle } from "@/components/chat/cite";
 import { Composer, ScopeBar } from "@/components/chat/composer";
 import { ConversationList } from "@/components/chat/conversations";
-import { useApprovals, useChat, useChats, useLlmStatus, useStopAnswer } from "@/components/chat/data";
+import { refetchFresh, useApprovals, useChat, useChats, useLlmStatus, useStopAnswer } from "@/components/chat/data";
 import { EmptyChat } from "@/components/chat/empty";
 import { ExportMenu, useChatExport } from "@/components/chat/export";
 import { NamespaceOffer, spokenPick } from "@/components/chat/namespace-offer";
@@ -313,10 +313,7 @@ export function ChatApp() {
           [mid]: { steps: turn.steps, notice: turn.notice, error: turn.error },
         }));
       if (turn.status === "done") setAnnounce(`Answer: ${turn.text.replace(/\[\d+(?:,\s*\d+)*\]/g, "")}`);
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ["chat", cid] }),
-        qc.invalidateQueries({ queryKey: ["approvals", cid] }),
-      ]);
+      await Promise.all([refetchFresh(qc, ["chat", cid]), refetchFresh(qc, ["approvals", cid])]);
       qc.invalidateQueries({ queryKey: ["chats"] });
       if (mid == null) setPartials((p) => ({ ...p, [`${cid}:${question}`]: turn }));
       setLive(null);

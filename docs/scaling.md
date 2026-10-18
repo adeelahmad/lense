@@ -10,9 +10,9 @@ Status: in progress. Built: groups, rules, approvals, budgets, the scaler, the A
 Settings › Auto scaling (the switch, and each group's terms to approve or pause), and **This machine**, a provider that
 runs more `lens worker` processes where Lens runs. In progress: **AWS EC2** (spot or on demand), **DigitalOcean**
 and **Hetzner Cloud** providers are built (credentials checked, prices, launching, watching and deleting machines),
-and launch once the mesh's install line, which another machine joins Lens with, lands ([the mesh](mesh.md)). Planned:
-providers for Proxmox and any Linux host over SSH; model hosts (RunPod, Lambda, Hugging Face, SageMaker, Bedrock) for
-models; and making providers and groups in Settings.
+and launch once the mesh's install line, which another machine joins Lens with, lands ([the mesh](mesh.md)); so is
+**Proxmox VE**, clones of a VM template on your own server. Planned: providers for any Linux host over SSH; model hosts
+(RunPod, Lambda, Hugging Face, SageMaker, Bedrock) for models; and making providers and groups in Settings.
 
 Auto scaling is **off** until an admin turns it on, and a group launches nothing until a person approves its terms
 signed in to the web app. Agents can propose and manage groups, but never approve one.
@@ -57,6 +57,7 @@ carries none of them.
 | `local` (This machine) | more `lens worker` processes where the scaler runs | nothing | `steps`: the steps they run (none: every step) |
 | `aws` (AWS EC2) | EC2 instances that join over the mesh and run `lens worker` | the spot or on-demand price, an estimate | `instance_type`, `market` (`spot` or `on-demand`), `max_price`, `fallback`, `image`, `disk_gb`, `steps` |
 | `digitalocean` | droplets in `region`, with `token` (sealed), optional `ssh_keys` and `vpc_uuid` | DigitalOcean's hourly list price | `size` (`s-1vcpu-2gb`), `image` (`ubuntu-24-04-x64`), `steps` |
+| `proxmox` (Proxmox VE) | clones of a VM template on `node`, at `url` with an API token (`token_id`, `token_secret` sealed); `verify_tls` (on) and `ca_cert` for a private CA | nothing, unless you give it a price | `vm_template` (its id), `full_clone` (off: linked), `storage`, `pool`, `steps` |
 | `hetzner` (Hetzner Cloud) | servers in `location`, with `token` (sealed), optional `ssh_keys` | Hetzner's hourly gross price in euros, times `usd_per_eur` (1.1; set your rate) | `server_type` (`cx22`), `image` (`ubuntu-24.04`), `steps` |
 
 A worker on This machine stops with the process that started it, and the scaler that takes over starts them again where
@@ -70,6 +71,14 @@ unit, usable once within an hour. The machine joins Lens over the [mesh](mesh.md
 database credential travels inside the sealed join answer, so the user-data holds no long-lived secret. Each machine
 carries Lens's tag (`scaling.tag`: a DigitalOcean tag, a Hetzner label `lens=<tag>`), so Lens's machines can be told
 apart. Letting a unit go deletes its machine; a machine switched off at the provider counts as gone and is deleted.
+
+A Proxmox unit is a clone of `vm_template`, tagged with Lens's tag and started. Its template needs the QEMU guest
+agent (`qemu-guest-agent` installed, and the VM's Guest Agent option on): once the agent answers, Lens runs the same
+first-boot script in the clone through it, then tags it `lens-booted`, so nothing is put on the server's storage. The
+script stays in Lens's memory until then; a clone whose boot was cut short, by Lens restarting, never joins and is
+deleted. Letting a unit go stops the clone and deletes it with its disks. The API token needs to clone, configure,
+start, stop and delete VMs and use their guest agent (the `PVEVMAdmin` role on the template and the clones' pool is
+enough).
 
 Until the mesh is on and has its install line, a group on these providers waits (`waiting_for` says so) and launches
 nothing, since its machines couldn't join. They call the providers' REST APIs with httpx, so they install nothing.
@@ -222,9 +231,10 @@ Turning scaling on (`change_settings scaling`) always asks.
 
 ## Refine later
 
-Providers for Proxmox, SSH hosts and model hosts; revoking a unit's mesh certificate when it goes; reporting machines
-with Lens's tag that Lens has no unit for (`listing`); a live euro rate; preemptible and spot instances at clouds
-other than AWS; draining an AWS spot unit on its two-minute notice (the node agent reading the instance's metadata) and
-handing its job back at once; following the spot price as it changes; AWS sign-in with an instance role or IAM
-Identity Center instead of keys; mixed instance types per group; warm pools; predictive scaling; health checks beyond
+Providers for SSH hosts and model hosts; Proxmox LXC containers; revoking a unit's mesh certificate when it goes;
+reporting machines with Lens's tag that Lens has no unit for (`listing`); a live euro rate; preemptible and spot
+instances at clouds other than AWS; draining an AWS spot unit on its two-minute notice (the node agent reading the
+instance's metadata) and handing its job back at once; following the spot price as it changes; AWS sign-in with an
+instance role or IAM Identity Center instead of keys; mixed instance types per group; warm pools; predictive scaling;
+health checks beyond
 joining; prices fetched from providers' pricing APIs.
