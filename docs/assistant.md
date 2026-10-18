@@ -422,7 +422,8 @@ tools for them, only for the kinds connected, with nothing to turn on:
 - **`add_event`** adds an event to a calendar of a Google Calendar connection an admin let add events: `title`,
   `start` and `end` (a date alone is all day; a time without an offset is in the calendar's own time zone; it lasts an
   hour, or a day, when `end` is left out), `where`, `description`, and `attendees`, who are emailed an invitation
-  unless `invite` is false.
+  unless `invite` is false. A date said in an asset can also be proposed as an event with one click, prefilled from
+  its line ([Propose an event](processing.md#propose-an-event)).
 - **`write_file`** writes a text file (Markdown, CSV, notes, code) to a storage connection: a new file, or one it
   replaces when `overwrite` is true. A file that turned up after it asked isn't replaced. Google Drive connected read
   only (its default) can't be written to.

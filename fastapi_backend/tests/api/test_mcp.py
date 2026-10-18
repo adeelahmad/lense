@@ -71,8 +71,10 @@ def test_clients_are_sent_to_sign_in(client, app, env):
     tools = rpc(client, env["h"], "tools/list")["result"]["tools"]
     assert [t["name"] for t in tools] == list(mcp_tools.TOOLS)
     assert all(t["inputSchema"]["type"] == "object" for t in tools)
-    # every tool only reads, except suggesting a topic and asking for a graph change (which need the write scope)
+    # every tool only reads, except proposing an event, suggesting a topic and asking for a graph change (which need
+    # the write scope), and the rest below
     assert [t["name"] for t in tools if not t["annotations"]["readOnlyHint"]] == [
+        "propose_event",
         "suggest_topic",
         "propose_graph_change",
         "undo_graph_change",

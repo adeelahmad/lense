@@ -57,6 +57,7 @@ from app.domain import (
     descriptions,
     enhance,
     event_mutes,
+    event_proposals,
     event_reactions,
     events,
     extensions,
@@ -1297,7 +1298,8 @@ def _scope(namespace: str | None) -> str:
     'Tuesday after, "last week" the seven days before that Monday, "March 2024" all of March. Give start and end '
     "(YYYY-MM-DD, or YYYY-MM or YYYY) for what falls between them, the earliest first, each with the words said, the "
     "line and a url to that moment. relative: worked out from the asset's own date. Only assets analysed while Settings "
-    "→ Analysis → Read dates was on have them (reading says whether it is).",
+    "→ Analysis → Read dates was on have them (reading says whether it is). proposable: propose_event can turn one "
+    "into a calendar event that waits for the person's yes.",
     Arg("start", "string", "from this day on: YYYY-MM-DD, YYYY-MM or YYYY", max_length=10),
     Arg("end", "string", "up to this day: YYYY-MM-DD, YYYY-MM or YYYY", max_length=10),
     Arg("namespace", "string", "only this namespace"),
@@ -1331,6 +1333,7 @@ def list_dates(
     )
     out: dict[str, Any] = {
         "reading": res.reading,
+        "proposable": res.proposable,
         "total": res.total,
         "dates": [
             {
@@ -1346,6 +1349,7 @@ def list_dates(
                     "namespace": d.namespace,
                     "recorded_at": d.recorded_at,
                     "line": d.idx,
+                    "segment": d.segment,
                     "at": d.time,
                     "speaker": d.speaker,
                     "text": _cut(d.text),
@@ -1359,6 +1363,69 @@ def list_dates(
     if offset + len(res.items) < res.total:
         out["next_offset"] = offset + len(res.items)
     return out
+
+
+@tool(
+    "propose_event",
+    "Propose a date said as an event",
+    "Propose a date said in an asset (from list_dates: its recording_id and line) as an event in a Google Calendar "
+    "connection that may add events, prefilled from the line: the day said at a time said in it (else all day), the "
+    "line as its title, and who it names (for an email, its sender and recipients). It waits in Approvals for the "
+    "person's yes; nothing is added or sent before, and you can't approve it. Give any field to use instead of what was "
+    "guessed. Admins only; needs a token with the write scope.",
+    Arg("recording_id", "integer", "the asset"),
+    Arg("segment", "integer", "the line's id, as list_dates gives it"),
+    Arg("line", "integer", "or the line's place in the asset's text, as list_dates gives it"),
+    Arg("index", "integer", "which of the line's dates, the earliest first", default=0, minimum=0, maximum=50),
+    Arg("title", "string", "else the line, shortened", max_length=300),
+    Arg("start", "string", "ISO 8601; else the day said, at the time said", max_length=40),
+    Arg("end", "string", "ISO 8601; else an hour after start, or a day", max_length=40),
+    Arg("where", "string", "where it is", max_length=500),
+    Arg("attendees", "string[]", "addresses ([] for nobody); else those it names"),
+    Arg("invite", "boolean", "email them an invitation when it's added (off by default)"),
+    Arg("connection", "string", "the calendar connection, by id or name", max_length=200),
+    Arg("calendar", "string", "one of its calendars, by id or name", max_length=300),
+    writes=True,
+    admin=True,
+)
+def propose_event(
+    ctx: Context,
+    recording_id: int,
+    segment: int | None,
+    line: int | None,
+    index: int,
+    title: str | None,
+    start: str | None,
+    end: str | None,
+    where: str | None,
+    attendees: list[str] | None,
+    invite: bool | None,
+    connection: str | None,
+    calendar: str | None,
+) -> dict[str, Any]:
+    _writer(ctx, "propose events")
+    if not ctx.user.admin:
+        raise ToolError("only admins propose events: adding one goes through an admin's calendar connection")
+    try:
+        ctx.acl.recording(int(recording_id))
+    except HTTPException:
+        raise ToolError(f"there's no asset {recording_id} you can read") from None
+    if segment is None and line is not None:
+        seg = ctx.db.one("SELECT record::id(id) AS id FROM segment WHERE recording = $r AND idx = $i", r=int(recording_id), i=int(line))
+        segment = (seg or {}).get("id")
+    if segment is None:
+        raise ToolError("give the line: segment, or line (its place, as list_dates gives it)")
+    given = {"title": title, "start": start, "end": end, "where": where, "attendees": attendees, "invite": invite}
+    given.update(connection=connection, calendar=calendar)
+    try:
+        out = event_proposals.propose(
+            ctx.db, ctx.cfg, ctx.user.as_audit(), int(recording_id), int(segment), int(index or 0), web=ctx.web,
+            **{k: v for k, v in given.items() if v is not None},
+        )  # fmt: skip
+    except (LookupError, ValueError) as e:
+        raise ToolError(str(e)) from None
+    out.pop("event", None)
+    return {**out, "url": f"{ctx.web}/approvals?id={out['approval']}"}
 
 
 @tool(

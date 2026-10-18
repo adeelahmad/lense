@@ -85,6 +85,7 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `list_entities` | people, organisations, products, places, events, works and terms mentioned, by name, type, namespace or asset |
 | `get_entity` | one entity: its names, its page's link, how often and when it is mentioned, what it is mentioned with, who mentions it most, and the lines that mention it |
 | `list_dates` | what was said about a day or a range: dates said in assets as days on the calendar ([Dates](processing.md#dates)), each with the words, the line and a link to that moment |
+| `propose_event` | a date said, as a calendar event prefilled from its line (the day, a time said, the line as its title, who it names), waiting in Approvals for the person's yes; admins with a calendar connection that may add events ([Propose an event](processing.md#propose-an-event)) |
 | `explore_graph` | the knowledge graph around an entity (`e12`) or a person (`s3`), one or two steps out |
 | `find_path` | the shortest chain of links between two of them, with lines that show each link |
 | `sparql` | a read-only SPARQL query (SELECT, ASK, CONSTRUCT or DESCRIBE) over one namespace's linked data ([RDF](rdf.md)): JSON results, or Turtle |

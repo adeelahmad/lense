@@ -1454,6 +1454,9 @@ import type {
   PreviewWatchData,
   PreviewWatchErrors,
   PreviewWatchResponses,
+  ProposeEventData,
+  ProposeEventErrors,
+  ProposeEventResponses,
   ProposeGraphChangeData,
   ProposeGraphChangeErrors,
   ProposeGraphChangeResponses,
@@ -8796,6 +8799,27 @@ export class Dates {
     return (options?.client ?? client).get<ListDatesResponses, ListDatesErrors, ThrowOnError>({
       url: "/api/v1/dates",
       ...options,
+    });
+  }
+
+  /**
+   * Propose Event
+   *
+   * Propose a date said in an asset as a calendar event: an event for a Google Calendar connection that may add
+   * events, prefilled from the line (the day said, a time said in it, the line as its title, who it names), waiting in
+   * Approvals for your yes. Nothing is added or sent until you approve it there; declining it does nothing. Proposing
+   * the same date again while it waits gives the same approval.
+   */
+  public static proposeEvent<ThrowOnError extends boolean = false>(
+    options: Options<ProposeEventData, ThrowOnError>,
+  ): RequestResult<ProposeEventResponses, ProposeEventErrors, ThrowOnError> {
+    return (options.client ?? client).post<ProposeEventResponses, ProposeEventErrors, ThrowOnError>({
+      url: "/api/v1/dates/propose",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }

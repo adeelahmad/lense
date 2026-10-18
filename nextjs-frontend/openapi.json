@@ -19304,6 +19304,48 @@
         }
       }
     },
+    "/api/v1/dates/propose": {
+      "post": {
+        "tags": [
+          "dates"
+        ],
+        "summary": "Propose Event",
+        "description": "Propose a date said in an asset as a calendar event: an event for a Google Calendar connection that may add\nevents, prefilled from the line (the day said, a time said in it, the line as its title, who it names), waiting in\nApprovals for your yes. Nothing is added or sent until you approve it there; declining it does nothing. Proposing\nthe same date again while it waits gives the same approval.",
+        "operationId": "propose_event",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventProposal"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventProposed"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/topics": {
       "get": {
         "tags": [
@@ -49206,6 +49248,12 @@
             "type": "boolean",
             "title": "Reading",
             "description": "whether analysis reads dates (Settings \u2192 Analysis \u2192 Read dates); off, nothing new is read"
+          },
+          "proposable": {
+            "type": "boolean",
+            "title": "Proposable",
+            "description": "whether you can propose a date as an event (POST /dates/propose): an admin, with a calendar connection that may add events",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -51502,6 +51550,209 @@
           "label"
         ],
         "title": "EventInfo"
+      },
+      "EventProposal": {
+        "properties": {
+          "recording_id": {
+            "type": "integer",
+            "title": "Recording Id"
+          },
+          "segment": {
+            "type": "integer",
+            "title": "Segment",
+            "description": "the line's id, as GET /dates gives it"
+          },
+          "index": {
+            "type": "integer",
+            "maximum": 50.0,
+            "minimum": 0.0,
+            "title": "Index",
+            "description": "which of the line's dates, the earliest first, when it gives more than one",
+            "default": 0
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "else the line itself, shortened"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start",
+            "description": "ISO 8601: a date alone is all day; a time without an offset is in the calendar's time zone. Else the day said, at the time said in the line"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End",
+            "description": "else an hour after start, or a day for a day"
+          },
+          "where": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Where"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "else where it was said, with a link to that moment"
+          },
+          "attendees": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attendees",
+            "description": "addresses; else those in the line and, for an email, its sender and recipients ([] for nobody)"
+          },
+          "invite": {
+            "type": "boolean",
+            "title": "Invite",
+            "description": "email them an invitation when it's added",
+            "default": false
+          },
+          "connection": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connection",
+            "description": "the calendar connection, by id or name (else the only one)"
+          },
+          "calendar": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calendar",
+            "description": "one of its calendars, by id or name (else its first)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "recording_id",
+          "segment"
+        ],
+        "title": "EventProposal",
+        "description": "A date said, to propose as an event: each field left out is prefilled from the line."
+      },
+      "EventProposed": {
+        "properties": {
+          "approval": {
+            "type": "integer",
+            "title": "Approval",
+            "description": "the approval waiting for your yes: nothing is added until you approve it"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "waiting"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "preview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview",
+            "description": "the event as the approval shows it"
+          },
+          "again": {
+            "type": "boolean",
+            "title": "Again",
+            "description": "this date was proposed before and still waits: the same approval",
+            "default": false
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "where you approve it in the web app"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "approval",
+          "status"
+        ],
+        "title": "EventProposed"
       },
       "Extension": {
         "properties": {

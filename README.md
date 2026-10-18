@@ -183,6 +183,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   you run), entities found by spaCy instead of the rules, and the dates people say read as days on the calendar, each
   off by default. Words transcription wasn't sure of are underlined, with how sure, to check and correct in place. Translate a transcript into another language when you ask, with the estimate shown first: it's kept
   beside the asset as a translation whose lines keep their times, found by search like an uploaded one.
+  A date said ("let's meet next Tuesday at 3") becomes a calendar event in one click,
+  prefilled from the line and added only once you approve it ([propose an event](docs/processing.md#propose-an-event)).
   ([Graph](docs/graph.md), [entity pages](docs/notes.md#entity-pages),
   [similar content](docs/processing.md#similar-content), [graph history](docs/graph-history.md),
   [topics](docs/topics.md), [video](docs/video.md), [NSFW classification](docs/nsfw.md),
