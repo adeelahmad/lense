@@ -427,6 +427,9 @@ import type {
   DownloadBackupData,
   DownloadBackupErrors,
   DownloadBackupResponses,
+  DownloadChatFileData,
+  DownloadChatFileErrors,
+  DownloadChatFileResponses,
   DownloadFileData,
   DownloadFileErrors,
   DownloadFileResponses,
@@ -457,6 +460,9 @@ import type {
   ExportBatchResultsData,
   ExportBatchResultsErrors,
   ExportBatchResultsResponses,
+  ExportChatData,
+  ExportChatErrors,
+  ExportChatResponses,
   ExportNotesData,
   ExportNotesErrors,
   ExportNotesResponses,
@@ -698,6 +704,9 @@ import type {
   GetSettingsResponses,
   GetSetupData,
   GetSetupResponses,
+  GetSpecData,
+  GetSpecErrors,
+  GetSpecResponses,
   GetTemplateData,
   GetTemplateErrors,
   GetTemplateResponses,
@@ -875,6 +884,9 @@ import type {
   ListCustomNodesData,
   ListCustomNodesErrors,
   ListCustomNodesResponses,
+  ListDatesData,
+  ListDatesErrors,
+  ListDatesResponses,
   ListEntitiesData,
   ListEntitiesErrors,
   ListEntitiesResponses,
@@ -1152,6 +1164,11 @@ import type {
   PageVersionData,
   PageVersionErrors,
   PageVersionResponses,
+  PasskeyAddressesData,
+  PasskeyAddressesResponses,
+  PasskeyElsewhereData,
+  PasskeyElsewhereErrors,
+  PasskeyElsewhereResponses,
   PasskeyLoginData,
   PasskeyLoginErrors,
   PasskeyLoginResponses,
@@ -1616,6 +1633,9 @@ import type {
   TestTelemetryResponses,
   TestTikaData,
   TestTikaResponses,
+  TitleChatData,
+  TitleChatErrors,
+  TitleChatResponses,
   TodayPageData,
   TodayPageErrors,
   TodayPageResponses,
@@ -1815,6 +1835,9 @@ import type {
   VaultOptionsResponses,
   VoiceInfoData,
   VoiceInfoResponses,
+  WriteSpecData,
+  WriteSpecErrors,
+  WriteSpecResponses,
 } from "./types.gen";
 
 export type Options<
@@ -2279,6 +2302,41 @@ export class Auth {
   ): RequestResult<RenamePasskeyResponses, RenamePasskeyErrors, ThrowOnError> {
     return (options.client ?? client).patch<RenamePasskeyResponses, RenamePasskeyErrors, ThrowOnError>({
       url: "/api/v1/auth/passkeys/{pid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Passkey Addresses
+   *
+   * The other https:// addresses Lens opens at (Settings › Remote access and HTTPS), and whether you have a passkey
+   * for each: a passkey works only on the address it was made at.
+   */
+  public static passkeyAddresses<ThrowOnError extends boolean = false>(
+    options?: Options<PasskeyAddressesData, ThrowOnError>,
+  ): RequestResult<PasskeyAddressesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<PasskeyAddressesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/auth/passkeys/elsewhere",
+      ...options,
+    });
+  }
+
+  /**
+   * Passkey Elsewhere
+   *
+   * A sign-in link of your own at another address Lens opens at, to sign in there and add a passkey for it, with no
+   * email and no admin. It lasts 15 minutes and works once; links others have are left alone. For people signed in
+   * themselves, not API tokens or apps. Audited as `passkey.elsewhere`.
+   */
+  public static passkeyElsewhere<ThrowOnError extends boolean = false>(
+    options: Options<PasskeyElsewhereData, ThrowOnError>,
+  ): RequestResult<PasskeyElsewhereResponses, PasskeyElsewhereErrors, ThrowOnError> {
+    return (options.client ?? client).post<PasskeyElsewhereResponses, PasskeyElsewhereErrors, ThrowOnError>({
+      url: "/api/v1/auth/passkeys/elsewhere",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -7841,6 +7899,24 @@ export class Entities {
   }
 }
 
+export class Dates {
+  /**
+   * List Dates
+   *
+   * The dates the assets you can read give that fall between `start` and `end` (a date that spans days counts when
+   * any of its days does), the earliest first, each with its line. Analysis reads them while Settings → Analysis → Read
+   * dates is on.
+   */
+  public static listDates<ThrowOnError extends boolean = false>(
+    options?: Options<ListDatesData, ThrowOnError>,
+  ): RequestResult<ListDatesResponses, ListDatesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListDatesResponses, ListDatesErrors, ThrowOnError>({
+      url: "/api/v1/dates",
+      ...options,
+    });
+  }
+}
+
 export class Topics {
   /**
    * List Topics
@@ -10188,7 +10264,7 @@ export class Chats {
    *
    * A conversation. Its answers may use what `tools` and `max_tool_calls` say, which become your latest choice;
    * left out, your latest choice (here or PATCH /chats/{cid}), else Auto: everything you may use, limited by the rounds
-   * alone.
+   * alone. A `title` is yours, and kept; without one, Lens titles it after its first answer (ai.auto_title).
    */
   public static createChat<ThrowOnError extends boolean = false>(
     options?: Options<CreateChatData, ThrowOnError>,
@@ -10319,6 +10395,54 @@ export class Chats {
   ): RequestResult<GetMessageResponses, GetMessageErrors, ThrowOnError> {
     return (options.client ?? client).get<GetMessageResponses, GetMessageErrors, ThrowOnError>({
       url: "/api/v1/chats/{cid}/messages/{mid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Export Chat
+   *
+   * A conversation as a download: Markdown (citations as footnotes linking back to Lens), PDF (that Markdown
+   * printed: by Chromium, else anytopdf, else LibreOffice; 409 with the reason when none can run here) or JSON
+   * (OpenAI chat messages in a tree, with Dublin Core terms; docs/schemas/chat-export.schema.json). Citations follow
+   * your current access, as in GET /chats/{cid}.
+   */
+  public static exportChat<ThrowOnError extends boolean = false>(
+    options: Options<ExportChatData, ThrowOnError>,
+  ): RequestResult<ExportChatResponses, ExportChatErrors, ThrowOnError> {
+    return (options.client ?? client).get<ExportChatResponses, ExportChatErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/export.{fmt}",
+      ...options,
+    });
+  }
+
+  /**
+   * Title Chat
+   *
+   * Have Lens title a conversation now, from how it starts (the version showing's first messages), even one you
+   * named: the title is Lens's again, as after a first answer. Written by the model for summaries (ai.compact_model)
+   * when set, else the chat's, in one call counted for the conversation in the activity ledger. 409 before the first
+   * question; 400 with no model, or when the model writes no title.
+   */
+  public static titleChat<ThrowOnError extends boolean = false>(
+    options: Options<TitleChatData, ThrowOnError>,
+  ): RequestResult<TitleChatResponses, TitleChatErrors, ThrowOnError> {
+    return (options.client ?? client).post<TitleChatResponses, TitleChatErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/title",
+      ...options,
+    });
+  }
+
+  /**
+   * Download Chat File
+   *
+   * A file the code sandbox handed you in this conversation (share_sandbox_file, the download on its answer).
+   */
+  public static downloadChatFile<ThrowOnError extends boolean = false>(
+    options: Options<DownloadChatFileData, ThrowOnError>,
+  ): RequestResult<DownloadChatFileResponses, DownloadChatFileErrors, ThrowOnError> {
+    return (options.client ?? client).get<DownloadChatFileResponses, DownloadChatFileErrors, ThrowOnError>({
+      url: "/api/v1/chats/{cid}/files/{fid}",
       ...options,
     });
   }
@@ -12177,6 +12301,46 @@ export class Podcasts {
     return (options.client ?? client).post<RegeneratePodcastResponses, RegeneratePodcastErrors, ThrowOnError>({
       url: "/api/v1/podcasts/{rid}/regenerate",
       ...options,
+    });
+  }
+}
+
+export class Specs {
+  /**
+   * Get Spec
+   *
+   * What there is of this asset's spec: its note and what it holds when it's written, the job writing it, or why
+   * the last one failed; and the template it was (or would be) written with.
+   */
+  public static getSpec<ThrowOnError extends boolean = false>(
+    options: Options<GetSpecData, ThrowOnError>,
+  ): RequestResult<GetSpecResponses, GetSpecErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetSpecResponses, GetSpecErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/spec",
+      ...options,
+    });
+  }
+
+  /**
+   * Write Spec
+   *
+   * Write a technical spec from this asset's transcript as a note linked to it, in the background: every named
+   * decision, every no and every "not that, this", every constraint, in the speaker's own words with when they said
+   * them, and the gaps they left to decide later, flagged. It's written with the Spec from transcript prompt template
+   * (edited on the Templates page), or `template`; writing it again updates the same note, whose history keeps what it
+   * said before. It runs after what the asset's job still has to do. Needs the right to process the asset and a
+   * language model (400 without one, or with no text and none on the way). Audited as `spec.write`.
+   */
+  public static writeSpec<ThrowOnError extends boolean = false>(
+    options: Options<WriteSpecData, ThrowOnError>,
+  ): RequestResult<WriteSpecResponses, WriteSpecErrors, ThrowOnError> {
+    return (options.client ?? client).post<WriteSpecResponses, WriteSpecErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/spec",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }

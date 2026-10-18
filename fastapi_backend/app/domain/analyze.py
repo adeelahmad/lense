@@ -449,7 +449,7 @@ def one_type(seg_ents):
 def analyze_recording(db, cfg, rid, seg_ents=None, say=None):
     """Entities, keywords, sections and talk statistics. `seg_ents` (per line, [(name, type)]) replaces the extractor:
     a workflow's save entities node passes what its nodes found."""
-    rec = db.one("SELECT space, collection FROM $r", r=R("recording", rid))
+    rec = db.one("SELECT space, collection, recorded_at FROM $r", r=R("recording", rid))
     nid = rec["space"]
     setup = entity_setup.effective(db, nid, rec.get("collection"))
     listed = setup["mode"] != "self"  # fixed or hybrid: a list of defined entities comes first
@@ -544,6 +544,11 @@ def analyze_recording(db, cfg, rid, seg_ents=None, say=None):
         except Exception:  # noqa: BLE001 - servers without INSERT RELATION: one edge at a time
             for m in ments:
                 db.q("RELATE $a->mentions->$b CONTENT $d", a=m["in"], b=m["out"], d={k: v for k, v in m.items() if k not in ("in", "out")})
+    from . import dates
+
+    n = dates.index_recording(db, cfg, rid, segs, nid, rec.get("recorded_at"))  # Settings → Analysis → Read dates
+    if n and say:
+        say(f"read {n} date(s) as days on the calendar")
     db.q("UPDATE $r SET stats = $st, status = 'analyzed', analyzed_at = $t", r=R("recording", rid), st=talk_stats(segs), t=store.now())
     from . import topics  # imported here: topics builds on this module
 

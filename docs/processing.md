@@ -222,6 +222,25 @@ retype, describe, merge and hide it.
 - **Merge suggestions:** same letters (ignoring case, spaces and punctuation), acronyms, one name containing the other,
   close spellings, and names that sound alike (likely transcription errors).
 
+### Dates
+
+With `analysis.dates` on (Settings → Analysis → Read dates; off by default), analysis reads each line for the dates it
+gives and keeps them as days on the calendar, so agents and the API can ask what was said about a day, a month or a
+range: `GET /api/v1/dates?start=2026-10&end=2026-10`, the MCP tool `list_dates`, the assistant's `find_dates`. Each
+date keeps the words said, its first and last day and how long it is (a day, a weekend, a week, a month or a year), and
+its line, linked to that moment.
+
+- **Said relative to the day:** "yesterday", "tomorrow", "in three days", "two weeks ago", "next month", "this
+  weekend" are worked out from the asset's own date (its `recorded_at`), and marked `relative`. "this Friday" is the
+  coming one, "next Friday" the Friday of the week after, "last Friday" the one before. "last week" is Monday to Sunday.
+- **Written out:** "3 March 2024", "March 3rd", "March 2024" (the whole month), "2026-10-20", "20/10/2026", and a year
+  after a word that makes it one ("in 2024", "since 1998"). A day without its year takes the asset's year.
+- **Left out rather than guessed:** a weekday on its own ("on Friday": the one before or after?), a date that reads two
+  ways ("10/11/2026"), "may" and short month names in small letters ("I may", "to mar"), and a bare number like "2000
+  people". Without an asset date, only dates that give their year are kept.
+- The rules read English. Nothing is sent anywhere and no model is called. Turning it on reads dates as assets are
+  analysed; Reprocess (Analyze) reads them for assets already there.
+
 ### Entity setup
 
 Each namespace has an entity setup (Entities → Setup, `GET`/`PUT /api/v1/namespaces/{name}/entity-setup`): the types
@@ -427,7 +446,8 @@ A folder scan and a routine run are each claimed first, so several processes doi
 ## Storage sources
 
 Admins add sources in the app (`/api/v1/sources`): S3 or S3-compatible, Dropbox, Google Drive, OneDrive, SFTP, SMB,
-WebDAV, or a folder on this machine; or an email account (IMAP, or Gmail and Google Workspace), a calendar feed (iCal) or Google Calendar, below. A watched folder maps a path on a source to a namespace, with include/exclude
+WebDAV, or a folder on this machine; or an email account (IMAP, or Gmail and Google Workspace), a calendar feed (iCal),
+Google Calendar or a [news feed](#news-feeds-rss-and-atom) (RSS or Atom), below. A watched folder maps a path on a source to a namespace, with include/exclude
 patterns, audio and/or transcripts, a polling interval, how long a file must be unchanged before it is picked up, and
 whether files already there are imported (backfill). New audio is queued for the full pipeline; new transcripts are
 imported and analysed. Audio stays where it is: it is copied to a cache for processing and streamed from the source for
@@ -479,8 +499,8 @@ files, then Import (`POST /api/v1/import/source`). The listing marks files that 
 
 ### Email (IMAP), calendar feeds (iCal) and Google Calendar
 
-Three kinds of source aren't storage and don't use rclone; their messages and events are shown as files, so browsing,
-importing chosen ones and watching work as above.
+These kinds of source aren't storage and don't use rclone; their messages and events are shown as files, so browsing,
+importing chosen ones and watching work as above. [News feeds](#news-feeds-rss-and-atom) work the same way.
 
 - **Email (IMAP)**: host, port, security (SSL/TLS, STARTTLS or none), user and password (an app password where the
   provider has them). Mailboxes are the folders, and each message is a file `<mailbox>/<uidvalidity>-<uid>.eml`,
@@ -548,6 +568,43 @@ importing chosen ones and watching work as above.
     a Google calendar's secret address in iCal format (Settings › Integrate calendar) works as a calendar feed.
 - `.eml` and `.ics` files in any source, and uploaded through Import, can be read as text this way too.
 
+### News feeds (RSS and Atom)
+
+A news feed (type `rss`) is a source too: on the Sources page (Sensors › Files, email and calendars), add a News feed,
+then watch it. Watching a feed subscribes to it: each new post becomes a text resource of the namespace, titled and
+dated by the post, so answers cite it and its link. An agent does both in one step: `subscribe_feed` over
+[MCP](mcp.md) or the assistant's tool of that name (admins) takes the address and a namespace, reads the feed first and
+keeps it only if it works; `news_feeds` lists what's followed and `unsubscribe_feed` stops one.
+
+- **Address**: the feed's own (`https://`, or `feed://`), or a page of the site: when the page names its feed
+  (`<link rel="alternate" type="application/rss+xml">`, as blogs and news sites do), the first feed it names is read.
+  A user and password if the feed asks for one. The address is kept encrypted like a password and never shown again,
+  since a private feed's address often carries its key. It is fetched as calendar feeds are: public addresses only
+  (and the networks in `documents.web_networks`), on ports 80 and 443, and the password is never sent to another
+  server, including one that a page names as its feed's.
+- **Posts**: the feed is one folder of posts, each a file `<id>.atom` named by its date and title. RSS (0.9x, 1.0,
+  2.0) and Atom (0.3, 1.0) are read by [feedparser](https://github.com/kurtmckee/feedparser) (BSD), which drops
+  scripts, styles and event handlers from the posts' HTML and makes their links absolute. Whatever the feed, each post
+  is kept as an Atom entry document of its own (RFC 4287): its title, the post's page, enclosures (a podcast's audio),
+  when it was published and updated, its authors, categories, summary and content, and the feed's title and site
+  (never its address). It comes in as text: the title, its link, who wrote it, when, the feed, its categories and
+  enclosures, then its text. Its content type is Feed post, so a namespace can give feed posts a pipeline of their own
+  (Settings › Content types).
+- **Automations**: each new post is a `feed_post.received` activity (a kind of `asset.added`) with the post's
+  address, site, feed, author, date and categories, so an automation can start on posts from one feed, author or
+  category ([Automations](automations.md#kinds)). What the feed wrote is marked as outside text.
+- **New posts only, unless you backfill**: as for any watch, a new watch on a feed takes the posts published after it
+  starts; turn on backfill to bring in those the feed lists already. The newest 500 posts of a feed are listed.
+- **Light on the network**: a feed read is reused for a minute, then asked for again with its `ETag` and
+  `Last-Modified`, so a feed that hasn't changed costs one small request. A post is known by its id (an RSS item's
+  `guid`), so a feed that reorders or retitles its posts doesn't bring them in twice; a post whose text changes is read
+  again into the resource it already is. A post the feed drops later keeps its resource and its file.
+- `.atom` files uploaded through Import (a single post, or a whole Atom feed) are read as text the same way.
+
+Refine later: JSON Feed (feedparser reads RSS and Atom only); an option to capture each post's whole page, for feeds
+that carry only a summary; podcast feeds bringing in each episode's audio to transcribe; OPML import of a feed list;
+subscribing in one step (address and namespace) on the Sources page, as agents can.
+
 ### Gmail and Google Workspace
 
 A Gmail or Google Workspace mailbox (type `gmail`) is read through Google's Gmail API, read only (`gmail.readonly`),
@@ -595,6 +652,8 @@ audio skip themselves for imported text. Steps:
   `report` (the built-in report).
 - `llm`: renders a prompt template, sends it to the configured model, checks the reply against the template's JSON
   Schema and saves it as a named output (e.g. `meeting_notes`).
+- `spec`: writes a technical spec from the transcript into a note linked to the asset, with the Spec from transcript
+  template unless the step names another prompt template ([Specs from transcripts](notes.md#specs-from-transcripts)).
 - `report` with a template: renders an HTML page into the namespace's reports. These pages may not run scripts.
 - `export`: renders a template to a file (Markdown, text, HTML...) and can copy it to a storage source.
 
@@ -606,6 +665,7 @@ internals, caps output size, and escapes HTML in reports. Templates see `recordi
 summary's `key_points` and `action_items` print as their text and have `text`, `who` (empty when not given) and `t0`
 (where the line they come from starts, in ms; none when not known); summaries made before they had times hold plain
 strings. A fresh archive starts with three: Meeting notes (prompt), Markdown transcript (export) and One-page brief (report).
+Every install, new or not, also has Spec from transcript (prompt), which the `spec` step uses.
 `POST /api/v1/templates/preview` renders any template, saved or not, against an asset, and with `run: true` also asks
 the model.
 

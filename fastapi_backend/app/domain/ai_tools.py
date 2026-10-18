@@ -15,6 +15,7 @@ from . import (
     batches,
     classify as classifymod,
     cypher,
+    dates,
     decide,
     entities,
     event_marks,
@@ -26,6 +27,7 @@ from . import (
     graph_model,
     entity_setup,
     graph_history,
+    llm,
     notebook,
     ns_assistant,
     ops_tools,
@@ -37,6 +39,7 @@ from . import (
     browser as browsermod,
     similar,
     speakers as spk,
+    specs,
     store,
     templates,
     topics,
@@ -229,6 +232,14 @@ TOOLS = [
     ),
     ("entity_timeline", "How often an entity was mentioned per month.", {"entity_id": _I}, ["entity_id"], False),
     (
+        "find_dates",
+        'What was said about a day or a range: dates said in assets, read as days on the calendar ("next Tuesday" '
+        "in a recording is worked out from its date), each with its line. start and end are YYYY-MM-DD, YYYY-MM or YYYY.",
+        {"start": _S, "end": _S, "namespace": _S, "recording_id": _I, "query": _S, "limit": _I},
+        [],
+        False,
+    ),
+    (
         "find_topics",
         "Find topics: each namespace's controlled vocabulary of what assets are about, with other labels, a "
         "definition, broader topics and how many assets are about each.",
@@ -276,7 +287,8 @@ TOOLS = [
     ),
     (
         "read_note",
-        "Read a note's Markdown, with its links and the notes linking to it: by note_id, or the page of a thing "
+        "Read a note's Markdown, with its links, the notes linking to it, the notes it's inside (path) and the notes "
+        "inside it: by note_id, or the page of a thing "
         '(about, like "recording:12" or "entity:5").',
         {"note_id": _I, "about": _S},
         [],
@@ -358,6 +370,16 @@ TOOLS = [
         "Run a template (such as meeting notes) on assets. Needs the person's approval.",
         {"template_id": _I, "recording_ids": {"type": "array", "items": _I}, "collection_id": _I},
         ["template_id"],
+        True,
+    ),
+    (
+        "write_spec",
+        "Write a technical spec from an asset's transcript (a voice session, a meeting, a memo) as a note linked to it: "
+        'every named decision, every no and every "not that, this", every constraint the speaker stated, in their own '
+        "words with when they said them, and the gaps they left to decide later, flagged. It runs in the background with "
+        "the Spec from transcript template; writing it again updates the same note. Needs the person's approval.",
+        {"recording_id": _I},
+        ["recording_id"],
         True,
     ),
     (
@@ -582,6 +604,7 @@ GROUPS = {
             "find_entities",
             "entity_mentions",
             "entity_timeline",
+            "find_dates",
             "find_topics",
             "topic_recordings",
             "graph_neighbours",
@@ -593,7 +616,7 @@ GROUPS = {
         ],
     },
     "web": {"label": "The web", "tools": [t[0] for t in webmod.TOOLS]},
-    "notes": {"label": "Notes", "tools": ["find_notes", "read_note", "write_note", "update_note"]},
+    "notes": {"label": "Notes", "tools": ["find_notes", "read_note", "write_note", "update_note", "write_spec"]},
     "memory": {"label": "Namespace memory", "tools": [t[0] for t in MEMORY_TOOLS]},
     "activity": {
         "label": "Timeline and automations",
@@ -758,6 +781,7 @@ class Toolbox(ops_tools.OpsTools):
         # ask first, even where they'd act at once (wary)
         self.outside = list(dict.fromkeys(outside))
         self.links = set()  # web addresses the tools gave back, as written (untrusted.defang)
+        self.detail = None  # what the last tool adds to its step for the person (a run's output, a file to download)
         self.base, self.admin, self.act, self.act_on = base or cfg, admin, act, set(act_on or ())
         self.scope = scope or {}
         self.readable, self.editable = set(readable), set(editable)
@@ -948,10 +972,16 @@ class Toolbox(ops_tools.OpsTools):
         words = " ".join(str(text or "").split()).casefold()
         return bool(words) and words in " ".join(str(self.said or "").split()).casefold()
 
+    def take_detail(self):
+        """What the last tool added to its step for the person ({} when nothing), once."""
+        got, self.detail = self.detail or {}, None
+        return got
+
     def call(self, name, args, model=False):
         """A tool's result (JSON) and the step's summary. `model`: the result as the model reads it, third-party text
         marked as data (untrusted), with what hooks add after it, unmarked."""
         offered = {s["function"]["name"] for s in self.specs()}
+        self.detail = None
         self.failed = True  # until it runs: a tool that's unknown or blocked failed
         try:
             if name not in offered:
@@ -1102,6 +1132,7 @@ class Toolbox(ops_tools.OpsTools):
             where = sandboxmod.reaches(self.cfg)
             return self._approval(f"run_{kind}", args, f"Run {lang} in the code sandbox, which can reach {where}: {first}" + self.why())
         out = self._sandbox(sandboxmod.run, self.account, kind, source, files)
+        self.detail = sandboxmod.shown(out)  # the output under the code, on the step the person sees
         return out, sandboxmod.summary(kind, source, out)
 
     def t_run_python(self, code, files=None):
@@ -1114,6 +1145,14 @@ class Toolbox(ops_tools.OpsTools):
         out = self._sandbox(sandboxmod.listing, self.account)
         n = len(out.get("files") or []) + int(out.get("more") or 0)
         return out, f"Looked at the sandbox's files ({n})"
+
+    def t_share_sandbox_file(self, path):
+        got = self._sandbox(sandboxmod.share, self.account, path)
+        self.detail = {"file": got}  # a download on the answer
+        return (
+            {"shared": got["name"], "size": got["size"], "note": "the person downloads it from your answer"},
+            f"Shared {got['name']} to download",
+        )
 
     def t_import_sandbox_file(self, path, namespace=None):
         # out of the sandbox as one of the person's held uploads, then imported as a file they attached would be
@@ -1713,6 +1752,34 @@ class Toolbox(ops_tools.OpsTools):
     def t_entity_timeline(self, entity_id):
         return entities.timeline(self.db, [int(entity_id)], self.readable), "Counted mentions by month"
 
+    def t_find_dates(self, start=None, end=None, namespace=None, recording_id=None, query=None, limit=10):
+        spaces = {s for s in self.readable if namespace is None or store.space_names(self.db).get(s) == namespace}
+        res = dates.said(
+            self.db,
+            spaces,
+            day_from=dates.day_bound(start),
+            day_to=dates.day_bound(end, last=True),
+            recording=recording_id,
+            q=(query or "").strip() or None,
+            limit=200,
+        )
+        out = [
+            {
+                "ref": self.ref(d["recording_id"], d.get("t0") or 0, d.get("text") or d["said"], d.get("speaker"), d.get("title")),
+                "day": d["day"] if d["until"] == d["day"] else f"{d['day']} to {d['until']}",
+                "said": d["said"],
+                **({"worked_out_from_the_asset_date": d.get("recorded_at")} if d.get("relative") else {}),
+                "title": d.get("title"),
+                "time": d.get("time"),
+                "text": d.get("text"),
+            }
+            for d in res["items"]
+            if self.allowed is None or d["recording_id"] in self.allowed
+        ][: min(int(limit), 30)]
+        if not out and not (self.cfg.get("analysis") or {}).get("dates"):
+            return {"dates": [], "note": "reading dates is off (Settings → Analysis → Read dates)"}, "Dates aren't read here"
+        return {"dates": out}, f"Found {len(out)} date(s)"
+
     def t_find_topics(self, query=None, namespace=None, limit=20):
         spaces = self.readable
         if namespace:
@@ -1882,6 +1949,16 @@ class Toolbox(ops_tools.OpsTools):
         est = batches.estimate(self.db, self.cfg, ids, steps)
         return self._approval("run_template", {"template_id": t["id"], "recordings": ids}, f"Run {label} on {len(ids)} asset(s)", est)
 
+    def t_write_spec(self, recording_id):
+        row = self._ok(recording_id)
+        if row["space"] not in self.editable:
+            raise ValueError(f"asset {recording_id} isn't yours to write a spec for")
+        if not llm.configured(self.cfg):
+            raise ValueError("no language model is configured (Settings → LLM provider)")
+        est = batches.estimate(self.db, self.cfg, [int(recording_id)], [{"type": "spec"}])
+        title = row.get("title") or f"asset {recording_id}"
+        return self._approval("write_spec", {"recording_id": int(recording_id)}, f"Write a spec from {title}", est)
+
     # ---- notes (notebook.py): the assistant reads and writes them at once; they're its notebook ----
     def _note(self, note_id, edit=False):
         try:
@@ -1952,6 +2029,8 @@ class Toolbox(ops_tools.OpsTools):
                 "body": (p.get("body") or "")[:20_000],
                 "links": notebook.links(self.db, p["id"]),
                 "linked_from": [b for b in notebook.backlinks(self.db, p["space"], targets) if b["page"] != p["id"]],
+                "path": [{"id": x["id"], "title": x["title"]} for x in notebook.path(self.db, p)] or None,
+                "notes_inside": [{"id": x["id"], "title": x["title"]} for x in notebook.children(self.db, p)] or None,
                 "could_link": [f"{x['sign']}[{x['label']}]({x['target']})" for x in notebook.suggest_links(self.db, p)] or None,
                 "files": [{"name": f.get("name"), "type": f["type"], "size": f["size"]} for f in notebook.files(self.db, p["id"])] or None,
                 "could_go_in": [
@@ -2110,7 +2189,8 @@ class Toolbox(ops_tools.OpsTools):
 
 def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=False, readable=None, params=None, via="web"):
     """Carry out an approved action: a batch run (or a sample of it), an entity change, a note an automation's agent
-    proposed, or a change to the server (ops_tools.py: settings, a namespace, importing attached files or web pages).
+    proposed, or a change to the server (ops_tools.py: settings, a namespace, importing attached files or web pages,
+    following a news feed).
     An automation's action (an approval with an intent) is decided by approvals.decide: `params` are an edit's, `via`
     where the pick was made (web, chat, token, oauth or agent; only the person, signed in or in their own chat,
     approves it)."""
@@ -2162,7 +2242,16 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
             result = {"result": sandboxmod.run(db, cfg, a["chat"], a.get("account") or user["id"], kind, source, args.get("files") or [])}
         except sandboxmod.SandboxError as e:
             raise ValueError(str(e)) from None
-    elif a["tool"] in ("change_settings", "create_namespace", "import_files", "import_urls", "invite_person", "change_person"):
+    elif a["tool"] in (
+        "change_settings",
+        "create_namespace",
+        "import_files",
+        "import_urls",
+        "invite_person",
+        "change_person",
+        "subscribe_feed",
+        "unsubscribe_feed",
+    ):
         result = ops_tools.apply(db, cfg, base or cfg, a["tool"], args, user, editable, admin)
     elif a["tool"] == "decline_approval":  # the person's yes to declining another of their approvals
         from . import approvals
@@ -2188,6 +2277,14 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
             raise PermissionError("you can't change what that namespace's assistant remembers")
         ns_assistant.forget(db, sid, args["memory_id"])
         result = {"forgot": args["memory_id"]}
+    elif a["tool"] == "write_spec":
+        rid = int(args["recording_id"])
+        if (db.one("SELECT space FROM $r", r=R("recording", rid)) or {}).get("space") not in editable:
+            raise PermissionError("you can't write a spec for that asset")
+        try:
+            result = {"job": specs.queue(db, cfg, rid, by=user["email"])}
+        except specs.Problem as e:
+            raise ValueError(str(e)) from None
     elif a["tool"] == "run_template":
         steps, label = batches.steps_for(db, {"template": args["template_id"]})
         ids = [i for i in args["recordings"] if (db.one("SELECT space FROM $r", r=R("recording", i)) or {}).get("space") in editable]

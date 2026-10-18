@@ -1161,6 +1161,12 @@ export type ApprovalOutcome = {
    */
   batch?: number | null;
   /**
+   * Job
+   *
+   * the job started, for write_spec
+   */
+  job?: number | null;
+  /**
    * Error
    *
    * why an automation's action failed
@@ -3366,6 +3372,12 @@ export type Chat = {
    */
   title: string;
   /**
+   * Title By
+   *
+   * who titled it: assistant (Lens, from its first question and answer; it titles it again when the first question is edited) or person (named by someone, so Lens leaves it); null: from before Lens kept who titled it
+   */
+  title_by?: "assistant" | "person" | null;
+  /**
    * Kind
    *
    * bridge: a conversation in a chat room, through Matterbridge
@@ -3565,6 +3577,8 @@ export type ChatCompletionRequest = {
 export type ChatCreate = {
   /**
    * Title
+   *
+   * yours, and kept; left out, Lens titles it after its first answer (ai.auto_title)
    */
   title?: string | null;
   /**
@@ -3761,6 +3775,12 @@ export type ChatSummary = {
    */
   title: string;
   /**
+   * Title By
+   *
+   * who titled it: assistant (Lens, from its first question and answer; it titles it again when the first question is edited) or person (named by someone, so Lens leaves it); null: from before Lens kept who titled it
+   */
+  title_by?: "assistant" | "person" | null;
+  /**
    * Kind
    *
    * bridge: a conversation in a chat room, through Matterbridge
@@ -3802,6 +3822,23 @@ export type ChatSummary = {
 };
 
 /**
+ * ChatTitle
+ */
+export type ChatTitle = {
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Title By
+   *
+   * who titled it: assistant (Lens, from its first question and answer; it titles it again when the first question is edited) or person (named by someone, so Lens leaves it); null: from before Lens kept who titled it
+   */
+  title_by: "assistant" | "person";
+  [key: string]: unknown;
+};
+
+/**
  * ChatTools
  */
 export type ChatTools = {
@@ -3836,6 +3873,8 @@ export type ChatTools = {
 export type ChatUpdate = {
   /**
    * Title
+   *
+   * rename it: yours from then on, so Lens doesn't retitle it (POST /chats/{cid}/title does)
    */
   title?: string | null;
   scope?: ChatScope | null;
@@ -5506,6 +5545,114 @@ export type CustomNodeVersionCreate = {
    * Notes
    */
   notes?: string | null;
+};
+
+/**
+ * DateList
+ */
+export type DateList = {
+  /**
+   * Total
+   */
+  total: number;
+  /**
+   * Items
+   */
+  items: Array<DateSaid>;
+  /**
+   * Reading
+   *
+   * whether analysis reads dates (Settings → Analysis → Read dates); off, nothing new is read
+   */
+  reading: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * DateSaid
+ *
+ * A date an asset's line gives, as days on the calendar.
+ */
+export type DateSaid = {
+  /**
+   * Day
+   *
+   * the first day it means, YYYY-MM-DD
+   */
+  day: string;
+  /**
+   * Until
+   *
+   * the last day it means: the same day for a day, the Sunday for a week, the 31st for a month
+   */
+  until: string;
+  /**
+   * Period
+   *
+   * day, weekend, week, month or year
+   */
+  period: string;
+  /**
+   * Said
+   *
+   * the words that give it, like "next Tuesday" or "3 March 2024"
+   */
+  said: string;
+  /**
+   * Relative
+   *
+   * worked out from the asset's own date (recorded_at): a day said relative to it, or without its year
+   */
+  relative: boolean;
+  /**
+   * Recording Id
+   */
+  recording_id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Recorded At
+   */
+  recorded_at?: string | null;
+  /**
+   * Segment
+   *
+   * the line's id
+   */
+  segment: number;
+  /**
+   * Idx
+   *
+   * the line's place in the asset's text
+   */
+  idx: number;
+  /**
+   * T0
+   *
+   * ms
+   */
+  t0?: number | null;
+  /**
+   * Time
+   */
+  time?: string | null;
+  /**
+   * Speaker
+   */
+  speaker?: string | null;
+  /**
+   * Text
+   *
+   * the line
+   */
+  text?: string | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -9157,6 +9304,12 @@ export type HubStatus = {
    */
   mqtt_port?: number | null;
   /**
+   * Mqtt Web
+   *
+   * the broker over WebSockets too, which the web app relays at /mqtt
+   */
+  mqtt_web?: boolean;
+  /**
    * Syslog
    */
   syslog: boolean;
@@ -12554,6 +12707,12 @@ export type NfsStatus = {
    * whether rclone is installed here
    */
   rclone: boolean;
+  /**
+   * Add Files
+   *
+   * whether files written to the share are imported (nfs.add_files); off: read-only
+   */
+  add_files?: boolean;
   [key: string]: unknown;
 };
 
@@ -12833,6 +12992,25 @@ export type NoteCreate = {
 };
 
 /**
+ * NoteCrumb
+ */
+export type NoteCrumb = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * NoteDeleted
  */
 export type NoteDeleted = {
@@ -13095,7 +13273,7 @@ export type NotePage = {
    *
    * who wrote the summary
    */
-  summary_by?: "person" | "assistant" | null;
+  summary_by?: "assistant" | "person" | null;
   /**
    * Date
    */
@@ -13111,7 +13289,7 @@ export type NotePage = {
    *
    * who filed it
    */
-  place_by?: "person" | "assistant" | null;
+  place_by?: "assistant" | "person" | null;
   /**
    * where the assistant would file it, when it wasn't sure
    */
@@ -13196,6 +13374,18 @@ export type NotePage = {
    * Backlinks
    */
   backlinks?: Array<NoteBacklink>;
+  /**
+   * Path
+   *
+   * the notes it's inside, from the top of the tree down to its parent
+   */
+  path?: Array<NoteCrumb>;
+  /**
+   * Children
+   *
+   * the notes inside it, in the tree's order
+   */
+  children?: Array<NoteCrumb>;
   /**
    * Can Edit
    */
@@ -13317,7 +13507,7 @@ export type NotePageItem = {
    *
    * who wrote the summary
    */
-  summary_by?: "person" | "assistant" | null;
+  summary_by?: "assistant" | "person" | null;
   /**
    * Date
    */
@@ -13333,7 +13523,7 @@ export type NotePageItem = {
    *
    * who filed it
    */
-  place_by?: "person" | "assistant" | null;
+  place_by?: "assistant" | "person" | null;
   /**
    * where the assistant would file it, when it wasn't sure
    */
@@ -14565,6 +14755,37 @@ export type Passkey = {
    */
   last_used_at?: string | null;
   [key: string]: unknown;
+};
+
+/**
+ * PasskeyAddress
+ */
+export type PasskeyAddress = {
+  /**
+   * Url
+   *
+   * an https:// address Lens opens at besides this one (Remote access, HTTPS)
+   */
+  url: string;
+  /**
+   * Passkey
+   *
+   * whether you have a passkey for it: a passkey works only where it was made
+   */
+  passkey: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * PasskeyAddressAsk
+ */
+export type PasskeyAddressAsk = {
+  /**
+   * Url
+   *
+   * one of GET /auth/passkeys/elsewhere's addresses
+   */
+  url: string;
 };
 
 /**
@@ -16500,6 +16721,7 @@ export type RcloneSignInStart = {
     | "gmail"
     | "ical"
     | "gcal"
+    | "rss"
     | null;
   /**
    * Source
@@ -18915,6 +19137,12 @@ export type S3Status = {
    * what the process running it says; none while it's off
    */
   service?: S3Service | null;
+  /**
+   * Add Files
+   *
+   * whether files people add through it are imported (shares.add_files)
+   */
+  add_files?: boolean;
   webdav: ShareServer;
   /**
    * Remote
@@ -18928,6 +19156,27 @@ export type S3Status = {
    * your access keys
    */
   keys: Array<S3Key>;
+  [key: string]: unknown;
+};
+
+/**
+ * SandboxFile
+ *
+ * A file the code sandbox handed the person: GET /chats/{cid}/files/{id} downloads it.
+ */
+export type SandboxFile = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Size
+   */
+  size: number;
   [key: string]: unknown;
 };
 
@@ -19008,6 +19257,37 @@ export type SandboxGatewayRequest = {
    * start (true) or stop (false) the code sandbox's gateway; stopping deletes its sandboxes
    */
   on: boolean;
+};
+
+/**
+ * SandboxOutput
+ *
+ * What a code sandbox run printed, as its step shows it (the start of stdout, the end of stderr).
+ */
+export type SandboxOutput = {
+  /**
+   * Stdout
+   */
+  stdout?: string;
+  /**
+   * Stderr
+   */
+  stderr?: string;
+  /**
+   * Exit Code
+   */
+  exit_code?: number | null;
+  /**
+   * Timed Out
+   */
+  timed_out?: boolean;
+  /**
+   * Cut
+   *
+   * there was more than this
+   */
+  cut?: boolean;
+  [key: string]: unknown;
 };
 
 /**
@@ -20517,6 +20797,12 @@ export type ShareServer = {
    * what the process running it says; none while it's off
    */
   service?: S3Service | null;
+  /**
+   * Add Files
+   *
+   * whether files people add through it are imported (shares.add_files)
+   */
+  add_files?: boolean;
   [key: string]: unknown;
 };
 
@@ -20970,6 +21256,12 @@ export type SmbStatus = {
    * the command that mounts it on Linux
    */
   mount: string;
+  /**
+   * Add Files
+   *
+   * whether files people copy in are imported (smb.add_files); off: read-only
+   */
+  add_files?: boolean;
   [key: string]: unknown;
 };
 
@@ -20989,7 +21281,19 @@ export type Source = {
    * Type
    */
   type:
-    "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "gmail" | "ical" | "gcal";
+    | "s3"
+    | "dropbox"
+    | "drive"
+    | "onedrive"
+    | "sftp"
+    | "smb"
+    | "webdav"
+    | "local"
+    | "imap"
+    | "gmail"
+    | "ical"
+    | "gcal"
+    | "rss";
   /**
    * Label
    */
@@ -21034,7 +21338,19 @@ export type SourceCreate = {
    * Type
    */
   type:
-    "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "gmail" | "ical" | "gcal";
+    | "s3"
+    | "dropbox"
+    | "drive"
+    | "onedrive"
+    | "sftp"
+    | "smb"
+    | "webdav"
+    | "local"
+    | "imap"
+    | "gmail"
+    | "ical"
+    | "gcal"
+    | "rss";
   /**
    * Params
    */
@@ -21596,6 +21912,107 @@ export type SpeakerSuggestion = {
    */
   score: number;
   [key: string]: unknown;
+};
+
+/**
+ * Spec
+ */
+export type Spec = {
+  /**
+   * Status
+   *
+   * ready: written (note); writing: a job is on it (job); failed: the last job to write it failed (error)
+   */
+  status: "none" | "writing" | "ready" | "failed";
+  /**
+   * Note
+   *
+   * the note it was written to (/notes/{id})
+   */
+  note?: number | null;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Job
+   *
+   * the latest job that was to write it
+   */
+  job?: number | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Written At
+   */
+  written_at?: string | null;
+  /**
+   * Template
+   *
+   * the prompt template it was written with, else the one it would be
+   */
+  template: number;
+  /**
+   * Version
+   */
+  version?: number | null;
+  /**
+   * Model
+   */
+  model?: string | null;
+  /**
+   * Decisions
+   */
+  decisions?: number | null;
+  /**
+   * Rejected
+   *
+   * each no, and each 'not that, this'
+   */
+  rejected?: number | null;
+  /**
+   * Constraints
+   */
+  constraints?: number | null;
+  /**
+   * Gaps
+   *
+   * what the speaker left to decide later
+   */
+  gaps?: number | null;
+  /**
+   * Not Found
+   *
+   * quotes that aren't in the transcript word for word (marked so in the note)
+   */
+  not_found?: number | null;
+  /**
+   * Cut
+   *
+   * the transcript was longer than the model is given (llm.max_chars)
+   */
+  cut?: boolean | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SpecWrite
+ */
+export type SpecWrite = {
+  /**
+   * Template
+   *
+   * another prompt template to write it with (default: Spec from transcript)
+   */
+  template?: number | null;
+  /**
+   * Version
+   *
+   * that template's version (default: its current one)
+   */
+  version?: number | null;
 };
 
 /**
@@ -22697,6 +23114,14 @@ export type ToolStep = {
    * Summary
    */
   summary?: string;
+  /**
+   * a code sandbox run's output
+   */
+  output?: SandboxOutput | null;
+  /**
+   * a file to download, from share_sandbox_file
+   */
+  file?: SandboxFile | null;
   /**
    * Ms
    *
@@ -25796,6 +26221,49 @@ export type RenamePasskeyResponses = {
 };
 
 export type RenamePasskeyResponse = RenamePasskeyResponses[keyof RenamePasskeyResponses];
+
+export type PasskeyAddressesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/passkeys/elsewhere";
+};
+
+export type PasskeyAddressesResponses = {
+  /**
+   * Response Auth-Passkey Addresses
+   *
+   * Successful Response
+   */
+  200: Array<PasskeyAddress>;
+};
+
+export type PasskeyAddressesResponse = PasskeyAddressesResponses[keyof PasskeyAddressesResponses];
+
+export type PasskeyElsewhereData = {
+  body: PasskeyAddressAsk;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/passkeys/elsewhere";
+};
+
+export type PasskeyElsewhereErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PasskeyElsewhereError = PasskeyElsewhereErrors[keyof PasskeyElsewhereErrors];
+
+export type PasskeyElsewhereResponses = {
+  /**
+   * Successful Response
+   */
+  200: SigninLink;
+};
+
+export type PasskeyElsewhereResponse = PasskeyElsewhereResponses[keyof PasskeyElsewhereResponses];
 
 export type ExternalProvidersData = {
   body?: never;
@@ -35843,6 +36311,70 @@ export type FindGraphPathResponses = {
 
 export type FindGraphPathResponse = FindGraphPathResponses[keyof FindGraphPathResponses];
 
+export type ListDatesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Start
+     *
+     * from this day on: YYYY-MM-DD, or YYYY-MM or YYYY for its first day
+     */
+    start?: string;
+    /**
+     * End
+     *
+     * up to this day: YYYY-MM-DD, or YYYY-MM or YYYY for its last day
+     */
+    end?: string;
+    /**
+     * Ns
+     *
+     * one namespace
+     */
+    ns?: string | null;
+    /**
+     * Recording
+     *
+     * one asset
+     */
+    recording?: number | null;
+    /**
+     * Q
+     *
+     * only dates whose words or line have this text
+     */
+    q?: string;
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+  };
+  url: "/api/v1/dates";
+};
+
+export type ListDatesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListDatesError = ListDatesErrors[keyof ListDatesErrors];
+
+export type ListDatesResponses = {
+  /**
+   * Successful Response
+   */
+  200: DateList;
+};
+
+export type ListDatesResponse = ListDatesResponses[keyof ListDatesResponses];
+
 export type ListTopicsData = {
   body?: never;
   path?: never;
@@ -40750,6 +41282,121 @@ export type GetMessageResponses = {
 
 export type GetMessageResponse = GetMessageResponses[keyof GetMessageResponses];
 
+export type ExportChatData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+    /**
+     * Fmt
+     */
+    fmt: "md" | "json" | "pdf";
+  };
+  query?: {
+    /**
+     * Message
+     *
+     * one message (an answer comes with the question it answers); else the version showing
+     */
+    message?: number | null;
+    /**
+     * All
+     *
+     * JSON: every version of the conversation, not only the one showing
+     */
+    all?: boolean;
+    /**
+     * Format
+     *
+     * JSON: messages gives the version showing as one {"messages": [...]} line
+     */
+    format?: "tree" | "messages";
+  };
+  url: "/api/v1/chats/{cid}/export.{fmt}";
+};
+
+export type ExportChatErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ExportChatError = ExportChatErrors[keyof ExportChatErrors];
+
+export type ExportChatResponses = {
+  /**
+   * Successful Response
+   */
+  200: unknown;
+};
+
+export type TitleChatData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/chats/{cid}/title";
+};
+
+export type TitleChatErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TitleChatError = TitleChatErrors[keyof TitleChatErrors];
+
+export type TitleChatResponses = {
+  /**
+   * Successful Response
+   */
+  200: ChatTitle;
+};
+
+export type TitleChatResponse = TitleChatResponses[keyof TitleChatResponses];
+
+export type DownloadChatFileData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+    /**
+     * Fid
+     */
+    fid: string;
+  };
+  query?: never;
+  url: "/api/v1/chats/{cid}/files/{fid}";
+};
+
+export type DownloadChatFileErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DownloadChatFileError = DownloadChatFileErrors[keyof DownloadChatFileErrors];
+
+export type DownloadChatFileResponses = {
+  /**
+   * the file
+   */
+  200: Blob | File;
+};
+
+export type DownloadChatFileResponse = DownloadChatFileResponses[keyof DownloadChatFileResponses];
+
 export type SendMessageData = {
   body: MessageCreate;
   path: {
@@ -44201,3 +44848,66 @@ export type RegeneratePodcastResponses = {
 };
 
 export type RegeneratePodcastResponse = RegeneratePodcastResponses[keyof RegeneratePodcastResponses];
+
+export type GetSpecData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/spec";
+};
+
+export type GetSpecErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetSpecError = GetSpecErrors[keyof GetSpecErrors];
+
+export type GetSpecResponses = {
+  /**
+   * Successful Response
+   */
+  200: Spec;
+};
+
+export type GetSpecResponse = GetSpecResponses[keyof GetSpecResponses];
+
+export type WriteSpecData = {
+  /**
+   * Body
+   */
+  body?: SpecWrite | null;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/spec";
+};
+
+export type WriteSpecErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type WriteSpecError = WriteSpecErrors[keyof WriteSpecErrors];
+
+export type WriteSpecResponses = {
+  /**
+   * Successful Response
+   */
+  202: JobQueued;
+};
+
+export type WriteSpecResponse = WriteSpecResponses[keyof WriteSpecResponses];

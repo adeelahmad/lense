@@ -7,6 +7,7 @@ from __future__ import annotations
 import datetime as dt
 import ipaddress
 import json
+import pathlib
 import re
 
 import pytest
@@ -17,7 +18,7 @@ from tests.api._assist import Assist, sse, start_llm
 from tests.api.test_setup_assistant import call, held
 
 R = store.R
-TOOLS = {"run_python", "run_bash", "sandbox_files", "import_sandbox_file"}
+TOOLS = {"run_python", "run_bash", "sandbox_files", "share_sandbox_file", "import_sandbox_file"}
 
 
 @pytest.fixture
@@ -314,11 +315,15 @@ def test_long_output_is_cut_to_fit_and_failures_are_said_plainly(app, db, cfg, f
     c, h = s.cl["editor"]
     cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
     code = 'print("x\\"" * 30000)\nraise SystemExit("it broke at the end")'
-    ask(c, h, cid, llm, [{"content": "", "tool_calls": [call(1, "run_python", {"code": code})]}, {"content": "Too long."}])
+    ev = ask(c, h, cid, llm, [{"content": "", "tool_calls": [call(1, "run_python", {"code": code})]}, {"content": "Too long."}])
     raw = [m["content"] for m in llm.seen[-1]["messages"] if m["role"] == "tool"][0]
     got = json.loads(unwrapped(raw))  # whole JSON, not cut off in the middle
     assert got["exit_code"] == 1 and got["stderr"] == "it broke at the end\n" and got["cut_short"]
     assert got["stdout"].startswith('x"x"') and len(json.dumps(got, ensure_ascii=False)) < 12000
+    # the step the person sees shows the start of it, and says it was cut
+    shown = ev["step"][0]["output"]
+    assert len(shown["stdout"]) == sandbox.SHOWN_CHARS and shown["cut"] and shown["exit_code"] == 1
+    assert shown["stderr"] == "it broke at the end\n"
 
     # a gateway that can't be reached says so
     ca, ha = s.cl["admin"]
@@ -326,6 +331,80 @@ def test_long_output_is_cut_to_fit_and_failures_are_said_plainly(app, db, cfg, f
     ev = ask(c, h, cid, llm, [{"content": "", "tool_calls": [call(1, "run_bash", {"command": "ls"})]}, {"content": "Down."}])
     assert "the code sandbox's gateway (127.0.0.1:1) didn't work" in told(llm)[0]["error"]
     assert ev["step"][0]["summary"].startswith("run_bash: the code sandbox's gateway")
+    assert "output" not in ev["step"][0]  # it didn't run, so there's nothing to show under it
+
+
+def test_a_run_shows_its_output_and_a_file_it_shares_downloads_from_the_answer(app, db, cfg, folder, new_client, llm, gateway, monkeypatch):
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["editor"]
+    cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    code = "import sys\nopen('chart.svg', 'w').write('<svg/>')\nprint('made it')\nprint('careful', file=sys.stderr)"
+    ev = ask(
+        c,
+        h,
+        cid,
+        llm,
+        [
+            {"content": "", "tool_calls": [call(1, "run_python", {"code": code})]},
+            {"content": "", "tool_calls": [call(2, "share_sandbox_file", {"path": "./chart.svg"})]},
+            {"content": "", "tool_calls": [call(3, "share_sandbox_file", {"path": "missing.svg"})]},
+            {"content": "Here's the chart."},
+        ],
+    )
+    ran, gave, missing = ev["step"]
+    out = {"stdout": "made it\n", "stderr": "careful\n", "exit_code": 0, "timed_out": False, "cut": False}
+    assert ran["output"] == out and "file" not in ran
+    assert gave["summary"] == "Shared chart.svg to download" and "output" not in gave
+    f = gave["file"]
+    assert (f["name"], f["size"]) == ("chart.svg", 6) and "file" not in missing
+    assert told(llm)[1] == {"shared": "chart.svg", "size": 6, "note": "the person downloads it from your answer"}
+    assert "has no file missing.svg" in told(llm)[2]["error"]
+
+    # saved with the answer, so the conversation shows them again
+    (answer,) = [m for m in c.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"] if m["role"] == "assistant"]
+    assert answer["steps"][0]["output"] == out and answer["steps"][1]["file"] == f
+
+    # the person downloads it; Lens keeps it encrypted, not as the sandbox wrote it
+    url = f"/api/v1/chats/{cid}/files/{f['id']}"
+    got = c.get(url, headers=h)
+    assert got.status_code == 200 and got.content == b"<svg/>"
+    assert got.headers["content-type"] == "application/octet-stream" and got.headers["x-content-type-options"] == "nosniff"
+    assert got.headers["content-disposition"].startswith('attachment; filename="chart.svg"')
+    kept = pathlib.Path(cfg["data_dir"]) / "chat-files" / str(cid) / f["id"]
+    assert b"<svg/>" not in kept.read_bytes() and kept.stat().st_mode & 0o077 == 0
+    ca, ha = s.cl["admin"]
+    assert ca.get(url, headers=ha).status_code == 404  # only the person whose conversation it is
+    other = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    assert c.get(f"/api/v1/chats/{other}/files/{f['id']}", headers=h).status_code == 404  # only in its conversation
+    assert c.get(f"/api/v1/chats/{cid}/files/..%2Fsecret.key", headers=h).status_code == 404
+
+    # a conversation keeps a few: past that, the model is told to share fewer
+    monkeypatch.setattr(sandbox, "SHARE_MAX", 1)
+    ask(c, h, cid, llm, [{"content": "", "tool_calls": [call(1, "share_sandbox_file", {"path": "chart.svg"})]}, {"content": "No."}])
+    assert "already has 1 files to download" in told(llm)[0]["error"]
+
+    # deleting the conversation deletes them
+    assert c.delete(f"/api/v1/chats/{cid}", headers=h).status_code == 200
+    assert not kept.exists() and not db.rows("SELECT * FROM chat_file WHERE chat = $c", c=cid)
+    assert c.get(url, headers=h).status_code == 404
+
+
+def test_removing_someone_deletes_the_files_their_conversations_were_handed(app, db, cfg, folder, new_client, llm, gateway):
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["editor"]
+    cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    script = [
+        {"content": "", "tool_calls": [call(1, "run_bash", {"command": "echo hi > a.txt"})]},
+        {"content": "", "tool_calls": [call(2, "share_sandbox_file", {"path": "a.txt"})]},
+        {"content": "Here."},
+    ]
+    fid = ask(c, h, cid, llm, script)["step"][1]["file"]["id"]
+    kept = pathlib.Path(cfg["data_dir"]) / "chat-files" / str(cid) / fid
+    assert kept.exists()
+    editor = db.values("SELECT VALUE record::id(id) FROM account WHERE email = 'ed@x.io'")[0]
+    ca, ha = s.cl["admin"]
+    assert ca.delete(f"/api/v1/users/{editor}", headers=ha).status_code == 200
+    assert not kept.exists() and not db.rows("SELECT * FROM chat_file") and f"lens-chat-{cid}" not in gateway.boxes
 
 
 def test_its_network_reaches_the_names_it_lists_at_public_addresses_only():

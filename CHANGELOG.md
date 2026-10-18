@@ -15,12 +15,87 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   research switch asks for it; the plan is a card to edit and approve with Enter, then a progress card that survives a
   reload; and the report saves as a note, reads aloud, makes a podcast or exports as Markdown. Settings → AI assistant
   → Deep research holds its limits ([Deep research](docs/assistant.md#deep-research)).
+- **Read any message aloud.** Every question and answer in a conversation has a speaker button: one click reads it
+  aloud by the speech model and voice picked in Settings → AI assistant → Voice (else the browser's own speech),
+  another stops it. One message plays at a time, long answers go in pieces under every provider's limit, and each
+  piece's audio is kept in the page, so playing it again doesn't call the model again. Each call is logged in the
+  activity ledger ([Read a message aloud](docs/assistant.md#read-a-message-aloud)).
+- **Conversations title themselves.** After a conversation's first answer, the model gives it a short title from the
+  question and the answer, with the model for summaries (`ai.compact_model`) when one is set, in one call counted for
+  the conversation in the activity ledger; until then, and when there's no model, it's titled with the first
+  question's words. A title someone gives it is kept. `title_by` says who titled it, `POST /api/v1/chats/<id>/title`
+  and the MCP tool `rename_chat` (without a title) have Lens title it again, and `rename_chat` with a title renames it.
+  Settings → AI assistant → Title conversations (on) turns it off ([Titles](docs/assistant.md#titles)).
+- **More tests for automations' conditions.** An If, a trigger's where and a condition node can now test that text
+  starts or ends with something or matches a pattern, that a value is in a list, that a number or a time is between
+  two, before or after a time or within a duration, falls on certain days or times of day, and whether a value changed
+  since the last activity. Each value is checked when it's saved, and patterns that could tie up the worker are refused
+  ([Operators](docs/automations.md#operators)).
+- **Specs from transcripts.** Turn a voice session or a meeting into a technical spec, saved as a note linked to it:
+  the model writes the spec, then lists every named decision, every "no" and "not that, this", every constraint and
+  every gap the speaker left to decide later, each with its quote and a link to the moment it was said; a quote the
+  transcript doesn't hold word for word is marked. The prompt is the "Spec from transcript" template, editable on
+  the Templates page. In the web app it's Write a spec, then Open spec, in an asset's More actions menu, and a Spec
+  step in the pipeline editor. Agents write one with `POST /api/v1/recordings/{id}/spec`, the MCP tools `write_spec` and
+  `get_spec`, and the assistant's `write_spec` (which asks first); pipelines and batches run it as a `spec` step
+  ([Specs from transcripts](docs/notes.md#specs-from-transcripts)).
+- **MQTT through Remote access.** Devices away from home can publish to the sensor hub, and subscribe to it, at the
+  web app's own address: MQTT over WebSockets at `/mqtt` (`wss://` under HTTPS), through the Cloudflare tunnel and
+  HTTPS too. It's off until an admin turns on **MQTT at the web app's address too** in Settings › Sensors, and there
+  every client signs in with a hub login, with too many wrong passwords from one address turned away for a while. It's
+  the same broker as on port 1883. SMB, NFS and syslog stay on the local network, and Remote access now says why
+  ([Sensors](docs/sensors.md#at-the-web-apps-address), [Remote access](docs/remote-access.md#what-it-reaches)).
+- **Passkeys at your remote address in one step.** A passkey works only at the address it was made at, so one made at
+  `localhost` or on the network didn't work at the Remote access or HTTPS address, and getting one there took a
+  sign-in link from email or an admin. Now Profile and sign-in › Passkeys lists Lens's other addresses with **Open
+  signed in**, which opens one with a 15-minute sign-in link of your own, where one fingerprint adds a passkey for it
+  ([Authentication](docs/authentication.md#signing-in-passkeys)).
+- **Files added over NFS are imported.** A file copied into a collection's folder on the NFS share is imported a moment
+  after it's closed, as the account the share shows the tree as (`nfs.account`), with the same checks as an upload.
+  rclone keeps files being written in a cache on Lens's disk and puts them to Lens once they're closed; a file Lens
+  can't take shows in the share's log. **Import files people add** in Settings, NFS share (`nfs.add_files`, on) turns it
+  off and serves the share read-only again ([Adding files](docs/file-shares.md#adding-files)).
+- **Export a conversation.** `GET /api/v1/chats/<id>/export.md`, `.pdf` or `.json` gives the version showing, one
+  message (`?message=`) or, as JSON, every version (`?all=true`). The Markdown has each question and answer, its
+  citations as footnotes linking back to the moment in Lens and the tools it used; the PDF is that Markdown printed by
+  Chromium, else anytopdf, else LibreOffice (409 when none can run); the JSON is OpenAI's chat message format in a tree
+  with Dublin Core terms, or `?format=messages` for one `{"messages": [...]}` line, checked against a published schema.
+  Agents use `list_chats`, `read_chat` and `export_chat` over MCP. In the web app, an answer's copy button copies it as
+  Markdown or plain text and exports it, questions and code blocks have their own copy buttons, and the conversation's
+  header has Export; without a PDF printer on the server, the browser prints it instead
+  ([Copy and export](docs/assistant.md#copy-and-export)).
+- **Files added over SMB are imported.** Copy files into a collection's folder on the SMB share and each is imported
+  when it's closed, as an upload is; a new folder under `Collections` is a new collection. Files of a type Lens doesn't
+  take are refused as they're made, files over the upload limit are cut off as they're written, and a file deleted as
+  it's closed or left open when its client goes away isn't imported. The system's own files (`.DS_Store`, `Thumbs.db`,
+  Office's `~$` files) are kept aside, and renaming a file saved under a temporary name imports it. **Import files
+  people add** in Settings, SMB share (`smb.add_files`, on) turns it off and makes the share read-only again ([Adding
+  files](docs/smb.md#adding-files)).
+- **News feeds.** Subscribe to a blog's or a news site's RSS or Atom feed: add it on the Sources page (its address,
+  or just the site's) and watch it, and each new post comes into a namespace as text, with its link, author and date,
+  so answers cite it. Feeds are asked for again only when they've changed, and a private feed's address is kept like a
+  password ([News feeds](docs/processing.md#news-feeds-rss-and-atom)).
+- **Automations on feed posts.** Each new post of a news feed is a `feed_post.received` activity with its address,
+  site, feed, author, date and categories, so an automation can start on posts from one feed, author or category
+  ([Kinds](docs/automations.md#kinds)).
+- **Agents follow news feeds.** `subscribe_feed` (MCP and the assistant, admins) follows a feed into a namespace in one
+  step, checked before it's kept; `news_feeds` lists them and `unsubscribe_feed` stops one
+  ([News feeds](docs/processing.md#news-feeds-rss-and-atom)).
+
+## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
+
+- **Dates read as days, for agents.** With Settings → Analysis → Read dates on (off by default), analysis reads the
+  dates each line gives as days on the calendar: "next Tuesday" in a recording made on a Wednesday is the Tuesday
+  after, "last week" Monday to Sunday before, "March 2024" all of March, worked out from the asset's own date. Agents
+  ask what was said about a day or a range with `GET /api/v1/dates`, the MCP tool `list_dates` and the assistant's
+  `find_dates`, each date with its line and a link to that moment. English rules, no model; a weekday alone or
+  "10/11/2026" is left out rather than guessed ([Dates](docs/processing.md#dates)).
 - **Choose the tools, a limit and the namespaces of an answer.** A conversation, or one question, can pick the tool
   groups or tools its answers may use (`tools`), cap their tool calls (`max_tool_calls`, up to the new Settings → AI
   assistant → Most tool calls a question may ask for, 50 by default) and narrow one answer to its own namespaces
   (`scope`). `GET /api/v1/chats/tools` lists the groups a person has, what each tool does (reads, asks first, sends data
   out) and why a group is missing. An admin's switches still win, and new conversations start with the person's last
-  choice. The web app's Tools chip is in progress
+  choice. In the web app, a Tools chip beside the scope picks them, and "All my namespaces" tops the scope's list
   ([Choosing tools, namespaces and a limit](docs/assistant.md#choosing-tools-namespaces-and-a-limit)).
 - **Names get their real types, not Term.** The built-in extractor now tells people, places, organisations, events,
   works and dates apart without a model: by a title or role before a name, a given name, the word a name ends or
@@ -46,6 +121,20 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   fixed, by rules, on English lines. Every changed line is in Change history with Revert, and lines someone corrected
   are left alone. Reprocess, pipelines, `POST /api/v1/recordings/<id>/reprocess` and `lens clean` run it
   ([Cleaning up transcripts](docs/processing.md#cleaning-up-transcripts)).
+- **Describe pictures on this machine with Moondream.** Settings → LLM provider → Describing pictures can also have
+  M87 Labs' Moondream caption each page and shot (`llm.describe_engine` `moondream`), through transformers and
+  PyTorch, so no picture leaves the machine: Moondream 3 Preview (`llm.moondream_model` `moondream3-preview`, about
+  19 GB, an NVIDIA GPU or a Mac with 32 GB; BSL 1.1, not open source) or Moondream 2 (`moondream2`, Apache-2.0, about
+  3.7 GB, on a CPU, slowly). It's fetched, pinned to a revision, the first time a job waits to describe something, and
+  only where the chosen one can run; elsewhere the step says why. Agents choose it with `set_picture_descriptions`
+  ([Descriptions](docs/configuration.md#descriptions)).
+- **Describe pictures on this machine with Florence-2.** Settings → LLM provider → Describing pictures can now have
+  Microsoft's Florence-2 (MIT) describe each page and shot instead of the provider's model that can see images
+  (`llm.describe_engine` `florence-2`). It runs on the CPU through ONNX Runtime, so no picture leaves the machine and
+  no provider is needed; its 8-bit export is fetched the first time a job waits to describe something, pinned and
+  checked against its SHA-256: base (about 280 MB, `llm.florence_model`) or large (about 830 MB). Each picture is a
+  `model.describe` row in the activity ledger. Agents read and change it with the MCP tools `picture_descriptions` and
+  `set_picture_descriptions`. The default stays the provider's model ([Descriptions](docs/configuration.md#descriptions)).
 - **Automations run.** An automation saved over the API (`/api/v1/automations`) now reacts to new assets in its
   namespaces: when its If passes, it runs its workflow as the person who made it, within its limits and budgets, and
   each run shows what its actions did. Try one on an activity without keeping or sending anything, or run it now;
@@ -62,6 +151,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Templates.** Notes inside a namespace's Templates note are templates: **New note from a template…** on the Notes
   page and in Jump to starts a note from one, with its text, drawings, files and filing. Any note's menu in the tree can
   also **Make a copy** ([Templates](docs/notes.md#templates)).
+- **A note says where it is.** Above a note's title, **Notes › namespace ›** each note it's inside, every one a link;
+  under its text, **Inside this note** lists the notes inside it with **Add a note inside**. The text now starts in line
+  with the title, the word count shows next to Saved, and Pin, History, Download and Delete are in the note's **⋯**
+  menu. **Costs and activity** is folded at the bottom ([On a note](docs/notes.md#on-a-note)).
 - **Automations for agents.** Agents list, save, try and run automations through the MCP tools `automations`,
   `automation_actions`, `save_automation`, `test_automation` and `run_automation`, with problems in plain words. The
   assistant saves them switched off and asks before switching one on or running it
@@ -72,6 +165,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   shares; then a new access key's dialog gives those addresses. Signing in is the same: a person's own access key,
   read-only. MQTT, syslog, SMB and NFS aren't HTTP and stay on their own ports
   ([The graph as files](docs/file-tree.md#at-the-web-apps-address), [Remote access](docs/remote-access.md#what-it-reaches)).
+- **Files added over S3 and WebDAV are imported.** Copy a file into a collection's folder (`rclone copy`, Finder,
+  Windows Explorer, any S3 client) and it's imported there as an upload is, with the same checks and the namespace's
+  pipeline; a new folder under `Collections` is a new collection, and a file anywhere else goes to the namespace's
+  default collection. It takes the import permission (or an editor's role on the collection), files the system writes
+  for itself (`.DS_Store`, `Thumbs.db`, half-written files) are never imported, and a re-sync copies nothing twice.
+  The S3 server now takes streamed and multipart uploads; WebDAV takes PUT, MKCOL and Finder's and Explorer's ways of
+  copying. This is on whenever the shares are; **Import files people add** in Settings, File shares
+  (`shares.add_files`) turns it off and makes them read-only again ([Adding files](docs/file-tree.md#adding-files)).
 - **The web clipper takes your API token, or just signs in.** It used to take only an import webhook's token, so an API
   token was refused with "Lens didn't recognise this token: make a new import webhook and paste its token". Now its
   options have **Sign in**: Lens asks you to allow the clipper, nothing to copy, and clips go into the namespace you
@@ -113,6 +214,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   64-bit machine, Landlock in its Linux kernel) and says why not. Off deletes every sandbox and stops it. The same
   over `PUT /api/v1/admin/sandbox` and the MCP tools `sandbox_gateway` and `set_sandbox_gateway`
   ([The gateway](docs/assistant.md#the-gateway)).
+- **See the code the assistant ran, and download the files it made.** Each Python or bash run is a folded step under
+  the answer that opens to the code, its output and how it ended. With `share_sandbox_file` the assistant hands you a
+  file the sandbox made, a chart or a converted document, as a download button on the answer; Lens keeps it
+  encrypted with the conversation and deletes it with the conversation
+  ([In the conversation](docs/assistant.md#code-sandbox)).
 - **Find anything by who, what and when.** Agents and the API can find assets by the faces seen in them, the people
   heard, the entities they mention, the topics they're about, their kind and content type, when they were made (a
   day, a month or a year), tags, language, objects seen, emotions heard, length and words in them, together or alone,
@@ -129,6 +235,27 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   for the asset (or for what came in) and passes on the choice, how sure and every label ranked, for a Condition
   or Switch to branch on; set to act, a sure answer sets the content type, suggests the topic or adds the tag
   ([Workflows and the canvas](docs/processing.md#workflows-and-the-canvas)).
+
+### Features
+
+- **automations:** the variable picker's catalog and a template's preview for a draft automation ([#461](https://github.com/adeelahmad/lense/pull/461))
+- **automations:** the Approvals page, its badge, and Home's row ([#459](https://github.com/adeelahmad/lense/pull/459))
+- **automations:** save automations for their maker, with checks and an API ([#451](https://github.com/adeelahmad/lense/pull/451))
+
+### Fixes
+
+- **assistant:** let the assistant's tools be imported first ([#466](https://github.com/adeelahmad/lense/pull/466))
+- **files:** let the metadata module be imported first ([#475](https://github.com/adeelahmad/lense/pull/475))
+- **worker:** log the database upgrade a worker runs as it starts ([#496](https://github.com/adeelahmad/lense/pull/496))
+- **ci:** the upgrade check counts entities of every type ([#512](https://github.com/adeelahmad/lense/pull/512))
+
+### Dependencies
+
+- Bump the python-minor group across 1 directory with 11 updates ([#478](https://github.com/adeelahmad/lense/pull/478))
+- bump the javascript-minor group across 1 directory with 16 updates ([#381](https://github.com/adeelahmad/lense/pull/381))
+- update fastapi[standard] requirement in /fastapi_backend ([#367](https://github.com/adeelahmad/lense/pull/367))
+- bump the javascript-minor group ([#500](https://github.com/adeelahmad/lense/pull/500))
+- bump transformers ([#503](https://github.com/adeelahmad/lense/pull/503))
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Lens",
-    "version": "0.13.0"
+    "version": "0.14.0"
   },
   "paths": {
     "/api/v1/auth/status": {
@@ -1187,6 +1187,72 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/passkeys/elsewhere": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Passkey Addresses",
+        "description": "The other https:// addresses Lens opens at (Settings \u203a Remote access and HTTPS), and whether you have a passkey\nfor each: a passkey works only on the address it was made at.",
+        "operationId": "passkey_addresses",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PasskeyAddress"
+                  },
+                  "type": "array",
+                  "title": "Response Auth-Passkey Addresses"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Passkey Elsewhere",
+        "description": "A sign-in link of your own at another address Lens opens at, to sign in there and add a passkey for it, with no\nemail and no admin. It lasts 15 minutes and works once; links others have are left alone. For people signed in\nthemselves, not API tokens or apps. Audited as `passkey.elsewhere`.",
+        "operationId": "passkey_elsewhere",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyAddressAsk"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SigninLink"
                 }
               }
             }
@@ -17731,6 +17797,132 @@
         }
       }
     },
+    "/api/v1/dates": {
+      "get": {
+        "tags": [
+          "dates"
+        ],
+        "summary": "List Dates",
+        "description": "The dates the assets you can read give that fall between `start` and `end` (a date that spans days counts when\nany of its days does), the earliest first, each with its line. Analysis reads them while Settings \u2192 Analysis \u2192 Read\ndates is on.",
+        "operationId": "list_dates",
+        "parameters": [
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "from this day on: YYYY-MM-DD, or YYYY-MM or YYYY for its first day",
+              "default": "",
+              "title": "Start"
+            },
+            "description": "from this day on: YYYY-MM-DD, or YYYY-MM or YYYY for its first day"
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "up to this day: YYYY-MM-DD, or YYYY-MM or YYYY for its last day",
+              "default": "",
+              "title": "End"
+            },
+            "description": "up to this day: YYYY-MM-DD, or YYYY-MM or YYYY for its last day"
+          },
+          {
+            "name": "ns",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "one namespace",
+              "title": "Ns"
+            },
+            "description": "one namespace"
+          },
+          {
+            "name": "recording",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "one asset",
+              "title": "Recording"
+            },
+            "description": "one asset"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "only dates whose words or line have this text",
+              "default": "",
+              "title": "Q"
+            },
+            "description": "only dates whose words or line have this text"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DateList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/topics": {
       "get": {
         "tags": [
@@ -25356,7 +25548,7 @@
           "chats"
         ],
         "summary": "Create Chat",
-        "description": "A conversation. Its answers may use what `tools` and `max_tool_calls` say, which become your latest choice;\nleft out, your latest choice (here or PATCH /chats/{cid}), else Auto: everything you may use, limited by the rounds\nalone.",
+        "description": "A conversation. Its answers may use what `tools` and `max_tool_calls` say, which become your latest choice;\nleft out, your latest choice (here or PATCH /chats/{cid}), else Auto: everything you may use, limited by the rounds\nalone. A `title` is yours, and kept; without one, Lens titles it after its first answer (ai.auto_title).",
         "operationId": "create_chat",
         "requestBody": {
           "content": {
@@ -25696,6 +25888,198 @@
                   "$ref": "#/components/schemas/MessageDetail"
                 }
               }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chats/{cid}/export.{fmt}": {
+      "get": {
+        "tags": [
+          "chats"
+        ],
+        "summary": "Export Chat",
+        "description": "A conversation as a download: Markdown (citations as footnotes linking back to Lens), PDF (that Markdown\nprinted: by Chromium, else anytopdf, else LibreOffice; 409 with the reason when none can run here) or JSON\n(OpenAI chat messages in a tree, with Dublin Core terms; docs/schemas/chat-export.schema.json). Citations follow\nyour current access, as in GET /chats/{cid}.",
+        "operationId": "export_chat",
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          },
+          {
+            "name": "fmt",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "md",
+                "json",
+                "pdf"
+              ],
+              "type": "string",
+              "title": "Fmt"
+            }
+          },
+          {
+            "name": "message",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "one message (an answer comes with the question it answers); else the version showing",
+              "title": "Message"
+            },
+            "description": "one message (an answer comes with the question it answers); else the version showing"
+          },
+          {
+            "name": "all",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "JSON: every version of the conversation, not only the one showing",
+              "default": false,
+              "title": "All"
+            },
+            "description": "JSON: every version of the conversation, not only the one showing"
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "tree",
+                "messages"
+              ],
+              "type": "string",
+              "description": "JSON: messages gives the version showing as one {\"messages\": [...]} line",
+              "default": "tree",
+              "title": "Format"
+            },
+            "description": "JSON: messages gives the version showing as one {\"messages\": [...]} line"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/markdown": {},
+              "application/json": {},
+              "application/pdf": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chats/{cid}/title": {
+      "post": {
+        "tags": [
+          "chats"
+        ],
+        "summary": "Title Chat",
+        "description": "Have Lens title a conversation now, from how it starts (the version showing's first messages), even one you\nnamed: the title is Lens's again, as after a first answer. Written by the model for summaries (ai.compact_model)\nwhen set, else the chat's, in one call counted for the conversation in the activity ledger. 409 before the first\nquestion; 400 with no model, or when the model writes no title.",
+        "operationId": "title_chat",
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatTitle"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chats/{cid}/files/{fid}": {
+      "get": {
+        "tags": [
+          "chats"
+        ],
+        "summary": "Download Chat File",
+        "description": "A file the code sandbox handed you in this conversation (share_sandbox_file, the download on its answer).",
+        "operationId": "download_chat_file",
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          },
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Fid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the file",
+            "content": {
+              "application/octet-stream": {}
             }
           },
           "422": {
@@ -31377,6 +31761,107 @@
           }
         }
       }
+    },
+    "/api/v1/resources/{rid}/spec": {
+      "post": {
+        "tags": [
+          "specs"
+        ],
+        "summary": "Write Spec",
+        "description": "Write a technical spec from this asset's transcript as a note linked to it, in the background: every named\ndecision, every no and every \"not that, this\", every constraint, in the speaker's own words with when they said\nthem, and the gaps they left to decide later, flagged. It's written with the Spec from transcript prompt template\n(edited on the Templates page), or `template`; writing it again updates the same note, whose history keeps what it\nsaid before. It runs after what the asset's job still has to do. Needs the right to process the asset and a\nlanguage model (400 without one, or with no text and none on the way). Audited as `spec.write`.",
+        "operationId": "write_spec",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SpecWrite"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobQueued"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "specs"
+        ],
+        "summary": "Get Spec",
+        "description": "What there is of this asset's spec: its note and what it holds when it's written, the job writing it, or why\nthe last one failed; and the template it was (or would be) written with.",
+        "operationId": "get_spec",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Spec"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -33279,6 +33764,18 @@
             ],
             "title": "Batch",
             "description": "the batch run started, for run_template"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job",
+            "description": "the job started, for write_spec"
           },
           "error": {
             "anyOf": [
@@ -37175,6 +37672,22 @@
             "type": "string",
             "title": "Title"
           },
+          "title_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "assistant",
+                  "person"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title By",
+            "description": "who titled it: assistant (Lens, from its first question and answer; it titles it again when the first question is edited) or person (named by someone, so Lens leaves it); null: from before Lens kept who titled it"
+          },
           "kind": {
             "type": "string",
             "enum": [
@@ -37492,7 +38005,8 @@
                 "type": "null"
               }
             ],
-            "title": "Title"
+            "title": "Title",
+            "description": "yours, and kept; left out, Lens titles it after its first answer (ai.auto_title)"
           },
           "kind": {
             "type": "string",
@@ -37888,6 +38402,22 @@
             "type": "string",
             "title": "Title"
           },
+          "title_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "assistant",
+                  "person"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title By",
+            "description": "who titled it: assistant (Lens, from its first question and answer; it titles it again when the first question is edited) or person (named by someone, so Lens leaves it); null: from before Lens kept who titled it"
+          },
           "kind": {
             "type": "string",
             "enum": [
@@ -37975,6 +38505,30 @@
         ],
         "title": "ChatSummary"
       },
+      "ChatTitle": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "title_by": {
+            "type": "string",
+            "enum": [
+              "assistant",
+              "person"
+            ],
+            "title": "Title By",
+            "description": "who titled it: assistant (Lens, from its first question and answer; it titles it again when the first question is edited) or person (named by someone, so Lens leaves it); null: from before Lens kept who titled it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "title",
+          "title_by"
+        ],
+        "title": "ChatTitle"
+      },
       "ChatTools": {
         "properties": {
           "groups": {
@@ -38021,7 +38575,8 @@
                 "type": "null"
               }
             ],
-            "title": "Title"
+            "title": "Title",
+            "description": "rename it: yours from then on, so Lens doesn't retitle it (POST /chats/{cid}/title does)"
           },
           "scope": {
             "anyOf": [
@@ -40975,6 +41530,170 @@
           "graph"
         ],
         "title": "CustomNodeVersionCreate"
+      },
+      "DateList": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DateSaid"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "reading": {
+            "type": "boolean",
+            "title": "Reading",
+            "description": "whether analysis reads dates (Settings \u2192 Analysis \u2192 Read dates); off, nothing new is read"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "total",
+          "items",
+          "reading"
+        ],
+        "title": "DateList"
+      },
+      "DateSaid": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "title": "Day",
+            "description": "the first day it means, YYYY-MM-DD"
+          },
+          "until": {
+            "type": "string",
+            "title": "Until",
+            "description": "the last day it means: the same day for a day, the Sunday for a week, the 31st for a month"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period",
+            "description": "day, weekend, week, month or year"
+          },
+          "said": {
+            "type": "string",
+            "title": "Said",
+            "description": "the words that give it, like \"next Tuesday\" or \"3 March 2024\""
+          },
+          "relative": {
+            "type": "boolean",
+            "title": "Relative",
+            "description": "worked out from the asset's own date (recorded_at): a day said relative to it, or without its year"
+          },
+          "recording_id": {
+            "type": "integer",
+            "title": "Recording Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          },
+          "segment": {
+            "type": "integer",
+            "title": "Segment",
+            "description": "the line's id"
+          },
+          "idx": {
+            "type": "integer",
+            "title": "Idx",
+            "description": "the line's place in the asset's text"
+          },
+          "t0": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T0",
+            "description": "ms"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time"
+          },
+          "speaker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "the line"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "day",
+          "until",
+          "period",
+          "said",
+          "relative",
+          "recording_id",
+          "segment",
+          "idx"
+        ],
+        "title": "DateSaid",
+        "description": "A date an asset's line gives, as days on the calendar."
       },
       "DaySpend": {
         "properties": {
@@ -47280,6 +47999,12 @@
             ],
             "title": "Mqtt Port"
           },
+          "mqtt_web": {
+            "type": "boolean",
+            "title": "Mqtt Web",
+            "description": "the broker over WebSockets too, which the web app relays at /mqtt",
+            "default": false
+          },
           "syslog": {
             "type": "boolean",
             "title": "Syslog"
@@ -53034,6 +53759,12 @@
             "type": "boolean",
             "title": "Rclone",
             "description": "whether rclone is installed here"
+          },
+          "add_files": {
+            "type": "boolean",
+            "title": "Add Files",
+            "description": "whether files written to the share are imported (nfs.add_files); off: read-only",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -53520,6 +54251,36 @@
         ],
         "title": "NoteCreate"
       },
+      "NoteCrumb": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "NoteCrumb"
+      },
       "NoteDeleted": {
         "properties": {
           "id": {
@@ -53951,8 +54712,8 @@
               {
                 "type": "string",
                 "enum": [
-                  "person",
-                  "assistant"
+                  "assistant",
+                  "person"
                 ]
               },
               {
@@ -53996,8 +54757,8 @@
               {
                 "type": "string",
                 "enum": [
-                  "person",
-                  "assistant"
+                  "assistant",
+                  "person"
                 ]
               },
               {
@@ -54168,6 +54929,24 @@
             },
             "type": "array",
             "title": "Backlinks",
+            "default": []
+          },
+          "path": {
+            "items": {
+              "$ref": "#/components/schemas/NoteCrumb"
+            },
+            "type": "array",
+            "title": "Path",
+            "description": "the notes it's inside, from the top of the tree down to its parent",
+            "default": []
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/NoteCrumb"
+            },
+            "type": "array",
+            "title": "Children",
+            "description": "the notes inside it, in the tree's order",
             "default": []
           },
           "can_edit": {
@@ -54378,8 +55157,8 @@
               {
                 "type": "string",
                 "enum": [
-                  "person",
-                  "assistant"
+                  "assistant",
+                  "person"
                 ]
               },
               {
@@ -54423,8 +55202,8 @@
               {
                 "type": "string",
                 "enum": [
-                  "person",
-                  "assistant"
+                  "assistant",
+                  "person"
                 ]
               },
               {
@@ -56536,6 +57315,43 @@
           "created_at"
         ],
         "title": "Passkey"
+      },
+      "PasskeyAddress": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "an https:// address Lens opens at besides this one (Remote access, HTTPS)"
+          },
+          "passkey": {
+            "type": "boolean",
+            "title": "Passkey",
+            "description": "whether you have a passkey for it: a passkey works only where it was made"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "url",
+          "passkey"
+        ],
+        "title": "PasskeyAddress"
+      },
+      "PasskeyAddressAsk": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 300,
+            "title": "Url",
+            "description": "one of GET /auth/passkeys/elsewhere's addresses"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "PasskeyAddressAsk"
       },
       "PasskeyAnswer": {
         "properties": {
@@ -59859,7 +60675,8 @@
                   "imap",
                   "gmail",
                   "ical",
-                  "gcal"
+                  "gcal",
+                  "rss"
                 ]
               },
               {
@@ -63977,6 +64794,12 @@
             ],
             "description": "what the process running it says; none while it's off"
           },
+          "add_files": {
+            "type": "boolean",
+            "title": "Add Files",
+            "description": "whether files people add through it are imported (shares.add_files)",
+            "default": false
+          },
           "webdav": {
             "$ref": "#/components/schemas/ShareServer"
           },
@@ -64005,6 +64828,31 @@
         ],
         "title": "S3Status",
         "description": "The S3 server (these fields), the WebDAV server, and your access keys (they sign in to both)."
+      },
+      "SandboxFile": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "size"
+        ],
+        "title": "SandboxFile",
+        "description": "A file the code sandbox handed the person: GET /chats/{cid}/files/{id} downloads it."
       },
       "SandboxGateway": {
         "properties": {
@@ -64143,6 +64991,46 @@
           "on"
         ],
         "title": "SandboxGatewayRequest"
+      },
+      "SandboxOutput": {
+        "properties": {
+          "stdout": {
+            "type": "string",
+            "title": "Stdout",
+            "default": ""
+          },
+          "stderr": {
+            "type": "string",
+            "title": "Stderr",
+            "default": ""
+          },
+          "exit_code": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exit Code"
+          },
+          "timed_out": {
+            "type": "boolean",
+            "title": "Timed Out",
+            "default": false
+          },
+          "cut": {
+            "type": "boolean",
+            "title": "Cut",
+            "description": "there was more than this",
+            "default": false
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "SandboxOutput",
+        "description": "What a code sandbox run printed, as its step shows it (the start of stdout, the end of stderr)."
       },
       "SavedSearch": {
         "properties": {
@@ -66835,6 +67723,12 @@
               }
             ],
             "description": "what the process running it says; none while it's off"
+          },
+          "add_files": {
+            "type": "boolean",
+            "title": "Add Files",
+            "description": "whether files people add through it are imported (shares.add_files)",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -67534,6 +68428,12 @@
             "type": "string",
             "title": "Mount",
             "description": "the command that mounts it on Linux"
+          },
+          "add_files": {
+            "type": "boolean",
+            "title": "Add Files",
+            "description": "whether files people copy in are imported (smb.add_files); off: read-only",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -67574,7 +68474,8 @@
               "imap",
               "gmail",
               "ical",
-              "gcal"
+              "gcal",
+              "rss"
             ],
             "title": "Type"
           },
@@ -67671,7 +68572,8 @@
               "imap",
               "gmail",
               "ical",
-              "gcal"
+              "gcal",
+              "rss"
             ],
             "title": "Type"
           },
@@ -68625,6 +69527,214 @@
           "score"
         ],
         "title": "SpeakerSuggestion"
+      },
+      "Spec": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "none",
+              "writing",
+              "ready",
+              "failed"
+            ],
+            "title": "Status",
+            "description": "ready: written (note); writing: a job is on it (job); failed: the last job to write it failed (error)"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "the note it was written to (/notes/{id})"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job",
+            "description": "the latest job that was to write it"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "written_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Written At"
+          },
+          "template": {
+            "type": "integer",
+            "title": "Template",
+            "description": "the prompt template it was written with, else the one it would be"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "decisions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decisions"
+          },
+          "rejected": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejected",
+            "description": "each no, and each 'not that, this'"
+          },
+          "constraints": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Constraints"
+          },
+          "gaps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gaps",
+            "description": "what the speaker left to decide later"
+          },
+          "not_found": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Found",
+            "description": "quotes that aren't in the transcript word for word (marked so in the note)"
+          },
+          "cut": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cut",
+            "description": "the transcript was longer than the model is given (llm.max_chars)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "status",
+          "template"
+        ],
+        "title": "Spec"
+      },
+      "SpecWrite": {
+        "properties": {
+          "template": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template",
+            "description": "another prompt template to write it with (default: Spec from transcript)"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "that template's version (default: its current one)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SpecWrite"
       },
       "SpeechTestResult": {
         "properties": {
@@ -70470,6 +71580,28 @@
             "type": "string",
             "title": "Summary",
             "default": ""
+          },
+          "output": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SandboxOutput"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a code sandbox run's output"
+          },
+          "file": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SandboxFile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a file to download, from share_sandbox_file"
           },
           "ms": {
             "anyOf": [

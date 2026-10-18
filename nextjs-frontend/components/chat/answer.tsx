@@ -18,11 +18,14 @@ import {
 } from "@/components/chat/cite";
 import { CitationChip } from "@/components/chat/citation";
 import { AnswerDetails } from "@/components/chat/details";
+import { AnswerMenu, type ExportFormat } from "@/components/chat/export";
 import { keywords } from "@/components/chat/keywords";
+import { ReadAloud } from "@/components/chat/read-aloud";
 import { RichText } from "@/components/chat/rich-text";
 import { scopeWords, type Scope } from "@/components/chat/scope";
+import { SharedFiles } from "@/components/chat/shared-files";
 import { ToolSteps } from "@/components/chat/steps";
-import type { ToolStep, TurnStatus } from "@/components/chat/stream";
+import { sharedFiles, type ToolStep, type TurnStatus } from "@/components/chat/stream";
 import { Button, IconButton } from "@/components/ui/button";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from "@/components/ui/menu";
 import { data, useApiClient } from "@/lib/api/browser";
@@ -157,6 +160,8 @@ export type AnswerProps = {
   onChecked?: (c: AnswerCheck) => void;
   /** What produced it (the answer's record); older answers have none. */
   meta?: MessageRecord | null;
+  /** Export this answer, with its question (a saved answer's copy menu). */
+  onExport?: (fmt: ExportFormat) => void;
   /** More of what can be done with it, under it (a research report's: save as note, read aloud...). */
   actions?: React.ReactNode;
 };
@@ -305,13 +310,15 @@ export function Answer(p: AnswerProps) {
         )
       )}
 
+      <SharedFiles chatId={p.chatId} files={sharedFiles(p.steps ?? [])} />
+
       {p.status === "stopped" && (
         <p className="m-0 text-[12.5px] text-fg-muted">
           Stopped. What arrived is kept here; ask again for a full answer.
         </p>
       )}
 
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5 print:hidden">
         {streaming && p.onStop && (
           <Button
             size="sm"
@@ -360,6 +367,8 @@ export function Answer(p: AnswerProps) {
             {check.isPending ? "Checking sources…" : "Check sources"}
           </Button>
         )}
+        {!streaming && !blank && !noModel && !nothing && !failed && <ReadAloud text={p.text} />}
+        {!streaming && !blank && !noModel && <AnswerMenu text={p.text} passages={p.passages} onExport={p.onExport} />}
       </div>
       {check.isError && (
         <p role="alert" className="m-0 text-[13px] text-red-dark">

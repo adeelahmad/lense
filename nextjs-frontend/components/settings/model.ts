@@ -341,21 +341,21 @@ export const SECTIONS: SectionSpec[] = [
     label: "NFS share",
     backend: ["nfs"],
     description:
-      "Off unless you turn it on. The archive as folders and files over NFS, read-only: namespaces, collections, topics and entities as folders, assets as files, for machines on the networks you allow.",
+      "Off unless you turn it on. The archive as folders and files over NFS: namespaces, collections, topics and entities as folders, assets as files, for machines on the networks you allow; files copied into a collection’s folder are imported there.",
   },
   {
     id: "smb",
     label: "SMB share",
     backend: ["smb"],
     description:
-      "Off unless you turn it on. The graph as folders and files over SMB, read-only, for Finder, Explorer and Linux: each person signs in with a file access key and sees what they see in the web app.",
+      "Off unless you turn it on. The graph as folders and files over SMB, for Finder, Explorer and Linux: each person signs in with a file access key, sees what they see in the web app, and files they copy into a collection’s folder are imported there.",
   },
   {
     id: "shares",
     label: "File shares",
     backend: ["shares"],
     description:
-      "Off unless you turn it on. The archive’s assets as folders and files (namespaces and collections, a metadata file beside each asset), served read-only over S3 and WebDAV by Lens’s workers; people make their own access keys.",
+      "Off unless you turn it on. The archive’s assets as folders and files (namespaces and collections, a metadata file beside each asset), served over S3 and WebDAV by Lens’s workers; people make their own access keys, and files they add are imported where they put them.",
   },
   {
     id: "uploads",
@@ -518,6 +518,9 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
   { name: "read_settings", label: "Read settings (admins)", acts: false },
   { name: "change_settings", label: "Change settings (admins)", acts: true },
   { name: "create_namespace", label: "Create namespaces (admins)", acts: true },
+  { name: "news_feeds", label: "List the news feeds Lens follows (admins)", acts: false },
+  { name: "subscribe_feed", label: "Follow news feeds (admins)", acts: true },
+  { name: "unsubscribe_feed", label: "Stop following news feeds (admins)", acts: true },
 ];
 
 /** The speech providers (the backend's app/domain/speech.py), in the order Settings shows them. */
@@ -753,6 +756,13 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "analysis",
+    key: "dates",
+    label: "Read dates as days",
+    kind: "switch",
+    hint: "The dates each line gives (“next Tuesday”, “3 March”, “last week”) become days on the calendar, worked out from the asset's date, for agents and the API to find by day",
+  },
+  {
+    section: "analysis",
     key: "cleanup",
     label: "Clean up transcripts before analysis",
     kind: "switch",
@@ -812,6 +822,41 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "llm",
+    key: "describe_engine",
+    label: "Describe pictures with",
+    kind: "select",
+    options: [
+      { value: "llm", label: "The provider’s model that can see images" },
+      { value: "florence-2", label: "Florence-2 on this server (MIT, runs on the CPU)" },
+      { value: "moondream", label: "Moondream on this server (PyTorch)" },
+    ],
+    hint: "The Describe step says what each page and shot shows. Florence-2 and Moondream send no picture anywhere and are fetched the first time they’re needed",
+  },
+  {
+    section: "llm",
+    key: "florence_model",
+    label: "Florence-2 size",
+    kind: "select",
+    options: [
+      { value: "base", label: "Base (about 280 MB, for small machines)" },
+      { value: "large", label: "Large (about 830 MB, more detail, slower)" },
+    ],
+  },
+  {
+    section: "llm",
+    key: "moondream_model",
+    label: "Moondream model",
+    kind: "select",
+    options: [
+      {
+        value: "moondream3-preview",
+        label: "Moondream 3 Preview (about 19 GB, needs a GPU; BSL 1.1, not open source)",
+      },
+      { value: "moondream2", label: "Moondream 2 (about 3.7 GB, runs on the CPU, slowly; Apache-2.0)" },
+    ],
+  },
+  {
+    section: "llm",
     key: "vision_model",
     label: "Model that can see images",
     kind: "text",
@@ -827,7 +872,7 @@ export const FIELDS: FieldSpec[] = [
     kind: "int",
     min: 1,
     max: 1000,
-    hint: "Of a resource, in order: each is a request to the model",
+    hint: "Of a resource, in order: each is one call to the model",
   },
   { section: "llm", key: "api_key", label: "API key", kind: "secret" },
   {
@@ -879,13 +924,20 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "ai",
+    key: "auto_title",
+    label: "Title conversations",
+    kind: "switch",
+    hint: "After the first answer, the model gives a conversation a short title, with the model for summaries when one is set. A title you give it is kept. Off: it's titled with the first question.",
+  },
+  {
+    section: "ai",
     key: "compact_model",
     label: "Model for summaries",
     kind: "text",
     nullable: true,
     mono: true,
     placeholder: "the chat's model",
-    hint: "A smaller, cheaper model on the same provider to write them.",
+    hint: "A smaller, cheaper model on the same provider to write them, and conversations' titles.",
   },
   {
     section: "ai",
@@ -2578,7 +2630,14 @@ export const FIELDS: FieldSpec[] = [
     key: "enabled",
     label: "Share the file tree over NFS",
     kind: "switch",
-    hint: "Read-only. Off: nothing listens",
+    hint: "Off: nothing listens",
+  },
+  {
+    section: "nfs",
+    key: "add_files",
+    label: "Import files people add",
+    kind: "switch",
+    hint: "A file copied into a collection’s folder is imported there, as the account below adds it (NFS has no login). Off: read-only",
   },
   {
     section: "nfs",
@@ -2587,7 +2646,7 @@ export const FIELDS: FieldSpec[] = [
     kind: "select",
     nullable: true,
     options: [],
-    hint: "The share shows what this person sees in the web app, and nothing else",
+    hint: "The share shows what this person sees in the web app, and nothing else; files added to it are added as them",
   },
   {
     section: "nfs",
@@ -2650,7 +2709,14 @@ export const FIELDS: FieldSpec[] = [
     key: "enabled",
     label: "Share the file tree over SMB",
     kind: "switch",
-    hint: "Read-only. Off: nothing listens",
+    hint: "Off: nothing listens",
+  },
+  {
+    section: "smb",
+    key: "add_files",
+    label: "Import files people add",
+    kind: "switch",
+    hint: "A file copied into a collection’s folder is imported there, as an upload; a new folder under Collections is a new collection. Off: read-only",
   },
   {
     section: "smb",
@@ -2670,10 +2736,17 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "shares",
+    key: "add_files",
+    label: "Import files people add",
+    kind: "switch",
+    hint: "A file copied into a collection’s folder is imported there, as an upload; a new folder under Collections is a new collection. Off: read-only",
+  },
+  {
+    section: "shares",
     key: "s3",
     label: "S3",
     kind: "switch",
-    hint: "Read-only; each person signs in with their own access key",
+    hint: "Each person signs in with their own access key",
   },
   { section: "shares", key: "s3_port", label: "S3 port", kind: "int", min: 1, max: 65535 },
   {
@@ -2681,7 +2754,7 @@ export const FIELDS: FieldSpec[] = [
     key: "webdav",
     label: "WebDAV",
     kind: "switch",
-    hint: "Read-only; mount it as a drive in Finder, Windows Explorer or a file manager",
+    hint: "Mount it as a drive in Finder, Windows Explorer or a file manager",
   },
   { section: "shares", key: "webdav_port", label: "WebDAV port", kind: "int", min: 1, max: 65535 },
   {
@@ -2707,6 +2780,22 @@ export const FIELDS: FieldSpec[] = [
     label: "Let devices in without a login",
     kind: "switch",
     hint: "Off: devices sign in with a hub login (Sensors → Hub logins)",
+  },
+  {
+    section: "sensors",
+    key: "mqtt_web",
+    label: "MQTT at the web app’s address too",
+    kind: "switch",
+    hint: "Over WebSockets at /mqtt wherever the web app opens, Remote access and HTTPS included, for devices with a hub login. Off: only on the MQTT port",
+  },
+  {
+    section: "sensors",
+    key: "mqtt_web_port",
+    label: "MQTT over WebSockets port",
+    kind: "int",
+    min: 1,
+    max: 65535,
+    hint: "Where the web app passes /mqtt on to (LENS_MQTT_WS_URL)",
   },
   { section: "sensors", key: "syslog", label: "Syslog", kind: "switch" },
   {

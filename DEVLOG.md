@@ -2,6 +2,28 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-17 · Read any chat message aloud
+
+Adeel: play any message in the chat through the TTS model. A speaker button on every question and answer reads it by
+`POST /voice/speak` (so the provider layer, the voice picker's voice and the activity ledger are voice mode's), one
+message at a time, in pieces of at most 1,500 characters (Deepgram's limit is 2,000; `speech.speak` cuts at 4,000),
+with the next piece asked for while one plays. Audio is kept in the page by text, the 32 most recent pieces.
+
+Refine later: keep audio across reloads (encrypted on the server, or the browser's Cache Storage); a shorter first
+piece so long answers start sooner; voice mode reading answers through the same pieces; pause and resume rather than
+stop; the speaker button in an asset's Chat tab; drop kept audio when the voice is changed.
+
+## 2026-10-17 · Dates read as days
+
+Adeel: dates extraction. `dates.py` reads the dates each line gives (written out, numeric, and relative to the day)
+into `date_said` as first and last days, worked out from the asset's `recorded_at`, when Settings → Analysis → Read
+dates is on. `GET /api/v1/dates`, MCP `list_dates` and the assistant's `find_dates` find them by day or range with
+their lines. English rules in Lens's own code rather than dateparser: dateparser couldn't read "next Tuesday" or "this
+Friday", and its own search over a line finds dates in ordinary words.
+
+Refine later: DATE entities named by their day, so "next Tuesday" and "20 October" in two assets meet in the graph;
+other languages' month and day names; a Dates view in the web app (a calendar of what was said); times of day.
+
 ## 2026-10-17 · Entities found by spaCy
 
 Adeel: NLP libraries for named entities. Settings → Analysis → Entity extraction → spaCy existed but needed spaCy
@@ -24,6 +46,45 @@ Next: punctuation restored by a local model (the script's deepmultilingualpunctu
 from a LanguageTool server, spaCy fetched for named entities, and dates found and normalised.
 
 Refine later: revert a whole cleanup at once; cleanup rules for other languages' fillers; per-namespace switch.
+
+## 2026-10-17 · Describing pictures with Moondream on this machine
+
+Moondream is the third describe engine (`llm.describe_engine` `moondream`), opt-in, through Hugging Face transformers
+(Apache-2.0) and PyTorch (BSD), the `moondream` extra fetched on first use. Both models' code comes with their
+weights (`trust_remote_code`), pinned to a revision; both caption with the same call (`caption(image,
+length="normal")`). `llm.moondream_model` picks Moondream 3 Preview (the default when Moondream is chosen, since that's
+what was asked for) or Moondream 2. `moondream.cannot_run` keeps 19 GB from being fetched where Moondream 3 can't run
+(no NVIDIA GPU with 20 GB, no Mac with 32 GB) and says so in the step's log and in `picture_descriptions`.
+
+Checked here: Moondream 2 at the pinned revision loads with the locked transformers and describes a photo well ("A
+vintage light blue Volkswagen Beetle is parked parallel to a yellow building with a wooden door …"), but took 3 to 6
+minutes a picture on four shared CPU cores in float32: Florence-2 base took 3 s. Moondream 3 Preview wasn't
+run here (no GPU); its code at the pinned revision was read: the same caption call, with flex attention. The opt-in
+test (`LENS_TEST_MOONDREAM=1`) fetches PyTorch's CPU build, transformers and Moondream 2 through the component and
+describes a red dot. It first wrote "and, (, (, (…": with `OMP_THREAD_LIMIT` below PyTorch's thread count (the test
+suite sets it to 1), PyTorch's CPU kernels write nonsense, so `_load` now caps PyTorch's threads at that limit.
+
+Refine later: Moondream's query skill with what the picture is ("page 3 of …"), as the provider's model is told; its
+`compile()` on a GPU; bfloat16 on CPUs that have it; Moondream 3 on a GPU in CI or on a maintainer's machine; a
+quantised Moondream 2 for small machines.
+
+## 2026-10-17 · Describing pictures with Florence-2 on this machine
+
+Adeel: use Moondream 3 and/or Microsoft Florence for visual descriptions. Florence-2 (MIT) is now a describe engine
+(`llm.describe_engine` `florence-2`): its 8-bit ONNX export runs on ONNX Runtime on the CPU, fetched on first use,
+pinned and hashed, base or large. It runs a Raspberry Pi's way (no PyTorch, about 280 MB for base) and needs no model
+provider. Checked on two photos here: base takes about 3 s a picture on four CPU cores, large about 9 s, and both say
+plainly what each shows.
+
+Moondream 3 comes next as an opt-in engine. Its licences aren't open: Moondream 3 Preview's weights are BSL 1.1 (with
+a production use grant; Apache-2.0 two years after release) and Moondream 3.1's are the Moondream Model License; 3.1
+runs only on Photon, whose kernels (`kestrel-kernels`) are proprietary and licensed only under a separate agreement, so
+Lens won't install Photon. Moondream 3 Preview runs through Hugging Face transformers (permissive) on an NVIDIA GPU or
+a Mac with enough memory (about 19 GB of weights): not on a Pi.
+
+Refine later: beam search (the model's own default is three beams; greedy with no repeated trigrams matches it on the
+photos tried); Florence-2's OCR task beside the OCR step; a GPU (CUDA or CoreML execution provider) when there is one;
+the Q4 exports for a smaller download; describing only the pictures NSFW classification didn't flag.
 
 ## 2026-10-15 · Entity types beyond Term
 
@@ -202,8 +263,10 @@ Todo:
 - [x] Align SECURITY.md's SSRF example ("a model server") with the admin-URL ruling (YAML hash refreshed;
       the plugin's validator was not available in the session that made this edit, so re-run it)
 
-Watch out: the prose is canonical. After any edit to `threat-model.md`, regenerate the YAML and JSON (its hash is in
-the YAML) and run `ci/validate_threat_model.py` (CI runs it on every change to these files).
+Watch out: the prose is canonical. After any edit to `threat-model.md`, regenerate the YAML and JSON and run
+`ci/validate_threat_model.py --base origin/main` (CI runs it on every change to these files and fails a prose change
+that changes neither companion). The YAML no longer holds a hash of the prose, which made every pair of threat-model
+pull requests conflict (#507).
 
 ## 2026-10-04 · Graph history: versions, replay, rollback
 

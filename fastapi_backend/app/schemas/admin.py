@@ -58,6 +58,7 @@ class SmbStatus(ResponseModel):
     installed: bool = Field(description="whether the SMB server (impacket) is installed here; it's fetched when the share is turned on")
     address: str = Field(description="the address Finder and Linux file managers open (the machine's name filled in by the caller)")
     mount: str = Field(description="the command that mounts it on Linux")
+    add_files: bool = Field(False, description="whether files people copy in are imported (smb.add_files); off: read-only")
 
 
 class SlackStatus(ResponseModel):
@@ -175,6 +176,7 @@ class NfsStatus(ResponseModel):
     process: str | None = Field(None, description="the worker running it")
     mount: str = Field(description="the command that mounts it on Linux")
     rclone: bool = Field(description="whether rclone is installed here")
+    add_files: bool = Field(False, description="whether files written to the share are imported (nfs.add_files); off: read-only")
 
 
 class Removed(ResponseModel):

@@ -253,6 +253,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <F ctx={ctx} id="analysis.entities" />
           {raw("analysis.entities") === "spacy" && <F ctx={ctx} id="analysis.spacy_model" />}
           <F ctx={ctx} id="analysis.anytopdf" />
+          <F ctx={ctx} id="analysis.dates" />
           <F
             ctx={ctx}
             id="analysis.gazetteer"
@@ -684,15 +685,34 @@ function LlmBody({ ctx }: { ctx: BodyCtx }) {
       </div>
       <More
         ctx={ctx}
-        ids={["llm.api_key_env", "llm.chat_models", "llm.vision_model", "llm.describe_max"]}
-        title="Models people may pick, pictures, and a key from the environment"
+        ids={["llm.api_key_env", "llm.chat_models"]}
+        title="Models people may pick, and a key from the environment"
       >
         <F ctx={ctx} id="llm.chat_models" />
+        <F ctx={ctx} id="llm.api_key_env" hint="Used only when no key is stored above" />
+      </More>
+      <More
+        ctx={ctx}
+        ids={[
+          "llm.describe_engine",
+          "llm.vision_model",
+          "llm.florence_model",
+          "llm.moondream_model",
+          "llm.describe_max",
+        ]}
+        title="Describing pictures"
+      >
+        <F ctx={ctx} id="llm.describe_engine" />
         <div className="grid gap-3 sm:grid-cols-2">
-          <F ctx={ctx} id="llm.vision_model" />
+          {ctx.state("llm.describe_engine").value === "florence-2" ? (
+            <F ctx={ctx} id="llm.florence_model" />
+          ) : ctx.state("llm.describe_engine").value === "moondream" ? (
+            <F ctx={ctx} id="llm.moondream_model" />
+          ) : (
+            <F ctx={ctx} id="llm.vision_model" />
+          )}
           <F ctx={ctx} id="llm.describe_max" />
         </div>
-        <F ctx={ctx} id="llm.api_key_env" hint="Used only when no key is stored above" />
       </More>
       <div className="flex flex-wrap items-center gap-2.5">
         <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
@@ -1446,6 +1466,10 @@ function SensorsBody({ ctx }: { ctx: BodyCtx }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <F ctx={ctx} id="sensors.mqtt_port" />
         <F ctx={ctx} id="sensors.max_payload_kb" />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="sensors.mqtt_web" />
+        <F ctx={ctx} id="sensors.mqtt_web_port" />
       </div>
       <Sub>Syslog</Sub>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -2608,6 +2632,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
       <F ctx={ctx} id="ai.refine_notes" />
       <F ctx={ctx} id="ai.organise_notes" />
       <F ctx={ctx} id="ai.compact" />
+      <F ctx={ctx} id="ai.auto_title" />
       <More
         ctx={ctx}
         ids={["ai.untrusted_marking", "ai.untrusted_asks", "ai.injection_check"]}

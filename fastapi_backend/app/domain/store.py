@@ -153,7 +153,8 @@ DEFAULTS = {
         "sample_seconds": 60,
         "cross_namespace": "suggest",
     },
-    # anytopdf: the places and dates anytopdf (run here) finds, as hints for the extractor (enrich.py); cleanup: the
+    # anytopdf: the places and dates anytopdf (run here) finds, as hints for the extractor (enrich.py); dates: the dates
+    # each line gives kept as days on the calendar (dates.py); cleanup: the
     # clean step tidies transcripts before analysis (cleanup.py), cleanup_fillers taking out "um" and "uh" too, and
     # cleanup_punctuation (off, missing, always) putting marks back with a local model
     "analysis": {
@@ -161,6 +162,7 @@ DEFAULTS = {
         "spacy_model": "en_core_web_sm",
         "gazetteer": [],
         "anytopdf": False,
+        "dates": False,
         "cleanup": False,
         "cleanup_fillers": True,
         "cleanup_punctuation": "off",
@@ -176,6 +178,11 @@ DEFAULTS = {
         # a model the admin knows can see images: it describes pages and shots (the describe step); none, none are
         "vision_model": None,
         "describe_max": 50,  # pages or shots of a resource described at most
+        # what describes them: "llm" (vision_model, above), or on this machine "florence-2" (florence.py) or
+        # "moondream" (moondream.py)
+        "describe_engine": "llm",
+        "florence_model": "base",  # Florence-2 base (about 280 MB) or large (about 830 MB)
+        "moondream_model": "moondream3-preview",  # Moondream 3 Preview (BSL 1.1, a GPU) or moondream2 (Apache-2.0)
     },
     "graph": {"max_nodes": 150, "min_edge_weight": 2},
     "search": {
@@ -292,7 +299,8 @@ DEFAULTS = {
         "extensions": True,  # tools, skills, hooks and plugins people add (extensions.py)
         "refine_notes": True,  # the model keeps notes' titles and one-line summaries true to the whole note (notebook.py)
         "compact": True,  # a long conversation keeps a summary of the messages the model no longer sees (chat.compact)
-        "compact_model": None,  # a cheaper model to write those summaries (None: the chat's model)
+        "compact_model": None,  # a cheaper model to write those summaries and titles (None: the chat's model)
+        "auto_title": True,  # a conversation nobody named is titled by the model after its first answer (chat.auto_title)
         "context_tokens": None,  # the chat model's context window; summarised early before it fills (None: 16000)
         "organise_notes": True,  # notes nobody filed are filed in PARA, or a suggestion waits on them (notebook.py)
         "untrusted_marking": True,  # third-party text reaches the model marked as data, not instructions (untrusted.py)
@@ -544,6 +552,7 @@ DEFAULTS = {
         "bind": os.environ.get("LENS_SMB_LISTEN") or "127.0.0.1",
         "port": int(os.environ.get("LENS_SMB_LISTEN_PORT") or 4445),
         "allowed_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "100.64.0.0/10", "fc00::/7", "::1/128"],
+        "add_files": True,  # files people copy in are imported (share_import.py); off: read-only
     },
     # the assistant's code sandbox (sandbox.py, docs/assistant.md#code-sandbox): off until an admin turns it on. Then
     # each conversation's Python and bash run in a sandbox of its own on the OpenShell gateway at `gateway`, made from
@@ -566,13 +575,16 @@ DEFAULTS = {
     # sensors (sensors.py, docs/sensors.md): off until an admin turns them on. Then the MQTT hub and the syslog listener
     # run in the process that runs routines (`lens worker`), on these ports; syslog is taken only from syslog_networks.
     # store, raw_days, rollup_days, important_days and max_per_minute are what a stream sensor gets unless it has its own.
-    # bind is a startup setting only.
+    # bind is a startup setting only. mqtt_web: the broker over WebSockets too, on mqtt_web_port, which the web app
+    # relays at /mqtt (so Remote access and HTTPS reach it), for clients with a hub login only.
     "sensors": {
         "enabled": False,
         "bind": "0.0.0.0",
         "mqtt": True,
         "mqtt_port": 1883,
         "mqtt_anonymous": False,
+        "mqtt_web": False,
+        "mqtt_web_port": 9883,
         "syslog": True,
         "syslog_port": 5514,
         "syslog_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "fc00::/7", "::1/128"],
@@ -592,10 +604,12 @@ DEFAULTS = {
         "port": 2049,
         "allowed_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "fc00::/7", "::1/128"],
         "account": None,
+        "add_files": True,  # files written to the share are imported, as `account` (share_import.py); off: read-only
     },
     # the graph as files over S3 and WebDAV (shares.py, docs/file-tree.md): off until an admin turns it on. Then the process
-    # that runs routines (`lens worker`) serves it, read-only, on these ports. bind is a startup setting only. remote: also at
-    # the web app's address (/s3, /dav), so through Settings › Remote access and HTTPS too; off until an admin turns it on.
+    # that runs routines (`lens worker`) serves it on these ports; add_files imports the files people add to it
+    # (share_import.py), off: read-only. bind is a startup setting only. remote: also at the web app's address (/s3, /dav),
+    # so through Settings › Remote access and HTTPS too; off until an admin turns it on.
     "shares": {
         "enabled": False,
         "bind": "0.0.0.0",
@@ -603,6 +617,7 @@ DEFAULTS = {
         "s3_port": 9555,
         "webdav": True,
         "webdav_port": 9556,
+        "add_files": True,
         "remote": False,
     },
     # notifications to webhooks and Matterbridge (docs/notifications.md): targets reach public addresses only, and the
@@ -1182,6 +1197,10 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS merge SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS section SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS section_rec ON section FIELDS recording",
+    # the dates a recording's lines give, as days on the calendar (dates.py)
+    "DEFINE TABLE IF NOT EXISTS date_said SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS date_said_rec ON date_said FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS date_said_day ON date_said FIELDS space, day",
     "DEFINE TABLE IF NOT EXISTS entity SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS entity_space ON entity FIELDS space",
     "DEFINE INDEX IF NOT EXISTS entity_key ON entity FIELDS ekey UNIQUE",
@@ -1325,6 +1344,12 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS event_cursor SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS event_claim SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS event_claim_at ON event_claim FIELDS at",
+    # what automations keep between activities (domain/match.py): the last value a `changed` test saw, joins waiting
+    # for their other triggers and decide answers (automation_state:<hash>), and how many went to make room
+    "DEFINE TABLE IF NOT EXISTS automation_state SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS automation_state_automation ON automation_state FIELDS automation, at",
+    "DEFINE INDEX IF NOT EXISTS automation_state_expires ON automation_state FIELDS expires_at",
+    "DEFINE TABLE IF NOT EXISTS automation_state_dropped SCHEMALESS",
     # an automation trigger's webhook (domain/automation_hooks.py): automation_hook:<n>, the token kept only as a hash
     "DEFINE TABLE IF NOT EXISTS automation_hook SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS automation_hook_token ON automation_hook FIELDS token_hash UNIQUE",
@@ -1475,6 +1500,9 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS research_account ON research FIELDS account, status",
     "DEFINE INDEX IF NOT EXISTS research_chat ON research FIELDS chat",
     "DEFINE TABLE IF NOT EXISTS research_run SCHEMALESS",
+    # files a conversation's sandbox handed the person to download (sandbox.share), kept with the conversation
+    "DEFINE TABLE IF NOT EXISTS chat_file SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS chat_file_chat ON chat_file FIELDS chat",
     "DEFINE TABLE IF NOT EXISTS segment_edit SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS segment_edit_rec ON segment_edit FIELDS recording",
     # descriptive metadata history, IIIF change discovery and IIIF authorization
@@ -1783,6 +1811,7 @@ DOWNSTREAM = [
     "DELETE mentions WHERE recording = $rid",
     "DELETE term WHERE recording = $rid",
     "DELETE section WHERE recording = $rid",
+    "DELETE date_said WHERE recording = $rid",
     "DELETE appearance WHERE recording = $rid",
     "DELETE segment WHERE recording = $rid AND idx >= $keep",
     "DELETE passage WHERE recording = $rid",

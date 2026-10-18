@@ -277,12 +277,13 @@ export default function BlockEditor({
     };
   }, []);
 
-  // The page's title is Lens's own field above the editor, so the editor's title line is hidden.
+  // The page's title is Lens's own field above the editor, so the editor's title line is hidden, and the text starts
+  // where the title does (the editor's own side margin, 96px or 24px on a phone, is for a page of its own).
   return (
     <div
       ref={host}
       className={cn(
-        "lens-block-editor min-h-[240px] [&_doc-title]:hidden",
+        "lens-block-editor min-h-[240px] [&_.affine-page-root-block-container]:px-0 [&_doc-title]:hidden",
         view === "edgeless" && "h-[70vh] overflow-hidden rounded-md border border-border",
         className,
       )}

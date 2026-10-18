@@ -6,7 +6,7 @@
   "scope_subpath": null,
   "description": "Lens is a self-hosted archive for documents, recordings, photos and messages: it reads, transcribes, indexes and publishes them, and people search and chat over them. One operator (the instance admin) runs an instance for their own people: a FastAPI API, a Next.js web app that proxies the API and holds the sign-in session, and background workers, around one SurrealDB database, with content split into namespaces and per-namespace roles. Exposing an instance to the internet behind HTTPS (reverse proxy or Cloudflare tunnel) is supported. Only the instance admin (equivalent to host code execution) and the host operator are trusted; everyone else is trusted only as far as their role.",
   "confidence": {
-    "documented": 249,
+    "documented": 252,
     "inferred": 99
   },
   "components": [
@@ -66,11 +66,12 @@
     {
       "name": "outbound",
       "entry_points": [
-        "watched folders, storage sources, IMAP, Gmail, iCal",
+        "watched folders, storage sources, IMAP, Gmail, iCal, news feeds",
         "Google Calendar sources",
+        "News feed sources",
         "Connect with Google",
         "POST /imports/web, extension http tools, notification targets",
-        "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer, web search)",
+        "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search)",
         "replies from remote servers",
         ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY"
       ],
@@ -188,7 +189,7 @@
     },
     {
       "component": "outbound",
-      "boundary": "B4, Lens to the outside: fetches whose URL a non-admin sets, and iCal feeds, go through netguard; other admin-set URLs do not; the telemetry endpoint is only shape-checked (P-ADMIN-GUARD).",
+      "boundary": "B4, Lens to the outside: fetches whose URL a non-admin sets, and iCal and news feeds, go through netguard; other admin-set URLs do not; the telemetry endpoint is only shape-checked (P-ADMIN-GUARD).",
       "provenance": "inferred",
       "reachability_precondition": "a URL a non-admin sets, or a guarded admin operand, reaches a non-public address; or a stored secret reaches anyone but the host the admin set",
       "source": "threat-model.md §1.4 (untagged boundary list)"
@@ -285,6 +286,15 @@
       "caller_must_enforce": "holder keeps them secret",
       "provenance": "documented",
       "source": "docs/authentication.md \"A link lasts three days\""
+    },
+    {
+      "entry_point": "POST /auth/passkeys/elsewhere",
+      "parameter": "an address to take your sign-in to",
+      "attacker_controllable": "yes",
+      "component": "identity",
+      "caller_must_enforce": "signed in themselves, not API tokens or apps; only an address Lens opens at; 15 minutes, once, other links left alone",
+      "provenance": "documented",
+      "source": "docs/authentication.md \"Lens opens at another address\""
     },
     {
       "entry_point": "/oauth/register, /authorize, /token, /revoke",
@@ -413,8 +423,8 @@
       "source": "docs/api.md \"the address form takes hook tokens only\""
     },
     {
-      "entry_point": "watched folders, storage sources, IMAP, Gmail, iCal",
-      "parameter": "remote file names, bytes, mail, events",
+      "entry_point": "watched folders, storage sources, IMAP, Gmail, iCal, news feeds",
+      "parameter": "remote file names, bytes, mail, events, feed posts",
       "attacker_controllable": "yes",
       "component": "outbound",
       "caller_must_enforce": "admin creates sources",
@@ -429,6 +439,15 @@
       "caller_must_enforce": "admin creates sources; read-only calendar.readonly scope; Google's own token endpoint and API address (a key file's token_uri is ignored); event text escaped into its .ics without control characters",
       "provenance": "documented",
       "source": "docs/processing.md \"The token endpoint is always Google's own\""
+    },
+    {
+      "entry_point": "News feed sources",
+      "parameter": "the feed's address (or a site's page that names its feed), user and password; the feed's XML and its posts' HTML",
+      "attacker_controllable": "yes",
+      "component": "outbound",
+      "caller_must_enforce": "admins add them (web app, API, MCP subscribe_feed with a write-scope token, or the assistant's tool, which asks first outside a setup conversation or once it has read outside text); fetched as iCal feeds are; feedparser reads the XML with external entities off and drops scripts, styles and event handlers from a post's HTML; each post kept as an Atom entry Lens writes, without the feed's address; post text is marked untrusted in prompts",
+      "provenance": "documented",
+      "source": "docs/processing.md \"News feeds (RSS and Atom)\""
     },
     {
       "entry_point": "Connect with Google",
@@ -458,7 +477,7 @@
       "source": "docs/assistant.md \"a search or a page read sends words out of Lens\""
     },
     {
-      "entry_point": "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer, web search)",
+      "entry_point": "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search)",
       "parameter": "URL, credentials, api_key_env",
       "attacker_controllable": "no",
       "component": "outbound",
@@ -566,11 +585,20 @@
       "source": "docs/smb.md \"What keeps it safe\""
     },
     {
+      "entry_point": "web app /mqtt and port 9883 (MQTT over WebSockets, relayed by lens-relay.js ahead of Next)",
+      "parameter": "the WebSocket handshake, MQTT packets in binary messages, hub logins",
+      "attacker_controllable": "yes",
+      "component": "optional",
+      "caller_must_enforce": "admin enables sensors.mqtt_web; a hub login on every connection, never anonymous; failed logins throttled per visitor from X-Forwarded-For as trusted proxies report it",
+      "provenance": "documented",
+      "source": "docs/sensors.md \"At the web app's address\""
+    },
+    {
       "entry_point": "web app /s3 and /dav (file shares relayed by lens-relay.js, ahead of Next)",
       "parameter": "any method, path, Host and body, passed to the share servers with X-Forwarded-Prefix and X-Forwarded-For",
       "attacker_controllable": "yes",
       "component": "optional",
-      "caller_must_enforce": "admin enables shares.enabled and shares.remote; per-person access keys, read-only; failed WebDAV sign-ins throttled per visitor from X-Forwarded-For as trusted proxies report it",
+      "caller_must_enforce": "admin enables shares.enabled and shares.remote; per-person access keys, files added imported as at the ports (shares.add_files); failed WebDAV sign-ins throttled per visitor from X-Forwarded-For as trusted proxies report it",
       "provenance": "documented",
       "source": "docs/file-tree.md \"At the web app's address\""
     },
@@ -639,10 +667,19 @@
     },
     {
       "entry_point": "code sandbox",
-      "parameter": "assistant run_python, run_bash, sandbox_files and import_sandbox_file: code the model writes, attachment ids, a path in the sandbox; sandbox.* settings (admins)",
+      "parameter": "assistant run_python, run_bash, sandbox_files, share_sandbox_file and import_sandbox_file: code the model writes, attachment ids, a path in the sandbox; sandbox.* settings (admins)",
       "attacker_controllable": "yes",
       "component": "assistant",
-      "caller_must_enforce": "none — off by default; the code runs in the conversation's own OpenShell sandbox with none of Lens's data or keys and no network unless sandbox.network allows it (P-SANDBOX); with the network on, a run after outside text asks first (P-INJECTION-EGRESS); files in only from the person's attachments, out only through an approved import",
+      "caller_must_enforce": "none — off by default; the code runs in the conversation's own OpenShell sandbox with none of Lens's data or keys and no network unless sandbox.network allows it (P-SANDBOX); with the network on, a run after outside text asks first (P-INJECTION-EGRESS); files in only from the person's attachments, out only through an approved import or as a download for that person",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"Code sandbox\""
+    },
+    {
+      "entry_point": "code sandbox shared files",
+      "parameter": "GET /api/v1/chats/{cid}/files/{fid}: a file share_sandbox_file copied out of the conversation's sandbox; its bytes come from code the model wrote",
+      "attacker_controllable": "yes",
+      "component": "assistant",
+      "caller_must_enforce": "none — served only to the conversation's person (404 otherwise, or for another conversation's id) as an attachment with nosniff and a sandbox content policy, never rendered; random 96-bit id checked against the conversation; kept AES-256-GCM encrypted with a key derived from the server's secret, bound to the file and conversation; at most 20 a conversation, 25 MB each; deleted with the conversation or the account",
       "provenance": "documented",
       "source": "docs/assistant.md \"Code sandbox\""
     },
@@ -672,7 +709,7 @@
       "Expiry uses wall-clock time with no skew handling.",
       "Several API processes and workers may run at once; throttle counters and the setup code live in each process's memory.",
       "Child processes (rclone, ffmpeg, LibreOffice, Chromium, Tesseract, poppler, cloudflared, llama-server, code tools, uv/pip) run as argument lists.",
-      "Listening sockets: API and web app; a loopback netguard proxy during captures; MQTT 1883 and syslog 5514 when sensors are on; llama-server when enabled.",
+      "Listening sockets: API and web app; a loopback netguard proxy during captures; MQTT 1883 and syslog 5514 when sensors are on, MQTT over WebSockets on 9883 with sensors.mqtt_web; llama-server when enabled.",
       "Files live under data_dir, including secret.key when ARCHIVE_SECRET_KEY is unset; the server log carries the setup code and, without mail, sign-in links."
     ],
     "does_not": [
@@ -821,8 +858,8 @@
       "source": "docs/configuration.md \"runs with its sandbox where it can\""
     },
     {
-      "name": "sensors.enabled, sensors.mqtt_anonymous",
-      "default": "off (bind 0.0.0.0); off",
+      "name": "sensors.enabled, sensors.mqtt_anonymous, sensors.mqtt_web",
+      "default": "off (bind 0.0.0.0); off; off",
       "effect": "narrows P-SENSORS",
       "discouraged": false,
       "provenance": "documented",
@@ -1013,7 +1050,7 @@
       "property": "P-LIFETIMES",
       "violation_symptom": "bad-data-accepted",
       "severity_tier": "correctness",
-      "conditions": "access JWT 900 s; sign-in link 72 h, emailed links 60 min; OAuth code 5 min; app tokens 60 min / 30 days; API tokens default 90 days, never past tokens.max_days",
+      "conditions": "access JWT 900 s; sign-in link 72 h, emailed links 60 min, your own link to another address 15 min; OAuth code 5 min; app tokens 60 min / 30 days; API tokens default 90 days, never past tokens.max_days",
       "provenance": "documented",
       "source": "docs/authentication.md \"A link lasts three days\""
     },
@@ -1077,7 +1114,7 @@
       "property": "P-SECRETS",
       "violation_symptom": "info-leak",
       "severity_tier": "security",
-      "conditions": "stored secrets (source credentials, notification secrets, model API keys, iCal addresses, an automation's credential headers, sealed to that automation and the address they were saved for, an MCP server's credential headers and env values, sealed to its extension and the address or command they were saved for) are encrypted and write-only; the API reports whether one is set, never its value; a key from the environment is never shown; they do not leak through the API, logs, exports, or a redirect to another server",
+      "conditions": "stored secrets (source credentials, notification secrets, model API keys, iCal and news feed addresses, an automation's credential headers, sealed to that automation and the address they were saved for, an MCP server's credential headers and env values, sealed to its extension and the address or command they were saved for) are encrypted and write-only; the API reports whether one is set, never its value; a key from the environment is never shown; they do not leak through the API, logs, exports, or a redirect to another server",
       "provenance": "documented",
       "source": "SECURITY.md \"stored credentials for sources and model servers leaking\""
     },
@@ -1093,7 +1130,7 @@
       "property": "P-ADMIN-GUARD",
       "violation_symptom": "info-leak",
       "severity_tier": "security",
-      "conditions": "guards Lens documents on admin-set operands hold: iCal feeds are fetched like web captures (public addresses only and documents.web_networks, ports 80 and 443, the password never goes on to a server the calendar redirects to); the telemetry endpoint cannot carry a user name or password or be a link-local address",
+      "conditions": "guards Lens documents on admin-set operands hold: iCal and news feeds are fetched like web captures (public addresses only and documents.web_networks, ports 80 and 443, the password never goes on to a server the calendar or feed redirects to, or to a feed a site's page names on another server); the telemetry endpoint cannot carry a user name or password or be a link-local address",
       "provenance": "documented",
       "source": "docs/processing.md \"fetched the way web pages are captured\""
     },
@@ -1237,23 +1274,23 @@
       "property": "P-SENSORS",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",
-      "conditions": "sensors are off until an admin enables them; MQTT needs a hub login unless mqtt_anonymous is on; syslog hears only listed networks",
+      "conditions": "sensors are off until an admin enables them; MQTT needs a hub login unless mqtt_anonymous is on, and always over WebSockets (/mqtt, sensors.mqtt_web); syslog hears only listed networks",
       "provenance": "documented",
       "source": "docs/sensors.md \"Sensors are off until an admin turns them on\""
     },
     {
       "property": "P-NFS",
-      "violation_symptom": "info-leak",
+      "violation_symptom": "info-leak, integrity-bypass",
       "severity_tier": "security",
-      "conditions": "the NFS share is off until an admin turns it on, is read-only, shows only what one chosen account sees, and lets in only allowed_networks",
+      "conditions": "the NFS share is off until an admin turns it on, shows only what one chosen account sees, imports files written to it only where that account may import (never over what Lens made; nfs.add_files off: read-only), and lets in only allowed_networks",
       "provenance": "documented",
       "source": "docs/file-shares.md \"NFS has no login\""
     },
     {
       "property": "P-SMB",
-      "violation_symptom": "info-leak",
+      "violation_symptom": "info-leak, integrity-bypass",
       "severity_tier": "security",
-      "conditions": "the SMB share is off until an admin turns it on; read-only; per-person file access keys and views; no guests or SMB1; a random NTLM challenge per connection; allowed networks only",
+      "conditions": "the SMB share is off until an admin turns it on; files added are imported only where the key's owner may import, checked as uploads, never over what Lens made (smb.add_files off: read-only); per-person file access keys and views; no guests or SMB1; a random NTLM challenge per connection; allowed networks only",
       "provenance": "documented",
       "source": "docs/smb.md \"What keeps it safe\""
     },
@@ -1261,7 +1298,7 @@
       "property": "P-SHARES",
       "violation_symptom": "info-leak, integrity-bypass",
       "severity_tier": "security",
-      "conditions": "the file shares (S3, WebDAV) are off until an admin enables them, and reach the web app's address (/s3, /dav) only with shares.remote too; every request carries a person's own access key (SigV4 or Basic), reads as them and never writes",
+      "conditions": "the file shares (S3, WebDAV) are off until an admin enables them, and reach the web app's address (/s3, /dav) only with shares.remote too; every request carries a person's own access key (SigV4 or Basic) and reads as them; files written are imported only where that person may import, checked and size-capped as uploads, never over an asset or a file Lens made; shares.add_files off: read-only",
       "provenance": "documented",
       "source": "docs/file-tree.md \"Off until an admin turns it on\""
     },
@@ -1341,7 +1378,7 @@
       "property": "P-SANDBOX",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",
-      "conditions": "code the assistant runs (sandbox.enabled, off by default) runs only for people sandbox.who allows, in its conversation's own OpenShell sandbox, never in Lens's processes; the sandbox gets none of Lens's data, keys or database address, only the code and files the person attached to that conversation; egress: none (off), PyPI and npm on 443 (packages), or those and the names in sandbox.hosts on 80 and 443 (hosts), every endpoint held to public addresses; a file leaves only as the person's held upload placed by an import_files approval; stopped when idle, deleted when unused or with its conversation",
+      "conditions": "code the assistant runs (sandbox.enabled, off by default) runs only for people sandbox.who allows, in its conversation's own OpenShell sandbox, never in Lens's processes; the sandbox gets none of Lens's data, keys or database address, only the code and files the person attached to that conversation; egress: none (off), PyPI and npm on 443 (packages), or those and the names in sandbox.hosts on 80 and 443 (hosts), every endpoint held to public addresses; a file leaves only as the person's held upload placed by an import_files approval, or as a download (share_sandbox_file) kept encrypted with the conversation and served only to its person; stopped when idle, deleted when unused or with its conversation",
       "provenance": "documented",
       "source": "docs/assistant.md \"Code sandbox\""
     },
@@ -1380,7 +1417,7 @@
     },
     {
       "property": "N-EGRESS",
-      "reason": "an egress firewall; netguard guards web import, iCal feeds, extension http tools, notifications, the assistant's web search and page reads, and Chromium, nothing else; admin-set URLs other than iCal feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded",
+      "reason": "an egress firewall; netguard guards web import, iCal and news feeds, extension http tools, notifications, the assistant's web search and page reads, and Chromium, nothing else; admin-set URLs other than iCal and news feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded",
       "false_friend": true,
       "provenance": "documented",
       "source": "maintainer ruling, 2026-10"
@@ -1705,7 +1742,7 @@
     "Keep the IIIF cookie SameSite=None; Secure by serving IIIF over HTTPS",
     "Verify webhook-signature on receipt; treat Slack and Discord target URLs as secrets",
     "Keep logs that record request paths private when sensor push tokens are in use",
-    "When the NFS share is on, list only your own networks and pick an account that sees only what the share should show"
+    "When the NFS share is on, list only your own networks and pick an account that sees only what the share should show (and may add only where the share should take files), or turn nfs.add_files off"
   ],
   "known_misuse": [
     {
@@ -1750,7 +1787,7 @@
     },
     {
       "pattern": "Wide LENS_WEB_NETWORKS",
-      "why_unsafe": "Editors, and iCal feed redirects, can then reach those networks",
+      "why_unsafe": "Editors, and iCal and news feed redirects, can then reach those networks",
       "instead": "List single hosts"
     },
     {

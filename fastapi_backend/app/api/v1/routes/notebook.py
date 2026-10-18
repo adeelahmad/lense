@@ -89,6 +89,8 @@ def _out(acl: Access, db: DB, p: dict[str, Any], user: Principal) -> NotePage:
         created_by=(writer or {}).get("email"),
         links=out_links,
         backlinks=[b for b in _backlinks(acl, db, p["space"], targets) if b["page"] != p["id"]],
+        path=notebook.path(db, p),
+        children=notebook.children(db, p) if not p.get("about") else [],
         can_edit=user.can_write and auth.allows(acl.roles, p["space"], "editor"),
     )
 

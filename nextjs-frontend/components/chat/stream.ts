@@ -1,4 +1,11 @@
-import type { Estimate, MessageRecord, Passage, Research } from "@/app/openapi-client/types.gen";
+import type {
+  Estimate,
+  MessageRecord,
+  Passage,
+  Research,
+  SandboxFile,
+  SandboxOutput,
+} from "@/app/openapi-client/types.gen";
 
 /**
  * One question's answer as it streams from POST /chats/{id}/messages. The backend sends server-sent events:
@@ -12,6 +19,10 @@ export type ToolStep = {
   tool: string;
   args: Record<string, unknown>;
   summary: string;
+  /** A code sandbox run's output: the start of stdout, the end of stderr. */
+  output?: SandboxOutput | null;
+  /** A file the code sandbox handed the person, to download from the answer. */
+  file?: SandboxFile | null;
   /** How long the tool took. */
   ms?: number | null;
   /** It failed (or was unknown or blocked); the summary says why. */
@@ -90,6 +101,8 @@ export function applyEvent(s: TurnState, ev: { event: string; data: string }): T
             tool: str(o.tool, "tool"),
             args: (o.args as Record<string, unknown>) ?? {},
             summary: str(o.summary),
+            output: sandboxOutput(o.output),
+            file: sandboxFile(o.file),
             ms: typeof o.ms === "number" ? o.ms : null,
             failed: o.failed === true || null,
           },
@@ -149,10 +162,38 @@ export function applyEvent(s: TurnState, ev: { event: string; data: string }): T
   }
 }
 
+function sandboxOutput(v: unknown): SandboxOutput | undefined {
+  if (!v || typeof v !== "object") return undefined;
+  const o = v as Record<string, unknown>;
+  return {
+    stdout: str(o.stdout),
+    stderr: str(o.stderr),
+    exit_code: typeof o.exit_code === "number" ? o.exit_code : null,
+    timed_out: o.timed_out === true,
+    cut: o.cut === true,
+  };
+}
+
+function sandboxFile(v: unknown): SandboxFile | undefined {
+  if (!v || typeof v !== "object") return undefined;
+  const o = v as Record<string, unknown>;
+  return typeof o.id === "string" && typeof o.name === "string"
+    ? { id: o.id, name: o.name, size: typeof o.size === "number" ? o.size : 0 }
+    : undefined;
+}
+
 /** Tool steps as an answer was saved with them (GET /chats/{id}), in the shape the live stream gives. */
 export function savedSteps(
   steps:
-    | { tool: string; args?: Record<string, unknown>; summary?: string; ms?: number | null; failed?: boolean | null }[]
+    | {
+        tool: string;
+        args?: Record<string, unknown>;
+        summary?: string;
+        ms?: number | null;
+        failed?: boolean | null;
+        output?: SandboxOutput | null;
+        file?: SandboxFile | null;
+      }[]
     | null
     | undefined,
 ): ToolStep[] {
@@ -162,7 +203,14 @@ export function savedSteps(
     summary: s.summary ?? "",
     ...(s.ms != null ? { ms: s.ms } : {}),
     ...(s.failed ? { failed: true } : {}),
+    output: sandboxOutput(s.output),
+    file: sandboxFile(s.file),
   }));
+}
+
+/** The files the code sandbox handed the person in these steps, to download from the answer. */
+export function sharedFiles(steps: ToolStep[]): SandboxFile[] {
+  return steps.flatMap((s) => (s.file ? [s.file] : []));
 }
 
 /** A short plain-words line for a tool call, when the backend's summary is missing. */
