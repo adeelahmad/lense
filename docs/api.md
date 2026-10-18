@@ -1883,7 +1883,8 @@ with its resource's `recording_title`, `namespace` and `media` kind, its signed 
 video, as the recording player gets it; `null` when it has none, so play its text), its times and `link`, its page in
 the web app at the clip's start. `hidden` counts the clips of your own playlist whose resources you can no longer
 read. Clips go when their resource is deleted; private playlists go when their maker's account is removed, shared ones
-stay. Agents use them through [MCP](mcp.md) (`list_playlists`, `add_to_playlist`).
+stay. Agents use them through [MCP](mcp.md) (`list_playlists`, `add_to_playlist`); the web app's side is in
+[Playlists](playlists.md).
 
 ## views
 

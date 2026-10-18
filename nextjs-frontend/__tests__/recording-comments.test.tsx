@@ -20,6 +20,10 @@ const api = {
   createHighlight: jest.fn<Promise<unknown>, [unknown]>(),
   updateHighlight: jest.fn<Promise<unknown>, [unknown]>(),
   deleteHighlight: jest.fn<Promise<unknown>, [unknown]>(),
+  listPlaylists: jest.fn<Promise<unknown>, [unknown]>(),
+  createPlaylist: jest.fn<Promise<unknown>, [unknown]>(),
+  addClip: jest.fn<Promise<unknown>, [unknown]>(),
+  removeClip: jest.fn<Promise<unknown>, [unknown]>(),
 };
 jest.mock("@/app/openapi-client", () => ({
   Comments: {
@@ -32,10 +36,20 @@ jest.mock("@/app/openapi-client", () => ({
     updateHighlight: (a: unknown) => api.updateHighlight(a),
     deleteHighlight: (a: unknown) => api.deleteHighlight(a),
   },
+  Playlists: {
+    listPlaylists: (a: unknown) => api.listPlaylists(a),
+    createPlaylist: (a: unknown) => api.createPlaylist(a),
+    addClip: (a: unknown) => api.addClip(a),
+    removeClip: (a: unknown) => api.removeClip(a),
+  },
 }));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
 const toast = jest.fn();
 jest.mock("@/components/ui/toast", () => ({ useToast: () => toast }));
+jest.mock("next/link", () => ({
+  __esModule: true,
+  default: ({ children }: { children: React.ReactNode }) => children,
+}));
 
 const comment = (over: Partial<Comment>): Comment => ({
   id: 1,
@@ -269,5 +283,40 @@ describe("the Highlights tab", () => {
     expect(within(first).getByText("Key claim")).toBeInTheDocument();
     expect(within(first).getByRole("button", { name: "Remove highlight" })).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByText(/Editors of pods make them/)).toBeInTheDocument();
+  });
+  it("keeps a highlight as a clip in the latest playlist in one click, with Undo", async () => {
+    api.listPlaylists.mockImplementation(() =>
+      ok([
+        { id: 4, name: "Shared one", mine: false, shared: true, count: 1, duration_ms: 1 },
+        { id: 7, name: "Talks", mine: true, shared: false, count: 0, duration_ms: 0 },
+      ]),
+    );
+    api.addClip.mockImplementation(() => ok({ id: 30, playlist: 7 }));
+    api.removeClip.mockImplementation(() => ok({ ok: true }));
+    show("highlights", { canEdit: false });
+    const list = await screen.findByRole("list", { name: "Highlights" });
+    const [first] = within(list).getAllByRole("listitem");
+    fireEvent.click(within(first).getByRole("button", { name: "Add to playlist" }));
+    await waitFor(() => expect(api.addClip).toHaveBeenCalledTimes(1));
+    expect(api.addClip.mock.calls[0][0]).toMatchObject({ path: { pid: 7 }, body: { highlight: 1 } });
+    expect(api.createPlaylist).not.toHaveBeenCalled();
+    await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Added to Talks" })));
+    const shown = toast.mock.calls.find(([t]) => t.title === "Added to Talks")![0];
+    shown.action.onClick();
+    await waitFor(() =>
+      expect(api.removeClip).toHaveBeenCalledWith(expect.objectContaining({ path: { pid: 7, iid: 30 } })),
+    );
+  });
+
+  it("makes a first playlist called Clips when there is none", async () => {
+    api.listPlaylists.mockImplementation(() => ok([]));
+    api.createPlaylist.mockImplementation(() => ok({ id: 8, name: "Clips", mine: true }));
+    api.addClip.mockImplementation(() => ok({ id: 31, playlist: 8 }));
+    show("highlights");
+    const list = await screen.findByRole("list", { name: "Highlights" });
+    fireEvent.click(within(within(list).getAllByRole("listitem")[0]).getByRole("button", { name: "Add to playlist" }));
+    await waitFor(() => expect(api.addClip).toHaveBeenCalledTimes(1));
+    expect(api.createPlaylist.mock.calls[0][0]).toMatchObject({ body: { name: "Clips" } });
+    expect(api.addClip.mock.calls[0][0]).toMatchObject({ path: { pid: 8 } });
   });
 });
