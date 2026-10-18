@@ -456,7 +456,7 @@ entry_points:
         obligation_id: enable-only-trusted-extensions
         caller_must_enforce: "person enables only extensions they trust"
         provenance: {kind: documented, source: 'docs/assistant.md "other people''s run only when an admin shared them"'}
-  - id: "MCP servers: POST /extensions/mcp/read and /mcp/test, GET /extensions/mcp/presets, saving an extension of kind mcp, PATCH /extensions/{id}/tools"
+  - id: "MCP servers: POST /extensions/mcp/read and /mcp/test, GET /extensions/mcp/presets, saving an extension of kind mcp, PATCH /extensions/{id}/tools, MCP mcp_servers and add_mcp_server"
     component: assistant
     parameters:
       - name: "config text (JSON or YAML), a server's address and headers, or a command, its arguments and env; a tool name and its switches"
