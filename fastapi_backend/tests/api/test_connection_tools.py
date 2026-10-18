@@ -1,14 +1,18 @@
 """The assistant's tools for the mail, calendars and files connected to Lens (connection_tools.py; docs/assistant.md,
 "Mail, calendars and files"): admins only, the tools for the kinds connected, reading as each connection reads (nothing
 changes in the account), messages and events numbered to cite with their links, and bringing things in only once the
-person approves. Everything runs against fakes: tests/fake_gmail.py, fake_google.py, fake_imap.py and fake_rclone.py."""
+person approves; sending mail, adding events and writing files only where an admin allowed it, each waiting for the
+person's yes with all of it shown. Everything runs against fakes: tests/fake_gmail.py, fake_google.py, fake_imap.py and
+fake_rclone.py."""
 
 from __future__ import annotations
 
+import email
 import io
 import json
 import pathlib
 import zipfile
+from email import policy
 
 import pytest
 
@@ -17,6 +21,7 @@ from tests import fake_google
 from tests.api.test_gmail_source import MARA, _key
 from tests.api.test_google_calendar_source import TEAM, _team_events
 from tests.api.test_mail_calendar_sources import BUOYS, REPORT, _email, _mailboxes
+from tests.fake_gmail import COMPOSE, GMAIL_READ
 from tests.fake_gmail import Google as Gmail
 from tests.helpers import drain, make_user, text_pdf
 
@@ -82,8 +87,9 @@ def bucket(folder, monkeypatch):
     return folder / "remote"
 
 
-def _gmail_source(db, cfg, google):
-    return sources.create(db, cfg, "Mara's mail", "gmail", {"user": MARA}, {"service_account_credentials": _key(google)})
+def _gmail_source(db, cfg, google, **params):
+    key = _key(google, scopes=(GMAIL_READ, COMPOSE))
+    return sources.create(db, cfg, "Mara's mail", "gmail", {"user": MARA, **params}, {"service_account_credentials": key})
 
 
 def _docx(*paras):
@@ -116,9 +122,10 @@ def test_the_catalog_says_why_they_are_missing(db, cfg, mail):
     _gmail_source(db, cfg, mail)
     groups = {g["name"]: g for g in ai_tools.catalog(_box(db, cfg, me))}
     tools = {t["name"]: t for t in groups["connected"]["tools"]}
-    assert groups["connected"]["available"] and groups["connected"]["asks"] and not groups["connected"]["out"]
+    assert groups["connected"]["available"] and groups["connected"]["asks"] and groups["connected"]["out"]
     assert tools["search_mail"]["effect"] == "read" and tools["import_from_connection"]["effect"] == "asks"
     assert not tools["calendar_events"]["available"]  # no calendar is connected
+    assert (tools["send_mail"]["effect"], tools["send_mail"]["out"], tools["send_mail"]["available"]) == ("asks", True, False)
     groups = {g["name"]: g for g in ai_tools.catalog(_box(db, cfg, ed, admin=False))}
     assert (groups["connected"]["available"], groups["connected"]["why"]) == (False, "for admins")
 
@@ -284,3 +291,151 @@ def test_bringing_things_in_waits_for_the_persons_yes(db, cfg, bucket, mail, as_
     got, _ = _call(box, "import_from_connection", connection="Bucket", paths=["calls/call1.txt"], namespace="pods")
     with pytest.raises(PermissionError):
         ai_tools.approve(db, cfg, got["approval"], me, {store.ns_id(db, "pods")}, admin=False)
+
+
+def _approval(db, aid):
+    return db.one("SELECT summary, preview, status FROM $r", r=R("approval", aid))
+
+
+def test_sending_mail_waits_for_the_persons_yes(db, cfg, mail, as_text):
+    report = mail.add(REPORT, ["INBOX"], at=1790000000000)
+    sid = _gmail_source(db, cfg, mail)
+    me = _me(db)
+    box = _box(db, cfg, me, chat=1)
+    assert "send_mail" not in _names(box)  # a connection only reads until an admin lets it send
+    sources.update(db, cfg, sid, params={"write": "yes"})
+    box = _box(db, cfg, me, chat=1)
+    assert "send_mail" in _names(box) and "send_mail" in _call(box, "connections")[0]["connections"][0]["tools"]
+
+    _call(box, "search_mail", query="harbour")  # reads mail first: what comes next was written after outside text
+    got, summary = _call(box, "send_mail", reply_to=report, text="Thanks, Mara.\nTom")
+    assert got["status"] == "waiting for the person's approval" and not mail.sent
+    assert summary == "Asked for approval: Send “Re: Harbour report” to Mara Keane <mara@example.org> from Mara's mail"
+    shown = _approval(db, got["approval"])["preview"]
+    assert shown.startswith(f"From: {MARA}\nTo: Mara Keane <mara@example.org>\nSubject: Re: Harbour report\n")
+    assert "Thanks, Mara.\nTom" in shown and "(Note: this answer read text from outside Lens: tool search_mail.)" in shown
+    assert box.approvals[-1]["preview"] == shown
+
+    done = ai_tools.approve(db, cfg, got["approval"], me, set(), admin=True)
+    assert done["status"] == "sent" and done["url"] == f"https://mail.google.com/mail/u/{MARA}/#all/{done['id']}"
+    sent = mail.sent[0]
+    msg = email.message_from_bytes(sent["raw"], policy=policy.default)
+    assert (msg["To"], msg["Subject"], msg["In-Reply-To"]) == (
+        "Mara Keane <mara@example.org>",
+        "Re: Harbour report",
+        "<report@example.org>",
+    )
+    assert sent["threadId"] == report and not sent["draft"] and msg.get_content().strip() == "Thanks, Mara.\nTom"
+
+    # a draft, to anyone, and only what was asked
+    got, summary = _call(
+        box, "send_mail", to="Ann <ann@example.org>, ben@example.org", bcc="tom@example.org", subject="Buoys", text="Draft.", draft=True
+    )
+    assert summary == "Asked for approval: Save a draft “Buoys” in Mara's mail"
+    done = ai_tools.approve(db, cfg, got["approval"], me, set(), admin=True)
+    assert done["status"] == "saved as a draft" and mail.sent[-1]["draft"]
+    msg = email.message_from_bytes(mail.sent[-1]["raw"], policy=policy.default)
+    assert (msg["To"], msg["Bcc"]) == ("Ann <ann@example.org>, ben@example.org", "tom@example.org")
+
+    got, _ = _call(box, "send_mail", to="not an address", text="Hi")
+    assert "isn't an email address" in got["error"]
+    got, _ = _call(box, "send_mail", text="Hi")
+    assert got["error"] == "say who it goes to (to)"
+    # only admins carry it out, and only while the connection may still send
+    got, _ = _call(box, "send_mail", to="ann@example.org", text="Hi")
+    with pytest.raises(PermissionError):
+        ai_tools.approve(db, cfg, got["approval"], me, set(), admin=False)
+    sources.update(db, cfg, sid, params={"write": ""})
+    with pytest.raises(PermissionError, match="may no longer send"):
+        ai_tools.approve(db, cfg, got["approval"], me, set(), admin=True)
+    assert len(mail.sent) == 2
+    with pytest.raises(ValueError, match="write is"):
+        sources.update(db, cfg, sid, params={"write": "sometimes"})
+
+
+def test_adding_an_event_waits_for_the_persons_yes(db, cfg, calendar):
+    key, public = fake_google.service_account_key()
+    calendar.service_accounts[key["client_email"]] = public
+    calendar.calendars[TEAM]["readers"].add(key["client_email"])
+    calendar.calendars[TEAM]["writers"] = {key["client_email"]}
+    creds = {"service_account_credentials": json.dumps(key)}
+    sources.create(db, cfg, "Team calendar", "gcal", {"calendars": TEAM, "write": "yes"}, creds)
+    sources.create(db, cfg, "Holidays", "gcal", {"calendars": TEAM}, creds)  # reads only
+    me = _me(db)
+    box = _box(db, cfg, me, chat=1)
+    assert "add_event" in _names(box)
+
+    got, summary = _call(box, "add_event", title="Harbour walk", start="2026-10-20T10:00", attendees="Tom <tom@example.org>")
+    assert summary == "Asked for approval: Add “Harbour walk” on 2026-10-20 10:00 to Harbour team, inviting 1 person"
+    shown = _approval(db, got["approval"])["preview"]
+    assert shown == (
+        "Calendar: Harbour team\nTitle: Harbour walk\nStarts: 2026-10-20T10:00:00 (Europe/Berlin)\n"
+        "Ends: 2026-10-20T11:00:00 (Europe/Berlin)\nInvites: tom@example.org (emailed an invitation)"
+    )
+    assert not calendar.added
+    done = ai_tools.approve(db, cfg, got["approval"], me, set(), admin=True)
+    assert done["status"] == "added" and done["url"] == "https://www.google.com/calendar/event?eid=added1"
+    cal, event, q = calendar.added[0]
+    assert (cal, q["sendUpdates"]) == (TEAM, "all")
+    assert event["start"] == {"dateTime": "2026-10-20T10:00:00", "timeZone": "Europe/Berlin"} and event["attendees"] == [
+        {"email": "tom@example.org"}
+    ]
+
+    # all day, nobody invited
+    got, _ = _call(box, "add_event", connection="Team calendar", title="Regatta", start="2026-10-24", where="The bay")
+    ai_tools.approve(db, cfg, got["approval"], me, set(), admin=True)
+    cal, event, q = calendar.added[1]
+    assert (event["start"], event["end"], event["location"], q["sendUpdates"]) == (
+        {"date": "2026-10-24"},
+        {"date": "2026-10-25"},
+        "The bay",
+        "none",
+    )
+
+    got, _ = _call(box, "add_event", connection="Team calendar", title="X", start="2026-10-20T10:00", end="2026-10-20T09:00")
+    assert got["error"] == "end is before start"
+    got, _ = _call(box, "add_event", connection="Team calendar", title="X", start="2026-10-20", end="2026-10-20T09:00")
+    assert got["error"] == "start and end are both dates (all day) or both times"
+    got, _ = _call(box, "add_event", connection="Team calendar", calendar="Sailing", title="X", start="2026-10-20")
+    assert got["error"].startswith("there's no calendar Sailing in Team calendar")
+    got, _ = _call(box, "add_event", connection="Holidays", title="X", start="2026-10-20")
+    assert got["error"].startswith("Holidays can't do that: no calendar connection may add events")
+
+
+def test_writing_a_file_waits_for_the_persons_yes(db, cfg, bucket):
+    (bucket / "notes").mkdir(parents=True)
+    sources.create(db, cfg, "Bucket", "s3", {"provider": "AWS"}, {"secret_access_key": "s3cret"})
+    me = _me(db)
+    box = _box(db, cfg, me, chat=1)
+    assert "write_file" in _names(box)
+
+    got, summary = _call(box, "write_file", path="notes/harbour.md", text="# Harbour\nCalm.\n")
+    assert summary == "Asked for approval: Write harbour.md in Bucket (16 bytes)"
+    assert _approval(db, got["approval"])["preview"] == "notes/harbour.md\n\n# Harbour\nCalm.\n"
+    assert not (bucket / "notes" / "harbour.md").exists()
+    done = ai_tools.approve(db, cfg, got["approval"], me, set(), admin=True)
+    assert (done["status"], done["path"], done["size"]) == ("written", "notes/harbour.md", 16)
+    assert (bucket / "notes" / "harbour.md").read_text() == "# Harbour\nCalm.\n"
+
+    got, _ = _call(box, "write_file", path="notes/harbour.md", text="again")
+    assert got["error"] == "notes/harbour.md is already there: set overwrite to replace it"
+    got, summary = _call(box, "write_file", path="notes/harbour.md", text="# Harbour\nStorm.\n", overwrite=True)
+    assert summary.startswith("Asked for approval: Replace harbour.md in Bucket")
+    assert ai_tools.approve(db, cfg, got["approval"], me, set(), admin=True)["status"] == "replaced"
+    assert (bucket / "notes" / "harbour.md").read_text() == "# Harbour\nStorm.\n"
+
+    # a file that turned up between asking and the yes isn't replaced
+    got, _ = _call(box, "write_file", path="notes/new.txt", text="mine")
+    (bucket / "notes" / "new.txt").write_text("theirs")
+    with pytest.raises(ValueError, match="is there now"):
+        ai_tools.approve(db, cfg, got["approval"], me, set(), admin=True)
+    assert (bucket / "notes" / "new.txt").read_text() == "theirs"
+    got, _ = _call(box, "write_file", path="notes", text="x")
+    assert got["error"] == "notes is a folder: give the file's path, with its name"
+    got, _ = _call(box, "write_file", path="../escape.txt", text="x")
+    assert "paths can't contain .." in got["error"]
+
+    # Google Drive connected read only (its default) can't be written to
+    read_only = {"type": "drive", "params": {"scope": "drive.readonly"}}
+    assert "write_file" not in connection_tools.tools_of(read_only)
+    assert "write_file" in connection_tools.tools_of({"type": "drive", "params": {"scope": "drive"}})

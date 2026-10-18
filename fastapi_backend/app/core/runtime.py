@@ -23,6 +23,7 @@ from app.domain import (
     mesh,
     notify,
     routines,
+    scaling,
     sensors,
     settings,
     setup,
@@ -104,6 +105,7 @@ class Archive:
         mesh.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.info)
         https.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.info)
         local_llm.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.info)
+        scaling.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log_=log.info)
         updates.start(self.db, self.current, self.stop, log=log.info)
 
     def close(self) -> None:

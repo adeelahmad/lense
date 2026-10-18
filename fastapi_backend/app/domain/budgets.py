@@ -32,8 +32,8 @@ log = logging.getLogger("lens")
 R = store.R
 PERIODS = ("run", "day", "week", "month")
 ON_OVER = ("ask", "skip", "assistant")
-TABLES = ("routine", "automation", "pipeline", "workflow", "space")
-REF = re.compile(r"^(?:(routine|automation|pipeline|workflow|space):(\d+)|all)$")
+TABLES = ("routine", "automation", "pipeline", "workflow", "space", "scale_group")
+REF = re.compile(r"^(?:(routine|automation|pipeline|workflow|space|scale_group):(\d+)|all)$")
 ALL = "all"  # everything Lens spends (set in setup); the meter measures all of Lens against it
 HARD_SECONDS = 30  # how long hard_stop trusts what it last found
 FIELDS = "resource, usd, tokens, period, on_over, warn_at, note, by, updated_at, alert"
@@ -48,7 +48,7 @@ def _key(resource):
 
 def check_ref(resource):
     if not isinstance(resource, str) or not REF.match(resource):
-        raise ValueError("a budget is for all, routine:<id>, automation:<id>, pipeline:<id>, workflow:<id> or space:<id>")
+        raise ValueError("a budget is for all, routine:<id>, automation:<id>, pipeline:<id>, workflow:<id>, space:<id> or scale_group:<id>")
     return resource
 
 

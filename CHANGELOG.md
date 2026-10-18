@@ -4,6 +4,16 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+## 0.15.0 <small>October 18, 2026</small> {id="0.15.0"}
+
+- **The assistant sends mail, adds events and writes files, after your yes.** New tools `send_mail` (send, or save a
+  draft, from Gmail; `reply_to` keeps a message's thread), `add_event` (an event on Google Calendar, inviting people
+  if asked) and `write_file` (a text file on a storage connection, replacing one only when asked). Each always waits
+  for your approval, which now shows all of it first: the whole message with who it goes to, the event, the file's
+  text. A Gmail or Google Calendar connection only reads until an admin picks "Also sends mail and saves drafts" or
+  "Also adds events" under The assistant in its settings and connects the account again, since Google is then asked
+  for `gmail.compose` or `calendar.events`; Google Drive connected read only is never written. Every change is in the
+  audit log ([Mail, calendars and files](docs/assistant.md#mail-calendars-and-files)).
 - **The upgrade agent starts the code sandbox's gateway.** Settings → Code sandbox → Run the gateway on this machine
   now works on installs with an upgrade agent: the agent knows the `sandbox` profile and starts or stops its three
   containers, as it does the MCP runner, the browser and monitoring. An older agent still says to run the line by hand
@@ -119,13 +129,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   "Mail, calendars and files". Gmail is searched with its own query language and IMAP by words in the newest subjects and
   senders; Google Calendar gives the events of a window; files are found by name and read when they are text, PDFs or
   Word files. Answers cite a message or an event with a link that opens it, and bringing things into Lens waits for the
-  person's yes. Nothing is sent, written or deleted yet
-  ([Mail, calendars and files](docs/assistant.md#mail-calendars-and-files)).
+  person's yes ([Mail, calendars and files](docs/assistant.md#mail-calendars-and-files)).
 - **The decision model types the names the rules can't.** When Jev or Laya is set up, analysis asks it what each new
   Term of a recording is (a person, an organisation, a product...), with the lines it's said in, in one call per
   recording, and keeps the types it is sure of. Settings › Analysis › Names the rules can't type (`analysis.typing`)
   can also let the language model answer, or turn it off; the language model is never asked by default
   ([Names the rules can't type](docs/processing.md#entities-and-the-graph-explorer)).
+- **A loading bar, as in Gmail.** A thin blue bar runs along the top of the web app while a page or its data loads:
+  on every page change, and while a page waits for its first answers from the API. Refreshing what's already on screen
+  and anything quicker than a blink don't show it ([The web app](docs/frontend.md#data)).
 
 - **Published feeds.** A namespace publishes a private RSS feed, or a podcast feed with Apple Podcasts' tags, that any
   feed reader or podcast app follows at its address: resources (with their audio as the enclosure), podcast episodes
@@ -138,6 +150,19 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       routine last ran, Publish to feed adds it to a feed, and Podcast episode makes an episode about it (added to a
       feed, listed once it's made). Try on the canvas says what they would do
       ([Publishing from the graph](docs/processing.md#publishing-from-the-graph)).
+
+### Features
+
+- **assistant:** answer questions about Lens itself from its docs and this server ([#400](https://github.com/adeelahmad/lense/pull/400))
+- **automations:** an index of triggers for the dispatcher ([#545](https://github.com/adeelahmad/lense/pull/545))
+- **chat:** summarise long chats at the model's real context window ([#528](https://github.com/adeelahmad/lense/pull/528))
+- **scaling:** auto scaling groups, rules and approvals, with This machine as the first provider ([#556](https://github.com/adeelahmad/lense/pull/556))
+- **workflows:** an entity filter node ([#562](https://github.com/adeelahmad/lense/pull/562))
+
+### Fixes
+
+- **domain:** let automation_nodes and events_content be imported first ([#523](https://github.com/adeelahmad/lense/pull/523))
+- **settings:** test the LLM address and model on screen, not only the saved ones ([#539](https://github.com/adeelahmad/lense/pull/539))
 
 ## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
 
@@ -265,6 +290,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   machine's upgrade agent starts and stops them), and agents do the same with `PUT /api/v1/admin/services/<profile>`
   or the MCP tools `services` and `set_service`. A server whose spec says `keep: true` keeps one session between
   calls ([The browser](docs/assistant.md#the-browser), [Optional containers](docs/assistant.md#optional-containers)).
+- **MCP servers in Settings, and for agents.** Settings › AI assistant now lists the MCP servers the assistant calls,
+  each with how many of its tools are on and a link to its page, next to Add MCP server and the switches for the MCP
+  runner and the browser. Agents list them with the MCP tool `mcp_servers` and add one, ready-made or their own, with
+  `add_mcp_server` (an admin's API key with the write scope)
+  ([Adding an MCP server](docs/assistant.md#adding-an-mcp-server)).
 - **Describe an automation in words.** `POST /api/v1/automations/draft` asks the model once to turn a sentence into
   a draft automation to try and save, and says what didn't fit and what it couldn't express
   ([Describe it in words](docs/automations.md#describe-it-in-words)).
