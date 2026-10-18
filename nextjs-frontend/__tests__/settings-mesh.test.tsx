@@ -48,6 +48,7 @@ const GPU = {
     nebula: "running",
     version: "0.14.0",
     machine: { os: "Darwin", arch: "arm64", cpus: 12, memory: 32 * 1024 ** 3 },
+    log: ["07:00:01 started lens worker mac-studio (transcribe,diarize)"],
   },
   workers: [],
   revoked_at: null,
@@ -145,6 +146,8 @@ describe("Settings › Nodes", () => {
     expect(within(row).getByText("10.73.0.2")).toBeInTheDocument();
     expect(within(row).getByText(/Lens 0.14.0/)).toBeInTheDocument();
     expect(within(row).getByText(/12 CPUs · 32 GB · Darwin arm64/)).toBeInTheDocument();
+    expect(within(row).getByText("What Nebula and its worker said")).toBeInTheDocument();
+    expect(within(row).getByText(/started lens worker mac-studio/)).toBeInTheDocument();
     // this machine first, and it can't be removed
     const primary = screen.getByRole("listitem", { name: "This machine" });
     expect(within(primary).queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();

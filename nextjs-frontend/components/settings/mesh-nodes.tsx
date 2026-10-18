@@ -347,7 +347,9 @@ function NodeRow({ node: n }: { node: MeshNode }) {
       {error && <Banner tone="error">{upper(error.message)}</Banner>}
       {(r.log ?? []).length > 0 && (
         <details className="text-[12.5px]">
-          <summary className="cursor-pointer font-semibold text-fg-secondary">What Nebula said</summary>
+          <summary className="cursor-pointer font-semibold text-fg-secondary">
+            {n.role === "worker" ? "What Nebula and its worker said" : "What Nebula said"}
+          </summary>
           <pre className="mt-2 max-h-64 overflow-auto rounded-sm bg-surface-neutral p-2.5 font-mono text-[11.5px] leading-snug">
             {(r.log ?? []).join("\n")}
           </pre>
