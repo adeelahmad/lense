@@ -664,7 +664,7 @@ entry_points:
         attacker_controllable: true
         x-condition: "any editor, for automations in namespaces they edit; indirectly through activity text (mail, titles, chat) that reaches action params"
         control_kinds: [callback/code, data, x-prompt-injection]
-        caller_must_enforce: "none — it runs as its maker with their permissions at run time (P-AUTOMATION-ACTOR); actions reaching outside Lens ask first; outside text marks intents untrusted and breaks up links (P-INJECTION-EGRESS); chains and bursts are bounded (P-AUTOMATION-LOOP)"
+        caller_must_enforce: "none — it runs as its maker with their permissions at run time (P-AUTOMATION-ACTOR); actions reaching outside Lens ask first; outside text marks intents untrusted and breaks up links (P-INJECTION-EGRESS); chains and bursts are bounded (P-AUTOMATION-LOOP); `matches` patterns refuse nested repeats and repeated alternatives that start alike, read at most 20,000 characters and give up after 50 ms"
         provenance: {kind: documented, source: 'docs/automations.md "Running automations"'}
   - id: "code sandbox"
     component: assistant
