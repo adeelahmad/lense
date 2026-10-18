@@ -713,7 +713,7 @@ def catalog(box):
     if browsermod.enabled(box.cfg):
         offered |= {t for t in GROUPS["browser"]["tools"] if t not in off}
     if sandboxmod.offered(box.cfg, box.admin, bool(box.editable)):  # every conversation of theirs has its sandbox
-        offered |= {t for t in GROUPS["code"]["tools"] if t not in off}
+        offered |= {t[0] for t in sandboxmod.tools() if t[0] not in off}
     if researchmod.available(box.cfg):  # every conversation of theirs can start research
         offered |= {t for t in GROUPS["research"]["tools"] if t not in off}
     # code that can reach another host can carry out what it's given
@@ -841,6 +841,8 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
         out = self._home_note() + (browsermod.NOTE if self.browser else "")
         if self.sandbox:
             out += sandboxmod.NOTE.format(network=sandboxmod.network_note(self.cfg))
+            if sandboxmod.nodes_on():
+                out += sandboxmod.NODES_NOTE
         given = {s["function"]["name"] for s in self.specs()}
         if self.web and webmod.NAMES & given:
             out += webmod.NOTE
@@ -918,7 +920,7 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
         if self.browser:
             tools += browsermod.TOOLS
         if self.sandbox:
-            tools += sandboxmod.TOOLS
+            tools += sandboxmod.tools()
         if self.web:
             tools += webmod.TOOLS
         if self.chat is not None and researchmod.available(self.cfg):
@@ -1156,26 +1158,33 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
         except sandboxmod.SandboxError as e:
             raise ValueError(str(e)) from None
 
-    def _sandbox_run(self, kind, source, files):
+    def _sandbox_run(self, kind, source, files, node=None):
         source = str(source or "")
         files = [str(f) for f in ([files] if isinstance(files, str) else files or [])]
+        node = str(node).strip() if node is not None and str(node).strip() else None
         if sandboxmod.sends_out(self.cfg) and self.wary() and f"run_{kind}" not in self.allowed_out:
             # code that reaches another host can carry out what the answer read: after text from outside Lens, which
             # may have put it there, a run asks first
             first = next((x.strip() for x in source.splitlines() if x.strip()), "")[:80]
-            args = store.clean({"code" if kind == "python" else "command": source, "files": files or None})
+            args = store.clean({"code" if kind == "python" else "command": source, "files": files or None, "node": node})
             lang = "Python" if kind == "python" else "bash"
             where = sandboxmod.reaches(self.cfg)
-            return self._approval(f"run_{kind}", args, f"Run {lang} in the code sandbox, which can reach {where}: {first}" + self.why())
-        out = self._sandbox(sandboxmod.run, self.account, kind, source, files)
+            on = f" on {node}" if node else ""
+            return self._approval(f"run_{kind}", args, f"Run {lang} in the code sandbox{on}, which can reach {where}: {first}" + self.why())
+        out = self._sandbox(sandboxmod.run, self.account, kind, source, files, None, node)
         self.detail = sandboxmod.shown(out)  # the output under the code, on the step the person sees
         return out, sandboxmod.summary(kind, source, out)
 
-    def t_run_python(self, code, files=None):
-        return self._sandbox_run("python", code, files)
+    def t_run_python(self, code, files=None, node=None):
+        return self._sandbox_run("python", code, files, node)
 
-    def t_run_bash(self, command, files=None):
-        return self._sandbox_run("bash", command, files)
+    def t_run_bash(self, command, files=None, node=None):
+        return self._sandbox_run("bash", command, files, node)
+
+    def t_sandbox_nodes(self):
+        out = sandboxmod.node_list(self.db, self.chat)
+        n = sum(1 for x in out["nodes"] if x["id"] != sandboxmod.HERE)
+        return out, f"Looked at where code can run ({n} compute node{'s' if n != 1 else ''})"
 
     def t_sandbox_files(self):
         out = self._sandbox(sandboxmod.listing, self.account)
@@ -2290,7 +2299,9 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable, via=
         kind = a["tool"].removeprefix("run_")
         source = args.get("code") if kind == "python" else args.get("command")
         try:
-            result = {"result": sandboxmod.run(db, cfg, a["chat"], a.get("account") or user["id"], kind, source, args.get("files") or [])}
+            account = a.get("account") or user["id"]
+            got = sandboxmod.run(db, cfg, a["chat"], account, kind, source, args.get("files") or [], None, args.get("node"))
+            result = {"result": got}
         except sandboxmod.SandboxError as e:
             raise ValueError(str(e)) from None
     elif a["tool"] in (

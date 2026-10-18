@@ -242,7 +242,8 @@ These are open pull requests, not yet part of Lens:
   ([#406](https://github.com/adeelahmad/lense/pull/406)).
 - **Automations:** more operators for conditions ([#434](https://github.com/adeelahmad/lense/pull/434)).
 - **Nodes:** Lens's own private network between the machines it runs on, a Nebula mesh it issues the certificates
-  for ([#546](https://github.com/adeelahmad/lense/pull/546)).
+  for ([#546](https://github.com/adeelahmad/lense/pull/546)); the assistant's code sandbox can already run on the
+  compute nodes it will register ([Compute nodes](docs/assistant.md#compute-nodes)).
 
 ## Planned
 

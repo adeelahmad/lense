@@ -560,3 +560,83 @@ def test_lens_signs_in_to_the_gateway_with_its_client_certificate(tmp_path, monk
     tls = seen["tls"]
     assert (tls.ca_path, tls.cert_path, tls.key_path) == tuple(tmp_path / n for n in ("ca.crt", "tls.crt", "tls.key"))
     assert isinstance(sandbox.landlock_abi(), int | None)  # this machine's own, read without failing
+
+
+def test_code_runs_on_a_compute_node_the_mesh_registered(app, db, cfg, folder, new_client, llm, gateway):
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["editor"]
+    cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    name = f"lens-chat-{cid}"
+
+    def said(llm):  # what the tools gave the model (a long conversation's summary is asked for after the answer)
+        last = [r for r in llm.seen if any(m["role"] == "tool" for m in r["messages"])][-1]
+        return [json.loads(unwrapped(m["content"])) for m in last["messages"] if m["role"] == "tool"]
+
+    # without nodes, nothing changes: no sandbox_nodes, and nowhere else to run
+    ask(c, h, cid, llm, [{"content": "", "tool_calls": [call(1, "run_bash", {"command": "echo here > a.txt"})]}, {"content": "Ok."}])
+    asked = next(r for r in llm.seen if r.get("tools"))
+    run = next(t for t in asked["tools"] if t["function"]["name"] == "run_bash")
+    assert "sandbox_nodes" not in offered(llm) and "node" not in run["function"]["parameters"]["properties"]
+    assert name in gateway.boxes
+
+    srv, node_gw, addr = fake_openshell.start(folder / "node-gateway")
+    now = dt.datetime.now(dt.UTC).isoformat(timespec="seconds")
+    long_ago = (dt.datetime.now(dt.UTC) - dt.timedelta(hours=2)).isoformat(timespec="seconds")
+    up = {"nebula": True, "sandbox": {"version": "1"}, "machine": "x86_64, 32 GB"}
+    nodes = [
+        {"id": 1, "name": "lens", "role": "primary", "ip": "10.42.0.1", "last_seen": now, "status": up},
+        {"id": 2, "name": "gpu", "role": "compute", "ip": "10.42.0.2", "groups": ["gpu"], "last_seen": now, "status": up},
+        {"id": 3, "name": "old", "role": "compute", "ip": "10.42.0.3", "last_seen": long_ago, "status": up},
+        {"id": 4, "name": "gone", "role": "compute", "ip": "10.42.0.4", "last_seen": now, "status": up, "revoked_at": now},
+    ]
+    reached = []
+
+    def driver_fn(db_, cfg_, node):
+        reached.append(node["ip"])
+        return sandbox.OpenShell({**cfg_, "sandbox": {**cfg_["sandbox"], "gateway": addr}})
+
+    sandbox.register_nodes(lambda db_: nodes, driver_fn)
+    try:
+        ask(c, h, cid, llm, [{"content": "", "tool_calls": [call(1, "sandbox_nodes", {})]}, {"content": "Ok."}])
+        listed = {n["name"]: n for n in said(llm)[0]["nodes"]}
+        assert set(listed) == {"this machine", "gpu", "old"} and listed["this machine"]["has_sandbox"]
+        assert listed["gpu"]["ready"] and listed["gpu"]["machine"] == "x86_64, 32 GB" and not listed["gpu"]["has_sandbox"]
+        assert not listed["old"]["ready"] and listed["old"]["why_not"].startswith("it hasn't reported since")
+        assert "compute nodes" in llm.seen[-1]["messages"][0]["content"]
+
+        # asked to run on gpu, it moves there: a fresh sandbox, reached through the node's own gateway
+        ask(c, h, cid, llm, [{"content": "", "tool_calls": [call(1, "run_bash", {"command": "ls", "node": "gpu"})]}, {"content": "Ok."}])
+        ran = said(llm)[0]
+        assert (ran["node"], ran["stdout"]) == ("gpu", "") and ran["sandbox"].startswith("a fresh sandbox on gpu")
+        assert name in node_gw.boxes and name not in gateway.boxes and reached[-1] == "10.42.0.2"
+        assert db.one("SELECT node FROM $r", r=R("code_sandbox", cid))["node"] == 2
+        last = db.rows("SELECT detail, at FROM activity WHERE action = 'sandbox.run' ORDER BY at DESC LIMIT 1")[0]
+        assert last["detail"]["node"] == 2
+
+        # and stays there
+        ask(c, h, cid, llm, [{"content": "", "tool_calls": [call(1, "run_bash", {"command": "echo gpu > b.txt\nls"})]}, {"content": "Ok."}])
+        assert said(llm)[0]["stdout"] == "b.txt\n" and "sandbox" not in said(llm)[0]
+        ask(c, h, cid, llm, [{"content": "", "tool_calls": [call(1, "sandbox_files", {})]}, {"content": "Ok."}])
+        assert [f["path"] for f in said(llm)[0]["files"]] == ["b.txt"]
+
+        # a node that can't run code says why; one removed or unknown isn't there
+        for which, why in (("old", "old can't run code now: it hasn't reported since"), ("gone", "there's no node gone")):
+            ask(c, h, cid, llm, [{"content": "", "tool_calls": [call(1, "run_bash", {"command": "ls", "node": which})]}, {"content": "Ok."}])
+            assert why in said(llm)[0]["error"]
+
+        # back here: the node's sandbox goes, and a fresh one is made on this machine
+        ask(c, h, cid, llm, [{"content": "", "tool_calls": [call(1, "run_bash", {"command": "ls", "node": "lens"})]}, {"content": "Ok."}])
+        assert said(llm)[0]["sandbox"].startswith("a fresh sandbox here") and "node" not in said(llm)[0]
+        assert name not in node_gw.boxes and name in gateway.boxes
+
+        # an idle sandbox on a node is stopped there, and deleting the conversation deletes it there
+        ask(c, h, cid, llm, [{"content": "", "tool_calls": [call(1, "run_bash", {"command": "ls", "node": "2"})]}, {"content": "Ok."}])
+        t = (dt.datetime.now(dt.UTC) - dt.timedelta(minutes=16)).isoformat(timespec="seconds")
+        db.q("UPDATE $r SET used_at = $t", r=R("code_sandbox", cid), t=t)
+        assert sandbox.sweep(db, app.state.settings.current(), every=0) == 1
+        assert node_gw.boxes[name]["phase"] == fake_openshell.STOPPED
+        assert c.delete(f"/api/v1/chats/{cid}", headers=h).status_code == 200
+        assert name not in node_gw.boxes and not db.one("SELECT * FROM $r", r=R("code_sandbox", cid))
+    finally:
+        sandbox.register_nodes(None, None)
+        srv.stop(0)

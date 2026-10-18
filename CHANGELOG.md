@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **The code sandbox can run on compute nodes.** Once the mesh registers the install's compute nodes, `run_python`
+  and `run_bash` take a `node` to run on, `sandbox_nodes` lists where code can run and why a node can't now, and a
+  conversation's sandbox stays where it last ran (moving starts a fresh one). Each node's sandboxes are stopped,
+  swept and deleted through its own gateway, and each run's ledger row names its node. Until nodes are registered
+  nothing changes ([Compute nodes](docs/assistant.md#compute-nodes)).
 - **The assistant sends mail, adds events and writes files, after your yes.** New tools `send_mail` (send, or save a
   draft, from Gmail; `reply_to` keeps a message's thread), `add_event` (an event on Google Calendar, inviting people
   if asked) and `write_file` (a text file on a storage connection, replacing one only when asked). Each always waits
