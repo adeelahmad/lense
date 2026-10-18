@@ -269,7 +269,9 @@ def test_a_calendar_feed_as_a_source(feed, client, db, cfg, admin):  # feed firs
 
     # chosen on purpose, from the listing: already there
     r = client.post("/api/v1/import/source", headers=h, json={"source": sid, "paths": [standup["path"]], "namespace": "pods"})
-    assert r.json()["results"] == [{"path": standup["path"], "status": "already", "recording": one["id"], "job": None, "detail": None}]
+    assert r.json()["results"] == [
+        {"path": standup["path"], "status": "already", "recording": one["id"], "job": None, "import_run": None, "detail": None}
+    ]
     # the event's own .ics can be fetched (what a remote resource's file is)
     assert b"SUMMARY:Harbour stand-up" in b"".join(sources.stream(db, cfg, sid, standup["path"]))
 

@@ -685,6 +685,9 @@ import type {
   GetGroupResponses,
   GetHealthData,
   GetHealthResponses,
+  GetImportRunData,
+  GetImportRunErrors,
+  GetImportRunResponses,
   GetInstallData,
   GetInstallResponses,
   GetJobData,
@@ -1072,6 +1075,9 @@ import type {
   ListImportHooksData,
   ListImportHooksErrors,
   ListImportHooksResponses,
+  ListImportRunsData,
+  ListImportRunsErrors,
+  ListImportRunsResponses,
   ListIpGroupsData,
   ListIpGroupsErrors,
   ListIpGroupsResponses,
@@ -1963,6 +1969,9 @@ import type {
   UndoGraphChangeData,
   UndoGraphChangeErrors,
   UndoGraphChangeResponses,
+  UndoImportRunData,
+  UndoImportRunErrors,
+  UndoImportRunResponses,
   UndoRunData,
   UndoRunErrors,
   UndoRunResponses,
@@ -7693,6 +7702,53 @@ export class Imports {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * List Import Runs
+   *
+   * Recent bulk imports, newest first, each with how many assets it made and how many are still here: the ones you
+   * started and those in namespaces where you may delete assets (everyone's, for admins). A folder scan, an archive's
+   * files, a list of links or bookmarks, and chosen files of a source are each one run.
+   */
+  public static listImportRuns<ThrowOnError extends boolean = false>(
+    options?: Options<ListImportRunsData, ThrowOnError>,
+  ): RequestResult<ListImportRunsResponses, ListImportRunsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListImportRunsResponses, ListImportRunsErrors, ThrowOnError>({
+      url: "/api/v1/import/runs",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Import Run
+   */
+  public static getImportRun<ThrowOnError extends boolean = false>(
+    options: Options<GetImportRunData, ThrowOnError>,
+  ): RequestResult<GetImportRunResponses, GetImportRunErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetImportRunResponses, GetImportRunErrors, ThrowOnError>({
+      url: "/api/v1/import/runs/{run_id}",
+      ...options,
+    });
+  }
+
+  /**
+   * Undo Import Run
+   *
+   * Undo a bulk import: every asset it made that is still here is deleted, as `DELETE /recordings/{id}` deletes
+   * one (the media files stay where they are, and scans don't import them again). It needs the rights a delete needs on
+   * each of them (owners); when any is one you may not delete, nothing is deleted (403). An asset a job is working on
+   * is left (`busy`) and its job asked to stop: undo the run again for the rest. Lens keeps no recently deleted list of
+   * assets, so this can't itself be undone; importing the files again brings them back. Audited as `recording.delete`
+   * for each asset and `import.undo` for the run.
+   */
+  public static undoImportRun<ThrowOnError extends boolean = false>(
+    options: Options<UndoImportRunData, ThrowOnError>,
+  ): RequestResult<UndoImportRunResponses, UndoImportRunErrors, ThrowOnError> {
+    return (options.client ?? client).post<UndoImportRunResponses, UndoImportRunErrors, ThrowOnError>({
+      url: "/api/v1/import/runs/{run_id}/undo",
+      ...options,
     });
   }
 }

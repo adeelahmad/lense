@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { Imports, Sources } from "@/app/openapi-client";
 import type { BrowseEntry } from "@/app/openapi-client/types.gen";
 import { canBeTranscript, importable, kindOf, pipelineOptions, sourceImportSummary } from "@/components/import/files";
+import { useImportedToast } from "@/components/import/recent-imports";
 import { fileIcon } from "@/components/import/upload-tab";
 import { useNamespacePipeline } from "@/components/import/use-import";
 import { CollectionField } from "@/components/library/collections-ui";
@@ -48,6 +49,7 @@ export function SourceTab({ namespace, namespaces }: { namespace: string | null;
   const client = useApiClient();
   const qc = useQueryClient();
   const toast = useToast();
+  const imported = useImportedToast();
   const sources = useQuery({
     queryKey: ["sources"],
     queryFn: () => data(Sources.listSources({ client })),
@@ -277,12 +279,12 @@ export function SourceTab({ namespace, namespaces }: { namespace: string | null;
           paths={[...chosen]}
           defaultNs={namespace ?? namespaces[0] ?? ""}
           namespaces={namespaces}
-          onDone={(summary) => {
+          onDone={(summary, run) => {
             setChosen(new Set());
             void qc.invalidateQueries({ queryKey: ["browse", sid, path] });
             void qc.invalidateQueries({ queryKey: ["recordings"] });
             void qc.invalidateQueries({ queryKey: ["jobs"] });
-            toast({ title: "Imported from the source", body: summary, tone: "green" });
+            imported(run, "Imported from the source", summary); // Undo takes the whole import away again
           }}
         />
       )}
@@ -325,7 +327,7 @@ function ImportChosenDialog({
   paths: string[];
   defaultNs: string;
   namespaces: string[];
-  onDone: (summary: string) => void;
+  onDone: (summary: string, run?: number | null) => void;
 }) {
   const client = useApiClient();
   const [ns, setNs] = useState(defaultNs);
@@ -376,7 +378,7 @@ function ImportChosenDialog({
                   }),
                 );
                 onOpenChange(false);
-                onDone(sourceImportSummary(r.results));
+                onDone(sourceImportSummary(r.results), r.import_run);
               } catch (e) {
                 setError((e as Error).message);
               } finally {

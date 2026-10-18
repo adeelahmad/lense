@@ -772,6 +772,15 @@
       "source": "docs/assistant.md \"The gateway\""
     },
     {
+      "entry_point": "import runs",
+      "parameter": "GET /api/v1/import/runs, POST /api/v1/import/runs/{id}/undo; assistant import_runs, undo_import: a run id",
+      "attacker_controllable": "yes",
+      "component": "authz",
+      "caller_must_enforce": "none — a run is seen only by those (404 otherwise); undo deletes each asset through deletion.delete and needs the remove permission (or a collection admin role) on every one, else nothing is deleted (403); the assistant's undo always waits for the person's approval; audited per asset (recording.delete) and for the run (import.undo)",
+      "provenance": "documented",
+      "source": "docs/api.md \"Import runs\""
+    },
+    {
       "entry_point": "code sandbox",
       "parameter": "assistant run_python, run_bash, sandbox_files, sandbox_nodes, share_sandbox_file and import_sandbox_file: code the model writes, attachment ids, a path in the sandbox, a compute node's id or name; sandbox.* settings (admins)",
       "attacker_controllable": "yes",

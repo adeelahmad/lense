@@ -93,7 +93,8 @@ as missing on older rows: a chat message's record (`meta`,
 [What each answer records](assistant.md#what-each-answer-records)) is one, and messages from before it simply have
 none. [Deep research](assistant.md#deep-research) is another: its tables (`research`, and `research_run` for the claim
 of the process running one) are new, a message's `kind` is missing on older ones, and notes accept `chat` links
-without rewriting any. Anything else, such as rewriting stored values, moving data between
+without rewriting any. [Import runs](api.md#import-runs) are a third: the `import_run` table and the index on a
+recording's `import_run` are new, and assets imported before have no run. Anything else, such as rewriting stored values, moving data between
 tables, or changing or removing an index that already exists, is a named step in `app/domain/migrations.py`:
 
 * Every process that opens the database (the API, workers, `lens watch`, `lens` commands) runs the steps the database

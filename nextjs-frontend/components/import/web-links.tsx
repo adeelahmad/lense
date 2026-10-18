@@ -6,9 +6,9 @@ import { useId, useRef, useState, type FormEvent } from "react";
 import { Imports } from "@/app/openapi-client";
 import type { LinkImportResult } from "@/app/openapi-client/types.gen";
 import { fileToBase64 } from "@/components/import/files";
+import { useImportedToast } from "@/components/import/recent-imports";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Textarea } from "@/components/ui/field";
-import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
 
 const SAID = { queued: "Capturing", already: "Already here", skipped: "Skipped" } as const;
@@ -32,7 +32,7 @@ export function WebLinks({
   contentType?: string | null;
 }) {
   const client = useApiClient();
-  const toast = useToast();
+  const imported = useImportedToast();
   const id = useId();
   const picker = useRef<HTMLInputElement>(null);
   const [text, setText] = useState("");
@@ -57,11 +57,12 @@ export function WebLinks({
     onSuccess: (r) => {
       setResults(r.results);
       const queued = r.results.filter((x) => x.status === "queued").length;
-      toast({
-        title: `Capturing ${queued} ${queued === 1 ? "page" : "pages"}`,
-        body: "Each is kept as a PDF and read like any document.",
-        tone: "green",
-      });
+      // one import run: Undo takes every page it queued away again
+      imported(
+        r.import_run,
+        `Capturing ${queued} ${queued === 1 ? "page" : "pages"}`,
+        "Each is kept as a PDF and read like any document.",
+      );
       setText("");
       setFile(null);
       if (picker.current) picker.current.value = "";

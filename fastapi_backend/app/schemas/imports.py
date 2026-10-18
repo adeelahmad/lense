@@ -106,11 +106,13 @@ class LinkImportResult(ResponseModel):
     )
     recording: int | None = None
     job: int | None = None
+    import_run: int | None = Field(None, description="the import run it is part of, which undoes the whole import")
     detail: str | None = None
 
 
 class LinksImport(ResponseModel):
     results: list[LinkImportResult]
+    import_run: int | None = Field(None, description="the import run of the pages queued (POST /import/runs/{id}/undo undoes it)")
 
 
 class SourceImportResult(ResponseModel):
@@ -118,8 +120,37 @@ class SourceImportResult(ResponseModel):
     status: Literal["queued", "already", "skipped", "error"]
     recording: int | None = None
     job: int | None = None
+    import_run: int | None = Field(None, description="the import run it is part of, which undoes the whole import")
     detail: str | None = None
 
 
 class SourceImport(ResponseModel):
     results: list[SourceImportResult]
+    import_run: int | None = Field(None, description="the import run of the files queued (POST /import/runs/{id}/undo undoes it)")
+
+
+ImportRunKind = Literal["scan", "archive", "links", "source"]
+
+
+class ImportRun(ResponseModel):
+    """One bulk import: a folder scan, an archive's files, a list of links or bookmarks, or chosen files of a source."""
+
+    id: int
+    kind: ImportRunKind = Field(description="what made it: scan, archive, links or source")
+    namespace: str | None = None
+    source: str | None = Field(None, description="what it read: the folders, the archive, the links' file, the source")
+    created_by: str | None = Field(None, description="who started it (none: a scan from the command line)")
+    created_at: str
+    assets: int = Field(0, description="how many assets it made")
+    left: int = Field(0, description="how many of them are still here")
+    status: Literal["imported", "partly undone", "undone"] = Field(
+        description="imported; partly undone (some assets were busy: undo it again for the rest); undone"
+    )
+    undone_at: str | None = None
+    undone_by: str | None = None
+
+
+class ImportRunUndone(ResponseModel):
+    run: ImportRun
+    deleted: list[int] = Field(description="the assets deleted")
+    busy: list[int] = Field(description="assets a job is working on, left for now: their jobs were asked to stop")

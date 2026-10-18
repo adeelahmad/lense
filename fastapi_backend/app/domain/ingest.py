@@ -236,8 +236,9 @@ def envelope(x, bins=1600):
     return bytes((np.clip(np.sqrt(rms / peak), 0, 1) * 255).astype(np.uint8))
 
 
-def scan(db, cfg, only=None, log=print):
-    from . import deletion
+def scan(db, cfg, only=None, log=print, by=None):
+    """Import the new audio in each namespace's folders; what one namespace's scan finds is one import run (import_runs.py)."""
+    from . import deletion, import_runs
 
     exts = {e.lower() for e in cfg["audio"]["extensions"]}
     stats = {"new": 0, "known": 0, "changed": 0, "duplicate": 0, "deleted": 0}
@@ -247,6 +248,7 @@ def scan(db, cfg, only=None, log=print):
         nid = store.ns_id(db, name)
         home = store.default_collection(db, nid)  # where new files go
         gone_paths, gone_fps = deletion.gone(db, nid)  # recordings someone deleted stay deleted
+        made = []
         for root in spec["paths"]:
             rootp = pathlib.Path(root)
             if not rootp.exists():
@@ -318,6 +320,8 @@ def scan(db, cfg, only=None, log=print):
                     ),
                 )
                 stats["new"] += 1
+                made.append(rid)
+        import_runs.record(db, "scan", nid, made, by, "scan of " + ", ".join(spec["paths"]))
     return stats
 
 

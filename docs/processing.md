@@ -6,7 +6,7 @@ How assets move through Lens: where they come from, what each step does, and how
 
 - `scan` finds audio under each namespace's paths and fingerprints it: moved files keep their history, duplicates are skipped,
   and so are files whose asset someone deleted or moved to another namespace (at the same path, or a copy of the same
-  file).
+  file). What one namespace's scan brings in is one [import run](api.md#import-runs), undone whole.
 - `clean_audio` (only in a pipeline that has it) cleans up the sound before it's transcribed: noise, volume, rumble,
   echo, and silence left out of what's transcribed ([Cleaning up audio](#cleaning-up-audio)).
 - `transcribe` uses SenseVoice, faster-whisper or mlx-whisper. When the configured engine isn't installed on a worker (or
@@ -158,7 +158,9 @@ it, and its files are kept as its files, as an email's attachments are: those Le
 their own that say which archive they came from, a chat export in it a chat and JSON in it records (so a WhatsApp
 export with media is the chat and its photos). Only plain files are taken, an encrypted entry or a link is left
 out, an archive inside one is kept but not opened, and reading stops at 100 files or 512 MB unpacked, so a zip bomb
-can't fill the disk. What was left out, and why, is on its page. Archives get the Archive content type.
+can't fill the disk. What was left out, and why, is on its page. Archives get the Archive content type. The archive
+and the resources made of its files are one [import run](api.md#import-runs), so Undo on the Import screen takes
+them all away again.
 
 **Records.** JSON and JSON Lines that aren't a transcript (their rows have fields a transcript's lines don't, like an
 order's `total`) are read as records, one line each: a JSON Lines file a record per line, a JSON file its list (or the

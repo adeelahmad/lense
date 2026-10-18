@@ -2685,6 +2685,7 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable, via=
         "create_namespace",
         "import_files",
         "import_urls",
+        "undo_import",
         "invite_person",
         "change_person",
         "subscribe_feed",

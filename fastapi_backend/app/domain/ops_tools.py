@@ -2,7 +2,7 @@
 dropped into the conversation.
 
 Admins get the server tools; anyone gets `import_files` for their own attachments and `import_urls` for web pages,
-into namespaces they edit. A change
+into namespaces they edit, and `import_runs` and `undo_import` for their bulk imports (import_runs.py). A change
 waits for the person's approval, unless the conversation lets the assistant act (a setup conversation does: the admin
 asked it to set things up): then it's made at once, audited, and said in the answer, as long as the answer hasn't read
 text from outside Lens (Toolbox.wary), which could be what asked for it. Telemetry, which sends data
@@ -18,6 +18,7 @@ from . import (
     convert,
     decide,
     feeds,
+    import_runs,
     jobs,
     links,
     llm,
@@ -77,8 +78,8 @@ SECTIONS = (
 # machines
 ALWAYS_ASK = {"telemetry", "analytics", "sensors", "shares", "files", "web", "secrets", "scaling"}
 # who gets in always waits for the admin's approval: a person, or a machine joining the mesh; and so does taking a
-# machine off it, which stops what runs there
-ASK_TOOLS = {"invite_person", "change_person", "add_mesh_node", "remove_mesh_node", "let_go_scaling_stray"}
+# machine off it, which stops what runs there; and deleting a whole import
+ASK_TOOLS = {"invite_person", "change_person", "add_mesh_node", "remove_mesh_node", "let_go_scaling_stray", "undo_import"}
 # within a scaling group's approved terms (its min, max and budget), or a change to the mesh that's undone as easily
 # (renaming a node, the namespaces it serves, bringing a removed one back, withdrawing a token), so made at once
 # unless the answer read outside text
@@ -387,6 +388,24 @@ FILE_TOOLS = [
         [],
         True,
     ),
+    (
+        "import_runs",
+        "Recent bulk imports (a folder scan, an archive's files, a list of links or bookmarks, a source's chosen "
+        "files): each run's id, kind, namespace, what it read, who started it and when, how many assets it made and how "
+        "many are still here. undo_import undoes one.",
+        {"limit": {"type": "integer", "description": "how many, newest first (default 20)"}},
+        [],
+        False,
+    ),
+    (
+        "undo_import",
+        "Undo a bulk import whole: every asset it made that is still here is deleted, as deleting each one would. "
+        "It needs owner rights on each, always waits for the person's yes, and can't itself be undone (importing the "
+        "files again brings them back).",
+        {"run": {"type": "integer", "description": "the run's id, from import_runs"}},
+        ["run"],
+        True,
+    ),
 ]
 LIST_BYTES = 5 * 2**20  # an attached list of links is read up to this
 
@@ -499,6 +518,12 @@ def apply(db, cfg, base, tool, args, user, editable, admin, via="agent"):
         if not admin:
             raise PermissionError("only admins manage people")
         return _people(db, cfg, tool, args, user)
+    if tool == "undo_import":
+        run = _import_run(db, user, admin, args["run"])
+        if import_runs.refused(db, run["id"], import_runs.may_remove(db, {"id": user.get("id"), "admin": admin})):
+            raise PermissionError("undoing it needs an owner: some of its assets aren't yours to delete")
+        out = import_runs.undo(db, cfg, run["id"], {"id": user.get("id"), "email": user.get("email")})
+        return {"run": run["id"], "deleted": len(out["deleted"]), "busy": len(out["busy"])}
     if tool == "import_urls":
         ns = args["namespace"].strip().lower()
         try:
@@ -511,7 +536,16 @@ def apply(db, cfg, base, tool, args, user, editable, admin, via="agent"):
             raise PermissionError(f"you can't add to {ns}")
         if args.get("collection_id") is not None:
             store.home(db, sid, args["collection_id"])
-        out = links.queue(db, cfg, sid, args["links"], user["email"], args.get("collection_id"), content_type=args.get("content_type"))
+        out = links.queue(
+            db,
+            cfg,
+            sid,
+            args["links"],
+            user["email"],
+            args.get("collection_id"),
+            content_type=args.get("content_type"),
+            source="the assistant's list",
+        )
         queued = sum(r["status"] == "queued" for r in out)
         auth.audit(db, user, "import.web", f"space:{sid}", {"links": queued, "namespace": ns, "assistant": True})
         return {"namespace": ns, "pages": out}
@@ -580,6 +614,22 @@ def people(db):
         }
         for r in rows
     ]
+
+
+def _owned(db, user, admin):
+    """The namespaces where this person may delete assets."""
+    return [s for s, p in auth.permissions(db, {"id": user.get("id"), "admin": admin}).items() if "remove" in p]
+
+
+def _import_run(db, user, admin, run):
+    """A run this person may see (theirs, one in a namespace where they may delete, or any for admins)."""
+    try:
+        r = import_runs.get(db, int(run))
+    except (KeyError, TypeError, ValueError):
+        raise ValueError("there's no import run with that id: import_runs lists them") from None
+    if not (admin or r.get("created_by") == user.get("email") or r.get("space") in _owned(db, user, admin)):
+        raise ValueError("there's no import run with that id: import_runs lists them")
+    return r
 
 
 def _space(db, ns):
@@ -991,6 +1041,21 @@ class OpsTools:
         if chosen:
             out = {**out, "namespace_chosen": {"by": chosen["by"], "confidence": chosen["confidence"]}}
         return out, said
+
+    def t_import_runs(self, limit=20):
+        mine = _owned(self.db, self.user, self.admin)
+        runs = import_runs.listing(self.db, None if self.admin else self.user.get("email"), mine, min(max(int(limit or 20), 1), 100))
+        keep = ("id", "kind", "namespace", "source", "created_by", "created_at", "assets", "left", "status")
+        return {"runs": [{k: r.get(k) for k in keep} for r in runs]}, f"Listed {len(runs)} import run(s)"
+
+    def t_undo_import(self, run):
+        r = _import_run(self.db, self.user, self.admin, run)
+        if not r["left"]:
+            return {"run": r["id"], "status": r["status"], "left": 0}, f"Import run {r['id']} has nothing left to undo"
+        if import_runs.refused(self.db, r["id"], import_runs.may_remove(self.db, {"id": self.user.get("id"), "admin": self.admin})):
+            raise PermissionError("undoing it needs an owner: some of its assets aren't yours to delete")
+        what = f" ({r['source']})" if r.get("source") else ""
+        return self._change("undo_import", {"run": r["id"]}, f"Undo import run {r['id']}{what}: delete its {r['left']} asset(s)")
 
     def t_import_urls(self, urls=None, text=None, upload_id=None, namespace=None, collection_id=None, content_type=None):
         if isinstance(urls, str):

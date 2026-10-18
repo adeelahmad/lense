@@ -15931,6 +15931,141 @@
         }
       }
     },
+    "/api/v1/import/runs": {
+      "get": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "List Import Runs",
+        "description": "Recent bulk imports, newest first, each with how many assets it made and how many are still here: the ones you\nstarted and those in namespaces where you may delete assets (everyone's, for admins). A folder scan, an archive's\nfiles, a list of links or bookmarks, and chosen files of a source are each one run.",
+        "operationId": "list_import_runs",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ImportRun"
+                  },
+                  "title": "Response Imports-List Import Runs"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/import/runs/{run_id}": {
+      "get": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Get Import Run",
+        "operationId": "get_import_run",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportRun"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/import/runs/{run_id}/undo": {
+      "post": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Undo Import Run",
+        "description": "Undo a bulk import: every asset it made that is still here is deleted, as `DELETE /recordings/{id}` deletes\none (the media files stay where they are, and scans don't import them again). It needs the rights a delete needs on\neach of them (owners); when any is one you may not delete, nothing is deleted (403). An asset a job is working on\nis left (`busy`) and its job asked to stop: undo the run again for the rest. Lens keeps no recently deleted list of\nassets, so this can't itself be undone; importing the files again brings them back. Audited as `recording.delete`\nfor each asset and `import.undo` for the run.",
+        "operationId": "undo_import_run",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportRunUndone"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/uploads/limits": {
       "get": {
         "tags": [
@@ -57126,6 +57261,149 @@
         ],
         "title": "ImportResult"
       },
+      "ImportRun": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "scan",
+              "archive",
+              "links",
+              "source"
+            ],
+            "title": "Kind",
+            "description": "what made it: scan, archive, links or source"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "what it read: the folders, the archive, the links' file, the source"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By",
+            "description": "who started it (none: a scan from the command line)"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "assets": {
+            "type": "integer",
+            "title": "Assets",
+            "description": "how many assets it made",
+            "default": 0
+          },
+          "left": {
+            "type": "integer",
+            "title": "Left",
+            "description": "how many of them are still here",
+            "default": 0
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "imported",
+              "partly undone",
+              "undone"
+            ],
+            "title": "Status",
+            "description": "imported; partly undone (some assets were busy: undo it again for the rest); undone"
+          },
+          "undone_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Undone At"
+          },
+          "undone_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Undone By"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "created_at",
+          "status"
+        ],
+        "title": "ImportRun",
+        "description": "One bulk import: a folder scan, an archive's files, a list of links or bookmarks, or chosen files of a source."
+      },
+      "ImportRunUndone": {
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/ImportRun"
+          },
+          "deleted": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Deleted",
+            "description": "the assets deleted"
+          },
+          "busy": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Busy",
+            "description": "assets a job is working on, left for now: their jobs were asked to stop"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "run",
+          "deleted",
+          "busy"
+        ],
+        "title": "ImportRunUndone"
+      },
       "ImportTarget": {
         "properties": {
           "kind": {
@@ -58576,6 +58854,18 @@
             ],
             "title": "Job"
           },
+          "import_run": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Import Run",
+            "description": "the import run it is part of, which undoes the whole import"
+          },
           "detail": {
             "anyOf": [
               {
@@ -58604,6 +58894,18 @@
             },
             "type": "array",
             "title": "Results"
+          },
+          "import_run": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Import Run",
+            "description": "the import run of the pages queued (POST /import/runs/{id}/undo undoes it)"
           }
         },
         "additionalProperties": true,
@@ -72814,6 +73116,18 @@
             ],
             "description": "a web page captured as a document"
           },
+          "import_run": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Import Run",
+            "description": "the bulk import that made it (GET /import/runs/{id}), which undoes it whole"
+          },
           "enrichment": {
             "anyOf": [
               {
@@ -82257,6 +82571,18 @@
             },
             "type": "array",
             "title": "Results"
+          },
+          "import_run": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Import Run",
+            "description": "the import run of the files queued (POST /import/runs/{id}/undo undoes it)"
           }
         },
         "additionalProperties": true,
@@ -82367,6 +82693,18 @@
               }
             ],
             "title": "Job"
+          },
+          "import_run": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Import Run",
+            "description": "the import run it is part of, which undoes the whole import"
           },
           "detail": {
             "anyOf": [

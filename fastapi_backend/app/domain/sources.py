@@ -864,9 +864,13 @@ def import_files(db, cfg, sid, paths, space, by, pipeline=None, collection=None,
     watched: audio, video, documents and images stay on the source and run the pipeline (the namespace's, or
     `pipeline`); transcripts are imported, and PDFs, Word and text files too when `documents_as` is 'transcript'. One
     result per path:
-    queued (with the recording and job), already (it's a recording of the namespace from this source), skipped (a
-    kind of file Lens doesn't import; a folder) or error. Choosing a file on purpose brings back one deleted before."""
+    queued (with the recording, job and import run), already (it's a recording of the namespace from this source),
+    skipped (a kind of file Lens doesn't import; a folder) or error. Choosing a file on purpose brings back one deleted
+    before. The files queued are one import run (import_runs.py), which undoes them whole."""
+    from . import import_runs
+
     src = get(db, sid)
+    since = import_runs.mark(db)
     folders = {}
     for path in paths:
         p = check_path(cfg, src, path)
@@ -897,7 +901,9 @@ def import_files(db, cfg, sid, paths, space, by, pipeline=None, collection=None,
                     results.append(store.clean({"path": p, "status": "queued" if job else "already", "recording": rid, "job": job}))
                 except Exception as e:  # noqa: BLE001 - one bad file must not stop the rest
                     results.append({"path": p, "status": "error", "detail": f"{type(e).__name__}: {e}"[:300]})
-    return results
+    made = [r["recording"] for r in results if r["status"] == "queued" and r["recording"] > since]
+    run = import_runs.record(db, "source", space, made, by, f"{src['name']}: {len(made)} chosen file(s)", since)
+    return [{**r, "import_run": run} if r["status"] == "queued" and r["recording"] in made else r for r in results]
 
 
 def poll_due(db, cfg, log=print):

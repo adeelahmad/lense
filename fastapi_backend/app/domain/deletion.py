@@ -185,10 +185,11 @@ def delete(db, cfg, rid, by=None):
         + [
             "CREATE $g CONTENT $note",
             "DELETE meta_edit WHERE target = $target",
-            "UPDATE ip_group SET recordings = array::complement(recordings, [$r]) WHERE recordings CONTAINS $r",
-            "UPDATE saved_collection SET recordings = array::complement(recordings, [$r]) WHERE recordings CONTAINS $r",
-            "UPDATE chat SET scope.recordings = array::complement(scope.recordings, [$r]) WHERE scope.recordings CONTAINS $r",
-            "UPDATE batch SET recordings = array::complement(recordings, [$r]) WHERE recordings CONTAINS $r AND started CONTAINSNOT $r",
+            "UPDATE ip_group SET recordings = array::complement(recordings ?? [], [$r]) WHERE recordings CONTAINS $r",
+            "UPDATE saved_collection SET recordings = array::complement(recordings ?? [], [$r]) WHERE recordings CONTAINS $r",
+            "UPDATE chat SET scope.recordings = array::complement(scope.recordings ?? [], [$r]) WHERE scope.recordings CONTAINS $r",
+            "UPDATE batch SET recordings = array::complement(recordings ?? [], [$r])"
+            " WHERE recordings CONTAINS $r AND started CONTAINSNOT $r",
             "UPDATE resource_file SET resource = NONE WHERE resource = $r",  # an email's attachment that this was
             "DELETE $rec",
         ],

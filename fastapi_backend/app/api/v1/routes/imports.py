@@ -1,5 +1,5 @@
 """Importing transcripts: an uploaded file (base64 in JSON) or pasted text, and a preview that saves nothing; and
-chosen files of a storage source."""
+chosen files of a storage source. A bulk import is one import run, listed and undone whole (import_runs.py)."""
 
 from __future__ import annotations
 
@@ -11,16 +11,32 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request
 
-from app.api.deps import Acl, AdminWriter, Cfg, Db, Writer, domain_errors
-from app.domain import auth, content_types, convert, ingest, jobs, links, mediaurl, pipelines, sources, store, webcapture
+from app.api.deps import Access, Acl, AdminWriter, Cfg, CurrentUser, Db, Principal, Writer, domain_errors
+from app.domain import (
+    auth,
+    content_types,
+    convert,
+    import_runs,
+    ingest,
+    jobs,
+    links,
+    mediaurl,
+    pipelines,
+    render,
+    sources,
+    store,
+    webcapture,
+)
 from app.domain.store import DB
 from app.schemas.imports import (
     ImportPreview,
     ImportPreviewRequest,
     ImportRequest,
     ImportResult,
+    ImportRun,
+    ImportRunUndone,
     LinkImportResult,
     LinksImport,
     LinksImportRequest,
@@ -245,11 +261,13 @@ def import_web_links(body: LinksImportRequest, acl: Acl, user: Writer, db: Db, c
     if len(found) > links.MAX:
         raise HTTPException(400, f"import {links.MAX} links at most at once; this has {len(found)}")
     sid = sid if sid is not None else store.ns_id(db, ns)
-    queued = links.queue(db, cfg, sid, found, user.email, body.collection, body.pipeline, body.folders_as_tags, body.content_type)
-    out = [LinkImportResult(**r) for r in queued]
+    said = body.filename or ("pasted links" if (body.text or "").strip() else f"{len(found)} link(s)")
+    made = links.queue(db, cfg, sid, found, user.email, body.collection, body.pipeline, body.folders_as_tags, body.content_type, said)
+    out = [LinkImportResult(**r) for r in made]
     queued = sum(r.status == "queued" for r in out)
-    auth.audit(db, user.as_audit(), "import.web", f"space:{sid}", {"links": queued, "namespace": ns})
-    return LinksImport(results=out)
+    run = next((r.import_run for r in out if r.import_run), None)
+    auth.audit(db, user.as_audit(), "import.web", f"space:{sid}", store.clean({"links": queued, "namespace": ns, "import_run": run}))
+    return LinksImport(results=out, import_run=run)
 
 
 @router.post("/preview")
@@ -304,8 +322,63 @@ def import_from_source(body: SourceImportRequest, request: Request, user: AdminW
     with domain_errors():
         results = sources.import_files(db, cfg, body.source, body.paths, sid, user.email, body.pipeline, body.collection, body.documents_as)
     queued = [r for r in results if r["status"] == "queued"]
+    run = queued[0].get("import_run") if queued else None
     if queued:
-        detail = {"namespace": ns, "files": len(queued), "recordings": [r["recording"] for r in queued]}
+        detail = {"namespace": ns, "files": len(queued), "recordings": [r["recording"] for r in queued], "import_run": run}
         auth.audit(db, user.as_audit(), "import.source", f"source:{body.source}", detail)
         request.app.state.graph_cache.clear()
-    return SourceImport(results=[SourceImportResult(**r) for r in results])
+    return SourceImport(results=[SourceImportResult(**r) for r in results], import_run=run)
+
+
+# ---------- import runs: one bulk import, listed and undone whole ----------
+def _import_run(db: DB, acl: Access, user: Principal, run_id: int) -> dict[str, Any]:
+    """A run this person may see: theirs, one in a namespace where they may delete assets, or (admins) any; else 404."""
+    try:
+        run = import_runs.get(db, run_id)
+    except KeyError:
+        raise HTTPException(404, "not found") from None
+    if not (user.admin or run.get("created_by") == user.email or acl.can(run.get("space"), "remove")):
+        raise HTTPException(404, "not found")
+    return run
+
+
+@router.get("/runs")
+def list_import_runs(acl: Acl, user: CurrentUser, db: Db, limit: int = Query(50, ge=1, le=200)) -> list[ImportRun]:
+    """Recent bulk imports, newest first, each with how many assets it made and how many are still here: the ones you
+    started and those in namespaces where you may delete assets (everyone's, for admins). A folder scan, an archive's
+    files, a list of links or bookmarks, and chosen files of a source are each one run."""
+    mine = [s for s in acl.roles if acl.can(s, "remove")]
+    return [ImportRun.model_validate(r) for r in import_runs.listing(db, None if user.admin else user.email, mine, limit)]
+
+
+@router.get("/runs/{run_id}")
+def get_import_run(run_id: int, acl: Acl, user: CurrentUser, db: Db) -> ImportRun:
+    return ImportRun.model_validate(_import_run(db, acl, user, run_id))
+
+
+@router.post("/runs/{run_id}/undo")
+def undo_import_run(run_id: int, acl: Acl, user: Writer, db: Db, cfg: Cfg, request: Request, tasks: BackgroundTasks) -> ImportRunUndone:
+    """Undo a bulk import: every asset it made that is still here is deleted, as `DELETE /recordings/{id}` deletes
+    one (the media files stay where they are, and scans don't import them again). It needs the rights a delete needs on
+    each of them (owners); when any is one you may not delete, nothing is deleted (403). An asset a job is working on
+    is left (`busy`) and its job asked to stop: undo the run again for the rest. Lens keeps no recently deleted list of
+    assets, so this can't itself be undone; importing the files again brings them back. Audited as `recording.delete`
+    for each asset and `import.undo` for the run."""
+    run = _import_run(db, acl, user, run_id)
+
+    def can(space: int, collection: int | None) -> bool:
+        try:
+            acl.need_in(space, collection, "remove")
+        except HTTPException:
+            return False
+        return True
+
+    refused = import_runs.refused(db, run_id, can)
+    if refused:
+        raise HTTPException(403, f"you may not delete {len(refused)} of its {run['left']} assets; undoing it needs an owner")
+    with domain_errors():
+        out = import_runs.undo(db, cfg, run_id, user.as_audit())
+    request.app.state.graph_cache.clear()
+    for ns in out["namespaces"]:
+        tasks.add_task(render.refresh_overview, db, cfg, ns)
+    return ImportRunUndone(run=ImportRun.model_validate(import_runs.get(db, run_id)), deleted=out["deleted"], busy=out["busy"])
