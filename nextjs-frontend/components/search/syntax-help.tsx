@@ -6,6 +6,7 @@ export const SYNTAX: [string, string][] = [
   ["exploit", "also finds exploits, exploited (English stemming)"],
   ['"system card"', "the exact phrase"],
   ["cyber OR bio", "either word"],
+  ["budget -draft", "budget, leaving out lines with draft (or NOT draft)"],
   ['speaker:"Host B"', "only what Host B said"],
   ["emotion:surprise", "segments tagged Surprise"],
   ["namespace:podcasts", "one namespace"],

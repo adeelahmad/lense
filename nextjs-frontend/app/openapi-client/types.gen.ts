@@ -22689,7 +22689,7 @@ export type SearchCreate = {
   /**
    * Q
    *
-   * words, "phrases", OR between alternatives
+   * words, "phrases", OR between alternatives, NOT or -word to leave out
    */
   q: string;
   /**
@@ -38705,7 +38705,7 @@ export type SearchTranscriptsData = {
     /**
      * Q
      *
-     * words, "phrases", OR between alternatives
+     * words, "phrases", OR between alternatives, NOT or -word to leave out
      */
     q: string;
     /**
@@ -46985,7 +46985,7 @@ export type SearchPublicData = {
     /**
      * Q
      *
-     * words, "phrases", OR between alternatives
+     * words, "phrases", OR between alternatives, NOT or -word to leave out
      */
     q?: string;
     /**

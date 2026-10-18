@@ -207,3 +207,31 @@ def test_opensearch_needs_an_address(tmp_path):
         assert saved["opensearch_password"] == "pw" and saved["engine"] == "opensearch"
     finally:
         db.close()
+
+
+@pytest.mark.parametrize("engine", [*OUTSIDE, "surrealdb"])
+def test_not_and_minus_leave_lines_out(tmp_path, engine):
+    """NOT, or a - before a word or "phrase", leaves out the lines that have it; a typed AND changes nothing."""
+    cfg = make_cfg(tmp_path, url="surrealkv://" + str(tmp_path / "kv"), search=_engine(engine))
+    db = store.connect(cfg)
+    try:
+        for name, text in (("ep1.txt", PODS1), ("ep2.txt", PODS2)):
+            (tmp_path / name).write_text(text)
+            ingest.import_transcript(db, cfg, "pods", tmp_path / name, log=quiet)
+        total = {q: search.search(db, q)["total"] for q in ("capsid", "capsid -published", "capsid NOT model", "capsid AND published")}
+        assert total == {"capsid": 4, "capsid -published": 3, "capsid NOT model": 2, "capsid AND published": 1}
+        assert search.search(db, 'capsid -"human designs"')["total"] == 3
+        assert search.search(db, "Dyno -capsid")["total"] == 2
+        assert search.search(db, "exploit OR capsid NOT benchmark")["total"] == 4  # 7, less the 3 with "benchmark"
+        assert search.search(db, "-capsid")["total"] == 0  # nothing to look for
+        assert search.search(db, "capsid -published -model")["query"] == "capsid -published -model"
+    finally:
+        db.close()
+
+
+def test_the_queries_parts():
+    assert search.parse_query('a AND b NOT c -"d e" OR f') == [
+        {"words": ["a", "b"], "phrases": [], "not": ["c", "d e"]},
+        {"words": ["f"], "phrases": [], "not": ["c", "d e"]},
+    ]
+    assert textindex.match_expr(search.parse_query("a -c")) == '("a") NOT ("c")'

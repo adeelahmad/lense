@@ -1168,7 +1168,8 @@ GET    /api/v1/mentions
 `GET /search?q=` finds the moments where the words appear (in an asset's text or transcript, on screen in a video, in a resource's
 supplementary transcripts, captions, translations and indexes, or in what a model says its shots and pages show) in the
 namespaces you can read, best first: every word
-(English stemming), "quoted phrases" as written, `OR` between alternatives; `ns`, `speaker`, `emotion` and `recording`
+(English stemming), "quoted phrases" as written, `OR` between alternatives, `NOT` or `-` before a word or phrase to leave out the lines
+with it; `ns`, `speaker`, `emotion` and `recording`
 narrow it, and `object` keeps to the assets a kind of object is seen in ([Objects](#objects));
 `limit`/`offset` page through it. `total` counts the moments ranked so far (`capped` when there may be more).
 With `facets=true` it also counts all the matching moments, whatever the page, by namespace, person, emotion and
