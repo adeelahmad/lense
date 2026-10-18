@@ -108,7 +108,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   draws on. Its coordinator conversation looks at the project as a whole: it is told about every thread, starts threads
   with a brief that the assistant answers there in the background, reads them and marks them done. Each thread is a
   conversation about one part of the work, scoped to the project's namespaces. Every answer in a project reads its goal
-  and instructions. The Projects page, under Chat, starts threads with a brief and shows which are working. Agents
+  and instructions. Schedules ask a prompt on a schedule, in a new thread each time or the same one. The Projects
+  page, under Chat, starts threads with a brief and shows which are working. Agents
   start and change projects over MCP and the API. ([Projects](docs/projects.md); [checks](docs/requirements.md#work-toward-a-goal-in-projects))
 - **Extend the assistant.** Add tools (a prompt, a web request, a graph drawn on the canvas, or sandboxed Python),
   skills, hooks and MCP servers, by code, on the canvas or just by asking. Remote MCP servers connect by address, and

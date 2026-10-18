@@ -10,6 +10,7 @@ import { Projects } from "@/app/openapi-client";
 import type { Project, ProjectThread } from "@/app/openapi-client/types.gen";
 import { useProject } from "@/components/projects/data";
 import { ProjectFields, type ProjectDraft } from "@/components/projects/project-form";
+import { Schedules } from "@/components/projects/schedules";
 import { Badge } from "@/components/ui/badge";
 import { Button, IconButton } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -353,6 +354,7 @@ export function ProjectScreen({ id }: { id: number }) {
           No threads yet. Start one above, or ask the coordinator to plan the work and start them.
         </p>
       )}
+      <Schedules project={p} />
       <EditProjectDialog project={p} open={editing} onOpenChange={setEditing} />
     </div>
   );

@@ -3,11 +3,12 @@ answer in one reads what the project is for; agents use them over MCP."""
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 
 import pytest
 
-from app.domain import ai_tools, chat, projects, untrusted
+from app.domain import ai_tools, chat, projects, timers, untrusted
 from tests import fake_llm
 from tests.api._assist import Assist, sse, start_llm
 from tests.api.test_mcp import rpc, tool, tool_error
@@ -310,3 +311,67 @@ def test_a_brief_cut_off_by_a_stop_is_marked_by_the_sweep(app, db, cfg, folder, 
     assert (last["role"], last["error"]) == ("assistant", projects.STOPPED)
     row = db.one("SELECT answering, working FROM $r", r=projects.R("chat", tid))
     assert row["answering"] is False and row.get("working") is None
+
+
+def test_a_schedule_asks_its_prompt_in_a_new_thread_or_the_same_one(app, db, cfg, folder, new_client, llm, now):
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["editor"]
+    p = _new(c, h)
+    url = f"/api/v1/projects/{p['id']}/schedules"
+    assert c.post(url, headers=h, json={"prompt": "What's next?", "cron": "every day"}).status_code == 400
+    assert c.post(url, headers=h, json={"prompt": "What's next?", "cron": "0 8 * * *", "timezone": "Mars/Base"}).status_code == 400
+    daily = c.post(url, headers=h, json={"prompt": "What's next?", "cron": "0 8 * * *", "timezone": "Europe/London"}).json()
+    assert (daily["id"], daily["when"], daily["thread"], daily["on"]) == ("s1", "every day at 08:00", "new", True)
+    first = dt.datetime.fromisoformat(daily["next_at"])
+
+    # each time in a new thread, asked as a brief and answered in the background
+    llm.tool_script = [{"content": "Order the wood."}]
+    assert timers.due(db, cfg, now=first) == 1
+    got = c.get(f"/api/v1/projects/{p['id']}", headers=h).json()
+    [t] = got["thread_list"]
+    assert [m["content"] for m in _thread(c, h, t["id"])["messages"]] == ["What's next?", "Order the wood."]
+    assert got["schedules"][0]["last"]["ok"] is True and dt.datetime.fromisoformat(got["schedules"][0]["next_at"]) > first
+    llm.tool_script = [{"content": "Cut it."}]
+    timers.due(db, cfg, now=first + dt.timedelta(days=1))
+    assert len(c.get(f"/api/v1/projects/{p['id']}", headers=h).json()["thread_list"]) == 2
+
+    # always the same thread; one still answering is left to finish
+    c.patch(f"{url}/s1", headers=h, json={"thread": "same"})
+    llm.tool_script = [{"content": "Paint it."}]
+    timers.due(db, cfg, now=first + dt.timedelta(days=2))
+    sc = c.get(f"/api/v1/projects/{p['id']}", headers=h).json()["schedules"][0]
+    assert sc["chat"] is not None and _thread(c, h, sc["chat"])["messages"][-1]["content"] == "Paint it."
+    db.q("UPDATE $r SET answering = true", r=projects.R("chat", sc["chat"]))
+    timers.due(db, cfg, now=first + dt.timedelta(days=3))
+    sc = c.get(f"/api/v1/projects/{p['id']}", headers=h).json()["schedules"][0]
+    assert sc["last"]["ok"] is False and "still answering" in sc["last"]["error"]
+    assert len(_thread(c, h, sc["chat"])["messages"]) == 2
+
+
+def test_schedules_wait_while_off_or_archived_and_agents_set_them(app, db, cfg, folder, new_client, llm):
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["editor"]
+    p = _new(c, h)
+    url = f"/api/v1/projects/{p['id']}/schedules"
+    sid = c.post(url, headers=h, json={"prompt": "Weekly check-in", "cron": "0 9 * * 1"}).json()["id"]
+    key = projects._key(p["id"], sid)
+    assert c.patch(f"{url}/{sid}", headers=h, json={"on": False}).json()["next_at"] is None
+    assert timers.get(db, key)["status"] == "cancelled"
+    assert c.patch(f"{url}/{sid}", headers=h, json={"on": True}).json()["next_at"] is not None
+    c.patch(f"/api/v1/projects/{p['id']}", headers=h, json={"archived": True})
+    assert c.get(f"/api/v1/projects/{p['id']}", headers=h).json()["schedules"][0]["next_at"] is None
+    c.patch(f"/api/v1/projects/{p['id']}", headers=h, json={"archived": False})
+    assert timers.get(db, key)["status"] == "waiting"
+    assert c.patch(f"{url}/s9", headers=h, json={"on": False}).status_code == 404
+    # only its owner sees or changes it
+    cv, hv = s.cl["viewer"]
+    assert cv.post(url, headers=hv, json={"prompt": "x", "cron": "@daily"}).status_code == 404
+
+    hw = _bearer(_grant(c, h, scope="write")[1])
+    got = _ok(c, hw, "schedule_project", {"project_id": p["id"], "prompt": "Daily summary", "cron": "@daily", "thread": "same"})
+    assert [x["when"] for x in got["schedules"]] == ["every Monday at 09:00", "every day at 00:00"]
+    assert "prompt and cron" in _error(c, hw, "schedule_project", {"project_id": p["id"], "prompt": "x"})
+    got = _ok(c, hw, "schedule_project", {"project_id": p["id"], "schedule_id": got["schedule_id"], "remove": True})
+    assert [x["schedule_id"] for x in got["schedules"]] == [sid]
+    c.delete(f"/api/v1/projects/{p['id']}", headers=h)
+    assert timers.get(db, key)["status"] == "cancelled"

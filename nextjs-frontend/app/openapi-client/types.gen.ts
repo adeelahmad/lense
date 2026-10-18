@@ -17997,6 +17997,12 @@ export type Project = {
    * its threads, the most recently added to first
    */
   thread_list?: Array<ProjectThread>;
+  /**
+   * Schedules
+   *
+   * prompts it asks on a schedule
+   */
+  schedules?: Array<ProjectSchedule>;
   [key: string]: unknown;
 };
 
@@ -18026,6 +18032,149 @@ export type ProjectCreate = {
    * the namespaces it draws on (ones you can read)
    */
   namespaces: Array<string>;
+};
+
+/**
+ * ProjectSchedule
+ */
+export type ProjectSchedule = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Prompt
+   *
+   * what it asks each time, as a brief
+   */
+  prompt: string;
+  /**
+   * Cron
+   *
+   * when: five cron fields (minute hour day-of-month month day-of-week)
+   */
+  cron: string;
+  /**
+   * Timezone
+   */
+  timezone?: string;
+  /**
+   * Thread
+   *
+   * new: a new thread each time; same: always the same one
+   */
+  thread?: string;
+  /**
+   * On
+   */
+  on?: boolean;
+  /**
+   * Chat
+   *
+   * its thread, when it asks in the same one (made on its first run)
+   */
+  chat?: number | null;
+  /**
+   * When
+   *
+   * the schedule in words
+   */
+  when?: string;
+  /**
+   * Next At
+   *
+   * its next time (none while off or the project is archived)
+   */
+  next_at?: string | null;
+  last?: ProjectScheduleRun | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectScheduleCreate
+ */
+export type ProjectScheduleCreate = {
+  /**
+   * Prompt
+   *
+   * what to ask each time, answered in the background
+   */
+  prompt: string;
+  /**
+   * Cron
+   *
+   * when: five cron fields, like 0 8 * * 1-5 (8:00 on weekdays), or @daily
+   */
+  cron: string;
+  /**
+   * Timezone
+   *
+   * the time zone the schedule is in, like Europe/London
+   */
+  timezone?: string;
+  /**
+   * Thread
+   *
+   * new: a new thread each time; same: always the same one
+   */
+  thread?: "new" | "same";
+};
+
+/**
+ * ProjectScheduleRun
+ */
+export type ProjectScheduleRun = {
+  /**
+   * At
+   *
+   * the time it was for
+   */
+  at?: string | null;
+  /**
+   * Ok
+   */
+  ok?: boolean;
+  /**
+   * Error
+   *
+   * why it didn't ask, or what went wrong
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectScheduleUpdate
+ *
+ * Only the fields you send change.
+ */
+export type ProjectScheduleUpdate = {
+  /**
+   * Prompt
+   */
+  prompt?: string | null;
+  /**
+   * Cron
+   */
+  cron?: string | null;
+  /**
+   * Timezone
+   */
+  timezone?: string | null;
+  /**
+   * Thread
+   */
+  thread?: "new" | "same" | null;
+  /**
+   * On
+   *
+   * switched off, it waits until it's switched on again
+   */
+  on?: boolean | null;
 };
 
 /**
@@ -45702,6 +45851,104 @@ export type UpdateThreadResponses = {
 };
 
 export type UpdateThreadResponse = UpdateThreadResponses[keyof UpdateThreadResponses];
+
+export type AddScheduleData = {
+  body: ProjectScheduleCreate;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/projects/{pid}/schedules";
+};
+
+export type AddScheduleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AddScheduleError = AddScheduleErrors[keyof AddScheduleErrors];
+
+export type AddScheduleResponses = {
+  /**
+   * Successful Response
+   */
+  200: ProjectSchedule;
+};
+
+export type AddScheduleResponse = AddScheduleResponses[keyof AddScheduleResponses];
+
+export type RemoveScheduleData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+    /**
+     * Sid
+     */
+    sid: string;
+  };
+  query?: never;
+  url: "/api/v1/projects/{pid}/schedules/{sid}";
+};
+
+export type RemoveScheduleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveScheduleError = RemoveScheduleErrors[keyof RemoveScheduleErrors];
+
+export type RemoveScheduleResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RemoveScheduleResponse = RemoveScheduleResponses[keyof RemoveScheduleResponses];
+
+export type UpdateScheduleData = {
+  body: ProjectScheduleUpdate;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+    /**
+     * Sid
+     */
+    sid: string;
+  };
+  query?: never;
+  url: "/api/v1/projects/{pid}/schedules/{sid}";
+};
+
+export type UpdateScheduleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateScheduleError = UpdateScheduleErrors[keyof UpdateScheduleErrors];
+
+export type UpdateScheduleResponses = {
+  /**
+   * Successful Response
+   */
+  200: ProjectSchedule;
+};
+
+export type UpdateScheduleResponse = UpdateScheduleResponses[keyof UpdateScheduleResponses];
 
 export type StartResearchData = {
   body: ResearchStart;
