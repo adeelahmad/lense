@@ -129,6 +129,15 @@ class MeshNodeConfig(ResponseModel):
     crt: str | None = Field(None, description="the new certificate (renew)")
 
 
+class MeshWorkerAccess(ResponseModel):
+    url: str = Field(description="the database through the mesh: ws://<the primary's mesh address>:8000")
+    namespace: str
+    database: str
+    user: str = Field(description="the node's own user of this database (removed with the node)")
+    password: str
+    steps: list[str] = Field(description="the steps a worker node runs unless LENS_WORKER_STEPS says otherwise")
+
+
 class MeshRenew(RequestModel):
     public_key: str = Field(max_length=500, description="its Nebula public key, the same or a new one")
 

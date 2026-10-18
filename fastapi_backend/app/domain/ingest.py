@@ -488,6 +488,11 @@ def audio_path(db, cfg, rec, plain=True):
     encrypted file comes as a plain working copy for the tools to read, unless `plain` is False."""
     from . import keyring
 
+    from . import mesh_node
+
+    if mesh_node.on_worker_node():  # a worker node's job: the file comes from the primary over the mesh, plain
+        local = None if rec.get("remote") else store.resolve_path(cfg, rec.get("path"))
+        return local if local and pathlib.Path(local).is_file() else str(mesh_node.media(cfg, rec))
     if rec.get("remote"):
         from . import sources
 

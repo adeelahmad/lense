@@ -601,6 +601,22 @@ export function wouldDo(i: Record<string, unknown>, actions?: ActionDef[]): stri
   return `${String(i.node)} · ${what}: ${how}${i.untrusted ? " (reads outside text)" : ""}`;
 }
 
+/** One action a run carried out, as a line: what, and whether it ran, waits for your pick or its time, or failed. */
+export function didDo(i: Record<string, unknown>, actions?: ActionDef[]): string {
+  const what = actions?.find((a) => a.name === i.action)?.label ?? String(i.action);
+  const how =
+    i.status === "done"
+      ? "done"
+      : i.status === "scheduled"
+        ? "waiting for its time"
+        : i.status === "failed"
+          ? `failed${i.error ? `: ${String(i.error)}` : ""}`
+          : i.status === "waiting"
+            ? "waiting for your pick"
+            : String(i.status ?? "—");
+  return `${what}: ${how}${i.untrusted ? " (reads outside text)" : ""}`;
+}
+
 /** An action node waits before it acts: for a delay, or until a time. */
 export const waits = (n: WfNode) => n.config.delay != null || n.config.when != null;
 /** Nodes that keep something: a workflow needs one (or a node that keeps something as set up, see savesAsSet). */

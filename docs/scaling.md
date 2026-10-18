@@ -10,8 +10,8 @@ Status: in progress. Built: groups, rules, approvals, budgets, the scaler, the A
 Settings › Auto scaling (the switch, and each group's terms to approve or pause), and **This machine**, a provider that
 runs more `lens worker` processes where Lens runs. In progress: **AWS EC2** (spot or on demand), **DigitalOcean**
 and **Hetzner Cloud** providers are built (credentials checked, prices, launching, watching and deleting machines),
-and launch once the mesh's install line, which another machine joins Lens with, lands ([the mesh](mesh.md)); so is
-**Proxmox VE**, clones of a VM template on your own server. Planned: providers for any Linux host over SSH; model hosts
+and their machines join over the [mesh](mesh.md) as worker nodes that transcribe and tell voices apart; so is
+**Proxmox VE**, clones of a VM template on your own server. They haven't been tried on a real cloud machine yet. Planned: providers for any Linux host over SSH; model hosts
 (RunPod, Lambda, Hugging Face, SageMaker, Bedrock) for models; and making providers and groups in Settings.
 
 Auto scaling is **off** until an admin turns it on, and a group launches nothing until a person approves its terms
@@ -67,8 +67,11 @@ it runs.
 
 A cloud provider's unit is a new machine. Its first boot runs a script (user-data) that sets `LENS_SCALING_UNIT` (its
 name) and `LENS_WORKER_STEPS` (the template's steps), then the mesh's install line with a join token made for that
-unit, usable once within an hour. The machine joins Lens over the [mesh](mesh.md) and starts `lens worker`; the
-database credential travels inside the sealed join answer, so the user-data holds no long-lived secret. Each machine
+unit, usable once within an hour. The machine joins Lens over the [mesh](mesh.md) as a worker node and starts
+`lens worker`; it asks for its own database user over the mesh once it has joined, so the user-data holds no
+long-lived secret. A worker node runs only `transcribe` and `diarize` (it never gets the archive's key:
+[Worker nodes](mesh.md#worker-nodes)), so a group on these providers counts only those steps' jobs in its metrics
+(`unit_steps`), and one whose template names none of them waits and launches nothing. Each machine
 carries Lens's tag (`scaling.tag`: a DigitalOcean tag, a Hetzner label `lens=<tag>`), so Lens's machines can be told
 apart. Letting a unit go deletes its machine; a machine switched off at the provider counts as gone and is deleted.
 
@@ -80,7 +83,7 @@ deleted. Letting a unit go stops the clone and deletes it with its disks. The AP
 start, stop and delete VMs and use their guest agent (the `PVEVMAdmin` role on the template and the clones' pool is
 enough).
 
-Until the mesh is on and has its install line, a group on these providers waits (`waiting_for` says so) and launches
+Until the mesh is on (Settings › Network), a group on these providers waits (`waiting_for` says so) and launches
 nothing, since its machines couldn't join. They call the providers' REST APIs with httpx, so they install nothing.
 
 ## AWS EC2

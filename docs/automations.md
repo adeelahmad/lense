@@ -52,7 +52,7 @@ merged is called built.
 | Automations for agents: the MCP tools and the assistant's, switching on and running now by approval | built |
 | Describing an automation in words: a draft from a sentence (`POST /api/v1/automations/draft`) | built |
 | The studio: the list at `/automations` and the When, If and Then builder, with a test panel ([The studio](#the-studio)) | built |
-| The studio's tabs for an automation's runs, what's coming up, its variables and its costs | planned |
+| An automation's page: its runs, what's coming up, its variables and its costs, in tabs ([An automation's page](#an-automations-page)) | built |
 
 ## The studio
 
@@ -85,6 +85,19 @@ row or action they are about.
 
 An automation whose workflow branches (a Decide node, or an action after a condition) can't be read as a list:
 the builder says so and opens it in the [canvas](#on-the-canvas), where When and If still edit.
+
+### An automation's page
+
+An automation's page has its switch, Run now and five tabs (`?tab=` in the address opens one):
+
+- **Edit**: the builder.
+- **Runs**: newest first, 20 at a time with Older runs for the next page. Each reads how it went, what started it,
+  what its actions did and what it cost; opening one shows each action's outcome and the run's log. A run held over a
+  budget offers Run it once or Skip. Run now opens this tab.
+- **Coming up**: its next schedule times, `at` times and actions that wait, soonest first.
+- **Variables**: what it keeps between runs ([Saved variables](#saved-variables)). Edit a value as text or JSON and
+  press Enter; Clear is undone from its toast; a new name and value are added with Enter.
+- **Costs**: its budget and its activity: the calls it made and what they cost.
 
 ## Contract
 
@@ -816,7 +829,10 @@ own chat app (below). An API key, an app, MCP and the assistant can list and dec
 since approving is the person's pick; each approval's `can` says what the caller may do with it. This is the one
 place where an agent can't do what you can: agents read them with `approvals` and decline with `decline_approval`
 (over [MCP](mcp.md#tools) and in the [assistant](assistant.md#the-assistants-tools)), and there is no tool to approve.
-The assistant's own approvals in a conversation are decided as before.
+The assistant's own approvals (sending mail, adding an event, writing a file, changing entities and the rest) follow
+the same rule: you approve them signed in to Lens or in the chat they were asked in, and an API key, an app, MCP and
+the assistant can only decline them (403). A research plan is the one exception, and only when an admin turns on
+`research.agents_skip_review` ([Deep research](assistant.md#deep-research)).
 
 **In your chat app.** A reply of "yes" in the private chat you were told in approves an automation's action, under
 the rules a chat room's approvals follow ([Chat rooms](chat-rooms.md#what-it-does)), and only when all of these hold:
@@ -1305,8 +1321,7 @@ held run until you pick.
   message the person's template wrote, so they stay when the run read outside text.
 - Variables and templates: secrets as variables (sealed, never rendered into prompts); typed variable declarations
   with defaults per automation; a time zone of each person's own, rather than the triggers'; wrapping outside text
-  the same way in `tool_nodes.ask_model` (pipeline workflows) and extensions' prompt tools; variables in the
-  Settings page of an automation (the studio, M11); an activity when a person changes a variable; marking a variable
+  the same way in `tool_nodes.ask_model` (pipeline workflows) and extensions' prompt tools; an activity when a person changes a variable; marking a variable
   from outside text only when the value itself came from it, not whenever the run read some; removing an
   automation's variables when it is deleted (M6); a preview that runs the nodes before the template's (dry) rather
   than standing in for their outputs; the picker listing a saved prompt template's output schema for the node that

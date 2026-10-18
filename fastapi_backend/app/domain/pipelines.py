@@ -5,7 +5,8 @@ image's pages and their text), convert (new assets made from one: a video's soun
 as images, conversions.py), diarize, shots, ocr, faces, objects, nsfw (NSFW classification, nsfw.py), describe,
 clean (a transcript tidied before analysis, cleanup.py), analyze, embed (passages for search by meaning, semantic.py),
 summarize, llm (a prompt template whose structured result is saved as a named output), spec (a technical spec from the
-transcript, written to a note linked to the recording, specs.py), report (built in, or from a report template) and
+transcript, written to a note linked to the recording, specs.py), reply (a cited reply drafted to an email,
+responder.py), report (built in, or from a report template) and
 export (a template rendered to a file, optionally copied to a storage source) and workflow (a workflow graph,
 workflows.py, that turns what the steps made into metadata). Any step can carry a condition.
 
@@ -36,6 +37,7 @@ TYPES = {
     "convert",
     "llm",
     "spec",
+    "reply",
     "report",
     "export",
     "workflow",
@@ -109,8 +111,8 @@ def validate_steps(db, steps):
                     get(db, s["pipeline"])
                 except KeyError:
                     raise ValueError("convert step: choose a pipeline for the new assets") from None
-        need = {"llm": "prompt", "spec": "prompt", "export": "export", "report": "report"}.get(t)
-        if need and (s.get("template") or t not in ("report", "spec")):  # a report or a spec has a built-in one
+        need = {"llm": "prompt", "spec": "prompt", "reply": "prompt", "export": "export", "report": "report"}.get(t)
+        if need and (s.get("template") or t not in ("report", "spec", "reply")):  # these have a built-in one
             try:
                 tpl = templates.get(db, int(s.get("template") or 0), s.get("version"))
             except (KeyError, TypeError, ValueError):

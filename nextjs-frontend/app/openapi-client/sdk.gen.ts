@@ -475,9 +475,15 @@ import type {
   DraftAutomationData,
   DraftAutomationErrors,
   DraftAutomationResponses,
+  DraftReplyData,
+  DraftReplyErrors,
+  DraftReplyResponses,
   DropPasskeysData,
   DropPasskeysErrors,
   DropPasskeysResponses,
+  EditReplyData,
+  EditReplyErrors,
+  EditReplyResponses,
   EditSegmentData,
   EditSegmentErrors,
   EditSegmentResponses,
@@ -734,6 +740,9 @@ import type {
   GetRecordingWordcloudData,
   GetRecordingWordcloudErrors,
   GetRecordingWordcloudResponses,
+  GetReplyData,
+  GetReplyErrors,
+  GetReplyResponses,
   GetResearchData,
   GetResearchErrors,
   GetResearchResponses,
@@ -1089,6 +1098,9 @@ import type {
   ListRecordingsData,
   ListRecordingsErrors,
   ListRecordingsResponses,
+  ListRepliesData,
+  ListRepliesErrors,
+  ListRepliesResponses,
   ListResearchData,
   ListResearchErrors,
   ListResearchResponses,
@@ -1258,6 +1270,11 @@ import type {
   NodeBeatResponses,
   NodeConfigData,
   NodeConfigResponses,
+  NodeMediaData,
+  NodeMediaErrors,
+  NodeMediaResponses,
+  NodeWorkerData,
+  NodeWorkerResponses,
   NotSameSpeakerData,
   NotSameSpeakerErrors,
   NotSameSpeakerResponses,
@@ -10967,8 +10984,8 @@ export class Chats {
    *
    * Approve (or run a sample of, or decline) something the assistant proposed or an automation's action. Each
    * approval is decided once. An automation's action can also be edited (`params`) and then carried out, or allowed
-   * from now on for that automation (`always`); approving one needs you signed in, since it's your pick: an API key
-   * or an app can only decline it.
+   * from now on for that automation (`always`). Approving is your pick, so it needs you signed in: an API key or an
+   * app can only decline (403 otherwise).
    */
   public static decideApproval<ThrowOnError extends boolean = false>(
     options: Options<DecideApprovalData, ThrowOnError>,
@@ -13640,6 +13657,36 @@ export class Mesh {
   }
 
   /**
+   * Node Worker
+   *
+   * What the calling worker node's `lens worker` signs in to the database with: its own user of it. 403 for a node
+   * of another role, 409 where the database is embedded.
+   */
+  public static nodeWorker<ThrowOnError extends boolean = false>(
+    options?: Options<NodeWorkerData, ThrowOnError>,
+  ): RequestResult<NodeWorkerResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<NodeWorkerResponses, unknown, ThrowOnError>({
+      url: "/api/v1/mesh/node/worker",
+      ...options,
+    });
+  }
+
+  /**
+   * Node Media
+   *
+   * A recording's file, plain, for a job on the calling worker node (a vault's never). Its ETag is its size and
+   * time: a node that has it sends If-None-Match and gets 304.
+   */
+  public static nodeMedia<ThrowOnError extends boolean = false>(
+    options: Options<NodeMediaData, ThrowOnError>,
+  ): RequestResult<NodeMediaResponses, NodeMediaErrors, ThrowOnError> {
+    return (options.client ?? client).get<NodeMediaResponses, NodeMediaErrors, ThrowOnError>({
+      url: "/api/v1/mesh/node/media/{recording_id}",
+      ...options,
+    });
+  }
+
+  /**
    * Node Beat
    *
    * The calling node's report, every minute: Nebula, its peers, its machine.
@@ -13649,6 +13696,79 @@ export class Mesh {
   ): RequestResult<NodeBeatResponses, NodeBeatErrors, ThrowOnError> {
     return (options.client ?? client).post<NodeBeatResponses, NodeBeatErrors, ThrowOnError>({
       url: "/api/v1/mesh/node/beat",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Replies {
+  /**
+   * List Replies
+   *
+   * Email in the namespaces you can read (or `namespace`), newest first, each with its reply. `waiting` (the default)
+   * is mail that may need an answer (not a mailing list's, a no-reply sender's or your own) with no reply yet, and every
+   * draft; or one status, `none` (no reply yet, automatic mail too) or `all`.
+   */
+  public static listReplies<ThrowOnError extends boolean = false>(
+    options?: Options<ListRepliesData, ThrowOnError>,
+  ): RequestResult<ListRepliesResponses, ListRepliesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListRepliesResponses, ListRepliesErrors, ThrowOnError>({
+      url: "/api/v1/replies",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Reply
+   *
+   * This email's reply: its status, the draft with its sources, and what's left to confirm.
+   */
+  public static getReply<ThrowOnError extends boolean = false>(
+    options: Options<GetReplyData, ThrowOnError>,
+  ): RequestResult<GetReplyResponses, GetReplyErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetReplyResponses, GetReplyErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/reply",
+      ...options,
+    });
+  }
+
+  /**
+   * Edit Reply
+   *
+   * Change a draft: its text, who it goes to, its subject; or set it aside (`status` dismissed) and bring it back
+   * (`status` draft), which undoes that. Needs the right to process the email. Audited as `reply.edit`.
+   */
+  public static editReply<ThrowOnError extends boolean = false>(
+    options: Options<EditReplyData, ThrowOnError>,
+  ): RequestResult<EditReplyResponses, EditReplyErrors, ThrowOnError> {
+    return (options.client ?? client).patch<EditReplyResponses, EditReplyErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/reply",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Draft Reply
+   *
+   * Draft a reply to this email in the background, from what its namespace holds, each fact cited to its excerpt
+   * and what the archive doesn't say marked [to confirm: …]; `instructions` says what it should say. It's drafted with
+   * the Reply to an email prompt template (edited on the Templates page), or `template`, and drafting again keeps the
+   * draft before as `previous`. Nothing is sent. Needs the right to process the email and a language model (400 without
+   * one, or when it isn't an email). Audited as `reply.draft`.
+   */
+  public static draftReply<ThrowOnError extends boolean = false>(
+    options: Options<DraftReplyData, ThrowOnError>,
+  ): RequestResult<DraftReplyResponses, DraftReplyErrors, ThrowOnError> {
+    return (options.client ?? client).post<DraftReplyResponses, DraftReplyErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/reply",
       ...options,
       headers: {
         "Content-Type": "application/json",
