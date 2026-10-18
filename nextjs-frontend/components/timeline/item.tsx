@@ -21,7 +21,9 @@ import Link from "next/link";
 import { forwardRef, type KeyboardEvent, type ReactNode } from "react";
 
 import type { Reaction } from "@/app/openapi-client/types.gen";
+import { askAbout } from "@/components/page-chat/page-chat-model";
 import {
+  askQuote,
   familyOf,
   fieldLabel,
   groupSummary,
@@ -107,6 +109,15 @@ export function MarkToggles({
   );
 }
 
+/** Ask the assistant about items, in the chat at the side of the page: its line, fields and id go with the question. */
+export function AskButton({ items }: { items: Activity[] }) {
+  return (
+    <Button size="xs" variant="ghost" icon={<MessagesSquare />} onClick={() => askAbout(askQuote(items))}>
+      Ask about this
+    </Button>
+  );
+}
+
 /** What an activity is about, on expand: its object's fields, what caused it, and room for what it caused. */
 export function ActivityDetail({
   a,
@@ -156,6 +167,7 @@ export function ActivityDetail({
             <Link href={href}>Open</Link>
           </Button>
         )}
+        <AskButton items={[a]} />
         {onHide && (
           <Button size="xs" variant="ghost" icon={<EyeOff />} onClick={onHide}>
             Hide
@@ -372,16 +384,15 @@ function SubItem({
         <MarkToggles mark={mark} onMark={onMark} />
       </div>
       {social}
-      {(caused || onHide) && (
-        <div className="flex gap-2">
-          {caused}
-          {onHide && (
-            <Button size="xs" variant="ghost" icon={<EyeOff />} onClick={onHide}>
-              Hide
-            </Button>
-          )}
-        </div>
-      )}
+      <div className="flex flex-wrap gap-2">
+        {caused}
+        <AskButton items={[a]} />
+        {onHide && (
+          <Button size="xs" variant="ghost" icon={<EyeOff />} onClick={onHide}>
+            Hide
+          </Button>
+        )}
+      </div>
     </li>
   );
 }

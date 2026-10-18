@@ -20,7 +20,9 @@ from app.domain import (
     https,
     jobs,
     local_llm,
+    mesh,
     notify,
+    responder,
     routines,
     scaling,
     sensors,
@@ -66,6 +68,7 @@ class Archive:
         updates.restore_on_start(self.db, self.base)
         templates.seed(self.db)
         specs.template(self.db)  # "Spec from transcript", there to edit before the first spec (and on older installs)
+        responder.template(self.db)  # "Reply to an email", the same
         content_types.seed(self.db)
         routines.seed(self.db)
         # Pay for the embedded engine's full-text repair, or for building the SQLite index, at startup rather than
@@ -101,6 +104,7 @@ class Archive:
         sensors.start(self.db, self.current, self.stop, log=log.info, name=f"api-{os.getpid()}")
         channels.start_all(self.db, self.current, self.stop, lambda: self.base, name=f"api-{os.getpid()}", log_fn=log.warning)
         tunnel.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.info)
+        mesh.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.info)
         https.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.info)
         local_llm.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.info)
         scaling.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log_=log.info)

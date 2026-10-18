@@ -5,11 +5,13 @@ import { PlugZap, RefreshCw, Terminal } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { Admin, Fedora, Metadata, Sensors, Shares, Sources, Users } from "@/app/openapi-client";
+import { Admin, Fedora, Mesh, Metadata, Sensors, Shares, Sources, Users } from "@/app/openapi-client";
 import type { HttpsStatus, MatterbridgeStatus } from "@/app/openapi-client/types.gen";
 import { MonitoringSwitch } from "@/components/admin/monitoring-switch";
+import { useServices } from "@/components/admin/service-switch";
 import { BackupsPanel } from "@/components/settings/backups-panel";
 import { ComponentsStatus } from "@/components/settings/components-status";
+import { NodesBody } from "@/components/settings/mesh-nodes";
 import { EditionChoice, NetworkReach } from "@/components/settings/install-settings";
 import { LogViewer } from "@/components/settings/log-viewer";
 import { McpServers } from "@/components/settings/mcp-servers";
@@ -48,8 +50,9 @@ import {
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Switch, Textarea } from "@/components/ui/field";
-import { Skeleton } from "@/components/ui/states";
+import { CodeBlock, Skeleton } from "@/components/ui/states";
 import { data, useApiClient } from "@/lib/api/browser";
+import { relative, shortDate } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
@@ -165,6 +168,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
               <F ctx={ctx} id="transcribe.engine" />
               <F ctx={ctx} id="transcribe.language" options={LANGUAGES.map(([value, label]) => ({ value, label }))} />
             </div>
+            <F ctx={ctx} id="transcribe.vocabulary" />
             <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
               Recordings are sent to {provider.label}, which also tells speakers apart. Its address, model and key are
               in <Link href="/settings/speech-providers">Speech providers</Link>. SenseVoice and Whisper keep their
@@ -187,6 +191,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             <F ctx={ctx} id="transcribe.language" options={langs.map(([value, label]) => ({ value, label }))} />
             <F ctx={ctx} id={`transcribe.${key}.model`} label={`Model for ${name}`} />
           </div>
+          <F ctx={ctx} id="transcribe.vocabulary" />
           <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
             Each engine remembers its own model: {models.join(", ")}. Auto uses the fastest device each worker has.
           </p>
@@ -254,6 +259,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             <div className="grid gap-3.5 sm:grid-cols-2">
               <F ctx={ctx} id="analysis.cleanup_fillers" />
               <F ctx={ctx} id="analysis.cleanup_punctuation" />
+              <F ctx={ctx} id="analysis.cleanup_grammar_url" />
             </div>
           )}
           <F ctx={ctx} id="analysis.entities" />
@@ -416,6 +422,28 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           </p>
         </>
       );
+    case "enhance":
+      return (
+        <>
+          <F ctx={ctx} id="enhance.images" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="enhance.image_engine" />
+            <F ctx={ctx} id="enhance.only_faces" />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-4">
+            <F ctx={ctx} id="enhance.min_side" />
+            <F ctx={ctx} id="enhance.min_sharpness" />
+            <F ctx={ctx} id="enhance.min_face_px" />
+            <F ctx={ctx} id="enhance.max_scale" />
+          </div>
+          <p className="text-[12.5px] leading-[1.45] text-fg-muted">
+            The enhanced copy is kept beside the original, encrypted like it, and is what OCR and descriptions read.
+            Real-ESRGAN general x4v3 (BSD-3-Clause) runs with ONNX Runtime on this server: pictures aren’t sent
+            anywhere. Any image can be enhanced on request from its Details tab, even with this off. Audio isn’t
+            enhanced yet.
+          </p>
+        </>
+      );
     case "workers":
       return (
         <>
@@ -456,6 +484,10 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return <TunnelBody ctx={ctx} />;
     case "https":
       return <HttpsBody ctx={ctx} />;
+    case "nodes":
+      return <NodesBody />;
+    case "network":
+      return <NetworkBody ctx={ctx} />;
     case "components":
       return (
         <>
@@ -545,8 +577,12 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             <F ctx={ctx} id="automations.catch_up" />
           </div>
           <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
-            Agents read the same stream with the timeline tool (MCP and the assistant) or GET /api/v1/activities, and
-            manage automations over /api/v1/automations.
+            Make and manage automations on the{" "}
+            <Link href="/automations" className="font-semibold text-fg-accent hover:underline">
+              Automations
+            </Link>{" "}
+            page. Agents read the same stream with the timeline tool (MCP and the assistant) or GET /api/v1/activities,
+            and manage automations over /api/v1/automations.
           </p>
         </>
       );
@@ -2230,6 +2266,133 @@ function TunnelBody({ ctx }: { ctx: BodyCtx }) {
           </summary>
           <pre className="mt-2 max-h-64 overflow-auto rounded-sm bg-surface-neutral p-2.5 font-mono text-[11.5px] leading-snug">
             {(s.log ?? []).join("\n")}
+          </pre>
+        </details>
+      )}
+    </>
+  );
+}
+
+/** Settings › Network: the Nebula mesh between Lens's machines (docs/mesh.md), how it runs on this machine right now,
+ * and its settings. */
+function NetworkBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const m = ctx.view.mesh;
+  const status = useQuery({
+    queryKey: ["mesh", m?.updated_at ?? null],
+    queryFn: () => data(Mesh.meshStatus({ client })),
+    refetchInterval: (q) => (!q.state.data?.enabled ? false : q.state.data.service.nebula ? 15_000 : 3_000),
+  });
+  const services = useServices();
+  const s = status.data;
+  const svc = s?.service;
+  const agent = services.data?.services?.find((x) => x.profile === "mesh")?.agent;
+  // the container says how it runs every few seconds; a minute without a word and it isn't running
+  const stale = !svc?.seen_at || Date.now() - Date.parse(svc.seen_at) > 60_000;
+  const down = Boolean(s?.enabled && svc && !svc.nebula && svc.available && !svc.error && stale);
+  const log = svc?.log ?? [];
+  return (
+    <>
+      {status.isError ? (
+        <Banner tone="error">{status.error.message}</Banner>
+      ) : !s ? (
+        <Skeleton className="h-11 w-full" />
+      ) : !s.enabled ? (
+        <Banner title="Off.">
+          Off until you add a node: a single machine needs no mesh. Adding one in{" "}
+          <Link href="/settings/nodes" className="font-semibold text-fg-accent hover:underline">
+            Settings › Nodes
+          </Link>{" "}
+          turns it on.
+        </Banner>
+      ) : svc?.nebula ? (
+        <Banner tone="success" title="On, and running.">
+          This machine is <span className="font-mono">{s.primary_ip}</span> on the mesh
+          {svc.since ? `, Nebula started ${relative(svc.since)}` : ""}, with {s.nodes} node{s.nodes === 1 ? "" : "s"}.
+        </Banner>
+      ) : !svc?.available ? (
+        <Banner tone="warning" title="On, but Nebula can’t run on this machine.">
+          The mesh runs in a container of its own, which Docker installs have and this install doesn’t, so other
+          machines can’t reach it.
+        </Banner>
+      ) : svc.error ? (
+        <Banner tone="error" title="Nebula isn’t running.">
+          {svc.error}
+        </Banner>
+      ) : down ? (
+        <Banner tone="warning" title="On, but the mesh container isn’t running.">
+          {agent
+            ? "The machine’s upgrade agent starts it; that takes a minute or so."
+            : "This machine has no upgrade agent to start it: run the line below on the machine."}
+        </Banner>
+      ) : (
+        <Banner title="Starting.">
+          The mesh container starts Nebula within a few seconds
+          {svc.state === "waiting" ? ", once Lens has signed its key" : ""}.
+        </Banner>
+      )}
+      {down && !agent && svc && <CodeBlock text={svc.manual} label="the line that starts the mesh container" />}
+      {s && (
+        <dl className="grid gap-x-4 gap-y-1.5 text-[13px] leading-[1.45] sm:grid-cols-[190px_minmax(0,1fr)]">
+          <dt className="font-semibold text-fg-secondary">This machine on the mesh</dt>
+          <dd className="font-mono">{s.primary_ip}</dd>
+          <dt className="font-semibold text-fg-secondary">Certificate authority</dt>
+          <dd className="min-w-0">
+            {s.ca ? (
+              <>
+                <span className="break-all font-mono text-[12px]">{s.ca.fingerprint}</span>
+                {s.ca.not_after ? ` · until ${shortDate(s.ca.not_after)}` : ""}
+              </>
+            ) : (
+              "Made when you add the first node."
+            )}
+          </dd>
+          <dt className="font-semibold text-fg-secondary">Machines</dt>
+          <dd>
+            {s.nodes} node{s.nodes === 1 ? "" : "s"}
+            {s.removed ? `, ${s.removed} removed` : ""}
+            {s.tokens ? `, ${s.tokens} join token${s.tokens === 1 ? "" : "s"} not used yet` : ""} ·{" "}
+            <Link href="/settings/nodes" className="font-semibold text-fg-accent hover:underline">
+              Nodes
+            </Link>
+          </dd>
+          <dt className="font-semibold text-fg-secondary">Nebula</dt>
+          <dd>{s.nebula}</dd>
+        </dl>
+      )}
+      <F ctx={ctx} id="mesh.enabled" />
+      <More
+        ctx={ctx}
+        ids={[
+          "mesh.network",
+          "mesh.port",
+          "mesh.hosts",
+          "mesh.cipher",
+          "mesh.cert_days",
+          "mesh.relay",
+          "mesh.mtu",
+          "mesh.log_level",
+        ]}
+        title="Addresses, port, cipher and certificates"
+      >
+        <F ctx={ctx} id="mesh.network" />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <F ctx={ctx} id="mesh.port" />
+          <F ctx={ctx} id="mesh.cert_days" />
+        </div>
+        <F ctx={ctx} id="mesh.hosts" />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <F ctx={ctx} id="mesh.cipher" />
+          <F ctx={ctx} id="mesh.mtu" />
+        </div>
+        <F ctx={ctx} id="mesh.relay" />
+        <F ctx={ctx} id="mesh.log_level" />
+      </More>
+      {log.length > 0 && (
+        <details className="text-[12.5px]">
+          <summary className="cursor-pointer font-semibold text-fg-secondary">What Nebula said</summary>
+          <pre className="mt-2 max-h-64 overflow-auto rounded-sm bg-surface-neutral p-2.5 font-mono text-[11.5px] leading-snug">
+            {log.join("\n")}
           </pre>
         </details>
       )}

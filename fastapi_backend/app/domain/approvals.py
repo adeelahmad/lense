@@ -8,9 +8,10 @@ The `approval` table holds two kinds, told apart by `origin` and `intent`:
   first, which the engine hands to `ask`. Approving it performs the intent through `actions.perform`, as the
   automation and for its person, and records the outcome on the run (`automations.update_intent`).
 
-An automation's approval is the person's pick: approving it (or editing its params, or allowing that node from now on)
-needs them signed in to Lens, or a yes in the chat it was told in (bridge.decide_in_room). An API key, an app, MCP and
-the assistant can list and decline approvals, never approve them. Undecided ones expire after
+Every approval is the person's pick: approving one (or editing an automation's params, or allowing that node from now
+on) needs them signed in to Lens, or a yes in their own chat (the assistant's chat, or the chat app it was told in:
+bridge.decide_in_room). An API key, an app, MCP and the assistant can list and decline approvals, never approve them;
+a research plan is the one exception, and only with research.agents_skip_review on. Undecided ones expire after
 `automations.approval_days` (default 7) and nothing runs; the assistant's own approvals never expire, as before.
 
 Statuses: pending (waiting), running (being carried out), done, failed, declined, expired.
@@ -262,9 +263,9 @@ def edited(intent, new):
 
 def can(row, via="web", cfg=None):
     """What the person can do with a waiting approval from where they are (`via`: web for a signed-in session, chat for
-    their own chat app, token or oauth for an API key or an app, agent for MCP and the assistant, which only decline).
-    A research plan is approved by the person only (edited in the web app), unless research.agents_skip_review is on
-    in `cfg`."""
+    their own chat app, token or oauth for an API key or an app, agent for MCP and the assistant). Only the person
+    approves, signed in or in their chat; the others only decline. A research plan is approved by the person only
+    (edited in the web app), unless research.agents_skip_review is on in `cfg`."""
     pending = row.get("status") == "pending"
     intent = row.get("intent")
     if row.get("tool") == "research":
@@ -275,9 +276,9 @@ def can(row, via="web", cfg=None):
             "edit": pending and via == "web",
             "always": False,
         }
-    if not intent:
-        return {"approve": pending and via != "agent", "decline": pending, "edit": False, "always": False}
     person = via in ("web", "chat")
+    if not intent:  # the assistant's proposal: the person's pick, as an automation's is
+        return {"approve": pending and person, "decline": pending, "edit": False, "always": False}
     return {
         "approve": pending and person,
         "decline": pending,

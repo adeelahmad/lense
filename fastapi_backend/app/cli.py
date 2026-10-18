@@ -117,6 +117,7 @@ def _main_base(argv=None):
     p = sub.add_parser("migrations", help="list the database upgrades: run, pending or failed (docs/database.md)")
     p.add_argument("--run", action="store_true", help="run the pending ones now (Lens also runs them when it starts)")
     sub.add_parser("backup", help="back the database up into <data_dir>/backups (docs/database.md, Backups)")
+    sub.add_parser("ext", help="extensions' manifests as files: list, pull, push, check (lens ext -h)", add_help=False)
     sub.add_parser("reindex", help="rebuild the search index (after changing search.engine or search.stemming)")
     p = sub.add_parser("encrypt", help="encrypt the files Lens keeps, and keep encrypting new ones (docs/encryption.md)")
     p.add_argument("--off", action="store_true", help="decrypt them again and stop encrypting new ones")
@@ -279,6 +280,7 @@ def platform_main(argv, config):
         jobs,
         local_llm,
         logs,
+        mesh,
         nfs_share,
         notify,
         passkeys,
@@ -406,6 +408,7 @@ def platform_main(argv, config):
                     shares.start(db, C, stop, log=say, name=wk.name)  # and the file shares (S3, WebDAV), while they're on
                     channels.start_all(db, C, stop, lambda: cfg, name=wk.name, log_fn=say)  # and the chat channels, while they're on
                     tunnel.start(db, C, stop, name=wk.name, log=say)  # and the Cloudflare tunnel, while it's on
+                    mesh.start(db, C, stop, name=wk.name, log=say)  # and the mesh container's config, while the mesh is on
                     https.start(db, C, stop, name=wk.name, log=say)  # and HTTPS, where the ports are (LENS_HTTPS_LISTEN)
                     local_llm.start(db, C, stop, name=wk.name, log=say)  # and the local chat model, while it's on
                     scaling.start(db, C, stop, name=wk.name, log_=say)  # and auto scaling (docs/scaling.md), while it's on
@@ -461,6 +464,14 @@ def main(argv=None):
             config, i = argv[i].split("=", 1)[1], i + 1
         else:
             break
+    if i < len(argv) and argv[i] == "node":  # a machine on another install's mesh: no database, no settings
+        from .domain import mesh_node
+
+        return mesh_node.main(argv[i + 1 :])
     if i < len(argv) and argv[i] in PLATFORM_CMDS:
         return platform_main(argv[i:], config)
+    if i < len(argv) and argv[i] == "ext":  # extensions' manifests as files (cli_ext.py)
+        from . import cli_ext
+
+        return cli_ext.main(argv[i + 1 :], config)
     return _main_base(argv)

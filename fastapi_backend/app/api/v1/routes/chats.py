@@ -8,8 +8,11 @@ The assistant only ever sees, and cites, what the asker can read.
 
 from __future__ import annotations
 
+import contextvars
 import json
 import logging
+import queue
+import threading
 import urllib.error
 import urllib.parse
 from collections.abc import Iterator
@@ -99,8 +102,8 @@ def _own_chat(db: DB, cid: int, user: Principal) -> dict[str, Any]:
 def list_chats(user: CurrentUser, db: Db) -> list[ChatSummary]:
     """Your conversations, most recent first."""
     return db.rows(
-        "SELECT record::id(id) AS id, title, title_by, scope, model, kind ?? 'chat' AS kind, tools, max_tool_calls, created_at, "
-        "updated_at FROM chat WHERE account = $a ORDER BY updated_at DESC LIMIT 200",
+        "SELECT record::id(id) AS id, title, title_by, scope, model, kind ?? 'chat' AS kind, tools, max_tool_calls, project, "
+        "done ?? false AS done, created_at, updated_at FROM chat WHERE account = $a ORDER BY updated_at DESC LIMIT 200",
         a=user.id,
     )
 
@@ -429,6 +432,39 @@ def _attachments(db: DB, ids: list[str], user: Principal) -> list[dict[str, Any]
 
 def _ev(name: str, data: Any) -> str:
     return f"event: {name}\ndata: {json.dumps(sign_urls(data, full=True), default=str)}\n\n"
+
+
+_END = object()
+
+
+def _detached(events: Iterator[str], name: str) -> Iterator[str]:
+    """`events` run to the end on a thread of their own, handed over as they come. A client that leaves mid-answer (a
+    closed tab, a dropped connection, a page that moved on) stops the stream, which no longer stops the work: the answer
+    is still saved, so the question isn't left unanswered when the conversation is opened again. The work's own cleanup
+    runs on its thread too, never on whichever thread happens to collect an abandoned generator."""
+    out: queue.Queue[Any] = queue.Queue()
+    left = threading.Event()  # the client went away: nobody reads what comes next
+
+    def work() -> None:
+        try:
+            for ev in events:
+                if not left.is_set():
+                    out.put(ev)
+        except Exception:  # noqa: BLE001 - the stream ends; `events` saves its own answer when it breaks off
+            log.exception("%s failed", name)
+        finally:
+            out.put(_END)
+
+    threading.Thread(target=contextvars.copy_context().run, args=(work,), daemon=True, name=name).start()
+    ended = False
+    try:
+        while (ev := out.get()) is not _END:
+            yield ev
+        ended = True
+    finally:
+        if not ended:
+            left.set()
+            log.info("%s: the client left before the end; it's finished and saved all the same", name)
 
 
 def _research_reply(
@@ -809,8 +845,8 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
             if titled := chat.title_soon(db, cfg, cid, q, answered["text"]):
                 yield _ev("title", {"title": titled})
 
-    # A sync generator: Starlette iterates it in the threadpool, so the domain calls inside don't block the loop.
-    return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
+    # Answered on a thread of its own (the domain calls inside don't block the loop) and saved even if the client leaves
+    return StreamingResponse(_detached(gen(), f"chat-answer-{cid}"), media_type="text/event-stream", headers=SSE_HEADERS)
 
 
 @router.post("/chats/{cid}/stop")
@@ -884,8 +920,8 @@ def get_approval(aid: int, user: CurrentUser, db: Db, cfg: Cfg) -> Approval:
 def decide_approval(aid: int, body: ApprovalDecision, user: Writer, acl: Acl, db: Db, cfg: Cfg, request: Request) -> ApprovalOutcome:
     """Approve (or run a sample of, or decline) something the assistant proposed or an automation's action. Each
     approval is decided once. An automation's action can also be edited (`params`) and then carried out, or allowed
-    from now on for that automation (`always`); approving one needs you signed in, since it's your pick: an API key
-    or an app can only decline it."""
+    from now on for that automation (`always`). Approving is your pick, so it needs you signed in: an API key or an
+    app can only decline (403 otherwise)."""
     a = db.one("SELECT account FROM $r", r=R("approval", aid))
     if not a or a["account"] != user.id:
         raise HTTPException(404, "not found")

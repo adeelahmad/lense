@@ -69,6 +69,9 @@ sandbox = ["openshell>=0.1.4,<0.2"]
 # the assistant's web search through DuckDuckGo (web.py): ddgs (MIT), with its Rust HTTP client (primp) and lxml;
 # fetched when DuckDuckGo is picked in Settings › AI assistant › Web search
 web = ["ddgs>=9.16,<10"]
+# auto scaling onto AWS EC2 (scaling_aws.py): botocore (Apache-2.0); fetched when the first AWS provider is saved in
+# Settings › Auto scaling
+aws = ["botocore>=1.43.113"]
 # Outlook .msg emails (extract-msg is GPL-3.0; .eml needs nothing)
 msg = ["extract-msg"]
 # secrets read from a Vaultwarden or Bitwarden vault (vaultwarden_secrets.py): python-vaultwarden (Apache-2.0); fetched

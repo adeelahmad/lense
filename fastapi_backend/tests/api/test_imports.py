@@ -78,5 +78,24 @@ def test_choosing_the_pipeline_that_runs_after(client, db, cfg, folder):
     assert [s["type"] for s in row["steps"]] == ["analyze", "report"] and row["pipeline"]["name"] == "Quick look"
     # without one, the namespace's (here the standard one), less what a transcript has nothing to do for
     job = client.post("/api/v1/import", headers=h, json={"namespace": "pods", "text": text + "\n[00:09] Ben: Later."}).json()["job"]
-    standard = [t for t in pipelines.STANDARD if t not in ("transcribe", "diarize")]
+    standard = [t for t in pipelines.STANDARD if t not in ("enhance", "transcribe", "diarize")]
     assert [s["type"] for s in db.one("SELECT steps FROM $j", j=store.R("job", job))["steps"]] == standard
+
+
+def test_choosing_the_content_type_at_import(client, db, cfg, folder):
+    """A transcript or text imported as the content type someone says it is, whose pipeline then runs."""
+    from app.domain import content_types
+
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    h = login(client, "ed@x.io", "editor password 1")
+    minutes = content_types.create(db, "text", "Minutes", pipeline=pipelines.create(db, "Minutes", ["analyze", "report"], "", "x"))
+    text = "[00:01] Ann: Hi there.\n[00:04] Ben: Hello.\n[00:07] Ann: Bye."
+    before = len(db.values("SELECT VALUE id FROM recording"))
+    for wrong in ("podcast", "nope"):
+        r = client.post("/api/v1/import", headers=h, json={"namespace": "pods", "text": text, "content_type": wrong})
+        assert r.status_code == 400 and "the text ones:" in r.json()["detail"]
+    assert len(db.values("SELECT VALUE id FROM recording")) == before  # refused before anything is saved
+    r = client.post("/api/v1/import", headers=h, json={"namespace": "pods", "text": text, "content_type": minutes}).json()
+    assert content_types.of_recording(db, r["id"]) == (content_types.get(db, minutes), True)
+    row = db.one("SELECT steps, pipeline FROM $j", j=store.R("job", r["job"]))
+    assert [s["type"] for s in row["steps"]] == ["analyze", "report"] and row["pipeline"]["name"] == "Minutes"

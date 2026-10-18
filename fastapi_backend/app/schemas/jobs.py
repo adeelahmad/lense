@@ -56,6 +56,9 @@ class Job(ResponseModel):
     cost_usd: float | None = Field(None, description="what its calls cost, from the activity ledger (docs/activity.md); set when it ends")
     tokens: int | None = None
     cost_estimate: bool | None = Field(None, description="true: some calls had no price or token counts, so cost_usd is a floor")
+    priority: float | None = Field(
+        None, description="its place among queued runs: the highest is taken first (POST /jobs/{jid}/move sets it)"
+    )
     hold: dict[str, Any] | None = Field(
         None,
         description="held or skipped over a budget (docs/budgets.md): {why, resource (the budget), action (ask, skip), "
@@ -102,6 +105,33 @@ class JobsCreate(RequestModel):
     steps: list[str | dict[str, Any]] | None = None
     pipeline: int | None = None
     namespace: str | None = Field(None, description="also queue everything in this namespace that still needs work")
+
+
+class JobsPick(RequestModel):
+    jobs: list[int] | None = Field(None, max_length=5000, description="these runs; leave out for every run with `status`")
+    namespace: str | None = Field(None, description="only this namespace's runs (default: every one you can process in)")
+    status: list[Literal["queued", "held", "running", "failed", "cancelled"]] | None = Field(
+        None,
+        description="POST /jobs/cancel: default queued and held (clearing the queue), running too to stop those after "
+        "their step; POST /jobs/retry: default failed (the dead letter queue), cancelled too",
+    )
+
+
+class JobsChanged(Ok):
+    jobs: list[int] = Field(description="the runs cancelled, or queued again")
+    stopping: list[int] = Field(default_factory=list, description="running runs asked to stop after the step they're on")
+    skipped: int = Field(0, description="runs retry left alone: their asset was deleted, or already has a run queued or running")
+
+
+class JobMove(RequestModel):
+    to: Literal["top", "bottom"] | None = Field(None, description="the front of the queue (next) or its back")
+    before: int | None = Field(None, description="just before this queued run")
+    after: int | None = Field(None, description="just after this queued run")
+
+
+class JobMoved(Ok):
+    position: int = Field(description="its place now among the queued runs you can see: 1 is next")
+    queued: int = Field(description="how many runs you can see are queued")
 
 
 class JobsQueued(Ok):

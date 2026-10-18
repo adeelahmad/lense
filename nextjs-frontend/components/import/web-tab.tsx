@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 
 import { Imports } from "@/app/openapi-client";
+import { ContentTypeField } from "@/components/import/content-type-field";
 import { webAddress, webAddressProblem } from "@/components/import/files";
 import { WebLinks } from "@/components/import/web-links";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,8 @@ export function WebTab({
   const [title, setTitle] = useState("");
   const [shown, setShown] = useState(false);
   const [media, setMedia] = useState(false);
+  // what the pages are (a text content type); none: recognised from each page
+  const [contentType, setContentType] = useState<string | null>(null);
   const [captured, setCaptured] = useState<Captured[]>([]);
   const problem = webAddressProblem(url);
   const capture = useMutation({
@@ -54,7 +57,11 @@ export function WebTab({
         pipeline,
         collection,
       };
-      return data(media ? Imports.importVideo({ client, body }) : Imports.importWebPage({ client, body }));
+      return data(
+        media
+          ? Imports.importVideo({ client, body })
+          : Imports.importWebPage({ client, body: { ...body, content_type: contentType } }),
+      );
     },
     onSuccess: (r) => {
       setCaptured((c) => [{ url: webAddress(url), id: r.id }, ...c].slice(0, 10));
@@ -153,11 +160,18 @@ export function WebTab({
             </section>
           )}
         </form>
-        <WebLinks namespace={namespace} blockReason={blockReason} pipeline={pipeline} collection={collection} />
+        <WebLinks
+          namespace={namespace}
+          blockReason={blockReason}
+          pipeline={pipeline}
+          collection={collection}
+          contentType={contentType}
+        />
       </div>
       <aside className="flex flex-col gap-4 border-t border-border bg-surface px-4 py-5 md:border-l md:border-t-0 md:px-5">
         {namespaceControl}
         {pipelineControl}
+        <ContentTypeField base="text" value={contentType} onChange={setContentType} id="web-content-type" />
       </aside>
     </div>
   );

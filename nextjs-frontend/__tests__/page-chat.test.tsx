@@ -5,6 +5,7 @@ import "@testing-library/jest-dom";
 import { Chats } from "@/app/openapi-client";
 import { PageChat, SharedFrom } from "@/components/page-chat/page-chat";
 import {
+  askAbout,
   hiddenOn,
   PAGE_CHAT_KEY,
   pageContext,
@@ -209,6 +210,26 @@ describe("PageChat", () => {
     await waitFor(() => expect(sent).toHaveLength(1));
     expect(Chats.createChat).not.toHaveBeenCalled();
     expect(sent[0]).toEqual({ content: "More?", context: { url: "/library?ns=calls", title: "Library" } });
+  });
+
+  it("opens with what a page's own Ask about this hands it, and sends it as the highlighted part", async () => {
+    m(Chats.createChat).mockReturnValue(ok({ id: 9 }));
+    const sent: unknown[] = [];
+    m(streamSSE).mockImplementation(async function* (_url: string, opts: { body: unknown }) {
+      sent.push(opts.body);
+      yield { event: "done", data: JSON.stringify({ message: 2 }) };
+    });
+    renderChat();
+    act(() => askAbout("Timeline item u1 (asset.added)\nAdeel: Adeel added a file"));
+    expect(await screen.findByRole("complementary", { name: "Page chat" })).toBeInTheDocument();
+    expect(screen.getByText(/Timeline item u1/)).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("textbox", { name: "Ask a question" }), { target: { value: "What is it?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]).toMatchObject({
+      content: "What is it?",
+      context: { url: "/library?ns=calls", selection: "Timeline item u1 (asset.added)\nAdeel: Adeel added a file" },
+    });
   });
 
   it("isn't on the Chat page", () => {

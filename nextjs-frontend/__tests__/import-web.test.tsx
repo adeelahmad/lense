@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import { Imports } from "@/app/openapi-client";
+import { ContentTypes, Imports } from "@/app/openapi-client";
 import { webAddress, webAddressProblem } from "@/components/import/files";
 import { WebTab } from "@/components/import/web-tab";
 import { webRows } from "@/components/recording/document/model";
@@ -11,6 +11,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 jest.mock("@/app/openapi-client", () => ({
   Imports: { importWebPage: jest.fn(), importWebLinks: jest.fn(), importVideo: jest.fn() },
+  ContentTypes: { listContentTypes: jest.fn() },
 }));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
 const toast = jest.fn();
@@ -42,7 +43,27 @@ beforeAll(() => {
     disconnect() {}
   } as unknown as typeof ResizeObserver;
 });
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  m(ContentTypes.listContentTypes).mockResolvedValue({
+    data: {
+      bases: ["video", "audio", "image", "text"],
+      types: [
+        { key: "podcast", base: "audio", label: "Podcast", general: false, builtin: true },
+        { key: "web_page", base: "text", label: "Web page", general: false, builtin: true },
+        {
+          key: "recipe",
+          base: "text",
+          label: "Recipe",
+          description: "Something to cook",
+          general: false,
+          builtin: false,
+        },
+      ],
+    },
+    response: { ok: true, status: 200 },
+  });
+});
 
 describe("capturing a web page", () => {
   it("checks an address as it's typed; the server checks the rest", () => {
@@ -82,6 +103,7 @@ describe("capturing a web page", () => {
       title: "Harbour news",
       pipeline: 3,
       collection: null,
+      content_type: null,
     });
     expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Capturing the page" }));
     expect(address).toHaveValue("");
@@ -89,6 +111,34 @@ describe("capturing a web page", () => {
     fireEvent.change(address, { target: { value: "http://127.0.0.1/admin" } });
     fireEvent.click(screen.getByRole("button", { name: "Capture the page" }));
     expect(await screen.findByText(/only public web pages can be captured/)).toBeInTheDocument();
+  });
+
+  it("captures pages as the content type chosen for them", async () => {
+    m(Imports.importWebPage).mockResolvedValue({
+      data: { ok: true, id: 43, job: 11 },
+      response: { ok: true, status: 200 },
+    });
+    m(Imports.importWebLinks).mockResolvedValue({
+      data: { results: [{ url: "https://example.org/a", status: "queued", recording: 5, job: 7 }] },
+      response: { ok: true, status: 200 },
+    });
+    show();
+    const what = await screen.findByRole("combobox", { name: "What it is" });
+    expect(Array.from((what as HTMLSelectElement).options).map((o) => o.text)).toEqual([
+      "Recognised automatically",
+      "Web page",
+      "Recipe",
+    ]);
+    fireEvent.change(what, { target: { value: "recipe" } });
+    expect(screen.getByText("Something to cook: its pipeline runs.")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Page address"), { target: { value: "example.org/soup" } });
+    fireEvent.click(screen.getByRole("button", { name: "Capture the page" }));
+    await waitFor(() => expect(Imports.importWebPage).toHaveBeenCalled());
+    expect(m(Imports.importWebPage).mock.calls[0][0].body.content_type).toBe("recipe");
+    fireEvent.change(screen.getByLabelText(/^Links/), { target: { value: "https://example.org/a" } });
+    fireEvent.click(screen.getByRole("button", { name: "Capture them all" }));
+    await waitFor(() => expect(Imports.importWebLinks).toHaveBeenCalled());
+    expect(m(Imports.importWebLinks).mock.calls[0][0].body.content_type).toBe("recipe");
   });
 
   it("captures many pages from pasted links, saying what became of each", async () => {
@@ -117,6 +167,7 @@ describe("capturing a web page", () => {
       folders_as_tags: true,
       pipeline: 3,
       collection: null,
+      content_type: null,
     });
     expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Capturing 1 page" }));
   });

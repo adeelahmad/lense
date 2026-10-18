@@ -89,7 +89,7 @@ def estimate(db, cfg, ids, steps):
                 secs += SECONDS[t] * dur
             elif t in PER_FRAME and kind == "video":
                 secs += PER_FRAME[t] * dur / every
-            elif t in ("llm", "summarize", "spec"):
+            elif t in ("llm", "summarize", "spec", "reply"):
                 calls += 1
                 tin += int(chars / 4) + 400
                 tout += 2000 if t == "spec" else 600  # a spec writes out a document and its quotes

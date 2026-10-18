@@ -1,10 +1,20 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { type QueryClient, type QueryKey, useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
 
 import { Chats } from "@/app/openapi-client";
 import { data, useApiClient } from "@/lib/api/browser";
+
+/**
+ * Reads `key` again once something has changed on the server (an answer just saved). A first read still on its way
+ * was asked before the change, and invalidating alone waits for that read instead of making a new one, which would show
+ * a new conversation's question without the answer that was just saved; so a read already under way is dropped first.
+ */
+export async function refetchFresh(qc: QueryClient, key: QueryKey) {
+  await qc.cancelQueries({ queryKey: key });
+  await qc.invalidateQueries({ queryKey: key });
+}
 
 export function useChats() {
   const client = useApiClient();
@@ -15,13 +25,16 @@ export function useChats() {
   });
 }
 
-export function useChat(id: number | null) {
+/** A conversation. With `poll`, it is fetched again every few seconds while an answer is written somewhere other than
+ * this tab (a project's brief, answered in the background), so the answer shows once it's saved. */
+export function useChat(id: number | null, { poll = false }: { poll?: boolean } = {}) {
   const client = useApiClient();
   return useQuery({
     queryKey: ["chat", id],
     queryFn: () => data(Chats.getChat({ client, path: { cid: id as number } })),
     enabled: id != null,
     staleTime: 10_000,
+    refetchInterval: (q) => (poll && q.state.data?.answering ? 3000 : false),
   });
 }
 

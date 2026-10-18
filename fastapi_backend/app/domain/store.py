@@ -137,6 +137,7 @@ DEFAULTS = {
         "sensevoice": {"model": "iic/SenseVoiceSmall", "hub": "ms", "vad_max_segment_ms": 30000, "batch_size": 16},
         "whisper": {"model": "large-v3-turbo", "compute_type": "default"},
         "mlx_whisper": {"model": "mlx-community/whisper-large-v3-turbo"},
+        "vocabulary": False,  # give each recording's engine the names its namespace knows (vocabulary.py)
     },
     "diarize": {
         "engine": "auto",
@@ -156,8 +157,9 @@ DEFAULTS = {
     # anytopdf: the places and dates anytopdf (run here) finds, as hints for the extractor (enrich.py); dates: the dates
     # each line gives kept as days on the calendar (dates.py); cleanup: the
     # clean step tidies transcripts before analysis (cleanup.py), cleanup_fillers taking out "um" and "uh" too, and
-    # cleanup_punctuation (off, missing, always) putting marks back with a local model; typing: which model types the
-    # names the rules leave terms (name_types.asking)
+    # cleanup_punctuation (off, missing, always) putting marks back with a local model, cleanup_grammar_url a
+    # LanguageTool server's grammar and punctuation fixes (the compose files' `languagetool` profile); typing: which
+    # model types the names the rules leave terms (name_types.asking)
     "analysis": {
         "entities": "rules",
         "typing": "auto",
@@ -168,6 +170,7 @@ DEFAULTS = {
         "cleanup": False,
         "cleanup_fillers": True,
         "cleanup_punctuation": "off",
+        "cleanup_grammar_url": None,
     },
     # chat_models: the models people may pick in Chat; empty: whatever the model server lists (docs/configuration.md)
     "llm": {
@@ -274,6 +277,7 @@ DEFAULTS = {
         "stale_minutes": 15,
         "max_attempts": 3,
         "steps": [
+            "enhance",
             "transcribe",
             "read",
             "diarize",
@@ -543,6 +547,21 @@ DEFAULTS = {
     # each picture; a resource is flagged when one scores at least the threshold. display is how flagged resources show
     # in the web app: blur (click to see), hide (left out of the Library unless asked for) or show.
     "nsfw": {"enabled": False, "threshold": 0.8, "display": "blur", "max_frames": 300},
+    # enhancing low quality images before they're read (enhance.py, docs/enhance.md): off until an admin turns it on.
+    # An image smaller than min_side (its shorter side, in pixels), blurrier than min_sharpness (the variance of its
+    # Laplacian), noisy, dull, or with a face under min_face_px tall gets an enhanced copy, at most max_scale times
+    # bigger, which the steps after it read; the original stays. image_engine: classic (Pillow, nothing to fetch) or
+    # realesrgan (Real-ESRGAN general x4v3, BSD-3-Clause, 5 MB, fetched on first use). only_faces: only pictures with a
+    # face, where the namespace finds faces.
+    "enhance": {
+        "images": False,
+        "image_engine": "classic",
+        "only_faces": False,
+        "min_side": 720,
+        "min_sharpness": 100,
+        "min_face_px": 64,
+        "max_scale": 4,
+    },
     # rclone and local_roots are bootstrap-only on purpose: the web app must not be able to pick an executable
     # or open up arbitrary folders on the server. Local folders can only be watched inside local_roots.
     "sources": {"rclone": None, "local_roots": [], "check_seconds": 15, "cache_dir": None},
@@ -975,6 +994,8 @@ class DB:
             "password": os.environ.get("SURREAL_PASS") or d.get("password") or "root",
         }
         self._target = (os.environ.get("SURREAL_NS") or d["namespace"], os.environ.get("SURREAL_DB") or d["database"])
+        if os.environ.get("SURREAL_AUTH") == "database":  # a user of this one database (a worker node's: docs/mesh.md)
+            self._creds.update(namespace=self._target[0], database=self._target[1])
         size = 1 if self.embedded else max(1, int(pool_size or os.environ.get("SURREAL_POOL_SIZE") or d.get("pool_size") or 8))
         self.fulltext = None  # FULLTEXT (3.x), SEARCH (2.x) or None; set by connect()
         self.textindex = None  # the SQLite full-text index (textindex.py) when search.engine is sqlite
@@ -1555,6 +1576,9 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS feed_item SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS feed_item_feed ON feed_item FIELDS feed",
     "DEFINE INDEX IF NOT EXISTS feed_item_key ON feed_item FIELDS key UNIQUE",
+    # a reply drafted to an email (app/domain/responder.py): email_reply:<recording id>
+    "DEFINE TABLE IF NOT EXISTS email_reply SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS email_reply_space ON email_reply FIELDS space",
     "DEFINE TABLE IF NOT EXISTS output SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS output_rec ON output FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS chat SCHEMALESS",
@@ -1566,6 +1590,10 @@ SCHEMA = [
     # what each namespace's assistant remembers (ns_assistant.py); its name and instructions are space.assistant
     "DEFINE TABLE IF NOT EXISTS assistant_memory SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS assistant_memory_space ON assistant_memory FIELDS space",
+    # projects (projects.py): someone's goal, the namespaces it draws on, and its conversations (chat.project)
+    "DEFINE TABLE IF NOT EXISTS project SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS project_account ON project FIELDS account",
+    "DEFINE INDEX IF NOT EXISTS chat_project ON chat FIELDS project",
     # browsers connected for the assistant to use (browser.py): a side panel's session, and the actions asked of it
     "DEFINE TABLE IF NOT EXISTS browser_session SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS browser_session_account ON browser_session FIELDS account",

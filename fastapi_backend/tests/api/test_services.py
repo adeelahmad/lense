@@ -47,6 +47,7 @@ def test_each_profile_is_turned_on_and_off_on_its_own(client, db, control):
         ("mcp", False, None, "systemd"),
         ("browser", False, None, "systemd"),
         ("monitoring", False, None, "systemd"),
+        ("mesh", False, None, "systemd"),  # started by adding a node (tests/api/test_mesh_service.py)
     ]
     assert "--profile browser up -d" in got[1]["manual"]
 
