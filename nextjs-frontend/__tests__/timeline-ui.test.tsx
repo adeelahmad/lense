@@ -23,6 +23,7 @@ jest.mock("@/app/openapi-client", () => ({
     listActivityMutes: jest.fn(),
     muteActivities: jest.fn(),
     activityCaused: jest.fn(),
+    getActivity: jest.fn(),
   },
   Chats: { decideApproval: jest.fn() },
 }));
@@ -139,6 +140,10 @@ beforeEach(() => {
   m(Activities.listActivityComments).mockReturnValue(ok([COMMENT]));
   m(Activities.listActivityMutes).mockReturnValue(ok({ mutes: [] }));
   m(Activities.activityCaused).mockReturnValue(ok({ runs: [], approvals: [] }));
+  m(Activities.getActivity).mockImplementation(({ path }) => {
+    const a = ITEMS.find((x) => x.id === path.activity_id);
+    return a ? ok(a) : Promise.reject(new Error("not found"));
+  });
   m(Activities.muteActivities).mockImplementation(({ body }) =>
     ok({
       mutes: body.on
@@ -510,4 +515,21 @@ test("the menu beside Mute snoozes a source for a day, or mutes the item's kind"
   const until = m(Activities.muteActivities).mock.lastCall![0].body.until as string;
   expect(Date.parse(until) - Date.now()).toBeGreaterThan(23 * 3_600_000);
   expect(await screen.findByText("Muted Work Gmail for a day")).toBeInTheDocument();
+});
+
+test("the address can name one item, opened above the timeline, with a way back", async () => {
+  search = "item=u1";
+  wrap(<TimelinePage />);
+  const one = await screen.findByRole("region", { name: "This item" });
+  expect(m(Activities.getActivity)).toHaveBeenCalledWith(expect.objectContaining({ path: { activity_id: "u1" } }));
+  // opened already: its details and actions are there, and the whole timeline still lists below
+  expect(await within(one).findByRole("button", { name: "Hide" })).toBeInTheDocument();
+  expect(within(one).getByRole("link", { name: "Adeel received “Mail u1”" })).toHaveAttribute("href", "/resources/u1");
+  expect(within(one).getByRole("link", { name: "Back to the timeline" })).toHaveAttribute("href", "/timeline");
+  expect(within(await screen.findByRole("list", { name: "Timeline" })).getAllByTestId("timeline-row")).toHaveLength(2);
+  expect(replace).not.toHaveBeenCalled();
+  // one that isn't there, or not yours, says so
+  search = "item=nope";
+  wrap(<TimelinePage />);
+  expect(await screen.findByText("No such item")).toBeInTheDocument();
 });

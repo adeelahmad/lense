@@ -75,7 +75,7 @@ export function InboxCard({
   const expires = expiresLine(a.expires_at);
   const lines = paramLines(a.intent?.params);
   const why = a.why;
-  const whyHref = why?.url || (why?.activity ? `/timeline?q=${encodeURIComponent(why.summary ?? "")}` : null);
+  const whyHref = why?.url || (why?.activity ? `/timeline?item=${encodeURIComponent(why.activity)}` : null);
 
   return (
     <div

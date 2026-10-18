@@ -42,6 +42,7 @@ events.kind(
             "properties": {
                 "id": {"type": "string", "title": "The activity it is on", "description": "lens:activity/<its id>"},
                 "name": {"type": "string", "title": "That activity's summary"},
+                "url": {"type": "string", "title": "Link", "description": "the item on the timeline"},
                 "emoji": {"type": "string", "title": "The emoji", "enum": list(EMOJIS)},
                 "activity": {"type": "string", "title": "The activity's id"},
             },
@@ -58,6 +59,7 @@ events.kind(
             "type": "Activity",
             "id": "lens:activity/create-recording-7",
             "name": "Work Gmail received “Parents' evening”",
+            "url": "/timeline?item=create-recording-7",
             "emoji": "👍",
             "activity": "create-recording-7",
         },
@@ -139,6 +141,7 @@ def log(db, a, actor, emoji):
             "type": "Activity",
             "id": f"lens:activity/{a['id']}",
             "name": a.get("summary") or a["id"],
+            "url": f"/timeline?item={a['id']}",
             "emoji": emoji,
             "activity": a["id"],
         },

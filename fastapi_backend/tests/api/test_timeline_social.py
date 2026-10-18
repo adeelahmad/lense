@@ -137,7 +137,7 @@ def test_comments_on_a_logged_activity_follow_its_audience(client, db, cfg, fold
     assert client.get(URL, params={"kinds": "test_thing.happened"}, headers=hv).json()["comments"] == {shared: 1}
     added = client.get(URL, params={"kinds": "comment.added"}, headers=hv).json()["items"][0]
     assert added["target"] == {"type": "Activity", "id": f"lens:activity/{shared}", "name": "Lens noted x"}
-    assert added["object"]["url"] == "/timeline"
+    assert added["object"]["url"] == f"/timeline?item={shared}"  # the item itself, opened on the timeline
     # a comment on an activity only its owner sees is seen by the owner alone, as a comment and on the stream
     assert client.get(f"{URL}/{private}/comments", headers=hv).status_code == 404
     client.post(f"{URL}/{private}/comments", json={"text": "Just us"}, headers=hr)

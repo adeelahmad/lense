@@ -104,7 +104,7 @@ def _why(event):
             "kind": event.get("kind"),
             "summary": event.get("summary"),
             "published": event.get("published"),
-            "url": (event.get("object") or {}).get("url"),
+            "url": (event.get("object") or {}).get("url") or f"/timeline?item={event['id']}",
         }
     )
 
