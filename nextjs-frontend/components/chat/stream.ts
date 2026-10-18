@@ -1,8 +1,16 @@
-import type { Estimate, MessageRecord, Passage, SandboxFile, SandboxOutput } from "@/app/openapi-client/types.gen";
+import type {
+  Estimate,
+  MessageRecord,
+  Passage,
+  Research,
+  SandboxFile,
+  SandboxOutput,
+} from "@/app/openapi-client/types.gen";
 
 /**
  * One question's answer as it streams from POST /chats/{id}/messages. The backend sends server-sent events:
- * `scoped` (a conversation over everything narrowed to the namespace it's about), `suggested` (namespaces to offer when that isn't clear), `step` (a tool the assistant used), `approval` (work waiting for the person), `notice`, `passages` (the numbered
+ * `scoped` (a conversation over everything narrowed to the namespace it's about), `suggested` (namespaces to offer when that isn't clear), `step` (a tool the assistant used), `research` (a research
+ * goal's plan, as GET /research/{id} has it), `approval` (work waiting for the person), `notice`, `passages` (the numbered
  * excerpts), `token` (answer text), `error`, `stopped` (Stop was pressed: what came is saved, marked stopped), `meta`
  * (the answer's record: what produced it) and `done` (the saved message id).
  */
@@ -47,6 +55,8 @@ export type TurnState = {
   messageId: number | null;
   /** What produced the answer, once it's saved. */
   meta: MessageRecord | null;
+  /** The question was a research goal: its plan, to approve (GET /research/{id} has it from then on). */
+  research: Research | null;
 };
 
 export function newTurn(question: string): TurnState {
@@ -63,6 +73,7 @@ export function newTurn(question: string): TurnState {
     error: null,
     messageId: null,
     meta: null,
+    research: null,
   };
 }
 
@@ -111,6 +122,8 @@ export function applyEvent(s: TurnState, ev: { event: string; data: string }): T
           },
         ],
       };
+    case "research":
+      return typeof o.id === "number" ? { ...s, research: o as unknown as Research } : s;
     case "scoped":
       return { ...s, scoped: Array.isArray(o.namespaces) ? o.namespaces.map(String) : null };
     case "suggested":

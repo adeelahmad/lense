@@ -94,12 +94,19 @@ class Passage(ResponseModel):
     message or event of a connected account (`source` "mail" or "event", with its `url` in Gmail or Google Calendar)."""
 
     n: int
-    recording_id: int | None = Field(None, description="the asset it's from; none for a web page, message or event")
+    recording_id: int | None = Field(
+        None, description="the asset it's from; none for a web page, Lens's docs, this server's facts, a message or an event"
+    )
     source: str | None = Field(
         None,
-        description="what it is: said (speech), page (a document's), screen (text shown in a video), memory, web, mail or event",
+        description="what it is: said (speech), page (a document's), screen (text shown in a video), memory, web, docs (Lens's "
+        "docs), server (this server's facts), mail or event (a connection's message or event)",
     )
-    url: str | None = Field(None, description="a web page's, message's or event's address (no asset): the citation opens it")
+    url: str | None = Field(
+        None,
+        description="where it is when it isn't the archive's: a web page (web), a page of Lens's docs (docs), this server "
+        "(server), or a message or event at its account (mail, event); the citation opens it",
+    )
     site: str | None = Field(None, description="a web page's site, like example.com; a message's or event's connection")
     fetched_at: str | None = Field(None, description="when the web page or search result was read")
     title: str | None = None

@@ -466,7 +466,8 @@ class Source:
 
     - `read(db, cfg, pos, spaces, limit, hint)`: activities strictly after `pos` ([time, id], or [time, None] for
       after every row at `time`), oldest first, at most `limit`; only namespaces in `spaces` unless it is None. Each
-      activity's `lens.pos` is its row's position. `hint` is narrowing it may use, like {"actors": [...]}.
+      activity's `lens.pos` is its row's position. `hint` is narrowing it may use, like {"actors": [...]}: what the
+      triggers that want its kinds let through (follow gives each source its own).
     - `page(db, cfg, before, viewer, flt, limit)`: newest first, strictly before `before` (`key` of the last one
       shown) or from the newest, with what `viewer` may see and the filters it can apply cheaply; the core checks
       every filter again.
@@ -812,7 +813,8 @@ def follow(db, cfg, consumer, kinds=None, spaces=None, limit=PAGE, hint=None):
     call commit() to save where the next look starts. Only `kinds` (and their descendants; None: every kind) in
     `spaces` (None: every namespace and none). A source with more waiting gives `limit` at a time; once caught up, a
     read gives the last LOOKBACK seconds again (minus what this process already handled), so claim each before acting
-    on it. The first look only marks where this consumer starts."""
+    on it. The first look only marks where this consumer starts. `hint` gives sources narrowing they may use, by
+    source name: {"sensor_readings": {"actors": [...]}} (match.compile_triggers makes it)."""
     _check_name(consumer)
     want = expand(kinds)
     spaces = None if spaces is None else set(spaces)
@@ -829,7 +831,8 @@ def follow(db, cfg, consumer, kinds=None, spaces=None, limit=PAGE, hint=None):
         if here is None or (want is not None and not produces(s) & want):
             moved[s.name] = floors[s.name] = s.now(db)  # nobody wants these: when someone does, they start from then
             continue
-        rows = s.read(db, cfg, here, spaces, limit, hint)
+        mine = (hint or {}).get(s.name)
+        rows = s.read(db, cfg, here, spaces, limit, mine)
         if rows:
             moved[s.name] = rows[-1]["lens"]["pos"]
         if len(rows) < limit:  # caught up: the last LOOKBACK seconds again, not before where this consumer started
@@ -840,7 +843,7 @@ def follow(db, cfg, consumer, kinds=None, spaces=None, limit=PAGE, hint=None):
             for _ in range(PAGE_ROUNDS):
                 if pos_key(since) >= pos_key(here):
                     break
-                back = s.read(db, cfg, since, spaces, limit, hint)
+                back = s.read(db, cfg, since, spaces, limit, mine)
                 rows += [a for a in back if pos_key(a["lens"]["pos"]) <= pos_key(here) and a["id"] not in have and a["id"] not in seen]
                 if len(back) < limit:
                     break

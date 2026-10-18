@@ -7526,6 +7526,380 @@ export type FedoraSyncResult = {
 };
 
 /**
+ * Feed
+ */
+export type Feed = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Space
+   */
+  space: number;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Kind
+   */
+  kind: "rss" | "podcast";
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Author
+   */
+  author?: string | null;
+  /**
+   * Language
+   */
+  language?: string | null;
+  /**
+   * Category
+   */
+  category?: string | null;
+  /**
+   * Explicit
+   */
+  explicit?: boolean;
+  /**
+   * Image
+   */
+  image?: string | null;
+  /**
+   * Max Items
+   */
+  max_items: number;
+  /**
+   * Url
+   *
+   * the feed's private address: anyone with it can read the feed, so share it like a password
+   */
+  url: string;
+  /**
+   * Path
+   *
+   * the address without the server
+   */
+  path: string;
+  /**
+   * Page
+   *
+   * the feed's page in the web app
+   */
+  page: string;
+  /**
+   * Items
+   *
+   * how many items it holds
+   */
+  items: number;
+  /**
+   * Last Item At
+   */
+  last_item_at?: string | null;
+  /**
+   * Fetched At
+   *
+   * when a feed reader or podcast app last read it
+   */
+  fetched_at?: string | null;
+  /**
+   * Created By
+   */
+  created_by?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * FeedCreate
+ */
+export type FeedCreate = {
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Author
+   *
+   * who a podcast app shows it's by (default Lens)
+   */
+  author?: string | null;
+  /**
+   * Language
+   *
+   * a language tag, like en or en-GB (default en)
+   */
+  language?: string | null;
+  /**
+   * Category
+   *
+   * an Apple Podcasts category (podcast feeds; default Education)
+   */
+  category?: string | null;
+  /**
+   * Explicit
+   */
+  explicit?: boolean | null;
+  /**
+   * Image
+   *
+   * artwork: an https:// address of a square picture
+   */
+  image?: string | null;
+  /**
+   * Max Items
+   *
+   * how many items the feed lists, newest first (default 50)
+   */
+  max_items?: number | null;
+  /**
+   * Kind
+   */
+  kind?: "rss" | "podcast";
+  /**
+   * Namespace
+   *
+   * the namespace the feed belongs to: its editors manage it, its readers see it
+   */
+  namespace: string;
+};
+
+/**
+ * FeedItem
+ */
+export type FeedItem = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Feed
+   */
+  feed: number;
+  /**
+   * Kind
+   */
+  kind: "asset" | "episode" | "activity" | "text";
+  /**
+   * Guid
+   */
+  guid: string;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Summary
+   */
+  summary?: string | null;
+  /**
+   * Link
+   */
+  link?: string | null;
+  /**
+   * Published At
+   */
+  published_at: string;
+  /**
+   * Recording
+   */
+  recording?: number | null;
+  /**
+   * Activity
+   */
+  activity?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Categories
+   */
+  categories?: Array<string> | null;
+  /**
+   * Origin
+   *
+   * the routine run and workflow node that added it
+   */
+  origin?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * By
+   */
+  by?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * FeedPublish
+ */
+export type FeedPublish = {
+  /**
+   * Recordings
+   *
+   * resources (and podcast episodes) to list
+   */
+  recordings?: Array<number>;
+  /**
+   * Activities
+   *
+   * timeline activities to list, by id
+   */
+  activities?: Array<string>;
+  /**
+   * Texts
+   *
+   * text items
+   */
+  texts?: Array<FeedText>;
+};
+
+/**
+ * FeedPublished
+ */
+export type FeedPublished = {
+  /**
+   * Added
+   *
+   * the new items' ids
+   */
+  added: Array<number>;
+  /**
+   * Already
+   *
+   * how many were in the feed already
+   */
+  already: number;
+  /**
+   * Refused
+   *
+   * what can't go in this feed, and why
+   */
+  refused: Array<FeedRefused>;
+  [key: string]: unknown;
+};
+
+/**
+ * FeedRefused
+ */
+export type FeedRefused = {
+  /**
+   * What
+   */
+  what: string;
+  /**
+   * Why
+   */
+  why: string;
+  [key: string]: unknown;
+};
+
+/**
+ * FeedSettings
+ */
+export type FeedSettings = {
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Author
+   *
+   * who a podcast app shows it's by (default Lens)
+   */
+  author?: string | null;
+  /**
+   * Language
+   *
+   * a language tag, like en or en-GB (default en)
+   */
+  language?: string | null;
+  /**
+   * Category
+   *
+   * an Apple Podcasts category (podcast feeds; default Education)
+   */
+  category?: string | null;
+  /**
+   * Explicit
+   */
+  explicit?: boolean | null;
+  /**
+   * Image
+   *
+   * artwork: an https:// address of a square picture
+   */
+  image?: string | null;
+  /**
+   * Max Items
+   *
+   * how many items the feed lists, newest first (default 50)
+   */
+  max_items?: number | null;
+  /**
+   * Kind
+   *
+   * rss lists anything; podcast lists items with audio, with Apple Podcasts' tags
+   */
+  kind?: "rss" | "podcast" | null;
+};
+
+/**
+ * FeedText
+ */
+export type FeedText = {
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Summary
+   *
+   * the item's text
+   */
+  summary?: string | null;
+  /**
+   * Link
+   *
+   * an http or https address
+   */
+  link?: string | null;
+  /**
+   * Guid
+   *
+   * what the item is about, so the same item isn't added twice
+   */
+  guid?: string | null;
+};
+
+/**
  * FieldCreate
  */
 export type FieldCreate = {
@@ -14733,19 +15107,19 @@ export type Passage = {
   /**
    * Recording Id
    *
-   * the asset it's from; none for a web page, message or event
+   * the asset it's from; none for a web page, Lens's docs, this server's facts, a message or an event
    */
   recording_id?: number | null;
   /**
    * Source
    *
-   * what it is: said (speech), page (a document's), screen (text shown in a video), memory, web, mail or event
+   * what it is: said (speech), page (a document's), screen (text shown in a video), memory, web, docs (Lens's docs), server (this server's facts), mail or event (a connection's message or event)
    */
   source?: string | null;
   /**
    * Url
    *
-   * a web page's, message's or event's address (no asset): the citation opens it
+   * where it is when it isn't the archive's: a web page (web), a page of Lens's docs (docs), this server (server), or a message or event at its account (mail, event); the citation opens it
    */
   url?: string | null;
   /**
@@ -45091,6 +45465,352 @@ export type RegeneratePodcastResponses = {
 };
 
 export type RegeneratePodcastResponse = RegeneratePodcastResponses[keyof RegeneratePodcastResponses];
+
+export type ReadFeedData = {
+  body?: never;
+  path: {
+    /**
+     * Token
+     */
+    token: string;
+  };
+  query?: never;
+  url: "/api/v1/feeds/public/{token}";
+};
+
+export type ReadFeedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ReadFeedError = ReadFeedErrors[keyof ReadFeedErrors];
+
+export type ReadFeedResponses = {
+  /**
+   * Successful Response
+   */
+  200: unknown;
+};
+
+export type ReadFeedAudioData = {
+  body?: never;
+  path: {
+    /**
+     * Token
+     */
+    token: string;
+    /**
+     * Iid
+     */
+    iid: number;
+  };
+  query?: never;
+  url: "/api/v1/feeds/public/{token}/items/{iid}/audio";
+};
+
+export type ReadFeedAudioErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ReadFeedAudioError = ReadFeedAudioErrors[keyof ReadFeedAudioErrors];
+
+export type ReadFeedAudioResponses = {
+  /**
+   * Successful Response
+   */
+  200: unknown;
+  /**
+   * a byte range
+   */
+  206: unknown;
+};
+
+export type ListFeedsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Namespace
+     */
+    namespace?: string | null;
+  };
+  url: "/api/v1/feeds";
+};
+
+export type ListFeedsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListFeedsError = ListFeedsErrors[keyof ListFeedsErrors];
+
+export type ListFeedsResponses = {
+  /**
+   * Response Feeds-List Feeds
+   *
+   * Successful Response
+   */
+  200: Array<Feed>;
+};
+
+export type ListFeedsResponse = ListFeedsResponses[keyof ListFeedsResponses];
+
+export type CreateFeedData = {
+  body: FeedCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/feeds";
+};
+
+export type CreateFeedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateFeedError = CreateFeedErrors[keyof CreateFeedErrors];
+
+export type CreateFeedResponses = {
+  /**
+   * Successful Response
+   */
+  201: Feed;
+};
+
+export type CreateFeedResponse = CreateFeedResponses[keyof CreateFeedResponses];
+
+export type DeleteFeedData = {
+  body?: never;
+  path: {
+    /**
+     * Fid
+     */
+    fid: number;
+  };
+  query?: never;
+  url: "/api/v1/feeds/{fid}";
+};
+
+export type DeleteFeedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteFeedError = DeleteFeedErrors[keyof DeleteFeedErrors];
+
+export type DeleteFeedResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteFeedResponse = DeleteFeedResponses[keyof DeleteFeedResponses];
+
+export type GetFeedData = {
+  body?: never;
+  path: {
+    /**
+     * Fid
+     */
+    fid: number;
+  };
+  query?: never;
+  url: "/api/v1/feeds/{fid}";
+};
+
+export type GetFeedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetFeedError = GetFeedErrors[keyof GetFeedErrors];
+
+export type GetFeedResponses = {
+  /**
+   * Successful Response
+   */
+  200: Feed;
+};
+
+export type GetFeedResponse = GetFeedResponses[keyof GetFeedResponses];
+
+export type UpdateFeedData = {
+  body: FeedSettings;
+  path: {
+    /**
+     * Fid
+     */
+    fid: number;
+  };
+  query?: never;
+  url: "/api/v1/feeds/{fid}";
+};
+
+export type UpdateFeedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateFeedError = UpdateFeedErrors[keyof UpdateFeedErrors];
+
+export type UpdateFeedResponses = {
+  /**
+   * Successful Response
+   */
+  200: Feed;
+};
+
+export type UpdateFeedResponse = UpdateFeedResponses[keyof UpdateFeedResponses];
+
+export type RotateFeedTokenData = {
+  body?: never;
+  path: {
+    /**
+     * Fid
+     */
+    fid: number;
+  };
+  query?: never;
+  url: "/api/v1/feeds/{fid}/token";
+};
+
+export type RotateFeedTokenErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RotateFeedTokenError = RotateFeedTokenErrors[keyof RotateFeedTokenErrors];
+
+export type RotateFeedTokenResponses = {
+  /**
+   * Successful Response
+   */
+  200: Feed;
+};
+
+export type RotateFeedTokenResponse = RotateFeedTokenResponses[keyof RotateFeedTokenResponses];
+
+export type ListFeedItemsData = {
+  body?: never;
+  path: {
+    /**
+     * Fid
+     */
+    fid: number;
+  };
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+  };
+  url: "/api/v1/feeds/{fid}/items";
+};
+
+export type ListFeedItemsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListFeedItemsError = ListFeedItemsErrors[keyof ListFeedItemsErrors];
+
+export type ListFeedItemsResponses = {
+  /**
+   * Response Feeds-List Feed Items
+   *
+   * Successful Response
+   */
+  200: Array<FeedItem>;
+};
+
+export type ListFeedItemsResponse = ListFeedItemsResponses[keyof ListFeedItemsResponses];
+
+export type PublishToFeedData = {
+  body: FeedPublish;
+  path: {
+    /**
+     * Fid
+     */
+    fid: number;
+  };
+  query?: never;
+  url: "/api/v1/feeds/{fid}/items";
+};
+
+export type PublishToFeedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PublishToFeedError = PublishToFeedErrors[keyof PublishToFeedErrors];
+
+export type PublishToFeedResponses = {
+  /**
+   * Successful Response
+   */
+  200: FeedPublished;
+};
+
+export type PublishToFeedResponse = PublishToFeedResponses[keyof PublishToFeedResponses];
+
+export type RemoveFeedItemData = {
+  body?: never;
+  path: {
+    /**
+     * Fid
+     */
+    fid: number;
+    /**
+     * Iid
+     */
+    iid: number;
+  };
+  query?: never;
+  url: "/api/v1/feeds/{fid}/items/{iid}";
+};
+
+export type RemoveFeedItemErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveFeedItemError = RemoveFeedItemErrors[keyof RemoveFeedItemErrors];
+
+export type RemoveFeedItemResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RemoveFeedItemResponse = RemoveFeedItemResponses[keyof RemoveFeedItemResponses];
 
 export type GetSpecData = {
   body?: never;

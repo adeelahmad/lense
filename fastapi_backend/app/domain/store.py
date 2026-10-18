@@ -156,9 +156,11 @@ DEFAULTS = {
     # anytopdf: the places and dates anytopdf (run here) finds, as hints for the extractor (enrich.py); dates: the dates
     # each line gives kept as days on the calendar (dates.py); cleanup: the
     # clean step tidies transcripts before analysis (cleanup.py), cleanup_fillers taking out "um" and "uh" too, and
-    # cleanup_punctuation (off, missing, always) putting marks back with a local model
+    # cleanup_punctuation (off, missing, always) putting marks back with a local model; typing: which model types the
+    # names the rules leave terms (name_types.asking)
     "analysis": {
         "entities": "rules",
+        "typing": "auto",
         "spacy_model": "en_core_web_sm",
         "gazetteer": [],
         "anytopdf": False,
@@ -1490,6 +1492,14 @@ SCHEMA = [
     # what a podcast episode was made from and of, beside its recording (app/domain/podcasts.py): podcast:<recording id>
     "DEFINE TABLE IF NOT EXISTS podcast SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS podcast_space ON podcast FIELDS space",
+    # published RSS and podcast feeds (app/domain/syndication.py): feed:<n>, its token kept sealed and as a hash, and
+    # its items, one per feed for what each is about (key: "<feed>:<guid>")
+    "DEFINE TABLE IF NOT EXISTS feed SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS feed_token ON feed FIELDS token_hash UNIQUE",
+    "DEFINE INDEX IF NOT EXISTS feed_space ON feed FIELDS space",
+    "DEFINE TABLE IF NOT EXISTS feed_item SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS feed_item_feed ON feed_item FIELDS feed",
+    "DEFINE INDEX IF NOT EXISTS feed_item_key ON feed_item FIELDS key UNIQUE",
     "DEFINE TABLE IF NOT EXISTS output SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS output_rec ON output FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS chat SCHEMALESS",

@@ -166,6 +166,8 @@ export type AnswerProps = {
   meta?: MessageRecord | null;
   /** Export this answer, with its question (a saved answer's copy menu). */
   onExport?: (fmt: ExportFormat) => void;
+  /** More of what can be done with it, under it (a research report's: save as note, read aloud...). */
+  actions?: React.ReactNode;
 };
 
 /** One answer: where it comes from, the tools used, approvals, the text with citations, and its error states. */
@@ -378,6 +380,7 @@ export function Answer(p: AnswerProps) {
         </p>
       )}
       {result && <CheckResult result={result} cited={cites.length} />}
+      {!streaming && p.actions}
     </article>
   );
 }

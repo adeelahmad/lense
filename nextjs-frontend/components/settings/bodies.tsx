@@ -252,6 +252,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           )}
           <F ctx={ctx} id="analysis.entities" />
           {raw("analysis.entities") === "spacy" && <F ctx={ctx} id="analysis.spacy_model" />}
+          <F ctx={ctx} id="analysis.typing" />
           <F ctx={ctx} id="analysis.anytopdf" />
           <F ctx={ctx} id="analysis.dates" />
           <F
@@ -2679,6 +2680,22 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
         </ul>
       </More>
       <WebSearch ctx={ctx} />
+      <More
+        ctx={ctx}
+        ids={["research.max_tool_calls", "research.max_minutes", "research.model", "research.agents_skip_review"]}
+        title="Deep research"
+      >
+        <p className="text-[13px] leading-normal text-fg-secondary">
+          A goal (the Deep research switch in chat, or /research) gets a plan to approve, then runs in the background
+          and brings back a cited report.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <F ctx={ctx} id="research.max_tool_calls" />
+          <F ctx={ctx} id="research.max_minutes" />
+          <F ctx={ctx} id="research.model" />
+        </div>
+        <F ctx={ctx} id="research.agents_skip_review" />
+      </More>
       <More ctx={ctx} ids={LIMITS} title="Approvals, steps, prices and long conversations">
         <div className="grid gap-3 sm:grid-cols-2">
           <F ctx={ctx} id="ai.confirm_over_recordings" />
