@@ -319,6 +319,7 @@ export type {
   ChatCompletion,
   ChatCompletionRequest,
   ChatCreate,
+  ChatMemory,
   ChatMessage,
   ChatNode,
   ChatScope,

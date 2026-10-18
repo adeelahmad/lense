@@ -307,11 +307,24 @@ class StopResult(ResponseModel):
     stopping: bool = Field(description="an answer was being written, and stops after its current piece or step")
 
 
+class ChatMemory(ResponseModel):
+    """What the model reads instead of the messages a conversation's summary covers (long conversations are summarised;
+    /compact and /clear)."""
+
+    text: str = Field(description="the summary; empty after /clear, when the messages it covers aren't read at all")
+    upto: int = Field(description="the last message it covers, of the version showing")
+    at: str | None = Field(None, description="when it was written")
+    covers: int = Field(description="how many messages of the version showing it stands for")
+
+
 class Chat(ChatSummary):
     account: int
     head: int | None = Field(None, description="the last message of the version showing, which the next question follows")
     messages: list[ChatMessage] = Field(default_factory=list, description="the version showing, from the first message to `head`")
     tree: list[ChatNode] = Field(default_factory=list, description="every message of every version, oldest first")
+    summary: ChatMemory | None = Field(
+        None, description="what the model reads instead of the messages up to its `upto`; none before the first summary"
+    )
 
 
 class HeadUpdate(RequestModel):
