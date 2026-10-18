@@ -1,5 +1,5 @@
 {
-  "surveyed": "2026-10-17T09:32:32.561Z",
+  "surveyed": "2026-10-18T02:52:10.420Z",
   "commit": "",
   "viewport": "Pixel 7, 412x839, touch",
   "device": "phone",
@@ -47,7 +47,7 @@
         }
       ],
       "id": "install",
-      "ms": 2971,
+      "ms": 2929,
       "ok": true
     },
     {
@@ -85,7 +85,7 @@
         }
       ],
       "id": "first-admin",
-      "ms": 696,
+      "ms": 735,
       "ok": true
     },
     {
@@ -107,7 +107,7 @@
         }
       ],
       "id": "setup-wizard",
-      "ms": 590,
+      "ms": 512,
       "ok": true
     },
     {
@@ -137,7 +137,7 @@
         }
       ],
       "id": "first-question",
-      "ms": 2416,
+      "ms": 1302,
       "ok": true
     },
     {
@@ -184,7 +184,7 @@
         }
       ],
       "id": "import-paste",
-      "ms": 4293,
+      "ms": 4128,
       "ok": true
     },
     {
@@ -222,7 +222,7 @@
         }
       ],
       "id": "library-open",
-      "ms": 3480,
+      "ms": 3310,
       "ok": true
     },
     {
@@ -268,7 +268,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 4181,
+      "ms": 4155,
       "ok": true
     },
     {
@@ -306,7 +306,7 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2668,
+      "ms": 2753,
       "ok": true
     },
     {
@@ -360,7 +360,7 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 6570,
+      "ms": 6712,
       "ok": true
     },
     {
@@ -422,7 +422,7 @@
         }
       ],
       "id": "note-create",
-      "ms": 3936,
+      "ms": 4734,
       "ok": true
     },
     {
@@ -476,7 +476,7 @@
         }
       ],
       "id": "topic-add",
-      "ms": 3763,
+      "ms": 4125,
       "ok": true
     },
     {
@@ -522,7 +522,7 @@
         }
       ],
       "id": "pipeline-create",
-      "ms": 2982,
+      "ms": 4247,
       "ok": true
     },
     {
@@ -568,7 +568,7 @@
         }
       ],
       "id": "routine-create",
-      "ms": 3029,
+      "ms": 3207,
       "ok": true
     },
     {
@@ -614,7 +614,7 @@
         }
       ],
       "id": "extension-add",
-      "ms": 3144,
+      "ms": 3443,
       "ok": true
     },
     {
@@ -660,7 +660,7 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 3122,
+      "ms": 3208,
       "ok": true
     },
     {
@@ -723,7 +723,7 @@
         }
       ],
       "id": "settings-change",
-      "ms": 4385,
+      "ms": 4500,
       "ok": true
     },
     {
@@ -793,7 +793,7 @@
         }
       ],
       "id": "person-add",
-      "ms": 3669,
+      "ms": 3867,
       "ok": true
     },
     {
@@ -831,7 +831,7 @@
         }
       ],
       "id": "api-token",
-      "ms": 3331,
+      "ms": 3348,
       "ok": true
     },
     {
@@ -869,7 +869,7 @@
         }
       ],
       "id": "namespace-switch",
-      "ms": 2836,
+      "ms": 2821,
       "ok": true
     },
     {
@@ -915,7 +915,7 @@
         }
       ],
       "id": "agent-connect",
-      "ms": 3219,
+      "ms": 3312,
       "ok": true
     },
     {
@@ -953,7 +953,7 @@
         }
       ],
       "id": "import-file",
-      "ms": 3925,
+      "ms": 4019,
       "ok": true
     },
     {
@@ -1007,7 +1007,7 @@
         }
       ],
       "id": "source-folder",
-      "ms": 4297,
+      "ms": 4586,
       "ok": true
     },
     {
@@ -1053,7 +1053,7 @@
         }
       ],
       "id": "entity-find",
-      "ms": 11995,
+      "ms": 12531,
       "ok": true
     },
     {
@@ -1107,7 +1107,7 @@
         }
       ],
       "id": "graph-find",
-      "ms": 5031,
+      "ms": 5444,
       "ok": true
     },
     {
@@ -1169,7 +1169,7 @@
         }
       ],
       "id": "podcast-create",
-      "ms": 4426,
+      "ms": 5830,
       "ok": true
     },
     {
@@ -1223,7 +1223,7 @@
         }
       ],
       "id": "report-pdf",
-      "ms": 4139,
+      "ms": 4340,
       "ok": true
     },
     {
@@ -1277,7 +1277,7 @@
         }
       ],
       "id": "workflow-create",
-      "ms": 3838,
+      "ms": 4261,
       "ok": true
     },
     {
@@ -1331,7 +1331,7 @@
         }
       ],
       "id": "template-create",
-      "ms": 3839,
+      "ms": 4331,
       "ok": true
     },
     {
@@ -1393,7 +1393,7 @@
         }
       ],
       "id": "namespace-create",
-      "ms": 3623,
+      "ms": 3884,
       "ok": true
     },
     {
@@ -1455,7 +1455,7 @@
         }
       ],
       "id": "speaker-rename",
-      "ms": 4559,
+      "ms": 4583,
       "ok": true
     },
     {
@@ -1517,7 +1517,7 @@
         }
       ],
       "id": "entity-merge",
-      "ms": 6866,
+      "ms": 6642,
       "ok": true
     },
     {
@@ -1603,7 +1603,7 @@
         }
       ],
       "id": "graph-merge",
-      "ms": 8282,
+      "ms": 8775,
       "ok": true
     },
     {
@@ -1657,7 +1657,7 @@
         }
       ],
       "id": "chat-regenerate",
-      "ms": 4165,
+      "ms": 4643,
       "ok": true
     },
     {
@@ -1679,7 +1679,7 @@
         }
       ],
       "id": "chat-copy",
-      "ms": 265,
+      "ms": 267,
       "ok": true
     },
     {
@@ -1709,7 +1709,7 @@
         }
       ],
       "id": "chat-export-pdf",
-      "ms": 5022,
+      "ms": 8511,
       "ok": true
     },
     {
@@ -1755,7 +1755,7 @@
         }
       ],
       "id": "chat-tools",
-      "ms": 1132,
+      "ms": 2192,
       "ok": true
     },
     {
@@ -1825,7 +1825,7 @@
         }
       ],
       "id": "cloud-model",
-      "ms": 3952,
+      "ms": 6081,
       "ok": true
     }
   ],
@@ -1869,7 +1869,7 @@
       "page": "/timeline",
       "label": "Timeline",
       "reach": 2,
-      "controls": 51,
+      "controls": 55,
       "askCovers": []
     },
     {
@@ -2030,7 +2030,7 @@
       "page": "/settings/ai",
       "label": "Settings › AI assistant",
       "reach": 3,
-      "controls": 18,
+      "controls": 19,
       "askCovers": []
     },
     {
@@ -2247,7 +2247,7 @@
       "page": "/settings/sensors",
       "label": "Settings › Sensors",
       "reach": 3,
-      "controls": 15,
+      "controls": 17,
       "askCovers": []
     },
     {
@@ -2350,7 +2350,7 @@
     },
     {
       "page": "/notes/:id",
-      "label": "Untitled",
+      "label": "Pi setup",
       "reach": 2,
       "controls": 8,
       "askCovers": []

@@ -1,5 +1,5 @@
 {
-  "surveyed": "2026-10-17T09:27:08.992Z",
+  "surveyed": "2026-10-18T02:46:22.142Z",
   "commit": "",
   "viewport": "1400x900",
   "device": "desktop",
@@ -47,7 +47,7 @@
         }
       ],
       "id": "install",
-      "ms": 3302,
+      "ms": 3603,
       "ok": true
     },
     {
@@ -85,7 +85,7 @@
         }
       ],
       "id": "first-admin",
-      "ms": 649,
+      "ms": 882,
       "ok": true
     },
     {
@@ -107,7 +107,7 @@
         }
       ],
       "id": "setup-wizard",
-      "ms": 441,
+      "ms": 724,
       "ok": true
     },
     {
@@ -137,7 +137,7 @@
         }
       ],
       "id": "first-question",
-      "ms": 2502,
+      "ms": 3186,
       "ok": true
     },
     {
@@ -183,7 +183,7 @@
         }
       ],
       "id": "import-paste",
-      "ms": 3804,
+      "ms": 4284,
       "ok": true
     },
     {
@@ -213,7 +213,7 @@
         }
       ],
       "id": "library-open",
-      "ms": 2780,
+      "ms": 3215,
       "ok": true
     },
     {
@@ -251,7 +251,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 3401,
+      "ms": 3490,
       "ok": true
     },
     {
@@ -289,7 +289,7 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2537,
+      "ms": 2658,
       "ok": true
     },
     {
@@ -327,7 +327,7 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 2822,
+      "ms": 2894,
       "ok": true
     },
     {
@@ -381,7 +381,7 @@
         }
       ],
       "id": "note-create",
-      "ms": 3636,
+      "ms": 3674,
       "ok": true
     },
     {
@@ -427,7 +427,7 @@
         }
       ],
       "id": "topic-add",
-      "ms": 3165,
+      "ms": 3316,
       "ok": true
     },
     {
@@ -465,7 +465,7 @@
         }
       ],
       "id": "pipeline-create",
-      "ms": 2496,
+      "ms": 2558,
       "ok": true
     },
     {
@@ -503,7 +503,7 @@
         }
       ],
       "id": "routine-create",
-      "ms": 2544,
+      "ms": 2558,
       "ok": true
     },
     {
@@ -541,7 +541,7 @@
         }
       ],
       "id": "extension-add",
-      "ms": 2449,
+      "ms": 2471,
       "ok": true
     },
     {
@@ -579,7 +579,7 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 2813,
+      "ms": 2677,
       "ok": true
     },
     {
@@ -625,7 +625,7 @@
         }
       ],
       "id": "settings-change",
-      "ms": 3246,
+      "ms": 3377,
       "ok": true
     },
     {
@@ -687,7 +687,7 @@
         }
       ],
       "id": "person-add",
-      "ms": 3212,
+      "ms": 3294,
       "ok": true
     },
     {
@@ -725,7 +725,7 @@
         }
       ],
       "id": "api-token",
-      "ms": 2957,
+      "ms": 3155,
       "ok": true
     },
     {
@@ -755,7 +755,7 @@
         }
       ],
       "id": "namespace-switch",
-      "ms": 2291,
+      "ms": 2304,
       "ok": true
     },
     {
@@ -801,7 +801,7 @@
         }
       ],
       "id": "agent-connect",
-      "ms": 2830,
+      "ms": 3043,
       "ok": true
     },
     {
@@ -839,7 +839,7 @@
         }
       ],
       "id": "import-file",
-      "ms": 3160,
+      "ms": 3546,
       "ok": true
     },
     {
@@ -885,7 +885,7 @@
         }
       ],
       "id": "source-folder",
-      "ms": 3833,
+      "ms": 5402,
       "ok": true
     },
     {
@@ -923,7 +923,7 @@
         }
       ],
       "id": "entity-find",
-      "ms": 10948,
+      "ms": 12392,
       "ok": true
     },
     {
@@ -961,7 +961,7 @@
         }
       ],
       "id": "graph-find",
-      "ms": 4483,
+      "ms": 4376,
       "ok": true
     },
     {
@@ -1015,7 +1015,7 @@
         }
       ],
       "id": "podcast-create",
-      "ms": 4055,
+      "ms": 5013,
       "ok": true
     },
     {
@@ -1061,7 +1061,7 @@
         }
       ],
       "id": "report-pdf",
-      "ms": 3586,
+      "ms": 3676,
       "ok": true
     },
     {
@@ -1107,7 +1107,7 @@
         }
       ],
       "id": "workflow-create",
-      "ms": 3050,
+      "ms": 3146,
       "ok": true
     },
     {
@@ -1153,7 +1153,7 @@
         }
       ],
       "id": "template-create",
-      "ms": 2976,
+      "ms": 2848,
       "ok": true
     },
     {
@@ -1207,7 +1207,7 @@
         }
       ],
       "id": "namespace-create",
-      "ms": 3139,
+      "ms": 2982,
       "ok": true
     },
     {
@@ -1261,7 +1261,7 @@
         }
       ],
       "id": "speaker-rename",
-      "ms": 4284,
+      "ms": 4026,
       "ok": true
     },
     {
@@ -1315,7 +1315,7 @@
         }
       ],
       "id": "entity-merge",
-      "ms": 5709,
+      "ms": 5634,
       "ok": true
     },
     {
@@ -1385,7 +1385,7 @@
         }
       ],
       "id": "graph-merge",
-      "ms": 6877,
+      "ms": 6483,
       "ok": true
     },
     {
@@ -1431,7 +1431,7 @@
         }
       ],
       "id": "chat-regenerate",
-      "ms": 3656,
+      "ms": 3675,
       "ok": true
     },
     {
@@ -1453,7 +1453,7 @@
         }
       ],
       "id": "chat-copy",
-      "ms": 113,
+      "ms": 96,
       "ok": true
     },
     {
@@ -1483,7 +1483,7 @@
         }
       ],
       "id": "chat-export-pdf",
-      "ms": 4652,
+      "ms": 5487,
       "ok": true
     },
     {
@@ -1529,7 +1529,7 @@
         }
       ],
       "id": "chat-tools",
-      "ms": 406,
+      "ms": 1129,
       "ok": true
     },
     {
@@ -1583,7 +1583,7 @@
         }
       ],
       "id": "cloud-model",
-      "ms": 2762,
+      "ms": 3452,
       "ok": true
     }
   ],
@@ -1627,7 +1627,7 @@
       "page": "/timeline",
       "label": "Timeline",
       "reach": 1,
-      "controls": 62,
+      "controls": 58,
       "askCovers": []
     },
     {
@@ -1788,7 +1788,7 @@
       "page": "/settings/ai",
       "label": "Settings › AI assistant",
       "reach": 2,
-      "controls": 18,
+      "controls": 19,
       "askCovers": []
     },
     {
@@ -2005,7 +2005,7 @@
       "page": "/settings/sensors",
       "label": "Settings › Sensors",
       "reach": 2,
-      "controls": 15,
+      "controls": 17,
       "askCovers": []
     },
     {
