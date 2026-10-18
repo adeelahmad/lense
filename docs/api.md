@@ -1518,6 +1518,7 @@ GET    /api/v1/chats/tools
 POST   /api/v1/chats
 GET    /api/v1/chats/{cid}
 PATCH  /api/v1/chats/{cid}
+POST   /api/v1/chats/{cid}/title
 DELETE /api/v1/chats/{cid}
 POST   /api/v1/chats/{cid}/messages
 GET    /api/v1/chats/{cid}/messages/{mid}
@@ -1549,7 +1550,11 @@ step it's on: the stream sends `stopped`, then `done` with the saved message, wh
 `content` is what came before (`(stopped)` when nothing had). `{stopping: false}` when nothing was being written.
 `POST /chats/{cid}/messages {content, edit}` edits one of your earlier questions (`edit` is its message id): it and
 everything after it are replaced by this question and its new answer; 404 when `edit` isn't a question in that
-conversation. A conversation titled after the first question is retitled when that question is edited.
+conversation. A conversation Lens titled (`title_by` `assistant`) is titled again when that question is edited; one
+you named (`title_by` `person`: `POST /chats` or `PATCH /chats/{cid}` with `title`) keeps its name. After a
+conversation's first answer the model titles it, and the stream ends with `title`; `POST /chats/{cid}/title` has it
+titled now from how it starts, `{title, title_by}` (409 before the first question, 400 without a model)
+([Titles](assistant.md#titles)).
 
 `GET /chats/tools` lists the tool groups and tools you have, each tool's `effect` (`read`, `asks` or `out`), why a
 group isn't available and the setting that switches it on, the most tool calls a question may ask for
