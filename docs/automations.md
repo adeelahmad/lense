@@ -56,7 +56,9 @@ merged is called built.
 
 ## The studio
 
-Automations (under Automate in the nav) lists every automation you can see. Each row reads its triggers in words
+Automations (under Automate in the nav) lists every automation you can see. [Schedules](schedules.md), everything
+that runs on a clock, is its other tab, so both share one row in the nav; for admins, Routines and New routine are at
+the top of both. Each row reads its triggers in words
 (“Email received”, where the subject contains “trip”), and shows how its last run went, its runs today, the actions
 waiting for your pick (a link to Approvals), what it cost this month and when it runs next. The switch turns it on
 or off. Its menu has Run now, Duplicate (a copy, switched off) and Delete, which you undo from its toast rather than

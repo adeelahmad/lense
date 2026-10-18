@@ -308,7 +308,11 @@ function ScheduleFields({
         </Field>
         <TimezoneField trigger={t} onChange={onChange} id={id} />
       </div>
-      <SchedulePreview schedule={String(t.cron ?? "").trim() || null} timezone={String(t.timezone ?? "UTC")} />
+      <SchedulePreview
+        schedule={String(t.cron ?? "").trim() || null}
+        timezone={String(t.timezone ?? "UTC")}
+        none="Say when it runs, such as every weekday at 07:00."
+      />
     </div>
   );
 }

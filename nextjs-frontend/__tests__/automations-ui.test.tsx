@@ -146,6 +146,9 @@ test("the list reads each automation, and Delete is undone from its toast", asyn
   m(Automations.restoreAutomation).mockReturnValue(ok({ ok: true }));
   wrap(<AutomationsPage />);
   const row = (await screen.findByRole("link", { name: "School emails" })).closest("tr")!;
+  // Schedules is its tab (one nav row for both), and admins reach routines from here too
+  expect(screen.getByRole("tab", { name: "Schedules" })).toHaveAttribute("href", "/schedules");
+  expect(screen.getByRole("link", { name: "New routine" })).toHaveAttribute("href", "/routines/new");
   expect(within(row).getByText("“Email received”, where the subject contains “trip”")).toBeInTheDocument();
   expect(within(row).getByText("Done")).toBeInTheDocument();
   expect(within(row).getByText("3")).toBeInTheDocument();

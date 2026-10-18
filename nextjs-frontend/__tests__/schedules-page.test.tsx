@@ -102,7 +102,8 @@ function wrap(ui: ReactNode) {
 test("lists every routine, automation schedule and the backup, each linking to its own page", async () => {
   wrap(<SchedulesPage />);
   const table = await screen.findByRole("table", { name: "Schedules" });
-  // the Routines page and a new routine are one click away, since Schedules has Routines' place in the nav
+  // a tab of Automations, with the Routines page and a new routine one click away
+  expect(screen.getByRole("tab", { name: "Automations" })).toHaveAttribute("href", "/automations");
   expect(screen.getByRole("link", { name: "Routines" })).toHaveAttribute("href", "/routines");
   expect(screen.getByRole("link", { name: "New routine" })).toHaveAttribute("href", "/routines/new");
   expect(within(table).getByRole("link", { name: "Sync nightly" })).toHaveAttribute("href", "/routines/3");

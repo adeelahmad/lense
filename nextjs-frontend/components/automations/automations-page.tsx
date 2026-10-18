@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 
 import { Automations } from "@/app/openapi-client";
 import type { Automation } from "@/app/openapi-client/types.gen";
+import { AutomateTabs, RoutineLinks } from "@/components/automations/automate-tabs";
 import { runStatus } from "@/components/automations/model";
 import { useAutomations } from "@/components/automations/data";
 import { CostCell, useBudgets, useCosts } from "@/components/costs/costs";
@@ -100,11 +101,14 @@ export function AutomationsPage() {
         title="Automations"
         meta={rows.length ? `${rows.length} · ${rows.filter((a) => a.enabled).length} on` : undefined}
         actions={
-          <Button asChild variant="primary">
-            <Link href="/automations/new">
-              <Plus /> New automation
-            </Link>
-          </Button>
+          <>
+            <RoutineLinks primary={false} />
+            <Button asChild variant="primary">
+              <Link href="/automations/new">
+                <Plus /> New automation
+              </Link>
+            </Button>
+          </>
         }
       >
         <p className="mt-1 text-[13.5px] text-fg-secondary">
@@ -112,6 +116,7 @@ export function AutomationsPage() {
           first, on the Approvals page.
         </p>
       </PageHeader>
+      <AutomateTabs tab="automations" />
       {list.isLoading ? (
         <SkeletonRows rows={4} />
       ) : list.error ? (
