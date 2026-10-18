@@ -1,5 +1,6 @@
 import {
   buildPayload,
+  calendarScope,
   confirms,
   emptyForm,
   fileKind,
@@ -17,6 +18,7 @@ import {
   validateForm,
   WATCH_KINDS,
   watchSummary,
+  WRITE_OPTIONS,
   type BackendSpec,
 } from "@/components/sources/source-model";
 
@@ -333,6 +335,32 @@ describe("connections", () => {
       "Gmail",
       "Gmail · mara@x.io",
     ]);
+  });
+  it("lets Gmail send and Google Calendar add events only when an admin turns it on", () => {
+    expect(WRITE_OPTIONS.gmail?.map((o) => o.value)).toEqual(["", "yes"]);
+    expect(WRITE_OPTIONS.gcal?.[0].label).toBe("Only reads");
+    expect(gmailScope("api")).toBe("https://www.googleapis.com/auth/gmail.readonly");
+    expect(gmailScope("api", "yes")).toBe(
+      "https://www.googleapis.com/auth/gmail.readonly and https://www.googleapis.com/auth/gmail.compose",
+    );
+    expect(gmailScope("imap", "yes")).toBe("https://mail.google.com/"); // all of Gmail already sends
+    expect(calendarScope()).toBe("https://www.googleapis.com/auth/calendar.readonly");
+    expect(calendarScope("yes")).toBe(
+      "https://www.googleapis.com/auth/calendar.readonly and https://www.googleapis.com/auth/calendar.events",
+    );
+    expect(sourceSubtitle({ type: "gmail", params: { user: "mara@x.io", via: "api", write: "yes" } })).toBe(
+      "Gmail · mara@x.io · API · sends after your yes",
+    );
+    expect(sourceSubtitle({ type: "gcal", params: { calendars: "", write: "yes" } })).toBe(
+      "Google Calendar · every calendar · adds events after your yes",
+    );
+    const GCAL: BackendSpec = {
+      label: "Google Calendar",
+      fields: { calendars: "", impersonate: "", days_back: "365", account: "", write: "" },
+      secrets: ["token", "service_account_credentials"],
+    };
+    const on = { ...emptyForm(GCAL), params: { ...emptyForm(GCAL).params, write: "yes" } };
+    expect(buildPayload(GCAL, on, "gcal").params.write).toBe("yes");
   });
   it("confirms deletes by name, loosely", () => {
     expect(confirms(" dropbox ·  callrecorder", "Dropbox · CallRecorder")).toBe(true);
