@@ -6,13 +6,13 @@ namespaces and each activity's audience allow, and mark what they see reviewed, 
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query
 
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer, domain_errors
 from app.api.v1.routes.comments import _comments_out
-from app.domain import auth, comment_agent, comments, event_marks, event_reactions, events, events_content, store
+from app.domain import auth, comment_agent, comments, event_marks, event_reactions, events, events_content, for_you, store
 from app.schemas.activities import (
     ActivityKind,
     ActivityMark,
@@ -91,12 +91,20 @@ def timeline(
     before: str | None,
     limit: int,
     marked: dict[str, bool] | None = None,
+    order: str = "latest",
 ) -> dict[str, Any]:
     """A page of the timeline with the namespaces it names, the viewer's own marks on it, everyone's reactions and
     how many comments each item has; `marked` ({reviewed, important, hidden}: true or false) keeps the activities
-    whose marks are so."""
+    whose marks are so. `order` for_you reorders the newest items by the viewer's own signals (for_you.py), with
+    `why` by id."""
+    if order not in for_you.ORDERS:
+        raise HTTPException(422, f"order is {' or '.join(for_you.ORDERS)}")
     with domain_errors():
-        page = events.page(db, cfg, who, before, flt, limit, keep=event_marks.keeper(db, who["account"], marked))
+        keep = event_marks.keeper(db, who["account"], marked)
+        if order == "for_you":
+            page = for_you.page(db, cfg, who, flt, before, limit, keep)
+        else:
+            page = events.page(db, cfg, who, before, flt, limit, keep=keep)
     names = store.space_names(db)
     used = {s for a in page["items"] for s in events.spaces_of(a)}
     ids = [a["id"] for a in page["items"]]
@@ -128,14 +136,20 @@ def list_activities(
     hidden: bool | None = Query(None, description="only those you hid (true) or haven't (false)"),
     before: str | None = Query(None, max_length=4000, description="the next of the page before"),
     limit: int = Query(50, ge=1, le=200),
+    order: Literal["latest", "for_you"] = Query(
+        "latest",
+        description="latest: newest first; for_you: the 200 newest from `before` on, the `limit` of them that your own "
+        "reactions, comments and marks say you care for most first, each with `why`; `next` moves past all 200",
+    ),
 ) -> ActivityPage:
     """What happened in Lens, newest first: new assets and everything else the stream holds, each an Activity Streams
     2.0 activity with a Lens kind. Give `next` as `before` for the page after. Noisy kinds (like sensor readings) are
     left out unless named in `kinds`. Text from outside Lens is listed in each activity's `lens.untrusted`. `marks`
-    has your own marks on the page's activities; `reviewed`, `important` and `hidden` filter by them."""
+    has your own marks on the page's activities; `reviewed`, `important` and `hidden` filter by them. `order=for_you`
+    puts what you react to, comment on and mark important first, and what you hid last (docs/timeline.md, For you)."""
     flt = filters(acl, kinds, actor, namespace, tag, since, until, q, where)
     marked = event_marks.want(reviewed, important, hidden)
-    return ActivityPage(**timeline(db, cfg, viewer(db, user, acl), flt, before, limit, marked))
+    return ActivityPage(**timeline(db, cfg, viewer(db, user, acl), flt, before, limit, marked, order))
 
 
 @router.get("/kinds", response_model_exclude_unset=True)

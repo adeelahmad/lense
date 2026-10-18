@@ -522,6 +522,14 @@ export type ActivityPage = {
   comments?: {
     [key: string]: number;
   };
+  /**
+   * Why
+   *
+   * with order=for_you: why an item is where it is, by id, for those your own signals placed
+   */
+  why?: {
+    [key: string]: string;
+  };
   [key: string]: unknown;
 };
 
@@ -32977,6 +32985,12 @@ export type ListActivitiesData = {
      * Limit
      */
     limit?: number;
+    /**
+     * Order
+     *
+     * latest: newest first; for_you: the 200 newest from `before` on, the `limit` of them that your own reactions, comments and marks say you care for most first, each with `why`; `next` moves past all 200
+     */
+    order?: "latest" | "for_you";
   };
   url: "/api/v1/activities";
 };

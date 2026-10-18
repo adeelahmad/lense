@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, CheckCheck, History, ListFilter, Waypoints } from "lucide-react";
+import { ArrowUp, CheckCheck, History, ListFilter, Sparkles, Waypoints } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -31,6 +31,7 @@ import { Social } from "@/components/timeline/social";
 import { useCommentCounts, useReactions } from "@/components/timeline/use-social";
 import { useKinds, useMarks, useNewItems, useTimeline } from "@/components/timeline/use-timeline";
 import { Button } from "@/components/ui/button";
+import { Segmented } from "@/components/ui/tabs";
 import { Drawer } from "@/components/ui/dialog";
 import { SearchInput } from "@/components/ui/field";
 import { EmptyState, PageHeader, SkeletonRows } from "@/components/ui/states";
@@ -115,14 +116,16 @@ export function TimelinePage() {
     reactions: Record<string, Reaction[]>;
     comments: Record<string, number>;
     ns: Record<string, string>;
+    why: Record<string, string>;
   }>({
     items: [],
     marks: {},
     reactions: {},
     comments: {},
     ns: {},
+    why: {},
   });
-  useEffect(() => setExtra({ items: [], marks: {}, reactions: {}, comments: {}, ns: {} }), [qs]);
+  useEffect(() => setExtra({ items: [], marks: {}, reactions: {}, comments: {}, ns: {}, why: {} }), [qs]);
 
   const loaded = useMemo(() => (pages ?? []).flatMap((p) => p.items), [pages]);
   const all = useMemo(() => mergeNew(loaded, extra.items), [loaded, extra.items]);
@@ -143,6 +146,12 @@ export function TimelinePage() {
     () => Object.assign({}, ...(pages ?? []).map((p) => p.comments ?? {}), extra.comments) as Record<string, number>,
     [pages, extra.comments],
   );
+  const forYou = filters.order === "for_you";
+  const why = useMemo(
+    () => Object.assign({}, ...(pages ?? []).map((p) => p.why ?? {}), extra.why) as Record<string, string>,
+    [pages, extra.why],
+  );
+  const whyOf = useCallback((id: string) => (forYou ? why[id] : undefined), [forYou, why]);
   const marks = useMarks(serverMarks);
   const reactions = useReactions(serverReactions);
   const counts = useCommentCounts(serverComments);
@@ -161,6 +170,7 @@ export function TimelinePage() {
       reactions: { ...x.reactions, ...(d?.reactions ?? {}) },
       comments: { ...x.comments, ...(d?.comments ?? {}) },
       ns: { ...x.ns, ...(d?.namespaces ?? {}) },
+      why: { ...x.why, ...(d?.why ?? {}) },
     }));
     window.scrollTo?.({ top: 0, behavior: "smooth" });
   };
@@ -251,7 +261,7 @@ export function TimelinePage() {
       <PageHeader
         className="mb-1"
         title="Timeline"
-        meta="What came in from every source, newest first"
+        meta={forYou ? "What came in, what you care for most first" : "What came in from every source, newest first"}
         actions={
           <div className="flex flex-wrap gap-2">
             <Button asChild size="sm" variant="ghost" icon={<Waypoints />}>
@@ -271,7 +281,16 @@ export function TimelinePage() {
           </div>
         }
       />
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <Segmented
+          label="Order"
+          value={filters.order}
+          onChange={(v) => setFilters({ ...filters, order: v === "for_you" ? "for_you" : "latest" })}
+          items={[
+            { value: "latest", label: "Latest", icon: <History /> },
+            { value: "for_you", label: "For you", icon: <Sparkles /> },
+          ]}
+        />
         <WordsBox value={filters.q} onApply={(q) => setFilters({ ...filters, q })} />
         {phone && (
           <Button
@@ -291,6 +310,12 @@ export function TimelinePage() {
         </Drawer>
       )}
 
+      {forYou && !timeline.isLoading && !Object.keys(why).length && (
+        <p className="text-[12.5px] text-fg-muted">
+          For you learns from what you react to, comment on and mark important or hidden; so far it is the same as
+          Latest.
+        </p>
+      )}
       {pending.length > 0 && (
         <Button size="sm" variant="primary" icon={<ArrowUp />} className="self-center" onClick={bringIn}>
           {pending.length} new
@@ -329,6 +354,7 @@ export function TimelinePage() {
                 onFocus={() => setActive(i)}
                 reactionsOf={reactions.of}
                 commentsOf={counts.of}
+                whyOf={whyOf}
                 social={(a) => (
                   <Social
                     a={a}

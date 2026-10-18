@@ -200,6 +200,8 @@ type RowProps = {
   social?: (a: Activity) => ReactNode;
   /** Plain rows with no toggles (Home's card). */
   compact?: boolean;
+  /** With the For you order: why an item is where it is (the page's `why`), shown under the line. */
+  whyOf?: (id: string) => string | undefined;
 };
 
 /** The mark a group shows: reviewed or important once every item is. */
@@ -231,6 +233,7 @@ export const TimelineRow = forwardRef<HTMLLIElement, RowProps>(function Timeline
     commentsOf,
     social,
     compact,
+    whyOf,
   },
   ref,
 ) {
@@ -244,6 +247,7 @@ export const TimelineRow = forwardRef<HTMLLIElement, RowProps>(function Timeline
   const summary = groupSummary(group, labels[first.kind]);
   const reactions = reactionsOf ? sumReactions(group.items.map((a) => reactionsOf(a.id))) : [];
   const comments = commentsOf ? group.items.reduce((n, a) => n + commentsOf(a.id), 0) : 0;
+  const why = whyOf?.(first.id);
   const onKey = (e: KeyboardEvent) => {
     if (e.target !== e.currentTarget) return;
     if (e.key === "Enter" || e.key === "o") {
@@ -318,6 +322,11 @@ export const TimelineRow = forwardRef<HTMLLIElement, RowProps>(function Timeline
               </>
             )}
           </span>
+          {why && (
+            <span data-testid="why" className="truncate text-[12px] leading-tight text-blue-dark">
+              {why}
+            </span>
+          )}
         </span>
         {!compact && <MarkToggles mark={mark} onMark={(flags) => onMark(ids, flags)} />}
       </div>

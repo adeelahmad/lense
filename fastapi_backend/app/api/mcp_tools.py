@@ -60,6 +60,7 @@ from app.domain import (
     feeds,
     filetree,
     florence,
+    for_you,
     graph_history,
     integrations,
     library,
@@ -3637,6 +3638,13 @@ def set_mail_routing(ctx: Context, account: int, rules: list[str], watch: int | 
         max_length=20000,
     ),
     Arg("unreviewed", "boolean", "only those you haven't marked reviewed"),
+    Arg(
+        "order",
+        "string",
+        "latest (newest first) or for_you: the 200 newest, the limit of them the person's own reactions, comments and "
+        "marks say they care for most first, each with why; next moves past all 200",
+        enum=for_you.ORDERS,
+    ),
     Arg("before", "string", "the next of the page before", max_length=4000),
     Arg("limit", "integer", "activities at most", default=20, minimum=1, maximum=200),
 )
@@ -3651,6 +3659,7 @@ def timeline(
     q: str | None,
     where: str | None,
     unreviewed: bool | None,
+    order: str | None,
     before: str | None,
     limit: int,
 ) -> dict[str, Any]:
@@ -3658,7 +3667,9 @@ def timeline(
         ctx.acl, kinds, [actor] if actor else None, [namespace] if namespace else None, tag, since, until, q, where
     )
     who = activity_routes.viewer(ctx.db, ctx.user, ctx.acl)
-    return activity_routes.timeline(ctx.db, ctx.cfg, who, flt, before, limit, {"reviewed": False} if unreviewed else None)
+    return activity_routes.timeline(
+        ctx.db, ctx.cfg, who, flt, before, limit, {"reviewed": False} if unreviewed else None, order or "latest"
+    )
 
 
 @tool(

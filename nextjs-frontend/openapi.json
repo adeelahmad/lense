@@ -5148,7 +5148,7 @@
           "activities"
         ],
         "summary": "List Activities",
-        "description": "What happened in Lens, newest first: new assets and everything else the stream holds, each an Activity Streams\n2.0 activity with a Lens kind. Give `next` as `before` for the page after. Noisy kinds (like sensor readings) are\nleft out unless named in `kinds`. Text from outside Lens is listed in each activity's `lens.untrusted`. `marks`\nhas your own marks on the page's activities; `reviewed`, `important` and `hidden` filter by them.",
+        "description": "What happened in Lens, newest first: new assets and everything else the stream holds, each an Activity Streams\n2.0 activity with a Lens kind. Give `next` as `before` for the page after. Noisy kinds (like sensor readings) are\nleft out unless named in `kinds`. Text from outside Lens is listed in each activity's `lens.untrusted`. `marks`\nhas your own marks on the page's activities; `reviewed`, `important` and `hidden` filter by them. `order=for_you`\nputs what you react to, comment on and mark important first, and what you hid last (docs/timeline.md, For you).",
         "operationId": "list_activities",
         "parameters": [
           {
@@ -5390,6 +5390,22 @@
               "default": 50,
               "title": "Limit"
             }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "latest",
+                "for_you"
+              ],
+              "type": "string",
+              "description": "latest: newest first; for_you: the 200 newest from `before` on, the `limit` of them that your own reactions, comments and marks say you care for most first, each with `why`; `next` moves past all 200",
+              "default": "latest",
+              "title": "Order"
+            },
+            "description": "latest: newest first; for_you: the 200 newest from `before` on, the `limit` of them that your own reactions, comments and marks say you care for most first, each with `why`; `next` moves past all 200"
           }
         ],
         "responses": {
@@ -36803,6 +36819,14 @@
             "type": "object",
             "title": "Comments",
             "description": "how many comments items have, by id (those with any)"
+          },
+          "why": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Why",
+            "description": "with order=for_you: why an item is where it is, by id, for those your own signals placed"
           }
         },
         "additionalProperties": true,

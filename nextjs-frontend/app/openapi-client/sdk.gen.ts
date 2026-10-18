@@ -4290,7 +4290,8 @@ export class Activities {
    * What happened in Lens, newest first: new assets and everything else the stream holds, each an Activity Streams
    * 2.0 activity with a Lens kind. Give `next` as `before` for the page after. Noisy kinds (like sensor readings) are
    * left out unless named in `kinds`. Text from outside Lens is listed in each activity's `lens.untrusted`. `marks`
-   * has your own marks on the page's activities; `reviewed`, `important` and `hidden` filter by them.
+   * has your own marks on the page's activities; `reviewed`, `important` and `hidden` filter by them. `order=for_you`
+   * puts what you react to, comment on and mark important first, and what you hid last (docs/timeline.md, For you).
    */
   public static listActivities<ThrowOnError extends boolean = false>(
     options?: Options<ListActivitiesData, ThrowOnError>,

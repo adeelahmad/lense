@@ -24,7 +24,11 @@ export type Filters = {
   q: string;
   unreviewed: boolean;
   important: boolean;
+  /** Latest (newest first) or For you: the newest reordered by what you react to, comment on and mark. */
+  order: Order;
 };
+
+export type Order = "latest" | "for_you";
 
 export const NO_FILTERS: Filters = {
   kinds: [],
@@ -37,6 +41,7 @@ export const NO_FILTERS: Filters = {
   q: "",
   unreviewed: false,
   important: false,
+  order: "latest",
 };
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -61,6 +66,7 @@ export function fromParams(p: URLSearchParams): Filters {
     q: (p.get("q") ?? "").trim(),
     unreviewed: p.get("unreviewed") === "1",
     important: p.get("important") === "1",
+    order: p.get("order") === "for_you" ? "for_you" : "latest",
   };
 }
 
@@ -77,11 +83,13 @@ export function toParams(f: Filters): URLSearchParams {
   if (f.q) p.set("q", f.q);
   if (f.unreviewed) p.set("unreviewed", "1");
   if (f.important) p.set("important", "1");
+  if (f.order === "for_you") p.set("order", "for_you");
   return p;
 }
 
+/** Whether any filter is set; the order is a view, not a filter. */
 export function isFiltered(f: Filters): boolean {
-  return toParams(f).toString() !== "";
+  return toParams({ ...f, order: "latest" }).toString() !== "";
 }
 
 /** How many filters are set, for the phone's Filters button. */
@@ -113,6 +121,7 @@ export type ListQuery = {
   reviewed?: boolean;
   important?: boolean;
   hidden: boolean;
+  order?: Order;
 };
 
 /** The automation filter as a match tree: what the automation did (its actor) or what one of its runs caused. */
@@ -138,6 +147,7 @@ export function toQuery(f: Filters): ListQuery {
   if (f.automation) q.where = automationWhere(f.automation);
   if (f.unreviewed) q.reviewed = false;
   if (f.important) q.important = true;
+  if (f.order === "for_you") q.order = "for_you";
   return q;
 }
 
