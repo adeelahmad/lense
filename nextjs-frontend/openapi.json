@@ -3886,6 +3886,154 @@
         }
       }
     },
+    "/api/v1/secrets": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get Secrets",
+        "description": "The password managers Lens can read secrets from and whether each is set up; every secret field in Settings,\nwhether it's set, and for one that refers to a password manager its reference and whether this server could read\nits value (and when, or why not).",
+        "operationId": "get_secrets",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecretsView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/secrets/items": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List Vault Items",
+        "description": "The items of a password manager Lens may refer to (those in its folder): each one's name, type, the fields that\nhold something and the reference to each. Never their values. 409 when the manager isn't set up or can't be\nreached, with why.",
+        "operationId": "list_vault_items",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "the password manager",
+              "default": "vaultwarden",
+              "title": "Provider"
+            },
+            "description": "the password manager"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "part of an item's name",
+              "title": "Q"
+            },
+            "description": "part of an item's name"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VaultItems"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/secrets/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Secrets",
+        "description": "Sign in to a password manager with the settings saved and count the items Lens may read, to check them.",
+        "operationId": "test_secrets",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SecretsTry"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecretsTestResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/backups/remote": {
       "get": {
         "tags": [
@@ -71024,6 +71172,279 @@
         ],
         "title": "SecretFlag"
       },
+      "SecretProvider": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "scheme": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scheme",
+            "description": "how references to it start (vaultwarden://\u2026); none for the built-in store"
+          },
+          "configured": {
+            "type": "boolean",
+            "title": "Configured",
+            "description": "set up, so a reference to it can be read"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope",
+            "description": "what it reads, in words: never a secret"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "folder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder"
+          },
+          "installed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installed",
+            "description": "its client is fetched (a component), when it needs one"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "configured"
+        ],
+        "title": "SecretProvider"
+      },
+      "SecretReference": {
+        "properties": {
+          "section": {
+            "type": "string",
+            "title": "Section"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "ref": {
+            "type": "string",
+            "title": "Ref",
+            "description": "the reference the field holds, like vaultwarden://OpenAI/password"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "read": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read",
+            "description": "whether its value could be read by this server process; null before the first read"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why it couldn't be read, last time it was tried"
+          },
+          "read_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read At",
+            "description": "when its value was last read"
+          },
+          "missing": {
+            "type": "boolean",
+            "title": "Missing",
+            "description": "the password manager answered that the item or field isn't there",
+            "default": false
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "section",
+          "key",
+          "ref",
+          "provider"
+        ],
+        "title": "SecretReference"
+      },
+      "SecretsTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Items",
+            "description": "how many items the folder Lens reads holds"
+          },
+          "folder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder"
+          },
+          "account": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "SecretsTestResult"
+      },
+      "SecretsTry": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": "vaultwarden"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SecretsTry"
+      },
+      "SecretsView": {
+        "properties": {
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/SecretProvider"
+            },
+            "type": "array",
+            "title": "Providers"
+          },
+          "references": {
+            "items": {
+              "$ref": "#/components/schemas/SecretReference"
+            },
+            "type": "array",
+            "title": "References",
+            "description": "every secret field that refers to a password manager"
+          },
+          "fields": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Fields",
+            "description": "every secret field in Settings: section, key, set, and its ref when it holds one"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "providers",
+          "references",
+          "fields"
+        ],
+        "title": "SecretsView"
+      },
       "SegmentEdit": {
         "properties": {
           "idx": {
@@ -79177,6 +79598,77 @@
           "prf"
         ],
         "title": "VaultAnswer"
+      },
+      "VaultItem": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "login, note, card, identity or other"
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fields",
+            "description": "the names of the fields that hold something"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref",
+            "description": "the reference to the item's default field (a login's password, a note's text)"
+          },
+          "refs": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Refs",
+            "description": "the reference to each field"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "fields"
+        ],
+        "title": "VaultItem"
+      },
+      "VaultItems": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/VaultItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "provider",
+          "items"
+        ],
+        "title": "VaultItems"
       },
       "VaultPasskey": {
         "properties": {
