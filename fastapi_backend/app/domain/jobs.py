@@ -824,7 +824,10 @@ def cancel_many(db, spaces, ids=None, statuses=("queued", "held")):
     """Clear the queue: cancel the queued and held runs in these namespaces (only `ids`, when given). With "running"
     among `statuses`, running ones are asked to stop after the step they're on. Returns (cancelled, stopping) ids."""
     cancelled, stopping, t = [], [], store.now()
-    for j in _picked(db, spaces, [s for s in statuses if s in ACTIVE], ids):
+    statuses = [s for s in statuses if s in ACTIVE]
+    if not statuses:
+        return cancelled, stopping
+    for j in _picked(db, spaces, statuses, ids):
         if j["status"] == "running":
             db.q("UPDATE $j SET cancel_requested = true, updated_at = $t WHERE status = 'running'", j=R("job", j["id"]), t=t)
             stopping.append(j["id"])
@@ -841,7 +844,10 @@ def retry_many(db, spaces, ids=None, statuses=("failed",)):
     """Retry the failed runs (the dead letter queue; cancelled ones too, when asked) in these namespaces (only `ids`,
     when given), each from the step it stopped at. A run whose asset was deleted, or whose asset already has a run
     queued or running (a newer one, or a newer failed run retried first), is skipped. Returns (retried, skipped)."""
-    picked = _picked(db, spaces, [s for s in statuses if s in ("failed", "cancelled")], ids)
+    statuses = [s for s in statuses if s in ("failed", "cancelled")]
+    if not statuses:
+        return [], 0
+    picked = _picked(db, spaces, statuses, ids)
     recs = {j["recording"] for j in picked}
     busy = set(db.values("SELECT VALUE recording FROM job WHERE recording IN $r AND status IN $a", r=sorted(recs), a=ACTIVE))
     retried, skipped = [], 0

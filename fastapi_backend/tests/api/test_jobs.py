@@ -465,6 +465,9 @@ def test_clearing_reordering_and_retrying_the_queue(client, db, cfg, folder):
     # undo: retry the ids it returned, cancelled ones included; they join the back of the queue
     r = client.post("/api/v1/jobs/retry", json={"jobs": r["jobs"], "status": ["cancelled"]}, headers=he).json()
     assert sorted(r["jobs"]) == sorted([ja, jb]) and order(hr)[0] == jc
+    # a status the action doesn't take changes nothing
+    assert client.post("/api/v1/jobs/cancel", json={"status": ["failed"]}, headers=hr).json()["jobs"] == []
+    assert client.post("/api/v1/jobs/retry", json={"status": ["queued"]}, headers=hr).json()["jobs"] == []
     # running runs stop after their step only when asked
     db.q("UPDATE $j SET status = 'running'", j=store.R("job", jc))
     r = client.post("/api/v1/jobs/cancel", json={"status": ["queued", "running"]}, headers=hr).json()
