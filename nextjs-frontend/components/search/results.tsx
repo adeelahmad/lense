@@ -52,14 +52,16 @@ function PlayButton({ hit, player, audio }: { hit: SearchHit; player: InlinePlay
   const playing = player.isPlaying(key);
   const untimed = hit.t0 == null;
   const paged = onPage(hit);
+  const written = hit.source === "generated";
   const none = untimed || paged || audio === false || player.noAudio.has(hit.recording_id);
-  const label = paged
-    ? `Nothing to play: ${(foundAs(hit) ?? "on a page").toLowerCase()}`
-    : untimed
-      ? "No time: a line of a file without times"
-      : none
-        ? "No audio — text only"
-        : `${playing ? "Pause" : "Play"} from ${tc(hit.t0)}`;
+  const label =
+    paged || written
+      ? `Nothing to play: ${(foundAs(hit) ?? "on a page").toLowerCase()}`
+      : untimed
+        ? "No time: a line of a file without times"
+        : none
+          ? "No audio — text only"
+          : `${playing ? "Pause" : "Play"} from ${tc(hit.t0)}`;
   const btn = (
     <button
       type="button"
@@ -95,11 +97,13 @@ function PlayButton({ hit, player, audio }: { hit: SearchHit; player: InlinePlay
   return none ? (
     <Tooltip
       content={
-        paged
-          ? `${foundAs(hit) ?? "On the page"}, of a document or an image`
-          : untimed
-            ? "This line's file doesn't say when it is"
-            : "No audio: this asset is text only"
+        written
+          ? `${foundAs(hit)}: one of this asset's outputs`
+          : paged
+            ? `${foundAs(hit) ?? "On the page"}, of a document or an image`
+            : untimed
+              ? "This line's file doesn't say when it is"
+              : "No audio: this asset is text only"
       }
     >
       {btn}
@@ -126,7 +130,14 @@ function HitRow({
   const href = withFind(hitHref(hit), q);
   const paged = onPage(hit);
   const untimed = hit.t0 == null || paged;
-  const at = paged ? `Page ${(hit.page ?? 0) + 1}` : hit.t0 == null ? `Line ${(hit.line ?? 0) + 1}` : tc(hit.t0);
+  const written = hit.source === "generated";
+  const at = paged
+    ? `Page ${(hit.page ?? 0) + 1}`
+    : written
+      ? "Output"
+      : hit.t0 == null
+        ? `Line ${(hit.line ?? 0) + 1}`
+        : tc(hit.t0);
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return;
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -156,7 +167,7 @@ function HitRow({
       data-hit
       tabIndex={first ? 0 : -1}
       onKeyDown={onKey}
-      aria-label={`${paged ? at : untimed ? "No time" : tc(hit.t0)}${hit.speaker ? `, ${hit.speaker}` : ""}${where}. Enter opens${untimed ? "" : ", Space plays"}.`}
+      aria-label={`${paged || written ? at : untimed ? "No time" : tc(hit.t0)}${hit.speaker ? `, ${hit.speaker}` : ""}${where}. Enter opens${untimed ? "" : ", Space plays"}.`}
       className="-mx-2 grid grid-cols-[30px_54px_minmax(0,1fr)] items-baseline gap-x-2.5 gap-y-1 rounded-sm px-2 py-1 outline-hidden focus-visible:bg-hl focus-visible:ring-2 focus-visible:ring-blue md:grid-cols-[30px_54px_96px_minmax(0,1fr)]"
     >
       <PlayButton hit={hit} player={player} audio={audio} />
@@ -169,7 +180,9 @@ function HitRow({
       </Link>
       <span className="flex min-w-0 items-center gap-[5px] text-[12px] font-semibold" style={{ color }}>
         {found ? (
-          <span className="text-fg-secondary">{found}</span>
+          <span className="truncate text-fg-secondary" title={found}>
+            {found}
+          </span>
         ) : hit.source === "file" ? (
           <span
             className="truncate text-fg-secondary"

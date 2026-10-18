@@ -814,7 +814,11 @@ audio skip themselves for imported text. Steps:
 - `clean_audio` ([Cleaning up audio](#cleaning-up-audio)), `transcribe`, `diarize`, `clean`
   ([Cleaning up transcripts](#cleaning-up-transcripts)), `analyze`, `summarize`, and `report` (the built-in report).
 - `llm`: renders a prompt template, sends it to the configured model, checks the reply against the template's JSON
-  Schema and saves it as a named output (e.g. `meeting_notes`).
+  Schema and saves it as a named output (e.g. `meeting_notes`). Search finds the words of that output (its text and
+  numbers, not its field names), as `source: generated` with the step's name (else the template's) in `output_label`
+  ([search](api.md#search)); running the step again replaces them, and deleting the asset removes them. Untick *Find
+  what it writes in search* (`searchable: false`) to keep an output out of search; it is on unless a step says so,
+  which changes nothing anyone relied on, since search didn't look at outputs before.
 - `spec`: writes a technical spec from the transcript into a note linked to the asset, with the Spec from transcript
   template unless the step names another prompt template ([Specs from transcripts](notes.md#specs-from-transcripts)).
 - `report` with a template: renders an HTML page into the namespace's reports. These pages may not run scripts.
@@ -899,7 +903,8 @@ node passes what it makes along its connections.
   other methods. Asset and graph workflows have it; automations call web addresses with their own action, which asks
   first ([actions](automations.md#actions-and-intents)). Refine later: credentials passed in through a custom node's parameter
   aren't sealed, and a sealed header is bound to its host rather than to one workflow.
-- **Keeping results:** Save output (`outputs.<name>`), Set field (a custom field, kept in the metadata history), Save
+- **Keeping results:** Save output (`outputs.<name>`; when an LLM prompt node is before it, search finds its words
+  under the node's label, unless its *Find it in search* box is unticked, `searchable: false`), Set field (a custom field, kept in the metadata history), Save
   entities, and a Classify node set to act on a sure answer (it sets the content type, suggests the topic or adds the
   tag; a try on the canvas only says what it would do).
 

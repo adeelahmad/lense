@@ -298,6 +298,12 @@ export function StepSettings({
                 />
               )}
             </Field>
+            <Checkbox
+              label="Find what it writes in search"
+              checked={step.searchable !== false}
+              onCheckedChange={(v) => set({ searchable: v ? undefined : false })}
+              disabled={readOnly}
+            />
           </>
         )}
         {step.type === "export" && (

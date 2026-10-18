@@ -12,7 +12,8 @@ what flows between these, the nodes of a recording workflow:
   ("Name|TYPE") and your regular expressions. Passes on a list of entities, each with the line it was found on.
 - `extract_llm`: asks the model for the entities in the transcript, of the types you name; entities passed in are given
   to it as what was found so far, to keep, correct or add to.
-- `output`: saves the value as a named output of the recording.
+- `output`: saves the value as a named output of the recording. When it came from an `llm` node, search finds its
+  words too, under the node's label (else the prompt template's name), unless `searchable` is false.
 - `field`: sets a custom field of the recording to the value, checked like an edit (and kept in its history).
 - `save_entities`: makes the entities passed in the recording's entities (in place of what analyze found), with
   people's corrections kept, then redoes keywords and sections as analyze does.
@@ -62,7 +63,7 @@ OWN_CONFIG = {
     "llm": {"template", "version", "model"},
     "extract_rules": {"builtin", "terms", "patterns", "types"},
     "extract_llm": {"types", "instructions", "model"},
-    "output": {"key"},
+    "output": {"key", "searchable"},
     "field": {"field"},
     "save_entities": set(),
     "classify": {"labels", "vocabulary", "question", "of", "apply"},
@@ -143,6 +144,8 @@ def _check_config(db, nid, t, cfg):
     elif t == "output":
         if not pipelines.KEY_RX.match(str(cfg.get("key") or "")):
             raise ValueError(f"output node {nid}: name it with lowercase letters, digits and _ (e.g. meeting_notes)")
+        if "searchable" in cfg and not isinstance(cfg["searchable"], bool):
+            raise ValueError(f"output node {nid}: searchable is true or false")
     elif t == "field":
         try:
             fieldmod.get(db, int(cfg.get("field") or 0))
@@ -394,7 +397,12 @@ def _run_node(r, f, node, value, vals):
         if r.dry:
             r.say(f"would save output {c['key']}")
         else:
-            pipelines.save_output(db, rid, c["key"], value, {**r.origin, **f.upstream(nid, f.made)})
+            made = f.upstream(nid, f.made)
+            found_as = None
+            if made.get("model") and c.get("searchable", True):  # what a model wrote: search finds it
+                tpl = db.one("SELECT name FROM $t", t=R("template", made["template"])) or {}
+                found_as = node.get("label") or tpl.get("name") or c["key"]
+            pipelines.save_output(db, rid, c["key"], value, {**r.origin, **made}, found_as)
             r.say(f"saved output {c['key']}")
     elif t == "field":
         fd = fieldmod.get(db, int(c["field"]))

@@ -21,12 +21,13 @@ class SearchHit(ResponseModel):
     recorded_at: str | None = None
     namespace: str | None = None
     snippet: str = Field(description="HTML: escaped text with <mark> around matches")
-    source: Literal["said", "screen", "file", "page", "object", "described"] = Field(
+    source: Literal["said", "screen", "file", "page", "object", "described", "generated"] = Field(
         description='"said" (a line of a transcript or other text), "screen" (text on screen in a video), "file" (a line of a '
         "supplementary file), "
         '"page" (text on a page of a document or an image, whose times are only a reading pace), "object" (a kind of '
-        "object seen in a video, a document or an image, where it's first seen; its snippet is the kind) or "
-        '"described" (what a model that can see said a shot of a video, or a page, shows)'
+        "object seen in a video, a document or an image, where it's first seen; its snippet is the kind), "
+        '"described" (what a model that can see said a shot of a video, or a page, shows) or "generated" (what a '
+        "pipeline's model step, or a workflow's model node, wrote about the asset: one of its outputs, with no time or page)"
     )
     frame: str | None = Field(None, description="screen, object and described hits: signed link to the video frame or the page")
     box: Any = Field(None, description="screen, page and object hits: where it is on the frame or the page ([x, y, w, h] fractions)")
@@ -35,6 +36,8 @@ class SearchHit(ResponseModel):
     file_role: str | None = Field(None, description="file hits: its role (transcript, captions, translation or index)")
     file_label: str | None = Field(None, description="file hits: its label, or its name")
     line: int | None = Field(None, description="file hits: which of its lines (from 0)")
+    output_key: str | None = Field(None, description="generated hits: the output it is (outputs.<key> on the asset)")
+    output_label: str | None = Field(None, description="generated hits: what wrote it: the step's or node's name, else its template's")
     match: Literal["words", "meaning", "both"] = Field(
         "words",
         description='how it was found: by the query\'s "words" (BM25), by "meaning" (a passage an embedding model finds '

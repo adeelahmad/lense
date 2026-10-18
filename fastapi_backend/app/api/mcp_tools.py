@@ -456,7 +456,8 @@ def _recording(ctx: Context, rid: int) -> dict[str, Any]:
     "search",
     "Search the archive",
     "Full-text search for moments in the archive: the text of every asset — speech in audio and video (transcripts), "
-    "text shown on screen in videos or written in documents and images, supplementary files, and kinds of object seen. Words are all required "
+    "text shown on screen in videos or written in documents and images, supplementary files, kinds of object seen, and what "
+    "pipelines' model steps wrote about assets (found: generated, with the step in output). Words are all required "
     '(matched after stemming), "quoted phrases" must appear as written, OR separates alternatives, NOT or a leading - leaves out lines with a word or phrase. Results are the best '
     "moments first, each with the asset, the person (who said or wrote it), where in it, the matching text (matches in **bold**) "
     "and a url that opens the asset at that moment. Use get_transcript for the lines around a moment.",
@@ -515,6 +516,7 @@ def search(
             "line": h.idx,
             "page": h.page + 1 if h.page is not None else None,
             "file": h.file_label,
+            "output": h.output_label,
             "text": _plain(h.snippet),
             "url": ctx.link(h.recording_id, h.t0),
         }

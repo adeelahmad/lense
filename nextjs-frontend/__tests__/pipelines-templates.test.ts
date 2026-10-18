@@ -80,6 +80,23 @@ describe("pipeline specs", () => {
     });
     expect(sameSteps(["analyze"], [{ type: "analyze" }])).toBe(true);
   });
+  it("keeps an llm step's words in search unless it opts out", () => {
+    expect(cleanSpec({ type: "llm", template: 1, key: "notes", searchable: true })).toEqual({
+      type: "llm",
+      template: 1,
+      key: "notes",
+    });
+    expect(cleanSpec({ type: "llm", template: 1, key: "notes", searchable: false })).toEqual({
+      type: "llm",
+      template: 1,
+      key: "notes",
+      searchable: false,
+    });
+    expect(cleanSpec({ type: "analyze", searchable: false })).toBe("analyze");
+    expect(stepSummary({ type: "llm", template: 1, key: "notes", searchable: false }, () => "Meeting notes")).toBe(
+      "Meeting notes · outputs.notes · not in search",
+    );
+  });
   it("describes settings and conditions", () => {
     expect(whenText({ min_minutes: 5 })).toBe("only if > 5 min");
     expect(

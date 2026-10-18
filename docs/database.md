@@ -123,6 +123,10 @@ The steps so far, in the order they run:
   without a `head` is read as one line, and saved as one before anything is added to it.
 * `mcp-sealed-secrets`: the tokens and keys MCP servers kept in plain text in their headers and env are sealed,
   in every version ([Adding an MCP server](assistant.md#adding-an-mcp-server)); sealed ones are left as they are.
+* `generated-search`: outputs a model wrote about an asset before search found them (an `output` whose `origin` names
+  a `model`, except a spec's note) get their words kept for search in `generated`, under their template's name
+  ([Pipelines and templates](processing.md#pipelines-and-templates)). Outputs that already have them are left as they
+  are, so it's safe to run twice.
 
 To add a step:
 

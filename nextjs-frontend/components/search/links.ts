@@ -23,9 +23,11 @@ export function onPage(hit: Pick<SearchHit, "source" | "page">): boolean {
   return hit.source === "page" || ((hit.source === "object" || hit.source === "described") && hit.page != null);
 }
 
-/** Where a hit was found, when it wasn't said: on screen, on the page, seen, or what a shot or page shows. */
-export function foundAs(hit: Pick<SearchHit, "source" | "page">): string | null {
+/** Where a hit was found, when it wasn't said: on screen, on the page, seen, what a shot or page shows, or what a
+ * pipeline's model step wrote about the asset (named after the step). */
+export function foundAs(hit: Pick<SearchHit, "source" | "page" | "output_label">): string | null {
   const paged = onPage(hit);
+  if (hit.source === "generated") return `Written by ${hit.output_label || "a model step"}`;
   if (hit.source === "screen") return "On screen";
   if (hit.source === "object") return paged ? "Seen on the page" : "Seen on screen";
   if (hit.source === "described") return paged ? "What the page shows" : "What the shot shows";

@@ -49,6 +49,7 @@ SPACED = (
     "face_track",
     "object_track",
     "description",
+    "generated",
     "job",
     "output",
     "share_link",

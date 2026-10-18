@@ -16311,7 +16311,7 @@
           "search"
         ],
         "summary": "Search Transcripts",
-        "description": "Moments where the words appear (said in audio or video, shown on screen in a video, written in a document or in\na resource's supplementary transcripts, captions, translations and indexes, or the kinds of object seen in videos,\ndocuments and images),\nbest first, in the namespaces you can read and the collections you were given a role on. A person, emotion or\nsound filter keeps to their lines. By meaning, a moment is a passage about what was asked, though its words may differ.",
+        "description": "Moments where the words appear (said in audio or video, shown on screen in a video, written in a document or in\na resource's supplementary transcripts, captions, translations and indexes, the kinds of object seen in videos,\ndocuments and images, what a model that can see said they show, or what a pipeline's model step wrote about them),\nbest first, in the namespaces you can read and the collections you were given a role on. A person, emotion or\nsound filter keeps to their lines. By meaning, a moment is a passage about what was asked, though its words may differ.",
         "operationId": "search_transcripts",
         "parameters": [
           {
@@ -53727,7 +53727,7 @@
               }
             ],
             "title": "Source",
-            "description": "words: said, screen, file, page, object or described (as search has it)"
+            "description": "words: said, screen, file, page, object, described or generated (as search has it)"
           }
         },
         "additionalProperties": true,
@@ -79049,10 +79049,11 @@
               "file",
               "page",
               "object",
-              "described"
+              "described",
+              "generated"
             ],
             "title": "Source",
-            "description": "\"said\" (a line of a transcript or other text), \"screen\" (text on screen in a video), \"file\" (a line of a supplementary file), \"page\" (text on a page of a document or an image, whose times are only a reading pace), \"object\" (a kind of object seen in a video, a document or an image, where it's first seen; its snippet is the kind) or \"described\" (what a model that can see said a shot of a video, or a page, shows)"
+            "description": "\"said\" (a line of a transcript or other text), \"screen\" (text on screen in a video), \"file\" (a line of a supplementary file), \"page\" (text on a page of a document or an image, whose times are only a reading pace), \"object\" (a kind of object seen in a video, a document or an image, where it's first seen; its snippet is the kind), \"described\" (what a model that can see said a shot of a video, or a page, shows) or \"generated\" (what a pipeline's model step, or a workflow's model node, wrote about the asset: one of its outputs, with no time or page)"
           },
           "frame": {
             "anyOf": [
@@ -79129,6 +79130,30 @@
             ],
             "title": "Line",
             "description": "file hits: which of its lines (from 0)"
+          },
+          "output_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Key",
+            "description": "generated hits: the output it is (outputs.<key> on the asset)"
+          },
+          "output_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Label",
+            "description": "generated hits: what wrote it: the step's or node's name, else its template's"
           },
           "match": {
             "type": "string",

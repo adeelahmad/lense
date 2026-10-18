@@ -49,7 +49,7 @@ LEGACY = ("access-levels", "collection-homes")
 
 def steps():
     """[(name, fn(db))] in the order they run. Append only."""
-    from . import access, auth, chat, entities, hierarchy, jobs, mcp_servers
+    from . import access, auth, chat, entities, hierarchy, jobs, mcp_servers, pipelines
 
     return [
         # IIIF-only access levels (public, transcript, signed-in, private) become the access setting
@@ -66,6 +66,8 @@ def steps():
         ("mcp-sealed-secrets", mcp_servers.migrate_seal),
         # entities the old rules called terms get the type the rules give them now (people, places, organisations...)
         ("entity-types", entities.migrate_types),
+        # what a model step wrote about a recording before then is found by search too
+        ("generated-search", pipelines.migrate_generated),
     ]
 
 

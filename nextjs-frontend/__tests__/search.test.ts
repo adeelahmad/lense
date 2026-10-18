@@ -228,7 +228,7 @@ describe("facets and groups", () => {
     expect(recordingHref(12, 0)).toBe("/resources/12");
   });
 
-  it("says where what wasn't said was found: on screen, on a page, seen, or what a shot or page shows", () => {
+  it("says where what wasn't said was found: on screen, on a page, seen, what a shot or page shows, or a model wrote", () => {
     expect(foundAs({ source: "said", page: null })).toBeNull();
     expect(foundAs({ source: "screen", page: null })).toBe("On screen");
     expect(foundAs({ source: "page", page: 2 })).toBe("On the page");
@@ -237,6 +237,8 @@ describe("facets and groups", () => {
     expect(foundAs({ source: "described", page: null })).toBe("What the shot shows");
     expect(foundAs({ source: "described", page: 1 })).toBe("What the page shows");
     expect(foundAs({ source: "file", page: null })).toBeNull();
+    expect(foundAs({ source: "generated", page: null, output_label: "Call notes" })).toBe("Written by Call notes");
+    expect(foundAs({ source: "generated", page: null })).toBe("Written by a model step");
     expect([onPage({ source: "described", page: 1 }), onPage({ source: "described", page: null })]).toEqual([
       true,
       false,
