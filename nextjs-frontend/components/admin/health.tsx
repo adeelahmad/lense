@@ -5,7 +5,7 @@ import { Cpu, Database, HardDriveDownload, KeyRound, Sparkles, type LucideIcon }
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { Admin, Jobs } from "@/app/openapi-client";
+import { Admin, Jobs, Resources } from "@/app/openapi-client";
 import { AdminFrame } from "@/components/admin/admin-frame";
 import { grafanaAddress, MonitoringSwitch, useMonitoring } from "@/components/admin/monitoring-switch";
 import { isUnreachable, ServerUnreachable } from "@/components/errors/error-states";
@@ -117,6 +117,12 @@ export function HealthPage() {
   });
   const test = useMutation({
     mutationFn: () => data(Admin.testLlm({ client })),
+  });
+  // read from the disk on the server, so asked for less often than the rest
+  const storage = useQuery({
+    queryKey: ["recording-origins", "storage"],
+    queryFn: () => data(Resources.listOrigins({ client, query: { storage: true } })),
+    staleTime: 5 * 60_000,
   });
 
   if (health.isPending)
@@ -301,9 +307,30 @@ export function HealthPage() {
             />
           </div>
           <span className="tabular text-[12.5px] leading-[1.4] text-fg-secondary">
-            {used.toFixed(1)} GB used · free {h.disk.free_gb} GB of {h.disk.total_gb} GB. The split between audio, cache
-            and database isn’t reported yet.
+            {used.toFixed(1)} GB used · free {h.disk.free_gb} GB of {h.disk.total_gb} GB.
           </span>
+          {storage.data && storage.data.length > 0 && (
+            <table aria-label="Space by where assets came from" className="tabular w-full text-[12.5px] leading-[1.6]">
+              <thead className="text-left text-fg-muted">
+                <tr>
+                  <th className="font-normal">Came from</th>
+                  <th className="text-right font-normal">Assets</th>
+                  <th className="text-right font-normal">Their files</th>
+                  <th className="text-right font-normal">Made by Lens</th>
+                </tr>
+              </thead>
+              <tbody>
+                {storage.data.map((o) => (
+                  <tr key={o.origin}>
+                    <td>{o.name}</td>
+                    <td className="text-right">{count(o.recordings)}</td>
+                    <td className="text-right">{bytes(o.media_bytes)}</td>
+                    <td className="text-right">{bytes(o.made_bytes)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </section>
         <section aria-label="Queue" className="flex flex-col gap-2 rounded-md border border-border px-4 py-3.5">
           <b className="text-[13px] font-bold">Queue</b>

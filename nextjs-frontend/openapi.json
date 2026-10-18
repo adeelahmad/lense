@@ -10172,7 +10172,7 @@
           "resources"
         ],
         "summary": "List Origins",
-        "description": "Where the assets you can read (or one namespace's) came from, with how many came from each: connected sources\nby name, uploads, pasted text, IIIF imports, the archive's own folders and other imported files.",
+        "description": "Where the assets you can read (or one namespace's) came from, with how many came from each: connected sources\nby name, uploads, pasted text, IIIF imports, the archive's own folders and other imported files. With\n``storage=true``, the space each origin's files take and what Lens made of them.",
         "operationId": "list_origins",
         "parameters": [
           {
@@ -10192,6 +10192,18 @@
               "title": "Ns"
             },
             "description": "one namespace"
+          },
+          {
+            "name": "storage",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "also the disk space each takes (media_bytes, made_bytes), read from the disk",
+              "default": false,
+              "title": "Storage"
+            },
+            "description": "also the disk space each takes (media_bytes, made_bytes), read from the disk"
           }
         ],
         "responses": {
@@ -65192,6 +65204,30 @@
           "recordings": {
             "type": "integer",
             "title": "Recordings"
+          },
+          "media_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Media Bytes",
+            "description": "with storage=true: the bytes their own files take (media or document, and supplementary files)"
+          },
+          "made_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Made Bytes",
+            "description": "with storage=true: the bytes of what Lens made of them (frames, pages, reports, exports, caches)"
           }
         },
         "additionalProperties": true,

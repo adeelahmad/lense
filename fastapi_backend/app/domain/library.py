@@ -98,7 +98,7 @@ class Origins:
             for name, spec in (cfg.get("namespaces") or {}).items()
         }
         self.roots = {sid: roots.get(name, []) for sid, name in names.items()}
-        self.db = db
+        self.db, self.cfg = db, cfg
 
     def of(self, r):
         rm = r.get("remote") or {}
@@ -136,13 +136,53 @@ class Origins:
         )
         return {k: ORIGINS.get(k) or srcs.get(int(k.split(":", 1)[1])) or "A removed source" for k in keys}
 
-    def counts(self, spaces, within=None):
+    def storage(self, spaces, within=None):
+        """{origin: (media bytes, made bytes)}: the space each origin's assets take, their own files (the media or
+        document, and supplementary files) and what Lens made of them (frames, pages, reports, exports, cached copies
+        of files on storage connections). Read from the disk each time, so it is right however the files got there."""
+        from . import deletion
+
+        cond, p = in_scope(spaces, within)
+        rows = self.db.rows(f"SELECT record::id(id) AS id, space, path, remote, engine, size, title FROM recording WHERE {cond}", **p)
+        names = store.space_names(self.db)
+        out: dict[str, list[int]] = defaultdict(lambda: [0, 0])
+        for r in rows:
+            got = out[self.of(r)]
+            own = r.get("size")
+            if not own and r.get("path") and not r.get("remote"):
+                own = _size(store.resolve_path(self.cfg, r["path"]))
+            files = deletion._files(self.db, self.cfg, r, r["id"], names.get(r["space"]))
+            dirs = deletion.folders(self.cfg, r["id"])
+            got[0] += int(own or 0) + _size(dirs[1])
+            got[1] += sum(_size(f) for f in files) + _size(dirs[0]) + _size(dirs[2])
+        return {k: (a, b) for k, (a, b) in out.items()}
+
+    def counts(self, spaces, within=None, storage=False):
         """[{origin, name, recordings}], the most recordings first."""
         n = Counter(self.recordings(spaces, within).values())
         names = self.names(n)
+        sizes = self.storage(spaces, within) if storage else {}
         return sorted(
-            ({"origin": k, "name": names[k], "recordings": c} for k, c in n.items()), key=lambda x: (-x["recordings"], x["name"].casefold())
+            (
+                {"origin": k, "name": names[k], "recordings": c}
+                | ({"media_bytes": sizes.get(k, (0, 0))[0], "made_bytes": sizes.get(k, (0, 0))[1]} if storage else {})
+                for k, c in n.items()
+            ),
+            key=lambda x: (-x["recordings"], x["name"].casefold()),
         )
+
+
+def _size(path):
+    """The bytes a file, or a folder and everything in it, takes; 0 when it isn't there."""
+    p = pathlib.Path(path) if path else None
+    try:
+        if p is None or not p.exists():
+            return 0
+        if p.is_file():
+            return p.stat().st_size
+        return sum(f.stat().st_size for f in p.rglob("*") if f.is_file())
+    except OSError:
+        return 0
 
 
 def check_origins(origins):

@@ -16977,6 +16977,18 @@ export type OriginCount = {
    * Recordings
    */
   recordings: number;
+  /**
+   * Media Bytes
+   *
+   * with storage=true: the bytes their own files take (media or document, and supplementary files)
+   */
+  media_bytes?: number | null;
+  /**
+   * Made Bytes
+   *
+   * with storage=true: the bytes of what Lens made of them (frames, pages, reports, exports, caches)
+   */
+  made_bytes?: number | null;
   [key: string]: unknown;
 };
 
@@ -35966,6 +35978,12 @@ export type ListOriginsData = {
      * one namespace
      */
     ns?: string | null;
+    /**
+     * Storage
+     *
+     * also the disk space each takes (media_bytes, made_bytes), read from the disk
+     */
+    storage?: boolean;
   };
   url: "/api/v1/resources/origins";
 };
