@@ -400,6 +400,15 @@ entry_points:
         control_kinds: [resource-name, x-network-destination, x-prompt-injection, size]
         caller_must_enforce: "none — queries go only to the admin's provider; pages are fetched through netguard like web import, 10 MB at most (P-SSRF-GUARD); once the answer has read outside text, a query or address neither the person nor a tool gave it asks first (P-INJECTION-EGRESS); results and pages reach the model marked as data; the ledger keeps the provider or host, never the query or page"
         provenance: {kind: documented, source: 'docs/assistant.md "a search or a page read sends words out of Lens"'}
+  - id: "the assistant's connection tools"
+    component: assistant
+    parameters:
+      - name: "a connection's id or name, a Gmail search, a message id, a time span, a path; the mail, events and files that come back"
+        attacker_controllable: true
+        x-condition: "admins who use the assistant, and indirectly whatever it read, through the model; mail and events: anyone who can email the account or invite it; files: whoever writes to the storage"
+        control_kinds: [resource-name, x-prompt-injection, size]
+        caller_must_enforce: "none — admins only, and only the tools for the kinds connected; each connection reads as it is set up to (Gmail and Google Calendar read only), so nothing changes in the account; a file is read up to 20 MB and a message's or file's text up to 11,000 characters; mail, events and files reach the model marked as data, and once read, tools that could carry it out of Lens ask first (P-INJECTION-EGRESS); bringing anything into a namespace waits for the person's yes; the ledger keeps what was called, never what came back"
+        provenance: {kind: documented, source: 'docs/assistant.md "Mail, calendars and files"'}
   - id: "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search)"
     component: outbound
     parameters:

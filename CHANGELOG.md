@@ -104,6 +104,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   stream could wait for a database connection its own thread already held, and every request after it waited too.
   A query made inside another on the same thread now runs on that connection
   ([Concurrency](docs/database.md#concurrency)).
+- **Mail, calendars and files in chat.** An admin's assistant can search and read the mailboxes, calendars and
+  storage they connected under Settings → Sources, through the new tools `connections`, `search_mail`, `read_mail`,
+  `calendar_events`, `list_files`, `find_files`, `read_file` and `import_from_connection`; the tool picker shows them as
+  "Mail, calendars and files". Gmail is searched with its own query language and IMAP by words in the newest subjects and
+  senders; Google Calendar gives the events of a window; files are found by name and read when they are text, PDFs or
+  Word files. Answers cite a message or an event with a link that opens it, and bringing things into Lens waits for the
+  person's yes. Nothing is sent, written or deleted yet
+  ([Mail, calendars and files](docs/assistant.md#mail-calendars-and-files)).
 - **The decision model types the names the rules can't.** When Jev or Laya is set up, analysis asks it what each new
   Term of a recording is (a person, an organisation, a product...), with the lines it's said in, in one call per
   recording, and keeps the types it is sure of. Settings › Analysis › Names the rules can't type (`analysis.typing`)

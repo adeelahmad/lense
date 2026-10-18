@@ -285,6 +285,9 @@ When the configured model supports function calling, chat becomes an agent.
   conversation's own, to compute, analyse or convert files. See [Code sandbox](#code-sandbox).
 - **The web:** when an admin turns on web search, `web_search` and `web_read` look up what the archive doesn't hold,
   cited like excerpts ([below](#web-search-and-reading-pages)).
+- **Mail, calendars and files** (admins): the assistant searches and reads the mail, calendars and files connected to
+  Lens in Settings → Sources, Gmail, Google Calendar, Google Drive and S3 among them, and brings what it finds into a
+  namespace once you approve ([below](#mail-calendars-and-files)).
 - **Lens itself:** questions about Lens rather than the archive go to `lens_help` ([below](#questions-about-lens-itself)).
 
 ### Questions about Lens itself
@@ -354,6 +357,51 @@ gets two more tools, for everyone who may use the assistant:
 
 Refine later: an opt-in SearXNG service in the Docker Compose file (SearXNG is AGPL, so it would stay an extra),
 prices per search for the paid providers, web access per namespace, and keeping recent results to search less.
+
+### Mail, calendars and files
+
+Built. The accounts and storage connected to Lens in Settings → Sources are an admin's, so an admin's assistant gets
+tools for them, only for the kinds connected, with nothing to turn on:
+
+- **`connections`** lists them: each one's id, name, what it holds (mail, calendar, files or feed), its account,
+  whether it works, and the tools that read it. The other tools take a connection by its id or name, and leave it out
+  when there's only one of its kind.
+- **`search_mail`** searches a mailbox, newest first: who sent each message to whom, its subject, date, labels and a
+  snippet. A Gmail or Google Workspace connection takes Gmail's own search words (`from:ana subject:invoice
+  after:2026/10/01 has:attachment is:unread label:work`, and plain words); an IMAP mailbox matches the words in the
+  subject and sender of the newest messages in its inbox. With no words, it lists the newest in the inbox.
+- **`read_mail`** reads one message in full: who sent it to whom and when, its attachments by name, and its text (up
+  to 8,000 characters, `max_chars` up to 11,000), by its id from `search_mail` or its path from `list_files`.
+- **`calendar_events`** lists a Google Calendar connection's events between two times (`from` and `to`, ISO 8601
+  dates or times; the next 7 days by default), each time a repeating event happens, optionally only those with some
+  words: title, when, where, organizer, who's invited and their answers, video call, and the start of its
+  description. It says the time now and the span it read; a date or time without an offset is taken as UTC.
+- **`list_files`** shows a folder of any connection: a bucket's or drive's folders and files, a mailbox's folders or
+  labels and their newest messages, a calendar's events. **`find_files`** finds files whose names contain some words,
+  any case, in a storage connection's folder and up to 12 folders below it. **`read_file`** reads a storage file's
+  text: plain text, Markdown, CSV, JSON, code, HTML, email, calendar, PDF or Word, up to 20 MB.
+- **`import_from_connection`** brings files, messages or events into a namespace, as Import → From a connection does
+  (`POST /api/v1/import/source`): they stay where they are and run the namespace's pipeline. It picks the namespace
+  when you don't name one, and waits for your approval, unless an admin's setup conversation acts at once and hasn't
+  read outside text.
+- **Citations:** each message and event is numbered, so an answer cites [n]; the chip shows the connection and the
+  subject or title and opens the message in Gmail or the event in Google Calendar. An IMAP message has no page to
+  open, so it isn't numbered. The answer's header counts them ("2 emails and 1 event").
+- **Read only:** each connection reads as it is set up to: Gmail and Google Calendar with read-only access, so nothing
+  changes in the account and mail stays unread. What they hold was written by other people: the model reads it marked
+  as data, and once it has, tools that could carry it out of Lens ask first
+  ([below](#third-party-content-and-prompt-injection)).
+- **Cost:** no model call of its own. Each search, read and listing is a row in the activity ledger (`gmail.search`,
+  `gmail.read`, `google.calendar`, `connections.list`, `connections.find`, `connections.read`), with what was called,
+  never what came back.
+- **Agents and switches:** an agent asks the assistant (chat, or [MCP](mcp.md)'s chat tool) as an admin. Each tool can
+  be switched off in Tools it may use (`ai.disabled_tools`), and a question can leave the group out
+  ([below](#choosing-tools-namespaces-and-a-limit)); the tool picker says why someone has none ("for admins", or
+  "nothing is connected yet").
+
+Refine later: sending mail, adding events and writing files, each after your yes; searching an IMAP mailbox on its
+server; Google Drive's full-text search; events of an iCal feed by time; and these tools for people other than admins,
+for connections an admin shares with them.
 
 ### Choosing tools, namespaces and a limit
 

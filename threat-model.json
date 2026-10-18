@@ -125,7 +125,8 @@
         "Python code tools, shipped and admin-created templates, workflows, pipelines, routines",
         "Lens extension side panel",
         "automations",
-        "the assistant's web_search and web_read"
+        "the assistant's web_search and web_read",
+        "the assistant's connection tools"
       ],
       "touches": [
         "network",
@@ -478,6 +479,15 @@
       "caller_must_enforce": "none — queries go only to the admin's provider; pages are fetched through netguard like web import, 10 MB at most (P-SSRF-GUARD); once the answer has read outside text, a query or address neither the person nor a tool gave it asks first (P-INJECTION-EGRESS); results and pages reach the model marked as data; the ledger keeps the provider or host, never the query or page",
       "provenance": "documented",
       "source": "docs/assistant.md \"a search or a page read sends words out of Lens\""
+    },
+    {
+      "entry_point": "the assistant's connection tools",
+      "parameter": "a connection's id or name, a Gmail search, a message id, a time span, a path; the mail, events and files that come back",
+      "attacker_controllable": "yes",
+      "component": "assistant",
+      "caller_must_enforce": "none — admins only, and only the tools for the kinds connected; each connection reads as it is set up to (Gmail and Google Calendar read only), so nothing changes in the account; a file is read up to 20 MB and a message's or file's text up to 11,000 characters; mail, events and files reach the model marked as data, and once read, tools that could carry it out of Lens ask first (P-INJECTION-EGRESS); bringing anything into a namespace waits for the person's yes; the ledger keeps what was called, never what came back",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"Mail, calendars and files\""
     },
     {
       "entry_point": "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search)",

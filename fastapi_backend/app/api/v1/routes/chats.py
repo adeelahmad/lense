@@ -64,7 +64,8 @@ from app.schemas.chats import (
 from app.schemas.common import Created, Ok
 
 router = APIRouter(tags=["chats"])
-OUTSIDE = {"web", "docs", "server"}  # citations that aren't the archive's: web pages, Lens's docs, this server's facts
+# citations that aren't the archive's: web pages, Lens's docs, this server's facts, a connection's messages and events
+OUTSIDE = {"web", "docs", "server", "mail", "event"}
 R = store.R
 log = logging.getLogger("lens")
 SSE_HEADERS = {"Cache-Control": "no-store", "X-Accel-Buffering": "no"}
