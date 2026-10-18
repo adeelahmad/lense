@@ -174,6 +174,10 @@ class Group(ResponseModel):
     budget: GroupBudget | None = None
     units: UnitCounts
     waiting_for: str | None = Field(None, description="why it launches nothing now, when it doesn't")
+    unit_steps: list[str] | None = Field(
+        None,
+        description="the steps its units run, which its queue metrics count (None: every step); on a machine elsewhere, only a worker node's",
+    )
     last_out_at: str | None = None
     last_in_at: str | None = None
     last_eval: dict[str, Any] | None = Field(None, description="what the rules said last: {at, said}")

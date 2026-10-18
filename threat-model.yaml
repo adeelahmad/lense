@@ -572,6 +572,15 @@ entry_points:
         control_kinds: [x-credential, data, x-peer]
         caller_must_enforce: "the node token is 256 random bits kept only as a hash; a node gets its own config and a certificate for its own address and groups only; reports are capped; they arrive at the primary's mesh address, which the API's host check admits for these paths alone while the mesh is on"
         provenance: {kind: documented, source: 'docs/mesh.md "After joining"'}
+  - id: "GET /api/v1/mesh/node/worker, /node/media/{id} (a worker node's database user and its jobs' files, with its node token)"
+    component: optional
+    parameters:
+      - name: "a recording id; the node's role and namespaces"
+        attacker_controllable: true
+        x-condition: "a worker node that joined (a removed one is refused)"
+        control_kinds: [x-credential, data, x-peer]
+        caller_must_enforce: "worker nodes only (403 for others); the database user is the node's own, of Lens's database only, never the server's root, removed with the node and made again with a new password on an undo; files are those of the namespaces the node serves, never a vault's, sent plain over the mesh; the archive's secret never leaves the primary"
+        provenance: {kind: documented, source: 'docs/mesh.md "Worker nodes"'}
   - id: "POST /api/v1/mesh/tokens, PATCH and DELETE /api/v1/mesh/nodes/{id}, PUT /api/v1/settings/mesh"
     component: optional
     parameters:
@@ -1974,9 +1983,9 @@ properties_claimed:
     kind: authentication
     components: [optional]
     tier: security-critical
-    conditions: "the mesh (mesh.enabled, off until an admin adds a node) admits only machines that joined with a token an admin made, spent on use and expiring, which never crosses the wire (HMAC proof; answer sealed with a key derived from it); each machine's certificate names only its own address, role and namespaces; the rendered firewall opens the database port to worker nodes and the API port to every node on the primary, a node's agent port to the primary only; removing a node blocklists every certificate it was given on every machine and stops its node token; nodes still sign in to Lens as any client does; on the primary Nebula runs in the mesh container, the only one holding NET_ADMIN, with a key pair it makes itself and Nebula's release checked against the kept checksum; its relays listen on the mesh address only; a node runs lens node and Nebula in two containers with nothing published, its node token and agent key in its own volume (0600), the join token in the first start's environment only"
+    conditions: "the mesh (mesh.enabled, off until an admin adds a node) admits only machines that joined with a token an admin made, spent on use and expiring, which never crosses the wire (HMAC proof; answer sealed with a key derived from it); each machine's certificate names only its own address, role and namespaces; the rendered firewall opens the database port to worker nodes and the API port to every node on the primary, a node's agent port to the primary only; removing a node blocklists every certificate it was given on every machine and stops its node token; nodes still sign in to Lens as any client does; on the primary Nebula runs in the mesh container, the only one holding NET_ADMIN, with a key pair it makes itself and Nebula's release checked against the kept checksum; its relays listen on the mesh address only; a node runs lens node and Nebula in two containers with nothing published, its node token and agent key in its own volume (0600), the join token in the first start's environment only; a worker node signs in to the database as its own user of Lens's database (never root, removed with the node) and reads its namespaces' files over the mesh, never a vault's, without the archive's secret"
     violation_symptoms: [info-leak, integrity-bypass]
-    x-voided-by: "a wrong address in the install line gives a stranger the token's id (not its secret); a worker node holds the database credential (trusted peer, Q9); the lighthouse must be reachable on UDP mesh.port; Nebula's own isolation is upstream's (domain/mesh.py)"
+    x-voided-by: "a wrong address in the install line gives a stranger the token's id (not its secret); a worker node owns Lens's database and keeps plain copies of its files for a few hours (trusted peer, Q9); the lighthouse must be reachable on UDP mesh.port; Nebula's own isolation is upstream's (domain/mesh.py)"
     provenance: {kind: documented, source: 'docs/mesh.md "What keeps it safe"'}
   - id: P-SANDBOX
     kind: integrity

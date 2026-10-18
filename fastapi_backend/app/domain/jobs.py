@@ -365,13 +365,27 @@ def enqueue_pending(db, space=None, by=None):
     return out
 
 
+def node_spaces(db):
+    """On a worker node that serves some namespaces only (docs/mesh.md), their ids; else None (every namespace)."""
+    if MESH_NODE is None:
+        return None
+    names = (db.one("SELECT namespaces FROM $r", r=R("mesh_node", MESH_NODE)) or {}).get("namespaces") or []
+    if not names:
+        return None
+    return sorted(sid for sid, name in store.space_names(db).items() if name in names)
+
+
 def claim(db, worker, can):
     locked = keyring.locked_vaults(db)  # a vault's work waits until someone unlocks it here
+    only = node_spaces(db)
     for r in db.rows(
         "SELECT record::id(id) AS id, space, priority, created_at, started_at FROM job WHERE status = 'queued' AND next_step IN $can "
-        "AND space NOTINSIDE $locked ORDER BY priority DESC, created_at ASC, id ASC LIMIT 10",
+        "AND space NOTINSIDE $locked"
+        + ("" if only is None else " AND space INSIDE $only")
+        + " ORDER BY priority DESC, created_at ASC, id ASC LIMIT 10",
         can=sorted(can),
         locked=sorted(locked),
+        only=only,
     ):
         t = store.now()
         try:
