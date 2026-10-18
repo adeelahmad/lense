@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Ellipsis, Pencil, Plus, Trash2 } from "lucide-react";
+import { Ellipsis, FolderKanban, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -81,6 +81,13 @@ export function ConversationList({
         <Button variant="secondary" size="sm" icon={<Plus />} className="w-full" onClick={onNew}>
           New conversation
         </Button>
+        <Link
+          href="/projects"
+          className="mt-1.5 flex items-center gap-2 rounded-sm px-2.5 py-[7px] text-[13.5px] text-fg-secondary hover:bg-surface-neutral hover:text-fg"
+        >
+          <FolderKanban aria-hidden className="size-4" />
+          Projects
+        </Link>
       </div>
       {loading && (
         <div className="flex flex-col gap-3 px-2.5 py-2" aria-busy="true" aria-label="Loading conversations">

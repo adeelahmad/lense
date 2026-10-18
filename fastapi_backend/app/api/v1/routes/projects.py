@@ -7,11 +7,22 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.api.deps import Acl, CurrentUser, Db, Principal, Writer
+from app.api.deps import Acl, Cfg, CurrentUser, Db, Principal, Writer
 from app.domain import projects
 from app.domain.store import DB
 from app.schemas.common import Created, Ok
-from app.schemas.projects import Project, ProjectCreate, ProjectSummary, ProjectThread, ProjectUpdate, ThreadCreate, ThreadUpdate
+from app.schemas.projects import (
+    Project,
+    ProjectCreate,
+    ProjectSchedule,
+    ProjectScheduleCreate,
+    ProjectScheduleUpdate,
+    ProjectSummary,
+    ProjectThread,
+    ProjectUpdate,
+    ThreadCreate,
+    ThreadUpdate,
+)
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -41,7 +52,7 @@ def summary(db: DB, p: dict[str, Any], threads: list[dict[str, Any]] | None = No
 def view(db: DB, p: dict[str, Any]) -> Project:
     projects.coordinator(db, p)  # made again if its conversation was deleted
     threads = projects.threads(db, p)
-    return Project.model_validate({**summary(db, p, threads), "thread_list": threads})
+    return Project.model_validate({**summary(db, p, threads), "thread_list": threads, "schedules": projects.schedules(db, p)})
 
 
 @router.get("")
@@ -103,16 +114,20 @@ def list_threads(pid: int, user: CurrentUser, db: Db) -> list[ProjectThread]:
 
 
 @router.post("/{pid}/threads")
-def start_thread(pid: int, user: Writer, db: Db, body: ThreadCreate | None = None) -> Created:
-    """A new thread: a conversation in the project's namespaces (ask in it with POST /chats/{id}/messages). With `chat`,
-    one of your conversations joins the project instead, drawing on its namespaces from then on."""
+def start_thread(pid: int, user: Writer, db: Db, cfg: Cfg, body: ThreadCreate | None = None) -> Created:
+    """A new thread: a conversation in the project's namespaces (ask in it with POST /chats/{id}/messages). With a
+    `brief`, it is asked there at once and answered in the background, as you, with your tools and approvals: GET
+    /chats/{id} shows the answer once it's written (the thread is `answering` until then). With `chat`, one of your
+    conversations joins the project instead, drawing on its namespaces from then on (with a brief, asked there next)."""
     body = body or ThreadCreate()
     p = own(db, pid, user)
     try:
+        cid = body.chat if body.chat is not None else projects.start_thread(db, p, body.title)
         if body.chat is not None:
             projects.adopt(db, p, body.chat)
-            return Created(id=body.chat)
-        return Created(id=projects.start_thread(db, p, body.title))
+        if body.brief and body.brief.strip():
+            projects.brief(db, cfg, p, cid, body.brief, via="web" if user.via == "access" else "api")
+        return Created(id=cid)
     except KeyError:
         raise HTTPException(404, "no such conversation of yours") from None
     except ValueError as e:
@@ -138,4 +153,43 @@ def release_thread(pid: int, cid: int, user: Writer, db: Db) -> Ok:
         raise HTTPException(404, "no such thread in this project") from None
     except ValueError as e:
         raise HTTPException(400, str(e)) from None
+    return Ok()
+
+
+def _one(db: DB, p: dict[str, Any], sid: str) -> ProjectSchedule:
+    return ProjectSchedule.model_validate(next(s for s in projects.schedules(db, p) if s["id"] == sid))
+
+
+@router.post("/{pid}/schedules")
+def add_schedule(pid: int, body: ProjectScheduleCreate, user: Writer, db: Db) -> ProjectSchedule:
+    """Ask a prompt on a schedule: each time, in a new thread or always the same one, answered in the background as
+    you, with your tools, approvals and budgets."""
+    p = own(db, pid, user)
+    try:
+        sc = projects.add_schedule(db, p, body.prompt, body.cron, body.timezone, body.thread)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    return _one(db, p, sc["id"])
+
+
+@router.patch("/{pid}/schedules/{sid}")
+def update_schedule(pid: int, sid: str, body: ProjectScheduleUpdate, user: Writer, db: Db) -> ProjectSchedule:
+    """Change a schedule, or switch it off or on."""
+    p = own(db, pid, user)
+    try:
+        projects.update_schedule(db, p, sid, body.prompt, body.cron, body.timezone, body.thread, body.on)
+    except KeyError:
+        raise HTTPException(404, "no such schedule in this project") from None
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    return _one(db, p, sid)
+
+
+@router.delete("/{pid}/schedules/{sid}")
+def remove_schedule(pid: int, sid: str, user: Writer, db: Db) -> Ok:
+    """Remove a schedule. The threads it started stay."""
+    try:
+        projects.remove_schedule(db, own(db, pid, user), sid)
+    except KeyError:
+        raise HTTPException(404, "no such schedule in this project") from None
     return Ok()

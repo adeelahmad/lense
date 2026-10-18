@@ -1,5 +1,4 @@
 import {
-  AlarmClock,
   Blocks,
   ChartLine,
   ChartNoAxesColumn,
@@ -12,6 +11,7 @@ import {
   NotebookPen,
   Podcast,
   RadioTower,
+  Reply,
   Rss,
   Search,
   Settings,
@@ -22,6 +22,7 @@ import {
   Wallet,
   Waypoints,
   Workflow,
+  Zap,
 } from "lucide-react";
 
 export type NavItem = {
@@ -32,8 +33,8 @@ export type NavItem = {
   adminOnly?: boolean;
   /** Only shown to people who aren't administrators (admins have it under another item). */
   membersOnly?: boolean;
-  /** A count shown next to the label (library size, speakers to review in Settings, approvals waiting). */
-  countKey?: "recordings" | "reviews" | "approvals" | "feeds";
+  /** A count shown next to the label (library size, speakers to review in Settings, approvals and email waiting). */
+  countKey?: "recordings" | "reviews" | "approvals" | "feeds" | "replies";
   /** Shown only while its count is above zero, or while its page is open, so the nav of a Lens with nothing there
    * stays as short as it was (on a phone, every item more pushes the ones below off the screen). */
   whileCounted?: boolean;
@@ -57,6 +58,8 @@ export const NAV: NavItem[] = [
   { label: "Search", href: "/search", icon: Search, group: "" },
   { label: "Chat", href: "/chat", icon: MessagesSquare, group: "" },
   { label: "Notes", href: "/notes", icon: NotebookPen, group: "" },
+  // email that may need an answer: in the nav while any does, so a Lens that reads no mail doesn't show it
+  { label: "Replies", href: "/replies", icon: Reply, countKey: "replies", whileCounted: true, group: "" },
   { label: "Timeline", href: "/timeline", icon: History, group: "Explore" },
   { label: "Entities", href: "/entities", icon: Shapes, group: "Explore" },
   { label: "Topics", href: "/topics", icon: Tags, group: "Explore" },
@@ -74,10 +77,10 @@ export const NAV: NavItem[] = [
     whileCounted: true,
     group: "Automate",
   },
+  // Everyone: members make and manage the automations in namespaces they edit (the API keeps to those). Schedules
+  // (everything on a clock) is a tab of it and the Routines page opens from both, so the nav fits a phone screen.
+  { label: "Automations", href: "/automations", icon: Zap, group: "Automate" },
   { label: "Pipelines", href: "/pipelines", icon: Workflow, group: "Automate" },
-  // Everything that runs on a clock in one list: everyone has it, for the schedules of their own automations. It
-  // takes the row Routines had (the Routines page opens from it), so the nav fits a phone screen as before.
-  { label: "Schedules", href: "/schedules", icon: AlarmClock, group: "Automate" },
   { label: "Extensions", href: "/extensions", icon: Blocks, group: "Automate" },
   // Admins see every source as a sensor; members see the watched folders feeding their namespaces.
   { label: "Sensors", href: "/sensors", icon: RadioTower, adminOnly: true, group: "Automate" },
@@ -112,10 +115,16 @@ export function isActive(pathname: string, href: string): boolean {
   if (href === "/sensors" && (pathname === "/sources" || pathname.startsWith("/sources/"))) return true;
   // Members opening /sensors see their Sources page.
   if (href === "/sources" && pathname === "/sensors") return true;
+  // Projects are conversations working toward a goal, under Chat.
+  if (href === "/chat" && (pathname === "/projects" || pathname.startsWith("/projects/"))) return true;
   // An entity's page is under /wiki, by name.
   if (href === "/entities" && pathname.startsWith("/wiki/")) return true;
-  // The Routines page (its list, proposed graph changes and history) opens from Schedules.
-  if (href === "/schedules" && (pathname === "/routines" || pathname.startsWith("/routines/"))) return true;
+  // Schedules is a tab of Automations, and the Routines page (its list, proposed graph changes, history) opens from it.
+  if (
+    href === "/automations" &&
+    ["/schedules", "/routines"].some((p) => pathname === p || pathname.startsWith(`${p}/`))
+  )
+    return true;
   // Speakers live in Settings; a speaker's profile keeps its own address.
   if (href === "/settings" && (pathname === "/speakers" || pathname.startsWith("/speakers/"))) return true;
   return pathname === href || pathname.startsWith(`${href}/`);

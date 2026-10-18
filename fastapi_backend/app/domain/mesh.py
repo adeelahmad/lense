@@ -68,6 +68,8 @@ GROUP_PRIMARY, GROUP_NODE = "lens-primary", "lens-node"
 # node's agent serves the primary only
 DB_PORT, API_PORT, AGENT_PORT = 8000, 8080, 7443
 INTERFACE = "lens-mesh"
+# what nodes call on the primary, at its mesh address (core/middleware.py lets that address in for these alone)
+NODE_PATHS = ("/api/v1/mesh/node/",)
 TOKEN_PREFIX = "lensjoin1."
 NODE_PREFIX = "lensnode1."
 TOKEN_HOURS = (1, 24 * 30)
@@ -562,6 +564,19 @@ def make_token(db, cfg, by=None, role="worker", name=None, namespaces=None, hour
     return _token_view(row), f"{TOKEN_PREFIX}{tid}.{secret}"
 
 
+def join_line(cfg, token, url=None):
+    """The install line another machine joins with (docs/mesh.md, Joining): install.sh with this install's address
+    (the web app's: `url`, else FRONTEND_URL) and the token. Shown once, with the token."""
+    from app.config import settings as env
+
+    repo = cfg["updates"].get("repo") or "adeelahmad/lense"
+    url = (url or env.FRONTEND_URL).rstrip("/")
+    if not re.fullmatch(r"https?://[A-Za-z0-9.\-\[\]:]+(/[A-Za-z0-9._~/-]*)?", url):
+        raise ValueError(f"{url!r} isn't an address a machine can join at")
+    parse_token(token)
+    return f"curl -fsSL https://raw.githubusercontent.com/{repo}/main/install.sh | LENS_JOIN={url} LENS_JOIN_TOKEN={token} sh"
+
+
 def revoke_token(db, tid):
     if not db.one("SELECT id FROM $r", r=R("mesh_token", int(tid))):
         raise KeyError(tid)
@@ -674,6 +689,8 @@ def join(db, cfg, token_id, nonce, name, public_key, sent_proof, joined_at=None,
         db.q("DELETE $r", r=R("mesh_node", nid))
         raise
     _record_cert(db, nid, cert_info, crt)
+    if role == "worker":
+        grant_database(db, cfg, nid)
     row = db.one(f"SELECT {NODE_FIELDS} FROM $r", r=R("mesh_node", nid))
     config = render(db, cfg, row, crt)
     payload = {
@@ -734,6 +751,83 @@ def beat(db, row, status):
     )
 
 
+# ---------- worker nodes: jobs run there, against this install's database ----------
+# A worker node runs `lens worker` (started by its agent, mesh_node.Worker) against the database through the mesh
+# container's relay (DB_PORT on the primary's mesh address, open to the lens-worker group only). It signs in as a user of
+# this one database, its own (grant_database), never the server's root. It never gets the archive's secret: the files
+# its jobs read come from here over the mesh, already plain (media()), a vault's never, and settings' secrets (a cloud
+# speech or chat model's key) stay sealed, so a worker node runs the steps that need neither and write only rows:
+# transcribing and telling voices apart with models on that machine (WORKER_STEPS). Removing the node removes its
+# user; an undo makes it again with a new password.
+WORKER_STEPS = ("transcribe", "diarize")
+WORKER_NODES = True  # a worker node runs `lens worker`, named for its scaling unit: auto scaling launches on it
+
+
+def _db_user(nid):
+    return f"lens_node_{int(nid)}"
+
+
+def grant_database(db, cfg, nid):
+    """The node's own user of this database (its owner, and nothing else on the server), with a new password sealed
+    in its row."""
+    pw = secrets.token_urlsafe(32)
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", pw):  # it goes into the statement as a literal: DEFINE USER takes no parameters
+        raise MeshError("couldn't make a password for the node's database user")
+    db.q(f"DEFINE USER OVERWRITE {_db_user(nid)} ON DATABASE PASSWORD '{pw}' ROLES OWNER")
+    db.q("UPDATE $r SET db_password = $p", r=R("mesh_node", int(nid)), p=settings.seal(cfg, pw, f"mesh:db.{int(nid)}"))
+
+
+def revoke_database(db, nid):
+    db.q(f"REMOVE USER IF EXISTS {_db_user(nid)} ON DATABASE")
+    db.q("UPDATE $r SET db_password = NONE", r=R("mesh_node", int(nid)))
+
+
+def worker_access(db, cfg, row):
+    """What a worker node's `lens worker` signs in to the database with. PermissionError for a node of another role;
+    MeshError where there's no database server for it to reach."""
+    if row["role"] != "worker":
+        raise PermissionError("only a worker node runs jobs: this one is a " + row["role"])
+    if not str(db.url).startswith(("ws://", "wss://", "http://", "https://")):
+        raise MeshError(
+            "this install's database is embedded: worker nodes need the SurrealDB server (database.url ws://…, as Docker installs have)"
+        )
+    sealed = (db.one("SELECT db_password FROM $r", r=R("mesh_node", int(row["id"]))) or {}).get("db_password")
+    if not sealed:
+        grant_database(db, cfg, row["id"])  # a worker that joined before worker nodes ran jobs
+        sealed = db.one("SELECT db_password FROM $r", r=R("mesh_node", int(row["id"])))["db_password"]
+    ns, name = getattr(db, "_target", (cfg["database"]["namespace"], cfg["database"]["database"]))
+    return {
+        "url": f"ws://{primary_ip(cfg)}:{DB_PORT}",
+        "namespace": ns,
+        "database": name,
+        "user": _db_user(row["id"]),
+        "password": settings.unseal(cfg, sealed, f"mesh:db.{int(row['id'])}"),
+        "steps": list(WORKER_STEPS),
+    }
+
+
+def media(db, cfg, row, rid):
+    """The path of recording `rid`'s file here, for a job on a worker node (read it with keyring.open_plain).
+    PermissionError for a node that isn't a worker, a namespace it doesn't serve or a vault's file; FileNotFoundError
+    when it's gone."""
+    from . import ingest, keyring
+
+    if row["role"] != "worker":
+        raise PermissionError("only a worker node reads the archive's files")
+    rec = db.one("SELECT record::id(id) AS id, path, remote, space FROM $r", r=R("recording", int(rid)))
+    if not rec:
+        raise FileNotFoundError(f"there's no recording {rid}")
+    served = row.get("namespaces") or []
+    if served and store.space_names(db).get(rec.get("space")) not in served:
+        raise PermissionError("that recording is in a namespace this node doesn't serve")
+    if rec.get("space") is not None and keyring.is_vault(db, rec["space"]):
+        raise PermissionError("a vault's files never leave this machine")
+    path = ingest.audio_path(db, cfg, rec, plain=False)
+    if not path or not os.path.isfile(path):
+        raise FileNotFoundError(f"recording {rid}'s file isn't on this machine")
+    return path
+
+
 # ---------- the admin's changes ----------
 def update(db, nid, name=None, namespaces=None):
     """Rename a node, or change the namespaces it serves (its certificate's groups follow when it next renews, which
@@ -766,16 +860,20 @@ def remove(db, nid, by=None):
     if n["role"] == "primary":
         raise ValueError("the primary is this machine; turn the mesh off in Settings › Network instead")
     db.q("UPDATE $r SET revoked_at = $t, revoked_by = $b", r=R("mesh_node", int(nid)), t=store.now(), b=by)
+    if n["role"] == "worker":
+        revoke_database(db, nid)
     return node(db, nid)
 
 
-def undo_remove(db, nid):
+def undo_remove(db, nid, cfg):
     n = node(db, nid)
     if not n["revoked_at"]:
         return n
     if n["not_after"] and n["not_after"] < _ts():
         raise ValueError("its certificate has run out since: add it again with a new token")
     db.q("UPDATE $r SET revoked_at = NONE, revoked_by = NONE", r=R("mesh_node", int(nid)))
+    if n["role"] == "worker":
+        grant_database(db, cfg, nid)  # a new password: the node fetches it with its next worker_access
     return node(db, nid)
 
 

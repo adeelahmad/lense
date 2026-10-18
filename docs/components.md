@@ -22,6 +22,7 @@ never fetch a speech or voice model.
 | NSFW model | [NSFW classification](nsfw.md) is on for the archive or a namespace (off by default) | the 8-bit ONNX export of AdamCodd/vit-base-nsfw-detector (Apache-2.0, 88 MB), and ONNX Runtime |
 | Florence-2 | `llm.describe_engine` is `florence-2` | Florence-2-base-ft or -large-ft (MIT, `llm.florence_model`; about 280 or 830 MB), their 8-bit ONNX exports, the tokenizers library and ONNX Runtime, to [describe pictures](configuration.md#descriptions) on this machine |
 | Moondream | `llm.describe_engine` is `moondream`, and this machine can run the chosen one | Moondream 3 Preview (BSL 1.1, about 19 GB, an NVIDIA GPU or a Mac with 32 GB) or Moondream 2 (Apache-2.0, about 3.7 GB), `llm.moondream_model`, at a pinned revision, with its tokenizer, PyTorch (the CPU build without an NVIDIA GPU) and transformers, to [describe pictures](configuration.md#descriptions) on this machine |
+| Real-ESRGAN | [enhancing images](enhance.md) is on and `enhance.image_engine` is `realesrgan` (off by default) | Real-ESRGAN general x4v3 as an ONNX model (BSD-3-Clause, 5 MB), and ONNX Runtime |
 | Prompt-injection classifier | `ai.injection_check` is `classifier` | ProtectAI's deberta-v3-base-prompt-injection-v2 (Apache-2.0, about 740 MB), the tokenizers library and ONNX Runtime ([third-party content](assistant.md#third-party-content-and-prompt-injection)) |
 | Kokoro | `voice.tts_provider` is `kokoro`, as soon as it's saved (podcast jobs wait for it) | Kokoro v1.0 (Apache-2.0): the model in `voice.kokoro_model` (326, 164 or 114 MB) and its 54 voices (28 MB), and the `kokoro` extra: kokoro-onnx (MIT), ONNX Runtime, and espeak-ng with phonemizer (GPL-3.0, only in this extra), about 95 MB, to [read aloud](speech-providers.md#kokoro) on this machine |
 | Punctuation model | `analysis.cleanup` is on and `analysis.cleanup_punctuation` isn't `off` ([Cleaning up transcripts](processing.md#cleaning-up-transcripts)) | kredor/punctuate-all at a pinned revision (MIT, about 1.1 GB), with Transformers and PyTorch's CPU build |
@@ -36,8 +37,8 @@ never fetch a speech or voice model.
 - Python packages go into `data_dir/python`, at the versions in `uv.lock`. Packages the image already has win.
 - Models go into `data_dir/models`: the Hugging Face, ModelScope and PyTorch caches point there (unless `HF_HOME`,
   `MODELSCOPE_CACHE` or `TORCH_HOME` say otherwise). They outlast container rebuilds and upgrades.
-- Model files fetched by URL (YOLOX, YuNet, SFace, the NSFW model, Florence-2, Kokoro, spaCy's models) are checked
-  against their SHA-256.
+- Model files fetched by URL (YOLOX, YuNet, SFace, the NSFW model, Florence-2, Kokoro, spaCy's models, Real-ESRGAN) are
+  checked against their SHA-256.
 - A job step that needs something still being fetched waits for it instead of falling back or failing. If a fetch fails,
   the step runs as before (for transcription, falling back to another engine), and the fetch is tried again an hour
   later, when the settings change, or on **Check again now**.

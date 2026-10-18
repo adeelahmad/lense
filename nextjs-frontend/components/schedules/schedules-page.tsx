@@ -1,12 +1,13 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlarmClock, Pencil, Play, Plus } from "lucide-react";
+import { AlarmClock, Pencil, Play } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
 import { Schedules } from "@/app/openapi-client";
 import type { Schedule } from "@/app/openapi-client/types.gen";
+import { AutomateTabs, RoutineLinks } from "@/components/automations/automate-tabs";
 import { scheduleFor, type Preset } from "@/components/routines/routine-model";
 import { SchedulePreview, ZoneInput } from "@/components/routines/schedule-fields";
 import {
@@ -214,25 +215,14 @@ export function SchedulesPage() {
       <div className="flex flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2.5">
           <h1 className="flex-1 text-[24px] font-bold leading-tight tracking-[-.015em] text-fg">Schedules</h1>
-          {admin && (
-            <>
-              {/* the Routines page (the list, proposed graph changes, history) lives behind this one */}
-              <Button asChild size="sm">
-                <Link href="/routines">Routines</Link>
-              </Button>
-              <Button asChild size="sm" variant="primary">
-                <Link href="/routines/new">
-                  <Plus /> New routine
-                </Link>
-              </Button>
-            </>
-          )}
+          <RoutineLinks />
         </div>
         <p className="text-[13px] text-fg-secondary">
           Everything that runs on a clock, in one place:{" "}
           {admin ? "routines, your automations and backups" : "your automations"}.
         </p>
       </div>
+      <AutomateTabs tab="schedules" />
       {list.isLoading || !me ? (
         <SkeletonRows rows={4} />
       ) : list.error ? (

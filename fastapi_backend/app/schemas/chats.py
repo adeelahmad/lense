@@ -193,7 +193,9 @@ class MessageRecord(ResponseModel):
     """What produced a message, recorded as it was written (docs/assistant.md, "What each answer records"). A question's
     has `via` and `options`; an answer's the rest. Messages from before it was recorded have none."""
 
-    via: Literal["web", "api", "room", "voice", "automation", "completions"] | None = Field(None, description="a question: how it was sent")
+    via: Literal["web", "api", "room", "voice", "automation", "completions", "project"] | None = Field(
+        None, description="a question: how it was sent (project: a brief a project's coordinator wrote)"
+    )
     options: RecordOptions | None = Field(None, description="a question: the options it was asked with")
     model: str | None = Field(None, description="the model that wrote the answer")
     provider: str | None = Field(None, description="the host name of the model server it ran on (never its address or key)")
@@ -321,6 +323,7 @@ class ChatMemory(ResponseModel):
 
 class Chat(ChatSummary):
     account: int
+    answering: bool = Field(False, description="an answer is being written in it now: streamed, or a brief's in the background")
     head: int | None = Field(None, description="the last message of the version showing, which the next question follows")
     messages: list[ChatMessage] = Field(default_factory=list, description="the version showing, from the first message to `head`")
     tree: list[ChatNode] = Field(default_factory=list, description="every message of every version, oldest first")

@@ -2026,6 +2026,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+aws = [
+    { name = "botocore" },
+]
 doctr = [
     { name = "python-doctr" },
 ]
@@ -2139,6 +2142,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "botocore", marker = "extra == 'aws'", specifier = ">=1.43.113" },
     { name = "cryptography", specifier = ">=50" },
     { name = "ddgs", marker = "extra == 'web'", specifier = ">=9.16,<10" },
     { name = "extract-msg", marker = "extra == 'msg'" },
@@ -2195,7 +2199,7 @@ requires-dist = [
     { name = "transformers", marker = "extra == 'punctuation'" },
     { name = "webauthn", specifier = ">=3.0.1,<4" },
 ]
-provides-extras = ["sensevoice", "whisper", "mlx", "laya", "voices", "pyannote", "faces", "mac-ocr", "rapidocr", "doctr", "insightface", "objects", "punctuation", "spacy", "injection", "florence", "moondream", "validate", "smb", "sandbox", "web", "kokoro", "msg", "vaultwarden"]
+provides-extras = ["sensevoice", "whisper", "mlx", "laya", "voices", "pyannote", "faces", "mac-ocr", "rapidocr", "doctr", "insightface", "objects", "punctuation", "spacy", "injection", "florence", "moondream", "validate", "smb", "sandbox", "web", "kokoro", "aws", "msg", "vaultwarden"]
 
 [package.metadata.requires-dev]
 dev = [

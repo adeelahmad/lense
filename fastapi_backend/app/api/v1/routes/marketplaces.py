@@ -3,7 +3,7 @@ extensions install from them."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
 from app.api.deps import AdminWriter, Cfg, CurrentUser, Db, Writer
 from app.api.v1.routes.extensions import _errors, me
@@ -15,6 +15,7 @@ from app.schemas.extensions import (
     Marketplace,
     MarketplaceCreate,
     MarketplacePlugin,
+    MarketplacePluginFound,
     MarketplaceSuggestion,
 )
 
@@ -30,6 +31,18 @@ def list_marketplaces(user: CurrentUser, db: Db) -> list[Marketplace]:
 def suggested_marketplaces(user: CurrentUser, db: Db) -> list[MarketplaceSuggestion]:
     """Anthropic's marketplaces, when they aren't added yet."""
     return marketplace.suggested(db)
+
+
+@router.get("/plugins")
+def find_marketplace_plugins(
+    user: CurrentUser,
+    db: Db,
+    q: str | None = Query(None, max_length=200, description="words its name, description, category or author has"),
+    updates: bool = Query(False, description="only plugins you installed that their marketplace lists another version of"),
+    limit: int = Query(50, ge=1, le=500),
+) -> list[MarketplacePluginFound]:
+    """Plugins across every marketplace added, to find one to install or see which have updates."""
+    return marketplace.find(db, me(user), q, updates=updates, limit=limit)[0]
 
 
 @router.post("")

@@ -22,6 +22,7 @@ from app.domain import (
     local_llm,
     mesh,
     notify,
+    responder,
     routines,
     scaling,
     sensors,
@@ -67,6 +68,7 @@ class Archive:
         updates.restore_on_start(self.db, self.base)
         templates.seed(self.db)
         specs.template(self.db)  # "Spec from transcript", there to edit before the first spec (and on older installs)
+        responder.template(self.db)  # "Reply to an email", the same
         content_types.seed(self.db)
         routines.seed(self.db)
         # Pay for the embedded engine's full-text repair, or for building the SQLite index, at startup rather than

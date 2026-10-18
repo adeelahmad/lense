@@ -81,6 +81,7 @@ nav:
       - Projects: projects.md
       - Chat rooms: chat-rooms.md
       - Email: assistant-email.md
+      - Email replies: email-replies.md
       - Podcasts: podcasts.md
       - Published feeds: feeds.md
       - Notes: notes.md
@@ -90,6 +91,7 @@ nav:
       - Processing: processing.md
       - Video: video.md
       - NSFW classification: nsfw.md
+      - Enhancing images: enhance.md
       - Notifications: notifications.md
       - Automations: automations.md
       - Schedules: schedules.md
