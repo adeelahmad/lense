@@ -93,6 +93,18 @@ FILES = {
         "432763a6899ebc418c55f784b98f90565e5fc694c778d2ffcb0294b12f6a7404",
         89,
     ),
+    # Real-ESRGAN general x4v3 (BSD-3-Clause), as Qualcomm AI Hub exports it to ONNX (its weights in a file of their
+    # own), at a fixed revision (enhance.py)
+    "realesr-general-x4v3/model.onnx": (
+        "https://huggingface.co/TheGuy444/Real-ESRGAN-ONNX/resolve/4c80f3da1a8a85f0757a9e7f79e08d0307220eb5/onnx/model.onnx",
+        "2d1810f8b75c6a899487decf933697241eafbe6327d7b723674ba6df73a08fda",
+        1,
+    ),
+    "realesr-general-x4v3/model.data": (
+        "https://huggingface.co/TheGuy444/Real-ESRGAN-ONNX/resolve/4c80f3da1a8a85f0757a9e7f79e08d0307220eb5/onnx/model.data",
+        "512d0ec9940c2e9d85d27f2952f12a0b77b7841dc22df4ce9f3ea458bc98f37f",
+        5,
+    ),
 }
 # Florence-2-base-ft and -large-ft (MIT), the 8-bit ONNX exports at onnx-community, at fixed revisions (florence.py):
 # {size: (revision, {file: (sha256, size in MB)})}
@@ -461,6 +473,11 @@ class Faces(Component):
     def _files(self, cfg):
         return FACE_FILES[1:] if cfg["video"].get("face_engine") == "anytopdf" else FACE_FILES
 
+    def serves(self, cfg, m):
+        from . import enhance
+
+        return self.steps | ({"enhance"} if enhance.wants_faces(cfg) else set())  # it looks for faces first
+
     def needed(self, cfg, m):
         v = cfg["video"]
         if v.get("face_engine") == "anytopdf":
@@ -518,6 +535,31 @@ class Nsfw(Component):
         if not importable("onnxruntime"):
             pip_install(cfg, "objects", say)  # the objects extra is ONNX Runtime alone
         fetch_file(cfg, "vit-base-nsfw-detector-int8.onnx", say)
+
+
+class Enhance(Component):
+    """Real-ESRGAN and ONNX Runtime (enhance.py), when Settings → Enhance chooses it for images."""
+
+    kind = "model"
+
+    def needed(self, cfg, m):
+        from . import enhance
+
+        o = enhance.options(cfg)
+        return bool(o["images"] and o["image_engine"] == "realesrgan")
+
+    def present(self, cfg):
+        from . import enhance
+
+        return importable("onnxruntime") and bool(enhance.model_path(cfg))
+
+    def fetch(self, cfg, m, say):
+        from . import enhance
+
+        if not importable("onnxruntime"):
+            pip_install(cfg, "objects", say)  # the objects extra is ONNX Runtime alone
+        for name in enhance.MODEL_FILES:
+            fetch_file(cfg, name, say)
 
 
 class Florence(Component):
@@ -962,6 +1004,14 @@ COMPONENTS = [
         steps={"nsfw"},
         size_mb=105,
         license="Apache-2.0",
+    ),
+    Enhance(
+        "enhance",
+        "Real-ESRGAN",
+        "enhances low quality images before they're read (enhance.image_engine realesrgan)",
+        steps={"enhance"},
+        size_mb=6,
+        license="BSD-3-Clause",
     ),
     Florence(
         "florence",

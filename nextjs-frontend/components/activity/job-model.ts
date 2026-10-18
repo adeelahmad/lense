@@ -569,3 +569,46 @@ export function applyCount(
   next[after] = (next[after] ?? 0) + 1;
   return next;
 }
+
+/** Where a queued run goes: the top (next) or bottom of the queue, or just before or after another queued run. */
+export type QueuePlace = { to: "top" | "bottom" } | { before: number } | { after: number };
+
+/** Queued runs in the order workers take them, as the server has it: highest priority first, then the oldest. */
+export function byQueue(
+  a: { id: number; priority?: number | null; created_at?: string | null },
+  b: { id: number; priority?: number | null; created_at?: string | null },
+): number {
+  const p = (b.priority ?? 0) - (a.priority ?? 0);
+  if (p) return p;
+  const at = a.created_at ?? "";
+  const bt = b.created_at ?? "";
+  return at < bt ? -1 : at > bt ? 1 : a.id - b.id;
+}
+
+/** Where a run dropped on another one lands: after it when dragged down the list, before it when dragged up. */
+export function dropPlace(order: number[], dragged: number, target: number): QueuePlace | null {
+  const from = order.indexOf(dragged);
+  const to = order.indexOf(target);
+  if (from < 0 || to < 0 || from === to) return null;
+  return from < to ? { after: target } : { before: target };
+}
+
+/** The place Alt+↑ (up) or Alt+↓ (down) moves a run to: past its neighbour, or null at that end. */
+export function stepPlace(order: number[], id: number, dir: -1 | 1): QueuePlace | null {
+  const i = order.indexOf(id);
+  const next = order[i + dir];
+  if (i < 0 || next == null) return null;
+  return dir < 0 ? { before: next } : { after: next };
+}
+
+/** The order after a move, so the list shows it before the server answers. */
+export function movedOrder(order: number[], id: number, place: QueuePlace): number[] {
+  if (!order.includes(id)) return order;
+  const rest = order.filter((x) => x !== id);
+  let i: number;
+  if ("to" in place) i = place.to === "top" ? 0 : rest.length;
+  else if ("before" in place) i = rest.indexOf(place.before);
+  else i = rest.indexOf(place.after) + 1;
+  if (i < 0) return order;
+  return [...rest.slice(0, i), id, ...rest.slice(i)];
+}

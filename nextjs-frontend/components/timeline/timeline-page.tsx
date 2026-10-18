@@ -5,9 +5,11 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { ActivityMark } from "@/app/openapi-client/types.gen";
+import { askAbout } from "@/components/page-chat/page-chat-model";
 import { FiltersBar, type Actor } from "@/components/timeline/filters";
 import { TimelineRow, groupMark } from "@/components/timeline/item";
 import {
+  askQuote,
   filterCount,
   fromParams,
   group,
@@ -192,6 +194,11 @@ export function TimelinePage() {
         return;
       }
       const g = groups[active];
+      if (g && e.key === "a") {
+        e.preventDefault();
+        askAbout(askQuote(g.items));
+        return;
+      }
       if (!g || (e.key !== "r" && e.key !== "i")) return;
       e.preventDefault();
       const m = groupMark(g, marks.of);
@@ -307,7 +314,7 @@ export function TimelinePage() {
             </Button>
           )}
           <p className="hidden text-[12px] text-fg-muted md:block">
-            Keys: j and k move, Enter opens, r marks reviewed, i marks important.
+            Keys: j and k move, Enter opens, r marks reviewed, i marks important, a asks about it.
           </p>
         </>
       ) : (

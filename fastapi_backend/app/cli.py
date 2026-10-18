@@ -464,6 +464,10 @@ def main(argv=None):
             config, i = argv[i].split("=", 1)[1], i + 1
         else:
             break
+    if i < len(argv) and argv[i] == "node":  # a machine on another install's mesh: no database, no settings
+        from .domain import mesh_node
+
+        return mesh_node.main(argv[i + 1 :])
     if i < len(argv) and argv[i] in PLATFORM_CMDS:
         return platform_main(argv[i:], config)
     if i < len(argv) and argv[i] == "ext":  # extensions' manifests as files (cli_ext.py)

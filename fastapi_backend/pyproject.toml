@@ -72,6 +72,9 @@ web = ["ddgs>=9.16,<10"]
 # the clean_audio step (audio_cleanup.py): WebRTC's noise suppression, gain control, echo cancellation and voice
 # detection through pywebrtc-audio (Apache-2.0; about 0.5 MB, numpy only); fetched the first time a pipeline runs it
 webrtc = ["pywebrtc-audio>=0.2.0,<0.3"]
+# auto scaling onto AWS EC2 (scaling_aws.py): botocore (Apache-2.0); fetched when the first AWS provider is saved in
+# Settings › Auto scaling
+aws = ["botocore>=1.43.113"]
 # Outlook .msg emails (extract-msg is GPL-3.0; .eml needs nothing)
 msg = ["extract-msg"]
 # secrets read from a Vaultwarden or Bitwarden vault (vaultwarden_secrets.py): python-vaultwarden (Apache-2.0); fetched

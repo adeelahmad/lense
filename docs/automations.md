@@ -51,7 +51,40 @@ merged is called built.
 | Running automations: following the stream, limits, budgets, runs as `automation.ran`, trying and running now, the API (`app/domain/automations.py`) | built |
 | Automations for agents: the MCP tools and the assistant's, switching on and running now by approval | built |
 | Describing an automation in words: a draft from a sentence (`POST /api/v1/automations/draft`) | built |
-| The studio | planned |
+| The studio: the list at `/automations` and the When, If and Then builder, with a test panel ([The studio](#the-studio)) | built |
+| The studio's tabs for an automation's runs, what's coming up, its variables and its costs | planned |
+
+## The studio
+
+Automations (under Automate in the nav) lists every automation you can see. [Schedules](schedules.md), everything
+that runs on a clock, is its other tab, so both share one row in the nav; for admins, Routines and New routine are at
+the top of both. Each row reads its triggers in words
+(“Email received”, where the subject contains “trip”), and shows how its last run went, its runs today, the actions
+waiting for your pick (a link to Approvals), what it cost this month and when it runs next. The switch turns it on
+or off. Its menu has Run now, Duplicate (a copy, switched off) and Delete, which you undo from its toast rather than
+confirm first.
+
+New automation opens the builder, with the cursor in **Describe it in words**: type a sentence ("when an email about
+a school trip arrives, tell me") and press Enter, and the model fills the builder in, saying what it left out. Or
+build it yourself:
+
+- **When**: one card per trigger. An activity kind has **Only when** rows (a field, a test that suits its type and
+  a value); a schedule has presets or a cron line, its time zone and its next few times; a time is a date and time;
+  a webhook's address shows once you save. With two or more triggers, the join line says whether any one of them
+  starts it or it waits for all of them.
+- **If**: rows tested on what happened, all or any of them, with the fields of the variable catalog to pick from.
+- **Then**: one card per action, in order. Each card's settings come from the action's params; typing `{{` in a
+  text field opens the variable picker (arrow keys, Enter or Tab to put one in, Esc to close). A badge says whether
+  the action runs on its own or asks you first, **Wait first** delays it, and once the automation is saved **Let it
+  run on its own** stops an outside action asking (`POST /api/v1/automations/{id}/policy`).
+
+Enter in a row's last field adds a row. **Test** runs the draft on a recent activity, or on a kind's sample, and
+lists what each action would do; nothing is changed. **Save and turn on** saves it switched on, **Save** keeps it as
+it is (a new one stays off), and Ctrl or Cmd+Enter saves from anywhere. The API's problems show next to the trigger,
+row or action they are about.
+
+An automation whose workflow branches (a Decide node, or an action after a condition) can't be read as a list:
+the builder says so and opens it in the [canvas](#on-the-canvas), where When and If still edit.
 
 ## Contract
 
@@ -658,6 +691,7 @@ or removed does nothing. What it writes is by the automation itself, `automation
 | `http_request` | sends a `method` (GET, POST or PUT) to a `url`, with `headers` and a `body` (text, or an object sent as JSON) | out | `{status, ok, body, json, content_type, truncated, method, url, headers}`: the answer, as outside text |
 | `run_workflow` | runs a recording `workflow` (its published `version`, or the one named) on an `asset` as a job | lens | `{job, workflow, version, asset}` |
 | `run_pipeline` | processes an `asset` again with a `pipeline` (or the one its namespace uses), keeping its outputs | lens | `{job, pipeline, asset}` |
+| `enhance` | [enhances](enhance.md) an image `asset` whatever the settings, keeping the original, and reads it again from the copy | lens | `{job, asset}` |
 | `run_routine` | asks the scheduler to run a `routine` now (`propose_only` to only propose its changes) | lens, so it asks | `{routine, requested, propose_only}` |
 | `set_field` | sets one of an `asset`'s custom fields (`field`: its id or label) to `value` (empty clears it) | lens | `{asset, field, label, value, changed}` |
 | `add_to_collection` | moves an `asset` into a `collection` of its namespace | lens | `{asset, collection, name, moved, newly_see}` |
@@ -1302,6 +1336,8 @@ held run until you pick.
   also a Lens account as that person; a timeline page of others' private messages is read and left out, up to five
   source pages, so narrow it by account if that proves slow.
 - Deleted automations kept for a time, then removed with their runs (today they stay until restored).
+- The studio: dragging actions and rows to reorder them (today the arrows move an action); sharing an automation as a
+  file; a builder laid out for phones first.
 - Credentials in the headers of a saved event workflow an automation follows (`workflow`) sealed too (today only a
   graph saved with the automation is; the workflow's are sent as written).
 - Webhook triggers: a trigger option for a hook that takes only signed calls (`token_for(..., signed=True)`), and a

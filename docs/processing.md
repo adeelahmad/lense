@@ -492,8 +492,14 @@ Imports, pipeline runs and folder scans return at once and run as jobs stored in
 `workers.inline` workers itself; more can run anywhere that reaches the database, each limited to the steps it can do.
 A job whose next step a worker can't run goes back on the queue for one that can, so a Mac can transcribe with mlx while
 the container does the rest. Jobs can be cancelled and retried from the failed step; a job whose worker stops
-responding is retried. Workers heartbeat every 30 s, and every 15 s while they run a job however long its step takes,
-with their machine's load. In Activity → Workers an admin can pause a worker (it takes no new jobs; the one it has
+responding is retried. In Activity the queue is handled as a whole too: **Clear queue** cancels every queued and held
+run you may process (in the namespace in view), asking first, and its message can undo it; under **Queued** the runs
+show in the order workers take them, and dragging one by its grip (or Alt+↑ and Alt+↓ on the grip, or Move to top
+and Move to bottom in its menu) reorders the queue; **Retry failed** retries every failed run, one per asset, at the
+back of the queue, and can be undone too. Agents do the same through [the API](api.md#jobs) and the MCP tools `runs`,
+`clear_queue`, `move_run` and `retry_runs`.
+Workers heartbeat every 30 s, and every 15 s while they run a job however long its step takes, with their machine's
+load. In Activity → Workers an admin can pause a worker (it takes no new jobs; the one it has
 carries on to the end), drain it (it also hands that job back to the queue after the step it's on, so another worker
 carries on, and stays paused) or resume it. `lens worker --name mac-mini` keeps its pause across restarts; the
 server's own workers are named after its process, so they start afresh. Steps added to a job while it runs (attaching audio does) run after its other steps: a worker
@@ -852,7 +858,9 @@ The schedule is a five-field cron expression (minute hour day-of-month month day
 `@hourly`, `@daily`, `@weekly`, `@monthly`, in a time zone; without one a routine runs only when someone presses Run
 now. Every 30 seconds, `lens worker` checks (and so does the API process when it runs background work, and `lens watch`); a routine is
 never started twice at once, and one started in two processes runs once. Each run keeps what every action did and a
-log.
+log. A run that fails, or leaves graph changes to review, can be sent to a chat room through
+Matterbridge or to a webhook: pick `routine.failed` or `routine.proposed` for a namespace's target
+([Notifications](notifications.md#events)).
 
 The [Schedules](schedules.md) page (Automate › Schedules) lists every routine next to the automations' schedules and
 the backup, to switch, re-time and run each from one place; the Routines page and New routine open from its top.
@@ -874,13 +882,18 @@ A workflow's scope is assets (above), the graph, or an event: an automation's wo
   - **Noise** (hide): entities with no letters or one letter, made of filler words (*Okay so*; not acronyms like
     *US*), or a phrase rather than a name (95%; filler words are 70% when the entity has a type other than Term), and
     terms said only once (50%, below the default 70%). Entities someone showed again are left alone.
+  - **Topics to group** (cluster): a namespace's topics that go under a broader topic: those whose labels end in
+    another topic's label (*Machine learning* and *Deep learning* under *Learning*, 85%), and three or more with no
+    broader topic that end in the same word, under a new topic for it (*Sales calls*, *Support calls* and *Team
+    calls* under *Calls*, 70% for three, up to 85%). Topics have no types, so *Only these types* doesn't apply.
   Anything already proposed, dismissed or undone is skipped too, so a run never redoes what someone took back.
 - **Ask the model** (`llm_judge`) shows the model each candidate with lines where the names appear and asks, a kind
   at a time: whether a pair is the same thing and which name to keep, what type a name is (from the namespace's
-  types), or whether it is noise; and how sure it is. Each gets a `verdict`, with `agree` true when the change
+  types), whether it is noise, or whether a group's topics go under its broader topic (with a better label for a new
+  one, and which topics to leave out); and how sure it is. Each gets a `verdict`, with `agree` true when the change
   should be made (and, for pairs, `same`).
 - **Filter** keeps the candidates that pass a test, e.g. `verdict.agree` (or `verdict.same`) equals true.
-- **Apply changes** merges, links, retypes or hides the candidates whose confidence (the model's, else the rules') is
+- **Apply changes** merges, links, retypes, hides or groups the candidates whose confidence (the model's, else the rules') is
   at least *apply above* (at most *max apply* a run) and proposes the rest. Without *apply above* it only proposes. A
   candidate the model said no to is skipped.
 
@@ -890,11 +903,13 @@ on, or Run now with *propose only* first to see what it would do.
 
 Every change is recorded (`GET /api/v1/graph-changes`), and shows in Routines › Proposed changes: editors of the
 namespaces involved accept or dismiss proposals (dismissing a pair says the two are different; dismissing a type or a
-hide leaves the entity as it is; neither is suggested again), choose another type when accepting a retype (`to`), and
-undo applied changes; an admin can undo everything a run applied at once (`POST /api/v1/routine-runs/{id}/undo`).
+hide or a group leaves things as they are; neither is suggested again), choose another type when accepting a retype
+(`to`) or another label for a group's new broader topic (`label`), and undo applied changes; an admin can undo everything a run applied at once (`POST /api/v1/routine-runs/{id}/undo`).
 Merges are undone exactly as from an entity's page; a type or a hide someone has changed since stays as they left it.
-Agents do the same through the API, and `undo_graph_change` over MCP. To tidy types and noise, add a workflow that
-looks for wrong types and noise (no built-in workflow does, so nothing changes until you add one).
+Undoing a group takes its topics out from under the broader topic, and deletes that topic when the group made it and
+nothing uses it since (a recording, a narrower or related topic).
+Agents do the same through the API, and `undo_graph_change` over MCP. To tidy types, noise and topics, add a workflow
+that looks for them (no built-in workflow does, so nothing changes until you add one).
 
 ### Publishing from the graph
 

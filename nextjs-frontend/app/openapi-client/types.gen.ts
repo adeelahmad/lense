@@ -6298,6 +6298,124 @@ export type EncryptionProgress = {
 };
 
 /**
+ * EnhanceMeasured
+ *
+ * How good a picture looked to the enhance step (docs/enhance.md).
+ */
+export type EnhanceMeasured = {
+  /**
+   * Width
+   */
+  width: number;
+  /**
+   * Height
+   */
+  height: number;
+  /**
+   * Sharpness
+   *
+   * the variance of its Laplacian: how sharply its tones change
+   */
+  sharpness: number;
+  /**
+   * Noise
+   *
+   * its estimated noise, in levels out of 255
+   */
+  noise: number;
+  /**
+   * Contrast
+   *
+   * the standard deviation of its tones (0 to 255)
+   */
+  contrast: number;
+  /**
+   * Brightness
+   *
+   * the mean of its tones (0 to 255)
+   */
+  brightness: number;
+  /**
+   * Faces
+   *
+   * how many faces it has, where they were looked for
+   */
+  faces?: number | null;
+  /**
+   * Smallest Face
+   *
+   * the height of its smallest face, in pixels
+   */
+  smallest_face?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * Enhanced
+ *
+ * What the enhance step found and did (docs/enhance.md): whether the picture looked low quality and why, and the
+ * enhanced copy it's read from, if one was made. The original stays as it is.
+ */
+export type Enhanced = {
+  /**
+   * Kind
+   */
+  kind: "image";
+  /**
+   * Low
+   *
+   * why it looked low quality; empty when it looked good enough
+   */
+  low?: Array<"small" | "blurry" | "noisy" | "dull" | "small_faces">;
+  measured: EnhanceMeasured;
+  /**
+   * Enhanced
+   *
+   * an enhanced copy was made, and the steps after it read that
+   */
+  enhanced: boolean;
+  /**
+   * Engine
+   *
+   * what enhanced it: classic, or realesr-general-x4v3 (Real-ESRGAN)
+   */
+  engine?: string | null;
+  /**
+   * Scale
+   *
+   * how many times bigger the copy is
+   */
+  scale?: number | null;
+  /**
+   * Width
+   *
+   * the copy's width in pixels
+   */
+  width?: number | null;
+  /**
+   * Height
+   */
+  height?: number | null;
+  /**
+   * Forced
+   *
+   * enhanced on request, whatever the settings and its quality
+   */
+  forced?: boolean | null;
+  /**
+   * At
+   */
+  at?: string | null;
+  /**
+   * Download
+   *
+   * a signed link to save the enhanced copy
+   */
+  download?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * EnrichedDate
  *
  * A date or time the text gives.
@@ -7001,7 +7119,9 @@ export type EventInfo = {
     | "batch.finished"
     | "recording.added"
     | "lens.release"
-    | "approval.waiting";
+    | "approval.waiting"
+    | "routine.failed"
+    | "routine.proposed";
   /**
    * Label
    */
@@ -9111,11 +9231,11 @@ export type GraphChange = {
   /**
    * Kind
    */
-  kind: "merge" | "link" | "retype" | "hide";
+  kind: "merge" | "link" | "retype" | "hide" | "cluster";
   /**
    * A
    *
-   * the entity changed, or the first of a pair
+   * the entity changed, the first of a pair, or a group's broader topic (no id when new)
    */
   a: {
     [key: string]: unknown;
@@ -9134,6 +9254,32 @@ export type GraphChange = {
    * a retype's new type
    */
   to?: string | null;
+  /**
+   * Topics
+   *
+   * a group's topics, to put under its broader topic
+   */
+  topics?: Array<{
+    [key: string]: unknown;
+  }> | null;
+  /**
+   * Parent
+   *
+   * an applied group's broader topic
+   */
+  parent?: number | null;
+  /**
+   * Created
+   *
+   * the broader topic an applied group made
+   */
+  created?: number | null;
+  /**
+   * Grouped
+   *
+   * the topics an applied group put under its broader topic
+   */
+  grouped?: Array<number> | null;
   /**
    * Spaces
    */
@@ -9203,6 +9349,12 @@ export type GraphChangeAccept = {
    * for a retype: the type to give (default: the one proposed)
    */
   to?: string | null;
+  /**
+   * Label
+   *
+   * for a group under a new topic: its label (default: the one proposed)
+   */
+  label?: string | null;
 };
 
 /**
@@ -11145,6 +11297,12 @@ export type Job = {
    */
   cost_estimate?: boolean | null;
   /**
+   * Priority
+   *
+   * its place among queued runs: the highest is taken first (POST /jobs/{jid}/move sets it)
+   */
+  priority?: number | null;
+  /**
    * Hold
    *
    * held or skipped over a budget (docs/budgets.md): {why, resource (the budget), action (ask, skip), decided: {run, by, at} once someone picked}
@@ -11262,6 +11420,53 @@ export type JobLog = {
 };
 
 /**
+ * JobMove
+ */
+export type JobMove = {
+  /**
+   * To
+   *
+   * the front of the queue (next) or its back
+   */
+  to?: "top" | "bottom" | null;
+  /**
+   * Before
+   *
+   * just before this queued run
+   */
+  before?: number | null;
+  /**
+   * After
+   *
+   * just after this queued run
+   */
+  after?: number | null;
+};
+
+/**
+ * JobMoved
+ */
+export type JobMoved = {
+  /**
+   * Ok
+   */
+  ok?: boolean;
+  /**
+   * Position
+   *
+   * its place now among the queued runs you can see: 1 is next
+   */
+  position: number;
+  /**
+   * Queued
+   *
+   * how many runs you can see are queued
+   */
+  queued: number;
+  [key: string]: unknown;
+};
+
+/**
  * JobPipeline
  */
 export type JobPipeline = {
@@ -11300,6 +11505,35 @@ export type JobQueued = {
 };
 
 /**
+ * JobsChanged
+ */
+export type JobsChanged = {
+  /**
+   * Ok
+   */
+  ok?: boolean;
+  /**
+   * Jobs
+   *
+   * the runs cancelled, or queued again
+   */
+  jobs: Array<number>;
+  /**
+   * Stopping
+   *
+   * running runs asked to stop after the step they're on
+   */
+  stopping?: Array<number>;
+  /**
+   * Skipped
+   *
+   * runs retry left alone: their asset was deleted, or already has a run queued or running
+   */
+  skipped?: number;
+  [key: string]: unknown;
+};
+
+/**
  * JobsCreate
  */
 export type JobsCreate = {
@@ -11326,6 +11560,30 @@ export type JobsCreate = {
    * also queue everything in this namespace that still needs work
    */
   namespace?: string | null;
+};
+
+/**
+ * JobsPick
+ */
+export type JobsPick = {
+  /**
+   * Jobs
+   *
+   * these runs; leave out for every run with `status`
+   */
+  jobs?: Array<number> | null;
+  /**
+   * Namespace
+   *
+   * only this namespace's runs (default: every one you can process in)
+   */
+  namespace?: string | null;
+  /**
+   * Status
+   *
+   * POST /jobs/cancel: default queued and held (clearing the queue), running too to stop those after their step; POST /jobs/retry: default failed (the dead letter queue), cancelled too
+   */
+  status?: Array<"queued" | "held" | "running" | "failed" | "cancelled"> | null;
 };
 
 /**
@@ -13359,6 +13617,12 @@ export type MeshTokenCreated = {
    * this install's address the machine joins at
    */
   join_url: string;
+  /**
+   * Install Line
+   *
+   * the line to run on the machine: install.sh with LENS_JOIN and LENS_JOIN_TOKEN
+   */
+  install_line: string;
   [key: string]: unknown;
 };
 
@@ -13549,9 +13813,9 @@ export type MessageRecord = {
   /**
    * Via
    *
-   * a question: how it was sent
+   * a question: how it was sent (project: a brief a project's coordinator wrote)
    */
-  via?: "web" | "api" | "room" | "voice" | "automation" | "completions" | null;
+  via?: "web" | "api" | "room" | "voice" | "automation" | "completions" | "project" | null;
   /**
    * a question: the options it was asked with
    */
@@ -15657,6 +15921,8 @@ export type NotifyTarget = {
     | "recording.added"
     | "lens.release"
     | "approval.waiting"
+    | "routine.failed"
+    | "routine.proposed"
   >;
   /**
    * Enabled
@@ -15740,6 +16006,8 @@ export type NotifyTargetCreate = {
     | "recording.added"
     | "lens.release"
     | "approval.waiting"
+    | "routine.failed"
+    | "routine.proposed"
   > | null;
   /**
    * Enabled
@@ -15804,6 +16072,8 @@ export type NotifyTargetUpdate = {
     | "recording.added"
     | "lens.release"
     | "approval.waiting"
+    | "routine.failed"
+    | "routine.proposed"
   > | null;
   /**
    * Enabled
@@ -19316,6 +19586,10 @@ export type Recording = {
    * how its clean_audio step cleaned up its sound before transcription
    */
   audio_cleanup?: AudioCleanup | null;
+  /**
+   * an image the enhance step looked at: what it found, and its enhanced copy
+   */
+  enhanced?: Enhanced | null;
   [key: string]: unknown;
 };
 
@@ -25657,6 +25931,12 @@ export type ThreadCreate = {
    * bring in one of your conversations instead of starting a new one
    */
   chat?: number | null;
+  /**
+   * Brief
+   *
+   * what to do: asked as the thread's first question and answered in the background, with your tools and approvals (follow it with GET /chats/{id})
+   */
+  brief?: string | null;
 };
 
 /**
@@ -35217,6 +35497,36 @@ export type ReprocessRecordingResponses = {
 
 export type ReprocessRecordingResponse = ReprocessRecordingResponses[keyof ReprocessRecordingResponses];
 
+export type EnhanceRecordingData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/enhance";
+};
+
+export type EnhanceRecordingErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type EnhanceRecordingError = EnhanceRecordingErrors[keyof EnhanceRecordingErrors];
+
+export type EnhanceRecordingResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobQueued;
+};
+
+export type EnhanceRecordingResponse = EnhanceRecordingResponses[keyof EnhanceRecordingResponses];
+
 export type RevokeSharesData = {
   body?: never;
   path: {
@@ -41222,6 +41532,39 @@ export type GetPdfResponses = {
 
 export type GetPdfResponse = GetPdfResponses[keyof GetPdfResponses];
 
+export type GetEnhancedData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: {
+    /**
+     * S
+     */
+    s?: string;
+  };
+  url: "/api/v1/resources/{rid}/enhanced";
+};
+
+export type GetEnhancedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetEnhancedError = GetEnhancedErrors[keyof GetEnhancedErrors];
+
+export type GetEnhancedResponses = {
+  /**
+   * Successful Response
+   */
+  200: unknown;
+};
+
 export type GetFrameData = {
   body?: never;
   path: {
@@ -41754,6 +42097,12 @@ export type ListJobsData = {
      * Limit
      */
     limit?: number;
+    /**
+     * Order
+     *
+     * queue: in the order workers take them, the next first
+     */
+    order?: "newest" | "queue";
   };
   url: "/api/v1/jobs";
 };
@@ -41901,6 +42250,86 @@ export type QueueStepResponses = {
 };
 
 export type QueueStepResponse = QueueStepResponses[keyof QueueStepResponses];
+
+export type CancelJobsData = {
+  body: JobsPick;
+  path?: never;
+  query?: never;
+  url: "/api/v1/jobs/cancel";
+};
+
+export type CancelJobsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CancelJobsError = CancelJobsErrors[keyof CancelJobsErrors];
+
+export type CancelJobsResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobsChanged;
+};
+
+export type CancelJobsResponse = CancelJobsResponses[keyof CancelJobsResponses];
+
+export type RetryJobsData = {
+  body: JobsPick;
+  path?: never;
+  query?: never;
+  url: "/api/v1/jobs/retry";
+};
+
+export type RetryJobsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RetryJobsError = RetryJobsErrors[keyof RetryJobsErrors];
+
+export type RetryJobsResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobsChanged;
+};
+
+export type RetryJobsResponse = RetryJobsResponses[keyof RetryJobsResponses];
+
+export type MoveJobData = {
+  body: JobMove;
+  path: {
+    /**
+     * Jid
+     */
+    jid: number;
+  };
+  query?: never;
+  url: "/api/v1/jobs/{jid}/move";
+};
+
+export type MoveJobErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type MoveJobError = MoveJobErrors[keyof MoveJobErrors];
+
+export type MoveJobResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobMoved;
+};
+
+export type MoveJobResponse = MoveJobResponses[keyof MoveJobResponses];
 
 export type CancelJobData = {
   body?: never;
