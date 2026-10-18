@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { SentFiles } from "@/components/chat/attachments";
 import { CopyQuestion } from "@/components/chat/copy";
+import { ReadAloud } from "@/components/chat/read-aloud";
 import { Button, IconButton } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -74,6 +75,7 @@ export function UserBubble({
   }
   return (
     <div className="group flex items-start justify-end gap-1 self-end">
+      {!filesOnly && <ReadAloud text={text} className={REVEAL} />}
       {!filesOnly && <CopyQuestion text={text} className={REVEAL} />}
       {onEdit && (
         <IconButton

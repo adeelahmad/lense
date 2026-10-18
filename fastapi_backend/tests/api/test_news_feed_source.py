@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import base64
 import http.server
+import json
 import socket
 import threading
 
@@ -296,3 +297,40 @@ def test_a_feed_file_imported_as_text(client, db, admin):
     assert r.status_code == 200, r.text
     said = _segments(db, r.json()["id"])
     assert "Two days on the water." in said and "https://harbour.example.org/posts/regatta" in said
+
+
+def test_subscribing_in_one_step(site, client, db, cfg, admin):
+    """An agent follows a feed into a namespace with one call (MCP), sees it listed, and stops following it."""
+    from tests.api.test_mcp import tool, tool_error
+
+    viewer = make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
+    assert viewer and "only admins" in tool_error(client, login(client, "vi@x.io", "viewer password 1"), "news_feeds")
+    assert "can't be read, so nothing was added" in tool_error(client, admin, "subscribe_feed", url=f"{site}/plain", namespace="news")
+    assert "news" not in store.space_names(db).values() and tool(client, admin, "news_feeds")["feeds"] == []
+    assert "https://" in tool_error(client, admin, "subscribe_feed", url="ftp://x/feed.xml", namespace="news")
+
+    got = tool(client, admin, "subscribe_feed", url=f"{site}/blog", namespace="news", backfill=True)
+    assert (got["name"], got["title"], got["namespace"], got["posts"], got["added"], got["already"]) == (
+        "Harbour news",
+        "Harbour news",
+        "news",
+        2,
+        True,
+        False,
+    )
+    assert sources.poll_watch(db, cfg, got["watch"])["new"] == 2
+    # the same feed again: reused, and already watched into that namespace; another namespace gets its own watch
+    again = tool(client, admin, "subscribe_feed", url=f"{site}/blog", namespace="news")
+    assert (again["feed"], again["watch"], again["added"], again["already"]) == (got["feed"], got["watch"], False, True)
+    other = tool(client, admin, "subscribe_feed", url=f"{site}/blog", namespace="harbour")
+    assert other["feed"] == got["feed"] and other["watch"] != got["watch"] and not other["already"]
+
+    (feed,) = tool(client, admin, "news_feeds")["feeds"]
+    assert (feed["feed"], feed["name"], feed["title"], feed["health"]["ok"]) == (got["feed"], "Harbour news", "Harbour news", True)
+    assert [(w["namespace"], w["new_last_scan"]) for w in feed["watching"]] == [("news", 2), ("harbour", None)]
+    assert site not in json.dumps(feed)  # the address stays sealed
+
+    assert tool(client, admin, "unsubscribe_feed", feed=got["feed"]) == {"unsubscribed": got["feed"]}
+    assert tool(client, admin, "news_feeds")["feeds"] == [] and db.rows("SELECT id FROM watch_path") == []
+    assert len(db.rows("SELECT id FROM recording")) == 2  # what it brought in stays
+    assert tool_error(client, admin, "unsubscribe_feed", feed=got["feed"])

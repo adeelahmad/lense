@@ -1,0 +1,113 @@
+name: Browser
+
+# The assistant's browser (the optional browser profile: Playwright MCP and netguard's proxy, docs/assistant.md): it
+# starts as docker-compose.prod.yml runs it, lists its tools over MCP, opens a public page that stays open from one
+# session to the next, can't reach a private address through its proxy, and has no way out of its network but that.
+on:
+  pull_request:
+    paths:
+      - browser/**
+      - fastapi_backend/app/domain/netguard.py
+      - docker-compose.prod.yml
+      - .github/workflows/browser.yml
+  push:
+    branches: [main]
+    paths:
+      - browser/**
+      - fastapi_backend/app/domain/netguard.py
+      - docker-compose.prod.yml
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  browser:
+    name: Start it and browse
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
+    timeout-minutes: 20
+    env:
+      # the compose file needs these set to be read; the browser uses none of them
+      ACCESS_SECRET_KEY: ci
+      ARCHIVE_SECRET_KEY: ci
+      SURREAL_PASS: ci
+      AUTH_SECRET: ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start it as Lens's compose file does
+        run: |
+          docker compose -p lensci -f docker-compose.prod.yml --profile browser up -d browser browser-proxy
+          sleep 5
+          docker compose -p lensci -f docker-compose.prod.yml ps -a
+
+      - name: Lists its tools, and browses a public page
+        run: |
+          # mcp BODY: one request to the browser, from a container on its network as the backend is; with $SID, in
+          # that session
+          mcp() {
+            docker run --rm --network lensci_browser curlimages/curl:8.10.1 -sS -i --max-time 120 -X POST \
+              http://browser:8931/mcp -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+              ${SID:+-H "Mcp-Session-Id: $SID"} -d "$1"
+          }
+          open_session() {
+            SID=""
+            out="$(mcp '{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "ci", "version": "1"}}}')"
+            SID="$(printf '%s' "$out" | tr -d '\r' | sed -n 's/^[Mm]cp-[Ss]ession-[Ii]d: //p')"
+            test -n "$SID" || { echo "$out"; return 1; }
+            mcp '{"jsonrpc": "2.0", "method": "notifications/initialized"}' >/dev/null
+          }
+          call() { # tool arguments
+            mcp "{\"jsonrpc\": \"2.0\", \"id\": 2, \"method\": \"tools/call\", \"params\": {\"name\": \"$1\", \"arguments\": $2}}"
+          }
+          for _ in $(seq 1 30); do
+            open_session 2>/dev/null && break
+            sleep 2
+          done
+          test -n "$SID"
+          mcp '{"jsonrpc": "2.0", "id": 3, "method": "tools/list"}' | tee out.txt
+          grep -q browser_navigate out.txt && grep -q browser_snapshot out.txt
+          call browser_navigate '{"url": "https://example.com"}' | tee out.txt
+          grep -q "Example Domain" out.txt
+          # another session sees the same page: the one browser, shared (Lens's backend and worker each keep one)
+          open_session
+          call browser_snapshot '{}' | tee out.txt
+          grep -q "Example Domain" out.txt
+
+      - name: Can't reach a private address, nor out but through its proxy
+        run: |
+          mcp() {
+            docker run --rm --network lensci_browser curlimages/curl:8.10.1 -sS -i --max-time 120 -X POST \
+              http://browser:8931/mcp -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+              ${SID:+-H "Mcp-Session-Id: $SID"} -d "$1"
+          }
+          SID=""
+          out="$(mcp '{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "ci", "version": "1"}}}')"
+          SID="$(printf '%s' "$out" | tr -d '\r' | sed -n 's/^[Mm]cp-[Ss]ession-[Ii]d: //p')"
+          mcp '{"jsonrpc": "2.0", "method": "notifications/initialized"}' >/dev/null
+          mcp '{"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "browser_navigate", "arguments": {"url": "https://169.254.169.254/latest/meta-data/"}}}' | tee out.txt
+          grep -q ERR_TUNNEL_CONNECTION_FAILED out.txt
+          mcp '{"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "browser_navigate", "arguments": {"url": "http://browser-proxy/"}}}' >/dev/null
+          docker compose -p lensci -f docker-compose.prod.yml logs browser-proxy | tee out.txt
+          grep -q "refused CONNECT 169.254.169.254:443" out.txt
+          grep -q "refused GET http://browser-proxy/: browser-proxy isn't a public address" out.txt
+          # straight out of the browser's container, past its proxy: no way
+          docker compose -p lensci -f docker-compose.prod.yml exec -T browser node -e "
+            require('https').get('https://example.com', () => { console.log('reached the internet'); process.exit(1) })
+              .on('error', (e) => { console.log('no way out:', e.code); process.exit(0) })"
+          # and only the backend's name for it is served
+          code="$(docker run --rm --network lensci_browser curlimages/curl:8.10.1 -s -o /dev/null -w '%{http_code}' \
+            -X POST -H 'Host: evil.example:8931' http://browser:8931/mcp -d '{}')"
+          test "$code" = 403
+
+      - name: What they said
+        if: failure()
+        run: docker compose -p lensci -f docker-compose.prod.yml logs
+
+      - name: Stop
+        if: always()
+        run: docker compose -p lensci -f docker-compose.prod.yml --profile browser down -v || true

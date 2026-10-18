@@ -30,6 +30,7 @@ from . import (
     events,
     fedora,
     jobs,
+    match,
     notebook,
     organize,
     schedule,
@@ -609,6 +610,7 @@ def run_due(db, cfg, log=print, now=None):
     activity.tidy(db, cfg)  # the activity ledger past activity.keep_days, once an hour
     try:
         events.tidy(db, cfg)  # the event log past events.keep_days and claims past a day, once an hour
+        match.tidy(db, cfg)  # what automations kept between activities, past its expires_at, once an hour
     except Exception as e:  # noqa: BLE001 - the schedule carries on
         if log:
             log(f"events: {type(e).__name__}: {e}")
@@ -675,7 +677,8 @@ def start(db, cfg_fn, stop, log=None):
     """The scheduling threads, until `stop` is set: watched folders scanned when due (every sources.check_seconds),
     routines run when due (every CHECK_SECONDS), the scheduled backup taken when due, and automations' timers fired
     when due (timers.py). The API runs them with its background work; `lens worker` runs them too, since Docker and
-    the packages run the API without it."""
+    the packages run the API without it. Research runs no process is on (research.py) are picked up here too."""
+    from . import research  # it loads the chat, which loads what routines run
 
     def every(seconds, fn, what):
         def loop():
@@ -696,6 +699,7 @@ def start(db, cfg_fn, stop, log=None):
         every(lambda: cfg_fn()["fedora"]["sync_seconds"], fedora.sync_due, "fedora"),
         every(lambda: notebook.QUIET_SECONDS / 2, notebook.organise_due, "notes"),
         every(lambda: CHECK_SECONDS, backups.run_due, "backups"),
+        every(lambda: research.SWEEP_SECONDS, research.sweep, "research"),
         timers.start(db, cfg_fn, stop, log=log),
     ]
 

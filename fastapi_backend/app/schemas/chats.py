@@ -263,6 +263,9 @@ class ChatMessage(ResponseModel):
     parent: int | None = Field(None, description="the message it follows; null for a first question")
     versions: Versions | None = Field(None, description="it and the others said in its place, from regenerating or editing")
     meta: MessageRecord | None = Field(None, description="what produced it; none on messages from before it was recorded")
+    kind: Literal["research", "research_plan"] | None = Field(
+        None, description="research: a deep research report; research_plan: the plan it waits on (GET /research/{meta.research})"
+    )
 
 
 class MessageDetail(ChatMessage):
@@ -352,6 +355,11 @@ class MessageCreate(RequestModel):
     scope: ChatScope | None = Field(
         None,
         description="what this answer draws on, instead of the conversation's scope (which stays as it is); {} for everything you can read",
+    )
+    research: bool | None = Field(
+        None,
+        description="the content is a research goal: the reply is a plan to approve (streams `research`, then `approval`), "
+        "as /research <goal> and POST /chats/{cid}/research do",
     )
 
 

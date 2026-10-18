@@ -20,6 +20,7 @@ import { CitationChip } from "@/components/chat/citation";
 import { AnswerDetails } from "@/components/chat/details";
 import { AnswerMenu, type ExportFormat } from "@/components/chat/export";
 import { keywords } from "@/components/chat/keywords";
+import { ReadAloud } from "@/components/chat/read-aloud";
 import { RichText } from "@/components/chat/rich-text";
 import { scopeWords, type Scope } from "@/components/chat/scope";
 import { SharedFiles } from "@/components/chat/shared-files";
@@ -368,6 +369,7 @@ export function Answer(p: AnswerProps) {
             {check.isPending ? "Checking sources…" : "Check sources"}
           </Button>
         )}
+        {!streaming && !blank && !noModel && !nothing && !failed && <ReadAloud text={p.text} />}
         {!streaming && !blank && !noModel && <AnswerMenu text={p.text} passages={p.passages} onExport={p.onExport} />}
       </div>
       {check.isError && (
