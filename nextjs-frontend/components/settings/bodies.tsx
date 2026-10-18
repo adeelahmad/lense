@@ -577,8 +577,12 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             <F ctx={ctx} id="automations.catch_up" />
           </div>
           <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
-            Agents read the same stream with the timeline tool (MCP and the assistant) or GET /api/v1/activities, and
-            manage automations over /api/v1/automations.
+            Make and manage automations on the{" "}
+            <Link href="/automations" className="font-semibold text-fg-accent hover:underline">
+              Automations
+            </Link>{" "}
+            page. Agents read the same stream with the timeline tool (MCP and the assistant) or GET /api/v1/activities,
+            and manage automations over /api/v1/automations.
           </p>
         </>
       );

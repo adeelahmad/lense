@@ -26970,7 +26970,7 @@
           "chats"
         ],
         "summary": "Decide Approval",
-        "description": "Approve (or run a sample of, or decline) something the assistant proposed or an automation's action. Each\napproval is decided once. An automation's action can also be edited (`params`) and then carried out, or allowed\nfrom now on for that automation (`always`); approving one needs you signed in, since it's your pick: an API key\nor an app can only decline it.",
+        "description": "Approve (or run a sample of, or decline) something the assistant proposed or an automation's action. Each\napproval is decided once. An automation's action can also be edited (`params`) and then carried out, or allowed\nfrom now on for that automation (`always`). Approving is your pick, so it needs you signed in: an API key or an\napp can only decline (403 otherwise).",
         "operationId": "decide_approval",
         "parameters": [
           {
@@ -34903,6 +34903,64 @@
         }
       }
     },
+    "/api/v1/mesh/node/worker": {
+      "get": {
+        "tags": [
+          "mesh"
+        ],
+        "summary": "Node Worker",
+        "description": "What the calling worker node's `lens worker` signs in to the database with: its own user of it. 403 for a node\nof another role, 409 where the database is embedded.",
+        "operationId": "node_worker",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshWorkerAccess"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mesh/node/media/{recording_id}": {
+      "get": {
+        "tags": [
+          "mesh"
+        ],
+        "summary": "Node Media",
+        "description": "A recording's file, plain, for a job on the calling worker node (a vault's never). Its ETag is its size and\ntime: a node that has it sends If-None-Match and gets 304.",
+        "operationId": "node_media",
+        "parameters": [
+          {
+            "name": "recording_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Recording Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/mesh/node/beat": {
       "post": {
         "tags": [
@@ -34928,6 +34986,241 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/replies": {
+      "get": {
+        "tags": [
+          "replies"
+        ],
+        "summary": "List Replies",
+        "description": "Email in the namespaces you can read (or `namespace`), newest first, each with its reply. `waiting` (the default)\nis mail that may need an answer (not a mailing list's, a no-reply sender's or your own) with no reply yet, and every\ndraft; or one status, `none` (no reply yet, automatic mail too) or `all`.",
+        "operationId": "list_replies",
+        "parameters": [
+          {
+            "name": "show",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "waiting",
+                "draft",
+                "drafting",
+                "skipped",
+                "dismissed",
+                "sent",
+                "failed",
+                "none",
+                "all"
+              ],
+              "type": "string",
+              "default": "waiting",
+              "title": "Show"
+            }
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Namespace"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplyList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{rid}/reply": {
+      "post": {
+        "tags": [
+          "replies"
+        ],
+        "summary": "Draft Reply",
+        "description": "Draft a reply to this email in the background, from what its namespace holds, each fact cited to its excerpt\nand what the archive doesn't say marked [to confirm: \u2026]; `instructions` says what it should say. It's drafted with\nthe Reply to an email prompt template (edited on the Templates page), or `template`, and drafting again keeps the\ndraft before as `previous`. Nothing is sent. Needs the right to process the email and a language model (400 without\none, or when it isn't an email). Audited as `reply.draft`.",
+        "operationId": "draft_reply",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ReplyDraft"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobQueued"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "replies"
+        ],
+        "summary": "Get Reply",
+        "description": "This email's reply: its status, the draft with its sources, and what's left to confirm.",
+        "operationId": "get_reply",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "replies"
+        ],
+        "summary": "Edit Reply",
+        "description": "Change a draft: its text, who it goes to, its subject; or set it aside (`status` dismissed) and bring it back\n(`status` draft), which undoes that. Needs the right to process the email. Audited as `reply.edit`.",
+        "operationId": "edit_reply",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplyEdit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reply"
                 }
               }
             }
@@ -50970,7 +51263,8 @@
               "merge",
               "link",
               "retype",
-              "hide"
+              "hide",
+              "cluster"
             ],
             "title": "Kind"
           },
@@ -50978,7 +51272,7 @@
             "additionalProperties": true,
             "type": "object",
             "title": "A",
-            "description": "the entity changed, or the first of a pair"
+            "description": "the entity changed, the first of a pair, or a group's broader topic (no id when new)"
           },
           "b": {
             "anyOf": [
@@ -51004,6 +51298,61 @@
             ],
             "title": "To",
             "description": "a retype's new type"
+          },
+          "topics": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topics",
+            "description": "a group's topics, to put under its broader topic"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "an applied group's broader topic"
+          },
+          "created": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created",
+            "description": "the broader topic an applied group made"
+          },
+          "grouped": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grouped",
+            "description": "the topics an applied group put under its broader topic"
           },
           "spaces": {
             "items": {
@@ -51171,6 +51520,19 @@
             ],
             "title": "To",
             "description": "for a retype: the type to give (default: the one proposed)"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "for a group under a new topic: its label (default: the one proposed)"
           }
         },
         "additionalProperties": false,
@@ -51415,6 +51777,21 @@
             ],
             "title": "Waiting For",
             "description": "why it launches nothing now, when it doesn't"
+          },
+          "unit_steps": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Steps",
+            "description": "the steps its units run, which its queue metrics count (None: every step); on a machine elsewhere, only a worker node's"
           },
           "last_out_at": {
             "anyOf": [
@@ -58259,6 +58636,51 @@
           "install_line"
         ],
         "title": "MeshTokenCreated"
+      },
+      "MeshWorkerAccess": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "the database through the mesh: ws://<the primary's mesh address>:8000"
+          },
+          "namespace": {
+            "type": "string",
+            "title": "Namespace"
+          },
+          "database": {
+            "type": "string",
+            "title": "Database"
+          },
+          "user": {
+            "type": "string",
+            "title": "User",
+            "description": "the node's own user of this database (removed with the node)"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Steps",
+            "description": "the steps a worker node runs unless LENS_WORKER_STEPS says otherwise"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "url",
+          "namespace",
+          "database",
+          "user",
+          "password",
+          "steps"
+        ],
+        "title": "MeshWorkerAccess"
       },
       "MessageCreate": {
         "properties": {
@@ -69571,6 +69993,672 @@
         ],
         "title": "Rendition",
         "description": "How a document that isn't a PDF (or an image anytopdf read) was made into one."
+      },
+      "Reply": {
+        "properties": {
+          "recording": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording",
+            "description": "the email it answers"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "none",
+              "drafting",
+              "draft",
+              "skipped",
+              "dismissed",
+              "sent",
+              "failed"
+            ],
+            "title": "Status",
+            "description": "draft: waiting for the person; drafting: a job is on it (job); skipped: mail not to answer (why); failed: the last job to draft it failed (error)"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          },
+          "cc": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cc"
+          },
+          "others": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Others",
+            "description": "the email's other recipients, to answer all of them"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From",
+            "description": "the address it answers from: the one the email came in to"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "in_reply_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Reply To",
+            "description": "the email's Message-ID, which threads the reply"
+          },
+          "references": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "References"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "the draft, with [n] after each fact taken from source n"
+          },
+          "plain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plain",
+            "description": "the draft as it would be sent, without its citations"
+          },
+          "gaps": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gaps",
+            "description": "what the archive doesn't say, marked [to confirm: \u2026] in the draft"
+          },
+          "unconfirmed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unconfirmed",
+            "description": "how many [to confirm: \u2026] marks are still in the draft"
+          },
+          "sources": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ReplySource"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sources"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "template": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "instructions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instructions"
+          },
+          "edited": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edited",
+            "description": "someone changed the draft's text"
+          },
+          "previous": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReplyBefore"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the text it had before the last edit or draft, to undo it"
+          },
+          "drafted_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drafted At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "Reply"
+      },
+      "ReplyBefore": {
+        "properties": {
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "ReplyBefore"
+      },
+      "ReplyDraft": {
+        "properties": {
+          "instructions": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instructions",
+            "description": "what the reply should say, in the person's words"
+          },
+          "template": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template",
+            "description": "another prompt template to draft it with (default: Reply to an email)"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "that template's version (default: its current one)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ReplyDraft"
+      },
+      "ReplyEdit": {
+        "properties": {
+          "text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "the reply, as it will be sent (its [n] citations are left out)"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          },
+          "cc": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cc"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "draft",
+                  "dismissed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status",
+            "description": "dismissed sets it aside; draft brings it back (undo)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ReplyEdit"
+      },
+      "ReplyEmail": {
+        "properties": {
+          "recording": {
+            "type": "integer",
+            "title": "Recording"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "received_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received At"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From"
+          },
+          "sender": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sender",
+            "description": "who sent it, as its From says"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject",
+            "default": ""
+          },
+          "snippet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snippet"
+          },
+          "automatic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Automatic",
+            "description": "why it looks like mail not to answer"
+          },
+          "reply": {
+            "$ref": "#/components/schemas/Reply"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "recording",
+          "reply"
+        ],
+        "title": "ReplyEmail"
+      },
+      "ReplyList": {
+        "properties": {
+          "emails": {
+            "items": {
+              "$ref": "#/components/schemas/ReplyEmail"
+            },
+            "type": "array",
+            "title": "Emails"
+          },
+          "drafts": {
+            "type": "integer",
+            "title": "Drafts",
+            "description": "drafts waiting in these namespaces"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "emails",
+          "drafts"
+        ],
+        "title": "ReplyList"
+      },
+      "ReplySource": {
+        "properties": {
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "recording_id": {
+            "type": "integer",
+            "title": "Recording Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "t0": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T0"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "used": {
+            "type": "boolean",
+            "title": "Used",
+            "description": "the draft cites it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "n",
+          "recording_id",
+          "text",
+          "used"
+        ],
+        "title": "ReplySource"
       },
       "ReprocessRequest": {
         "properties": {

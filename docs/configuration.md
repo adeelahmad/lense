@@ -22,6 +22,7 @@ with AES-GCM and are write-only: the API reports whether one is set, never its v
 | `PASSWORD_RESET_EXPIRE_MINUTES` | `60` | |
 | `SURREAL_URL` | embedded | `ws://host:8000` for a server; see [Database](database.md) |
 | `SURREAL_USER` / `SURREAL_PASS` / `SURREAL_NS` / `SURREAL_DB` / `SURREAL_POOL_SIZE` | `root` / `root` / `archive` / `main` / `8` | |
+| `SURREAL_AUTH` | root | `database`: `SURREAL_USER` is a user of that one database, not the server's root (a [worker node](mesh.md#worker-nodes) signs in so) |
 | `ARCHIVE_SECRET_KEY` | generated in `data_dir/secret.key` | encrypts stored credentials; keep it stable and backed up |
 | `ARCHIVE_CONFIG` | `archive.yaml` | processing configuration file |
 | `ARCHIVE_ALLOWED_HOSTS` | | break-glass override of allowed Host headers if a bad setting locks everyone out |

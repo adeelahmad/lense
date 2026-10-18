@@ -1592,8 +1592,9 @@ automations' actions ([Approvals](automations.md#approvals)); filter by `status`
 `automation` or `chat_id`, and page with `before` (the last id of the page before) and `limit`. `/approvals/count`
 gives `{waiting, automations}`. `POST /approvals/{aid} {decision, params?}` decides one: `approve`, `sample` (a batch
 run on 3 assets first), `decline`, `edit` (an automation's action with `params` changed) or `always` (approved, and
-that node runs without asking from now on). Approving, editing and `always` on an automation's action need a signed-in
-session (403 for an API key or an app); each approval's `can` says what you may do with it.
+that node runs without asking from now on). Approving (and a sample), editing and `always` need a signed-in session,
+for the assistant's proposals as for an automation's actions (403 for an API key or an app, which can only decline);
+each approval's `can` says what you may do with it.
 
 `GET /chats/capabilities` tells anyone signed in whether a language model is set up (`configured`), which (`model`),
 whether it uses tools (`tools`, `max_steps`, `max_tool_calls`), whether answers can be checked (`check`) and the `models` people may pick

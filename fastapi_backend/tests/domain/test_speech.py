@@ -617,3 +617,29 @@ def test_the_namespaces_own_names_go_to_the_engine(db, cfg, fake, monkeypatch):
     monkeypatch.setattr(ingest, "decode", lambda p: clip())
     ingest.transcribe_one(db, eff, rid, log=lambda *a: None, engine=Hearing())
     assert Hearing.heard == words
+
+
+def test_whisper_keeps_the_language_it_heard():
+    """With no language set, the recording's language is the one Whisper detected; a language set in Settings wins."""
+    from types import SimpleNamespace as NS
+
+    from app.domain import ingest
+
+    class Faster:
+        def transcribe(self, audio, **kw):
+            seg = NS(start=0.0, end=1.5, text=" Bonjour à tous.", words=[NS(word=" Bonjour", start=0.0, end=0.6)])
+            return iter([seg]), NS(language="fr", language_probability=0.97)
+
+    class Mlx:
+        def transcribe(self, audio, **kw):
+            return {"language": "de", "segments": [{"start": 0.0, "end": 1.0, "text": " Guten Tag.", "words": []}]}
+
+    def engine(m, mlx, lang):
+        w = object.__new__(ingest.Whisper)
+        w.m, w.mlx, w.repo, w.lang, w.name = m, mlx, "repo", lang, "whisper"
+        return w
+
+    segs = engine(Faster(), False, None).transcribe(None)
+    assert ([s["lang"] for s in segs], ingest._language(segs)) == (["fr"], "fr")
+    assert [s["lang"] for s in engine(Mlx(), True, None).transcribe(None)] == ["de"]
+    assert [s["lang"] for s in engine(Faster(), False, "en").transcribe(None)] == ["en"]  # the setting, as before

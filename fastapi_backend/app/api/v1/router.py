@@ -57,6 +57,7 @@ from app.api.v1.routes import (
     public,
     rdf,
     recordings,
+    replies,
     requests,
     research,
     routines,
@@ -165,5 +166,6 @@ for module in (
     specs,
     scaling,
     mesh,
+    replies,
 ):
     api_router.include_router(module.router)
