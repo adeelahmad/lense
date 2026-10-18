@@ -67,6 +67,7 @@ describe("sending a file in pieces", () => {
       recording: null,
       pipeline: 3,
       collection: 12,
+      content_type: null,
       filename: "ep.M4A",
       size: SIZE,
       title: "Episode",

@@ -17,6 +17,8 @@ export type SendOptions = {
   pipeline?: number | null;
   /** The collection of the namespace its recording goes into (its default when null; not when attaching). */
   collection?: number | null;
+  /** The content type its asset is, instead of the one recognised from the file (not when attaching). */
+  contentType?: string | null;
   title?: string | null;
   /** Keep it out of the archive once it's here, for the assistant to put somewhere (a file sent in a chat). */
   hold?: boolean;
@@ -58,6 +60,7 @@ export async function sendFile(client: Client, file: File, o: SendOptions): Prom
           recording: o.attach ?? null,
           pipeline: o.attach != null ? null : (o.pipeline ?? null),
           collection: o.attach != null ? null : (o.collection ?? null),
+          content_type: o.attach != null ? null : (o.contentType ?? null),
           filename: file.name,
           size: file.size,
           title: o.title || null,

@@ -165,6 +165,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
               <F ctx={ctx} id="transcribe.engine" />
               <F ctx={ctx} id="transcribe.language" options={LANGUAGES.map(([value, label]) => ({ value, label }))} />
             </div>
+            <F ctx={ctx} id="transcribe.vocabulary" />
             <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
               Recordings are sent to {provider.label}, which also tells speakers apart. Its address, model and key are
               in <Link href="/settings/speech-providers">Speech providers</Link>. SenseVoice and Whisper keep their
@@ -187,6 +188,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             <F ctx={ctx} id="transcribe.language" options={langs.map(([value, label]) => ({ value, label }))} />
             <F ctx={ctx} id={`transcribe.${key}.model`} label={`Model for ${name}`} />
           </div>
+          <F ctx={ctx} id="transcribe.vocabulary" />
           <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
             Each engine remembers its own model: {models.join(", ")}. Auto uses the fastest device each worker has.
           </p>
