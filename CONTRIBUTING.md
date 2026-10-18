@@ -43,8 +43,10 @@ minor, and anything else bumps patch.
 ## Changelog and releases
 
 You don't have to edit `CHANGELOG.md`: each release lists the PR titles merged since the last one. When a change needs
-more than its title (what users notice, what to do when upgrading), write it under `## Unreleased`, and it goes at the
-top of the next version's section.
+more than its title (what users notice, what to do when upgrading), add a Markdown file under `changelog.d/`, named
+after your branch ([how](changelog.d/README.md)); the release folds the fragments, oldest first, into the top of the
+next version's section and deletes them. Don't write under `## Unreleased` in `CHANGELOG.md`: every PR editing that
+one spot conflicts with every other.
 
 Maintainers release by running the Release workflow on `main`. It sets the version, writes the changelog, tags
 `vX.Y.Z`, publishes the GitHub release and starts the package builds; see [Release](docs/contributing.md#release).
