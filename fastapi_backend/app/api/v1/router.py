@@ -56,6 +56,7 @@ from app.api.v1.routes import (
     recordings,
     requests,
     routines,
+    scaling,
     search,
     searches,
     sensors,
@@ -151,5 +152,6 @@ for module in (
     vaults,
     podcasts,
     specs,
+    scaling,
 ):
     api_router.include_router(module.router)
