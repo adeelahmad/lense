@@ -81,6 +81,8 @@ requirements and this file as you learn. Loosening a requirement, a test or a ru
 - **Generated files come from tooling** (`make openapi`), never from hand-merging.
 - **Docs move with the code.** Update `docs/` when behaviour or configuration changes; `mkdocs build --strict` stays
   clean.
+- **Changelog text is a fragment.** A pull request's changelog paragraph is a file in `changelog.d/`, never a line
+  under `## Unreleased` in `CHANGELOG.md`: parallel pull requests editing that one spot conflicted on every merge.
 - **Requirements move with the code.** A pull request that builds something adds it to the README's built list with
   its checks in [docs/requirements.md](docs/requirements.md), and takes its own line out of In progress. `make
   requirements` (also a pre-commit hook) fails when a named check is gone.

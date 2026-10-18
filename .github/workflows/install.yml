@@ -12,6 +12,7 @@ on:
       - install.ps1
       - installer/**
       - docker-compose.prod.yml
+      - docker-compose.images.yml
       - fastapi_backend/Dockerfile
       - fastapi_backend/pyproject.toml
       - fastapi_backend/uv.lock
@@ -30,6 +31,7 @@ on:
       - install.ps1
       - installer/**
       - docker-compose.prod.yml
+      - docker-compose.images.yml
       - microsandbox/**
       - packaging/host/**
       - ci/scorecard/measure_install.py
@@ -231,6 +233,65 @@ jobs:
             cd "$LENS_DIR"
             docker compose -f docker-compose.prod.yml down -v || true
           fi
+
+  # LENS_IMAGES=pull (docs/deployment.md#prebuilt-images): a release installed from its prebuilt images, downloaded
+  # rather than built. The images are built here as images.yml builds them and pushed to a registry on this runner
+  # (LENS_IMAGES_REGISTRY), for a release this code pretends to be (v9.9.9, the branch install.sh makes for a release).
+  images:
+    name: One-line install from prebuilt images
+    if: github.event.action != 'closed'
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
+    timeout-minutes: 60
+    env:
+      LENS_DIR: /tmp/lens-images
+      REGISTRY: localhost:5055
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Release images in a registry on this runner
+        run: |
+          docker run -d --name lens-ci-registry -p "127.0.0.1:${REGISTRY##*:}:5000" registry:2
+          docker build --target lean -t "$REGISTRY/lens-backend:9.9.9-lean" fastapi_backend
+          docker build -f nextjs-frontend/Dockerfile.prod -t "$REGISTRY/lens-frontend:9.9.9" nextjs-frontend
+          docker push -q "$REGISTRY/lens-backend:9.9.9-lean"
+          docker push -q "$REGISTRY/lens-frontend:9.9.9"
+          # gone from this machine, so the install has to download them
+          docker image rm "$REGISTRY/lens-backend:9.9.9-lean" "$REGISTRY/lens-frontend:9.9.9"
+
+      - name: Install a release from its images
+        run: |
+          cp -r . "$LENS_DIR"
+          git -C "$LENS_DIR" checkout -q -b v9.9.9
+          LENS_KEEP_CODE=1 LENS_IMAGES=pull LENS_IMAGES_REGISTRY="$REGISTRY" LENS_TARGET=lean LENS_NO_OPEN=1 LENS_YES=1 \
+            LENS_WIZARD=0 LENS_UPGRADE_AGENT=0 sh "$LENS_DIR/install.sh" | tee install.log
+          test "${PIPESTATUS[0]}" = 0 || { echo "install.sh failed"; exit 1; }
+          grep -q "Downloading Lens 9.9.9" install.log || { echo "install.sh didn't download the images"; exit 1; }
+          ! grep -q "Building and starting" install.log || { echo "install.sh built Lens instead"; exit 1; }
+
+      - name: Lens runs the downloaded images and keeps them named for later runs
+        run: |
+          cd "$LENS_DIR"
+          grep -qx "LENS_IMAGES=pull" .env && grep -qx "LENS_BACKEND_IMAGE=$REGISTRY/lens-backend:9.9.9-lean" .env
+          images="$(docker compose -f docker-compose.prod.yml ps --format '{{.Service}} {{.Image}}')"
+          echo "$images"
+          echo "$images" | grep -qx "backend $REGISTRY/lens-backend:9.9.9-lean"
+          echo "$images" | grep -qx "worker $REGISTRY/lens-backend:9.9.9-lean"
+          echo "$images" | grep -qx "frontend $REGISTRY/lens-frontend:9.9.9"
+          url="$(grep -Eo 'http://[^ ]+/setup\?code=[A-Za-z0-9]{12}' "$GITHUB_WORKSPACE/install.log" | head -1)"
+          curl -fsS -o /dev/null "$url"
+
+      - name: What the containers said
+        if: failure()
+        run: cd "$LENS_DIR" && docker compose -f docker-compose.prod.yml ps -a && docker compose -f docker-compose.prod.yml logs --tail 200
+
+      - name: Stop
+        if: always()
+        run: |
+          if [ -d "$LENS_DIR" ]; then
+            cd "$LENS_DIR"
+            docker compose -f docker-compose.prod.yml down -v || true
+          fi
+          docker rm -f lens-ci-registry || true
 
   # The scorecard's install numbers (ci/scorecard): how long the one-line install takes to answer, and the RAM and disk
   # Lens then takes idle, on arm64 as a Raspberry Pi is. GitHub's arm64 runner (4 cores, 16 GB, Docker already there)

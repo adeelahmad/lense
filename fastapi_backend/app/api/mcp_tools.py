@@ -38,6 +38,7 @@ from app.api.v1.routes import notebook as note_routes
 from app.api.v1.routes import recordings as recording_routes
 from app.api.v1.routes import research as research_routes
 from app.api.v1.routes import routines as routine_routes
+from app.api.v1.routes import schedules as schedule_routes
 from app.api.v1.routes import search as search_routes
 from app.api.v1.routes import topics as topic_routes
 from app.domain import (
@@ -100,6 +101,7 @@ from app.schemas.automations import (
 from app.schemas.chats import ChatScope, ChatSummary
 from app.schemas.entities import EntityHide, EntityList, EntityRename, EntityRetype, EntityUpdate
 from app.schemas.notebook import NotePage
+from app.schemas.schedules import ScheduleChange, ScheduleRun
 from app.schemas.search import SearchResults
 from app.schemas.topics import TopicMerge, TopicUpdate
 
@@ -3658,6 +3660,64 @@ def run_automation(ctx: Context, automation_id: int, activity: str | None, trigg
     _writer(ctx, "run automations")
     body = AutomationRunNow(activity=activity, **{"as": trigger})
     return automation_routes.run_automation(automation_id, ctx.user, ctx.acl, ctx.db, ctx.cfg, body).model_dump()
+
+
+# ---------- schedules ----------
+@tool(
+    "schedules",
+    "What runs on a clock",
+    "Everything in Lens that runs on a clock, like a crontab, soonest first: routines and the scheduled backup "
+    "(admins) and the schedule and at triggers of your automations. Each has its id (for set_schedule and "
+    "run_schedule), when it runs in words and as cron, its time zone, when it runs next and last, how that went and "
+    "whether it's on.",
+    Arg("kind", "string", "only routines, automations or the backup", enum=("routine", "automation", "backups")),
+)
+def schedules(ctx: Context, kind: str | None) -> dict[str, Any]:
+    got = schedule_routes.list_schedules(ctx.user, ctx.acl, ctx.db, ctx.cfg)
+    return {"schedules": [s.model_dump(exclude_none=True) for s in got.schedules if kind in (None, s.kind)]}
+
+
+@tool(
+    "set_schedule",
+    "Change a schedule",
+    "Change when something runs on a clock, or switch it on or off: a routine, an automation's schedule or at "
+    "trigger, or the scheduled backup, by its id from schedules. Give only what changes. Switching an automation's "
+    "schedule switches the whole automation. Routines and the backup are for admins. Needs a token with the write scope.",
+    Arg("schedule_id", "string", "routine:3, automation:4:morning or backups (from schedules)", required=True, max_length=80),
+    Arg("cron", "string", "when it repeats: five-field cron (minute hour day month weekday) like 0 7 * * 1-5, or @daily", max_length=100),
+    Arg("at", "string", "a new time for an automation's at trigger, like 2026-11-02T07:30", max_length=40),
+    Arg("timezone", "string", "its time zone, like Europe/London", max_length=60),
+    Arg("by_hand", "boolean", "true takes the schedule away: a routine then runs only by hand, the backup stops"),
+    Arg("enabled", "boolean", "switch it on (it runs on its own) or off"),
+    writes=True,
+)
+def set_schedule(
+    ctx: Context, schedule_id: str, cron: str | None, at: str | None, timezone: str | None, by_hand: bool | None, enabled: bool | None
+) -> dict[str, Any]:
+    _writer(ctx, "change schedules")
+    given: dict[str, Any] = {k: v for k, v in (("cron", cron), ("at", at), ("timezone", timezone), ("enabled", enabled)) if v is not None}
+    if by_hand:
+        if cron:
+            raise ToolError("give a cron or by_hand, not both")
+        given["cron"] = None
+    if not given:
+        raise ToolError("say what changes: cron, at, timezone, by_hand or enabled")
+    got = schedule_routes.change_schedule(schedule_id, ScheduleChange(**given), ctx.request, ctx.user, ctx.acl, ctx.db, ctx.cfg)
+    return got.model_dump(exclude_none=True)
+
+
+@tool(
+    "run_schedule",
+    "Run a schedule now",
+    "Run something that runs on a clock now, even when it's off, by its id from schedules: a routine starts within half "
+    "a minute, an automation runs here and now as its trigger would when its time comes, the backup is taken now. A run "
+    "over a budget is refused (routines) or held for the person's pick (automations). Needs a token with the write scope.",
+    Arg("schedule_id", "string", "routine:3, automation:4:morning or backups (from schedules)", required=True, max_length=80),
+    writes=True,
+)
+def run_schedule(ctx: Context, schedule_id: str) -> dict[str, Any]:
+    _writer(ctx, "run schedules")
+    return schedule_routes.run_schedule(schedule_id, ctx.user, ctx.acl, ctx.db, ctx.cfg, ScheduleRun()).model_dump(exclude_none=True)
 
 
 # ---------- Lens itself: its docs and this server ----------
