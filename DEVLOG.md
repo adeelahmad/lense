@@ -47,6 +47,27 @@ from a LanguageTool server, spaCy fetched for named entities, and dates found an
 
 Refine later: revert a whole cleanup at once; cleanup rules for other languages' fillers; per-namespace switch.
 
+## 2026-10-17 · Describing pictures with Moondream on this machine
+
+Moondream is the third describe engine (`llm.describe_engine` `moondream`), opt-in, through Hugging Face transformers
+(Apache-2.0) and PyTorch (BSD), the `moondream` extra fetched on first use. Both models' code comes with their
+weights (`trust_remote_code`), pinned to a revision; both caption with the same call (`caption(image,
+length="normal")`). `llm.moondream_model` picks Moondream 3 Preview (the default when Moondream is chosen, since that's
+what was asked for) or Moondream 2. `moondream.cannot_run` keeps 19 GB from being fetched where Moondream 3 can't run
+(no NVIDIA GPU with 20 GB, no Mac with 32 GB) and says so in the step's log and in `picture_descriptions`.
+
+Checked here: Moondream 2 at the pinned revision loads with the locked transformers and describes a photo well ("A
+vintage light blue Volkswagen Beetle is parked parallel to a yellow building with a wooden door …"), but took 3 to 6
+minutes a picture on four shared CPU cores in float32: Florence-2 base took 3 s. Moondream 3 Preview wasn't
+run here (no GPU); its code at the pinned revision was read: the same caption call, with flex attention. The opt-in
+test (`LENS_TEST_MOONDREAM=1`) fetches PyTorch's CPU build, transformers and Moondream 2 through the component and
+describes a red dot. It first wrote "and, (, (, (…": with `OMP_THREAD_LIMIT` below PyTorch's thread count (the test
+suite sets it to 1), PyTorch's CPU kernels write nonsense, so `_load` now caps PyTorch's threads at that limit.
+
+Refine later: Moondream's query skill with what the picture is ("page 3 of …"), as the provider's model is told; its
+`compile()` on a GPU; bfloat16 on CPUs that have it; Moondream 3 on a GPU in CI or on a maintainer's machine; a
+quantised Moondream 2 for small machines.
+
 ## 2026-10-17 · Describing pictures with Florence-2 on this machine
 
 Adeel: use Moondream 3 and/or Microsoft Florence for visual descriptions. Florence-2 (MIT) is now a describe engine

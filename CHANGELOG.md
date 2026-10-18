@@ -9,6 +9,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   another stops it. One message plays at a time, long answers go in pieces under every provider's limit, and each
   piece's audio is kept in the page, so playing it again doesn't call the model again. Each call is logged in the
   activity ledger ([Read a message aloud](docs/assistant.md#read-a-message-aloud)).
+- **Conversations title themselves.** After a conversation's first answer, the model gives it a short title from the
+  question and the answer, with the model for summaries (`ai.compact_model`) when one is set, in one call counted for
+  the conversation in the activity ledger; until then, and when there's no model, it's titled with the first
+  question's words. A title someone gives it is kept. `title_by` says who titled it, `POST /api/v1/chats/<id>/title`
+  and the MCP tool `rename_chat` (without a title) have Lens title it again, and `rename_chat` with a title renames it.
+  Settings → AI assistant → Title conversations (on) turns it off ([Titles](docs/assistant.md#titles)).
 - **Specs from transcripts.** Turn a voice session or a meeting into a technical spec, saved as a note linked to it:
   the model writes the spec, then lists every named decision, every "no" and "not that, this", every constraint and
   every gap the speaker left to decide later, each with its quote and a link to the moment it was said; a quote the
@@ -26,6 +32,16 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   Markdown or plain text and exports it, questions and code blocks have their own copy buttons, and the conversation's
   header has Export; without a PDF printer on the server, the browser prints it instead
   ([Copy and export](docs/assistant.md#copy-and-export)).
+- **News feeds.** Subscribe to a blog's or a news site's RSS or Atom feed: add it on the Sources page (its address,
+  or just the site's) and watch it, and each new post comes into a namespace as text, with its link, author and date,
+  so answers cite it. Feeds are asked for again only when they've changed, and a private feed's address is kept like a
+  password ([News feeds](docs/processing.md#news-feeds-rss-and-atom)).
+- **Automations on feed posts.** Each new post of a news feed is a `feed_post.received` activity with its address,
+  site, feed, author, date and categories, so an automation can start on posts from one feed, author or category
+  ([Kinds](docs/automations.md#kinds)).
+- **Agents follow news feeds.** `subscribe_feed` (MCP and the assistant, admins) follows a feed into a namespace in one
+  step, checked before it's kept; `news_feeds` lists them and `unsubscribe_feed` stops one
+  ([News feeds](docs/processing.md#news-feeds-rss-and-atom)).
 
 ## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
 
@@ -66,6 +82,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   fixed, by rules, on English lines. Every changed line is in Change history with Revert, and lines someone corrected
   are left alone. Reprocess, pipelines, `POST /api/v1/recordings/<id>/reprocess` and `lens clean` run it
   ([Cleaning up transcripts](docs/processing.md#cleaning-up-transcripts)).
+- **Describe pictures on this machine with Moondream.** Settings → LLM provider → Describing pictures can also have
+  M87 Labs' Moondream caption each page and shot (`llm.describe_engine` `moondream`), through transformers and
+  PyTorch, so no picture leaves the machine: Moondream 3 Preview (`llm.moondream_model` `moondream3-preview`, about
+  19 GB, an NVIDIA GPU or a Mac with 32 GB; BSL 1.1, not open source) or Moondream 2 (`moondream2`, Apache-2.0, about
+  3.7 GB, on a CPU, slowly). It's fetched, pinned to a revision, the first time a job waits to describe something, and
+  only where the chosen one can run; elsewhere the step says why. Agents choose it with `set_picture_descriptions`
+  ([Descriptions](docs/configuration.md#descriptions)).
 - **Describe pictures on this machine with Florence-2.** Settings → LLM provider → Describing pictures can now have
   Microsoft's Florence-2 (MIT) describe each page and shot instead of the provider's model that can see images
   (`llm.describe_engine` `florence-2`). It runs on the CPU through ONNX Runtime, so no picture leaves the machine and
@@ -78,10 +101,6 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   each run shows what its actions did. Try one on an activity without keeping or sending anything, or run it now;
   Settings → Automations switches them all off and sets how far they may go
   ([Running automations](docs/automations.md#running-automations)).
-- **News feeds.** Subscribe to a blog's or a news site's RSS or Atom feed: add it on the Sources page (its address,
-  or just the site's) and watch it, and each new post comes into a namespace as text, with its link, author and date,
-  so answers cite it. Feeds are asked for again only when they've changed, and a private feed's address is kept like a
-  password ([News feeds](docs/processing.md#news-feeds-rss-and-atom)).
 - **Each answer says what produced it.** The *i* in an answer's header shows the model and the host it ran on, the
   tools it was offered and used, the scope, its limits and what it used, tokens, cost (an estimate from your prices),
   how long it took, how it ended and which tool results read like instructions to an AI, with the calls made for it.

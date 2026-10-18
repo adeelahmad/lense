@@ -81,7 +81,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   of each conversation's own. Regenerating an answer or editing a question makes a new version beside the old one, and
   nothing is lost. Each answer keeps a record of what produced it (the model, its tools, how long it took and what it
   cost), opened from its header. It reads answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine
-  (opt-in), any message in one click, and `/clear` and `/compact` keep long conversations short. Each namespace can have its own assistant with
+  (opt-in), any message in one click, and `/clear` and `/compact` keep long conversations short. Conversations title
+  themselves after their first answer, unless you name them. Each namespace can have its own assistant with
   its own name, instructions and memory, answering in Telegram and Slack (built in, with voice notes and files), in
   Discord, Matrix, WhatsApp and other chat rooms through Matterbridge, and by email at an address of its own that you
   email or forward things to. ([Chat](docs/assistant.md), [web search](docs/assistant.md#web-search-and-reading-pages),
@@ -121,10 +122,10 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   asset, with Undo instead of a confirm. Names get their real types (people, places, organisations, events, works) by
   rules, without a model. Find what is most like a passage, an asset, a topic or an entity, in a Similar
   tab on every asset or by selecting text anywhere, and, with anytopdf, photos by what they show. Pages and shots are
-  described in words by the model provider's vision model or, off by default, by Florence-2 on your own server.
-  Transcripts can be cleaned up before analysis (stutters, "um"s, spacing and, with a local model, punctuation put
-  back), entities found by spaCy instead of the rules, and the dates people say read as days on the calendar, each off
-  by default.
+  described in words by the model provider's vision model or, off by default, by Florence-2 or Moondream on your own
+  server. Transcripts can be cleaned up before analysis (stutters, "um"s, spacing and, with a local model, punctuation
+  put back), entities found by spaCy instead of the rules, and the dates people say read as days on the calendar, each
+  off by default.
   ([Graph](docs/graph.md), [entity pages](docs/notes.md#entity-pages),
   [similar content](docs/processing.md#similar-content), [graph history](docs/graph-history.md),
   [topics](docs/topics.md), [video](docs/video.md), [NSFW classification](docs/nsfw.md),
@@ -143,19 +144,19 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [notes](docs/notes.md), [evidence PDFs](docs/api.md#evidence-pdfs); [checks](docs/requirements.md#learn-from-it))
 - **Automate it.** Pipelines and workflows on a canvas, routines on a schedule, batch runs over a collection, and
   notifications to webhooks, Slack, Discord and Matterbridge. Everything that happens in Lens (new assets, emails,
-  calendar events, files, what people say to Lens, sensor readings, notes, graph changes, runs, budget warnings) is kept
-  as a stream of activities in W3C Activity Streams form, which agents read through the API, MCP and the assistant, and
-  people review on the Timeline page (and Latest on Home), marking what they've seen. Automations act on that stream, on
-  a schedule, at a time or when their own webhook is called: they test conditions, then tell you in your own chat app,
-  ask the model or the agent, use a tool, call a web address (its credentials kept sealed), run a workflow, pipeline or
-  routine, or change assets and notes. A Classify node in a workflow sorts an asset into labels, content types or
-  topics, acting only on a sure answer. Anything that reaches outside Lens or changes more than what set it off asks
-  first, until you let it run on its own: on the Approvals page or, for a change inside Lens, with a yes in the chat it
-  told you in; agents can decline an approval but never give one. Each automation has limits and budgets, and agents
-  make, try and run them over MCP and in the assistant, or draft one from a sentence; the studio to draw them in the web
-  app is planned. ([Processing](docs/processing.md#workflows-and-the-canvas), [notifications](docs/notifications.md),
-  [automations](docs/automations.md), [approvals](docs/automations.md#approvals), [timeline](docs/timeline.md);
-  [checks](docs/requirements.md#automate-it))
+  calendar events, files, feed posts, what people say to Lens, sensor readings, notes, graph changes, runs, budget
+  warnings) is kept as a stream of activities in W3C Activity Streams form, which agents read through the API, MCP and
+  the assistant, and people review on the Timeline page (and Latest on Home), marking what they've seen. Automations act
+  on that stream, on a schedule, at a time or when their own webhook is called: they test conditions, then tell you in
+  your own chat app, ask the model or the agent, use a tool, call a web address (its credentials kept sealed), run a
+  workflow, pipeline or routine, or change assets and notes. A Classify node in a workflow sorts an asset into labels,
+  content types or topics, acting only on a sure answer. Anything that reaches outside Lens or changes more than what
+  set it off asks first, until you let it run on its own: on the Approvals page or, for a change inside Lens, with a yes
+  in the chat it told you in; agents can decline an approval but never give one. Each automation has limits and budgets,
+  and agents make, try and run them over MCP and in the assistant, or draft one from a sentence; the studio to draw them
+  in the web app is planned. ([Processing](docs/processing.md#workflows-and-the-canvas),
+  [notifications](docs/notifications.md), [automations](docs/automations.md),
+  [approvals](docs/automations.md#approvals), [timeline](docs/timeline.md); [checks](docs/requirements.md#automate-it))
 - **See what it costs.** An activity ledger of every model call, with reports, charts and budgets that cap spending.
   Setup asks for one overall budget after a cloud model, with a soft limit that warns and a hard limit that stops paid
   calls. A meter in the top bar shows spend against the budget, and the Costs page breaks it down by day, model and

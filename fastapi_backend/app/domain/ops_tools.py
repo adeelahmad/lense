@@ -11,7 +11,7 @@ elsewhere, always waits for approval.
 
 from __future__ import annotations
 
-from . import auth, blobs, convert, decide, feeds, jobs, links, llm, metadata, roles, settings, setup, sources, store, uploads
+from . import auth, blobs, convert, decide, feeds, jobs, links, llm, metadata, roles, rss, settings, setup, sources, store, uploads
 
 R = store.R
 _S = {"type": "string"}
@@ -95,6 +95,31 @@ ADMIN_TOOLS = [
         {"check": {"type": "boolean"}},
         [],
         False,
+    ),
+    (
+        "news_feeds",
+        "The news feeds (RSS or Atom) Lens follows: each one's id, name and title, whether it could be read last time, "
+        "and the namespaces it brings new posts into, with how the last scan went.",
+        {},
+        [],
+        False,
+    ),
+    (
+        "subscribe_feed",
+        "Follow a news feed (RSS or Atom) into a namespace: url is the feed's address, or a page of the site that names "
+        "it. It's read first and kept only if it works, named by the feed's title unless name says. Each new post then "
+        "comes in as text with its link; backfill also brings in the posts the feed lists now. A feed that needs a "
+        "password is added on the Sources page.",
+        {"url": _S, "namespace": _S, "name": _S, "backfill": {"type": "boolean"}},
+        ["url", "namespace"],
+        True,
+    ),
+    (
+        "unsubscribe_feed",
+        "Stop following a news feed, by its id from news_feeds. The posts it brought in stay.",
+        {"feed": {"type": "integer"}},
+        ["feed"],
+        True,
     ),
     (
         "create_namespace",
@@ -238,6 +263,21 @@ def apply(db, cfg, base, tool, args, user, editable, admin):
             auth.audit(db, user, "upload", f"recording:{up['recording']}", {"file": up["filename"], "namespace": ns, "assistant": True})
             placed.append({"file": up["filename"], "recording": up["recording"], "duplicate": bool(up.get("duplicate"))})
         return {"namespace": ns, "imported": placed}
+    if tool == "subscribe_feed":
+        if not admin:
+            raise PermissionError("only admins add news feeds")
+        out = rss.subscribe(db, cfg, args["url"], args["namespace"], args.get("name"), bool(args.get("backfill")), by=user["email"])
+        if out["added"]:
+            auth.audit(db, user, "source.create", f"storage_source:{out['feed']}", ["assistant"])
+        if not out["already"]:
+            auth.audit(db, user, "watch.create", f"watch_path:{out['watch']}", ["assistant"])
+        return {k: out[k] for k in ("feed", "watch", "namespace", "posts", "added", "already")}  # not the feed's own words
+    if tool == "unsubscribe_feed":
+        if not admin:
+            raise PermissionError("only admins remove news feeds")
+        rss.unsubscribe(db, args["feed"])
+        auth.audit(db, user, "source.delete", f"storage_source:{args['feed']}", ["assistant"])
+        return {"unsubscribed": args["feed"]}
     if tool in ("invite_person", "change_person"):
         if not admin:
             raise PermissionError("only admins manage people")
@@ -409,6 +449,32 @@ class OpsTools:
         if check:
             out["check"] = blobs.test(self.db, self.cfg)
         return out, "Checked where files are kept" + (": " + ("it works" if out["check"]["ok"] else "it failed") if check else "")
+
+    def t_news_feeds(self):
+        found = rss.subscriptions(self.db)
+        return {"feeds": found}, f"Listed {len(found)} news feeds"
+
+    def t_subscribe_feed(self, url, namespace, name=None, backfill=False):
+        try:  # checked here, so a wrong address is said before anything waits for approval
+            shown = rss.address(url)
+        except RuntimeError as e:
+            raise ValueError(str(e)) from None
+        ns = str(namespace or "").strip().lower()
+        if not store.NS_RX.match(ns):
+            raise ValueError("a namespace's name uses lowercase letters, digits, - and _")
+        args = store.clean({"url": shown, "namespace": ns, "name": name, "backfill": bool(backfill) or None})
+        return self._change(
+            "subscribe_feed", args, f"Follow the news feed {shown} into {ns}" + (" with its current posts" if backfill else "")
+        )
+
+    def t_unsubscribe_feed(self, feed):
+        try:
+            src = sources.get(self.db, int(feed))
+        except (KeyError, TypeError, ValueError):
+            raise ValueError("there's no news feed with that id: news_feeds lists them") from None
+        if src["type"] != "rss":
+            raise ValueError("that source isn't a news feed")
+        return self._change("unsubscribe_feed", {"feed": src["id"]}, f"Stop following the news feed {src['name']}")
 
     def t_create_namespace(self, name, graph="shared"):
         name = name.strip().lower()
