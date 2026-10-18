@@ -12,6 +12,7 @@ import {
   NotebookPen,
   Podcast,
   RadioTower,
+  Rss,
   Search,
   Settings,
   Shapes,
@@ -32,7 +33,7 @@ export type NavItem = {
   /** Only shown to people who aren't administrators (admins have it under another item). */
   membersOnly?: boolean;
   /** A count shown next to the label (library size, speakers to review in Settings, approvals waiting). */
-  countKey?: "recordings" | "reviews" | "approvals";
+  countKey?: "recordings" | "reviews" | "approvals" | "feeds";
   /** Shown only while its count is above zero, or while its page is open, so the nav of a Lens with nothing there
    * stays as short as it was (on a phone, every item more pushes the ones below off the screen). */
   whileCounted?: boolean;
@@ -61,6 +62,8 @@ export const NAV: NavItem[] = [
   { label: "Topics", href: "/topics", icon: Tags, group: "Explore" },
   { label: "Graph", href: "/graph", icon: Waypoints, group: "Explore" },
   { label: "Podcasts", href: "/podcasts", icon: Podcast, group: "Explore" },
+  // in the nav once there's a feed (Podcasts' Feeds button and Jump to lead there before that)
+  { label: "Feeds", href: "/feeds", icon: Rss, countKey: "feeds", whileCounted: true, group: "Explore" },
   { label: "Reports", href: "/reports", icon: ChartNoAxesColumn, group: "Explore" },
   // what waits for your pick: in the nav while anything does; the top bar's badge and Home's row lead there too
   {

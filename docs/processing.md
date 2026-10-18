@@ -878,8 +878,10 @@ schedule. Their nodes:
   *namespace* named, else the *feed*'s, else where an admin's episode goes; a source its readers couldn't read is left
   out. With a *feed*, the episode is added to it and listed once it's made.
 
-A run's result counts what was `published` and the `episodes` made, and its log says what each node did. Try on the
-canvas runs a graph workflow over the namespaces you pick and says what each node would do, without publishing. So
+A run's result counts what was `published` and the `episodes` made, and its log says what each node did. On the
+canvas the nodes are under Data and Keep in a graph workflow's palette, the feed is picked from a list, and the canvas
+says what to fix before Publish (a feed to choose, a limit over the most). Try on the canvas runs a graph workflow over
+the namespaces you pick and says what each node would do, without publishing. So
 Select assets → Podcast episode (feed *Weekly*, length 10) on a routine that runs every Monday makes an episode about
 the week's new resources and puts it in your podcast app; Select activities (kinds `asset.added`) → Publish to feed
 puts the timeline in your feed reader.

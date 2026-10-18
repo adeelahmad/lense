@@ -7,7 +7,10 @@ import type { Variable } from "@/components/forms/schema-form";
 import { ActionSettings, DecideSettings } from "@/components/workflows/action-settings";
 import { FlowSettings } from "@/components/workflows/flow-settings";
 import {
+  EPISODE_STYLES,
   OPS,
+  SELECT_LIMITS,
+  SINCE,
   VOCABULARIES,
   infoFor,
   paramRef,
@@ -20,6 +23,10 @@ import {
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/field";
 
 export type NsField = FieldDef & { namespace: string };
+/** A feed a publishing node can add to, as the picker shows it. */
+export type FeedOption = { id: number; title: string; namespace?: string | null; kind: string };
+const STATUSES = ["new", "transcribed", "diarized", "analyzed", "error"];
+const LENGTHS = [5, 10, 20];
 
 /** A list edited as lines of text; the lines are kept as typed until the node changes. */
 function Lines({
@@ -70,6 +77,13 @@ const typesOf = (s: string) =>
     .map((x) => x.trim().toUpperCase())
     .filter(Boolean);
 
+/** Names typed with commas or spaces between them, as a list. */
+const listOf = (s: string) =>
+  s
+    .split(/[,\s]+/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+
 /** A typed value: numbers and true/false as such, anything else as text. */
 function parseValue(s: string): unknown {
   const t = s.trim();
@@ -97,6 +111,8 @@ export function NodeSettings({
   params,
   settings,
   peek,
+  feeds,
+  namespaces,
   actions,
   variables,
 }: {
@@ -116,6 +132,10 @@ export function NodeSettings({
   settings?: string[];
   /** What it passed on in the last try. */
   peek?: { status: string; value?: string | null; error?: string | null };
+  /** The feeds a Publish to feed or Podcast episode node can add to (graph workflows). */
+  feeds?: FeedOption[];
+  /** The namespaces a publishing node can name; typed when not given. */
+  namespaces?: string[];
   /** The actions catalog, for an automation's action nodes. */
   actions?: ActionDef[];
   /** What templates can read, for the variable picker. */
@@ -768,6 +788,261 @@ export function NodeSettings({
                 </Field>
               </>
             )}
+          </>
+        )}
+        {(node.type === "select_assets" || node.type === "select_activities") && (
+          <>
+            {node.type === "select_activities" && (
+              <Field
+                label="Kinds"
+                optional
+                hint="e.g. asset.added, import.received; with what’s under each. Empty for every kind"
+              >
+                {({ id, describedBy }) => (
+                  <Input
+                    id={id}
+                    aria-describedby={describedBy}
+                    mono
+                    defaultValue={((c.kinds as string[] | undefined) ?? []).join(", ")}
+                    onChange={(e) => set({ kinds: listOf(e.target.value).length ? listOf(e.target.value) : undefined })}
+                  />
+                )}
+              </Field>
+            )}
+            <Field label="Since" hint="What the routine’s last run didn’t see, or a period back from now">
+              {({ id, describedBy }) => (
+                <Select
+                  id={id}
+                  aria-describedby={describedBy}
+                  value={String(c.since ?? "last_run")}
+                  onChange={(e) => set({ since: e.target.value })}
+                  options={Object.entries(SINCE).map(([value, label]) => ({
+                    value,
+                    label: value === "last_run" ? "The routine’s last run" : label[0].toUpperCase() + label.slice(1),
+                  }))}
+                />
+              )}
+            </Field>
+            <Field
+              label="At most"
+              hint={`${node.type === "select_assets" ? "Resources" : "Activities"} a run, 1 to ${SELECT_LIMITS[node.type]}, newest first`}
+            >
+              {({ id, describedBy }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  type="number"
+                  min={1}
+                  max={SELECT_LIMITS[node.type]}
+                  value={c.limit == null ? "" : String(c.limit)}
+                  onChange={(e) => set({ limit: num(e.target.value) })}
+                />
+              )}
+            </Field>
+            <Field
+              label="Words"
+              optional
+              hint={node.type === "select_assets" ? "In the title" : "In the activity’s summary"}
+            >
+              {({ id, describedBy }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  value={String(c.q ?? "")}
+                  maxLength={200}
+                  onChange={(e) => set({ q: e.target.value })}
+                />
+              )}
+            </Field>
+            {node.type === "select_assets" && (
+              <Field label="Status" optional hint="Only resources at this stage; empty for any">
+                {({ id, describedBy }) => (
+                  <Select
+                    id={id}
+                    aria-describedby={describedBy}
+                    value={String((c.status as string[] | undefined)?.[0] ?? "")}
+                    onChange={(e) => set({ status: e.target.value ? [e.target.value] : undefined })}
+                    options={[{ value: "", label: "Any" }, ...STATUSES.map((v) => ({ value: v, label: v }))]}
+                  />
+                )}
+              </Field>
+            )}
+            <Field label="Namespaces" optional hint="Empty for the routine’s namespaces; naming some narrows to them">
+              {({ id, describedBy }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  mono
+                  defaultValue={((c.namespaces as string[] | undefined) ?? []).join(", ")}
+                  onChange={(e) =>
+                    set({ namespaces: listOf(e.target.value).length ? listOf(e.target.value) : undefined })
+                  }
+                />
+              )}
+            </Field>
+            {node.type === "select_assets" && (
+              <Checkbox
+                checked={Boolean(c.include_episodes)}
+                onCheckedChange={(v) => set({ include_episodes: v === true ? true : undefined })}
+                label="Include podcast episodes"
+                disabled={readOnly}
+              />
+            )}
+          </>
+        )}
+
+        {(node.type === "publish_feed" || node.type === "podcast_episode") && (
+          <>
+            <Field
+              label="Feed"
+              optional={node.type === "podcast_episode"}
+              hint={
+                feeds && !feeds.length
+                  ? "No feeds yet: make one with Feeds on the Podcasts page"
+                  : node.type === "podcast_episode"
+                    ? "The episode is added to it once it’s made; none just makes the episode"
+                    : "In a namespace the routine covers"
+              }
+            >
+              {({ id, describedBy }) => (
+                <Select
+                  id={id}
+                  aria-describedby={describedBy}
+                  value={c.feed == null ? "" : String(c.feed)}
+                  onChange={(e) => set({ feed: e.target.value ? Number(e.target.value) : undefined })}
+                  options={[
+                    { value: "", label: node.type === "podcast_episode" ? "None" : "Choose a feed" },
+                    ...(feeds ?? []).map((f) => ({
+                      value: String(f.id),
+                      label: `${f.title}${f.namespace ? ` · ${f.namespace}` : ""} · ${f.kind === "podcast" ? "podcast" : "RSS"}`,
+                    })),
+                    ...(c.feed != null && !(feeds ?? []).some((f) => f.id === Number(c.feed))
+                      ? [{ value: String(c.feed), label: `Feed #${String(c.feed)}` }]
+                      : []),
+                  ]}
+                />
+              )}
+            </Field>
+            {node.type === "publish_feed" && (
+              <Field label="Title" optional hint="For text that comes in, e.g. from a Template node">
+                {({ id, describedBy }) => (
+                  <Input
+                    id={id}
+                    aria-describedby={describedBy}
+                    value={String(c.title ?? "")}
+                    maxLength={200}
+                    onChange={(e) => set({ title: e.target.value })}
+                  />
+                )}
+              </Field>
+            )}
+          </>
+        )}
+
+        {node.type === "podcast_episode" && (
+          <>
+            <Field
+              label="Namespace"
+              optional
+              hint="Where the episode goes: empty for the feed’s, else the podcasts namespace"
+            >
+              {({ id, describedBy }) =>
+                namespaces ? (
+                  <Select
+                    id={id}
+                    aria-describedby={describedBy}
+                    value={String(c.namespace ?? "")}
+                    onChange={(e) => set({ namespace: e.target.value || undefined })}
+                    options={[{ value: "", label: "The feed’s" }, ...namespaces.map((n) => ({ value: n, label: n }))]}
+                  />
+                ) : (
+                  <Input
+                    id={id}
+                    aria-describedby={describedBy}
+                    mono
+                    value={String(c.namespace ?? "")}
+                    onChange={(e) => set({ namespace: e.target.value })}
+                  />
+                )
+              }
+            </Field>
+            <Field label="Angle" optional hint="What to focus on, or who it’s for">
+              {({ id, describedBy }) => (
+                <Textarea
+                  id={id}
+                  aria-describedby={describedBy}
+                  rows={2}
+                  value={String(c.prompt ?? "")}
+                  maxLength={2000}
+                  onChange={(e) => set({ prompt: e.target.value })}
+                />
+              )}
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Length">
+                {({ id }) => (
+                  <Select
+                    id={id}
+                    value={String(c.length ?? 10)}
+                    onChange={(e) => set({ length: Number(e.target.value) })}
+                    options={[...new Set([...LENGTHS, Number(c.length ?? 10)])]
+                      .sort((a, b) => a - b)
+                      .map((n) => ({ value: String(n), label: `About ${n} minutes` }))}
+                  />
+                )}
+              </Field>
+              <Field label="Style">
+                {({ id }) => (
+                  <Select
+                    id={id}
+                    value={String(c.style ?? "deep-dive")}
+                    onChange={(e) => set({ style: e.target.value })}
+                    options={Object.entries(EPISODE_STYLES).map(([value, label]) => ({ value, label }))}
+                  />
+                )}
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Most sources" hint="Resources an episode draws on, 1 to 20">
+                {({ id, describedBy }) => (
+                  <Input
+                    id={id}
+                    aria-describedby={describedBy}
+                    type="number"
+                    min={1}
+                    max={20}
+                    placeholder="10"
+                    value={c.max_sources == null ? "" : String(c.max_sources)}
+                    onChange={(e) => set({ max_sources: num(e.target.value) })}
+                  />
+                )}
+              </Field>
+              <Field label="Fewest" hint="No episode under this many">
+                {({ id, describedBy }) => (
+                  <Input
+                    id={id}
+                    aria-describedby={describedBy}
+                    type="number"
+                    min={1}
+                    max={20}
+                    placeholder="1"
+                    value={c.min_sources == null ? "" : String(c.min_sources)}
+                    onChange={(e) => set({ min_sources: num(e.target.value) })}
+                  />
+                )}
+              </Field>
+            </div>
+            <Field label="Title" optional hint="Left empty, the script’s own title is used">
+              {({ id, describedBy }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  value={String(c.title ?? "")}
+                  maxLength={200}
+                  onChange={(e) => set({ title: e.target.value })}
+                />
+              )}
+            </Field>
           </>
         )}
         {params && (bound.length > 0 || (params.length > 0 && (settings?.length ?? 0) > 0)) && (
