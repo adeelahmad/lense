@@ -489,6 +489,11 @@ export function Composer({
   research?: { on: boolean; onToggle: () => void; off?: string | null };
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  // the switch hands the cursor back to the box, so the goal (or the question) is typed next without a click
+  const toggleResearch = () => {
+    research?.onToggle();
+    ref.current?.focus();
+  };
   const [over, setOver] = useState(false);
   useEffect(() => {
     const el = ref.current;
@@ -529,7 +534,7 @@ export function Composer({
           Deep research: you approve a plan first
           <button
             type="button"
-            onClick={research.onToggle}
+            onClick={toggleResearch}
             aria-label="Turn deep research off"
             className="grid size-5 place-items-center rounded-full hover:bg-black/5"
           >
@@ -564,7 +569,7 @@ export function Composer({
                 : "Research a goal: a plan to approve, then a cited report")
             }
             disabled={Boolean(research.off) && !research.on}
-            onClick={research.onToggle}
+            onClick={toggleResearch}
             className={cn(
               "grid size-9 shrink-0 place-items-center rounded-full transition-colors duration-fast disabled:cursor-not-allowed disabled:opacity-50",
               research.on

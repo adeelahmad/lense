@@ -6,7 +6,7 @@
   "scope_subpath": null,
   "description": "Lens is a self-hosted archive for documents, recordings, photos and messages: it reads, transcribes, indexes and publishes them, and people search and chat over them. One operator (the instance admin) runs an instance for their own people: a FastAPI API, a Next.js web app that proxies the API and holds the sign-in session, and background workers, around one SurrealDB database, with content split into namespaces and per-namespace roles. Exposing an instance to the internet behind HTTPS (reverse proxy or Cloudflare tunnel) is supported. Only the instance admin (equivalent to host code execution) and the host operator are trusted; everyone else is trusted only as far as their role.",
   "confidence": {
-    "documented": 255,
+    "documented": 257,
     "inferred": 99
   },
   "components": [
@@ -485,10 +485,10 @@
     },
     {
       "entry_point": "the assistant's connection tools",
-      "parameter": "a connection's id or name, a Gmail search, a message id, a time span, a path; the mail, events and files that come back",
+      "parameter": "a connection's id or name, a Gmail search, a message id, a time span, a path; the mail, events and files that come back; the message, event or text file the model would send or write",
       "attacker_controllable": "yes",
       "component": "assistant",
-      "caller_must_enforce": "none — admins only, and only the tools for the kinds connected; each connection reads as it is set up to (Gmail and Google Calendar read only), so nothing changes in the account; a file is read up to 20 MB and a message's or file's text up to 11,000 characters; mail, events and files reach the model marked as data, and once read, tools that could carry it out of Lens ask first (P-INJECTION-EGRESS); bringing anything into a namespace waits for the person's yes; the ledger keeps what was called, never what came back",
+      "caller_must_enforce": "none — admins only, and only the tools for the connections there are; reading changes nothing in the account; a file is read up to 20 MB and a message's or file's text up to 11,000 characters; mail, events and files reach the model marked as data, and once read, tools that could carry it out of Lens ask first (P-INJECTION-EGRESS); bringing anything into a namespace waits for the person's yes; sending mail, saving a draft, adding an event and writing a file always wait for the person's yes, even in a setup conversation, with all of it shown (and a note when the answer read outside text), and the model is told never to act on what it read; sending and adding work only on a Gmail or Google Calendar connection an admin let do so (write, which asks Google for gmail.compose or calendar.events), checked again when approved; at most 50 addresses a field, 50,000 characters a message and 200,000 a file; a file is replaced only when asked and approved, and Google Drive connected read only is never written; each change is in the audit log; the ledger keeps what was called, never what came back",
       "provenance": "documented",
       "source": "docs/assistant.md \"Mail, calendars and files\""
     },
@@ -673,6 +673,15 @@
       "source": "docs/assistant.md \"Optional containers\""
     },
     {
+      "entry_point": "admin auto scaling",
+      "parameter": "/api/v1/scaling (providers, groups, units, tick), PUT /api/v1/settings/scaling, MCP and assistant scaling tools: provider credentials, a group's terms and rules, a unit id",
+      "attacker_controllable": "no",
+      "component": "authz",
+      "caller_must_enforce": "admin is trusted; off until turned on; audited (scaling.*) and in the activity ledger; credentials sealed and shown only as set; a group launches nothing until a person signed in to the web app approves its terms (P-SCALING)",
+      "provenance": "documented",
+      "source": "docs/scaling.md \"The person approves\""
+    },
+    {
       "entry_point": "entity and topic curation tools",
       "parameter": "MCP edit_entity, edit_topic, merge_topics, delete_topic, undo_topic_change, undo_graph_change; assistant propose_topic_change: entity and topic ids, names, labels, definitions",
       "attacker_controllable": "yes",
@@ -686,7 +695,7 @@
       "parameter": "/api/v1/automations (save, try, run now, decide, draft from a sentence), the MCP and assistant automation tools: triggers, where and If match trees, the event workflow graph (action params are Jinja templates), policy, limits, an activity id; the text of the activities an automation runs on",
       "attacker_controllable": "yes",
       "component": "assistant",
-      "caller_must_enforce": "none — it runs as its maker with their permissions at run time (P-AUTOMATION-ACTOR); actions reaching outside Lens ask first; outside text marks intents untrusted and breaks up links (P-INJECTION-EGRESS); chains and bursts are bounded (P-AUTOMATION-LOOP)",
+      "caller_must_enforce": "none — it runs as its maker with their permissions at run time (P-AUTOMATION-ACTOR); actions reaching outside Lens ask first; outside text marks intents untrusted and breaks up links (P-INJECTION-EGRESS); chains and bursts are bounded (P-AUTOMATION-LOOP); `matches` patterns refuse nested repeats and repeated alternatives that start alike, read at most 20,000 characters and give up after 50 ms",
       "provenance": "documented",
       "source": "docs/automations.md \"Running automations\""
     },
@@ -1083,6 +1092,14 @@
       "conditions": "a published feed's address opens that feed alone, read-only, with no session; only an editor of the namespace makes one; it lists only items whose resource or activity the readers of the feed's namespace can read, never a vault's, and a namespace made a vault stops its feeds; the token is found by its hash, and rotating or deleting the feed stops the old address at once; text in an item cannot add markup to a reader",
       "provenance": "documented",
       "source": "docs/feeds.md \"Private by default\""
+    },
+    {
+      "property": "P-SCALING",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "auto scaling launches nothing unless a person signed in to the web app approved the group's terms (its provider, what each unit is, its max, its budget, what happens at its cap); an API key, an app, MCP and the assistant acting on its own never approve, and a change that widens the terms takes the approval away; a provider's credentials are sealed per provider and field, opened only for a call to it and never shown; a unit is handed no long-lived Lens secret",
+      "provenance": "documented",
+      "source": "docs/scaling.md \"The person approves\""
     },
     {
       "property": "P-AUTH-REQ",

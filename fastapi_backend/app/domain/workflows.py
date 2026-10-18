@@ -66,7 +66,7 @@ OWN_CONFIG = {
 }
 ENTITY_TYPES = ("PERSON", "ORG", "PRODUCT", "PLACE", "EVENT", "WORK", "TERM", "DATE", "NUMBER")
 PATH_RX = flow.PATH_RX
-TYPE_RX = re.compile(r"^[A-Z][A-Z_]{0,30}$")
+TYPE_RX = flow.TYPE_RX
 MAX_RULES = 500
 ENTITY_SCHEMA = {
     "type": "object",
