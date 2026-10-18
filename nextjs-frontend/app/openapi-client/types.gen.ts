@@ -1379,7 +1379,7 @@ export type Attachment = {
 /**
  * AudioCleanup
  *
- * How the enhance step cleaned up a recording's sound for transcription (docs/audio-cleanup.md).
+ * How the clean_audio step cleaned up a recording's sound for transcription (docs/processing.md, Cleaning up audio).
  */
 export type AudioCleanup = {
   /**
@@ -18150,7 +18150,7 @@ export type Recording = {
    */
   nsfw?: NsfwState | null;
   /**
-   * how its enhance step cleaned up its sound before transcription
+   * how its clean_audio step cleaned up its sound before transcription
    */
   audio_cleanup?: AudioCleanup | null;
   [key: string]: unknown;

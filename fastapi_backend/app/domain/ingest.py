@@ -503,7 +503,7 @@ def transcribe_one(db, cfg, rid, log=print, engine=None):
     path = audio_path(db, cfg, r)
     audio, joins = decode(path), None
     env = envelope(audio)  # the player's waveform is the recording's own
-    if r.get("audio_cleanup"):  # its enhance step asked for it to be heard cleaned up (audio_cleanup.py)
+    if r.get("audio_cleanup"):  # its clean_audio step asked for it to be heard cleaned up (audio_cleanup.py)
         from . import audio_cleanup
 
         audio, joins = audio_cleanup.hear(cfg, r, path, audio, log)

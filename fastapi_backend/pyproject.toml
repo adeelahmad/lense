@@ -69,7 +69,7 @@ sandbox = ["openshell>=0.1.4,<0.2"]
 # the assistant's web search through DuckDuckGo (web.py): ddgs (MIT), with its Rust HTTP client (primp) and lxml;
 # fetched when DuckDuckGo is picked in Settings › AI assistant › Web search
 web = ["ddgs>=9.16,<10"]
-# the enhance step (audio_cleanup.py): WebRTC's noise suppression, gain control, echo cancellation and voice
+# the clean_audio step (audio_cleanup.py): WebRTC's noise suppression, gain control, echo cancellation and voice
 # detection through pywebrtc-audio (Apache-2.0; about 0.5 MB, numpy only); fetched the first time a pipeline runs it
 webrtc = ["pywebrtc-audio>=0.2.0,<0.3"]
 # Outlook .msg emails (extract-msg is GPL-3.0; .eml needs nothing)
@@ -103,7 +103,7 @@ dev = [
     "impacket>=0.13",  # the SMB share's server, and the SMB client its tests sign in with
     "openshell>=0.1.4,<0.2",  # the code sandbox's client, tested against a fake OpenShell gateway
     "botocore>=1.43.113",
-    "pywebrtc-audio>=0.2.0,<0.3",  # the enhance step's WebRTC audio processing, tested on synthetic audio
+    "pywebrtc-audio>=0.2.0,<0.3",  # the clean_audio step's WebRTC audio processing, tested on synthetic audio
 ]
 
 [tool.hatch.build.targets.wheel]

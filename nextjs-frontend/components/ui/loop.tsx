@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
  * upcoming ones are pale tints.
  */
 export const STEP_TONE: Record<string, Tone> = {
-  enhance: "intent",
+  clean_audio: "intent",
   transcribe: "intent",
   read: "intent",
   shots: "intent",
@@ -31,7 +31,7 @@ export const STEP_TONE: Record<string, Tone> = {
 };
 
 export const STEP_LABEL: Record<string, string> = {
-  enhance: "Clean up audio",
+  clean_audio: "Clean up audio",
   transcribe: "Transcribe",
   read: "Read pages",
   diarize: "Diarize",

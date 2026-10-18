@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
 
 type Kind = "template" | "pipeline" | "steps";
 const STEP_ORDER = [
-  "enhance",
+  "clean_audio",
   "transcribe",
   "diarize",
   "shots",

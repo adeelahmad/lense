@@ -627,7 +627,7 @@ export const FIELDS: FieldSpec[] = [
     kind: "text",
     mono: true,
   },
-  // Audio cleanup: what the Clean up audio step (enhance) does before transcription, in a pipeline that has it
+  // Audio cleanup: what the Clean up audio step (clean_audio) does before transcription, in a pipeline that has it
   {
     section: "transcribe",
     key: "cleanup.noise",

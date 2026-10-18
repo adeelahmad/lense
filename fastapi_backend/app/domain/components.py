@@ -736,7 +736,7 @@ class ClipModel(Component):
 
 
 class WebrtcAudio(Component):
-    """pywebrtc-audio, for the enhance step (audio_cleanup.py): fetched the first time a job waits for that step."""
+    """pywebrtc-audio, for the clean_audio step (audio_cleanup.py): fetched the first time a job waits for that step."""
 
     def needed(self, cfg, m):
         return True  # it waits for first use: an archive whose pipelines never clean up audio fetches nothing
@@ -995,8 +995,8 @@ COMPONENTS = [
     WebrtcAudio(
         "webrtc-audio",
         "WebRTC audio processing",
-        "cleans up a recording's sound before it's transcribed: noise, gain, echo and silence (the enhance step; pywebrtc-audio)",
-        steps={"enhance"},
+        "cleans up a recording's sound before it's transcribed: noise, gain, echo and silence (the clean_audio step; pywebrtc-audio)",
+        steps={"clean_audio"},
         size_mb=1,
         license="Apache-2.0",
     ),

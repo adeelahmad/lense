@@ -1,7 +1,7 @@
-"""Cleaning up a recording's sound before it's transcribed: the enhance step (Settings → Transcription → Audio cleanup).
+"""Cleaning up a recording's sound before it's transcribed: the clean_audio step (Settings → Transcription → Audio cleanup).
 
 A phone on a table, a fan, a quiet speaker across the room, a call recorded with the other side's voice coming back
-through the speakers: speech-to-text hears all of it. The enhance step runs the recording through WebRTC's audio
+through the speakers: speech-to-text hears all of it. The clean_audio step runs the recording through WebRTC's audio
 processing, the same code a browser runs on a call, through pywebrtc-audio (Apache-2.0, about 0.5 MB, numpy only,
 fetched the first time the step runs). Every option is in the settings:
 
@@ -236,7 +236,7 @@ def clean(o, path, mono, channels=1):
 
 
 def hear(cfg, rec, path, mono, log=print):
-    """What transcribing a recording hears: its audio cleaned up as its enhance step set, silence left out when it
+    """What transcribing a recording hears: its audio cleaned up as its clean_audio step set, silence left out when it
     asked. Returns (samples, joins or None); the original when this worker can't run the cleanup."""
     o = {**DEFAULTS, **{k: v for k, v in (rec.get("audio_cleanup") or {}).items() if k in KEYS}}
     try:
@@ -259,7 +259,7 @@ def hear(cfg, rec, path, mono, log=print):
 
 
 def step(db, cfg, rid, say):
-    """The enhance step: measure the recording through the cleanup and keep its options on it, or clear them when
+    """The clean_audio step: measure the recording through the cleanup and keep its options on it, or clear them when
     every option is off. Returns what it kept, or None."""
     o = options(cfg)
     r = R("recording", rid)

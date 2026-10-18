@@ -274,7 +274,7 @@ describe("reprocess picker (R9)", () => {
   const transcript = reprocessOptions({ video: false, hasAudio: false });
   it("offers the backend's steps; video steps only for videos", () => {
     expect(audio.map((o) => o.key)).toEqual([
-      "enhance",
+      "clean_audio",
       "transcribe",
       "diarize",
       "clean",
@@ -284,7 +284,7 @@ describe("reprocess picker (R9)", () => {
       "report",
     ]);
     expect(reprocessOptions({ video: true, hasAudio: true }).map((o) => o.key)).toEqual([
-      "enhance",
+      "clean_audio",
       "transcribe",
       "diarize",
       "shots",
@@ -315,7 +315,7 @@ describe("reprocess picker (R9)", () => {
     ]);
   });
   it("disables Clean up audio, Transcribe and Diarize for transcript-only recordings", () => {
-    expect(transcript.filter((o) => o.disabled).map((o) => o.key)).toEqual(["enhance", "transcribe", "diarize"]);
+    expect(transcript.filter((o) => o.disabled).map((o) => o.key)).toEqual(["clean_audio", "transcribe", "diarize"]);
   });
   it("ticks dependents; unticking removes just that step", () => {
     let s = toggleStep(new Set<StepKey>(), "diarize", true, audio);
@@ -334,8 +334,8 @@ describe("reprocess picker (R9)", () => {
       "report",
     ]);
     // cleaning up the sound only matters to what's transcribed after it
-    expect(orderedSteps(toggleStep(new Set<StepKey>(), "enhance", true, audio)).slice(0, 2)).toEqual([
-      "enhance",
+    expect(orderedSteps(toggleStep(new Set<StepKey>(), "clean_audio", true, audio)).slice(0, 2)).toEqual([
+      "clean_audio",
       "transcribe",
     ]);
   });

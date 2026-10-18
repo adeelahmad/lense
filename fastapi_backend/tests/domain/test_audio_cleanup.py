@@ -1,4 +1,4 @@
-"""The enhance step: a recording's sound cleaned up with WebRTC's audio processing (pywebrtc-audio) before it's
+"""The clean_audio step: a recording's sound cleaned up with WebRTC's audio processing (pywebrtc-audio) before it's
 transcribed, with silence left out of what's transcribed and the transcript put back on the recording's timeline."""
 
 from __future__ import annotations
@@ -94,7 +94,7 @@ def _segments(db, rid):
 
 def test_speech_is_found_and_silence_left_out_of_transcription(db, cfg, recording):
     rid = recording()
-    log = _run(db, cfg, rid, "enhance")
+    log = _run(db, cfg, rid, "clean_audio")
     saved = db.one("SELECT audio_cleanup FROM $r", r=R("recording", rid))["audio_cleanup"]
     assert saved["duration_ms"] == 22000
     assert 6000 <= saved["speech_ms"] <= 8000  # 7 s were spoken
@@ -117,10 +117,10 @@ def test_without_the_step_or_with_every_option_off_it_is_transcribed_as_it_is(db
     rid = recording()
     _run(db, cfg, rid)
     assert Engine.heard[-1] == 22 * SR
-    _run(db, cfg, rid, "enhance")
+    _run(db, cfg, rid, "clean_audio")
     assert Engine.heard[-1] < 22 * SR
     cfg["transcribe"]["cleanup"] = {"noise": "off", "gain": False, "high_pass": False, "echo": "off", "trim_silence": False}
-    log = _run(db, cfg, rid, "enhance")
+    log = _run(db, cfg, rid, "clean_audio")
     assert db.one("SELECT audio_cleanup FROM $r", r=R("recording", rid)).get("audio_cleanup") is None
     assert any("transcribed as it is" in line for line in log)
     assert Engine.heard[-1] == 22 * SR
@@ -129,7 +129,7 @@ def test_without_the_step_or_with_every_option_off_it_is_transcribed_as_it_is(db
 def test_cleaned_but_not_trimmed(db, cfg, recording):
     cfg["transcribe"]["cleanup"] = {"trim_silence": False, "noise": "very_high"}
     rid = recording()
-    _run(db, cfg, rid, "enhance")
+    _run(db, cfg, rid, "clean_audio")
     assert Engine.heard[-1] == 22 * SR
     assert [s["t0"] for s in _segments(db, rid)] == [1000, 7000]
 
@@ -150,31 +150,32 @@ def test_echo_of_the_far_side_is_taken_out(cfg):
 def test_echo_needs_a_second_channel(db, cfg, recording, folder):
     cfg["transcribe"]["cleanup"] = {"echo": "right"}
     rid = recording()  # one channel
-    log = _run(db, cfg, rid, "enhance")
+    log = _run(db, cfg, rid, "clean_audio")
     assert db.one("SELECT audio_cleanup FROM $r", r=R("recording", rid))["audio_cleanup"]["echo_note"] == "no second channel"
     assert any("echo not cancelled: no second channel" in line for line in log)
 
     mic, speakers = talk(), np.concatenate([quiet_for(16), babble(3, 9), quiet_for(3)])
     rid = recording(mic, speakers)
-    log = _run(db, cfg, rid, "enhance")
+    log = _run(db, cfg, rid, "clean_audio")
     assert any("echo of the right channel cancelled" in line for line in log)
     assert Engine.heard[-1] < 22 * SR  # both sides heard, the quiet left out
 
 
 def test_documents_and_imported_text_have_no_sound(db, cfg):
     rid = ingest.import_text(db, cfg, "pods", "Ann|N|Hello there.", "Note")
-    assert jobs.for_source([{"type": "enhance"}, {"type": "analyze"}], "transcript") == [{"type": "analyze"}]
-    assert jobs.for_source([{"type": "enhance"}, {"type": "transcribe"}], "document") == [{"type": "read"}]
-    jid = jobs.enqueue(db, rid, ["enhance"])
+    assert jobs.for_source([{"type": "clean_audio"}, {"type": "analyze"}], "transcript") == [{"type": "analyze"}]
+    assert jobs.for_source([{"type": "clean_audio"}, {"type": "transcribe"}], "document") == [{"type": "read"}]
+    jid = jobs.enqueue(db, rid, ["clean_audio"])
     drain(db, cfg)
     assert any(
-        "enhance skipped: imported text has no sound to clean up" in line for line in db.one("SELECT log FROM $j", j=R("job", jid))["log"]
+        "clean_audio skipped: imported text has no sound to clean up" in line
+        for line in db.one("SELECT log FROM $j", j=R("job", jid))["log"]
     )
 
 
 def test_a_worker_without_the_library_transcribes_the_original(db, cfg, recording, monkeypatch):
     rid = recording()
-    _run(db, cfg, rid, "enhance")
+    _run(db, cfg, rid, "clean_audio")
 
     def missing(cfg, say=None):
         raise RuntimeError("pywebrtc-audio isn't installed and couldn't be fetched (no network)")
@@ -216,26 +217,28 @@ def test_settings_are_checked(db, cfg):
 
 
 def test_pipelines_and_workers_take_the_step(db, cfg):
-    assert pipelines.validate_steps(db, ["enhance", "transcribe"]) == [{"type": "enhance"}, {"type": "transcribe"}]
-    assert "enhance" not in pipelines.STANDARD  # nothing changes until a pipeline has it
+    assert pipelines.validate_steps(db, ["clean_audio", "transcribe"]) == [{"type": "clean_audio"}, {"type": "transcribe"}]
+    assert "clean_audio" not in pipelines.STANDARD  # nothing changes until a pipeline has it
     cfg["workers"]["steps"] = ["transcribe", "diarize"]  # a list written before the step existed
-    assert "enhance" in jobs.Worker(db, lambda: cfg, name="older").can
+    assert "clean_audio" in jobs.Worker(db, lambda: cfg, name="older").can
     from app.domain import components
 
-    assert components.BY_ID["webrtc-audio"].steps == {"enhance"}  # fetched when a job first waits for it
+    assert components.BY_ID["webrtc-audio"].steps == {"clean_audio"}  # fetched when a job first waits for it
 
 
 def test_an_agent_reads_what_the_step_did(client, db, cfg, recording):
     from tests.helpers import login, make_user
 
     rid = recording()
-    _run(db, cfg, rid, "enhance")
+    _run(db, cfg, rid, "clean_audio")
     make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
     h = login(client, "ed@x.io", "editor password 1")
     got = client.get(f"/api/v1/recordings/{rid}", headers=h).json()["audio_cleanup"]
     assert got["kept_ms"] < got["duration_ms"] == 22000 and got["trim_silence"] is True
     pid = client.post(
-        "/api/v1/pipelines", headers=login(client, *_admin(db)), json={"name": "Clean then transcribe", "steps": ["enhance", "transcribe"]}
+        "/api/v1/pipelines",
+        headers=login(client, *_admin(db)),
+        json={"name": "Clean then transcribe", "steps": ["clean_audio", "transcribe"]},
     )
     assert pid.status_code in (200, 201), pid.text
 

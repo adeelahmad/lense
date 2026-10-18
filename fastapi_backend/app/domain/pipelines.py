@@ -1,5 +1,5 @@
 """Pipelines: named, versioned lists of steps a recording goes through. Each namespace can choose its default; without
-one, recordings get the standard pipeline. Steps: enhance (a recording's sound cleaned up before it's transcribed,
+one, recordings get the standard pipeline. Steps: clean_audio (a recording's sound cleaned up before it's transcribed,
 audio_cleanup.py), transcribe (speech to text), read (a document's or an
 image's pages and their text), diarize, shots, ocr, faces, objects, nsfw (NSFW classification, nsfw.py), describe,
 clean (a transcript tidied before analysis, cleanup.py), analyze, embed (passages for search by meaning, semantic.py),
@@ -29,7 +29,7 @@ STANDARD = [
     "transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "clean", "analyze", "embed", "summarize", "report",
 ]  # fmt: skip
 TYPES = {
-    "enhance", "transcribe", "read", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "clean", "analyze", "embed", "summarize",
+    "clean_audio", "transcribe", "read", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "clean", "analyze", "embed", "summarize",
     "llm",
     "spec",
     "report",

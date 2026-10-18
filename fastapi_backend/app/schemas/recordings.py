@@ -56,7 +56,7 @@ class NsfwHit(ResponseModel):
 
 
 class AudioCleanup(ResponseModel):
-    """How the enhance step cleaned up a recording's sound for transcription (docs/audio-cleanup.md)."""
+    """How the clean_audio step cleaned up a recording's sound for transcription (docs/processing.md, Cleaning up audio)."""
 
     noise: str = Field(description="noise suppression: off, low, moderate, high or very_high (6, 12, 18 or 21 dB)")
     gain: bool = Field(description="automatic gain control")
@@ -303,7 +303,7 @@ class Recording(ResponseModel):
     web: WebPage | None = Field(None, description="a web page captured as a document")
     enrichment: Enrichment | None = Field(None, description="the places and dates anytopdf found (analysis.anytopdf)")
     nsfw: NsfwState | None = Field(None, description="NSFW classification, where it's on in its namespace and it was classified")
-    audio_cleanup: AudioCleanup | None = Field(None, description="how its enhance step cleaned up its sound before transcription")
+    audio_cleanup: AudioCleanup | None = Field(None, description="how its clean_audio step cleaned up its sound before transcription")
 
 
 class Page(ResponseModel):

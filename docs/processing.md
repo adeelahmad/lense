@@ -7,7 +7,7 @@ How assets move through Lens: where they come from, what each step does, and how
 - `scan` finds audio under each namespace's paths and fingerprints it: moved files keep their history, duplicates are skipped,
   and so are files whose asset someone deleted or moved to another namespace (at the same path, or a copy of the same
   file).
-- `enhance` (only in a pipeline that has it) cleans up the sound before it's transcribed: noise, volume, rumble,
+- `clean_audio` (only in a pipeline that has it) cleans up the sound before it's transcribed: noise, volume, rumble,
   echo, and silence left out of what's transcribed ([Cleaning up audio](#cleaning-up-audio)).
 - `transcribe` uses SenseVoice, faster-whisper or mlx-whisper. When the configured engine isn't installed on a worker (or
   doesn't import there), it uses the next one that is and says so in the job log; with none at all the step fails,
@@ -28,7 +28,7 @@ Every step takes `--ns`, `--limit` and `--force`; `run` does them all, and a loc
 ### Cleaning up audio
 
 A phone on a table, a fan, a quiet voice across the room or a call with the other side coming back through the
-speakers: speech-to-text hears all of it. The `enhance` step (Clean up audio in the pipeline editor and Reprocess)
+speakers: speech-to-text hears all of it. The `clean_audio` step (Clean up audio in the pipeline editor and Reprocess)
 runs a recording through WebRTC's audio processing, the code a browser runs on a call, with
 [pywebrtc-audio](https://github.com/strands-labs/pywebrtc-audio) (Apache-2.0, about 0.5 MB; fetched the first time
 the step runs, [Components](components.md)). No pipeline has it until you add it before Transcribe, so nothing changes
@@ -53,7 +53,7 @@ stored: cleaning takes a fraction of a second per minute of audio, so it's done 
 voice IDs still listen to the original. Run the step with every option off to have the asset transcribed as it is
 again. A worker that can't fetch pywebrtc-audio transcribes the original and says so in the job log. Run it on one
 asset with Reprocess → Clean up audio, or `POST /api/v1/recordings/{id}/reprocess` with
-`{"steps": ["enhance", "transcribe"]}`; workers whose `workers.steps` list has `transcribe` run it too.
+`{"steps": ["clean_audio", "transcribe"]}`; workers whose `workers.steps` list has `transcribe` run it too.
 
 ### Cleaning up transcripts
 
@@ -695,7 +695,7 @@ A pipeline is a named, versioned list of steps; each namespace can choose its de
 analyze, summarize, report). Imports, watched folders and reprocessing use the namespace's pipeline; steps that need
 audio skip themselves for imported text. Steps:
 
-- `enhance` ([Cleaning up audio](#cleaning-up-audio)), `transcribe`, `diarize`, `clean`
+- `clean_audio` ([Cleaning up audio](#cleaning-up-audio)), `transcribe`, `diarize`, `clean`
   ([Cleaning up transcripts](#cleaning-up-transcripts)), `analyze`, `summarize`, and `report` (the built-in report).
 - `llm`: renders a prompt template, sends it to the configured model, checks the reply against the template's JSON
   Schema and saves it as a named output (e.g. `meeting_notes`).

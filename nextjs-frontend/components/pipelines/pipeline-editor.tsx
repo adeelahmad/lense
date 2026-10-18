@@ -62,7 +62,7 @@ import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
 const ICON: Record<string, LucideIcon> = {
-  enhance: AudioWaveform,
+  clean_audio: AudioWaveform,
   transcribe: Captions,
   read: ScanText,
   diarize: AudioLines,
@@ -82,7 +82,7 @@ const ICON: Record<string, LucideIcon> = {
   workflow: Workflow,
 };
 const LIB_ORDER = [
-  "enhance",
+  "clean_audio",
   "transcribe",
   "diarize",
   "shots",
