@@ -13464,9 +13464,9 @@ export type MessageRecord = {
   /**
    * Via
    *
-   * a question: how it was sent
+   * a question: how it was sent (project: a brief a project's coordinator wrote)
    */
-  via?: "web" | "api" | "room" | "voice" | "automation" | "completions" | null;
+  via?: "web" | "api" | "room" | "voice" | "automation" | "completions" | "project" | null;
   /**
    * a question: the options it was asked with
    */
@@ -25574,6 +25574,12 @@ export type ThreadCreate = {
    * bring in one of your conversations instead of starting a new one
    */
   chat?: number | null;
+  /**
+   * Brief
+   *
+   * what to do: asked as the thread's first question and answered in the background, with your tools and approvals (follow it with GET /chats/{id})
+   */
+  brief?: string | null;
 };
 
 /**

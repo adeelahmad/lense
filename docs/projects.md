@@ -5,10 +5,11 @@ case, a piece of code. You give it a name, the goal in your own words, instructi
 it draws on. Every conversation in it reads all of that, so you don't explain the project again each time.
 
 Status: **built**: projects with a goal, instructions and one or more namespaces; a coordinator conversation for the
-project as a whole, told about every thread; threads, each a conversation in the project's namespaces, marked done when
-finished; your own conversations brought in or taken out; through the REST API and MCP. **Planned**: the coordinator
-starting threads with a brief and reading them, scheduled threads, a Projects page in the web app, chat rooms and email
-routed to a project, members sharing one, and a project's own memory.
+project as a whole, told about every thread, which starts threads with a brief, reads them and marks them done;
+threads, each a conversation in the project's namespaces, marked done when finished; briefs answered in the background;
+your own conversations brought in or taken out; through the REST API and MCP. **Planned**: scheduled threads, a
+Projects page in the web app, chat rooms and email routed to a project, members sharing one, and a project's own
+memory.
 
 ## What a project is
 
@@ -42,6 +43,33 @@ in Chat). Changing the project's namespaces changes every one of its conversatio
 Deleting a project keeps its conversations, as ordinary ones in Chat. Deleting its coordinator conversation makes a
 new one the next time the project is opened.
 
+## The coordinator's tools
+
+In a project's conversations the assistant has the tools of **This project** (one of the groups in the tool picker,
+[Choosing tools](assistant.md#choosing-tools-namespaces-and-a-limit)):
+
+| Tool | What it does |
+| --- | --- |
+| `project_threads` | the project's threads: each one's title, whether it's done, whether an answer is being written, its last message |
+| `read_thread` | a thread's last messages |
+| `start_thread` | from the coordinator: a new thread with a title and a brief, which is answered there in the background (below) |
+| `finish_thread` | mark a thread done, or not done |
+
+So you can say to the coordinator "split this into the wood, the tools and a weekend plan" and it starts a thread for
+each, then reads what they found. One answer starts at most three threads. A brief written after the answer read text
+from outside Lens (a document, a web page, another thread) could carry that text's instructions, so then
+`start_thread` asks for your approval first, like the other tools that would act on it.
+
+## Briefs
+
+A thread can start with a brief: what to do, with everything it needs. The coordinator writes one with `start_thread`;
+you or an agent give one with `brief` on `POST /api/v1/projects/{id}/threads` (or MCP `update_project`'s `new_thread`
+and `brief`). It is asked as the thread's question and answered in the background, as you: with the tools you have
+there (the conversation's choice of them) and the same approvals, every model call counted for the answer in the
+[activity ledger](activity.md) and held to your budgets. The thread shows `answering` until the answer is saved, and
+Stop (`POST /api/v1/chats/{id}/stop`) stops it between steps. If Lens stops while a brief is being answered, the thread
+says so within a few minutes, so it's never left waiting: ask again.
+
 ## The API
 
 | Call | What it does |
@@ -52,7 +80,7 @@ new one the next time the project is opened.
 | `PATCH /api/v1/projects/{id}` | change its name, goal, instructions or namespaces, or archive it |
 | `DELETE /api/v1/projects/{id}` | delete it; its conversations stay |
 | `GET /api/v1/projects/{id}/threads` | its threads, the coordinator among them |
-| `POST /api/v1/projects/{id}/threads` | a new thread (`title`), or bring in one of your conversations (`chat`) |
+| `POST /api/v1/projects/{id}/threads` | a new thread (`title`), or bring in one of your conversations (`chat`); with a `brief`, asked and answered there in the background |
 | `PATCH /api/v1/projects/{id}/threads/{chat}` | mark a thread done, or not (`done`) |
 | `DELETE /api/v1/projects/{id}/threads/{chat}` | take a thread out of the project |
 
@@ -62,7 +90,7 @@ same for agents; the last two need a token with the write scope.
 
 ## Refine later
 
-- The coordinator starting threads with a brief, reading them and marking them done, as its own tools.
+- Threads answering their briefs at the same time as each other, with a limit per person.
 - Scheduled threads: a prompt asked on a schedule, in a new thread each time or the same one.
 - A Projects page in the web app.
 - Chat rooms, Telegram, Slack and email routed to a project.

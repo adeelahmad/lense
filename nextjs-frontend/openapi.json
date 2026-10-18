@@ -27054,7 +27054,7 @@
           "projects"
         ],
         "summary": "Start Thread",
-        "description": "A new thread: a conversation in the project's namespaces (ask in it with POST /chats/{id}/messages). With `chat`,\none of your conversations joins the project instead, drawing on its namespaces from then on.",
+        "description": "A new thread: a conversation in the project's namespaces (ask in it with POST /chats/{id}/messages). With a\n`brief`, it is asked there at once and answered in the background, as you, with your tools and approvals: GET\n/chats/{id} shows the answer once it's written (the thread is `answering` until then). With `chat`, one of your\nconversations joins the project instead, drawing on its namespaces from then on (with a brief, asked there next).",
         "operationId": "start_thread",
         "parameters": [
           {
@@ -57914,7 +57914,8 @@
                   "room",
                   "voice",
                   "automation",
-                  "completions"
+                  "completions",
+                  "project"
                 ]
               },
               {
@@ -57922,7 +57923,7 @@
               }
             ],
             "title": "Via",
-            "description": "a question: how it was sent"
+            "description": "a question: how it was sent (project: a brief a project's coordinator wrote)"
           },
           "options": {
             "anyOf": [
@@ -78682,6 +78683,19 @@
             ],
             "title": "Chat",
             "description": "bring in one of your conversations instead of starting a new one"
+          },
+          "brief": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brief",
+            "description": "what to do: asked as the thread's first question and answered in the background, with your tools and approvals (follow it with GET /chats/{id})"
           }
         },
         "additionalProperties": false,
