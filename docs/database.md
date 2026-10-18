@@ -163,9 +163,9 @@ are in `.upgrade-check/` (on GitHub, the run's `upgrade-check` artifact).
 ## Concurrency
 
 The handle (`store.DB`) is thread-safe. Against a server it keeps a small pool of connections; the embedded engine has
-one connection that queries take turns on. A query made on a thread that is already inside one (Python closing an
-abandoned generator in the middle of a query, say) shares that thread's connection rather than waiting for it.
-SurrealDB transactions are optimistic: when two touch the same record at
+one connection that queries take turns on, which a query made on a thread already inside one (Python closing an
+abandoned generator in the middle of a query, say) shares rather than waits for; against a server such a query takes
+another connection. SurrealDB transactions are optimistic: when two touch the same record at
 once, one fails with a retryable write conflict. The handle retries those automatically, with jittered backoff, for
 single statements and for `run()` transactions (which roll back as a whole, so retrying is safe).
 

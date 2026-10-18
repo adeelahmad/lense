@@ -10592,6 +10592,32 @@ export type LlmTestResult = {
 };
 
 /**
+ * LlmTry
+ *
+ * What to test before saving it (Settings → LLM provider); anything left out is taken from what is saved.
+ */
+export type LlmTry = {
+  /**
+   * Base Url
+   *
+   * the server's address, as typed
+   */
+  base_url?: string | null;
+  /**
+   * Model
+   *
+   * the model name, as typed
+   */
+  model?: string | null;
+  /**
+   * Api Key
+   *
+   * a key typed but not saved; the saved key is used only at the saved address
+   */
+  api_key?: string | null;
+};
+
+/**
  * LocalLlmProgress
  */
 export type LocalLlmProgress = {
@@ -27121,11 +27147,23 @@ export type GetEncryptionResponses = {
 export type GetEncryptionResponse = GetEncryptionResponses[keyof GetEncryptionResponses];
 
 export type TestLlmData = {
-  body?: never;
+  /**
+   * Body
+   */
+  body?: LlmTry | null;
   path?: never;
   query?: never;
   url: "/api/v1/settings/llm/test";
 };
+
+export type TestLlmErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TestLlmError = TestLlmErrors[keyof TestLlmErrors];
 
 export type TestLlmResponses = {
   /**

@@ -1606,6 +1606,7 @@ import type {
   TestFileStoreErrors,
   TestFileStoreResponses,
   TestLlmData,
+  TestLlmErrors,
   TestLlmResponses,
   TestLogsData,
   TestLogsResponses,
@@ -2945,14 +2946,19 @@ export class Admin {
   /**
    * Test Llm
    *
-   * Ask the configured model for one word, to check the address, key and model name.
+   * Ask the model for one word, to check the address, key and model name: what is given (typed, not saved yet),
+   * else what is saved.
    */
   public static testLlm<ThrowOnError extends boolean = false>(
     options?: Options<TestLlmData, ThrowOnError>,
-  ): RequestResult<TestLlmResponses, unknown, ThrowOnError> {
-    return (options?.client ?? client).post<TestLlmResponses, unknown, ThrowOnError>({
+  ): RequestResult<TestLlmResponses, TestLlmErrors, ThrowOnError> {
+    return (options?.client ?? client).post<TestLlmResponses, TestLlmErrors, ThrowOnError>({
       url: "/api/v1/settings/llm/test",
       ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
     });
   }
 
