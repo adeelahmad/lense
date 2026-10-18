@@ -932,7 +932,15 @@ as an unprivileged user with every capability dropped, a read-only image and mem
 network only with Lens's backend (and the internet, which `npx` and `uvx` need to fetch the servers). Each server gets
 an empty folder as its home and only the environment its extension gives it; Lens talks to the runner over HTTP with
 a token the runner writes to a volume only the two share. A server starts on first use, stays up while it's used,
-and stops after 15 idle minutes. Installs that don't run on Docker don't have the runner yet.
+and stops after 15 idle minutes.
+
+In a [microsandbox](microsandbox.md) install the same switch works, and the runner is a process inside the sandbox
+rather than a container: it runs as a user of its own, `mcp`, with the volume that holds the database and the archive
+closed to it, with Lens's Node and uv reached through read-only mounts, listening on the sandbox's localhost only
+(`microsandbox/mcp.sh`). The agent adds `mcp` to `COMPOSE_PROFILES` in `.env` and nothing else; the sandbox reads
+`.env` every few seconds and starts or stops the runner to match, so the servers' packages come and go with the
+sandbox (they're fetched again after an update). Other installs that don't run on Docker (Cloudron, NAS packages)
+don't have the runner yet.
 
 ### The browser
 

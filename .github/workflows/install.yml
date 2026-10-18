@@ -370,6 +370,11 @@ jobs:
           ls -l /dev/kvm
           if [ -r /dev/kvm ] && [ -w /dev/kvm ]; then echo "this runner's user can already use KVM"; exit 1; fi
 
+      - name: The sandbox's scripts, tested apart (the MCP runner's loop, and the agent's services action)
+        run: |
+          docker run --rm -v "$PWD:/lens:ro" python:3.12-slim-trixie sh /lens/microsandbox/test-mcp.sh
+          sh packaging/host/test-services.sh
+
       - name: Install (as a user would, piped into sh)
         run: |
           sh < install.sh | tee install.log
@@ -436,6 +441,36 @@ jobs:
         run: |
           LENS_BACKEND='' LENS_TARGET='' sh < install.sh >/dev/null
           grep -q '^LENS_TARGET=lean$' "$LENS_DIR/.env" || { echo "the run without LENS_TARGET changed the edition"; exit 1; }
+          curl -fsS -o /dev/null "$(cat setup-url)"
+
+      - name: The MCP runner, switched on from the web app, runs inside the sandbox as its own user, and off again
+        run: |
+          export PATH="$HOME/.local/bin:$HOME/.microsandbox/bin:$PATH"
+          ctl="$LENS_DIR/.lens-control"
+          # what the web app's switch writes (services.py): the agent adds mcp to COMPOSE_PROFILES in .env
+          turn() {
+            printf 'id=mcp-%s\naction=services\nprofile=mcp\nturn=%s\n' "$1" "$1" >"$ctl/inbox/.upgrade.ci" && mv "$ctl/inbox/.upgrade.ci" "$ctl/inbox/upgrade"
+            for _ in $(seq 60); do grep -qx "id=mcp-$1" "$ctl/services-status" 2>/dev/null && grep -qE '^state=(done|failed)$' "$ctl/services-status" && break; sleep 2; done
+            cat "$ctl/services-status"
+            grep -qx 'state=done' "$ctl/services-status"
+          }
+          turn on
+          grep -q '^COMPOSE_PROFILES=mcp$' "$LENS_DIR/.env"
+          for _ in $(seq 30); do msb exec lens -- curl -fsS http://127.0.0.1:8090/health && break; sleep 2; done
+          msb exec lens -- curl -fsS http://127.0.0.1:8090/health | grep -q '"ok": true'
+          # as the mcp user, with the volume closed to it, and its token where Lens reads it
+          # shellcheck disable=SC2016 # expanded in the sandbox
+          msb exec lens -- sh -c 'for p in /proc/[0-9]*; do tr "\0" " " <"$p/cmdline" 2>/dev/null | grep -q lens-mcp-runner.py && stat -c %U "$p"; done' | grep -qx mcp
+          if msb exec lens -- setpriv --reuid mcp --regid mcp --clear-groups -- ls /data; then echo "the volume is open to the mcp user"; exit 1; fi
+          msb exec lens -- setpriv --reuid lens --regid lens --init-groups -- test -s /var/lib/lens-mcp-key/token
+          # and a server from npm runs in it, through Lens's own client
+          msb exec lens -- setpriv --reuid lens --regid lens --init-groups -- \
+            env LENS_MCP_RUNNER_URL=http://127.0.0.1:8090 LENS_MCP_TOKEN_FILE=/var/lib/lens-mcp-key/token \
+            PYTHONPATH=/data/.lens/backend /data/.lens/venv/bin/python -c 'from app.domain import mcp_client; t = mcp_client.Session({"command": "npx", "args": ["-y", "@modelcontextprotocol/server-memory@2026.8.31"]}).tools(); assert any(x["name"] == "create_entities" for x in t), t; print(len(t), "tools")'
+          turn off
+          grep -q '^COMPOSE_PROFILES=' "$LENS_DIR/.env" && { echo "the profile is still in .env"; exit 1; }
+          for _ in $(seq 30); do msb exec lens -- curl -fsS -o /dev/null http://127.0.0.1:8090/health || break; sleep 2; done
+          if msb exec lens -- curl -fsS -o /dev/null http://127.0.0.1:8090/health; then echo "the runner still answers"; exit 1; fi
           curl -fsS -o /dev/null "$(cat setup-url)"
 
       - name: The full edition installs Chromium the first time Lens needs it, and again at each start

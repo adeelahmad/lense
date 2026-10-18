@@ -108,10 +108,10 @@ if [ ! -x "$OPT/node/bin/node" ]; then
   tar -xJf "/tmp/lens/$file" -C "$OPT/node" --strip-components 1
   rm "/tmp/lens/$file"
 fi
-if [ ! -x "$OPT/bin/uv" ]; then
+if [ ! -x "$OPT/bin/uv" ] || [ ! -x "$OPT/bin/uvx" ]; then # uvx: the MCP runner's, for servers from PyPI
   log "Getting uv..."
   python3 -m pip install -q --no-cache-dir --target /tmp/lens/uv "uv>=0.8,<0.9"
-  cp /tmp/lens/uv/bin/uv "$OPT/bin/uv" && rm -rf /tmp/lens/uv
+  cp /tmp/lens/uv/bin/uv /tmp/lens/uv/bin/uvx "$OPT/bin/" && rm -rf /tmp/lens/uv
 fi
 
 # --- Build: the backend and the web app, again only when the code changed (the edition doesn't change them) -------
@@ -153,8 +153,10 @@ if [ "$(cat "$OPT/build-id" 2>/dev/null)" != "$build_id" ]; then
   chown -R lens:lens "$OPT/web"
   echo "$build_id" >"$OPT/build-id"
 fi
-# the archive is the volume itself (data_dir: /data, as in the containers); the database is a folder in it
+# the archive is the volume itself (data_dir: /data, as in the containers); the database is a folder in it, and the
+# volume is lens's alone: the MCP runner's user (mcp.sh) has no way in
 chown lens:lens "$DATA"
+chmod 750 "$DATA" || true
 chown -R lens:lens "$DATA/surreal"
 
 # public resolvers stood in for the downloads: this machine's again if they answer now, so names on its network resolve
@@ -180,6 +182,8 @@ mkdir -p "$DATA/.cache" && chown lens:lens "$DATA/.cache"
 [ -d /control ] && export LENS_CONTROL_DIR=/control LENS_HOST_DIR="${LENS_DIR:-}"
 # the archive in the volume, as /data in the containers; the config file the backend image ships
 export ARCHIVE_CONFIG="$OPT/backend/docker/archive.yaml"
+# the MCP runner (mcp.sh), where Lens reaches it and reads its token while it runs
+export LENS_MCP_RUNNER_URL=http://127.0.0.1:8090 LENS_MCP_TOKEN_FILE=/var/lib/lens-mcp-key/token
 
 # model servers on the host machine (Ollama, LM Studio) under the name the Docker setup uses for them too
 if ! grep -q host.docker.internal /etc/hosts; then
@@ -240,6 +244,19 @@ if [ "$TARGET" = full ]; then
   ) &
   pids="$pids $!"
   export LENS_PROGRAMS="$PROGRAMS"
+fi
+
+# --- The MCP runner: on while COMPOSE_PROFILES names mcp, as the web app's switch sets it (docs/assistant.md) ----
+# shellcheck source=SCRIPTDIR/mcp.sh
+. "$CODE/microsandbox/mcp.sh"
+if mcp_prepare && mcp_tools; then
+  (
+    set +e # a runner that stops is started again, and the loop goes on
+    mcp_loop
+  ) &
+  pids="$pids $!"
+else
+  log "The MCP runner can't run in this sandbox (its user or tools couldn't be set up); MCP servers that are programs won't"
 fi
 
 log "Starting the database..."
