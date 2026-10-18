@@ -28,6 +28,7 @@ const view = (voice: Record<string, unknown>) =>
         refine_notes: true,
         organise_notes: true,
         compact: true,
+        auto_title: true,
         untrusted_marking: true,
         untrusted_asks: true,
         injection_check: "patterns",
