@@ -3942,6 +3942,74 @@ export type CircleCreate = {
 };
 
 /**
+ * CircleList
+ */
+export type CircleList = {
+  /**
+   * Circles
+   */
+  circles: Array<Circle>;
+  /**
+   * Suggested
+   *
+   * names of circles people often make, which this person hasn't made yet
+   */
+  suggested: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
+ * CircleShare
+ */
+export type CircleShare = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * At
+   */
+  at: string;
+  /**
+   * Activity
+   *
+   * the share's own activity in your timeline
+   */
+  activity: string;
+  /**
+   * Object
+   */
+  object: {
+    [key: string]: unknown;
+  };
+  /**
+   * Note
+   */
+  note?: string | null;
+  /**
+   * With Item
+   */
+  with_item?: boolean;
+  /**
+   * who shared it (shares with you)
+   */
+  by?: Person | null;
+  /**
+   * Circles
+   *
+   * the circles it went to (your shares)
+   */
+  circles?: Array<string> | null;
+  /**
+   * People
+   *
+   * who it went to (your shares)
+   */
+  people?: Array<Person> | null;
+  [key: string]: unknown;
+};
+
+/**
  * CircleUpdate
  */
 export type CircleUpdate = {
@@ -3967,23 +4035,6 @@ export type CircleUpdate = {
    * people to take out
    */
   remove?: Array<number | string>;
-};
-
-/**
- * Circles
- */
-export type Circles = {
-  /**
-   * Circles
-   */
-  circles: Array<Circle>;
-  /**
-   * Suggested
-   *
-   * names of circles people often make, which this person hasn't made yet
-   */
-  suggested: Array<string>;
-  [key: string]: unknown;
 };
 
 /**
@@ -21800,6 +21851,73 @@ export type SetupView = {
 };
 
 /**
+ * Share
+ */
+export type Share = {
+  /**
+   * Id
+   *
+   * first characters of the link's id
+   */
+  id: string;
+  /**
+   * Created By
+   */
+  created_by?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Expires At
+   */
+  expires_at?: string | null;
+  /**
+   * Active
+   *
+   * it still works: not revoked and not expired
+   */
+  active: boolean;
+  /**
+   * Revoked
+   */
+  revoked?: boolean;
+  /**
+   * Revoked By
+   */
+  revoked_by?: string | null;
+  /**
+   * Revoked At
+   */
+  revoked_at?: string | null;
+  /**
+   * Short
+   *
+   * it has a short /s/ address (links made before short links have none)
+   */
+  short?: boolean;
+  /**
+   * Plays
+   *
+   * times its player started playing, once per page load (not counting Lens itself)
+   */
+  plays?: number;
+  /**
+   * Played At
+   *
+   * the last play
+   */
+  played_at?: string | null;
+  /**
+   * Embedded On
+   *
+   * sites whose pages framed its player, most recent first (up to 50)
+   */
+  embedded_on?: Array<ShareSite>;
+  [key: string]: unknown;
+};
+
+/**
  * ShareCreate
  */
 export type ShareCreate = {
@@ -21929,6 +22047,23 @@ export type ShareSite = {
    * Last At
    */
   last_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ShareUndone
+ */
+export type ShareUndone = {
+  /**
+   * Undone
+   */
+  undone: number;
+  /**
+   * Taken Back
+   *
+   * permissions on the resource taken back
+   */
+  taken_back: number;
   [key: string]: unknown;
 };
 
@@ -24815,6 +24950,23 @@ export type TunnelStatus = {
 };
 
 /**
+ * Undone
+ */
+export type Undone = {
+  /**
+   * Undone
+   */
+  undone: number;
+  /**
+   * Failed
+   *
+   * changes that couldn't be undone (an entity in them was deleted since)
+   */
+  failed?: number;
+  [key: string]: unknown;
+};
+
+/**
  * UpdateStatus
  */
 export type UpdateStatus = {
@@ -26594,158 +26746,6 @@ export type WorkflowVersionInfo = {
    * Created By
    */
   created_by?: string | null;
-  [key: string]: unknown;
-};
-
-/**
- * Share
- */
-export type AppSchemasCirclesShare = {
-  /**
-   * Id
-   */
-  id: number;
-  /**
-   * At
-   */
-  at: string;
-  /**
-   * Activity
-   *
-   * the share's own activity in your timeline
-   */
-  activity: string;
-  /**
-   * Object
-   */
-  object: {
-    [key: string]: unknown;
-  };
-  /**
-   * Note
-   */
-  note?: string | null;
-  /**
-   * With Item
-   */
-  with_item?: boolean;
-  /**
-   * who shared it (shares with you)
-   */
-  by?: Person | null;
-  /**
-   * Circles
-   *
-   * the circles it went to (your shares)
-   */
-  circles?: Array<string> | null;
-  /**
-   * People
-   *
-   * who it went to (your shares)
-   */
-  people?: Array<Person> | null;
-  [key: string]: unknown;
-};
-
-/**
- * Undone
- */
-export type AppSchemasCirclesUndone = {
-  /**
-   * Undone
-   */
-  undone: number;
-  /**
-   * Taken Back
-   *
-   * permissions on the resource taken back
-   */
-  taken_back: number;
-  [key: string]: unknown;
-};
-
-/**
- * Share
- */
-export type AppSchemasRecordingsShare = {
-  /**
-   * Id
-   *
-   * first characters of the link's id
-   */
-  id: string;
-  /**
-   * Created By
-   */
-  created_by?: string | null;
-  /**
-   * Created At
-   */
-  created_at?: string | null;
-  /**
-   * Expires At
-   */
-  expires_at?: string | null;
-  /**
-   * Active
-   *
-   * it still works: not revoked and not expired
-   */
-  active: boolean;
-  /**
-   * Revoked
-   */
-  revoked?: boolean;
-  /**
-   * Revoked By
-   */
-  revoked_by?: string | null;
-  /**
-   * Revoked At
-   */
-  revoked_at?: string | null;
-  /**
-   * Short
-   *
-   * it has a short /s/ address (links made before short links have none)
-   */
-  short?: boolean;
-  /**
-   * Plays
-   *
-   * times its player started playing, once per page load (not counting Lens itself)
-   */
-  plays?: number;
-  /**
-   * Played At
-   *
-   * the last play
-   */
-  played_at?: string | null;
-  /**
-   * Embedded On
-   *
-   * sites whose pages framed its player, most recent first (up to 50)
-   */
-  embedded_on?: Array<ShareSite>;
-  [key: string]: unknown;
-};
-
-/**
- * Undone
- */
-export type AppSchemasRoutinesUndone = {
-  /**
-   * Undone
-   */
-  undone: number;
-  /**
-   * Failed
-   *
-   * changes that couldn't be undone (an entity in them was deleted since)
-   */
-  failed?: number;
   [key: string]: unknown;
 };
 
@@ -33583,7 +33583,7 @@ export type ListSharesResponses = {
    *
    * Successful Response
    */
-  200: Array<AppSchemasRecordingsShare>;
+  200: Array<Share>;
 };
 
 export type ListSharesResponse = ListSharesResponses[keyof ListSharesResponses];
@@ -44646,7 +44646,7 @@ export type UndoRunResponses = {
   /**
    * Successful Response
    */
-  200: AppSchemasRoutinesUndone;
+  200: Undone;
 };
 
 export type UndoRunResponse = UndoRunResponses[keyof UndoRunResponses];
@@ -46910,7 +46910,7 @@ export type ListCirclesResponses = {
   /**
    * Successful Response
    */
-  200: Circles;
+  200: CircleList;
 };
 
 export type ListCirclesResponse = ListCirclesResponses[keyof ListCirclesResponses];
@@ -46940,25 +46940,25 @@ export type CreateCircleResponses = {
 
 export type CreateCircleResponse = CreateCircleResponses[keyof CreateCircleResponses];
 
-export type ListPeopleData = {
+export type ListCirclePeopleData = {
   body?: never;
   path?: never;
   query?: never;
   url: "/api/v1/circles/people";
 };
 
-export type ListPeopleResponses = {
+export type ListCirclePeopleResponses = {
   /**
-   * Response Circles-List People
+   * Response Circles-List Circle People
    *
    * Successful Response
    */
   200: Array<Person>;
 };
 
-export type ListPeopleResponse = ListPeopleResponses[keyof ListPeopleResponses];
+export type ListCirclePeopleResponse = ListCirclePeopleResponses[keyof ListCirclePeopleResponses];
 
-export type ListShares2Data = {
+export type ListCircleSharesData = {
   body?: never;
   path?: never;
   query?: {
@@ -46974,52 +46974,52 @@ export type ListShares2Data = {
   url: "/api/v1/circles/shares";
 };
 
-export type ListShares2Errors = {
+export type ListCircleSharesErrors = {
   /**
    * Validation Error
    */
   422: HttpValidationError;
 };
 
-export type ListShares2Error = ListShares2Errors[keyof ListShares2Errors];
+export type ListCircleSharesError = ListCircleSharesErrors[keyof ListCircleSharesErrors];
 
-export type ListShares2Responses = {
+export type ListCircleSharesResponses = {
   /**
-   * Response Circles-List Shares
+   * Response Circles-List Circle Shares
    *
    * Successful Response
    */
-  200: Array<AppSchemasCirclesShare>;
+  200: Array<CircleShare>;
 };
 
-export type ListShares2Response = ListShares2Responses[keyof ListShares2Responses];
+export type ListCircleSharesResponse = ListCircleSharesResponses[keyof ListCircleSharesResponses];
 
-export type ShareData = {
+export type ShareWithCirclesData = {
   body: ShareIn;
   path?: never;
   query?: never;
   url: "/api/v1/circles/shares";
 };
 
-export type ShareErrors = {
+export type ShareWithCirclesErrors = {
   /**
    * Validation Error
    */
   422: HttpValidationError;
 };
 
-export type ShareError = ShareErrors[keyof ShareErrors];
+export type ShareWithCirclesError = ShareWithCirclesErrors[keyof ShareWithCirclesErrors];
 
-export type ShareResponses = {
+export type ShareWithCirclesResponses = {
   /**
    * Successful Response
    */
   201: Shared;
 };
 
-export type ShareResponse = ShareResponses[keyof ShareResponses];
+export type ShareWithCirclesResponse = ShareWithCirclesResponses[keyof ShareWithCirclesResponses];
 
-export type UndoShareData = {
+export type UndoCircleShareData = {
   body?: never;
   path: {
     /**
@@ -47031,23 +47031,23 @@ export type UndoShareData = {
   url: "/api/v1/circles/shares/{sid}";
 };
 
-export type UndoShareErrors = {
+export type UndoCircleShareErrors = {
   /**
    * Validation Error
    */
   422: HttpValidationError;
 };
 
-export type UndoShareError = UndoShareErrors[keyof UndoShareErrors];
+export type UndoCircleShareError = UndoCircleShareErrors[keyof UndoCircleShareErrors];
 
-export type UndoShareResponses = {
+export type UndoCircleShareResponses = {
   /**
    * Successful Response
    */
-  200: AppSchemasCirclesUndone;
+  200: ShareUndone;
 };
 
-export type UndoShareResponse = UndoShareResponses[keyof UndoShareResponses];
+export type UndoCircleShareResponse = UndoCircleShareResponses[keyof UndoCircleShareResponses];
 
 export type DeleteCircleData = {
   body?: never;

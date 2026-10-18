@@ -890,7 +890,12 @@ import type {
   ListBudgetsResponses,
   ListChatsData,
   ListChatsResponses,
+  ListCirclePeopleData,
+  ListCirclePeopleResponses,
   ListCirclesData,
+  ListCircleSharesData,
+  ListCircleSharesErrors,
+  ListCircleSharesResponses,
   ListCirclesResponses,
   ListCollectionMembersData,
   ListCollectionMembersErrors,
@@ -1018,8 +1023,6 @@ import type {
   ListPatternsResponses,
   ListPendingAccessRequestsData,
   ListPendingAccessRequestsResponses,
-  ListPeopleData,
-  ListPeopleResponses,
   ListPipelinesData,
   ListPipelinesResponses,
   ListPodcastsData,
@@ -1064,9 +1067,6 @@ import type {
   ListServicesResponses,
   ListSessionsData,
   ListSessionsResponses,
-  ListShares2Data,
-  ListShares2Errors,
-  ListShares2Responses,
   ListSharesData,
   ListSharesErrors,
   ListSharesResponses,
@@ -1592,9 +1592,9 @@ import type {
   SetupWithoutPasskeyData,
   SetupWithoutPasskeyErrors,
   SetupWithoutPasskeyResponses,
-  ShareData,
-  ShareErrors,
-  ShareResponses,
+  ShareWithCirclesData,
+  ShareWithCirclesErrors,
+  ShareWithCirclesResponses,
   SigninLinkData,
   SigninLinkErrors,
   SigninLinkInfoData,
@@ -1743,6 +1743,9 @@ import type {
   TryWorkflowResponses,
   TunnelStatusData,
   TunnelStatusResponses,
+  UndoCircleShareData,
+  UndoCircleShareErrors,
+  UndoCircleShareResponses,
   UndoEntityMergeData,
   UndoEntityMergeErrors,
   UndoEntityMergeResponses,
@@ -1755,9 +1758,6 @@ import type {
   UndoRunData,
   UndoRunErrors,
   UndoRunResponses,
-  UndoShareData,
-  UndoShareErrors,
-  UndoShareResponses,
   UndoSpeakerMergeData,
   UndoSpeakerMergeErrors,
   UndoSpeakerMergeResponses,
@@ -12901,45 +12901,45 @@ export class Circles {
   }
 
   /**
-   * List People
+   * List Circle People
    *
    * The people you can put in a circle: those you share a namespace with, and those who have you in a circle of
    * theirs (everyone, for an admin).
    */
-  public static listPeople<ThrowOnError extends boolean = false>(
-    options?: Options<ListPeopleData, ThrowOnError>,
-  ): RequestResult<ListPeopleResponses, unknown, ThrowOnError> {
-    return (options?.client ?? client).get<ListPeopleResponses, unknown, ThrowOnError>({
+  public static listCirclePeople<ThrowOnError extends boolean = false>(
+    options?: Options<ListCirclePeopleData, ThrowOnError>,
+  ): RequestResult<ListCirclePeopleResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListCirclePeopleResponses, unknown, ThrowOnError>({
       url: "/api/v1/circles/people",
       ...options,
     });
   }
 
   /**
-   * List Shares
+   * List Circle Shares
    *
    * What was shared with you (received), or what you shared (sent), newest first.
    */
-  public static listShares<ThrowOnError extends boolean = false>(
-    options?: Options<ListShares2Data, ThrowOnError>,
-  ): RequestResult<ListShares2Responses, ListShares2Errors, ThrowOnError> {
-    return (options?.client ?? client).get<ListShares2Responses, ListShares2Errors, ThrowOnError>({
+  public static listCircleShares<ThrowOnError extends boolean = false>(
+    options?: Options<ListCircleSharesData, ThrowOnError>,
+  ): RequestResult<ListCircleSharesResponses, ListCircleSharesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListCircleSharesResponses, ListCircleSharesErrors, ThrowOnError>({
       url: "/api/v1/circles/shares",
       ...options,
     });
   }
 
   /**
-   * Share
+   * Share With Circles
    *
    * Share an activity or a resource you can see with your circles, or people in them, and a note: each of them
    * sees it in their own timeline (share.received), and you see it in yours (share.sent). `with_item` also gives those
    * who can't open the resource permission on it. Audited as `circle.share`.
    */
-  public static share<ThrowOnError extends boolean = false>(
-    options: Options<ShareData, ThrowOnError>,
-  ): RequestResult<ShareResponses, ShareErrors, ThrowOnError> {
-    return (options.client ?? client).post<ShareResponses, ShareErrors, ThrowOnError>({
+  public static shareWithCircles<ThrowOnError extends boolean = false>(
+    options: Options<ShareWithCirclesData, ThrowOnError>,
+  ): RequestResult<ShareWithCirclesResponses, ShareWithCirclesErrors, ThrowOnError> {
+    return (options.client ?? client).post<ShareWithCirclesResponses, ShareWithCirclesErrors, ThrowOnError>({
       url: "/api/v1/circles/shares",
       ...options,
       headers: {
@@ -12950,14 +12950,14 @@ export class Circles {
   }
 
   /**
-   * Undo Share
+   * Undo Circle Share
    *
    * Take back a share of yours: it leaves everyone's timeline, and the permissions it gave are taken back.
    */
-  public static undoShare<ThrowOnError extends boolean = false>(
-    options: Options<UndoShareData, ThrowOnError>,
-  ): RequestResult<UndoShareResponses, UndoShareErrors, ThrowOnError> {
-    return (options.client ?? client).delete<UndoShareResponses, UndoShareErrors, ThrowOnError>({
+  public static undoCircleShare<ThrowOnError extends boolean = false>(
+    options: Options<UndoCircleShareData, ThrowOnError>,
+  ): RequestResult<UndoCircleShareResponses, UndoCircleShareErrors, ThrowOnError> {
+    return (options.client ?? client).delete<UndoCircleShareResponses, UndoCircleShareErrors, ThrowOnError>({
       url: "/api/v1/circles/shares/{sid}",
       ...options,
     });

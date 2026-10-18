@@ -25,7 +25,7 @@ class Circle(ResponseModel):
     updated_at: str | None = None
 
 
-class Circles(ResponseModel):
+class CircleList(ResponseModel):
     circles: list[Circle]
     suggested: list[str] = Field(description="names of circles people often make, which this person hasn't made yet")
 
@@ -63,7 +63,7 @@ class Shared(ResponseModel):
     granted: int = Field(description="how many members were given permission on the resource")
 
 
-class Share(ResponseModel):
+class CircleShare(ResponseModel):
     id: int
     at: str
     activity: str = Field(description="the share's own activity in your timeline")
@@ -75,7 +75,7 @@ class Share(ResponseModel):
     people: list[Person] | None = Field(None, description="who it went to (your shares)")
 
 
-class Undone(ResponseModel):
+class ShareUndone(ResponseModel):
     undone: int
     taken_back: int = Field(description="permissions on the resource taken back")
 

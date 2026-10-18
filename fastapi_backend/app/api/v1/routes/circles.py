@@ -8,7 +8,18 @@ from fastapi import APIRouter, HTTPException, Query
 from app.api.deps import Acl, Cfg, CurrentUser, Db, Principal, Writer, domain_errors
 from app.api.v1.routes import activities as activity_routes
 from app.domain import auth, circles
-from app.schemas.circles import Circle, CircleCreate, Circles, CircleUpdate, Direction, Person, Share, Shared, ShareIn, Undone
+from app.schemas.circles import (
+    Circle,
+    CircleCreate,
+    CircleList,
+    CircleShare,
+    CircleUpdate,
+    Direction,
+    Person,
+    Shared,
+    ShareIn,
+    ShareUndone,
+)
 from app.schemas.common import Ok
 
 router = APIRouter(prefix="/circles", tags=["circles"])
@@ -19,15 +30,15 @@ def me(user: Principal) -> dict:
 
 
 @router.get("")
-def list_circles(user: CurrentUser, db: Db) -> Circles:
+def list_circles(user: CurrentUser, db: Db) -> CircleList:
     """Your circles, each with its members, and the usual circles you haven't made yet."""
     mine = circles.circles(db, user.id)
     have = {c["name"].lower() for c in mine}
-    return Circles(circles=[Circle.model_validate(c) for c in mine], suggested=[n for n in circles.SUGGESTED if n.lower() not in have])
+    return CircleList(circles=[Circle.model_validate(c) for c in mine], suggested=[n for n in circles.SUGGESTED if n.lower() not in have])
 
 
 @router.get("/people")
-def list_people(user: CurrentUser, db: Db) -> list[Person]:
+def list_circle_people(user: CurrentUser, db: Db) -> list[Person]:
     """The people you can put in a circle: those you share a namespace with, and those who have you in a circle of
     theirs (everyone, for an admin)."""
     return [Person.model_validate(p) for p in circles.people(db, me(user))]
@@ -43,13 +54,15 @@ def create_circle(body: CircleCreate, user: Writer, db: Db) -> Circle:
 
 
 @router.get("/shares")
-def list_shares(user: CurrentUser, db: Db, direction: Direction = "received", limit: int = Query(50, ge=1, le=200)) -> list[Share]:
+def list_circle_shares(
+    user: CurrentUser, db: Db, direction: Direction = "received", limit: int = Query(50, ge=1, le=200)
+) -> list[CircleShare]:
     """What was shared with you (received), or what you shared (sent), newest first."""
-    return [Share.model_validate(s) for s in circles.shares(db, me(user), direction, limit)]
+    return [CircleShare.model_validate(s) for s in circles.shares(db, me(user), direction, limit)]
 
 
 @router.post("/shares", status_code=201)
-def share(body: ShareIn, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> Shared:
+def share_with_circles(body: ShareIn, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> Shared:
     """Share an activity or a resource you can see with your circles, or people in them, and a note: each of them
     sees it in their own timeline (share.received), and you see it in yours (share.sent). `with_item` also gives those
     who can't open the resource permission on it. Audited as `circle.share`."""
@@ -81,12 +94,12 @@ def share(body: ShareIn, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> Shared:
 
 
 @router.delete("/shares/{sid}")
-def undo_share(sid: int, user: Writer, db: Db) -> Undone:
+def undo_circle_share(sid: int, user: Writer, db: Db) -> ShareUndone:
     """Take back a share of yours: it leaves everyone's timeline, and the permissions it gave are taken back."""
     with domain_errors():
         out = circles.undo(db, me(user), sid)
     auth.audit(db, user.as_audit(), "circle.unshare", f"circle_share:{sid}", {"taken_back": out["taken_back"]})
-    return Undone.model_validate(out)
+    return ShareUndone.model_validate(out)
 
 
 @router.get("/{cid}")

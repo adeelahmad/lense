@@ -11154,7 +11154,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/app__schemas__recordings__Share"
+                    "$ref": "#/components/schemas/Share"
                   },
                   "title": "Response Recordings-List Shares"
                 }
@@ -29275,7 +29275,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/app__schemas__routines__Undone"
+                  "$ref": "#/components/schemas/Undone"
                 }
               }
             }
@@ -32980,7 +32980,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Circles"
+                  "$ref": "#/components/schemas/CircleList"
                 }
               }
             }
@@ -33033,9 +33033,9 @@
         "tags": [
           "circles"
         ],
-        "summary": "List People",
+        "summary": "List Circle People",
         "description": "The people you can put in a circle: those you share a namespace with, and those who have you in a circle of\ntheirs (everyone, for an admin).",
-        "operationId": "list_people",
+        "operationId": "list_circle_people",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -33046,7 +33046,7 @@
                     "$ref": "#/components/schemas/Person"
                   },
                   "type": "array",
-                  "title": "Response Circles-List People"
+                  "title": "Response Circles-List Circle People"
                 }
               }
             }
@@ -33059,9 +33059,9 @@
         "tags": [
           "circles"
         ],
-        "summary": "List Shares",
+        "summary": "List Circle Shares",
         "description": "What was shared with you (received), or what you shared (sent), newest first.",
-        "operationId": "list_shares",
+        "operationId": "list_circle_shares",
         "parameters": [
           {
             "name": "direction",
@@ -33098,9 +33098,9 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/app__schemas__circles__Share"
+                    "$ref": "#/components/schemas/CircleShare"
                   },
-                  "title": "Response Circles-List Shares"
+                  "title": "Response Circles-List Circle Shares"
                 }
               }
             }
@@ -33121,9 +33121,9 @@
         "tags": [
           "circles"
         ],
-        "summary": "Share",
+        "summary": "Share With Circles",
         "description": "Share an activity or a resource you can see with your circles, or people in them, and a note: each of them\nsees it in their own timeline (share.received), and you see it in yours (share.sent). `with_item` also gives those\nwho can't open the resource permission on it. Audited as `circle.share`.",
-        "operationId": "share",
+        "operationId": "share_with_circles",
         "requestBody": {
           "required": true,
           "content": {
@@ -33163,9 +33163,9 @@
         "tags": [
           "circles"
         ],
-        "summary": "Undo Share",
+        "summary": "Undo Circle Share",
         "description": "Take back a share of yours: it leaves everyone's timeline, and the permissions it gave are taken back.",
-        "operationId": "undo_share",
+        "operationId": "undo_circle_share",
         "parameters": [
           {
             "name": "sid",
@@ -33183,7 +33183,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/app__schemas__circles__Undone"
+                  "$ref": "#/components/schemas/ShareUndone"
                 }
               }
             }
@@ -40187,6 +40187,120 @@
         ],
         "title": "CircleCreate"
       },
+      "CircleList": {
+        "properties": {
+          "circles": {
+            "items": {
+              "$ref": "#/components/schemas/Circle"
+            },
+            "type": "array",
+            "title": "Circles"
+          },
+          "suggested": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Suggested",
+            "description": "names of circles people often make, which this person hasn't made yet"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "circles",
+          "suggested"
+        ],
+        "title": "CircleList"
+      },
+      "CircleShare": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "at": {
+            "type": "string",
+            "title": "At"
+          },
+          "activity": {
+            "type": "string",
+            "title": "Activity",
+            "description": "the share's own activity in your timeline"
+          },
+          "object": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Object"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "with_item": {
+            "type": "boolean",
+            "title": "With Item",
+            "default": false
+          },
+          "by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Person"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "who shared it (shares with you)"
+          },
+          "circles": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Circles",
+            "description": "the circles it went to (your shares)"
+          },
+          "people": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Person"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "People",
+            "description": "who it went to (your shares)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "at",
+          "activity",
+          "object"
+        ],
+        "title": "CircleShare"
+      },
       "CircleUpdate": {
         "properties": {
           "name": {
@@ -40261,32 +40375,6 @@
         "additionalProperties": false,
         "type": "object",
         "title": "CircleUpdate"
-      },
-      "Circles": {
-        "properties": {
-          "circles": {
-            "items": {
-              "$ref": "#/components/schemas/Circle"
-            },
-            "type": "array",
-            "title": "Circles"
-          },
-          "suggested": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Suggested",
-            "description": "names of circles people often make, which this person hasn't made yet"
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "required": [
-          "circles",
-          "suggested"
-        ],
-        "title": "Circles"
       },
       "ClassifyRequest": {
         "properties": {
@@ -70957,6 +71045,119 @@
         ],
         "title": "SetupView"
       },
+      "Share": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "first characters of the link's id"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active",
+            "description": "it still works: not revoked and not expired"
+          },
+          "revoked": {
+            "type": "boolean",
+            "title": "Revoked",
+            "default": false
+          },
+          "revoked_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked By"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "short": {
+            "type": "boolean",
+            "title": "Short",
+            "description": "it has a short /s/ address (links made before short links have none)",
+            "default": false
+          },
+          "plays": {
+            "type": "integer",
+            "title": "Plays",
+            "description": "times its player started playing, once per page load (not counting Lens itself)",
+            "default": 0
+          },
+          "played_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Played At",
+            "description": "the last play"
+          },
+          "embedded_on": {
+            "items": {
+              "$ref": "#/components/schemas/ShareSite"
+            },
+            "type": "array",
+            "title": "Embedded On",
+            "description": "sites whose pages framed its player, most recent first (up to 50)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "active"
+        ],
+        "title": "Share"
+      },
       "ShareCreate": {
         "properties": {
           "days": {
@@ -71154,6 +71355,26 @@
           "origin"
         ],
         "title": "ShareSite"
+      },
+      "ShareUndone": {
+        "properties": {
+          "undone": {
+            "type": "integer",
+            "title": "Undone"
+          },
+          "taken_back": {
+            "type": "integer",
+            "title": "Taken Back",
+            "description": "permissions on the resource taken back"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "undone",
+          "taken_back"
+        ],
+        "title": "ShareUndone"
       },
       "Shared": {
         "properties": {
@@ -75999,6 +76220,26 @@
         ],
         "title": "TunnelStatus"
       },
+      "Undone": {
+        "properties": {
+          "undone": {
+            "type": "integer",
+            "title": "Undone"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed",
+            "description": "changes that couldn't be undone (an entity in them was deleted since)",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "undone"
+        ],
+        "title": "Undone"
+      },
       "UpdateStatus": {
         "properties": {
           "current": {
@@ -79142,247 +79383,6 @@
           "version"
         ],
         "title": "WorkflowVersionInfo"
-      },
-      "app__schemas__circles__Share": {
-        "properties": {
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "at": {
-            "type": "string",
-            "title": "At"
-          },
-          "activity": {
-            "type": "string",
-            "title": "Activity",
-            "description": "the share's own activity in your timeline"
-          },
-          "object": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Object"
-          },
-          "note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Note"
-          },
-          "with_item": {
-            "type": "boolean",
-            "title": "With Item",
-            "default": false
-          },
-          "by": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Person"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "who shared it (shares with you)"
-          },
-          "circles": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Circles",
-            "description": "the circles it went to (your shares)"
-          },
-          "people": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/Person"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "People",
-            "description": "who it went to (your shares)"
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "required": [
-          "id",
-          "at",
-          "activity",
-          "object"
-        ],
-        "title": "Share"
-      },
-      "app__schemas__circles__Undone": {
-        "properties": {
-          "undone": {
-            "type": "integer",
-            "title": "Undone"
-          },
-          "taken_back": {
-            "type": "integer",
-            "title": "Taken Back",
-            "description": "permissions on the resource taken back"
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "required": [
-          "undone",
-          "taken_back"
-        ],
-        "title": "Undone"
-      },
-      "app__schemas__recordings__Share": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id",
-            "description": "first characters of the link's id"
-          },
-          "created_by": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Created By"
-          },
-          "created_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Created At"
-          },
-          "expires_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Expires At"
-          },
-          "active": {
-            "type": "boolean",
-            "title": "Active",
-            "description": "it still works: not revoked and not expired"
-          },
-          "revoked": {
-            "type": "boolean",
-            "title": "Revoked",
-            "default": false
-          },
-          "revoked_by": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Revoked By"
-          },
-          "revoked_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Revoked At"
-          },
-          "short": {
-            "type": "boolean",
-            "title": "Short",
-            "description": "it has a short /s/ address (links made before short links have none)",
-            "default": false
-          },
-          "plays": {
-            "type": "integer",
-            "title": "Plays",
-            "description": "times its player started playing, once per page load (not counting Lens itself)",
-            "default": 0
-          },
-          "played_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Played At",
-            "description": "the last play"
-          },
-          "embedded_on": {
-            "items": {
-              "$ref": "#/components/schemas/ShareSite"
-            },
-            "type": "array",
-            "title": "Embedded On",
-            "description": "sites whose pages framed its player, most recent first (up to 50)"
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "required": [
-          "id",
-          "active"
-        ],
-        "title": "Share"
-      },
-      "app__schemas__routines__Undone": {
-        "properties": {
-          "undone": {
-            "type": "integer",
-            "title": "Undone"
-          },
-          "failed": {
-            "type": "integer",
-            "title": "Failed",
-            "description": "changes that couldn't be undone (an entity in them was deleted since)",
-            "default": 0
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "required": [
-          "undone"
-        ],
-        "title": "Undone"
       }
     }
   }
