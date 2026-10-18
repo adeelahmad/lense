@@ -398,6 +398,10 @@ def test_a_document_is_read_not_transcribed(db, cfg, folder):
         {"type": "read"},
         {"type": "report"},
     ]
+    # only images are enhanced, so the others drop the step unless it's all that was asked for
+    assert jobs.for_source([{"type": "enhance"}, {"type": "transcribe"}], "audio") == [{"type": "transcribe"}]
+    assert jobs.for_source([{"type": "enhance"}, {"type": "transcribe"}], "image") == [{"type": "enhance"}, {"type": "read"}]
+    assert jobs.for_source([{"type": "enhance"}], "document") == [{"type": "enhance"}]
     # a worker whose steps list predates the read step runs it too
     assert "read" in jobs.Worker(db, lambda: {**cfg, "workers": {**cfg["workers"], "steps": ["transcribe"]}}, name="old").can
 

@@ -658,6 +658,7 @@ or removed does nothing. What it writes is by the automation itself, `automation
 | `http_request` | sends a `method` (GET, POST or PUT) to a `url`, with `headers` and a `body` (text, or an object sent as JSON) | out | `{status, ok, body, json, content_type, truncated, method, url, headers}`: the answer, as outside text |
 | `run_workflow` | runs a recording `workflow` (its published `version`, or the one named) on an `asset` as a job | lens | `{job, workflow, version, asset}` |
 | `run_pipeline` | processes an `asset` again with a `pipeline` (or the one its namespace uses), keeping its outputs | lens | `{job, pipeline, asset}` |
+| `enhance` | [enhances](enhance.md) an image `asset` whatever the settings, keeping the original, and reads it again from the copy | lens | `{job, asset}` |
 | `run_routine` | asks the scheduler to run a `routine` now (`propose_only` to only propose its changes) | lens, so it asks | `{routine, requested, propose_only}` |
 | `set_field` | sets one of an `asset`'s custom fields (`field`: its id or label) to `value` (empty clears it) | lens | `{asset, field, label, value, changed}` |
 | `add_to_collection` | moves an `asset` into a `collection` of its namespace | lens | `{asset, collection, name, moved, newly_see}` |

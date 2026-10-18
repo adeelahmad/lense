@@ -53,6 +53,7 @@ from app.domain import (
     chat_export,
     decide,
     descriptions,
+    enhance,
     events,
     extensions,
     feeds,
@@ -916,6 +917,8 @@ def get_recording(ctx: Context, recording_id: int) -> dict[str, Any]:
         out["web_page"] = rec.web.model_dump(exclude_none=True)
     if rec.nsfw:
         out["nsfw"] = rec.nsfw.model_dump(exclude_none=True, include={"flagged", "score", "manual", "threshold", "checked", "of"})
+    if rec.enhanced:
+        out["enhanced"] = rec.enhanced.model_dump(exclude_none=True, exclude={"download"})
     return {k: v for k, v in out.items() if v is not None}
 
 
@@ -2451,6 +2454,26 @@ def mark_nsfw(ctx: Context, recording_id: int, verdict: str) -> dict[str, Any]:
     got = nsfw.mark(ctx.db, ctx.cfg, recording_id, flagged, ctx.user.email)
     auth.audit(ctx.db, ctx.user.as_audit(), "recording.nsfw", f"recording:{recording_id}", {"flagged": flagged, "via": "mcp"})
     return {"recording_id": recording_id, "nsfw": got, "url": ctx.link(recording_id)}
+
+
+# ---------- enhancing low quality images ----------
+@tool(
+    "enhance",
+    "Enhance an image",
+    "Make an enhanced copy of an image asset (enlarged, sharpened, cleaned of noise, its contrast stretched), whatever "
+    "the settings and its quality, and read it again from that copy: its text, faces and objects. The original stays "
+    "as it is. Low quality images are enhanced on their own where an admin turned that on (enhance.images); "
+    "get_recording says what was found and done (enhanced). Editors, with a token that has the write scope.",
+    Arg("recording_id", "integer", "the image", required=True),
+    writes=True,
+)
+def enhance_image(ctx: Context, recording_id: int) -> dict[str, Any]:
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to enhance images")
+    ctx.acl.recording(recording_id, "process")
+    job = enhance.queue(ctx.db, recording_id, ctx.user.email)
+    auth.audit(ctx.db, ctx.user.as_audit(), "recording.enhance", f"recording:{recording_id}", {"job": job, "via": "mcp"})
+    return {"recording_id": recording_id, "job": job, "url": ctx.link(recording_id)}
 
 
 # ---------- a namespace's own ways in for other apps (integrations.py) ----------

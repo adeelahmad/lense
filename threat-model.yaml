@@ -8,7 +8,7 @@ project: lens
 prose_version: "threat-model.md@same-commit"
 model_status: under-review
 triage_policy: strict
-confidence: {documented: 210, maintainer: 46, inferred: 91, assumption: 8}
+confidence: {documented: 211, maintainer: 46, inferred: 91, assumption: 8}
 
 generation:
   model: "Claude Opus 5.5 (claude-opus-5-5)"
@@ -1184,6 +1184,15 @@ dependencies:
     covered_here: true
     violation_disposition: "OUT-OF-MODEL: dependency-contract"
     provenance: {kind: documented, source: 'docs/local-models.md "checked against their SHA-256"'}
+  - name: "Real-ESRGAN general x4v3 (ONNX, enhance.image_engine realesrgan, opt-in)"
+    relied_on_for: "enlarging and cleaning up low quality pictures before they're read; fetched at a pinned revision and checked against its SHA-256, run in ONNX Runtime on the CPU in fixed tiles of pictures Lens has already opened and size-checked; a model file that passes unchecked is in model"
+    relied_on_properties: [P-MODEL-CHECKSUM, model-inference]
+    caller_obligations_acknowledged: []
+    adversary_capabilities_forwarded: [supply-parsed-bytes]
+    outputs_consumed: []
+    covered_here: false
+    violation_disposition: "OUT-OF-MODEL: dependency-contract"
+    provenance: {kind: documented, source: 'docs/enhance.md "fetched the first time the step runs with it chosen"'}
   - name: "Optional ML extras (whisper, pyannote, speechbrain, insightface, doctr)"
     relied_on_for: "model inference; some fetch weights on their own"
     relied_on_properties: [model-inference]

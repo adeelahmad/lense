@@ -11119,6 +11119,49 @@
         }
       }
     },
+    "/api/v1/resources/{rid}/enhance": {
+      "post": {
+        "tags": [
+          "resources"
+        ],
+        "summary": "Enhance Recording",
+        "description": "Enhance an image whatever the settings and its quality (docs/enhance.md): an enhanced copy is made, and its\npipeline's steps after enhance (reading its text, faces, objects, \u2026) run again on that copy. The original stays as\nit is. 400 for anything but an image. Audited as `recording.enhance`.",
+        "operationId": "enhance_recording",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobQueued"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/resources/{rid}/share": {
       "post": {
         "tags": [
@@ -21042,6 +21085,55 @@
             "description": "Successful Response",
             "content": {
               "application/pdf": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{rid}/enhanced": {
+      "get": {
+        "tags": [
+          "video"
+        ],
+        "summary": "Get Enhanced",
+        "description": "The enhanced copy the enhance step made of a low quality image (docs/enhance.md), to save. Members of its\nnamespace only (a bearer token, or a signed link the API gave one): visitors get its pages, with faces pixelated\nwhere the namespace does that.",
+        "operationId": "get_enhanced",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          },
+          {
+            "name": "s",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "image/jpeg": {}
             }
           },
           "422": {
@@ -45591,6 +45683,197 @@
         "title": "EncryptionProgress",
         "description": "Converting the files already kept after encryption.files changed: `to` \"encrypted\" or \"plain\" (vaults stay\nencrypted), how many changed and how many were skipped (a locked vault, a damaged file), and why a run stopped\nearly."
       },
+      "EnhanceMeasured": {
+        "properties": {
+          "width": {
+            "type": "integer",
+            "title": "Width"
+          },
+          "height": {
+            "type": "integer",
+            "title": "Height"
+          },
+          "sharpness": {
+            "type": "number",
+            "title": "Sharpness",
+            "description": "the variance of its Laplacian: how sharply its tones change"
+          },
+          "noise": {
+            "type": "number",
+            "title": "Noise",
+            "description": "its estimated noise, in levels out of 255"
+          },
+          "contrast": {
+            "type": "number",
+            "title": "Contrast",
+            "description": "the standard deviation of its tones (0 to 255)"
+          },
+          "brightness": {
+            "type": "number",
+            "title": "Brightness",
+            "description": "the mean of its tones (0 to 255)"
+          },
+          "faces": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Faces",
+            "description": "how many faces it has, where they were looked for"
+          },
+          "smallest_face": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smallest Face",
+            "description": "the height of its smallest face, in pixels"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "width",
+          "height",
+          "sharpness",
+          "noise",
+          "contrast",
+          "brightness"
+        ],
+        "title": "EnhanceMeasured",
+        "description": "How good a picture looked to the enhance step (docs/enhance.md)."
+      },
+      "Enhanced": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "image",
+            "title": "Kind"
+          },
+          "low": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "small",
+                "blurry",
+                "noisy",
+                "dull",
+                "small_faces"
+              ]
+            },
+            "type": "array",
+            "title": "Low",
+            "description": "why it looked low quality; empty when it looked good enough"
+          },
+          "measured": {
+            "$ref": "#/components/schemas/EnhanceMeasured"
+          },
+          "enhanced": {
+            "type": "boolean",
+            "title": "Enhanced",
+            "description": "an enhanced copy was made, and the steps after it read that"
+          },
+          "engine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine",
+            "description": "what enhanced it: classic, or realesr-general-x4v3 (Real-ESRGAN)"
+          },
+          "scale": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scale",
+            "description": "how many times bigger the copy is"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width",
+            "description": "the copy's width in pixels"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "forced": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forced",
+            "description": "enhanced on request, whatever the settings and its quality"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "download": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Download",
+            "description": "a signed link to save the enhanced copy"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "kind",
+          "measured",
+          "enhanced"
+        ],
+        "title": "Enhanced",
+        "description": "What the enhance step found and did (docs/enhance.md): whether the picture looked low quality and why, and the\nenhanced copy it's read from, if one was made. The original stays as it is."
+      },
       "EnrichedDate": {
         "properties": {
           "text": {
@@ -68138,6 +68421,17 @@
               }
             ],
             "description": "NSFW classification, where it's on in its namespace and it was classified"
+          },
+          "enhanced": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Enhanced"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "an image the enhance step looked at: what it found, and its enhanced copy"
           }
         },
         "additionalProperties": true,
