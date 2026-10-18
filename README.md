@@ -267,13 +267,14 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [the upgrade check](docs/database.md#checked-before-every-release);
   [checks](docs/requirements.md#keep-it-up-to-date-and-backed-up))
 - **Watch it run.** Structured logs from every process, read in Settings › Logs and optionally sent to a syslog
-  server, or straight to Grafana Loki or another HTTP endpoint. OpenTelemetry traces and metrics, and a Prometheus `/metrics` endpoint, both off until you turn them on, and
-  sending nothing anywhere else. On a Docker install, one switch in the web app (or one API call from an agent) starts
+  server, or straight to Grafana Loki or another HTTP endpoint, with client certificates for servers that ask for one.
+  OpenTelemetry traces and metrics, and a Prometheus `/metrics` endpoint, both off until you turn them on, and sending
+  nothing anywhere else. On a Docker install, one switch in the web app (or one API call from an agent) starts
   Prometheus, node-exporter and Grafana next to Lens, already connected, with the Lens dashboard as Grafana's home.
-  Activity clears the job queue, reorders it by drag and drop and retries every failed run at once; agents do the
-  same through the API and MCP.
-  The Analytics page shows admins active people, churn, retention and which features get used, worked out on this
-  machine; the same daily events can also go to a Google Analytics 4 property of your own (off unless you turn it on).
+  Activity clears the job queue, reorders it by drag and drop and retries every failed run at once; agents do the same
+  through the API and MCP. The Analytics page shows admins active people, churn, retention and which features get
+  used, worked out on this machine; the same daily events can also go to a Google Analytics 4 property of your own
+  (off unless you turn it on).
   ([Logging](docs/logging.md), [telemetry](docs/telemetry.md), [Prometheus](docs/prometheus.md),
   [usage analytics](docs/analytics.md); [checks](docs/requirements.md#watch-it-run))
 - **Stay private and safe.** Passkeys instead of passwords (one at Lens's remote address added from a signed-in one with
@@ -333,7 +334,6 @@ Next, and not in a pull request yet; each links to where it is tracked:
 - **Storage:** uploads and assets' media in the file store, and a storage key to download
   ([storage](docs/storage.md)).
 - **Secrets:** references in sources' credentials and MCP servers ([secrets](docs/secrets.md)).
-- **Logging:** client certificates for syslog over TLS ([logging](docs/logging.md)).
 - **Proof:** the install timed on a real Raspberry Pi, where GitHub's faster arm64 runner gives only a floor
   ([scorecard](docs/contributing.md#scorecard)).
 

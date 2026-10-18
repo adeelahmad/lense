@@ -1100,6 +1100,8 @@ function LogsBody({ ctx }: { ctx: BodyCtx }) {
   const httpFailing = Boolean(hs?.last_error && (!hs.last_sent || (hs.error_at ?? 0) > hs.last_sent));
   const headersSecret = (saved.http_headers ?? {}) as { set?: boolean };
   const headers = ctx.state("logs.http_headers");
+  const certSecret = (saved.client_cert ?? {}) as { set?: boolean };
+  const cert = ctx.state("logs.client_cert");
   return (
     <>
       {httpOn && hs && (
@@ -1226,6 +1228,22 @@ function LogsBody({ ctx }: { ctx: BodyCtx }) {
           </Banner>
         ))}
       {testHttp.isError && <Banner tone="error">{testHttp.error.message}</Banner>}
+      <SecretSetting
+        key={`cert-${l?.updated_at ?? "none"}`}
+        label="Client certificate"
+        placeholder="-----BEGIN CERTIFICATE-----… -----BEGIN PRIVATE KEY-----…"
+        isSet={Boolean(certSecret.set)}
+        saved={certSecret}
+        updatedBy={l?.updated_by}
+        updatedAt={l?.updated_at}
+        value={cert.value as string | undefined}
+        onChange={(x) => cert.onChange(x)}
+      />
+      <p className="-mt-2 text-[12px] text-fg-muted">
+        Optional, for syslog over TLS and https endpoints that ask for one (mutual TLS): this machine’s certificate and
+        its unencrypted key, as PEM. Pasted line breaks needn’t survive.
+      </p>
+      <F ctx={ctx} id="logs.server_ca" />
       <LogViewer />
     </>
   );

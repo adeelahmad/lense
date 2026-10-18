@@ -59,7 +59,14 @@ and Settings → Logs shows how many lines the API has sent and dropped and the 
 rsyslog, syslog-ng, Graylog, Grafana Loki (through promtail or Alloy's syslog receiver), Splunk, Papertrail and most
 log tools take RFC 5424 syslog.
 
-Not yet built: client certificates for TLS.
+### Client certificates and a private CA
+
+A log server that wants to know who is sending (mutual TLS) asks for a client certificate. Paste this machine's
+certificate and its unencrypted private key, as PEM, into **Client certificate**: Lens shows it to syslog over TLS and
+to an https endpoint. It's stored encrypted and never shown again; line breaks lost in pasting are put back, and a
+certificate without its key, or one ssl can't load, isn't saved. When a private CA signed the log server's own
+certificate, paste that CA's certificate into **Server's CA certificate**, and Lens checks the server against it
+instead of the system's CAs (with **Verify the certificate** on).
 
 ## Sending to Loki or another HTTP endpoint
 

@@ -33,6 +33,7 @@ import re
 import socket
 import ssl
 import sys
+import tempfile
 import threading
 import time
 import urllib.parse
@@ -245,6 +246,7 @@ def _wanted(cfg):
             s.get("syslog_framing") if s.get("syslog_framing") in ("octet", "newline") else "octet",
             s.get("syslog_verify") is not False,
             s.get("syslog_app_name") or "lens",
+            *_certs(s),
         )
     http = None
     if s.get("http") and s.get("http_url"):
@@ -254,6 +256,7 @@ def _wanted(cfg):
             level(s.get("http_level")),
             s.get("http_headers") if isinstance(s.get("http_headers"), str) else None,
             s.get("http_verify") is not False,
+            *_certs(s),
         )
     levels = s.get("levels") if isinstance(s.get("levels"), dict) else {}
     return (
@@ -266,6 +269,16 @@ def _wanted(cfg):
         ship,
         http,
     )
+
+
+def _certs(s):
+    """(client certificate and key, server CA) as PEM text, or None each: for syslog over TLS and https endpoints."""
+    out = []
+    for k in ("client_cert", "server_ca"):
+        v = s.get(k) if isinstance(s.get(k), str) and s.get(k) else None
+        blocks = PEM_RX.findall(v) if v else []
+        out.append(_rebuild(blocks) if blocks else v)  # one read from a password manager may have lost its line breaks
+    return tuple(out)
 
 
 def file_name(role=None):
@@ -387,11 +400,68 @@ def rfc5424(r, facility, fmt, app_name, host=None):
     return (head + " " + body).encode("utf-8", "replace")[:MAX_BYTES]
 
 
+def tls_context(verify=True, client_cert=None, server_ca=None):
+    """An ssl context for a log server: its certificate checked against the system's CAs, or `server_ca` (PEM) when
+    given, unless verify is off; and this machine's own certificate and key (`client_cert`, PEM, for servers that ask
+    for one: mutual TLS). ValueError when a PEM doesn't load."""
+    ctx = ssl.create_default_context()
+    if server_ca:
+        try:
+            ctx = ssl.create_default_context(cadata=server_ca)
+        except (ssl.SSLError, ValueError) as e:
+            raise ValueError(f"the log server's CA certificate doesn't load: {e}") from None
+    if not verify:
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    if client_cert:
+        # ssl loads a certificate and key only from a file: one only this process can read, gone once loaded
+        fd, path = tempfile.mkstemp(prefix="lens-cert-", suffix=".pem")
+        try:
+            with os.fdopen(fd, "w") as f:
+                f.write(client_cert)
+            ctx.load_cert_chain(path)
+        except (ssl.SSLError, OSError) as e:
+            raise ValueError(f"the client certificate doesn't load (a PEM certificate and its unencrypted key): {e}") from None
+        finally:
+            with contextlib.suppress(OSError):
+                os.unlink(path)
+    return ctx
+
+
+PEM_RX = re.compile(r"-----BEGIN ([A-Z0-9 ]{1,40})-----(.*?)-----END \1-----", re.S)
+
+
+def _rebuild(blocks):
+    out = []
+    for kind, body in blocks:
+        b64 = "".join(body.split())
+        out.append(f"-----BEGIN {kind}-----\n" + "\n".join(b64[i : i + 64] for i in range(0, len(b64), 64)) + f"\n-----END {kind}-----\n")
+    return "".join(out)
+
+
+def pem(text, key=False):
+    """`text` as PEM that ssl takes, its blocks rebuilt (a password field pasted into loses the line breaks); a
+    certificate, and with `key` its private key too. ValueError otherwise."""
+    want = "a PEM certificate" + (" and its private key" if key else "")
+    blocks = PEM_RX.findall(text) if isinstance(text, str) and len(text) <= 64_000 else []
+    if not blocks:
+        raise ValueError(f"paste {want}, from -----BEGIN to -----END")
+    text = _rebuild(blocks)
+    if key:
+        if not any("PRIVATE KEY" in k for k, _ in blocks):
+            raise ValueError(f"paste {want}: the key (-----BEGIN PRIVATE KEY-----, unencrypted) is missing")
+        tls_context(client_cert=text)
+    else:
+        tls_context(server_ca=text)
+    return text
+
+
 class Sender:
     """A connection to a syslog server; `send` raises OSError when the line couldn't go."""
 
-    def __init__(self, host, port, transport, framing="octet", verify=True, timeout=5.0):
+    def __init__(self, host, port, transport, framing="octet", verify=True, timeout=5.0, client_cert=None, server_ca=None):
         self.host, self.port, self.transport, self.framing, self.verify, self.timeout = host, port, transport, framing, verify, timeout
+        self.client_cert, self.server_ca = client_cert, server_ca
         self.sock = None
 
     def _connect(self):
@@ -406,10 +476,10 @@ class Sender:
             try:
                 s.connect(addr)
                 if self.transport == "tls":
-                    ctx = ssl.create_default_context()
-                    if not self.verify:
-                        ctx.check_hostname = False
-                        ctx.verify_mode = ssl.CERT_NONE
+                    try:
+                        ctx = tls_context(self.verify, self.client_cert, self.server_ca)
+                    except ValueError as e:
+                        raise OSError(str(e)) from None
                     s = ctx.wrap_socket(s, server_hostname=self.host)
                 return s
             except OSError as e:
@@ -441,12 +511,12 @@ class Sender:
 class SyslogHandler(logging.Handler):
     """Queues each record and sends it from a background thread; never blocks the caller."""
 
-    def __init__(self, host, port, transport, lvl, facility, fmt, framing, verify, app_name):
+    def __init__(self, host, port, transport, lvl, facility, fmt, framing, verify, app_name, client_cert=None, server_ca=None):
         super().__init__()
         self.addFilter(Gate(lvl))
         self.facility, self.fmt, self.app_name = facility, fmt, app_name
         self.target = f"{transport}://{host}:{port}"
-        self.sender = Sender(host, port, transport, framing, verify)
+        self.sender = Sender(host, port, transport, framing, verify, client_cert=client_cert, server_ca=server_ca)
         self.q = queue.Queue(QUEUE)
         self.stats = {"sent": 0, "dropped": 0, "last_sent": None, "last_error": None, "error_at": None}
         self._stop = threading.Event()
@@ -519,12 +589,15 @@ def test_send(cfg):
     if not s.get("syslog_host"):
         return False, "set the syslog server's address first", None
     transport = s.get("syslog_transport") if s.get("syslog_transport") in TRANSPORTS else "udp"
+    client_cert, server_ca = _certs(s)
     sender = Sender(
         str(s["syslog_host"]),
         int(s.get("syslog_port") or 514),
         transport,
         s.get("syslog_framing") or "octet",
         s.get("syslog_verify") is not False,
+        client_cert=client_cert,
+        server_ca=server_ca,
     )
     r = logging.LogRecord("lens.logs", logging.INFO, __file__, 0, "Lens %s: test message from Settings → Logs", (__version__,), None)
     t = time.monotonic()
@@ -603,14 +676,15 @@ def _check_host(url):
 class HttpSender:
     """POSTs batches of records to one endpoint; `send` raises OSError when a batch didn't go."""
 
-    def __init__(self, url, kind, header_text=None, verify=True, timeout=10.0):
+    def __init__(self, url, kind, header_text=None, verify=True, timeout=10.0, client_cert=None, server_ca=None):
         import httpx  # only when an endpoint is set
 
         self.url, self.kind = url, kind
         self.headers = headers(header_text) if header_text else {}
+        tls = tls_context(verify, client_cert, server_ca) if (client_cert or server_ca) else verify
         # no redirects (a token never follows one to another server), no proxy from the environment: a log server is
         # usually on this network, and what happens to the lines is the admin's choice alone
-        self.client = httpx.Client(timeout=timeout, verify=verify, follow_redirects=False, trust_env=False)
+        self.client = httpx.Client(timeout=timeout, verify=tls, follow_redirects=False, trust_env=False)
         self._error = httpx.HTTPError
 
     def send(self, records):
@@ -631,11 +705,11 @@ class HttpSender:
 class HttpHandler(logging.Handler):
     """Queues each record and sends them in batches from a background thread; never blocks the caller."""
 
-    def __init__(self, url, kind, lvl, header_text, verify):
+    def __init__(self, url, kind, lvl, header_text, verify, client_cert=None, server_ca=None):
         super().__init__()
         self.addFilter(Gate(lvl))
         self.target = url
-        self.sender = HttpSender(url, kind, header_text, verify)
+        self.sender = HttpSender(url, kind, header_text, verify, client_cert=client_cert, server_ca=server_ca)
         self.q = queue.Queue(QUEUE)
         self.stats = {"sent": 0, "dropped": 0, "last_sent": None, "last_error": None, "error_at": None}
         self._stop = threading.Event()
@@ -723,11 +797,14 @@ def test_http(cfg):
     t = time.monotonic()
     sender = None
     try:
+        client_cert, server_ca = _certs(s)
         sender = HttpSender(
             push_url(str(s["http_url"]), _kind(s)),
             _kind(s),
             s.get("http_headers") if isinstance(s.get("http_headers"), str) else None,
             s.get("http_verify") is not False,
+            client_cert=client_cert,
+            server_ca=server_ca,
         )
         sender.send([record(r)])
         return True, None, int((time.monotonic() - t) * 1000)
