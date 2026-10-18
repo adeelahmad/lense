@@ -198,14 +198,15 @@ TOOLS = [
         "approvals",
         "What waits for the person's pick, newest first: automations' actions that ask first and your own proposals in "
         "this conversation, each with what it would do, why (the activity that caused it), when it expires and where "
-        "the person decides it. One by id, or by status (pending, the default, or any), origin (automation or chat) or "
-        "automation; give next as before for more. Only the person approves, in Lens or their chat app: you can list "
-        "and decline.",
+        "the person decides it. One by id, or by status (pending, the default, or any), origin (automation or chat), "
+        "automation or the activity that caused them (activity, an id from timeline); give next as before for more. "
+        "Only the person approves, in Lens or their chat app: you can list and decline.",
         {
             "id": _I,
             "status": {"type": "string", "enum": ["pending", "done", "failed", "declined", "expired", "any"]},
             "origin": {"type": "string", "enum": ["automation", "chat"]},
             "automation": _I,
+            "activity": _S,
             "before": _I,
             "limit": _I,
         },
@@ -1752,7 +1753,7 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
             return a.get("space") is None or a["space"] in self.readable
         return a.get("chat") == self.chat
 
-    def t_approvals(self, id=None, status=None, origin=None, automation=None, before=None, limit=20):
+    def t_approvals(self, id=None, status=None, origin=None, automation=None, before=None, limit=20, activity=None):
         from . import approvals
 
         web = approvals.link(self.cfg, self.db, 0).removesuffix("/approvals?id=0")
@@ -1763,7 +1764,7 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
             return {"approval": approvals.brief(a, web)}, f"Read the approval “{a.get('summary')}”"
         n = max(1, min(int(limit or 20), 50))
         st = None if status == "any" else status or "pending"
-        rows = approvals.listing(self.db, self.account, st, origin, automation, None, before, n)
+        rows = approvals.listing(self.db, self.account, st, origin, automation, None, before, n, activity=activity)
         out = [approvals.brief(a, web) for a in rows if self._approval_seen(a)]
         nxt = rows[-1]["id"] if len(rows) >= n else None
         return {"approvals": out, "next": nxt}, f"Read {len(out)} approval{'' if len(out) == 1 else 's'}"

@@ -3569,6 +3569,28 @@ export type BudgetStatus = {
 };
 
 /**
+ * Caused
+ *
+ * What an activity caused, for the person asking: the runs it started of the automations they manage, and the
+ * approvals those runs asked them for (on an approval.waiting activity, that approval itself).
+ */
+export type Caused = {
+  /**
+   * Runs
+   *
+   * the automation runs it started, newest first
+   */
+  runs?: Array<AutomationRun>;
+  /**
+   * Approvals
+   *
+   * the approvals it led to, newest first, with what you can do
+   */
+  approvals?: Array<Approval>;
+  [key: string]: unknown;
+};
+
+/**
  * ChangeAsk
  */
 export type ChangeAsk = {
@@ -33285,6 +33307,36 @@ export type GetActivityResponses = {
 
 export type GetActivityResponse = GetActivityResponses[keyof GetActivityResponses];
 
+export type ActivityCausedData = {
+  body?: never;
+  path: {
+    /**
+     * Activity Id
+     */
+    activity_id: string;
+  };
+  query?: never;
+  url: "/api/v1/activities/{activity_id}/caused";
+};
+
+export type ActivityCausedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ActivityCausedError = ActivityCausedErrors[keyof ActivityCausedErrors];
+
+export type ActivityCausedResponses = {
+  /**
+   * Successful Response
+   */
+  200: Caused;
+};
+
+export type ActivityCausedResponse = ActivityCausedResponses[keyof ActivityCausedResponses];
+
 export type MarkActivityData = {
   body: MarkIn;
   path: {
@@ -46444,6 +46496,12 @@ export type ListApprovalsData = {
      * Automation
      */
     automation?: number | null;
+    /**
+     * Activity
+     *
+     * those an activity caused, by its id
+     */
+    activity?: string | null;
     /**
      * Before
      *

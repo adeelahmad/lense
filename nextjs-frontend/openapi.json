@@ -5635,6 +5635,49 @@
         }
       }
     },
+    "/api/v1/activities/{activity_id}/caused": {
+      "get": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "Activity Caused",
+        "description": "What an activity caused: the runs of your automations it started and the approvals they asked you for, each\nwith what you can do (approve, decline) at `POST /api/v1/approvals/{id}`. On an approval.waiting activity, that\napproval.",
+        "operationId": "activity_caused",
+        "parameters": [
+          {
+            "name": "activity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Activity Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Caused"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/activities/{activity_id}/mark": {
       "post": {
         "tags": [
@@ -27293,7 +27336,7 @@
           "chats"
         ],
         "summary": "List Approvals",
-        "description": "What waits for your pick (and what became of it), newest first: the assistant's proposals and automations'\nactions. Filter by `status` (pending is waiting), `origin` (automation or chat), one `automation` or one chat\n(`chat_id`); page with `before`.",
+        "description": "What waits for your pick (and what became of it), newest first: the assistant's proposals and automations'\nactions. Filter by `status` (pending is waiting), `origin` (automation or chat), one `automation`, one chat\n(`chat_id`) or the `activity` that caused them; page with `before`.",
         "operationId": "list_approvals",
         "parameters": [
           {
@@ -27371,6 +27414,25 @@
               ],
               "title": "Automation"
             }
+          },
+          {
+            "name": "activity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 120
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "those an activity caused, by its id",
+              "title": "Activity"
+            },
+            "description": "those an activity caused, by its id"
           },
           {
             "name": "before",
@@ -42180,6 +42242,30 @@
           "next"
         ],
         "title": "BudgetStatus"
+      },
+      "Caused": {
+        "properties": {
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/AutomationRun"
+            },
+            "type": "array",
+            "title": "Runs",
+            "description": "the automation runs it started, newest first"
+          },
+          "approvals": {
+            "items": {
+              "$ref": "#/components/schemas/Approval"
+            },
+            "type": "array",
+            "title": "Approvals",
+            "description": "the approvals it led to, newest first, with what you can do"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "Caused",
+        "description": "What an activity caused, for the person asking: the runs it started of the automations they manage, and the\napprovals those runs asked them for (on an approval.waiting activity, that approval itself)."
       },
       "ChangeAsk": {
         "properties": {

@@ -145,9 +145,18 @@ def _decided(db, rows):
     return out
 
 
+WAITING_RX = re.compile(r"^ask-approval-(\d+)$")
+
+
+def waiting_id(activity_id):
+    """The approval an approval.waiting activity is about (ask-approval-<id>), else None."""
+    m = WAITING_RX.match(str(activity_id or ""))
+    return int(m.group(1)) if m else None
+
+
 class _ApprovalSource(events.Source):
     col = "created_at"
-    rx = re.compile(r"^ask-approval-(\d+)$")
+    rx = WAITING_RX
     more = ""
 
     def _make(self, db, rows):

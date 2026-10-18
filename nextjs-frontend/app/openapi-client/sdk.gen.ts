@@ -17,6 +17,9 @@ import type {
   ActionsData,
   ActionsErrors,
   ActionsResponses,
+  ActivityCausedData,
+  ActivityCausedErrors,
+  ActivityCausedResponses,
   AddAssistantMemoryData,
   AddAssistantMemoryErrors,
   AddAssistantMemoryResponses,
@@ -4392,6 +4395,22 @@ export class Activities {
   ): RequestResult<GetActivityResponses, GetActivityErrors, ThrowOnError> {
     return (options.client ?? client).get<GetActivityResponses, GetActivityErrors, ThrowOnError>({
       url: "/api/v1/activities/{activity_id}",
+      ...options,
+    });
+  }
+
+  /**
+   * Activity Caused
+   *
+   * What an activity caused: the runs of your automations it started and the approvals they asked you for, each
+   * with what you can do (approve, decline) at `POST /api/v1/approvals/{id}`. On an approval.waiting activity, that
+   * approval.
+   */
+  public static activityCaused<ThrowOnError extends boolean = false>(
+    options: Options<ActivityCausedData, ThrowOnError>,
+  ): RequestResult<ActivityCausedResponses, ActivityCausedErrors, ThrowOnError> {
+    return (options.client ?? client).get<ActivityCausedResponses, ActivityCausedErrors, ThrowOnError>({
+      url: "/api/v1/activities/{activity_id}/caused",
       ...options,
     });
   }
@@ -11160,8 +11179,8 @@ export class Chats {
    * List Approvals
    *
    * What waits for your pick (and what became of it), newest first: the assistant's proposals and automations'
-   * actions. Filter by `status` (pending is waiting), `origin` (automation or chat), one `automation` or one chat
-   * (`chat_id`); page with `before`.
+   * actions. Filter by `status` (pending is waiting), `origin` (automation or chat), one `automation`, one chat
+   * (`chat_id`) or the `activity` that caused them; page with `before`.
    */
   public static listApprovals<ThrowOnError extends boolean = false>(
     options?: Options<ListApprovalsData, ThrowOnError>,
