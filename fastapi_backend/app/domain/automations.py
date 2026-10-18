@@ -1213,9 +1213,13 @@ def run_now(db, cfg, aid, user, activity=None, alias=None):
     return {"run": got["run"], "status": got["status"], "why": got["why"]}
 
 
+NEXT_TIMERS = ("schedule.next", "automation.fire")  # timers that start a run (timers.SCHEDULE, timers.FIRE)
+
+
 def extras(db, rows):
-    """What lists show next to each automation: its intents waiting for a pick or a time, and what it cost this
-    month (an estimate when some calls had no price)."""
+    """What lists show next to each automation: its triggers in words, its runs today, when it runs next (its
+    soonest clock or relative timer), its intents waiting for a pick or a time, and what it cost this month (an
+    estimate when some calls had no price)."""
     if not rows:
         return rows
     ids = [r["id"] for r in rows]
@@ -1226,10 +1230,32 @@ def extras(db, rows):
         a=ids,
     ):
         waiting[i["automation"]] = i["n"]
+    today = _now().replace(hour=0, minute=0, second=0, microsecond=0)
+    runs = {
+        r["automation"]: r["n"]
+        for r in db.rows(
+            "SELECT automation, count() AS n FROM automation_run WHERE automation IN $a AND started_at >= $t AND !dry GROUP BY automation",
+            a=ids,
+            t=_iso(today),
+        )
+    }
+    nexts: dict = {}
+    for t in db.rows(
+        "SELECT automation, at FROM timer WHERE automation IN $a AND status = 'waiting' AND kind IN $k ORDER BY at",
+        a=ids,
+        k=list(NEXT_TIMERS),
+    ):
+        nexts.setdefault(t["automation"], t["at"])
     month = _now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     costs = activity_mod.costs(db, [f"automation:{i}" for i in ids], _iso(month))
     for r in rows:
         c = costs.get(f"automation:{r['id']}") or {}
         r["waiting"] = int(waiting.get(r["id"]) or 0)
+        r["runs_today"] = int(runs.get(r["id"]) or 0)
+        r["next_at"] = nexts.get(r["id"])
+        try:
+            r["reads"] = match.describe_triggers(r.get("triggers"), r.get("join"))
+        except (KeyError, ValueError, TypeError):  # a trigger saved before a kind was renamed reads as written
+            r["reads"] = None
         r["cost_month"] = {"cost_usd": c.get("cost_usd") or 0.0, "estimate": bool(c.get("estimate"))}
     return rows

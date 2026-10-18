@@ -90,6 +90,9 @@ four-colour loop (Transcribe blue, Diarize red, Analyze green, Summarize and Rep
   yet. Refreshing data already on screen (polling, refetching after a change) and anything quicker than 150 ms don't
   show it.
 * Streams (job events, chat answers) use `streamSSE()` with the session's access token.
+* **Reading again after a change** the server just made: `refetchFresh(qc, key)` (`components/chat/data.ts`), not
+  `invalidateQueries` alone. A query's first read still on its way was asked before the change, and invalidating waits
+  for that read rather than making a new one, so a new conversation showed its question without the answer just saved.
 * Media links in API responses are signed relative URLs; the proxy serves them from the app's origin, so they work in
   `<audio>`, `<video>` and `<img>`.
 
