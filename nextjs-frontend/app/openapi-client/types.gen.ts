@@ -21835,6 +21835,170 @@ export type SecretFlag = {
 };
 
 /**
+ * SecretProvider
+ */
+export type SecretProvider = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Scheme
+   *
+   * how references to it start (vaultwarden://…); none for the built-in store
+   */
+  scheme?: string | null;
+  /**
+   * Configured
+   *
+   * set up, so a reference to it can be read
+   */
+  configured: boolean;
+  /**
+   * Scope
+   *
+   * what it reads, in words: never a secret
+   */
+  scope?: string | null;
+  /**
+   * Url
+   */
+  url?: string | null;
+  /**
+   * Email
+   */
+  email?: string | null;
+  /**
+   * Folder
+   */
+  folder?: string | null;
+  /**
+   * Installed
+   *
+   * its client is fetched (a component), when it needs one
+   */
+  installed?: boolean | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SecretReference
+ */
+export type SecretReference = {
+  /**
+   * Section
+   */
+  section: string;
+  /**
+   * Key
+   */
+  key: string;
+  /**
+   * Ref
+   *
+   * the reference the field holds, like vaultwarden://OpenAI/password
+   */
+  ref: string;
+  /**
+   * Provider
+   */
+  provider: string;
+  /**
+   * Read
+   *
+   * whether its value could be read by this server process; null before the first read
+   */
+  read?: boolean | null;
+  /**
+   * Error
+   *
+   * why it couldn't be read, last time it was tried
+   */
+  error?: string | null;
+  /**
+   * Read At
+   *
+   * when its value was last read
+   */
+  read_at?: string | null;
+  /**
+   * Missing
+   *
+   * the password manager answered that the item or field isn't there
+   */
+  missing?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * SecretsTestResult
+ */
+export type SecretsTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Items
+   *
+   * how many items the folder Lens reads holds
+   */
+  items?: number | null;
+  /**
+   * Folder
+   */
+  folder?: string | null;
+  /**
+   * Account
+   */
+  account?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SecretsTry
+ */
+export type SecretsTry = {
+  /**
+   * Provider
+   */
+  provider?: string;
+};
+
+/**
+ * SecretsView
+ */
+export type SecretsView = {
+  /**
+   * Providers
+   */
+  providers: Array<SecretProvider>;
+  /**
+   * References
+   *
+   * every secret field that refers to a password manager
+   */
+  references: Array<SecretReference>;
+  /**
+   * Fields
+   *
+   * every secret field in Settings: section, key, set, and its ref when it holds one
+   */
+  fields: Array<{
+    [key: string]: unknown;
+  }>;
+  [key: string]: unknown;
+};
+
+/**
  * SegmentEdit
  */
 export type SegmentEdit = {
@@ -26604,6 +26768,58 @@ export type VaultAnswer = {
 };
 
 /**
+ * VaultItem
+ */
+export type VaultItem = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Type
+   *
+   * login, note, card, identity or other
+   */
+  type: string;
+  /**
+   * Fields
+   *
+   * the names of the fields that hold something
+   */
+  fields: Array<string>;
+  /**
+   * Ref
+   *
+   * the reference to the item's default field (a login's password, a note's text)
+   */
+  ref?: string | null;
+  /**
+   * Refs
+   *
+   * the reference to each field
+   */
+  refs?: {
+    [key: string]: string;
+  };
+  [key: string]: unknown;
+};
+
+/**
+ * VaultItems
+ */
+export type VaultItems = {
+  /**
+   * Provider
+   */
+  provider: string;
+  /**
+   * Items
+   */
+  items: Array<VaultItem>;
+  [key: string]: unknown;
+};
+
+/**
  * VaultPasskey
  *
  * A passkey that opens a vault.
@@ -30246,6 +30462,92 @@ export type ReindexSearchResponses = {
 };
 
 export type ReindexSearchResponse = ReindexSearchResponses[keyof ReindexSearchResponses];
+
+export type GetSecretsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/secrets";
+};
+
+export type GetSecretsResponses = {
+  /**
+   * Successful Response
+   */
+  200: SecretsView;
+};
+
+export type GetSecretsResponse = GetSecretsResponses[keyof GetSecretsResponses];
+
+export type ListVaultItemsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Provider
+     *
+     * the password manager
+     */
+    provider?: string;
+    /**
+     * Q
+     *
+     * part of an item's name
+     */
+    q?: string | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/secrets/items";
+};
+
+export type ListVaultItemsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListVaultItemsError = ListVaultItemsErrors[keyof ListVaultItemsErrors];
+
+export type ListVaultItemsResponses = {
+  /**
+   * Successful Response
+   */
+  200: VaultItems;
+};
+
+export type ListVaultItemsResponse = ListVaultItemsResponses[keyof ListVaultItemsResponses];
+
+export type TestSecretsData = {
+  /**
+   * Body
+   */
+  body?: SecretsTry | null;
+  path?: never;
+  query?: never;
+  url: "/api/v1/secrets/test";
+};
+
+export type TestSecretsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TestSecretsError = TestSecretsErrors[keyof TestSecretsErrors];
+
+export type TestSecretsResponses = {
+  /**
+   * Successful Response
+   */
+  200: SecretsTestResult;
+};
+
+export type TestSecretsResponse = TestSecretsResponses[keyof TestSecretsResponses];
 
 export type RemoteBackupsData = {
   body?: never;
