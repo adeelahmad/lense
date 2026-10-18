@@ -6,8 +6,11 @@ single connection that was a self-deadlock that froze the whole server (seen in 
 from __future__ import annotations
 
 import threading
+import types
 
 import pytest
+
+from app.domain import store
 
 
 def _in_time(fn, seconds=15):
@@ -55,3 +58,19 @@ def test_the_connection_comes_back_to_the_pool_afterwards(db):
     assert _in_time(run) == ([1], [4])
     # another thread is not given this thread's connection: it takes it from the pool, after it is back
     assert _in_time(lambda: db.values("RETURN 5")) == [5]
+
+
+def test_against_a_server_a_nested_query_takes_another_connection():
+    """The SDK sends on a server connection under a lock the same thread cannot take twice, so sharing the held one
+    would hang there too; a server has a pool, and the inner query takes a second connection from it."""
+    d = store.DB.__new__(store.DB)
+    d.url, d.embedded, d._size = "ws://test", False, 2
+    d._pool, d._held, d._grow_lock = store.queue.LifoQueue(), store.threading.local(), store.threading.Lock()
+    first, second = types.SimpleNamespace(socket=None), types.SimpleNamespace(socket=None)
+    d._all = [first, second]
+    d._pool.put(second)
+    d._pool.put(first)
+    with d.conn() as outer, d.conn() as inner:
+        assert outer is first and inner is second
+        assert d._held.c is inner
+    assert d._held.c is None and d._pool.qsize() == 2

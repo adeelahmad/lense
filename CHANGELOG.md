@@ -29,6 +29,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   two, before or after a time or within a duration, falls on certain days or times of day, and whether a value changed
   since the last activity. Each value is checked when it's saved, and patterns that could tie up the worker are refused
   ([Operators](docs/automations.md#operators)).
+- **Automations look back.** An automation's If can ask whether something like this happened before: activities of
+  some kinds within a time, from the same sender or about the same thing, at least or at most so many times, looked for
+  only in the automation's namespaces and only as its person may see them. `changed` in a trigger's where or an If
+  compares each activity with the last one, and trying an automation keeps nothing
+  ([Looking back](docs/automations.md#looking-back)).
 - **Specs from transcripts.** Turn a voice session or a meeting into a technical spec, saved as a note linked to it:
   the model writes the spec, then lists every named decision, every "no" and "not that, this", every constraint and
   every gap the speaker left to decide later, each with its quote and a link to the moment it was said; a quote the
@@ -79,6 +84,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Agents follow news feeds.** `subscribe_feed` (MCP and the assistant, admins) follows a feed into a namespace in one
   step, checked before it's kept; `news_feeds` lists them and `unsubscribe_feed` stops one
   ([News feeds](docs/processing.md#news-feeds-rss-and-atom)).
+- **Fixed: Lens could freeze after an answer.** When a browser left a streaming answer early, the cleanup of that
+  stream could wait for a database connection its own thread already held, and every request after it waited too.
+  A query made inside another on the same thread now runs on that connection
+  ([Concurrency](docs/database.md#concurrency)).
 
 ## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
 
