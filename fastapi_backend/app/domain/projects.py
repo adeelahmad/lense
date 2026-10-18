@@ -295,8 +295,12 @@ def note(db, p, cid, cfg=None):
     if cid == p.get("coordinator"):
         rows = threads(db, p)[:NOTE_THREADS]
         lines = [
-            f"- thread {t['id']}: {t['title']}" + (" (done)" if t["done"] else "") + (f" (last: {t['last']['text']})" if t.get("last") else "")
+            f"- thread {t['id']}: {t['title']}"
+            + (" (done)" if t["done"] else "")
+            + (f" (last: {t['last']['text']})" if t.get("last") else "")
             for t in rows
         ]
-        out += "\n\nThe project's threads, the most recent first:\n" + (untrusted.wrap("\n".join(lines), "project threads", cfg) if lines else "(none yet)")
+        out += "\n\nThe project's threads, the most recent first:\n" + (
+            untrusted.wrap("\n".join(lines), "project threads", cfg) if lines else "(none yet)"
+        )
     return out

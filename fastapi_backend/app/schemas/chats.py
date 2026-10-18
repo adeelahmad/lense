@@ -80,6 +80,8 @@ class ChatSummary(ResponseModel):
     model: str | None = Field(None, description="the model chosen for this conversation; null: the configured one")
     tools: list[str] | None = Field(None, description="the tool groups and tools its answers may use; null: Auto")
     max_tool_calls: int | None = Field(None, description="at most this many tool calls in each answer; null: no limit but the rounds")
+    project: int | None = Field(None, description="the project it's in (GET /projects/{id}): one of its threads, or its coordinator")
+    done: bool = Field(False, description="a project's thread marked done")
     created_at: str | None = None
     updated_at: str | None = None
 

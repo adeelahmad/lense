@@ -99,8 +99,8 @@ def _own_chat(db: DB, cid: int, user: Principal) -> dict[str, Any]:
 def list_chats(user: CurrentUser, db: Db) -> list[ChatSummary]:
     """Your conversations, most recent first."""
     return db.rows(
-        "SELECT record::id(id) AS id, title, title_by, scope, model, kind ?? 'chat' AS kind, tools, max_tool_calls, created_at, "
-        "updated_at FROM chat WHERE account = $a ORDER BY updated_at DESC LIMIT 200",
+        "SELECT record::id(id) AS id, title, title_by, scope, model, kind ?? 'chat' AS kind, tools, max_tool_calls, project, "
+        "done ?? false AS done, created_at, updated_at FROM chat WHERE account = $a ORDER BY updated_at DESC LIMIT 200",
         a=user.id,
     )
 

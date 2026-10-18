@@ -237,6 +237,9 @@ import type {
   CreatePodcastData,
   CreatePodcastErrors,
   CreatePodcastResponses,
+  CreateProjectData,
+  CreateProjectErrors,
+  CreateProjectResponses,
   CreateRoleData,
   CreateRoleErrors,
   CreateRoleResponses,
@@ -386,6 +389,9 @@ import type {
   DeletePodcastData,
   DeletePodcastErrors,
   DeletePodcastResponses,
+  DeleteProjectData,
+  DeleteProjectErrors,
+  DeleteProjectResponses,
   DeleteRecordingData,
   DeleteRecordingErrors,
   DeleteRecordingResponses,
@@ -660,6 +666,9 @@ import type {
   GetPodcastData,
   GetPodcastErrors,
   GetPodcastResponses,
+  GetProjectData,
+  GetProjectErrors,
+  GetProjectResponses,
   GetPublicCollectionData,
   GetPublicCollectionErrors,
   GetPublicCollectionResponses,
@@ -1012,6 +1021,9 @@ import type {
   ListPodcastsData,
   ListPodcastsErrors,
   ListPodcastsResponses,
+  ListProjectsData,
+  ListProjectsErrors,
+  ListProjectsResponses,
   ListReadingsData,
   ListReadingsErrors,
   ListReadingsResponses,
@@ -1070,6 +1082,9 @@ import type {
   ListTemplatesData,
   ListTemplatesErrors,
   ListTemplatesResponses,
+  ListThreadsData,
+  ListThreadsErrors,
+  ListThreadsResponses,
   ListTokensData,
   ListTokensResponses,
   ListTopicChangesData,
@@ -1328,6 +1343,9 @@ import type {
   ReleaseJobData,
   ReleaseJobErrors,
   ReleaseJobResponses,
+  ReleaseThreadData,
+  ReleaseThreadErrors,
+  ReleaseThreadResponses,
   RemoteBackupsData,
   RemoteBackupsResponses,
   RemoveBudgetData,
@@ -1607,6 +1625,9 @@ import type {
   StartResearchData,
   StartResearchErrors,
   StartResearchResponses,
+  StartThreadData,
+  StartThreadErrors,
+  StartThreadResponses,
   StartUpgradeData,
   StartUpgradeErrors,
   StartUpgradeResponses,
@@ -1844,6 +1865,9 @@ import type {
   UpdatePipelineData,
   UpdatePipelineErrors,
   UpdatePipelineResponses,
+  UpdateProjectData,
+  UpdateProjectErrors,
+  UpdateProjectResponses,
   UpdateRecordingAccessData,
   UpdateRecordingAccessErrors,
   UpdateRecordingAccessResponses,
@@ -1874,6 +1898,9 @@ import type {
   UpdateTemplateData,
   UpdateTemplateErrors,
   UpdateTemplateResponses,
+  UpdateThreadData,
+  UpdateThreadErrors,
+  UpdateThreadResponses,
   UpdateTopicData,
   UpdateTopicErrors,
   UpdateTopicResponses,
@@ -10707,6 +10734,151 @@ export class Chats {
   ): RequestResult<DecideApprovalResponses, DecideApprovalErrors, ThrowOnError> {
     return (options.client ?? client).post<DecideApprovalResponses, DecideApprovalErrors, ThrowOnError>({
       url: "/api/v1/approvals/{aid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Projects {
+  /**
+   * List Projects
+   *
+   * Your projects, the most recently changed first (not archived ones, unless asked).
+   */
+  public static listProjects<ThrowOnError extends boolean = false>(
+    options?: Options<ListProjectsData, ThrowOnError>,
+  ): RequestResult<ListProjectsResponses, ListProjectsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListProjectsResponses, ListProjectsErrors, ThrowOnError>({
+      url: "/api/v1/projects",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Project
+   *
+   * A project: its name, goal, instructions and the namespaces it draws on, with its coordinator conversation.
+   */
+  public static createProject<ThrowOnError extends boolean = false>(
+    options: Options<CreateProjectData, ThrowOnError>,
+  ): RequestResult<CreateProjectResponses, CreateProjectErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateProjectResponses, CreateProjectErrors, ThrowOnError>({
+      url: "/api/v1/projects",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Project
+   *
+   * Delete a project. Its conversations stay, as ordinary ones in Chat.
+   */
+  public static deleteProject<ThrowOnError extends boolean = false>(
+    options: Options<DeleteProjectData, ThrowOnError>,
+  ): RequestResult<DeleteProjectResponses, DeleteProjectErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteProjectResponses, DeleteProjectErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Project
+   *
+   * A project with its threads, the most recently added to first.
+   */
+  public static getProject<ThrowOnError extends boolean = false>(
+    options: Options<GetProjectData, ThrowOnError>,
+  ): RequestResult<GetProjectResponses, GetProjectErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetProjectResponses, GetProjectErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Project
+   *
+   * Rename it, change its goal, instructions or namespaces (its conversations draw on the new ones), or archive it.
+   */
+  public static updateProject<ThrowOnError extends boolean = false>(
+    options: Options<UpdateProjectData, ThrowOnError>,
+  ): RequestResult<UpdateProjectResponses, UpdateProjectErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateProjectResponses, UpdateProjectErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Threads
+   *
+   * The project's threads, the most recently added to first, the coordinator among them.
+   */
+  public static listThreads<ThrowOnError extends boolean = false>(
+    options: Options<ListThreadsData, ThrowOnError>,
+  ): RequestResult<ListThreadsResponses, ListThreadsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListThreadsResponses, ListThreadsErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}/threads",
+      ...options,
+    });
+  }
+
+  /**
+   * Start Thread
+   *
+   * A new thread: a conversation in the project's namespaces (ask in it with POST /chats/{id}/messages). With `chat`,
+   * one of your conversations joins the project instead, drawing on its namespaces from then on.
+   */
+  public static startThread<ThrowOnError extends boolean = false>(
+    options: Options<StartThreadData, ThrowOnError>,
+  ): RequestResult<StartThreadResponses, StartThreadErrors, ThrowOnError> {
+    return (options.client ?? client).post<StartThreadResponses, StartThreadErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}/threads",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Release Thread
+   *
+   * Take a thread out of the project: the conversation stays in Chat (DELETE /chats/{id} deletes it).
+   */
+  public static releaseThread<ThrowOnError extends boolean = false>(
+    options: Options<ReleaseThreadData, ThrowOnError>,
+  ): RequestResult<ReleaseThreadResponses, ReleaseThreadErrors, ThrowOnError> {
+    return (options.client ?? client).delete<ReleaseThreadResponses, ReleaseThreadErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}/threads/{cid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Thread
+   *
+   * Mark a thread done (it stays to read and to go on with), or not done.
+   */
+  public static updateThread<ThrowOnError extends boolean = false>(
+    options: Options<UpdateThreadData, ThrowOnError>,
+  ): RequestResult<UpdateThreadResponses, UpdateThreadErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateThreadResponses, UpdateThreadErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}/threads/{cid}",
       ...options,
       headers: {
         "Content-Type": "application/json",

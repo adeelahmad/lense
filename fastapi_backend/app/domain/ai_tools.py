@@ -33,6 +33,7 @@ from . import (
     notebook,
     ns_assistant,
     ops_tools,
+    projects as projectsmod,
     recsets,
     render,
     research as researchmod,
@@ -826,6 +827,9 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
         # the namespace's own assistant, when the conversation is about that namespace alone and its assistant is on
         home = ns_assistant.for_scope(db, self.scope)
         self.home = home if home and home[0] in self.readable else None
+        # the project the conversation is in (projects.py), when it's this person's
+        project = projectsmod.for_chat(db, chat_id)
+        self.project = project if project and project["account"] == self.account else None
         # the browser the person is talking from, while its side panel is connected (and an admin hasn't turned it off)
         on = browser and browsermod.enabled(cfg) and browsermod.live(db, browser, user["id"])
         self.browser = str(browser) if on else None
@@ -837,7 +841,8 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
     def system_note(self):
         """What the model is told besides its usual instructions: the skills it can follow, and context that hooks add
         for this question."""
-        out = self._home_note() + (browsermod.NOTE if self.browser else "")
+        out = self._home_note() + (projectsmod.note(self.db, self.project, self.chat, self.cfg) if self.project else "")
+        out += browsermod.NOTE if self.browser else ""
         if self.sandbox:
             out += sandboxmod.NOTE.format(network=sandboxmod.network_note(self.cfg))
         given = {s["function"]["name"] for s in self.specs()}
