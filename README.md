@@ -134,9 +134,11 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   the assistant, from private networks you allow in Settings too; and import videos and podcasts by their address (off
   by default). Say what a file or a page is as it comes in (a podcast, an interview, a scan), in Import, by API or
   to the assistant, and its content type's pipeline runs from the start. A file, page or video the namespace already
-  has links to the one there instead of being imported again.
+  has links to the one there instead of being imported again. Media browsers can't play, such as an AVI or HEVC from a
+  phone, can get a copy they can (off by default).
   ([Sensors](docs/sensors.md), [processing](docs/processing.md), [Apache Tika](docs/configuration.md#apache-tika),
-  [import webhooks](docs/api.md#import-webhooks); [checks](docs/requirements.md#bring-in-everything))
+  [import webhooks](docs/api.md#import-webhooks), [playable copies](docs/video.md#playable-copies);
+  [checks](docs/requirements.md#bring-in-everything))
 - **Clip from the browser.** The Lens web clipper for Chrome, Edge, Firefox and Safari turns a page, a selection or a
   part you pick into Markdown, lets you look it over, and sends it to a namespace. New releases reach installed copies
   through the browser's store or a self-hosted update file. In Chrome and Edge, its side panel is a chat with the

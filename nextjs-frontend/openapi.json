@@ -11251,7 +11251,7 @@
           "resources"
         ],
         "summary": "Get Audio",
-        "description": "The audio, with byte ranges. Accepts a bearer token, a share link (``?s=``) or a signed link.",
+        "description": "The audio (or video) for the player, with byte ranges: a copy every browser plays when Settings \u203a Video made one,\nelse the file itself (``/media`` always gives the file). Accepts a bearer token, a share link (``?s=``) or a signed\nlink.",
         "operationId": "get_audio",
         "parameters": [
           {

@@ -73,6 +73,20 @@ def _read(db, cfg, rid, say, spec=None):
 
 
 def _transcribe(db, cfg, rid, say, spec=None):
+    """A recording transcribed (or a document read), then, with Settings › Video › Playable copies on, a copy of its
+    media every browser plays made (playable.py), even when the transcript came with the media."""
+    from . import playable
+
+    try:
+        done = _transcribe_media(db, cfg, rid, say, spec)
+    except Skip:
+        playable.ensure(db, cfg, rid, say)
+        raise
+    playable.ensure(db, cfg, rid, say)
+    return done
+
+
+def _transcribe_media(db, cfg, rid, say, spec=None):
     rec = db.one("SELECT source, engine, status, envelope, web, path, space, title FROM $r", r=R("recording", rid)) or {}
     if rec.get("source") in ("document", "image"):  # a run queued before documents had a step of their own
         return _read(db, cfg, rid, say, spec)

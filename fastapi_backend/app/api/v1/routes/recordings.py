@@ -30,6 +30,7 @@ from app.domain import (
     library,
     moving,
     nsfw,
+    playable,
     render,
     sources,
     store,
@@ -592,10 +593,14 @@ def _media_type(rec: dict[str, Any], path: Any) -> str | None:
     return None
 
 
-def serve_audio(db: DB, cfg: dict[str, Any], rec: dict[str, Any], rid: int, request: Request) -> Response:
-    """The recording's audio (or video) file with byte ranges: local, from a local source, from the cache, or streamed."""
+def serve_audio(db: DB, cfg: dict[str, Any], rec: dict[str, Any], rid: int, request: Request, player: bool = False) -> Response:
+    """The recording's audio (or video) file with byte ranges: local, from a local source, from the cache, or streamed.
+    For the player, its playable copy when one was made (playable.py); the file itself otherwise."""
     if rec.get("source") != "audio":
         raise HTTPException(404, "no audio for this recording")
+    copy = playable.copy_of(db, cfg, rid) if player else None
+    if copy:
+        return file_response(copy[0], request, copy[1], db, cfg)
     path = render.has_audio(db, cfg, rid)
     if path:
         return file_response(path, request, _media_type(rec, path), db, cfg)
@@ -620,8 +625,10 @@ def serve_audio(db: DB, cfg: dict[str, Any], rec: dict[str, Any], rid: int, requ
 
 @router.get("/{rid}/audio", response_class=Response, responses={200: {"content": {"audio/*": {}}}, 206: {"description": "a byte range"}})
 def get_audio(rid: int, request: Request, acl: Acl, db: Db, cfg: Cfg, s: str = "") -> Response:
-    """The audio, with byte ranges. Accepts a bearer token, a share link (``?s=``) or a signed link."""
-    return serve_audio(db, cfg, acl.recording(rid, share=s), rid, request)
+    """The audio (or video) for the player, with byte ranges: a copy every browser plays when Settings › Video made one,
+    else the file itself (``/media`` always gives the file). Accepts a bearer token, a share link (``?s=``) or a signed
+    link."""
+    return serve_audio(db, cfg, acl.recording(rid, share=s), rid, request, player=True)
 
 
 @router.get("/{rid}/wordcloud.svg", response_class=Response, responses={200: {"content": {"image/svg+xml": {}}}})

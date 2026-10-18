@@ -313,6 +313,9 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
               <F ctx={ctx} id="video.frame_width" />
             </div>
           </More>
+          <Sub>Playback</Sub>
+          <F ctx={ctx} id="video.playable_copies" />
+          {v("video.playable_copies") ? <F ctx={ctx} id="video.playable_height" /> : null}
           <Sub>Text on screen</Sub>
           <F ctx={ctx} id="video.ocr_engine" />
           <More ctx={ctx} ids={["video.ocr_languages", "video.ocr_min_confidence"]} title="Languages and confidence">

@@ -20,7 +20,7 @@ import logging
 import pathlib
 import shutil
 
-from . import access as acc, files as filemod, keyring, notebook, render, store, video
+from . import access as acc, files as filemod, keyring, notebook, playable, render, store, video
 
 R = store.R
 log = logging.getLogger("lens")
@@ -99,6 +99,7 @@ def _files(db, cfg, rec, rid, ns):
     ]
     if rec.get("converted_from") and rec.get("path") and keyring.owned(cfg, rec["path"]):
         out.append(pathlib.Path(rec["path"]))
+    out += playable.copies(cfg, rid)
     exports = data / "exports" / (ns or "_")
     mine = {
         (o.get("value") or {}).get("file")

@@ -6115,7 +6115,9 @@ export class Resources {
   /**
    * Get Audio
    *
-   * The audio, with byte ranges. Accepts a bearer token, a share link (``?s=``) or a signed link.
+   * The audio (or video) for the player, with byte ranges: a copy every browser plays when Settings › Video made one,
+   * else the file itself (``/media`` always gives the file). Accepts a bearer token, a share link (``?s=``) or a signed
+   * link.
    */
   public static getAudio<ThrowOnError extends boolean = false>(
     options: Options<GetAudioData, ThrowOnError>,

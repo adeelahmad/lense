@@ -2543,6 +2543,25 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "video",
+    key: "playable_copies",
+    label: "Playable copies",
+    kind: "switch",
+    hint: "Make a copy every browser plays of HEVC, AVI, MTS, AMR and other media phones and cameras record",
+  },
+  {
+    section: "video",
+    key: "playable_height",
+    label: "Playable copy size",
+    kind: "select",
+    options: [
+      { value: "360", label: "360 lines" },
+      { value: "480", label: "480 lines" },
+      { value: "720", label: "720 lines" },
+      { value: "1080", label: "1080 lines" },
+    ],
+  },
+  {
+    section: "video",
     key: "publish_faces",
     label: "Publish faces in IIIF",
     kind: "switch",
@@ -4107,7 +4126,7 @@ export function parse(f: FieldSpec, ui: unknown): Parsed {
       return { value: n };
     }
     case "select":
-      if (f.key === "frame_width") return { value: Number(ui) };
+      if (f.key === "frame_width" || f.key === "playable_height") return { value: Number(ui) };
       if (f.section === "nfs" && f.key === "account") return { value: ui === "" || ui == null ? null : Number(ui) };
       if ((f.section === "files" || f.section === "backups") && f.key === "connection")
         return { value: ui === "" || ui == null ? null : Number(ui) };
