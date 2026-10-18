@@ -1026,6 +1026,8 @@ import type {
   ListSegmentEditsResponses,
   ListSensorsData,
   ListSensorsResponses,
+  ListServicesData,
+  ListServicesResponses,
   ListSessionsData,
   ListSessionsResponses,
   ListSharesData,
@@ -1106,6 +1108,8 @@ import type {
   MarkRecordingNsfwData,
   MarkRecordingNsfwErrors,
   MarkRecordingNsfwResponses,
+  McpPresetsData,
+  McpPresetsResponses,
   MeData,
   MeResponses,
   MergeEntitiesData,
@@ -1504,6 +1508,9 @@ import type {
   SetSandboxGatewayData,
   SetSandboxGatewayErrors,
   SetSandboxGatewayResponses,
+  SetServiceData,
+  SetServiceErrors,
+  SetServiceResponses,
   SetupData,
   SetupErrors,
   SetupResponses,
@@ -3787,6 +3794,41 @@ export class Updates {
   ): RequestResult<SetMonitoringResponses, SetMonitoringErrors, ThrowOnError> {
     return (options.client ?? client).put<SetMonitoringResponses, SetMonitoringErrors, ThrowOnError>({
       url: "/api/v1/admin/monitoring",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Services
+   *
+   * Lens's optional containers (the MCP runner, the browser, monitoring): whether each is on and answering, and
+   * how the machine's last change went.
+   */
+  public static listServices<ThrowOnError extends boolean = false>(
+    options?: Options<ListServicesData, ThrowOnError>,
+  ): RequestResult<ListServicesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListServicesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/services",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Service
+   *
+   * Have this machine start or stop one of them: its upgrade agent adds the profile to COMPOSE_PROFILES in .env, or
+   * takes it out, and starts or stops its containers. Monitoring also turns /metrics on, as PUT /admin/monitoring
+   * does. GET /admin/services follows along; without an agent, 409 says the line to run on the machine instead.
+   */
+  public static setService<ThrowOnError extends boolean = false>(
+    options: Options<SetServiceData, ThrowOnError>,
+  ): RequestResult<SetServiceResponses, SetServiceErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetServiceResponses, SetServiceErrors, ThrowOnError>({
+      url: "/api/v1/admin/services/{profile}",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -10031,6 +10073,21 @@ export class Extensions {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Mcp Presets
+   *
+   * MCP servers ready to add (admins): the browser Lens can run next to it, with whether its container is on and
+   * running (`service`), and GitHub's own server, with the token to type in (`fill`).
+   */
+  public static mcpPresets<ThrowOnError extends boolean = false>(
+    options?: Options<McpPresetsData, ThrowOnError>,
+  ): RequestResult<McpPresetsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<McpPresetsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/extensions/mcp/presets",
+      ...options,
     });
   }
 

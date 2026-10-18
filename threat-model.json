@@ -53,6 +53,7 @@
         "workers and DB peers",
         "host control inbox and the monitoring scrape token",
         "admin machine setup requests",
+        "admin optional container requests",
         "entity and topic curation tools",
         "microsandbox program requests"
       ],
@@ -119,7 +120,7 @@
       "entry_points": [
         "chat, /graph/ask, MCP tools",
         "extensions (prompt, graph and http tools, hooks), custom nodes including template nodes",
-        "MCP servers: POST /extensions/mcp/read and /mcp/test, saving an extension of kind mcp, PATCH /extensions/{id}/tools",
+        "MCP servers: POST /extensions/mcp/read and /mcp/test, GET /extensions/mcp/presets, saving an extension of kind mcp, PATCH /extensions/{id}/tools",
         "Python code tools, shipped and admin-created templates, workflows, pipelines, routines",
         "Lens extension side panel",
         "automations",
@@ -522,7 +523,7 @@
       "source": "docs/assistant.md \"other people's run only when an admin shared them\""
     },
     {
-      "entry_point": "MCP servers: POST /extensions/mcp/read and /mcp/test, saving an extension of kind mcp, PATCH /extensions/{id}/tools",
+      "entry_point": "MCP servers: POST /extensions/mcp/read and /mcp/test, GET /extensions/mcp/presets, saving an extension of kind mcp, PATCH /extensions/{id}/tools",
       "parameter": "config text (JSON or YAML), a server's address and headers, or a command, its arguments and env; a tool name and its switches",
       "attacker_controllable": "no",
       "component": "assistant",
@@ -622,10 +623,10 @@
     },
     {
       "entry_point": "host control inbox and the monitoring scrape token",
-      "parameter": "inbox/upgrade request (release ref, empty for the version running, with https=0|1, public=0|1 and target=full|lean; or action=services with monitoring=on|off); /metrics scrape token and .lens-control/prometheus-token",
+      "parameter": "inbox/upgrade request (release ref, empty for the version running, with https=0|1, public=0|1 and target=full|lean; or action=services with profile=mcp|browser|monitoring and turn=on|off, or an older Lens's monitoring=on|off); /metrics scrape token and .lens-control/prometheus-token",
       "attacker_controllable": "yes",
       "component": "authz",
-      "caller_must_enforce": "the agent installs only a release tag or the install's branch, changes only the HTTPS ports, the web app's network reach and the edition (other values dropped), and only toggles the monitoring profile, so a writer can at most restart Lens with those choices or open it to the network; the token is compared in constant time and grants metrics only",
+      "caller_must_enforce": "the agent installs only a release tag or the install's branch, changes only the HTTPS ports, the web app's network reach and the edition (other values dropped), and only toggles the mcp, browser and monitoring profiles (any other refused), so a writer can at most restart Lens with those choices or open it to the network; the token is compared in constant time and grants metrics only",
       "provenance": "documented",
       "source": "docs/updates.md, docs/prometheus.md"
     },
@@ -637,6 +638,15 @@
       "caller_must_enforce": "admin is trusted; audited (lens.install, https.ports); reaches the machine only as an inbox request the agent checks again",
       "provenance": "documented",
       "source": "docs/updates.md \"Setting the machine up again\""
+    },
+    {
+      "entry_point": "admin optional container requests",
+      "parameter": "PUT /api/v1/admin/services/{profile} {on}, MCP set_service: profile mcp|browser|monitoring",
+      "attacker_controllable": "no",
+      "component": "authz",
+      "caller_must_enforce": "admin is trusted; audited (lens.services, lens.monitoring); unknown profiles are a 404; one change at a time; reaches the machine only as an inbox request the agent checks again",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"Optional containers\""
     },
     {
       "entry_point": "entity and topic curation tools",
@@ -1417,7 +1427,7 @@
     },
     {
       "property": "N-EGRESS",
-      "reason": "an egress firewall; netguard guards web import, iCal and news feeds, extension http tools, notifications, the assistant's web search and page reads, and Chromium, nothing else; admin-set URLs other than iCal and news feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded",
+      "reason": "an egress firewall; netguard guards web import, iCal and news feeds, extension http tools, notifications, the assistant's web search and page reads, Chromium and the opt-in browser container (as browser-proxy), nothing else; admin-set URLs other than iCal and news feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded",
       "false_friend": true,
       "provenance": "documented",
       "source": "maintainer ruling, 2026-10"
@@ -1799,6 +1809,11 @@
       "pattern": "Pointing the assistant at a hosted model for sensitive archives",
       "why_unsafe": "Assets' text leaves the machine",
       "instead": "Use a local model server"
+    },
+    {
+      "pattern": "Signing in to a site in the assistant's browser",
+      "why_unsafe": "One browser serves everyone whose assistant uses it, so they are signed in too until it stops",
+      "instead": "Give the assistant only public pages, or an account made for it"
     }
   ],
   "known_non_findings": [

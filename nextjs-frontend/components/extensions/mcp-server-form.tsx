@@ -1,13 +1,14 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ClipboardPaste, Play, Plus, Server, X } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ClipboardPaste, Play, Plus, Server, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Extensions } from "@/app/openapi-client";
-import type { McpConfig, McpServerFound } from "@/app/openapi-client/types.gen";
+import type { McpConfig, McpPreset, McpServerFound } from "@/app/openapi-client/types.gen";
+import { ServiceSwitch } from "@/components/admin/service-switch";
 import { Badge } from "@/components/ui/badge";
 import { Button, IconButton } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/field";
@@ -31,7 +32,11 @@ export type Draft = {
   command: string;
   args: string;
   env: Pair[];
+  /** Values written ${NAME}, to type in: put in their place when it's sent. */
   fill: string[];
+  values: Record<string, string>;
+  /** What the form doesn't show, kept as it came (a ready-made server's keep, off and ask). */
+  extra: Record<string, unknown>;
 };
 type Tool = { name: string; description?: string; read_only?: boolean };
 
@@ -45,33 +50,50 @@ export const EMPTY: Draft = {
   args: "",
   env: [],
   fill: [],
+  values: {},
+  extra: {},
 };
+
+/** What the form shows of a server; the rest of its spec is kept as it came. */
+const SHOWN = ["url", "headers", "command", "args", "env"];
+const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** A value with the ${NAME}s typed in put in their place (as other apps write them: ${NAME}, ${input:NAME}). */
+function filled(v: string, values: Record<string, string>) {
+  return Object.entries(values).reduce(
+    (out, [k, x]) =>
+      x ? out.replace(new RegExp(`\\$\\{(?:input:|env:)?${escape(k)}(?::-[^}]*)?\\}`, "g"), () => x) : out,
+    v,
+  );
+}
 
 const pairs = (o: unknown): Pair[] =>
   Object.entries((o ?? {}) as Record<string, string>).map(([key, value]) => ({ key, value: String(value) }));
-const object = (ps: Pair[]) => Object.fromEntries(ps.filter((p) => p.key.trim()).map((p) => [p.key.trim(), p.value]));
+const object = (ps: Pair[], values: Record<string, string>) =>
+  Object.fromEntries(ps.filter((p) => p.key.trim()).map((p) => [p.key.trim(), filled(p.value, values)]));
 
-/** A server as the API takes it: {url, headers}, or {command, args, env}. */
+/** A server as the API takes it: {url, headers}, or {command, args, env}, with what the form doesn't show. */
 export function specOf(d: Draft): Record<string, unknown> {
   if (d.how === "url") {
-    const headers = object(d.headers);
-    return { url: d.url.trim(), ...(Object.keys(headers).length ? { headers } : {}) };
+    const headers = object(d.headers, d.values);
+    return { url: filled(d.url.trim(), d.values), ...(Object.keys(headers).length ? { headers } : {}), ...d.extra };
   }
   const args = d.args
     .split("\n")
-    .map((a) => a.trim())
+    .map((a) => filled(a.trim(), d.values))
     .filter(Boolean);
-  const env = object(d.env);
+  const env = object(d.env, d.values);
   return {
     command: d.command.trim(),
     ...(args.length ? { args } : {}),
     ...(Object.keys(env).length ? { env } : {}),
+    ...d.extra,
   };
 }
 
 /** A server read from a pasted config, ready to change in the form. */
 export function draftOf(f: McpServerFound): Draft {
   const s = f.spec as { url?: string; headers?: unknown; command?: string; args?: string[]; env?: unknown };
+  const extra = Object.fromEntries(Object.entries(f.spec).filter(([k]) => !SHOWN.includes(k)));
   return {
     name: f.name,
     description: f.description ?? "",
@@ -82,6 +104,8 @@ export function draftOf(f: McpServerFound): Draft {
     args: (s.args ?? []).join("\n"),
     env: pairs(s.env),
     fill: f.fill ?? [],
+    values: {},
+    extra,
   };
 }
 
@@ -146,7 +170,7 @@ function Pairs({
             </div>
             {placeholder && (
               <p className="text-[12.5px] text-red-dark">
-                Fill in {placeholder}: its app took it from its own settings.
+                Fill in {placeholder}: type it in above, or here in its place.
               </p>
             )}
           </div>
@@ -158,6 +182,70 @@ function Pairs({
         </Button>
       </div>
     </fieldset>
+  );
+}
+
+/** Servers Lens knows, ready to add: one click (the browser, once its container runs), or a token to type in first
+ * (GitHub), which `onPick` puts in the form. */
+function ReadyMade({ onPick }: { onPick: (f: McpPreset) => void }) {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const router = useRouter();
+  const q = useQuery({
+    queryKey: ["mcp-presets"],
+    queryFn: () => data(Extensions.mcpPresets({ client })),
+    // while a container it needs starts
+    refetchInterval: (q) =>
+      q.state.data?.presets?.some((p) => p.service?.on && p.service.running === false) ? 3000 : false,
+  });
+  const add = useMutation({
+    mutationFn: async (p: McpPreset) =>
+      (await data(Extensions.createExtension({ client, body: { manifest: manifestOf(draftOf(p)) } }))).id,
+    onSuccess: (id) => {
+      void qc.invalidateQueries({ queryKey: ["extensions"] });
+      toast({ tone: "green", title: "Added to the assistant" });
+      router.push(`/extensions/${id}`);
+    },
+  });
+  const presets = q.data?.presets ?? [];
+  if (!presets.length) return null;
+  return (
+    <Panel title="Ready-made" subtitle="Servers Lens knows: one click, or a token to type in">
+      <ul aria-label="Ready-made servers" className="flex flex-col divide-y divide-border">
+        {presets.map((p) => {
+          const stopped = Boolean(p.needs) && p.service?.running === false;
+          return (
+            <li key={p.name} className="flex flex-col gap-2 py-2.5 first:pt-0 last:pb-0">
+              <div className="flex items-center gap-3">
+                <Sparkles className="size-4 shrink-0 text-fg-muted" aria-hidden />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13.5px] font-semibold">{p.label}</div>
+                  <div className="text-[12.5px] text-fg-muted">{p.description}</div>
+                </div>
+                {p.fill?.length ? (
+                  <Button size="sm" onClick={() => onPick(p)}>
+                    Set up {p.label}
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="primary" disabled={stopped || add.isPending} onClick={() => add.mutate(p)}>
+                    {add.isPending && add.variables?.name === p.name ? "Adding…" : `Add ${p.label}`}
+                  </Button>
+                )}
+              </div>
+              {stopped && p.needs && (
+                <ServiceSwitch profile={p.needs} label={`Run the ${p.label.toLowerCase()} on this machine`} />
+              )}
+              {add.isError && add.variables?.name === p.name && (
+                <p role="alert" className="text-[13px] text-red-dark">
+                  {add.error.message}
+                </p>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </Panel>
   );
 }
 
@@ -240,6 +328,7 @@ export function McpServerForm() {
         title="Add MCP server"
         meta="Give the assistant another service's tools: a server on the network, or a program run in the MCP runner"
       />
+      <ReadyMade onPick={pick} />
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <Panel
           title="Server"
@@ -367,6 +456,28 @@ export function McpServerForm() {
                   />
                 )}
               </Field>
+              {draft.fill.length > 0 && (
+                <fieldset className="flex flex-col gap-2">
+                  <legend className="mb-1.5 text-[13px] font-bold leading-tight text-fg-strong">To type in</legend>
+                  {draft.fill.map((f, i) => (
+                    <Input
+                      key={f}
+                      aria-label={f}
+                      mono
+                      type="password"
+                      autoComplete="off"
+                      autoFocus={i === 0}
+                      placeholder={f}
+                      value={draft.values[f] ?? ""}
+                      onChange={(ev) => edit({ values: { ...draft.values, [f]: ev.target.value } })}
+                    />
+                  ))}
+                  <p className="text-[12.5px] text-fg-muted">
+                    Its settings name these instead of giving them, as its app fills them in itself; what you type goes
+                    in their place.
+                  </p>
+                </fieldset>
+              )}
               {draft.how === "url" ? (
                 <>
                   <Field label="Address" hint="Its Streamable HTTP address, usually ending in /mcp.">
@@ -386,7 +497,7 @@ export function McpServerForm() {
                     label="Headers"
                     add="Add a header"
                     rows={draft.headers}
-                    fill={draft.fill}
+                    fill={draft.fill.filter((f) => !draft.values[f])}
                     onChange={(headers) => edit({ headers })}
                   />
                 </>
@@ -407,6 +518,7 @@ export function McpServerForm() {
                       />
                     )}
                   </Field>
+                  <ServiceSwitch profile="mcp" label="Run the MCP runner on this machine" />
                   <Field label="Arguments" hint="One per line." optional>
                     {({ id, describedBy }) => (
                       <Textarea
@@ -425,7 +537,7 @@ export function McpServerForm() {
                     label="Environment"
                     add="Add a variable"
                     rows={draft.env}
-                    fill={draft.fill}
+                    fill={draft.fill.filter((f) => !draft.values[f])}
                     onChange={(env) => edit({ env })}
                   />
                 </>
