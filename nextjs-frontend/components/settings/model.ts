@@ -477,6 +477,7 @@ export const LAYERS: Opt[] = [
 
 /** The chat assistant's tools (app/domain/ai_tools.py), with whether they change anything. */
 export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
+  { name: "lens_help", label: "Answer questions about Lens from its docs and this server", acts: false },
   { name: "search_transcripts", label: "Search assets’ text", acts: false },
   {
     name: "list_recordings",
@@ -750,6 +751,18 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "analysis",
+    key: "typing",
+    label: "Names the rules can't type",
+    kind: "select",
+    options: [
+      { value: "auto", label: "Ask the decision model, when one is set up" },
+      { value: "model", label: "Ask the decision model, else the language model" },
+      { value: "rules", label: "Leave them terms" },
+    ],
+    hint: "A single unknown word, such as a brand or a project, is a term to the rules. The model reads the lines it's said in and gives it a type only when it's sure. Calls count in Activity and stop at the budget's hard limit.",
+  },
+  {
+    section: "analysis",
     key: "spacy_model",
     label: "spaCy model",
     kind: "text",
@@ -957,8 +970,18 @@ export const FIELDS: FieldSpec[] = [
     max: 2000000,
     nullable: true,
     unit: "tokens",
-    placeholder: "16000",
-    hint: "A conversation is summarised early before it fills half of this.",
+    placeholder: "what the model server says",
+    hint: "Empty: what the model server says (Lens's own local model: its context), else 16000.",
+  },
+  {
+    section: "ai",
+    key: "compact_at",
+    label: "Summarise when a conversation fills",
+    kind: "int",
+    min: 10,
+    max: 90,
+    unit: "%",
+    hint: "Of the model's context, before the next answer, so the excerpts, tools and the answer fit in the rest.",
   },
   {
     section: "ai",

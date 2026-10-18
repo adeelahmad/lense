@@ -52,12 +52,15 @@ from app.domain import (
     descriptions,
     enhance,
     events,
+    extensions,
     feeds,
     filetree,
     florence,
     graph_history,
     integrations,
     library,
+    manual,
+    mcp_servers,
     monitoring,
     moondream,
     notebook,
@@ -252,6 +255,7 @@ class Tool:
     writes: bool = False  # asks for a change: needs a write-scope token, and says so in its annotations
     admin: bool = False  # about the server, not the archive: admins only, and not on a namespace's own server
     personal: bool = False  # the person's own things (their conversations), not a namespace's: not on its own server
+    own: bool = False  # gives Lens's own text (its docs), not what others said or wrote: not checked for instructions
 
     def definition(self, ns: str | None = None) -> dict[str, Any]:
         """As tools/list has it; on namespace `ns`'s own server, its namespace argument is that one unless given."""
@@ -282,10 +286,17 @@ TOOLS: dict[str, Tool] = {}
 
 
 def tool(
-    name: str, title: str, description: str, *args: Arg, writes: bool = False, admin: bool = False, personal: bool = False
+    name: str,
+    title: str,
+    description: str,
+    *args: Arg,
+    writes: bool = False,
+    admin: bool = False,
+    personal: bool = False,
+    own: bool = False,
 ) -> Callable[[Callable[..., dict[str, Any]]], Callable[..., dict[str, Any]]]:
     def register(fn: Callable[..., dict[str, Any]]) -> Callable[..., dict[str, Any]]:
-        TOOLS[name] = Tool(name, title, description, args, fn, writes, admin, personal)
+        TOOLS[name] = Tool(name, title, description, args, fn, writes, admin, personal, own)
         return fn
 
     return register
@@ -342,7 +353,7 @@ def call(ctx: Context, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         values = {a.name: a.parse(arguments.get(a.name)) for a in t.args}
         with graph_history.acting(via="mcp", tool=name):
             out = t.run(ctx, **values)
-            why = untrusted.flags(json.dumps(out, ensure_ascii=False, default=str), ctx.cfg)
+            why = [] if t.own else untrusted.flags(json.dumps(out, ensure_ascii=False, default=str), ctx.cfg)
             if why:  # for admins to see what an agent was handed
                 auth.audit(ctx.db, ctx.user.as_audit(), "mcp.injection_flagged", f"tool:{name}", {"why": why})
             return _text(out, why=why)
@@ -2683,6 +2694,125 @@ def set_sandbox_gateway(ctx: Context, on: bool) -> dict[str, Any]:
     return got
 
 
+# ---------- the MCP servers the assistant calls (admins) ----------
+def _extension_me(ctx: Context) -> dict[str, Any]:
+    """Who is asking, as extensions.py checks it: an app given access (OAuth) doesn't count as an admin there."""
+    u = ctx.user
+    return extensions.who(u.id, u.email, u.admin and u.via != "oauth", u.roles)
+
+
+def _server_line(ctx: Context, g: dict[str, Any]) -> dict[str, Any]:
+    s = g.get("spec") or {}
+    return store.clean(
+        {
+            "id": g["id"],
+            "name": g["name"],
+            "title": g.get("title"),
+            "description": g.get("description"),
+            "enabled": bool(g.get("enabled")),
+            "url": s.get("url"),
+            "command": s.get("command"),
+            "args": s.get("args"),
+            "headers": sorted(s.get("headers") or {}) or None,  # names only: their values are never shown
+            "env": sorted(s.get("env") or {}) or None,
+            "tools": [t["name"] for t in s.get("tools") or []],
+            "off": s.get("off") or [],
+            "keep": bool(s.get("keep")),
+            "page": f"{ctx.web}/extensions/{g['id']}",
+        }
+    )
+
+
+@tool(
+    "mcp_servers",
+    "MCP servers",
+    "The MCP servers the assistant can call, added in Extensions: each one's address or command, the names of its "
+    "headers and env (never their values), whether it's on, its tools and the ones switched off, and its page in the "
+    "web app; and the ready-made ones Lens knows (browser, github), whether each is added and what it needs. Admins "
+    "only.",
+    admin=True,
+)
+def mcp_servers_list(ctx: Context) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins see and add MCP servers")
+    added = [_server_line(ctx, g) for g in extensions.visible(ctx.db, _extension_me(ctx), "mcp")]
+    ready = []
+    for p in mcp_servers.presets():
+        have = any(x["name"] == p["name"] or (x.get("url") and x["url"] == p["spec"].get("url")) for x in added)
+        ready.append(
+            store.clean(
+                {
+                    "preset": p["name"],
+                    "label": p["label"],
+                    "description": p["description"],
+                    "added": have,
+                    "values": p["fill"] or None,  # what add_mcp_server needs typed in
+                    "service": services.view(ctx.db, p["needs"]) if p["needs"] else None,
+                }
+            )
+        )
+    return {"servers": added, "ready_made": ready, "add": f"{ctx.web}/extensions/new/mcp"}
+
+
+@tool(
+    "add_mcp_server",
+    "Add an MCP server",
+    "Add an MCP server the assistant can call. A ready-made one: preset browser (once its container runs: set_service) "
+    'or github, with values for what it needs ({"GITHUB_TOKEN": "..."}). Or your own: server {url, headers} for one on '
+    "the network (Streamable HTTP), or {command, args, env} for one that runs as a program in the MCP runner; off lists "
+    "tools to switch off, ask {tool: true or false} which ask first, keep true one session for all its calls. Lens "
+    "asks the server for its tools before saving it, so it must answer. Tokens are sealed and never shown again. "
+    "Admins only, with an API key that has the write scope (an app given access can't add one).",
+    Arg("preset", "string", "a ready-made server", enum=tuple(p["name"] for p in mcp_servers.presets())),
+    Arg("name", "string", "its name: lowercase letters, digits and _ (its tools are called <name>__<tool>)", max_length=41),
+    Arg("server", "object", "{url, headers} or {command, args, env}, with off, ask and keep; with a preset, what to change"),
+    Arg("values", "object", "the values a ready-made server, or the ${NAME}s in your own, need typed in, by name"),
+    Arg("description", "string", "what it's for", max_length=1024),
+    writes=True,
+    admin=True,
+)
+def add_mcp_server(
+    ctx: Context,
+    preset: str | None = None,
+    name: str | None = None,
+    server: dict[str, Any] | None = None,
+    values: dict[str, Any] | None = None,
+    description: str | None = None,
+) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins see and add MCP servers")
+    if ctx.user.via == "oauth":
+        raise ToolError("an app given access can't add MCP servers, even an admin's: use an admin's API key, or the web app")
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to add one")
+    spec = dict(server or {})
+    if preset:
+        p = next(x for x in mcp_servers.presets() if x["name"] == preset)
+        if p["needs"]:
+            s = services.view(ctx.db, p["needs"])
+            if not s["running"]:
+                raise ToolError(
+                    f"the {s['label'].lower()} isn't running yet: turn it on with set_service ({p['needs']}), and add "
+                    "it once services says it is"
+                )
+        spec = {**p["spec"], **spec}
+        name, description = name or p["name"], description or p["description"]
+    elif not spec:
+        raise ToolError("give a preset, or the server: {url, headers} or {command, args, env}")
+    if not name:
+        raise ToolError("name it: lowercase letters, digits and _")
+    spec, missing = mcp_servers.filled(spec, {k: v for k, v in (values or {}).items() if isinstance(v, str)})
+    if missing:
+        raise ToolError(f"type in {', '.join(missing)} in values")
+    manifest = {"name": name, "kind": "mcp", **({"description": description} if description else {}), **spec}
+    try:
+        eid = extensions.create(ctx.db, _extension_me(ctx), manifest)
+    except (ValueError, PermissionError) as e:
+        raise ToolError(str(e)) from None
+    auth.audit(ctx.db, ctx.user.as_audit(), "extension.create", f"extension:{eid}", {"origin": "code", "via": "mcp"})
+    return _server_line(ctx, extensions.visible_one(ctx.db, _extension_me(ctx), eid))
+
+
 # ---------- how install.sh set this machine up: reachable on the network, and the edition (admins) ----------
 @tool(
     "install_settings",
@@ -3330,3 +3460,19 @@ def run_automation(ctx: Context, automation_id: int, activity: str | None, trigg
     _writer(ctx, "run automations")
     body = AutomationRunNow(activity=activity, **{"as": trigger})
     return automation_routes.run_automation(automation_id, ctx.user, ctx.acl, ctx.db, ctx.cfg, body).model_dump()
+
+
+# ---------- Lens itself: its docs and this server ----------
+@tool(
+    "lens_help",
+    "Lens's docs and this server",
+    "How Lens works and what it can do (setting it up, its settings, the assistant, chat rooms, connecting apps and "
+    "agents, the API, MCP, sharing, backups, costs...), from its documentation: the sections that match query, or one "
+    "page read whole, each with a link to cite, and the docs' contents. Also this server's own facts: its version and "
+    "addresses (web app, MCP, API), what is turned on, and your access.",
+    Arg("query", "string", "what to look up, in a few words", max_length=300),
+    Arg("page", "string", "one page of the docs to read whole, by its name in the contents, like mcp", max_length=80),
+    own=True,
+)
+def lens_help(ctx: Context, query: str | None = None, page: str | None = None) -> dict[str, Any]:
+    return manual.answer(ctx.db, ctx.cfg, ctx.web, ctx.user.admin, set(ctx.acl.roles), set(ctx.acl.editable()), query, page)

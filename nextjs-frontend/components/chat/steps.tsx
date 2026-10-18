@@ -2,13 +2,18 @@
 
 import {
   AudioLines,
+  BookOpen,
   Building2,
+  CalendarDays,
   ChartLine,
   ChevronDown,
   ChevronRight,
   Download,
+  FileInput,
   FileText,
+  FolderOpen,
   List,
+  Mail,
   PencilLine,
   Play,
   Quote,
@@ -25,6 +30,7 @@ import { stepCall, stepTitle, type ToolStep } from "@/components/chat/stream";
 import { cn } from "@/lib/utils";
 
 const ICON: Record<string, LucideIcon> = {
+  lens_help: BookOpen,
   search_transcripts: Search,
   list_recordings: List,
   read_transcript: FileText,
@@ -41,6 +47,13 @@ const ICON: Record<string, LucideIcon> = {
   run_python: SquareTerminal,
   run_bash: SquareTerminal,
   share_sandbox_file: Download,
+  search_mail: Mail,
+  read_mail: Mail,
+  calendar_events: CalendarDays,
+  list_files: FolderOpen,
+  find_files: Search,
+  read_file: FileText,
+  import_from_connection: FileInput,
 };
 
 /** A code sandbox run's code, as the model wrote it (run_python's code, run_bash's command), or null. */

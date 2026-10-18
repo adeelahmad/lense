@@ -1,7 +1,7 @@
 # Published feeds (RSS and podcasts)
 
-**Status: in progress.** Feeds, their private addresses, the API and the MCP tools are built. Routine workflow nodes
-that pick part of the graph or the timeline and publish it, and the Feeds page in the web app, come next.
+**Status: in progress.** Feeds, their private addresses, the API, the MCP tools and the workflow nodes that let a
+routine fill a feed or make an episode on a schedule are built. The Feeds page in the web app comes next.
 
 A namespace can publish what's in it as a feed that any feed reader or podcast app follows: new resources, podcast
 episodes, things on the timeline, or text a person or an agent wrote. Each feed has a private address; add it to the
@@ -47,6 +47,13 @@ again adds only what's new. A feed lists its newest items (50 by default, up to 
 
 Feed readers poll; the feed answers `304 Not Modified` when nothing changed (its `ETag`), and notes when a reader
 last read it (`fetched_at`, at most once a minute), so the web app can show that a podcast app is subscribed.
+
+## From a routine
+
+A routine fills a feed on a schedule with a graph workflow ([Publishing from the graph](processing.md#publishing-from-the-graph)):
+**Select assets** or **Select activities** picks what's new since the routine last ran, in the namespaces it covers,
+and **Publish to feed** adds it, or **Podcast episode** makes an episode about it and adds that. Each run adds only
+what's new, and what the feed's readers couldn't read is refused.
 
 ## API and MCP
 

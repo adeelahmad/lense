@@ -65,6 +65,7 @@ EDITABLE = {
     "fedora": None,
     "tunnel": None,
     "https": None,
+    "mesh": None,
     # bind is a startup setting only
     "nfs": ("enabled", "port", "allowed_networks", "account", "add_files"),
     # bind is a startup setting only
@@ -163,6 +164,7 @@ ENUMS = {
     ("speakers", "cross_namespace"): {"suggest", "off"},
     ("analysis", "entities"): {"rules", "spacy"},
     ("analysis", "cleanup_punctuation"): {"off", "missing", "always"},
+    ("analysis", "typing"): {"auto", "model", "rules"},
     ("search", "stemming"): {"english", "none"},
     ("search", "engine"): set(store.SEARCH_ENGINES),
     ("reports", "audio"): {"link", "embed", "none"},
@@ -192,6 +194,8 @@ ENUMS = {
     ("slack", "answer"): {"mention", "all"},
     ("slack", "approve"): {"off", "low_risk"},
     ("tunnel", "mode"): {"off", "quick", "token", "managed"},
+    ("mesh", "cipher"): {"aes", "chachapoly"},
+    ("mesh", "log_level"): {"error", "warning", "info", "debug"},
     ("https", "ca"): {"letsencrypt", "zerossl", "both", "custom"},
     ("https", "challenge"): {"http", "tls-alpn", "dns"},
     ("https", "client_auth"): {"off", "optional", "required"},
@@ -454,6 +458,10 @@ def _check(section, key, value, default):
         if value is not None and not (isinstance(value, int) and not isinstance(value, bool) and 1024 <= value <= 2_000_000):
             raise ValueError("ai.context_tokens is a whole number of tokens from 1024 to 2000000")
         return value
+    if (section, key) == ("ai", "compact_at"):
+        if not (isinstance(value, int) and not isinstance(value, bool) and 10 <= value <= 90):
+            raise ValueError("ai.compact_at is a whole percentage of the model's context from 10 to 90")
+        return value
     if (section, key) == ("ai", "browser_steps"):
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 100):
             raise ValueError("ai.browser_steps is a whole number of steps from 1 to 100")
@@ -509,6 +517,10 @@ def _check(section, key, value, default):
         return _sensor_setting(key, value)
     if section == "nfs":
         return _nfs_setting(key, value)
+    if section == "mesh":
+        from . import mesh
+
+        return mesh.check_setting(key, value)
     if section == "smb":
         return _smb_setting(key, value)
     if section == "sandbox":
@@ -1695,6 +1707,10 @@ def save(db, base, section, changes, user=None):
         url = data.get("opensearch_url", (base.get("search") or {}).get("opensearch_url"))
         if not (isinstance(url, str) and re.match(r"https?://[^/\s]+", url)):
             raise ValueError("search.engine opensearch needs search.opensearch_url (http:// or https://)")
+    if section == "mesh":
+        from . import mesh
+
+        mesh.check(db, {"mesh": {**(base.get("mesh") or {}), **_data(row)}}, data)
     if section == "tunnel":
         from . import tunnel
 

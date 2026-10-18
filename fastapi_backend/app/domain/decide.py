@@ -212,6 +212,69 @@ def choose(cfg, question, options, state):
     }
 
 
+def choose_all(cfg, asks, state, language_model=True):
+    """Several choices about one `state` in one call: `asks` is {id: (question, options)}; returns {id: decision} as
+    `choose` gives them, for the questions answered. The language model answers when no decision model can, unless
+    `language_model` is False. Raises Undecided when nothing can answer."""
+    asks = {q: (text, dict(o)) for q, (text, o) in asks.items() if o}
+    if not asks:
+        return {}
+    ids = {f"q{i}": q for i, q in enumerate(asks)}  # plain names for the questions, whatever the caller's ids
+    how = engine(cfg)
+    if how in ENGINES:
+        questions = {i: {"type": "choice", "instructions": asks[q][0], "criteria": asks[q][1]} for i, q in ids.items()}
+        try:
+            answers = ENGINES[how](cfg, questions, state)
+            out = {}
+            for i, q in ids.items():
+                a, o = answers.get(i) or {}, asks[q][1]
+                if a.get("choice") in o:
+                    probs = a.get("probabilities") or {a["choice"]: a.get("confidence", 0)}
+                    out[q] = {"choice": a["choice"], "confidence": float(a.get("confidence") or 0), "ranked": _ranked(probs), "by": how}
+            return out
+        except Undecided as e:
+            if not language_model:
+                raise
+            log.warning("decision model (%s) failed, asking the language model: %s", how, e)
+        how = "llm" if llm.configured(cfg) else None
+    if how != "llm" or not language_model:
+        raise Undecided("no decision model is set up" if not language_model else "no decision model or language model is set up")
+    one = {
+        i: {
+            "type": "object",
+            "properties": {"choice": {"type": "string", "enum": list(asks[q][1])}, "confidence": {"type": "number"}},
+            "required": ["choice", "confidence"],
+        }
+        for i, q in ids.items()
+    }
+    schema = {"type": "object", "properties": {"answers": {"type": "object", "properties": one}}, "required": ["answers"]}
+    listed = "\n\n".join(f"{i}: {asks[q][0]}\n" + "\n".join(f"- {k}: {v}" for k, v in asks[q][1].items()) for i, q in ids.items())
+    try:
+        reply = llm.json_out(
+            cfg,
+            "You take routine decisions. For each question pick the one option that fits, by its name, and say how sure "
+            "you are from 0 to 1: below 0.8 when the evidence is thin or two options fit.",
+            f"Questions:\n\n{listed}\n\nState:\n{_state(state)}",
+            schema,
+        )
+    except llm.LLMError as e:
+        raise Undecided(str(e)) from None
+    out = {}
+    for i, q in ids.items():
+        a, options = (reply.get("answers") or {}).get(i) or {}, asks[q][1]
+        if a.get("choice") not in options:
+            continue
+        conf = min(1.0, max(0.0, float(a.get("confidence") or 0)))
+        rest = (1 - conf) / max(1, len(options) - 1)
+        out[q] = {
+            "choice": a["choice"],
+            "confidence": conf,
+            "ranked": _ranked({k: conf if k == a["choice"] else rest for k in options}),
+            "by": "llm",
+        }
+    return out
+
+
 def sure(cfg, decision):
     """Whether a decision is sure enough to act on without asking."""
     return decision["confidence"] >= float((cfg.get("decisions") or {}).get("act_above") or 0.8)

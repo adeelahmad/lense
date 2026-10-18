@@ -21,7 +21,7 @@ import { NamespaceOffer, spokenPick } from "@/components/chat/namespace-offer";
 import { ReportActions, ResearchCard } from "@/components/chat/research";
 import { fromApiScope, scopeFromParams, toApiScope, type Scope } from "@/components/chat/scope";
 import { CitationSheet, SourcesPanel, SourcesSheet } from "@/components/chat/sources";
-import { ToolsChip, useToolCatalog, type ToolChoice } from "@/components/chat/tools-picker";
+import { ToolsChip, useSaveTools, useToolCatalog, type ToolChoice } from "@/components/chat/tools-picker";
 import {
   applyEvent,
   newTurn,
@@ -643,17 +643,8 @@ export function ChatApp() {
           tools: toolCatalog.data?.remembered.tools ?? null,
           max_tool_calls: toolCatalog.data?.remembered.max_tool_calls ?? null,
         });
-  const pickTools = async (v: ToolChoice) => {
-    if (activeId == null) return setDraftTools(v);
-    try {
-      await data(Chats.updateChat({ client, path: { cid: activeId }, body: v }));
-      await qc.invalidateQueries({ queryKey: ["chat", activeId] });
-      void qc.invalidateQueries({ queryKey: ["chats"] });
-      void qc.invalidateQueries({ queryKey: ["chat-tools"] });
-    } catch (e) {
-      toast({ title: "Couldn’t change the tools", body: e instanceof Error ? e.message : undefined, tone: "red" });
-    }
-  };
+  const saveTools = useSaveTools(activeId);
+  const pickTools = (v: ToolChoice) => (activeId == null ? setDraftTools(v) : void saveTools(v));
   const showThread = activeId != null || liveHere != null;
   // setting the server up doesn't look in the archive: no sources column to fill
   const setupChat = activeId != null && chat.data?.kind === "setup";
@@ -949,12 +940,7 @@ export function ChatApp() {
               openTick={scopeOpenTick}
               toolsChip={
                 usesTools && !setupChat ? (
-                  <ToolsChip
-                    value={toolChoice}
-                    onChange={(v) => void pickTools(v)}
-                    catalog={toolCatalog.data}
-                    admin={admin}
-                  />
+                  <ToolsChip value={toolChoice} onChange={pickTools} catalog={toolCatalog.data} admin={admin} />
                 ) : undefined
               }
             />

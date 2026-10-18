@@ -45,9 +45,10 @@ Each namespace can have its own server, at `/mcp/<namespace>` (`https://lens.exa
 that should see that namespace and nothing else: a family assistant, a project's coding agent, a client's app. It
 has the same tools, but sees only that namespace, whatever else the person who signs the agent in can read. Tools
 that take a namespace use this one when none is named, `list_namespaces` and `list_files` show only it, and the tools
-about the server itself (`file_storage`, `monitoring`, `services`, `sandbox_gateway`, `install_settings` and the
-ones that change them) aren't there, even for admins. Nor are the person's own conversations (`list_chats`,
-`read_chat`, `rename_chat`, `export_chat`), which belong to no namespace. An admin counts as an owner of the namespace there.
+about the server itself (`file_storage`, `monitoring`, `services`, `mcp_servers`, `sandbox_gateway`, `install_settings`
+and the ones that change them) aren't there, even for admins. Nor are the person's own conversations (`list_chats`,
+`read_chat`, `rename_chat`, `export_chat`), which belong to no namespace. An admin counts as an owner of the
+namespace there.
 
 It is off until an owner of the namespace turns it on: **Admin → Namespaces →** the namespace **→ Connect apps**, which
 also copies its address, or `PATCH /api/v1/namespaces/<namespace>/integrations` with `{"mcp": true}`, or an agent's
@@ -67,6 +68,7 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 
 | Tool | |
 |---|---|
+| `lens_help` | Lens itself rather than the archive: the sections of Lens's docs that match a question (or one page read whole), each with its link, and this server's own facts: version, addresses (web app, MCP, API), what is turned on and your access ([Questions about Lens itself](assistant.md#questions-about-lens-itself)) |
 | `search` | moments where words appear (written, spoken or shown on screen), best first: the asset, person, time, the matching text (matches in **bold**) and a link to that moment. Words, `"phrases"`, `OR`; by namespace, person or asset |
 | `find_similar` | the assets (recordings, documents and images) most like a text, an asset, a topic or an entity: why each is alike (meaning, key words, topics, entities in common) and the moments that show it, with links |
 | `find` | assets by any attribute: faces seen, people heard, entities, topics, kind, content type, dates (a day, month or year), tags, language, objects, emotions, length, collection and words in them; ids or names. Each says why it matched, with moments and links to cite ([Finding by any attribute](processing.md#finding-by-any-attribute)) |
@@ -133,6 +135,8 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `set_service` | start or stop one of them (`mcp`, `browser` or `monitoring`): the machine's upgrade agent does it. Admins only, with a write-scope token |
 | `picture_descriptions` | what describes the pages and shots of resources ([Descriptions](configuration.md#descriptions)): the LLM provider's model that can see images, or Florence-2 or Moondream on this server, its model, whether it's ready and why not, and the engines there are. Admins only |
 | `set_picture_descriptions` | choose what describes pictures (`engine` `llm`, `florence-2` or `moondream`), the provider's `vision_model`, Florence-2's size (`florence_model`), which Moondream (`moondream_model`) and `describe_max`. Admins only, with a write-scope token |
+| `mcp_servers` | the MCP servers the assistant calls ([Adding an MCP server](assistant.md#adding-an-mcp-server)): each one's address or command, the names of its headers and env (never their values), whether it's on, its tools and those switched off, and its page; and the ready-made ones (browser, github), whether each is added and what it needs. Admins only |
+| `add_mcp_server` | add one: a ready-made one (`preset`, with `values` for its token) or your own (`server`: `{url, headers}` or `{command, args, env}`, with `off`, `ask` and `keep`); Lens lists its tools first, so it must answer, and seals its tokens. Admins only, with an API key that has the write scope (not an app given access) |
 | `install_settings` | whether other devices on the network reach Lens and its edition (full or lean), whether the machine's upgrade agent can change them, and the install line to run when it can't. Admins only |
 | `set_install_settings` | open Lens to the network or keep it to this machine, or change the edition: the machine sets itself up again and Lens restarts ([Updates](updates.md#setting-the-machine-up-again)). Admins only, with a write-scope token |
 | `news_feeds` | the news feeds (RSS or Atom) Lens follows, the namespaces each brings posts into and how the last scan went; addresses stay sealed. Admins only |
@@ -159,7 +163,8 @@ app (merges and deletes can be undone), `write_note`, which adds a note, `create
 queues an episode, `create_feed` and `publish_to_feed`, which make and fill a [published feed](feeds.md),
 `write_spec`, which queues a spec, `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
 editors), `enhance`, which enhances an image and reads it again (the process permission),
-`set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_picture_descriptions`, which changes what describes pictures (admins), `set_file_storage`, which changes where new files are kept (admins), `subscribe_feed` and `unsubscribe_feed`, which follow and stop following news feeds (admins), and `set_monitoring`, `set_service`,
+`set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_picture_descriptions`, which changes what describes pictures (admins), `set_file_storage`, which changes where new files are kept (admins), `add_mcp_server`, which adds an
+MCP server (admins), `subscribe_feed` and `unsubscribe_feed`, which follow and stop following news feeds (admins), and `set_monitoring`, `set_service`,
 `set_sandbox_gateway` (the [code sandbox](assistant.md#code-sandbox)'s gateway) and `set_install_settings`, which have the machine change how Lens runs (admins).
 Importing stays in the web app and the API.
 

@@ -39,12 +39,16 @@ export function shortTitle(title: string | null | undefined, max = 24): string {
   return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
 }
 
-/** A web page the assistant searched for or read (source "web"), rather than a moment of an asset. */
+/** Sources cited by their address rather than as a moment of an asset: a web page the assistant searched for or read,
+ * and a message ("mail") or event ("event") of an account connected to Lens. */
+const LINKED = new Set(["web", "mail", "event"]);
+
+/** A web page, message or event (opened at its address), rather than a moment of an asset. */
 export function isWeb(p: Pick<Passage, "source" | "url">): boolean {
-  return p.source === "web" && !!p.url;
+  return LINKED.has(p.source ?? "") && !!p.url;
 }
 
-/** A web page's site, as people say it: "example.com". */
+/** A web page's site, as people say it: "example.com"; a message's or event's connection: "Mara's mail". */
 export function siteOf(p: Pick<Passage, "site" | "url">): string {
   if (p.site) return p.site;
   try {
@@ -54,21 +58,54 @@ export function siteOf(p: Pick<Passage, "site" | "url">): string {
   }
 }
 
-/** When a passage starts, as "14:29" (tools send `time`; retrieval sends both); a web page's site. */
+/**
+ * A passage that isn't an asset's moment but a page somewhere else (`url`): a web page, or from the lens_help tool a
+ * section of Lens's docs or this Lens server's own facts.
+ */
+export function isPage(p: Partial<Pick<Passage, "url">>): boolean {
+  return Boolean(p.url);
+}
+
+/** A section of Lens's docs (lens_help): opened in a new tab. */
+export function isDocs(p: Partial<Pick<Passage, "url" | "source">>): boolean {
+  return isPage(p) && p.source === "docs";
+}
+
+/**
+ * A passage's name: an asset's short title, or for a page of the docs its section ("Lens docs: MCP server ›
+ * Connecting" → "MCP server › Connecting", or its last heading when that's too long).
+ */
+export function passageTitle(p: Pick<Passage, "title"> & Partial<Pick<Passage, "url" | "source">>, max = 24): string {
+  if (!isPage(p) || isWeb(p)) return shortTitle(p.title, max);
+  let t = (p.title ?? "Lens").replace(/^Lens docs:\s*/, "").trim();
+  if (t.length > max) t = t.split(" › ").pop() ?? t;
+  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
+}
+
+/**
+ * When a passage starts, as "14:29" (tools send `time`; retrieval sends both); a web page's site; nothing for Lens's
+ * docs or this server.
+ */
 export function passageTime(
   p: Pick<Passage, "t0" | "time"> & Partial<Pick<Passage, "source" | "url" | "site">>,
 ): string {
-  if (p.source === "web") return siteOf(p);
+  if (LINKED.has(p.source ?? "")) return siteOf(p);
+  if (isPage(p)) return "";
   if (p.time) return p.time;
   return tc(typeof p.t0 === "number" ? p.t0 : 0);
 }
 
-/** "Ep. 12 · 14:29 · Host B": recording · time · speaker; "example.com · Harbour news" for a web page. */
+/**
+ * "Ep. 12 · 14:29 · Host B": recording · time · speaker; "example.com · Harbour news" for a web page; "Docs · MCP server ›
+ * Connecting" for Lens's docs.
+ */
 export function citeLabel(
   p: Pick<Passage, "title" | "t0" | "time" | "speaker"> & Partial<Pick<Passage, "source" | "url" | "site">>,
   withSpeaker = true,
 ): string {
-  if (p.source === "web") return [siteOf(p), withSpeaker ? shortTitle(p.title, 32) : null].filter(Boolean).join(" · ");
+  if (LINKED.has(p.source ?? ""))
+    return [siteOf(p), withSpeaker ? shortTitle(p.title, 32) : null].filter(Boolean).join(" · ");
+  if (isPage(p)) return [isDocs(p) ? "Docs" : null, passageTitle(p, withSpeaker ? 36 : 24)].filter(Boolean).join(" · ");
   return [shortTitle(p.title), passageTime(p), withSpeaker ? p.speaker : null].filter(Boolean).join(" · ");
 }
 
@@ -87,20 +124,33 @@ export function passageLines(p: Pick<Passage, "text" | "speaker">): QuoteLine[] 
   });
 }
 
-/** The line a citation points at: the one said by the passage's speaker, else the first. */
-export function quoteOf(p: Pick<Passage, "text" | "speaker">): QuoteLine {
+/** The line a citation points at: the one said by the passage's speaker, else the first (a page's first line). */
+export function quoteOf(p: Pick<Passage, "text" | "speaker" | "url">): QuoteLine {
+  if (isPage(p)) {
+    const first = (p.text ?? "").split(/\n+/).find((l) => l.trim()) ?? "";
+    return { speaker: null, text: first.length > 240 ? `${first.slice(0, 239).trimEnd()}…` : first };
+  }
   const lines = passageLines(p);
   return (
     lines.find((l) => p.speaker && l.speaker === p.speaker) ?? lines[0] ?? { speaker: p.speaker ?? null, text: "" }
   );
 }
 
-/** Link to the cited moment, or the web page's own address. */
+/** Link to the cited moment, or the page's own address (a web page, Lens's docs, this server, a message or an event). */
 export function passageHref(
   p: Pick<Passage, "recording_id" | "t0"> & Partial<Pick<Passage, "source" | "url">>,
 ): string {
-  if (p.source === "web" && p.url) return p.url;
+  if (p.url) return p.url;
   return recordingHref(p.recording_id ?? 0, typeof p.t0 === "number" ? p.t0 : 0);
+}
+
+/** What a click on a citation does, said in its label and tooltip. */
+export function passageAction(p: Partial<Pick<Passage, "url" | "source">>): string {
+  if (isDocs(p)) return "Opens Lens’s docs there";
+  if (p.source === "web") return "Opens the page in a new tab";
+  if (p.source === "mail") return "Opens the message in a new tab";
+  if (p.source === "event") return "Opens the event in a new tab";
+  return isPage(p) ? "Opens this Lens server" : "Opens the asset there";
 }
 
 /** The backend's canned answers when no language model is configured. */

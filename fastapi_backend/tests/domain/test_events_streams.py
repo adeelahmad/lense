@@ -42,7 +42,8 @@ def test_readings_a_sensor_keeps_are_sensor_reading_activities(db, cfg):
     plug, _ = sensors.create(db, cfg, "mqtt", "Plug", {"prefix": "plug"}, handling_={"store": "changes"})
     quiet, _ = sensors.create(db, cfg, "mqtt", "Meter", {"prefix": "meter"}, handling_={"store": "summary"})
     assert events.follow(db, cfg, "test.readings", kinds=["sensor.reading"])[0] == []
-    assert events.follow(db, cfg, "test.kitchen", kinds=["sensor.reading"], hint={"actors": [f"lens:sensor/{kitchen}"]})[0] == []
+    only_kitchen = {"sensor_readings": {"actors": [f"lens:sensor/{kitchen}"]}}
+    assert events.follow(db, cfg, "test.kitchen", kinds=["sensor.reading"], hint=only_kitchen)[0] == []
 
     k, p, m = (sensors.get(db, s) for s in (kitchen, plug, quiet))
     it.put(k, "temperature", "21.5")
@@ -77,7 +78,7 @@ def test_readings_a_sensor_keeps_are_sensor_reading_activities(db, cfg):
     assert events.follow(db, cfg, "test.readings", kinds=["sensor.reading"])[0] == []  # read once
 
     # a follower naming its sensors reads only theirs
-    mine, _ = events.follow(db, cfg, "test.kitchen", kinds=["sensor.reading"], hint={"actors": [f"lens:sensor/{kitchen}"]})
+    mine, _ = events.follow(db, cfg, "test.kitchen", kinds=["sensor.reading"], hint=only_kitchen)
     assert [a["object"]["stream"] for a in mine] == ["temperature", "air", "door"]
 
     # left out of the timeline unless asked for; then newest first, for those who may see them

@@ -9,12 +9,15 @@ import threading
 class Handler(http.server.BaseHTTPRequestHandler):
     seen = []
     models = ["fake", "fake-large"]  # what GET /models lists
+    about = {}  # what GET /models says of a model besides its id, like {"fake": {"context_length": 4096}}
+    props = None  # GET /props, as llama.cpp's server answers it ({"default_generation_settings": {"n_ctx": ...}})
     tool_script = []  # assistant messages to return, in order, when a request offers tools (or functions of the request)
     reject_tools = False  # behave like a server whose model can't call tools
     ignore_tool_choice = False  # behave like a server that calls tools even when asked not to (tool_choice "none")
     blind = False  # behave like a server whose model can't see images
     names = None  # namespace names suggested for a question (auto_scope.py)
     decision = None  # the answer to a decision (decide.py) when no decision model is set up; else the first option
+    pick = None  # a function (question) -> option, for several decisions in one call (decide.choose_all); else the first
     cypher_script = []  # Cypher to answer graph questions with (graph_ask.py), in order
     podcast_script = None  # the lines a podcast script comes back with (podcasts.write), else a built-in one
     spec = None  # a spec's answer (specs.write), else one quoting the transcript's lines in turn (see _spec)
@@ -31,8 +34,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
-    def do_GET(self):  # GET /models
-        return self._json({"object": "list", "data": [{"id": m, "object": "model"} for m in Handler.models]})
+    def do_GET(self):  # GET /models, or llama.cpp's GET /props
+        if self.path == "/props" and Handler.props is not None:
+            return self._json(Handler.props)
+        if self.path == "/props":
+            self.send_error(404)
+            return None
+        listed = [{"id": m, "object": "model", **Handler.about.get(m, {})} for m in Handler.models]
+        return self._json({"object": "list", "data": listed})
 
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
@@ -249,6 +258,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
             title = re.search(r"^Title: (.*)$", text, re.M).group(1)
             first = text.split("Note:\n", 1)[1].strip().splitlines()[0]
             content = json.dumps({"title": "Capsid plan" if title == "Untitled" else title, "summary": f"About {first}"})
+        elif set(schema.get("properties", {})) == {"answers"}:
+            # several decisions at once (decide.choose_all): Handler.pick's option for each question, else the first
+            asked = dict(re.findall(r"^(q\d+): (.*)$", body["messages"][-1]["content"], re.M))
+            answers = {}
+            for i, a in schema["properties"]["answers"]["properties"].items():
+                options = a["properties"]["choice"]["enum"]
+                got = Handler.pick(asked.get(i, "")) if Handler.pick else None
+                answers[i] = {"choice": got or options[0], "confidence": 0.9}
+            content = json.dumps({"answers": answers})
         elif set(schema.get("properties", {})) == {"choice", "confidence"}:
             content = json.dumps(Handler.decision or {"choice": schema["properties"]["choice"]["enum"][0], "confidence": 0.9})
         elif str(body["messages"][0].get("content") or "").startswith("You write research reports"):

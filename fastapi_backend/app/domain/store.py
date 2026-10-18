@@ -156,9 +156,11 @@ DEFAULTS = {
     # anytopdf: the places and dates anytopdf (run here) finds, as hints for the extractor (enrich.py); dates: the dates
     # each line gives kept as days on the calendar (dates.py); cleanup: the
     # clean step tidies transcripts before analysis (cleanup.py), cleanup_fillers taking out "um" and "uh" too, and
-    # cleanup_punctuation (off, missing, always) putting marks back with a local model
+    # cleanup_punctuation (off, missing, always) putting marks back with a local model; typing: which model types the
+    # names the rules leave terms (name_types.asking)
     "analysis": {
         "entities": "rules",
+        "typing": "auto",
         "spacy_model": "en_core_web_sm",
         "gazetteer": [],
         "anytopdf": False,
@@ -302,7 +304,8 @@ DEFAULTS = {
         "compact": True,  # a long conversation keeps a summary of the messages the model no longer sees (chat.compact)
         "compact_model": None,  # a cheaper model to write those summaries and titles (None: the chat's model)
         "auto_title": True,  # a conversation nobody named is titled by the model after its first answer (chat.auto_title)
-        "context_tokens": None,  # the chat model's context window; summarised early before it fills (None: 16000)
+        "context_tokens": None,  # the chat model's context window (None: what its server says, else 16000; chat.window)
+        "compact_at": 50,  # a conversation filling this % of that window is summarised early, before the next answer
         "organise_notes": True,  # notes nobody filed are filed in PARA, or a suggestion waits on them (notebook.py)
         "untrusted_marking": True,  # third-party text reaches the model marked as data, not instructions (untrusted.py)
         "untrusted_asks": True,  # after reading it, tools that send data out or change the server ask first (ai_tools.py)
@@ -654,6 +657,22 @@ DEFAULTS = {
     # tunnel and DNS record for hostname with api_token). origin: the web app as this server reaches it (default
     # LENS_TUNNEL_ORIGIN, else FRONTEND_URL). token and api_token are secrets.
     "tunnel": {"mode": "off", "hostname": "", "token": None, "api_token": None, "origin": ""},
+    # Lens's own private network between its machines, a Nebula mesh (domain/mesh.py, docs/mesh.md). Off until an admin
+    # adds a node. network: the mesh's addresses (the primary is the first); port: the UDP port the primary listens on;
+    # hosts: where other machines reach that port from outside the mesh (host or host:port; none: the address each
+    # joined at); cipher: aes or chachapoly, the same on every machine; cert_days: how long a machine's certificate
+    # lasts (renewed at two thirds); relay: the primary relays for machines that can't reach each other directly
+    "mesh": {
+        "enabled": False,
+        "network": "10.73.0.0/16",
+        "port": 4242,
+        "hosts": [],
+        "cipher": "aes",
+        "cert_days": 30,
+        "relay": True,
+        "mtu": 1300,
+        "log_level": "info",
+    },
     # HTTPS with certificates from Let's Encrypt or ZeroSSL, got and renewed by Caddy run by Lens (domain/https.py). Off
     # by default. domains: the names to serve (and get certificates for); ca: letsencrypt, zerossl, both (Let's Encrypt
     # then ZeroSSL) or custom (ca_url, an ACME directory); challenge: http (ports 80 and 443 reach this machine), tls-alpn
@@ -1264,6 +1283,12 @@ SCHEMA = [
     # the Cloudflare tunnel: which process runs cloudflared, and what it's doing (app/domain/tunnel.py); HTTPS: which
     # process runs Caddy (app/domain/https.py)
     "DEFINE TABLE IF NOT EXISTS app_service SCHEMALESS",
+    # the mesh between Lens's machines (domain/mesh.py, docs/mesh.md): its CA (mesh_ca:current, the key sealed), each
+    # machine on it (mesh_node:<n>, the primary among them) and the tokens machines join with (mesh_token:<n>, sealed)
+    "DEFINE TABLE IF NOT EXISTS mesh_ca SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS mesh_node SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS mesh_node_role ON mesh_node FIELDS role",
+    "DEFINE TABLE IF NOT EXISTS mesh_token SCHEMALESS",
     # each namespace's data key, wrapped by the keys that can open it (app/domain/keyring.py)
     "DEFINE TABLE IF NOT EXISTS data_key SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS account SCHEMALESS",

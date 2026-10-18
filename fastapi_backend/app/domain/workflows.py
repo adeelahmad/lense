@@ -23,7 +23,8 @@ what flows between these, the nodes of a recording workflow:
 Positions are only for the canvas.
 
 A workflow's scope says what it runs on: `recording` (the nodes above, run by pipelines), `graph` (run over
-namespaces, usually by a routine, to organise their entities: see organize.py for its nodes) or `event` (what an
+namespaces, usually by a routine, to organise their entities, see organize.py for its nodes, or to publish from them
+to a feed or as a podcast episode, see feed_nodes.py) or `event` (what an
 automation does when it runs, from the run context: see automation_nodes.py for its action and decide nodes).
 """
 
@@ -37,6 +38,7 @@ from . import (
     automation_nodes,
     classify as classifymod,
     decide,
+    feed_nodes,
     fields as fieldmod,
     flow,
     llm,
@@ -51,7 +53,7 @@ from . import (
 
 R = store.R
 OWN_NODES = ("llm", "extract_rules", "extract_llm", "classify", "output", "field", "save_entities")
-TERMINAL = {"output", "field", "save_entities", "apply_changes"}
+TERMINAL = {"output", "field", "save_entities", "apply_changes", *feed_nodes.TERMINAL}
 OPS = flow.OPS
 OWN_CONFIG = {
     "llm": {"template", "version", "model"},
@@ -101,6 +103,8 @@ def validate_graph(db, graph, scope="recording"):
 def _check_config(db, nid, t, cfg):
     if t in organize.CONFIG:
         organize.check_config(nid, t, cfg)
+    elif t in feed_nodes.CONFIG:
+        feed_nodes.check_config(db, nid, t, cfg)
     elif t in ("pick", "condition"):
         flow._check_primitive(db, KITS["recording"], nid, t, cfg, None, 0, "")
     elif t == "llm":
@@ -494,13 +498,16 @@ def _fit(f, v):
 
 KITS = {
     "recording": flow.Kit(
-        "recording", OWN_NODES, OWN_CONFIG, _check_config, _run_node, TERMINAL - {"apply_changes"},
+        "recording", OWN_NODES, OWN_CONFIG, _check_config, _run_node, TERMINAL - {"apply_changes", *feed_nodes.TERMINAL},
         "a workflow needs an output, field or save entities node (or a classify node that acts), or it keeps nothing",
         keeps=lambda n: n["type"] == "classify" and bool((n.get("config") or {}).get("apply")),
     ),
+    # organising the graph (organize.py) and publishing from it (feed_nodes.py), run over namespaces by a routine
     "graph": flow.Kit(
-        "graph", organize.OWN_NODES, organize.CONFIG, _check_config, organize.run_node, {"apply_changes"},
-        "a graph workflow needs an apply changes node, or it changes nothing",
+        "graph", organize.OWN_NODES + feed_nodes.OWN_NODES, {**organize.CONFIG, **feed_nodes.CONFIG}, _check_config,
+        lambda r, f, n, v, vals: (feed_nodes.run_node if n["type"] in feed_nodes.OWN_NODES else organize.run_node)(r, f, n, v, vals),
+        {"apply_changes", *feed_nodes.TERMINAL},
+        "a graph workflow needs an apply changes, publish to feed or podcast episode node, or it changes nothing",
     ),
     # an assistant tool drawn on the canvas (tool_nodes.py): only ever a body, from its parameters to what it gives back
     "tool": flow.Kit(
@@ -517,4 +524,4 @@ KITS = {
 SCOPES = {s: k.all_types for s, k in KITS.items()}
 RECORDING_NODES = SCOPES["recording"]
 NODE_TYPES = RECORDING_NODES + tuple(dict.fromkeys(t for s in ("graph", "tool", "event") for t in SCOPES[s] if t not in RECORDING_NODES))
-CONFIG = {**flow.CONFIG, **OWN_CONFIG, **organize.CONFIG, **tool_nodes.CONFIG, **automation_nodes.CONFIG}
+CONFIG = {**flow.CONFIG, **OWN_CONFIG, **organize.CONFIG, **feed_nodes.CONFIG, **tool_nodes.CONFIG, **automation_nodes.CONFIG}
