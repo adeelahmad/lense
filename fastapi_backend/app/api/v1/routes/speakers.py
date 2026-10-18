@@ -20,6 +20,7 @@ from app.schemas.speakers import (
     SpeakerPair,
     SpeakerRecording,
     SpeakerRename,
+    VoiceMode,
 )
 
 router = APIRouter(tags=["speakers"])
@@ -98,8 +99,24 @@ def list_speakers(ns: str, acl: Acl, user: CurrentUser, db: Db, cfg: Cfg) -> Spe
         if nid in (x["asp"], x["bsp"])
     ]
     return SpeakerDirectory.model_validate(
-        {"speakers": spk.list_speakers(db, nid), "merges": merges, "links": links, "cross": _cross(db, cfg, nid, set(acl.roles))}
+        {
+            "speakers": spk.list_speakers(db, nid),
+            "merges": merges,
+            "links": links,
+            "cross": _cross(db, cfg, nid, set(acl.roles)),
+            "voices": spk.voice_mode(db, nid),
+        }
     )
+
+
+@router.put("/namespaces/{name}/voices/mode")
+def set_namespace_voice_mode(name: str, body: VoiceMode, user: Writer, acl: Acl, db: Db) -> Ok:
+    """Recognise voices across the namespace's recordings (the default), or only tell them apart in each one
+    (separate), which deletes its voiceprints and the matches waiting for review. Owners only."""
+    nid = acl.namespace(name, "manage")
+    spk.set_voice_mode(db, nid, body.mode, user.email)
+    auth.audit(db, user.as_audit(), "voices.mode", name, {"mode": body.mode})
+    return Ok()
 
 
 @router.get("/speakers/{sid}/recordings")

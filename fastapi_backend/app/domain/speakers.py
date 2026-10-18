@@ -3,6 +3,10 @@
 Speaker ids belong to one namespace and are never merged across namespaces. Across
 namespaces the archive only records links: ones you declare, and (optionally) voice
 matches it suggests as graph edges.
+
+A namespace's owner can turn voice recognition off (`voice_mode` separate): voices are still told apart inside each
+recording, but no voiceprint is kept and nobody is matched across recordings. Turning it off deletes the namespace's
+voiceprints and the matches waiting for review.
 """
 
 from __future__ import annotations
@@ -184,6 +188,33 @@ def voice_print(signal, segs, embed, seconds=60):
 
 # ---------- the namespace registry ----------
 R = store.R
+VOICE_MODES = ("recognize", "separate")
+
+
+def voice_mode(db, nid):
+    """recognize (the default: voiceprints kept, people matched across recordings) or separate (told apart in each
+    recording only)."""
+    return (db.one("SELECT voices_mode FROM $s", s=R("space", int(nid))) or {}).get("voices_mode") or "recognize"
+
+
+def set_voice_mode(db, nid, mode, user=None):
+    """Recognise voices across recordings, or only tell them apart in each one. Separate deletes the namespace's
+    voiceprints (people's, each appearance's and those kept for undoing a merge) and its suggested matches: there is
+    nothing left to match with. Recognising again starts from the recordings diarized after it."""
+    if mode not in VOICE_MODES:
+        raise ValueError(f"voice mode is one of {', '.join(VOICE_MODES)}")
+    db.q("UPDATE $s MERGE $p", s=R("space", int(nid)), p={"voices_mode": mode, "voices_set_by": user, "voices_set_at": store.now()})
+    if mode == "separate":
+        db.run(
+            [
+                "UPDATE speaker SET embedding = NONE, n_obs = 0 WHERE space = $s",
+                "UPDATE appearance SET embedding = NONE WHERE space = $s",
+                "DELETE suggestion WHERE space = $s",
+                # the voiceprints kept for undoing a merge too
+                "UPDATE merge SET snapshot.speaker.embedding = NONE, snapshot.dst.embedding = NONE WHERE space = $s",
+            ],
+            s=int(nid),
+        )
 
 
 def _vec(v):
@@ -316,6 +347,9 @@ def diarize_one(db, cfg, rid, log=print):
             vp = voice_print(sig, g, emb, cfg["speakers"]["sample_seconds"])
             if vp is not None:
                 prints[l] = vp
+    keep = voice_mode(db, r["space"]) == "recognize"
+    if not keep:  # told apart in this recording only: no voiceprint kept, nobody matched
+        prints = {}
     ids = match(db, cfg, r["space"], prints) if prints else {}
     for l in groups:
         if l not in ids:

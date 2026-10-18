@@ -195,6 +195,13 @@ as the same person (and unlink them), and with `speakers.cross_namespace: sugges
 as dashed edges and People lists them with how alike the voices are. Saying a suggested pair is "not the same", in one
 namespace or across two, removes the suggestion for good.
 
+**Voice recognition off.** Voiceprints are biometric data. An owner can turn off People › Recognise voices across
+recordings for their namespace (`PUT /api/v1/namespaces/<ns>/voices/mode {"mode": "separate"}`; `GET /speakers` says
+which is on as `voices`). Voices are then still told apart inside each recording, but no voiceprint is kept and nobody
+is matched across recordings or namespaces. Turning it off deletes the namespace's voiceprints (each person's, each
+appearance's and those kept for undoing a merge) and the matches waiting for review, and is audited as `voices.mode`;
+names, transcripts and who spoke when stay. Turning it back on recognises people in recordings diarized after that.
+
 ## Knowledge graph
 
 Nodes are people and named things. Edges are:

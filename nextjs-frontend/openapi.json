@@ -16785,6 +16785,59 @@
         }
       }
     },
+    "/api/v1/namespaces/{name}/voices/mode": {
+      "put": {
+        "tags": [
+          "speakers"
+        ],
+        "summary": "Set Namespace Voice Mode",
+        "description": "Recognise voices across the namespace's recordings (the default), or only tell them apart in each one\n(separate), which deletes its voiceprints and the matches waiting for review. Owners only.",
+        "operationId": "set_namespace_voice_mode",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoiceMode"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/speakers/{sid}/recordings": {
       "get": {
         "tags": [
@@ -80431,6 +80484,16 @@
             "type": "array",
             "title": "Cross",
             "description": "likely the same person in another shared namespace you can read (speakers.cross_namespace: suggest), best first; not linked, and not marked as different"
+          },
+          "voices": {
+            "type": "string",
+            "enum": [
+              "recognize",
+              "separate"
+            ],
+            "title": "Voices",
+            "description": "recognize: voiceprints kept and people matched across recordings; separate: voices told apart in each recording only (PUT /namespaces/{name}/voices/mode)",
+            "default": "recognize"
           }
         },
         "additionalProperties": true,
@@ -85948,6 +86011,25 @@
           "voices"
         ],
         "title": "VoiceList"
+      },
+      "VoiceMode": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "recognize",
+              "separate"
+            ],
+            "title": "Mode",
+            "description": "recognize, or separate: voices told apart in each recording only, the namespace's voiceprints deleted"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "mode"
+        ],
+        "title": "VoiceMode"
       },
       "VoiceOption": {
         "properties": {

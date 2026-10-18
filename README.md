@@ -163,7 +163,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   ([Web clipper](docs/web-clipper.md), [setting it up](docs/web-clipper.md#setting-it-up),
   [the assistant in your browser](docs/browser-assistant.md); [checks](docs/requirements.md#clip-from-the-browser))
 - **Understand it.** Transcription, which can expect the names your namespace knows (off by default), people
-  recognised by voice (long recordings go to a speech provider in pieces that fit its limits), text on screen and in scans, faces (off by default), NSFW pictures flagged by a model on your own
+  recognised by voice (an owner can keep voices to each recording instead; long recordings go to a speech provider in pieces that fit its limits), text on screen and in scans, faces (off by default), NSFW pictures flagged by a model on your own
   server (off by default, per namespace), low quality images enhanced before they're read (off by default), entities
   and topics in a knowledge graph you can explore, query with Cypher or
   SPARQL, and see as it was at any version, where every source, sensor, person and agent is a node linked to what it
