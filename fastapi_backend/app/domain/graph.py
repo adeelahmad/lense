@@ -65,6 +65,35 @@ def build(db, cfg, scope="global", allowed=None, as_of=None):
                 "recordings": recs_per[r["id"]],
                 "refs": [r["id"]],
             }
+    # who brought each asset in, as the activity stream's actors: a Source node each, linked to what they mention
+    from . import events_content, graph_model
+
+    recs = db.rows("SELECT record::id(id) AS id, space, remote, created_by, sensor FROM recording WHERE space IN $s", s=nids)
+    src_of = {}
+    who = events_content.added_by(db, recs)
+    for r in recs:
+        a = who.get(r["id"])
+        if not a:
+            continue
+        key = graph_model.source_node_id(a["id"])
+        src_of[r["id"]] = key
+        n = nodes.setdefault(
+            key,
+            {
+                "id": key,
+                "kind": "source",
+                "label": a["name"],
+                "type": graph_model.actor_kind(a["id"]),
+                "ns": set(),
+                "weight": 0,
+                "refs": [],
+            },
+        )
+        n["weight"] += 1
+        n["ns"].add(names[r["space"]])
+    for n in nodes.values():
+        if n["kind"] == "source":
+            n["ns"] = sorted(n["ns"])
     counts = {r["entity"]: r["n"] for r in db.rows("SELECT entity, count() AS n FROM mentions WHERE space IN $s GROUP BY entity", s=nids)}
     shown = {}
     for r in db.rows("SELECT entity, text, count() AS n FROM mentions WHERE space IN $s GROUP BY entity, text", s=nids):
@@ -123,18 +152,22 @@ def build(db, cfg, scope="global", allowed=None, as_of=None):
         for i in range(len(g)):
             for j in range(i + 1, len(g)):
                 edge(g[i], g[j], "together")
-    seg_ents, seg_spk = defaultdict(set), {}
-    for r in db.rows("SELECT record::id(in) AS seg, entity, speaker FROM mentions WHERE space IN $s", s=nids):
+    seg_ents, seg_spk, seg_src = defaultdict(set), {}, {}
+    for r in db.rows("SELECT record::id(in) AS seg, entity, speaker, recording FROM mentions WHERE space IN $s", s=nids):
         n = node_of.get(r["entity"])
         if n in nodes:
             seg_ents[r["seg"]].add(n)
             seg_spk[r["seg"]] = r.get("speaker")
+            seg_src[r["seg"]] = src_of.get(r.get("recording"))
     for sid, es in seg_ents.items():
         who = f"s{seg_spk[sid]}" if seg_spk.get(sid) else None
+        src = seg_src.get(sid)
         es = sorted(es)
         for i, e in enumerate(es):
             if who in nodes:
                 edge(who, e, "mentions")
+            if src in nodes:
+                edge(src, e, "added")
             for f in es[i + 1 :]:
                 edge(e, f, "mentioned together")
     for ln in db.rows("SELECT record::id(in) AS a, record::id(out) AS b FROM same_as"):

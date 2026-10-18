@@ -16,7 +16,8 @@ Status: in progress. The studio's timeline is built in steps; only what is merge
 | Ask about an item: talk to the assistant about it from the item, in the chat beside the page | built |
 | What each item caused (automation runs, approvals), and Approve and Decline on waiting approvals | planned |
 | Tagging the agent in a comment, so it answers in the thread | built |
-| Sources, sensors, people and agents as actors in the graph; a For you order learned from what each person reacts to, comments on and hides | planned |
+| Sources, sensors, people and agents as actors in the graph: a Source node with ADDED links, on the canvas, in the explorer and in Cypher | built |
+| A For you order learned from what each person reacts to, comments on and hides | planned |
 
 ## What shows
 
@@ -108,6 +109,17 @@ out) waits for that person's yes, and the reply says so with a link to decide. T
 ledger against their conversation and the item's namespace; when no model is set up or the namespace's budget is
 used up, the reply says so instead. **Settings → AI assistant → Answer when tagged in a comment**
 (`ai.answer_comments`, on) turns it off; without a tag nothing is asked of the model.
+
+## Actors in the graph
+
+Whoever brought an asset in, the actor of its `asset.added` activity (a storage source, a sensor, a person, an
+automation, a routine, an import hook, or Lens itself), is a **Source** node in the [graph](graph.md) with an **ADDED**
+relationship to the asset, so the graph says where Lens learns about each person, place or organisation:
+`(Source)-[:ADDED]->(Recording)-[:MENTIONS]->(Entity)`. The explorer's parents of an asset are its collection and its
+source; on the canvas a source links to what its assets mention (a *Brought in* edge, one per source and entity,
+weighted by mentions), and the Timeline page's **Graph** button opens the canvas on the sources alone
+(`/graph?show=actors`). Agents read the same through `GET /api/v1/graph/related`, `POST /api/v1/graph/query` and the
+MCP graph tools. Nothing is stored for it: the nodes come from each asset's own record.
 
 ## Review marks
 

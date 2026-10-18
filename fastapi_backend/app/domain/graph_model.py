@@ -11,6 +11,9 @@ Nodes, each with labels and properties (every node has `id`, `name` and `namespa
   are one node, `e:<key>`, as in the overview graph (graph.py); `ids` lists the entities behind it.
 - `t<id>` Topic {alt, definition, recordings}: a topic of the namespace's vocabulary (topics.py). In the global scope,
   topics with the same label are one node, `t:<key>`, like entities.
+- `a:<actor>` Source {actor, type, kind, recordings}: who brought assets in, as the activity stream's actors
+  (events_content.added_by): a storage source (`a:source/12`), a sensor, a person (`a:account/1`), an automation, a
+  routine, an import hook or Lens itself. `kind` is source, sensor, person, hook or agent; `type` the AS2 actor type.
 
 Relationships, all directed (a query may ignore the direction):
 
@@ -25,9 +28,11 @@ Relationships, all directed (a query may ignore the direction):
 - ABOUT: Recording -> Topic, the recording is about it {source, weight}
 - NARROWER: Topic -> Topic, from a broader topic to a narrower one (skos:narrower)
 - RELATED: Topic -> Topic (skos:related)
+- ADDED: Source -> Recording, the source brought the recording in
 
-CONTAINS, HAS_SPEAKER, MENTIONS, SAID, ABOUT and NARROWER make the hierarchy that parents, children, ancestors and
-descendants follow, so a topic's parents are its broader topics and the recordings about it.
+CONTAINS, HAS_SPEAKER, MENTIONS, SAID, ABOUT, NARROWER and ADDED make the hierarchy that parents, children, ancestors
+and descendants follow, so a topic's parents are its broader topics and the recordings about it, and a recording's
+parents are its collection and the source that added it.
 
 A projection covers whole namespaces only: the ones a caller can read, one of them (`ns:<name>`, isolated ones too),
 or every shared one (`global`). Hidden entities and quiet types (dates, numbers) are left out, as in the explorer.
@@ -55,9 +60,10 @@ REL_TYPES = (
     "ABOUT",
     "NARROWER",
     "RELATED",
+    "ADDED",
 )
-HIERARCHY = ("CONTAINS", "HAS_SPEAKER", "MENTIONS", "SAID", "ABOUT", "NARROWER")
-NODE_LABELS = ("Namespace", "Collection", "Recording", "Speaker", "Entity", "Topic")
+HIERARCHY = ("CONTAINS", "HAS_SPEAKER", "MENTIONS", "SAID", "ABOUT", "NARROWER", "ADDED")
+NODE_LABELS = ("Namespace", "Collection", "Recording", "Speaker", "Entity", "Topic", "Source")
 # the overview graph's edge kinds (graph.py, the web app's legend) for the relationship types that have one
 KIND = {
     "SAID": "mentions",
@@ -71,6 +77,7 @@ KIND = {
     "ABOUT": "about",
     "NARROWER": "narrower",
     "RELATED": "related",
+    "ADDED": "added",
 }
 RELATIONS = ("children", "parents", "ancestors", "descendants", "neighbours")
 MAX_RESULTS = 2000
@@ -209,9 +216,14 @@ def build(db, scope="global", readable=None, recordings=None, as_of=None):
     for c in cols:
         g.link("CONTAINS", f"c{c['parent']}" if c.get("parent") else f"n{c['space']}", f"c{c['id']}")
 
-    for r in db.rows("SELECT record::id(id) AS id, space, collection, title, recorded_at, media FROM recording WHERE space IN $s", s=sids):
+    recs = []
+    for r in db.rows(
+        "SELECT record::id(id) AS id, space, collection, title, recorded_at, media, remote, created_by, sensor FROM recording WHERE space IN $s",
+        s=sids,
+    ):
         if not keep(r["id"]):
             continue
+        recs.append(r)
         date = r.get("recorded_at")
         g.add(
             f"r{r['id']}",
@@ -224,6 +236,8 @@ def build(db, scope="global", readable=None, recordings=None, as_of=None):
         )
         home = f"c{r['collection']}" if r.get("collection") and f"c{r['collection']}" in g.nodes else f"n{r['space']}"
         g.link("CONTAINS", home, f"r{r['id']}")
+
+    _sources(g, db, recs, names)
 
     talk = db.rows(
         "SELECT speaker, recording, math::sum(dur) AS ms FROM segment WHERE space IN $s AND speaker > 0 GROUP BY speaker, recording", s=sids
@@ -318,6 +332,48 @@ def build(db, scope="global", readable=None, recordings=None, as_of=None):
             g.link("SAME_THING", a, b)
     _topics(g, db, sids, names, merged, keep, only_about=recordings is not None)
     return g
+
+
+def actor_kind(actor_id):
+    """What an actor is, from its id: source (a storage source), sensor, person, hook (an import hook) or agent (an
+    automation, a routine, the assistant, Lens)."""
+    table = str(actor_id or "").removeprefix("lens:").split("/")[0]
+    return {"source": "source", "sensor": "sensor", "account": "person", "email": "person", "import_hook": "hook"}.get(table, "agent")
+
+
+def source_node_id(actor_id):
+    """The Source node of an actor: a:source/12, a:account/1, a:app."""
+    return f"a:{str(actor_id).removeprefix('lens:')}"
+
+
+def _sources(g, db, recs, names):
+    """A Source node for whoever brought each recording in, with an ADDED relationship to it."""
+    from . import events_content
+
+    who = events_content.added_by(db, recs)
+    actors, added = {}, defaultdict(list)
+    for r in recs:
+        a = who.get(r["id"])
+        if not a:
+            continue
+        nid = source_node_id(a["id"])
+        actors.setdefault(nid, a)
+        added[nid].append(r)
+    for nid, a in actors.items():
+        ns = sorted({names[r["space"]] for r in added[nid]})
+        g.add(
+            nid,
+            ["Source"],
+            name=a["name"],
+            actor=a["id"],
+            type=a["type"],
+            kind=actor_kind(a["id"]),
+            namespace=ns[0] if len(ns) == 1 else None,
+            namespaces=ns,
+            recordings=len(added[nid]),
+        )
+        for r in added[nid]:
+            g.link("ADDED", nid, f"r{r['id']}")
 
 
 def _topics(g, db, sids, names, merged, keep, only_about=False):

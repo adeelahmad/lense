@@ -3,7 +3,7 @@
  * server's layout, and typed, weighted edges. Filtering, sizing, keyboard movement and the text summary live here.
  */
 
-export type NodeKind = "speaker" | "entity" | "recording" | "collection" | "namespace" | "topic";
+export type NodeKind = "speaker" | "entity" | "recording" | "collection" | "namespace" | "topic" | "source";
 
 export type GraphNode = {
   id: string;
@@ -30,6 +30,7 @@ export type GraphData = {
 /** Node groups in the filter list, in the design's order. Speakers first, then entity types. */
 export const NODE_GROUPS: { key: string; label: string; one?: string; shape: Shape }[] = [
   { key: "speaker", label: "People", one: "Person", shape: "circle" },
+  { key: "source", label: "Sources", one: "Source", shape: "cloud" },
   { key: "PERSON", label: "Named people", one: "Named person", shape: "ring" },
   { key: "ORG", label: "Organisations", shape: "square" },
   { key: "PRODUCT", label: "Products", shape: "diamond" },
@@ -55,7 +56,8 @@ export type Shape =
   | "doc"
   | "folder"
   | "octagon"
-  | "tag";
+  | "tag"
+  | "cloud";
 
 /** Node kinds that only appear once you explore (a node's parents, ancestors…), never in the overview. */
 export const STRUCTURE_KINDS = new Set<NodeKind>(["recording", "collection", "namespace", "topic"]);
@@ -92,6 +94,7 @@ export const EDGE_KINDS: {
   { key: "about", label: "About", dash: "5 2", width: 1.2 },
   { key: "narrower", label: "Narrower", width: 1.4 },
   { key: "related", label: "Related", dash: "1 2", width: 1.1 },
+  { key: "added", label: "Brought in", dash: "3 2", width: 1.3 },
 ];
 
 export function edgeStyle(kind: string) {
@@ -129,7 +132,7 @@ export type GraphFilter = {
   minWeight: number;
 };
 
-/** The visible part of the graph. Entities left with no visible link are hidden; speakers always stay. */
+/** The visible part of the graph. Entities and sources left with no visible link are hidden; speakers always stay. */
 export function filterGraph(
   g: Pick<GraphData, "nodes" | "edges">,
   f: GraphFilter,
@@ -139,7 +142,9 @@ export function filterGraph(
     (e) => inGroup.has(e.a) && inGroup.has(e.b) && f.kinds.has(e.kind) && (ALWAYS.has(e.kind) || e.w >= f.minWeight),
   );
   const linked = new Set(edges.flatMap((e) => [e.a, e.b]));
-  const nodes = g.nodes.filter((n) => inGroup.has(n.id) && (n.kind !== "entity" || linked.has(n.id)));
+  const nodes = g.nodes.filter(
+    (n) => inGroup.has(n.id) && ((n.kind !== "entity" && n.kind !== "source") || linked.has(n.id)),
+  );
   return { nodes, edges };
 }
 
@@ -196,6 +201,7 @@ export function nodeRadius(
   if (n.kind === "namespace") return 14;
   if (n.kind === "collection") return 11;
   if (n.kind === "recording") return 9;
+  if (n.kind === "source") return 12;
   const max = n.kind === "speaker" ? maxWeight.speaker : maxWeight.entity;
   const t = max > 0 ? Math.sqrt(Math.max(0, n.weight) / max) : 0;
   return n.kind === "speaker" ? 9 + 13 * t : 6 + 9 * t;
@@ -274,6 +280,8 @@ export type ApiNode = {
   seconds?: number;
   ids?: number[];
   depth?: number;
+  kind?: string;
+  recordings?: number;
   [key: string]: unknown;
 };
 export type ApiEdge = {
@@ -290,7 +298,12 @@ export type ApiEdge = {
 export function fromApiNode(n: ApiNode): GraphNode {
   const label = n.labels[0]?.toLowerCase();
   const kind: NodeKind =
-    label === "speaker" || label === "recording" || label === "collection" || label === "namespace" || label === "topic"
+    label === "speaker" ||
+    label === "recording" ||
+    label === "collection" ||
+    label === "namespace" ||
+    label === "topic" ||
+    label === "source"
       ? label
       : "entity";
   const num = Number(n.id.replace(/^[a-z]/, ""));
@@ -298,9 +311,16 @@ export function fromApiNode(n: ApiNode): GraphNode {
     id: n.id,
     kind,
     label: String(n.name ?? n.id),
-    type: kind === "entity" ? n.type : undefined,
+    type: kind === "entity" ? n.type : kind === "source" ? n.kind : undefined,
     ns: n.namespaces ?? (n.namespace ? [n.namespace] : []),
-    weight: kind === "entity" ? (n.mentions ?? 1) : kind === "speaker" ? (n.seconds ?? 0) / 60 : 1,
+    weight:
+      kind === "entity"
+        ? (n.mentions ?? 1)
+        : kind === "speaker"
+          ? (n.seconds ?? 0) / 60
+          : kind === "source"
+            ? (n.recordings ?? 1)
+            : 1,
     refs: n.ids ?? (Number.isFinite(num) ? [num] : []),
     x: 0,
     y: 0,

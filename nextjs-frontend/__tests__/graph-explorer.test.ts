@@ -134,6 +134,44 @@ describe("explored nodes", () => {
   });
 });
 
+describe("sources as actors", () => {
+  const gmail = fromApiNode({
+    id: "a:source/12",
+    labels: ["Source"],
+    name: "Work Gmail",
+    kind: "source",
+    namespaces: ["home"],
+    recordings: 37,
+  });
+  const acme = fromApiNode({
+    id: "e:acme",
+    labels: ["Entity", "Organisation"],
+    name: "Acme",
+    type: "ORG",
+    mentions: 4,
+  });
+
+  it("turns a Source node into a source on the canvas, sized by what it brought in", () => {
+    expect(gmail).toMatchObject({
+      kind: "source",
+      type: "source",
+      label: "Work Gmail",
+      weight: 37,
+      ns: ["home"],
+      refs: [],
+    });
+    expect(nodeHref(gmail)).toBeNull();
+  });
+
+  it("shows a source only while something it brought in is visible", () => {
+    const g = { nodes: [gmail, acme], edges: [{ a: "a:source/12", b: "e:acme", w: 3, kind: "added" }] };
+    const on = filterGraph(g, { groups: new Set(["source", "ORG"]), kinds: new Set(["added"]), minWeight: 1 });
+    expect(on.nodes.map((n) => n.id).sort()).toEqual(["a:source/12", "e:acme"]);
+    const off = filterGraph(g, { groups: new Set(["source", "ORG"]), kinds: new Set(["mentions"]), minWeight: 1 });
+    expect(off.nodes).toEqual([]);
+  });
+});
+
 describe("asking the graph", () => {
   it("tells Cypher from a question", () => {
     expect(looksLikeCypher("MATCH (e) RETURN e")).toBe(true);

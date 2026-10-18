@@ -19265,10 +19265,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "a node id: n<id>, c<id>, r<id>, s<id>, e<id> or e:<name key>",
+              "description": "a node id: n<id>, c<id>, r<id>, s<id>, e<id> or e:<name key>, t<id>, or a:<actor> for a source",
               "title": "Node"
             },
-            "description": "a node id: n<id>, c<id>, r<id>, s<id>, e<id> or e:<name key>"
+            "description": "a node id: n<id>, c<id>, r<id>, s<id>, e<id> or e:<name key>, t<id>, or a:<actor> for a source"
           },
           {
             "name": "relation",
