@@ -1261,7 +1261,7 @@ def _comment_activities(db, rows):
                 "type": "Note",
                 "id": f"lens:comment/{r['id']}",
                 "content": _text(r.get("text"), CONTENT_MAX) or "",
-                "url": f"/resources/{r.get('recording')}" if r.get("recording") is not None else "/timeline",
+                "url": f"/resources/{r.get('recording')}" if r.get("recording") is not None else f"/timeline?item={r.get('activity')}",
                 "inReplyTo": f"lens:comment/{r['parent']}" if reply else None,
                 "quote": _text(r.get("quote")),
                 "t0": _num(r.get("t0")),

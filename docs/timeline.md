@@ -48,6 +48,10 @@ unless you ask for them by kind.
   automation (what it did or caused). Filters live in the address, so a view can be linked, and the last set you used
   comes back the next time you open the page in this browser. **Clear** drops them all.
 - On a phone the list is one column and the filters open in a sheet from **Filters**.
+- One item: `/timeline?item=<id>` (an activity's id, like `create-recording-7`) opens that item above the timeline,
+  with its details, marks, reactions, comments and actions, and **Back to the timeline** under it. That is the link
+  a comment on an item, a reaction and an approval's "because" give to the item they are about, and the link an
+  agent gives a person to an item it read with `timeline`. One you can't see says "No such item".
 
 ### Reviewing
 
@@ -254,6 +258,5 @@ per source page; they go when the person is removed. Nothing of this costs a mod
 - Marks on activities whose rows are gone (an event log entry past `events.keep_days`, a deleted asset) stay until
   the person is removed; a tidy could drop them. Reactions and comments on such activities likewise.
 - Who gave each reaction, on hover; editing and resolving comments from the timeline (the API has both).
-- A `comment.added` on an activity links to the timeline, not yet to the item itself.
 - The agent's reply in a thread is plain text with links; the answer's excerpts could open at their moment, as in
   chat. Tagging a namespace's own assistant by its name, with its memory.

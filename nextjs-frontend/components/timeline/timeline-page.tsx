@@ -10,6 +10,7 @@ import { askAbout } from "@/components/page-chat/page-chat-model";
 import { Caused } from "@/components/timeline/caused";
 import { FiltersBar, type Actor } from "@/components/timeline/filters";
 import { TimelineRow, groupMark, type MuteOpts } from "@/components/timeline/item";
+import { OneItem, useOneItem } from "@/components/timeline/one-item";
 import {
   askQuote,
   filterCount,
@@ -83,6 +84,7 @@ export function TimelinePage() {
   const params = useSearchParams();
   const qs = params.toString();
   const filters = useMemo(() => fromParams(new URLSearchParams(qs)), [qs]);
+  const itemId = params.get("item") ?? "";
   const { namespaces } = useArchive();
   const phone = useMediaQuery("(max-width: 767px)");
   const [sheet, setSheet] = useState(false);
@@ -106,6 +108,7 @@ export function TimelinePage() {
   );
 
   const timeline = useTimeline(filters);
+  const one = useOneItem(itemId);
   const kinds = useKinds();
   const pages = timeline.data?.pages;
   const query = useMemo(() => toQuery(filters), [filters]);
@@ -341,6 +344,32 @@ export function TimelinePage() {
             </span>
           ))}
         </div>
+      )}
+      {itemId && (
+        <OneItem
+          id={itemId}
+          a={one.data}
+          error={one.error as Error | null}
+          namespaces={{ ...Object.fromEntries((namespaces ?? []).map((n) => [String(n.id), n.name])), ...nsNames }}
+          labels={labels}
+          markOf={marks.of}
+          onMark={mark}
+          onHide={hide}
+          onMute={muteFrom}
+          reactionsOf={reactions.of}
+          commentsOf={counts.of}
+          caused={(a) => <Caused a={a} />}
+          social={(a) => (
+            <Social
+              a={a}
+              reactions={reactions.of(a.id)}
+              onReact={(emoji, on) => reactions.react(a.id, emoji, on)}
+              comments={counts.of(a.id)}
+              bump={counts.bump}
+            />
+          )}
+          back={pathname}
+        />
       )}
       {phone && (
         <Drawer open={sheet} onOpenChange={setSheet} title="Filters" width={360}>
