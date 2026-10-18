@@ -11,6 +11,8 @@ import {
   entityRanges,
   showEmotion,
   splitRuns,
+  unsureRanges,
+  unsureTitle,
   type Segment,
   type SpeakerInfo,
   type Turn,
@@ -24,7 +26,8 @@ export type Unsure = { score: number; maybe: string };
 
 /**
  * One turn: timestamp (seeks), the speaker's colour bar and name, and its segments as one serif paragraph. The line
- * being played gets a soft tint; entity names are dotted-underlined; find matches are highlighted.
+ * being played gets a soft tint; entity names are dotted-underlined, and words transcription wasn't sure of too, in gold
+ * with how sure in a tooltip; find matches are highlighted.
  */
 export const TurnView = memo(function TurnView({
   turn,
@@ -35,6 +38,7 @@ export const TurnView = memo(function TurnView({
   currentHit,
   entityNames,
   unsure,
+  unsureBelow = null,
   onScreen,
   notes,
   onNotes,
@@ -58,6 +62,8 @@ export const TurnView = memo(function TurnView({
   currentHit: { seg: number; start: number } | null;
   entityNames: Map<number, string[]>;
   unsure: Unsure | null;
+  /** Words transcription was less sure of than this are marked (null: none are). */
+  unsureBelow?: number | null;
   /** Video: this voice's face is on screen in the recording. */
   onScreen?: boolean;
   /** How many of the notes you see are about this turn's moments; the mark opens the Notes tab. */
@@ -180,6 +186,7 @@ export const TurnView = memo(function TurnView({
               hits={hits.get(i)}
               currentStart={currentHit?.seg === i ? currentHit.start : null}
               names={entityNames.get(i)}
+              unsureBelow={unsureBelow}
               hls={highlights?.get(i)}
               onHighlight={onHighlight}
               onClick={click(s)}
@@ -225,6 +232,7 @@ function SegmentText({
   hits,
   currentStart,
   names,
+  unsureBelow,
   hls,
   onHighlight,
   onClick,
@@ -235,6 +243,7 @@ function SegmentText({
   hits?: { start: number; end: number }[];
   currentStart: number | null;
   names?: string[];
+  unsureBelow: number | null;
   hls?: HighlightRange[];
   onHighlight?: (id: number) => void;
   onClick: (e: MouseEvent) => void;
@@ -246,6 +255,8 @@ function SegmentText({
       kind: h.start === currentStart ? "hit-current" : "hit",
     })),
     ...(names?.length ? entityRanges(seg.text, names) : []),
+    // last, so a find match or an entity name over the same word wins
+    ...unsureRanges(seg, unsureBelow),
   ];
   const runs = hls?.length
     ? highlightRuns(seg.text, ranges, hls)
@@ -278,6 +289,7 @@ function SegmentText({
         )}
       >
         {runs.map((r, i) => {
+          const doubt = unsureTitle(r.kind);
           const run =
             r.kind === "entity" ? (
               <span className="underline decoration-fg-muted decoration-dotted underline-offset-4">{r.text}</span>
@@ -293,6 +305,13 @@ function SegmentText({
               >
                 {r.text}
               </mark>
+            ) : doubt ? (
+              <span
+                title={doubt}
+                className="underline decoration-gold decoration-dotted decoration-2 underline-offset-4"
+              >
+                {r.text}
+              </span>
             ) : (
               <span>{r.text}</span>
             );

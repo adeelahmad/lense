@@ -621,6 +621,7 @@ def get_player(rid: int, acl: Acl, db: Db, cfg: Cfg, s: str = "") -> Player:
     rec = acl.recording(rid, share=s)
     data = render.player_data(db, rid, audio_link(db, cfg, rid, s))
     data["nsfw"] = _nsfw(db, cfg, rec, rid)
+    data["unsure_below"] = cfg["transcribe"].get("confidence_highlight") or None
     return sign_urls(data, full=acl.member(rec))
 
 

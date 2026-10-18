@@ -247,7 +247,7 @@ def remap(segs, joins):
         s["t0"], s["t1"] = to_recording(s["t0"], joins), to_recording(s["t1"], joins, end=True)
         if s.get("words"):
             words = json.loads(s["words"])
-            s["words"] = json.dumps([[w, to_recording(a, joins), to_recording(b, joins, end=True)] for w, a, b in words])
+            s["words"] = json.dumps([[w[0], to_recording(w[1], joins), to_recording(w[2], joins, end=True), *w[3:]] for w in words])
     return segs
 
 

@@ -716,8 +716,10 @@ An asset's `summary` (the Summarize step's, also in `GET …/player`) has `summa
 summaries made before they had times hold plain strings.
 
 In `GET …/player`, a line whose words have timings from transcription carries them as `w`: `[c0, c1, t0, t1]` for
-each word, a character range of its `text` and when it was said (ms). A corrected line keeps the timings of the words
-it still has.
+each word, a character range of its `text` and when it was said (ms), with a fifth, how sure the engine was of the word
+(0 to 1), when it said. A corrected line keeps the timings of the words it still has. `unsure_below` is the threshold
+the web app marks words under (`transcribe.confidence_highlight`), or null when marking is off
+([Words transcription wasn't sure of](processing.md#unsure-words)).
 
 Assets carry `tags`. `PATCH /resources/{rid}` with `{"tags": [...]}` replaces an asset's tags (editors; at most
 20, 40 characters each; whitespace is collapsed and repeats are dropped, ignoring case). `POST /resources/tags` with

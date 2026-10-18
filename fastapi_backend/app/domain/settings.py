@@ -574,6 +574,10 @@ def _check(section, key, value, default):
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 500):
             raise ValueError("ai.max_tool_calls is a whole number of tool calls from 1 to 500")
         return value
+    if (section, key) == ("transcribe", "confidence_highlight"):
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0 <= value < 1:
+            raise ValueError("transcribe.confidence_highlight is a number from 0 (mark no words) to below 1")
+        return float(value)
     if (section, key) == ("llm", "describe_max"):
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 1000):
             raise ValueError("llm.describe_max is a whole number from 1 to 1000")

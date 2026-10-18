@@ -140,6 +140,23 @@ custom pipeline by adding the Clean up step before Analyze (with Force it runs e
 on an asset with Reprocess → Clean up, `POST /api/v1/recordings/{id}/reprocess` with `{"steps": ["clean", "analyze"]}`,
 or `lens clean`. Workers whose `workers.steps` list has `analyze` run it too.
 
+### Words transcription wasn't sure of {#unsure-words}
+
+Whisper (faster-whisper and mlx-whisper), Deepgram, AssemblyAI and ElevenLabs say how sure they were of each word, and
+Lens keeps that with the word's timing. In the transcript, a word it was less sure of than 60% gets a dotted gold
+underline, and its tooltip says how sure ("Transcription wasn't sure of this word (42%)"), so you can find the words
+worth checking and correct them in Edit. Clicking it plays the line, as it does anywhere in the text. A corrected word
+loses its mark, and splitting or merging lines keeps the marks on the words they still have.
+
+Settings → Transcription → **Mark words it was less sure of than** sets the threshold (`transcribe.confidence_highlight`,
+0.6 by default, from 0 to 0.99); 0 marks none. SenseVoice, the default engine, and OpenAI's own API don't say how sure
+they were, so their transcripts have no marks (an OpenAI-compatible server that gives each word a `probability` is
+kept too), and nor do transcripts made before Lens kept it.
+
+Agents get the same: `GET /api/v1/recordings/{id}/player` gives each word's confidence and the threshold ([API](api.md)),
+and the MCP tool `get_transcript` lists each line's `unsure` words with how sure, worth checking before quoting
+([MCP](mcp.md)).
+
 ## Importing text and transcripts {#importing-transcripts}
 
 Formats: .txt, .md, .markdown, .mdx, .docx, .doc, .pdf, .srt, .vtt, .json (lens, Whisper or a list of segments) and

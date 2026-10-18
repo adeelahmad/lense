@@ -78,7 +78,7 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `list_recordings` | assets, newest first, by namespace, title words, dates, person, tag or kind, and whether they're flagged NSFW (`sensitive`) |
 | `list_speakers` | the people of your namespaces, the ones with the most talk time first |
 | `get_recording` | one asset: when, how long, people, summary and key points, chapters, the entities and keywords most mentioned, its link, and whether it's flagged NSFW |
-| `get_transcript` | an asset's lines in order (who, time, text, link), a page at a time, from a line or a time window |
+| `get_transcript` | an asset's lines in order (who, time, text, link, and the words transcription wasn't sure of as `unsure`), a page at a time, from a line or a time window |
 | `fetch` | an asset's whole text at once, as `[m:ss] Speaker: …` lines |
 | `cite` | a citation for a moment (a line or a second, and a few lines from there): the words, who said or wrote them, the asset and date, the time, the link, and all of it as Markdown |
 | `list_entities` | people, organisations, products, places, events, works and terms mentioned, by name, type, namespace or asset |

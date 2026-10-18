@@ -159,6 +159,8 @@ DEFAULTS = {
             "snr_floor_db": 20,  # with only_if_poor, a recording at or above this signal-to-noise is left as it is
         },
         "vocabulary": False,  # give each recording's engine the names its namespace knows (vocabulary.py)
+        # words the engine was less sure of than this (0 to 1) are marked in the transcript to check; 0: none are
+        "confidence_highlight": 0.6,
     },
     "diarize": {
         "engine": "auto",

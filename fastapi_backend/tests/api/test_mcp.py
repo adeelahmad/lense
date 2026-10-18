@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api import mcp, mcp_tools
-from app.domain import ingest, store, topics, untrusted
+from app.domain import ingest, settings, store, topics, untrusted
 from tests import injections
 from tests.api.test_oauth import O, _bearer, _grant
 from tests.helpers import login, make_user, seed
@@ -314,6 +314,16 @@ def test_reading_recordings(client, env):
     assert doc["text"].splitlines()[1] == "[0:04] Carol: The exploit benchmark measures how often a model finishes a working exploit."
     assert doc["metadata"]["lines"] == 4 and "truncated" not in doc["metadata"]
     assert tool_error(client, h, "fetch", id=str(call)) == "not found, or not something you can read"
+
+
+def test_get_transcript_says_which_words_transcription_was_unsure_of(client, env, db, cfg):
+    h, (ep1, _, _) = env["h"], env["ids"]
+    words = [["Welcome", 0, 300, 0.97], ["back.", 300, 600, 0.44], ["Today", 700, 900]]
+    db.q("UPDATE $s SET words = $w", s=store.R("segment", ep1 * store.SEG), w=json.dumps(words))
+    first, second = tool(client, h, "get_transcript", recording_id=ep1, limit=2)["lines"]
+    assert first["unsure"] == [{"word": "back.", "sure": 0.44}] and "unsure" not in second
+    settings.save(db, cfg, "transcribe", {"confidence_highlight": 0}, "t")  # off: no word is marked
+    assert "unsure" not in tool(client, h, "get_transcript", recording_id=ep1, limit=1)["lines"][0]
 
 
 def test_entities_and_the_graph(client, env, monkeypatch):

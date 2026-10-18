@@ -86,6 +86,7 @@ from app.domain import (
     settings,
     sources,
     store,
+    transcript,
     untrusted,
     updates,
     variables,
@@ -437,8 +438,9 @@ def _line(ctx: Context, rid: int, s: dict[str, Any], names: dict[int, str]) -> d
     return out
 
 
-def _segments(db: DB, rid: int, where: str = "", limit: int | None = None, **params: Any) -> list[dict[str, Any]]:
-    sql = f"SELECT idx, t0, t1, speaker, text, page FROM segment WHERE recording = $r{where} ORDER BY idx"
+def _segments(db: DB, rid: int, where: str = "", limit: int | None = None, with_words: bool = False, **params: Any) -> list[dict[str, Any]]:
+    cols = "idx, t0, t1, speaker, text, page" + (", words" if with_words else "")
+    sql = f"SELECT {cols} FROM segment WHERE recording = $r{where} ORDER BY idx"
     if limit is not None:
         sql += f" LIMIT {int(limit)}"
     return db.rows(sql, r=rid, **params)
@@ -970,7 +972,8 @@ def get_recording(ctx: Context, recording_id: int) -> dict[str, Any]:
     "Read an asset's text",
     "The lines of an asset's text (the transcript of audio or video, or a document's or image's text), in order: who "
     "said or wrote what, and when, each with "
-    "a url that opens the asset at that line. Read a long one in pages: from_line (next_line of the last page) or "
+    "a url that opens the asset at that line, and `unsure`: the words transcription wasn't sure of, each with how sure "
+    "(0 to 1), worth checking before quoting them. Read a long one in pages: from_line (next_line of the last page) or "
     "a time window in seconds.",
     Arg("recording_id", "integer", "the asset", required=True),
     Arg("from_line", "integer", "start at this line (0 is the first)", minimum=0),
@@ -992,15 +995,23 @@ def get_transcript(
     if end_seconds is not None:
         where += " AND t0 <= $b"
         params["b"] = int(end_seconds * 1000)
-    segs = _segments(ctx.db, recording_id, where, limit + 1, **params)
+    below = ctx.cfg["transcribe"].get("confidence_highlight")
+    segs = _segments(ctx.db, recording_id, where, limit + 1, with_words=bool(below), **params)
     more, segs = len(segs) > limit, segs[:limit]
     names = _names(ctx.db, [s.get("speaker") for s in segs])
     total = ctx.db.values("RETURN array::len((SELECT VALUE id FROM segment WHERE recording = $r))", r=recording_id)
+    lines = []
+    for s in segs:
+        line = _line(ctx, recording_id, s, names)
+        unsure = transcript.unsure(s.get("text") or "", transcript.words(s), below)
+        if unsure:
+            line["unsure"] = [{"word": w, "sure": p} for w, p in unsure]
+        lines.append(line)
     out: dict[str, Any] = {
         "recording_id": recording_id,
         "title": rec.get("title"),
         "lines_in_all": int(total[0]) if total else 0,
-        "lines": [_line(ctx, recording_id, s, names) for s in segs],
+        "lines": lines,
     }
     if more:
         out["next_line"] = segs[-1]["idx"] + 1

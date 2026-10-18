@@ -51,8 +51,8 @@ class Fake(http.server.BaseHTTPRequestHandler):
                     "status": "completed",
                     "language_code": "en_us",
                     "words": [
-                        {"text": "Hello", "start": 0, "end": 400, "speaker": "A"},
-                        {"text": "there.", "start": 400, "end": 800, "speaker": "A"},
+                        {"text": "Hello", "start": 0, "end": 400, "speaker": "A", "confidence": 0.99},
+                        {"text": "there.", "start": 400, "end": 800, "speaker": "A", "confidence": 0.52},
                         {"text": "Terrible", "start": 900, "end": 1300, "speaker": "B"},
                         {"text": "news.", "start": 1300, "end": 1700, "speaker": "B"},
                     ],
@@ -116,7 +116,7 @@ class Fake(http.server.BaseHTTPRequestHandler):
                     "language_code": "eng",
                     "text": "Hello. (laughter) Hi.",
                     "words": [
-                        {"text": "Hello.", "start": 0.0, "end": 0.5, "type": "word", "speaker_id": "speaker_0"},
+                        {"text": "Hello.", "start": 0.0, "end": 0.5, "type": "word", "speaker_id": "speaker_0", "logprob": -0.5},
                         {"text": " ", "start": 0.5, "end": 0.6, "type": "spacing", "speaker_id": "speaker_0"},
                         {"text": "(laughter)", "start": 0.6, "end": 0.9, "type": "audio_event", "speaker_id": "speaker_0"},
                         {"text": "Hi.", "start": 1.0, "end": 1.4, "type": "word", "speaker_id": "speaker_1"},
@@ -129,9 +129,9 @@ class Fake(http.server.BaseHTTPRequestHandler):
             return self._send({"id": "t1", "status": "queued"})
         if p.startswith("/dg/v1/listen"):
             w = [
-                {"word": "great", "punctuated_word": "Great", "start": 0.0, "end": 0.4, "speaker": 0},
-                {"word": "work", "punctuated_word": "work.", "start": 0.4, "end": 0.8, "speaker": 0},
-                {"word": "thanks", "punctuated_word": "Thanks.", "start": 1.0, "end": 1.5, "speaker": 1},
+                {"word": "great", "punctuated_word": "Great", "start": 0.0, "end": 0.4, "speaker": 0, "confidence": 0.98},
+                {"word": "work", "punctuated_word": "work.", "start": 0.4, "end": 0.8, "speaker": 0, "confidence": 0.41},
+                {"word": "thanks", "punctuated_word": "Thanks.", "start": 1.0, "end": 1.5, "speaker": 1, "confidence": 0.9},
             ]
             return self._send(
                 {
@@ -278,6 +278,54 @@ def test_deepgram_transcribes_with_speakers_and_sentiment(db, cfg, fake):
     assert headers["Authorization"] == "Token dg-key" and headers["Content-Type"] == "audio/ogg"
 
 
+def test_providers_keep_how_sure_they_were_of_each_word(db, cfg, fake, monkeypatch):
+    """Deepgram's and AssemblyAI's confidence and ElevenLabs' log probability stay with each word's timing, as a fourth;
+    a provider that doesn't say (an OpenAI-compatible server) keeps three, as before."""
+    monkeypatch.setattr(speech, "POLL_SECONDS", 0)
+    eff = provided(db, cfg, fake)
+
+    def stored(p):
+        return [json.loads(s["words"]) for s in speech.Engine(eff, p).transcribe(clip()) if s.get("words")]
+
+    assert stored("deepgram") == [[["Great", 0, 400, 0.98], ["work.", 400, 800, 0.41]], [["Thanks.", 1000, 1500, 0.9]]]
+    assert stored("assemblyai")[0] == [["Hello", 0, 400, 0.99], ["there.", 400, 800, 0.52]]
+    assert stored("elevenlabs")[0] == [["Hello.", 0, 500, 0.607]]  # e^-0.5
+    assert stored("openai") == [[["Book", 0, 300], ["Friday.", 1200, 1900]]]
+    # a long recording's pieces move onto its timeline with how sure each word was
+    assert speech._shift([{"t0": 0, "t1": 9, "words": json.dumps([["a", 0, 4, 0.5], ["b", 5, 9]])}], 1000, None)[0]["words"] == json.dumps(
+        [["a", 1000, 1004, 0.5], ["b", 1005, 1009]]
+    )
+
+
+def test_whisper_keeps_how_sure_it_was_of_each_word():
+    """faster-whisper's word probability, and mlx-whisper's, are kept with each word's timing."""
+
+    class W:
+        def __init__(self, word, start, end, probability):
+            self.word, self.start, self.end, self.probability = word, start, end, probability
+
+    class S:
+        start, end, text = 0.0, 1.0, " Book a call."
+        words = [W(" Book", 0.0, 0.3, 0.97), W(" a", 0.3, 0.4, 0.88), W(" call.", 0.5, 1.0, 0.345)]
+
+    class Faster:
+        def transcribe(self, audio, **kw):
+            assert kw["word_timestamps"] is True
+            return [S()], None
+
+    class Mlx:
+        def transcribe(self, audio, **kw):
+            words = [{"word": " Book", "start": 0.0, "end": 0.3, "probability": 0.5}, {"word": " now.", "start": 0.4, "end": 0.9}]
+            return {"segments": [{"start": 0.0, "end": 1.0, "text": " Book now.", "words": words}]}
+
+    w = object.__new__(ingest.Whisper)
+    w.mlx, w.m, w.lang = False, Faster(), None
+    (seg,) = w.transcribe(clip())
+    assert json.loads(seg["words"]) == [["Book", 0, 300, 0.97], ["a", 300, 400, 0.88], ["call.", 500, 1000, 0.345]]
+    w.mlx, w.m, w.repo = True, Mlx(), "mlx-community/whisper"
+    assert json.loads(w.transcribe(clip())[0]["words"]) == [["Book", 0, 300, 0.5], ["now.", 400, 900]]
+
+
 def test_speaker_separation_uses_the_providers_speakers(db, cfg, folder, fake):
     eff = provided(db, cfg, fake)
     eff["speakers"]["embedder"] = "none"
@@ -348,7 +396,7 @@ def test_a_long_recording_goes_in_pieces_and_comes_back_whole(db, cfg, fake, mon
     assert [s["provider_speaker"] for s in segs][:2] == ["c0:S0", "c0:S1"]
     assert {s["provider_speaker"] for s in segs} == {f"c{k}:S{n}" for k in range(3) for n in range(2)}
     second = next(s for s in segs if s["provider_speaker"] == "c1:S1")
-    assert json.loads(second["words"]) == [["Thanks.", starts[1] + 1000, starts[1] + 1500]]
+    assert json.loads(second["words"]) == [["Thanks.", starts[1] + 1000, starts[1] + 1500, 0.9]]  # with how sure, on the timeline
     assert [s["t0"] for s in segs] == sorted(s["t0"] for s in segs)
     assert rows == [("speech.transcribe", "deepgram:nova-3", {"seconds": 150.0, "pieces": 3})]
 

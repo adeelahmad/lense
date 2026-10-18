@@ -201,6 +201,14 @@ def test_spans_joins_and_times():
     assert audio_cleanup.speech_spans(np.zeros(100, np.float32), 1000, 1000) == []
 
 
+def test_words_keep_how_sure_they_were_when_put_back_on_the_recording():
+    x = np.arange(4 * SR, dtype=np.float32)
+    _, joins = audio_cleanup.cut(x, [(200, 1800), (3100, 3900)])
+    segs = [{"t0": 0, "t1": 2400, "text": "a b", "words": json.dumps([["a", 0, 500, 0.42], ["b", 1600, 2400]])}]
+    out = audio_cleanup.remap(segs, joins)
+    assert json.loads(out[0]["words"]) == [["a", 200, 700, 0.42], ["b", 3100, 3900]]
+
+
 def test_settings_are_checked(db, cfg):
     settings.save(db, cfg, "transcribe", {"cleanup": {"noise": "high", "echo": "left", "min_silence_ms": 1500}})
     eff = settings.effective(db, cfg)

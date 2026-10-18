@@ -1,8 +1,9 @@
 """Splitting and merging transcript lines, and the timings of their words (docs/api.md#resources).
 
 A line keeps its words' timings from transcription when the engine gave them (``words``, a JSON list of
-[word, t0, t1] in ms). The player gets them as character ranges of the line's current text (`align`), so a corrected
-line keeps the timings of the words it still has.
+[word, t0, t1] in ms, with a fourth, how sure the engine was of the word from 0 to 1, when it said). The player gets
+them as character ranges of the line's current text (`align`), so a corrected line keeps the timings of the words it
+still has.
 
 Lines are numbered: a segment's id is its recording's id × SEG + its index. Splitting or merging renumbers the lines
 after it, and what points at line numbers follows: the edit history, people's entity corrections and the chapters.
@@ -24,8 +25,22 @@ CJK = re.compile(r"[぀-ヿ㐀-䶿一-鿿가-힯豈-﫿]")
 TOKEN = re.compile(r"\S+")
 
 
+def sure(p):
+    """How sure an engine was of a word, from 0 to 1 (three decimals), or None when it didn't say or it isn't one."""
+    if isinstance(p, bool) or not isinstance(p, (int, float)) or not 0 <= p <= 1:
+        return None
+    return round(float(p), 3)
+
+
+def stored(text, t0, t1, p=None):
+    """A timed word as a line keeps it: [word, t0, t1], with how sure the engine was as a fourth when it said."""
+    p = sure(p)
+    return [text, t0, t1] if p is None else [text, t0, t1, p]
+
+
 def words(seg):
-    """The line's timed words, [(word, t0, t1)], or [] when transcription gave none."""
+    """The line's timed words, [(word, t0, t1)] or (word, t0, t1, sure) where the engine said how sure it was, or []
+    when transcription gave none. Lines transcribed before Lens kept how sure have three."""
     raw = seg.get("words")
     try:
         ws = json.loads(raw) if isinstance(raw, str) else (raw or [])
@@ -37,8 +52,9 @@ def words(seg):
             text, a, b = str(w[0]).strip(), int(w[1]), int(w[2])
         except (TypeError, ValueError, IndexError):
             continue
+        p = sure(w[3]) if len(w) > 3 else None
         if text:
-            out.append((text, a, max(a, b)))
+            out.append((text, a, max(a, b)) if p is None else (text, a, max(a, b), p))
     return out
 
 
@@ -52,7 +68,7 @@ def _placed(text, ws):
         return []
     if CJK.search(text):
         out, at = [], 0
-        for i, (w, _, _) in enumerate(ws):
+        for i, (w, *_) in enumerate(ws):
             c = text.find(w, at)
             if c < 0 or c - at > 2 * len(w) + 8:  # gone from the text: don't jump ahead to a later one
                 continue
@@ -60,7 +76,7 @@ def _placed(text, ws):
             at = c + len(w)
         return out
     tokens = [(m.start(), m.end(), _norm(m.group())) for m in TOKEN.finditer(text)]
-    sm = difflib.SequenceMatcher(None, [_norm(w) for w, _, _ in ws], [t[2] for t in tokens], autojunk=False)
+    sm = difflib.SequenceMatcher(None, [_norm(w[0]) for w in ws], [t[2] for t in tokens], autojunk=False)
     return [
         (blk.a + k, tokens[blk.b + k][0], tokens[blk.b + k][1])
         for blk in sm.get_matching_blocks()
@@ -70,12 +86,21 @@ def _placed(text, ws):
 
 
 def align(text, ws):
-    """Where each timed word is in the text: [[c0, c1, t0, t1]] in order. Words the text no longer has are left out."""
-    return [[c0, c1, ws[i][1], ws[i][2]] for i, c0, c1 in _placed(text, ws)]
+    """Where each timed word is in the text: [[c0, c1, t0, t1]] in order, with how sure the engine was as a fifth when
+    it said. Words the text no longer has are left out."""
+    return [[c0, c1, *ws[i][1:]] for i, c0, c1 in _placed(text, ws)]
+
+
+def unsure(text, ws, below):
+    """The words of the text the engine was less sure of than `below` (0 to 1; 0 or None: none), with how sure, in
+    order: [(word, sure)]."""
+    if not below:
+        return []
+    return [(text[w[0] : w[1]], w[4]) for w in align(text, ws) if len(w) > 4 and w[4] < below]
 
 
 def _dump(ws):
-    return json.dumps([[w, a, b] for w, a, b in ws]) if ws else None
+    return json.dumps([list(w) for w in ws]) if ws else None
 
 
 def _join(a, b):
