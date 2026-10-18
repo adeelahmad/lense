@@ -23,6 +23,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     research_plan = None  # a research plan (research.plan) to come back with, else a built-in one about the capsid
     research_report = None  # a research report (research._write) to come back with, else one citing [1] and [2]
     title = None  # a conversation's title (chat.suggest_title), else the first question, labelled and quoted as models do
+    reply = None  # a reply to an email (responder.draft), else one citing the first excerpt, an excerpt it wasn't given and a link
 
     def _json(self, obj):
         data = json.dumps(obj).encode()
@@ -104,6 +105,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
             )
         elif "rejected" in schema.get("properties", {}):
             content = json.dumps(Handler.spec or _spec(body["messages"][-1]["content"]))
+        elif {"reply", "gaps"} <= set(schema.get("properties", {})):
+            # a reply to an email (responder.draft): Handler.reply, else one citing the first excerpt (when there is
+            # one), an excerpt it wasn't given ([9]) and a link of its own, with a date left to confirm
+            nums = re.findall(r"^\[(\d+)\] ", body["messages"][-1]["content"], re.M)
+            cite = f" [{nums[0]}]" if nums else ""
+            content = json.dumps(
+                Handler.reply
+                or {
+                    "reply": f"Hi Mara,\n\nThanks for the report. The lighthouse keeper's log agrees{cite}. More at "
+                    f"https://evil.example/collect [9]. Let's meet on [to confirm: the date].\n\nBest,",
+                    "gaps": ["the date to meet"],
+                }
+            )
         elif "connections" in schema.get("properties", {}):
             # a podcast's outline (podcasts.plan): ideas from the first excerpt, a connection between the first and last
             nums = [int(n) for n in re.findall(r"^\[(\d+)\] ", body["messages"][-1]["content"], re.M)] or [1]

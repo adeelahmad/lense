@@ -89,6 +89,12 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [code sandbox](docs/assistant.md#code-sandbox), [answer records](docs/assistant.md#what-each-answer-records),
   [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md), [speech providers](docs/speech-providers.md);
   [checks](docs/requirements.md#ask-and-get-cited-answers))
+- **Answer your email.** Lens drafts a reply to an email a watched mailbox brought in, from what that email's
+  namespace holds: each fact cited to its excerpt, what the archive doesn't say marked for you to confirm, addressed
+  and threaded as a reply to it. Drafts wait for you to edit or set aside, and nothing is sent on its own; ask for one
+  through the API or MCP (agents list what waits and draft with your instructions), or add the reply step to a
+  pipeline to draft each new email, which skips mailing lists, no-reply senders and your own mail without a model
+  call. ([Email replies](docs/email-replies.md); [checks](docs/requirements.md#answer-your-email))
 - **Extend the assistant.** Add tools (a prompt, a web request, a graph drawn on the canvas, or sandboxed Python),
   skills, hooks and MCP servers, by code, on the canvas or just by asking. Remote MCP servers connect by address, and
   ones that run as a program (`npx`, `uvx`) run in a sandboxed container of their own, off until you turn it on. Add
@@ -271,7 +277,7 @@ The guides are on the [docs site](https://adeelahmad.github.io/lense/) and in th
 - **Agents and apps:** [MCP server](docs/mcp.md), [API](docs/api.md), [authentication](docs/authentication.md),
   [access](docs/access.md)
 - **Use:** [chat and batch runs](docs/assistant.md), [chat rooms](docs/chat-rooms.md),
-  [the assistant by email](docs/assistant-email.md), [podcasts](docs/podcasts.md), [notes](docs/notes.md),
+  [the assistant by email](docs/assistant-email.md), [email replies](docs/email-replies.md), [podcasts](docs/podcasts.md), [notes](docs/notes.md),
   [web clipper](docs/web-clipper.md), [the assistant in your browser](docs/browser-assistant.md),
   [sensors](docs/sensors.md), [processing](docs/processing.md), [video](docs/video.md),
   [NSFW classification](docs/nsfw.md), [notifications](docs/notifications.md), [automations](docs/automations.md),

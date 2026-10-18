@@ -91,6 +91,15 @@ request, to another check that proves the same thing; loosening a requirement or
 | Other chat rooms through Matterbridge | [test_bridge.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_bridge.py) `test_it_answers_what_is_said_to_it_and_nothing_else`; [test_matterbridge_run.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_matterbridge_run.py) `test_chat_networks_are_set_in_the_app_and_become_matterbridges_config`, `test_the_bridge_talks_to_the_matterbridge_lens_runs`; [matterbridge.yml](https://github.com/adeelahmad/lense/blob/main/.github/workflows/matterbridge.yml) `Lens writes a config, and Matterbridge starts with it` |
 | By email, at an address of its own | [test_mailbox.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_mailbox.py) `test_mail_is_answered_by_email_in_its_thread`, `test_the_mailbox_is_set_up_and_checked_in_the_app`, `test_answers_list_the_excerpts_they_cite` |
 
+## Answer your email
+
+| Requirement | Checks |
+|---|---|
+| A reply drafted to an imported email from its own namespace, each fact cited, what the archive doesn't say marked to confirm, a citation to an excerpt it wasn't given taken out and a link of the model's making broken up, addressed and threaded as a reply; nothing sent | [test_replies.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_replies.py) `test_a_cited_threaded_draft` |
+| Drafts edited, set aside and brought back, the text before kept; the mail that waits for an answer listed, not mailing lists' | [test_replies.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_replies.py) `test_editing_setting_aside_and_listing` |
+| A pipeline's reply step drafts each new email, skipping mailing lists, no-reply senders and the person's own mail without a model call | [test_replies.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_replies.py) `test_a_pipeline_drafts_only_mail_to_answer` |
+| Agents list what waits, draft with instructions, read and edit replies through MCP | [test_replies.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_replies.py) `test_agents_draft_read_and_edit_replies` |
+
 ## Extend the assistant
 
 | Requirement | Checks |

@@ -54,6 +54,7 @@ OWN = (
     "passage",
     "photo_vector",
     "podcast",
+    "email_reply",
 )
 
 

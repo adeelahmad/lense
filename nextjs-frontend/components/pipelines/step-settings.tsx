@@ -86,7 +86,7 @@ export function StepSettings({
   });
   const set = (patch: Partial<StepSpec>) => onChange({ ...step, ...patch });
   const setWhen = (patch: Partial<NonNullable<StepSpec["when"]>>) => set({ when: { ...(step.when ?? {}), ...patch } });
-  const kind = { llm: "prompt", spec: "prompt", report: "report", export: "export" }[step.type];
+  const kind = { llm: "prompt", spec: "prompt", reply: "prompt", report: "report", export: "export" }[step.type];
   const choices = templates.filter((t) => t.kind === kind);
   const provides = step.type === "llm" ? `outputs.${step.key || "<key>"}` : PROVIDES[step.type];
 
@@ -172,7 +172,9 @@ export function StepSettings({
                           ? "Built-in asset report"
                           : step.type === "spec"
                             ? "Spec from transcript"
-                            : "Choose a template…",
+                            : step.type === "reply"
+                              ? "Reply to an email"
+                              : "Choose a template…",
                     },
                     ...choices.map((t) => ({
                       value: String(t.id),

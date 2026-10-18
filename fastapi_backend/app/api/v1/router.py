@@ -55,6 +55,7 @@ from app.api.v1.routes import (
     public,
     rdf,
     recordings,
+    replies,
     requests,
     research,
     routines,
@@ -155,5 +156,6 @@ for module in (
     podcasts,
     feeds,
     specs,
+    replies,
 ):
     api_router.include_router(module.router)
