@@ -227,6 +227,27 @@ def test_a_schedule_sets_its_timer_and_switching_off_calls_it_off(client, db, en
     assert timers.get(db, f"sched-{aid}-m")["status"] == "cancelled"
 
 
+def test_lists_read_the_triggers_in_words_and_say_when_it_runs_next(client, db, env):
+    hr = env["hr"]
+    mail = {
+        "as": "mail",
+        "on": "event",
+        "kinds": ["email.received"],
+        "where": {"path": "object.subject", "op": "contains", "value": "trip"},
+    }
+    morning = {"as": "m", "on": "schedule", "cron": "0 7 * * 1-5", "timezone": "Europe/London"}
+    join = {"mode": "all", "within": "1d"}
+    aid = client.post(URL, headers=hr, json=body(triggers=[mail, morning], join=join)).json()["id"]
+    [listed] = [a for a in client.get(URL, headers=hr).json()["automations"] if a["id"] == aid]
+    assert listed["reads"] == (
+        "“Email received”, where the subject contains “trip”; every weekday at 07:00 (Europe/London); all of the triggers within 1 day"
+    )
+    assert listed["next_at"] and listed["runs_today"] == 0
+    client.post(f"{URL}/{aid}/enable", headers=hr, json={"on": False})
+    [listed] = [a for a in client.get(URL, headers=hr).json()["automations"] if a["id"] == aid]
+    assert listed["next_at"] is None
+
+
 def test_schedules_and_webhooks_are_armed_once_their_modules_are_there(client, db, env, monkeypatch):
     calls = []
     fake = {
@@ -279,9 +300,10 @@ def test_runs_are_started_listed_and_read_by_who_manages_them(client, db, cfg, e
     assert run["event"] == one and run["by"] == "ed@x.io" and run["counts"]["done"] == 1
     assert run["intents"][0]["result"]["line"] == "New: Courier" and run["trace"]["a"]["status"] == "done" and run["log"]
     assert {x["id"] for x in client.get(f"{URL}/runs", headers=he, params={"activity": one}).json()} == {first["run"], again["run"]}
-    # lists show what waits and what it cost this month
+    # lists show what sets it off, its runs today, what waits and what it cost this month
     [listed] = client.get(URL, headers=he).json()["automations"]
     assert listed["waiting"] == 0 and listed["cost_month"] == {"cost_usd": 0.0, "estimate": False} and listed["last_run"] == again["run"]
+    assert listed["runs_today"] == 2 and listed["reads"] == "“Asset added”" and listed["next_at"] is None
     # an admin sees them; someone who doesn't manage it sees nothing
     assert client.get(f"{URL}/runs/{first['run']}", headers=hr).status_code == 200
     assert client.get(f"{URL}/runs/{first['run']}", headers=hv).status_code == 404
