@@ -16,7 +16,7 @@ from fastapi.responses import Response, StreamingResponse
 
 from app.api.deps import AdminReader, AdminWriter, Cfg, Db, client_ip, domain_errors, web_origin
 from app.api.v1.routes.jobs import _worker as worker_info
-from app.domain import auth, jobs, keyring, mesh, settings
+from app.domain import auth, jobs, keyring, mesh
 from app.schemas.common import Ok
 from app.schemas.mesh import (
     MeshBeat,
@@ -108,18 +108,17 @@ def mesh_tokens(user: AdminReader, db: Db) -> list[MeshToken]:
 def make_mesh_token(body: MeshTokenCreate, user: AdminWriter, request: Request, db: Db, cfg: Cfg) -> MeshTokenCreated:
     """Add a node: a token another machine joins the mesh with, shown this once. Makes the mesh's CA the first time,
     and turns the mesh on."""
+    base, url = request.app.state.archive.base, web_origin(request)
     with domain_errors():
         try:
-            tok, secret = mesh.make_token(db, cfg, user.email, body.role, body.name, body.namespaces, body.hours, body.uses)
+            made = mesh.add(db, cfg, base, user.email, body.role, body.name, body.namespaces, body.hours, body.uses, url)
         except mesh.MeshError as e:
             raise HTTPException(503, str(e)) from None
-        if not mesh.conf(cfg)["enabled"]:
-            settings.save(db, request.app.state.archive.base, "mesh", {"enabled": True}, user.email)
-            auth.audit(db, user.as_audit(), "settings.save", "mesh", ["enabled"])
-    auth.audit(db, user.as_audit(), "mesh.token.create", f"mesh_token:{tok['id']}", {"role": body.role, "uses": body.uses})
-    url = web_origin(request)
+    if made["turned_on"]:
+        auth.audit(db, user.as_audit(), "settings.save", "mesh", ["enabled"])
+    auth.audit(db, user.as_audit(), "mesh.token.create", f"mesh_token:{made['token']['id']}", {"role": body.role, "uses": body.uses})
     return MeshTokenCreated(
-        token=MeshToken(**tok), secret=secret, join_url=url, install_line=mesh.join_line(cfg, secret, url, role=body.role)
+        token=MeshToken(**made["token"]), secret=made["secret"], join_url=made["join_url"], install_line=made["install_line"]
     )
 
 

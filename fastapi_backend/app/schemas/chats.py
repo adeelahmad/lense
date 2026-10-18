@@ -515,3 +515,6 @@ class ApprovalOutcome(ResponseModel):
     error: str | None = Field(default=None, description="why an automation's action failed")
     result: Any = Field(default=None, description="what an automation's action gave back")
     always: bool | None = Field(default=None, description="that node runs without asking from now on")
+    install_line: str | None = Field(
+        default=None, description="the line to run on the new machine, for add_mesh_node: shown this once and not kept"
+    )

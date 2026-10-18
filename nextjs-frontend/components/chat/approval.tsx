@@ -8,6 +8,7 @@ import type { ApprovalOutcome, Estimate } from "@/app/openapi-client/types.gen";
 import { approxCount, money } from "@/components/batches/format";
 import { hoursShort } from "@/components/chat/scope";
 import { Button } from "@/components/ui/button";
+import { CodeBlock } from "@/components/ui/states";
 import { data, useApiClient } from "@/lib/api/browser";
 import { plural } from "@/lib/format";
 
@@ -49,10 +50,11 @@ function Diamond({ size = 22 }: { size?: number }) {
   );
 }
 
-function Outcome({ a, outcome }: { a: ApprovalView; outcome: ApprovalOutcome | null }) {
+function Outcome({ a, outcome, onDone }: { a: ApprovalView; outcome: ApprovalOutcome | null; onDone?: () => void }) {
   const status = outcome?.status ?? a.status;
   const result = (outcome ?? (a.result as Record<string, unknown> | null)) as {
     batch?: number | null;
+    install_line?: string | null;
   } | null;
   if (status === "declined")
     return (
@@ -60,7 +62,7 @@ function Outcome({ a, outcome }: { a: ApprovalView; outcome: ApprovalOutcome | n
         <span aria-hidden>–</span> Declined: {a.summary}
       </p>
     );
-  return (
+  const approved = (
     <p className="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-fg">
       <span aria-hidden className="font-bold text-green-dark">
         ✓
@@ -72,6 +74,24 @@ function Outcome({ a, outcome }: { a: ApprovalView; outcome: ApprovalOutcome | n
         </Link>
       )}
     </p>
+  );
+  // a new mesh node's install line, in the answer to this approval only: it's never kept
+  if (!result?.install_line) return approved;
+  return (
+    <div className="flex flex-col gap-2">
+      {approved}
+      <p className="m-0 text-[13px] leading-snug text-fg-strong">
+        <b>Run it on the machine; it shows in Settings › Nodes when it joins.</b> The line isn’t shown again.
+      </p>
+      <CodeBlock text={result.install_line} label="the install line" />
+      {onDone && (
+        <div>
+          <Button size="xs" variant="ghost" onClick={onDone}>
+            Done
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -104,16 +124,16 @@ export function ApprovalCard({
           body: { decision },
         }),
       ),
-    onSuccess: () => {
+    onSuccess: (out) => {
       void qc.invalidateQueries({ queryKey: ["approvals", chatId] });
-      onDecided?.();
+      if (!out?.install_line) onDecided?.(); // a line shown once stays until the person is done with it
     },
   });
   const decided = decide.data ?? null;
   if ((a.status && a.status !== "pending") || decided)
     return (
       <div className="rounded-md border border-border bg-surface px-3.5 py-2.5">
-        <Outcome a={a} outcome={decided} />
+        <Outcome a={a} outcome={decided} onDone={decided?.install_line ? onDecided : undefined} />
       </div>
     );
   const run = a.tool === "run_template";

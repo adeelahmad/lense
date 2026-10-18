@@ -148,7 +148,7 @@
         "/api/v1/mesh/node/config, /node/renew, /node/beat (a node's own calls, with its node token)",
         "GET /api/v1/mesh/node/worker, /node/media/{id} (a worker node's database user and its jobs' files, with its node token)",
         "PUT /api/v1/mesh/node/sandbox (a compute node's sandbox gateway's client certificate, with its node token), and Lens's calls to that gateway on the node's mesh address, port 7443",
-        "POST /api/v1/mesh/tokens, PATCH and DELETE /api/v1/mesh/nodes/{id}, PUT /api/v1/settings/mesh",
+        "POST /api/v1/mesh/tokens, PATCH and DELETE /api/v1/mesh/nodes/{id}, PUT /api/v1/settings/mesh, MCP and assistant mesh tools",
         "UDP 4242 on the primary and ports 8000 and 8080 on its mesh address (the mesh container, while the mesh is on)"
       ],
       "touches": [
@@ -813,11 +813,11 @@
       "source": "docs/mesh.md \"Compute nodes\""
     },
     {
-      "entry_point": "POST /api/v1/mesh/tokens, PATCH and DELETE /api/v1/mesh/nodes/{id}, PUT /api/v1/settings/mesh",
+      "entry_point": "POST /api/v1/mesh/tokens, PATCH and DELETE /api/v1/mesh/nodes/{id}, PUT /api/v1/settings/mesh, MCP and assistant mesh tools",
       "parameter": "a node's role, name, namespaces, token hours and uses; the mesh's network, port, hosts, cipher",
       "attacker_controllable": "no",
       "component": "optional",
-      "caller_must_enforce": "admin is trusted; audited (mesh.token.create, mesh.join, mesh.node.*); the network can't change once machines have addresses in it",
+      "caller_must_enforce": "admin is trusted; audited (mesh.token.create, mesh.join, mesh.node.*); the network can't change once machines have addresses in it; the assistant's adding and removing a node always wait for the person's approval; an install line (it holds a join token's secret) goes only to the MCP agent that asked or to the person who approved, once, and is never kept in an approval, the audit log or the model's context; the read tools never show a token's secret",
       "provenance": "documented",
       "source": "docs/mesh.md \"Settings\""
     },

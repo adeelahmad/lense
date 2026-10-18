@@ -1222,6 +1222,12 @@ export type ApprovalOutcome = {
    * that node runs without asking from now on
    */
   always?: boolean | null;
+  /**
+   * Install Line
+   *
+   * the line to run on the new machine, for add_mesh_node: shown this once and not kept
+   */
+  install_line?: string | null;
   [key: string]: unknown;
 };
 

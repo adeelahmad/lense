@@ -980,12 +980,17 @@ Admins also get the server tools: `server_status` (what's set up and what's miss
 and the items they can refer to, never a value), the news feed tools: `news_feeds`, `subscribe_feed` (follow a feed into a namespace in one step,
 [News feeds](processing.md#news-feeds-rss-and-atom)) and `unsubscribe_feed`, and the people tools: `list_people`, `invite_person` (an account, optionally with a role in one
 namespace; Lens emails the sign-in link when mail is set up) and `change_person` (a role in a namespace, or disabling
-and enabling an account). Removing an account for good stays in the web app and the API. In an ordinary conversation
+and enabling an account). Removing an account for good stays in the web app and the API. The mesh tools manage the
+machines Lens runs on ([Nodes and the mesh](mesh.md#agents)): `mesh` reads it, `add_mesh_node` makes the install line
+for another machine (shown to the person on the approval card, once), `remove_mesh_node` takes one off, and
+`change_mesh_node`, `restore_mesh_node` and `withdraw_mesh_token` rename a machine or change its namespaces, bring a
+removed one back, and withdraw a join token, at once. The [auto scaling](scaling.md#agents) tools are here too. In an ordinary conversation
 their changes are approval cards. In a **setup conversation**
 (`POST /api/v1/chats` with `"kind": "setup"`, or **Finish with the assistant** in the setup wizard once a model is
 connected) the admin has asked the assistant to set the server up, so it makes the changes itself and says what it
 changed. Every change is audited with `assistant` in its detail, and all of them stay changeable in Settings.
-Turning telemetry on or off, changing the Secrets section, inviting people and changing their access always ask first, and so does every change once the answer has read text from outside
+Turning telemetry on or off, changing the Secrets section, inviting people and changing their access, and adding a
+machine to the mesh or taking one off always ask first, and so does every change once the answer has read text from outside
 Lens ([third-party content](#third-party-content-and-prompt-injection)).
 
 ### Routine choices
