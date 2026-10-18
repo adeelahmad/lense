@@ -109,6 +109,8 @@ EDITABLE = {
         # the model files (yolox_model, ultralytics_model) are startup settings only, like yunet_model
         "object_engine",
         "object_min_score",
+        "playable_copies",
+        "playable_height",
     ),
     "nsfw": None,
     "enhance": None,
@@ -178,6 +180,7 @@ ENUMS = {
     ("video", "face_engine"): {"opencv", "insightface", "anytopdf", "none"},
     ("video", "object_engine"): {"yolox", "ultralytics", "anytopdf", "off"},
     ("enhance", "image_engine"): {"classic", "realesrgan"},
+    ("video", "playable_height"): {360, 480, 720, 1080},
     ("decisions", "engine"): {"auto", "jev", "laya", "llm", "off"},
     ("voice", "input"): {"auto", "server", "browser"},
     ("voice", "stt"): {"same", "sensevoice", "whisper", "mlx-whisper", "openai", "elevenlabs", "assemblyai", "deepgram"},

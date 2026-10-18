@@ -541,6 +541,9 @@ DEFAULTS = {
         "yolox_model": None,
         "ultralytics_model": None,
         "object_min_score": 0.4,
+        # playable copies (playable.py): off by default, since transcoding a long video takes a small machine a while
+        "playable_copies": False,
+        "playable_height": 720,
     },
     # NSFW classification (nsfw.py, docs/nsfw.md): off until an admin turns it on here, or an owner for their namespace
     # (which can also choose its own threshold and display). A local model (ViT, Apache-2.0, fetched on first use) scores
