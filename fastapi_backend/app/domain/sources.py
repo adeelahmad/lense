@@ -165,7 +165,8 @@ def _writeback(db, cfg, src, conf):
         db.q("UPDATE $r SET sealed.token = $t", r=R("storage_source", src["id"]), t=settings.seal(cfg, new, f"source:{src['id']}:token"))
 
 
-def run(db, cfg, src, argv, timeout=300):
+def run(db, cfg, src, argv, timeout=300, input=None):
+    """rclone's output for argv(the remote's name), given `input` on its stdin (rcat writes what it reads there)."""
     if feeds.handles(src):
         raise RuntimeError(f"{BACKENDS[src['type']]['label']} isn't storage: files can't be read or written through rclone")
     name, d, conf = _private_conf(cfg, src)
@@ -175,6 +176,7 @@ def run(db, cfg, src, argv, timeout=300):
             capture_output=True,
             text=True,
             timeout=timeout,
+            input=input,
         )
         _writeback(db, cfg, src, conf)
         if out.returncode:

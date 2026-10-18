@@ -16,6 +16,8 @@ export type ApprovalView = {
   tool: string;
   summary?: string | null;
   estimate?: Estimate | null;
+  /** What would be sent or written, all of it, to read before deciding. */
+  preview?: string | null;
   status?: string;
   result?: unknown;
 };
@@ -133,6 +135,15 @@ export function ApprovalCard({
           <span className="text-[12px] font-medium text-fg-secondary">over the limit in Settings → AI</span>
         )}
       </div>
+      {a.preview && (
+        <pre
+          aria-label="What would be sent or written"
+          tabIndex={0}
+          className="m-0 max-h-[280px] overflow-auto whitespace-pre-wrap break-words rounded-sm border border-border bg-surface px-3 py-2 font-sans text-[13px] leading-normal text-fg"
+        >
+          {a.preview}
+        </pre>
+      )}
       {line && (
         <p className="m-0 text-[13.5px] leading-normal text-fg">
           The assistant wants to run this on <b>{line}</b>.

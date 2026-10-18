@@ -1,5 +1,5 @@
 {
-  "surveyed": "2026-10-18T02:46:22.142Z",
+  "surveyed": "2026-10-18T06:13:16.866Z",
   "commit": "",
   "viewport": "1400x900",
   "device": "desktop",
@@ -47,7 +47,7 @@
         }
       ],
       "id": "install",
-      "ms": 3603,
+      "ms": 3400,
       "ok": true
     },
     {
@@ -85,7 +85,7 @@
         }
       ],
       "id": "first-admin",
-      "ms": 882,
+      "ms": 595,
       "ok": true
     },
     {
@@ -107,7 +107,7 @@
         }
       ],
       "id": "setup-wizard",
-      "ms": 724,
+      "ms": 404,
       "ok": true
     },
     {
@@ -137,7 +137,7 @@
         }
       ],
       "id": "first-question",
-      "ms": 3186,
+      "ms": 1274,
       "ok": true
     },
     {
@@ -183,7 +183,7 @@
         }
       ],
       "id": "import-paste",
-      "ms": 4284,
+      "ms": 4146,
       "ok": true
     },
     {
@@ -213,7 +213,7 @@
         }
       ],
       "id": "library-open",
-      "ms": 3215,
+      "ms": 2655,
       "ok": true
     },
     {
@@ -251,7 +251,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 3490,
+      "ms": 3395,
       "ok": true
     },
     {
@@ -289,7 +289,7 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2658,
+      "ms": 2541,
       "ok": true
     },
     {
@@ -327,7 +327,7 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 2894,
+      "ms": 2987,
       "ok": true
     },
     {
@@ -381,7 +381,7 @@
         }
       ],
       "id": "note-create",
-      "ms": 3674,
+      "ms": 3663,
       "ok": true
     },
     {
@@ -427,7 +427,7 @@
         }
       ],
       "id": "topic-add",
-      "ms": 3316,
+      "ms": 3295,
       "ok": true
     },
     {
@@ -465,7 +465,7 @@
         }
       ],
       "id": "pipeline-create",
-      "ms": 2558,
+      "ms": 2602,
       "ok": true
     },
     {
@@ -503,7 +503,7 @@
         }
       ],
       "id": "routine-create",
-      "ms": 2558,
+      "ms": 2625,
       "ok": true
     },
     {
@@ -541,7 +541,7 @@
         }
       ],
       "id": "extension-add",
-      "ms": 2471,
+      "ms": 2890,
       "ok": true
     },
     {
@@ -579,7 +579,7 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 2677,
+      "ms": 2838,
       "ok": true
     },
     {
@@ -625,7 +625,7 @@
         }
       ],
       "id": "settings-change",
-      "ms": 3377,
+      "ms": 3429,
       "ok": true
     },
     {
@@ -687,7 +687,7 @@
         }
       ],
       "id": "person-add",
-      "ms": 3294,
+      "ms": 3340,
       "ok": true
     },
     {
@@ -725,7 +725,7 @@
         }
       ],
       "id": "api-token",
-      "ms": 3155,
+      "ms": 2924,
       "ok": true
     },
     {
@@ -755,7 +755,7 @@
         }
       ],
       "id": "namespace-switch",
-      "ms": 2304,
+      "ms": 2314,
       "ok": true
     },
     {
@@ -801,7 +801,7 @@
         }
       ],
       "id": "agent-connect",
-      "ms": 3043,
+      "ms": 2821,
       "ok": true
     },
     {
@@ -839,7 +839,7 @@
         }
       ],
       "id": "import-file",
-      "ms": 3546,
+      "ms": 3498,
       "ok": true
     },
     {
@@ -885,7 +885,7 @@
         }
       ],
       "id": "source-folder",
-      "ms": 5402,
+      "ms": 6686,
       "ok": true
     },
     {
@@ -923,7 +923,7 @@
         }
       ],
       "id": "entity-find",
-      "ms": 12392,
+      "ms": 10776,
       "ok": true
     },
     {
@@ -961,7 +961,7 @@
         }
       ],
       "id": "graph-find",
-      "ms": 4376,
+      "ms": 4212,
       "ok": true
     },
     {
@@ -1015,7 +1015,7 @@
         }
       ],
       "id": "podcast-create",
-      "ms": 5013,
+      "ms": 3396,
       "ok": true
     },
     {
@@ -1061,7 +1061,7 @@
         }
       ],
       "id": "report-pdf",
-      "ms": 3676,
+      "ms": 3427,
       "ok": true
     },
     {
@@ -1107,7 +1107,7 @@
         }
       ],
       "id": "workflow-create",
-      "ms": 3146,
+      "ms": 3282,
       "ok": true
     },
     {
@@ -1153,7 +1153,7 @@
         }
       ],
       "id": "template-create",
-      "ms": 2848,
+      "ms": 2860,
       "ok": true
     },
     {
@@ -1207,7 +1207,7 @@
         }
       ],
       "id": "namespace-create",
-      "ms": 2982,
+      "ms": 2926,
       "ok": true
     },
     {
@@ -1261,7 +1261,7 @@
         }
       ],
       "id": "speaker-rename",
-      "ms": 4026,
+      "ms": 3835,
       "ok": true
     },
     {
@@ -1315,7 +1315,7 @@
         }
       ],
       "id": "entity-merge",
-      "ms": 5634,
+      "ms": 4880,
       "ok": true
     },
     {
@@ -1385,7 +1385,7 @@
         }
       ],
       "id": "graph-merge",
-      "ms": 6483,
+      "ms": 6361,
       "ok": true
     },
     {
@@ -1431,7 +1431,7 @@
         }
       ],
       "id": "chat-regenerate",
-      "ms": 3675,
+      "ms": 3784,
       "ok": true
     },
     {
@@ -1453,7 +1453,7 @@
         }
       ],
       "id": "chat-copy",
-      "ms": 96,
+      "ms": 216,
       "ok": true
     },
     {
@@ -1483,7 +1483,7 @@
         }
       ],
       "id": "chat-export-pdf",
-      "ms": 5487,
+      "ms": 4778,
       "ok": true
     },
     {
@@ -1529,7 +1529,69 @@
         }
       ],
       "id": "chat-tools",
-      "ms": 1129,
+      "ms": 384,
+      "ok": true
+    },
+    {
+      "module": "Chat",
+      "feature": "Research a goal, approve its plan and save the report as a note",
+      "note": "A new conversation in one namespace: the Deep research switch beside the composer, the goal and Enter; the plan comes back as a card to approve (Approve, or Enter in it), then the run's progress, then the cited report with Save as note. The stand-in model plans three sub-questions without asking anything first.",
+      "clicks": 4,
+      "keys": 34,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "click",
+          "what": "Chat",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/chat",
+          "kind": "click",
+          "what": "Deep research",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/chat",
+          "kind": "type",
+          "what": "the goal",
+          "clicks": 0,
+          "keys": 33,
+          "prompts": 0
+        },
+        {
+          "page": "/chat",
+          "kind": "key",
+          "what": "Enter to plan it",
+          "clicks": 0,
+          "keys": 1,
+          "prompts": 0
+        },
+        {
+          "page": "/chat/:id",
+          "kind": "click",
+          "what": "Approve",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/chat/:id",
+          "kind": "click",
+          "what": "Save as note",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "chat-research",
+      "ms": 7020,
       "ok": true
     },
     {
@@ -1583,7 +1645,7 @@
         }
       ],
       "id": "cloud-model",
-      "ms": 3452,
+      "ms": 3076,
       "ok": true
     }
   ],
@@ -1613,21 +1675,21 @@
       "page": "/chat",
       "label": "Chat",
       "reach": 1,
-      "controls": 10,
+      "controls": 11,
       "askCovers": []
     },
     {
       "page": "/notes",
       "label": "Notes",
       "reach": 1,
-      "controls": 10,
+      "controls": 11,
       "askCovers": []
     },
     {
       "page": "/timeline",
       "label": "Timeline",
       "reach": 1,
-      "controls": 58,
+      "controls": 78,
       "askCovers": []
     },
     {
@@ -1753,7 +1815,7 @@
       "page": "/costs",
       "label": "Costs",
       "reach": 1,
-      "controls": 12,
+      "controls": 13,
       "askCovers": []
     },
     {
@@ -1788,7 +1850,7 @@
       "page": "/settings/ai",
       "label": "Settings › AI assistant",
       "reach": 2,
-      "controls": 19,
+      "controls": 22,
       "askCovers": []
     },
     {
@@ -1809,7 +1871,7 @@
       "page": "/settings/analysis",
       "label": "Settings › Analysis",
       "reach": 2,
-      "controls": 5,
+      "controls": 6,
       "askCovers": []
     },
     {

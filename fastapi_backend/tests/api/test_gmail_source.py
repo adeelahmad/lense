@@ -80,7 +80,7 @@ def test_a_workspace_mailbox_through_the_gmail_api(client, db, cfg, admin, googl
     assert made["health"]["ok"], made
     sid = made["id"]
     src = client.get("/api/v1/sources", headers=admin).json()[0]
-    assert (src["type"], src["oauth"], src["params"]) == ("gmail", None, {"user": MARA, "via": "api"})
+    assert (src["type"], src["oauth"], src["params"]) == ("gmail", None, {"user": MARA, "via": "api", "write": ""})
     assert src["secrets"]["service_account_credentials"]["set"] and "PRIVATE KEY" not in json.dumps(src)
 
     # labels are folders (Gmail's own by the names its web app shows); a label's messages are files

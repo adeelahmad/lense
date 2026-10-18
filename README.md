@@ -29,7 +29,9 @@ in PowerShell; or skip the terminal and double-click the launcher for your syste
 [Lens.app](docs/get-started.md#the-mac-app) from the same release installs Lens, runs it without Docker and keeps it in
 the menu bar (built, early: not signed yet).
 [Deployment](docs/deployment.md) covers servers and Cloudron; there are also packages for
-[Synology](packaging/synology/README.md), [QNAP](packaging/qnap/README.md) and [Proxmox](proxmox/README.md).
+[Synology](packaging/synology/README.md), [QNAP](packaging/qnap/README.md) and [Proxmox](proxmox/README.md), and each
+release publishes Lens's images for amd64 and arm64 (a Raspberry Pi) to GHCR ([prebuilt
+images](docs/deployment.md#prebuilt-images)).
 The [checks](docs/requirements.md#install) say which of these CI proves.
 
 To work on the code instead, `make run` builds and runs everything from a checkout, `make setup-code` prints the
@@ -80,15 +82,18 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   turns them on, it also searches the web and reads pages, cited like the archive, and runs Python and bash in a sandbox
   of each conversation's own. An admin's assistant searches and reads the mail, calendars and files connected to Lens
   (Gmail, Google Calendar, Google Drive, S3 and the rest), cites messages and events, and brings them in once you
-  approve. Regenerating an answer or editing a question makes a new version beside the old one, and
+  approve; where an admin allows it, it sends mail, adds events and writes files, each only after you read all of it
+  and say yes. Regenerating an answer or editing a question makes a new version beside the old one, and
   nothing is lost. Each answer keeps a record of what produced it (the model, its tools, how long it took and what it
   cost), opened from its header. It reads answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine
-  (opt-in), any message in one click, and `/clear` and `/compact` keep long conversations short. Conversations title
-  themselves after their first answer, unless you name them. Each namespace can have its own assistant with
+  (opt-in), any message in one click. Long conversations are summarised before they fill the model's context, and
+  `/clear` and `/compact` start afresh or summarise now. It answers questions about Lens itself too, from its docs and
+  this server's settings, and agents ask the same over MCP. Conversations title themselves after their first answer, unless
+  you name them. Each namespace can have its own assistant with
   its own name, instructions and memory, answering in Telegram and Slack (built in, with voice notes and files), in
   Discord, Matrix, WhatsApp and other chat rooms through Matterbridge, and by email at an address of its own that you
   email or forward things to. ([Chat](docs/assistant.md), [web search](docs/assistant.md#web-search-and-reading-pages),
-  [mail, calendars and files](docs/assistant.md#mail-calendars-and-files), [code sandbox](docs/assistant.md#code-sandbox), [answer records](docs/assistant.md#what-each-answer-records),
+  [mail, calendars and files](docs/assistant.md#mail-calendars-and-files), [code sandbox](docs/assistant.md#code-sandbox), [questions about Lens](docs/assistant.md#questions-about-lens-itself), [answer records](docs/assistant.md#what-each-answer-records),
   [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md), [speech providers](docs/speech-providers.md);
   [checks](docs/requirements.md#ask-and-get-cited-answers))
 - **Extend the assistant.** Add tools (a prompt, a web request, a graph drawn on the canvas, or sandboxed Python),
@@ -159,7 +164,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   namespaces) and let a decision model pick the branch, then tell you in
   your own chat app, ask the model or the agent, use a tool, call a web address (its credentials kept sealed), run a
   workflow, pipeline or routine, or change assets and notes. A Classify node in a workflow sorts an asset into labels,
-  content types or topics, acting only on a sure answer. Anything that reaches outside Lens or changes more than what
+  content types or topics, acting only on a sure answer, and an Entity filter node keeps the entities you want. Anything that reaches outside Lens or changes more than what
   set it off asks first, until you let it run on its own: on the Approvals page or, for a change inside Lens, with a yes
   in the chat it told you in; agents can decline an approval but never give one. Each automation has limits and budgets,
   and agents make, try and run them over MCP and in the assistant, or draft one from a sentence; the studio to draw them
@@ -172,6 +177,12 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   what cost most. Routine choices go to small decision models, and the LLM only when it adds value.
   ([Activity and costs](docs/activity.md), [budgets](docs/budgets.md#one-budget-for-everything),
   [the meter](docs/budgets.md#the-meter-and-the-costs-page); [checks](docs/requirements.md#see-what-it-costs))
+- **Scale out.** Scaling groups add workers when work waits and let them go when it doesn't, by target, step and
+  schedule rules, within min and max and a monthly budget, with every launch, join and hour of cost in the activity
+  ledger. A group launches nothing until you approve its terms in Settings › Auto scaling; agents propose and manage
+  groups over the API, MCP and the assistant, and never approve one. It runs more workers on this machine today;
+  cloud, Proxmox, Linux and model hosts are planned. ([Auto scaling](docs/scaling.md);
+  [checks](docs/requirements.md#scale-out))
 - **Keep it up to date and backed up.** Lens checks for a new release once a day and tells admins by email or a
   notification. One click in Settings › Updates (or one API call) upgrades it through a small agent on the machine,
   showing each step, and rolls back when the new version doesn't start; nothing installs unless an admin says so. The
@@ -217,7 +228,8 @@ server, the NSFW model, the MCP runner, Fedora) stay off or download only when y
 swapped for a cloud provider instead. Setup asks only what has no default: the model, and a budget for a cloud model.
 Picking a cloud model provider fills in its address and a model, so only its key is left to paste. Every setting lives
 in the web app, which works on a phone too: settings are in named groups, a search finds any one by name, and the
-options most people leave as they are stay folded. ([Components](docs/components.md),
+options most people leave as they are stay folded. A thin bar along the top of the web app shows a page or its data is
+still loading. ([Components](docs/components.md),
 [speech providers](docs/speech-providers.md), [local models](docs/local-models.md),
 [cloud model providers](docs/configuration.md#cloud-model-providers); [checks](docs/requirements.md#light-by-default))
 
@@ -225,8 +237,6 @@ options most people leave as they are stay folded. ([Components](docs/components
 
 These are open pull requests, not yet part of Lens:
 
-- **The assistant** answering questions about Lens itself, from its docs and this server
-  ([#400](https://github.com/adeelahmad/lense/pull/400)).
 - **Chat:** a conversation exported as Markdown, PDF or JSON ([#474](https://github.com/adeelahmad/lense/pull/474)).
 - **Pictures:** low-quality images enhanced before they're read ([#479](https://github.com/adeelahmad/lense/pull/479)).
 - **Web clipper:** signing in, or using your API token, not only an import webhook's
@@ -245,6 +255,9 @@ Next, and not in a pull request yet; each links to where it is tracked:
   topics, recordings and the other things that have pages ([notes](docs/notes.md)).
 - **Local models:** GPU builds of llama.cpp fetched by Lens, and local embedding models
   ([local models](docs/local-models.md)).
+- **Auto scaling:** providers for AWS, DigitalOcean, Hetzner, Proxmox and Linux hosts over SSH, joining over the
+  Nebula mesh, model hosts (RunPod, Lambda, Hugging Face, SageMaker, Bedrock), and making providers and groups in
+  Settings ([auto scaling](docs/scaling.md)).
 - **Speech providers:** their summaries, chapters and entities as optional imports, and per-minute prices in the
   activity ledger ([speech providers](docs/speech-providers.md)).
 - **Storage:** uploads and assets' media in the file store, and a storage key to download
@@ -284,7 +297,7 @@ The guides are on the [docs site](https://adeelahmad.github.io/lense/) and in th
   [the graph as files](docs/file-tree.md), [NFS share](docs/file-shares.md), [SMB share](docs/smb.md),
   [linked data (RDF)](docs/rdf.md), [IIIF](docs/iiif.md), [Fedora](docs/fedora.md)
 - **Models and cost:** [local models](docs/local-models.md), [speech providers](docs/speech-providers.md),
-  [activity and costs](docs/activity.md), [budgets](docs/budgets.md)
+  [activity and costs](docs/activity.md), [budgets](docs/budgets.md), [auto scaling](docs/scaling.md)
 - **Operate:** [encryption](docs/encryption.md), [storage](docs/storage.md), [database](docs/database.md),
   [logging](docs/logging.md), [telemetry](docs/telemetry.md), [Prometheus](docs/prometheus.md),
   [usage analytics](docs/analytics.md)

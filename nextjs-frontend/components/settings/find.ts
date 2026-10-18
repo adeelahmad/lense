@@ -27,6 +27,7 @@ export const SETTINGS_GROUPS: { label: string; sections: SectionId[] }[] = [
       "backups",
       "components",
       "workers",
+      "scaling",
       "automations",
       "logs",
       "telemetry",

@@ -61,6 +61,7 @@ EDITABLE = {
     "events": None,
     "automations": None,
     "backups": None,
+    "scaling": None,
     "encryption": None,
     "fedora": None,
     "tunnel": None,
@@ -456,6 +457,10 @@ def _check(section, key, value, default):
         if value is not None and not (isinstance(value, int) and not isinstance(value, bool) and 1024 <= value <= 2_000_000):
             raise ValueError("ai.context_tokens is a whole number of tokens from 1024 to 2000000")
         return value
+    if (section, key) == ("ai", "compact_at"):
+        if not (isinstance(value, int) and not isinstance(value, bool) and 10 <= value <= 90):
+            raise ValueError("ai.compact_at is a whole percentage of the model's context from 10 to 90")
+        return value
     if (section, key) == ("ai", "browser_steps"):
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 100):
             raise ValueError("ai.browser_steps is a whole number of steps from 1 to 100")
@@ -503,6 +508,8 @@ def _check(section, key, value, default):
         return _automations_setting(key, value)
     if section == "backups":
         return _backup_setting(key, value)
+    if section == "scaling":
+        return _scaling_setting(key, value)
     if section == "fedora":
         return _fedora_setting(key, value)
     if section == "shares":
@@ -1134,6 +1141,27 @@ def _backup_setting(key, value):
             raise ValueError("backups.folder is a folder (a bucket and path for S3), up to 200 characters")
         return blobs._folder(value)
     raise ValueError(f"unknown setting backups.{key}")
+
+
+SCALING_RANGES = {"tick_seconds": (10, 600), "join_minutes": (1, 120), "accrue_minutes": (1, 60)}
+SCALING_TAG_RX = re.compile(r"^[a-z][a-z0-9-]{0,15}$")
+
+
+def _scaling_setting(key, value):
+    if key == "enabled":
+        if not isinstance(value, bool):
+            raise ValueError("scaling.enabled is true or false")
+        return value
+    if key in SCALING_RANGES:
+        lo, hi = SCALING_RANGES[key]
+        if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+            raise ValueError(f"scaling.{key} is a whole number from {lo} to {hi}")
+        return value
+    if key == "tag":
+        if not isinstance(value, str) or not SCALING_TAG_RX.match(value.strip()):
+            raise ValueError("scaling.tag is up to 16 lowercase letters, digits and dashes, starting with a letter")
+        return value.strip()
+    raise ValueError(f"unknown setting scaling.{key}")
 
 
 EMBED_RANGES = {"passage_chars": (200, 4000), "batch_size": (1, 256), "neighbours": (5, 500), "timeout": (5, 600)}
