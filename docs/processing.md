@@ -585,9 +585,11 @@ importing chosen ones and watching work as above. [News feeds](#news-feeds-rss-a
 
 ### News feeds (RSS and Atom)
 
-A news feed (type `rss`) is a source too: Settings › Sources › Add › News feed, then watch it. Watching a feed
-subscribes to it: each new post becomes a text resource of the namespace, titled and dated by the post, so answers cite
-it and its link.
+A news feed (type `rss`) is a source too: on the Sources page (Sensors › Files, email and calendars), add a News feed,
+then watch it. Watching a feed subscribes to it: each new post becomes a text resource of the namespace, titled and
+dated by the post, so answers cite it and its link. An agent does both in one step: `subscribe_feed` over
+[MCP](mcp.md) or the assistant's tool of that name (admins) takes the address and a namespace, reads the feed first and
+keeps it only if it works; `news_feeds` lists what's followed and `unsubscribe_feed` stops one.
 
 - **Address**: the feed's own (`https://`, or `feed://`), or a page of the site: when the page names its feed
   (`<link rel="alternate" type="application/rss+xml">`, as blogs and news sites do), the first feed it names is read.
@@ -603,6 +605,9 @@ it and its link.
   (never its address). It comes in as text: the title, its link, who wrote it, when, the feed, its categories and
   enclosures, then its text. Its content type is Feed post, so a namespace can give feed posts a pipeline of their own
   (Settings › Content types).
+- **Automations**: each new post is a `feed_post.received` activity (a kind of `asset.added`) with the post's
+  address, site, feed, author, date and categories, so an automation can start on posts from one feed, author or
+  category ([Automations](automations.md#kinds)). What the feed wrote is marked as outside text.
 - **New posts only, unless you backfill**: as for any watch, a new watch on a feed takes the posts published after it
   starts; turn on backfill to bring in those the feed lists already. The newest 500 posts of a feed are listed.
 - **Light on the network**: a feed read is reused for a minute, then asked for again with its `ETag` and
@@ -613,7 +618,7 @@ it and its link.
 
 Refine later: JSON Feed (feedparser reads RSS and Atom only); an option to capture each post's whole page, for feeds
 that carry only a summary; podcast feeds bringing in each episode's audio to transcribe; OPML import of a feed list;
-subscribing in one step (address and namespace) from Settings.
+subscribing in one step (address and namespace) on the Sources page, as agents can.
 
 ### Gmail and Google Workspace
 

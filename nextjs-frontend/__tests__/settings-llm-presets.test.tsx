@@ -31,6 +31,7 @@ const view = (keySet: boolean, locked: string[] = []) =>
         describe_max: 20,
         describe_engine: "llm",
         florence_model: "base",
+        moondream_model: "moondream3-preview",
         api_key: { secret: true, set: keySet },
         api_key_env: null,
         max_chars: 24000,
@@ -114,6 +115,21 @@ describe("Settings › LLM provider presets", () => {
     expect(m(Admin.updateSettings).mock.calls[0][0]).toMatchObject({
       path: { section: "llm" },
       body: { describe_engine: "florence-2" },
+    });
+  });
+
+  it("picks which Moondream describes pictures on this server", async () => {
+    show(view(true));
+    expect(screen.queryByLabelText("Moondream model")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Describe pictures with"), { target: { value: "moondream" } });
+    expect(screen.getByLabelText("Moondream model")).toHaveValue("moondream3-preview");
+    expect(screen.queryByLabelText("Florence-2 size")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Moondream model"), { target: { value: "moondream2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(Admin.updateSettings).toHaveBeenCalledTimes(1));
+    expect(m(Admin.updateSettings).mock.calls[0][0]).toMatchObject({
+      path: { section: "llm" },
+      body: { describe_engine: "moondream", moondream_model: "moondream2" },
     });
   });
 

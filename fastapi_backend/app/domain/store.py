@@ -180,9 +180,11 @@ DEFAULTS = {
         # a model the admin knows can see images: it describes pages and shots (the describe step); none, none are
         "vision_model": None,
         "describe_max": 50,  # pages or shots of a resource described at most
-        # what describes them: "llm" (vision_model, above) or "florence-2" (on this machine, florence.py)
+        # what describes them: "llm" (vision_model, above), or on this machine "florence-2" (florence.py) or
+        # "moondream" (moondream.py)
         "describe_engine": "llm",
         "florence_model": "base",  # Florence-2 base (about 280 MB) or large (about 830 MB)
+        "moondream_model": "moondream3-preview",  # Moondream 3 Preview (BSL 1.1, a GPU) or moondream2 (Apache-2.0)
     },
     "graph": {"max_nodes": 150, "min_edge_weight": 2},
     "search": {
@@ -299,7 +301,8 @@ DEFAULTS = {
         "extensions": True,  # tools, skills, hooks and plugins people add (extensions.py)
         "refine_notes": True,  # the model keeps notes' titles and one-line summaries true to the whole note (notebook.py)
         "compact": True,  # a long conversation keeps a summary of the messages the model no longer sees (chat.compact)
-        "compact_model": None,  # a cheaper model to write those summaries (None: the chat's model)
+        "compact_model": None,  # a cheaper model to write those summaries and titles (None: the chat's model)
+        "auto_title": True,  # a conversation nobody named is titled by the model after its first answer (chat.auto_title)
         "context_tokens": None,  # the chat model's context window; summarised early before it fills (None: 16000)
         "organise_notes": True,  # notes nobody filed are filed in PARA, or a suggestion waits on them (notebook.py)
         "untrusted_marking": True,  # third-party text reaches the model marked as data, not instructions (untrusted.py)
