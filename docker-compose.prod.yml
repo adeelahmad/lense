@@ -4,10 +4,12 @@
 
 # Image names of their own: under the same project, the dev stack's default names (<project>-backend, ...) would be
 # overwritten by these builds, and a later `docker compose up` would run the production images without hot reload.
-# LENS_VERSION tags them (default `prod`), for NAS setups (Synology, QNAP) that run a named image.
+# LENS_VERSION tags them (default `prod`), for NAS setups (Synology, QNAP) that run a named image. LENS_BACKEND_IMAGE
+# and LENS_FRONTEND_IMAGE name a release's prebuilt images instead, which install.sh writes into .env when it pulls them
+# (LENS_IMAGES=pull, with docker-compose.images.yml; docs/deployment.md#prebuilt-images).
 x-backend: &backend
   security_opt: ["no-new-privileges:true"]  # nothing in Lens needs setuid programs
-  image: lens-backend:${LENS_VERSION:-prod}
+  image: ${LENS_BACKEND_IMAGE:-lens-backend:${LENS_VERSION:-prod}}
   build:
     context: fastapi_backend
     target: ${LENS_TARGET:-full}  # LibreOffice and Chromium, to read Office files, text, web pages and emails; lean: without
@@ -152,7 +154,7 @@ services:
 
   frontend:
     security_opt: ["no-new-privileges:true"]
-    image: lens-frontend:${LENS_VERSION:-prod}
+    image: ${LENS_FRONTEND_IMAGE:-lens-frontend:${LENS_VERSION:-prod}}
     build:
       context: ./nextjs-frontend
       dockerfile: Dockerfile.prod
