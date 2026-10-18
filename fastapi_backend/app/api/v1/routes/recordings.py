@@ -23,6 +23,7 @@ from app.domain import (
     auth,
     deletion,
     enhance,
+    events_content,
     hierarchy,
     ipgroups,
     jobs,
@@ -429,6 +430,7 @@ def move_recording(
     except keyring.Locked:
         raise HTTPException(423, LOCKED) from None
     auth.audit(db, user.as_audit(), "recording.move", f"recording:{rid}", {k: v for k, v in done.items() if k != "job"})
+    events_content.moved(db, rid, {"title": done["title"], "space": dst}, user.email, done["from"], done["to"], done["collection"])
     request.app.state.graph_cache.clear()
     tasks.add_task(render.refresh_overview, db, cfg, done["from"])
     return RecordingMoved(

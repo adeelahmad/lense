@@ -149,7 +149,7 @@ that triggers subscribe to. `events.check_activity(a)` checks it, naming the fir
 
 - `id`: stable, made from what the source reads (`create-recording-7`, `log-12`), so an activity is the same every
   time it is read: 1 to 120 lowercase letters, digits and `_ . : -`.
-- `type`: the AS2 verb (Create, Update, Delete, Add, Remove, Join, Leave, Arrive, Announce, Like, Accept, Reject),
+- `type`: the AS2 verb (Create, Update, Delete, Add, Remove, Move, Join, Leave, Arrive, Announce, Like, Accept, Reject),
   which the kind decides.
 - `published`: when it happened, ISO 8601 in UTC with milliseconds, so times from every source sort as text.
 - `actor`: who did it, `{type, id, name}`. Sources and storage are `Service`, people `Person`, Lens itself, the agent
@@ -194,6 +194,7 @@ and the paths holding outside text are in `GET /api/v1/activities/kinds` (`event
 | `asset.processed` | | `jobs` | the asset's fields, `job` (`lens:job/<id>`), `steps`, `batch`; tagged with its entities | “School trip on Friday” finished processing (pages, analyze, embed) |
 | `asset.failed` | | `jobs` | as `asset.processed`, with `step` (where it failed) and `error` | Processing “Call with the school” failed at transcribe |
 | `asset.deleted` | | `log` | `type`, `id`, `name`, `media` | Sam deleted “Old minutes” |
+| `asset.moved` | | `log` | `type`, `id`, `name`, `url`, `media`, `from` and `to` (the namespaces), `collection` (where it is now); a `Move` | Sam moved “Old minutes” to work |
 | `calendar_event.changed` | | `log` | `startTime`, `endTime`, `location`, `calendar`, and `before` (`startTime`, `endTime`) | Family calendar moved “Parents' evening” to 2026-10-21 18:00 |
 | `comment.added` | | `comments` | a `Note`: `content`, `inReplyTo` (the comment it answers), `quote` (the passage), `t0`, `t1` (the moment, ms); `target` is the asset, or the activity of the timeline it was written on (`lens:activity/<id>`) | Sam commented on “Call with the school” |
 | `reaction.added` | | `log` | the activity reacted to (an `Activity`, `lens:activity/<id>`, `name` its summary), `emoji`, `activity` (its id); noisy | Sam reacted 👍 to “Work Gmail received “Parents' evening”” |
@@ -204,6 +205,7 @@ and the paths holding outside text are in `GET /api/v1/activities/kinds` (`event
 | `sensor.reading` | | `sensor_readings` | `{type: Note, id: lens:sensor_reading/<id>, name: "<stream>: <what it said>", url: /sensors/<id>}`, `stream`, `value`, `text`, `fields` (a JSON reading's numbers), `level` (syslog), `pattern`, `label` (the line's pattern and its label); noisy | Kitchen sensor temperature: 31.2 |
 | `sensor.alert` | | `log` | `{type: Note, id: lens:sensor_pattern/<id>}`, `label` (alert or notable), `pattern`, `example` (a line it fits), `count` (lines in all), `lines` (in the batch that raised it), `hour` | 192.168.1.1 logged an alert: wlan<n>: authentication failed for <mac> |
 | `sensor.joined` | | `sensors` | `{type: Service, id: lens:sensor/<id>, url: /sensors/<id>}`, `sensor_type` (mqtt, syslog, ...), `device`, `status` | A new MQTT device reported: zigbee2mqtt/kitchen |
+| `sensor.changed` | | `log` | `{type: Service, id: lens:sensor/<id>, name, url: /sensors/<id>}`, `status` (active, paused, ignored, new) and `before` (what it was); an `Update` by the person who switched it | Sam paused Kitchen sensor |
 | `chat.message` | | `chat_messages` | `{type: Note, id: lens:chat_message/<id>, name: the start of it, url: /chat/<id>}`, `text`, `channel` (web, telegram, slack, bridge, mailbox), `room`, `chat`, `direct` (a private chat or the web app), `attachments` (how many files) | sam wrote in Telegram: “groceries: milk, eggs” |
 | `routine.ran` | | `routine_runs` | `{type: Note, id: lens:routine_run/<id>, url: /routines/<id>}`, `status` (done, partly, error, skipped), `trigger` (schedule, manual), `startTime`, `endTime`, `actions`, `failed`, `error`, `changes` (graph changes applied and proposed), `cost_usd`, `tokens` | Nightly tidy ran |
 | `budget.warned` | | `log` | `{type: Note, id: lens:budget/<resource>, url: /costs}`, `resource` (all, space:<id>, routine:<id>, ...), `state` (near, over), `share`, `usd`, `tokens`, `estimate`, `cap_usd`, `cap_tokens`, `period`, `since` | The pods namespace has used 82% of its budget |
@@ -224,8 +226,10 @@ A run of an asset's pipeline that finishes is `asset.processed` (it succeeded) o
 run, batch runs included. Its actor is whoever queued it, and its tags are the asset's entities (the ten most
 mentioned), which exist only once it has been processed: `asset.processed` is the kind for "when an email about St
 Mary's is understood". A run tried again finishes again, as another activity. A deletion is logged as
-`asset.deleted` where the asset is deleted (once per asset); a calendar event read again that starts at another time
-is logged as `calendar_event.changed` (once per event and new start), with the times it had before.
+`asset.deleted` where the asset is deleted (once per asset), and a move to another namespace as `asset.moved`, a
+`Move` by whoever moved it, seen in the namespace it is in now (a trigger there on `asset.moved` is "when something
+arrives from another namespace"); a calendar event read again that starts at another time is logged as
+`calendar_event.changed` (once per event and new start), with the times it had before.
 
 A comment on an asset, or a reply on its thread, is `comment.added`, by whoever wrote it, with the asset as its
 `target`; a comment written on an activity of the timeline has that activity as its `target`
@@ -264,6 +268,10 @@ outside text.
   wasn't sure of raises none until a person settles it, and a paused or ignored sensor raises none.
 - `sensor.joined` is a device or host that made itself a sensor by reporting for the first time (MQTT, syslog),
   read from its `storage_source` row by `created_at`; a sensor added by hand isn't news.
+- `sensor.changed` is a person switching a sensor: paused, ignored, resumed (active) or set back to new, logged when
+  the change is saved, with the status it had before; saving the same status again, or a rename, logs nothing. It is
+  seen in the sensor's namespace, or by admins when it has none, so "when the kitchen sensor is paused, tell me" is a
+  trigger on it with `object.status` equals paused.
 
 #### Chat as activities
 

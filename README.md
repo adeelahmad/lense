@@ -204,8 +204,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   asset and a document's pages image assets, and Read steps that pick their own converter, such as anytopdf), routines on a schedule, batch runs over a collection, and
   notifications to webhooks, Slack, Discord and Matterbridge, including when a routine's run fails or leaves graph
   changes to review. Everything that happens in Lens (new assets, emails,
-  calendar events, files, feed posts, what people say to Lens, sensor readings, notes, graph changes, runs, budget
-  warnings) is kept as a stream of activities in W3C Activity Streams form, which agents read through the API, MCP and
+  calendar events, files, feed posts, what people say to Lens, sensor readings, sensors switched on or off, notes,
+  moves between namespaces, graph changes, runs, budget warnings) is kept as a stream of activities in W3C Activity Streams form, which agents read through the API, MCP and
   the assistant, and people review on the Timeline page (and Latest on Home), marking what they've seen, reacting with
   an emoji and commenting in threads everyone who sees the item shares (agents too, over MCP), and asking the
   assistant about any item from the item; a comment that tags @lens gets the agent's answer in the thread, with
