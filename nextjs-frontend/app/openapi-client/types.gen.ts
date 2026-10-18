@@ -5872,6 +5872,116 @@ export type Description = {
 };
 
 /**
+ * Desired
+ */
+export type Desired = {
+  /**
+   * Desired
+   */
+  desired: number;
+};
+
+/**
+ * DriverField
+ */
+export type DriverField = {
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Type
+   */
+  type: "string" | "integer" | "number" | "boolean" | "list";
+  /**
+   * Required
+   */
+  required?: boolean;
+  /**
+   * Default
+   */
+  default?: unknown;
+  /**
+   * Help
+   */
+  help?: string | null;
+  /**
+   * Options
+   */
+  options?: Array<unknown> | null;
+  /**
+   * Secret
+   *
+   * a credential: sealed when saved, shown only as set
+   */
+  secret?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * DriverSpec
+ */
+export type DriverSpec = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Kind
+   *
+   * node: machines that run `lens worker`; model: a model endpoint
+   */
+  kind: "node" | "model";
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * About
+   */
+  about: string;
+  /**
+   * Priced
+   *
+   * it charges money, so its groups need a budget
+   */
+  priced: boolean;
+  /**
+   * Extra
+   *
+   * the optional packages it needs, fetched when a provider of it is saved
+   */
+  extra?: string | null;
+  /**
+   * License
+   */
+  license?: string | null;
+  /**
+   * Ready
+   *
+   * its packages are installed
+   */
+  ready: boolean;
+  /**
+   * Fields
+   *
+   * the provider's settings
+   */
+  fields: {
+    [key: string]: DriverField;
+  };
+  /**
+   * Template
+   *
+   * what a group picks for each unit
+   */
+  template: {
+    [key: string]: DriverField;
+  };
+  [key: string]: unknown;
+};
+
+/**
  * EmailInfo
  *
  * An email's own description, read when it was made into a PDF.
@@ -8945,6 +9055,328 @@ export type GraphQuestion = {
    * ask the graph as of a version: a number or a version's name
    */
   as_of?: string | null;
+};
+
+/**
+ * Group
+ */
+export type Group = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Kind
+   */
+  kind: string;
+  /**
+   * Provider
+   */
+  provider: number;
+  /**
+   * Template
+   */
+  template: {
+    [key: string]: unknown;
+  };
+  /**
+   * Min
+   */
+  min: number;
+  /**
+   * Max
+   */
+  max: number;
+  /**
+   * Desired
+   */
+  desired: number;
+  /**
+   * Cooldown Seconds
+   */
+  cooldown_seconds?: number | null;
+  /**
+   * Warmup Seconds
+   */
+  warmup_seconds?: number | null;
+  /**
+   * Terminate
+   */
+  terminate: string;
+  /**
+   * Rules
+   *
+   * each with `says`, the rule in words
+   */
+  rules: Array<{
+    [key: string]: unknown;
+  }>;
+  /**
+   * At Cap
+   */
+  at_cap: string;
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Paused
+   */
+  paused: boolean;
+  /**
+   * Paused Why
+   */
+  paused_why?: string | null;
+  /**
+   * Capped
+   *
+   * why its budget stops it now, when it does
+   */
+  capped?: string | null;
+  /**
+   * Approval
+   *
+   * a person's approval: {by, at, terms}
+   */
+  approval?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Approved
+   *
+   * the approval covers the terms as they stand
+   */
+  approved: boolean;
+  /**
+   * Terms
+   *
+   * what an approval binds: kind, provider, template, max, budget, at_cap
+   */
+  terms: {
+    [key: string]: unknown;
+  };
+  budget?: GroupBudget | null;
+  units: UnitCounts;
+  /**
+   * Waiting For
+   *
+   * why it launches nothing now, when it doesn't
+   */
+  waiting_for?: string | null;
+  /**
+   * Last Out At
+   */
+  last_out_at?: string | null;
+  /**
+   * Last In At
+   */
+  last_in_at?: string | null;
+  /**
+   * Last Eval
+   *
+   * what the rules said last: {at, said}
+   */
+  last_eval?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Failures
+   */
+  failures?: number;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Updated By
+   */
+  updated_by?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * GroupBudget
+ */
+export type GroupBudget = {
+  /**
+   * Usd
+   */
+  usd?: number | null;
+  /**
+   * Period
+   */
+  period: string;
+  /**
+   * State
+   */
+  state: string;
+  /**
+   * Spent
+   */
+  spent: {
+    [key: string]: unknown;
+  };
+  /**
+   * Left
+   */
+  left: {
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
+
+/**
+ * GroupChange
+ */
+export type GroupChange = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Provider
+   */
+  provider?: number | null;
+  /**
+   * Template
+   */
+  template?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Min
+   */
+  min?: number | null;
+  /**
+   * Max
+   */
+  max?: number | null;
+  /**
+   * Desired
+   */
+  desired?: number | null;
+  /**
+   * Cooldown Seconds
+   */
+  cooldown_seconds?: number | null;
+  /**
+   * Warmup Seconds
+   */
+  warmup_seconds?: number | null;
+  /**
+   * Terminate
+   */
+  terminate?: "oldest" | "newest" | null;
+  /**
+   * Rules
+   */
+  rules?: Array<Rule> | null;
+  /**
+   * At Cap
+   */
+  at_cap?: "stop" | "min" | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean | null;
+  /**
+   * Budget
+   */
+  budget?: number | null;
+};
+
+/**
+ * GroupIn
+ */
+export type GroupIn = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Provider
+   *
+   * the provider's id
+   */
+  provider: number;
+  /**
+   * Kind
+   *
+   * the provider's kind; filled in when left out
+   */
+  kind?: "node" | "model" | null;
+  /**
+   * Template
+   *
+   * what each unit is (the driver's template fields)
+   */
+  template?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Min
+   */
+  min?: number;
+  /**
+   * Max
+   */
+  max?: number;
+  /**
+   * Desired
+   *
+   * units wanted now (default min)
+   */
+  desired?: number | null;
+  /**
+   * Cooldown Seconds
+   *
+   * how long after a change before the next
+   */
+  cooldown_seconds?: number;
+  /**
+   * Warmup Seconds
+   *
+   * how long a new unit may take to join before more are judged
+   */
+  warmup_seconds?: number;
+  /**
+   * Terminate
+   *
+   * which unit goes first when scaling in
+   */
+  terminate?: "oldest" | "newest";
+  /**
+   * Rules
+   */
+  rules?: Array<Rule>;
+  /**
+   * At Cap
+   *
+   * at the budget's cap: stop every unit, or keep min
+   */
+  at_cap?: "stop" | "min";
+  /**
+   * Enabled
+   */
+  enabled?: boolean;
+  /**
+   * Budget
+   *
+   * USD per month; needed on a priced provider
+   */
+  budget?: number | null;
 };
 
 /**
@@ -12131,6 +12563,484 @@ export type MentionMoved = {
 };
 
 /**
+ * MeshAuthority
+ */
+export type MeshAuthority = {
+  /**
+   * Fingerprint
+   *
+   * the CA certificate's fingerprint: every machine on the mesh trusts it
+   */
+  fingerprint: string;
+  /**
+   * Not After
+   *
+   * when the CA runs out
+   */
+  not_after?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * MeshBeat
+ */
+export type MeshBeat = {
+  /**
+   * Nebula
+   *
+   * running, starting, stopped or failed
+   */
+  nebula?: string | null;
+  /**
+   * Version
+   *
+   * the Lens version it runs
+   */
+  version?: string | null;
+  /**
+   * Peers
+   *
+   * the machines it has tunnels to
+   */
+  peers?: Array<{
+    [key: string]: unknown;
+  }> | null;
+  /**
+   * Machine
+   *
+   * its processors, memory and system
+   */
+  machine?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Sandbox
+   *
+   * the sandboxes it can run
+   */
+  sandbox?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Log
+   *
+   * Nebula's last lines
+   */
+  log?: Array<string> | null;
+};
+
+/**
+ * MeshJoin
+ */
+export type MeshJoin = {
+  /**
+   * Token Id
+   *
+   * the number in the join token (lensjoin1.<id>.<secret>)
+   */
+  token_id: number;
+  /**
+   * Nonce
+   *
+   * random, made for this request
+   */
+  nonce: string;
+  /**
+   * Name
+   *
+   * the machine's name
+   */
+  name: string;
+  /**
+   * Public Key
+   *
+   * its Nebula public key (nebula-cert keygen): its private key never leaves it
+   */
+  public_key: string;
+  /**
+   * Proof
+   *
+   * HMAC-SHA256 of the request, keyed with the token's secret (docs/mesh.md)
+   */
+  proof: string;
+  /**
+   * Info
+   *
+   * about the machine: os, arch, cpus, memory
+   */
+  info?: {
+    [key: string]: unknown;
+  } | null;
+};
+
+/**
+ * MeshJoined
+ */
+export type MeshJoined = {
+  /**
+   * Node
+   */
+  node: number;
+  /**
+   * Sealed
+   *
+   * the answer, sealed with a key from the token's secret: certificate, config, credentials
+   */
+  sealed: string;
+  [key: string]: unknown;
+};
+
+/**
+ * MeshNode
+ */
+export type MeshNode = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Role
+   */
+  role: "primary" | "worker" | "compute";
+  /**
+   * Ip
+   *
+   * its address on the mesh
+   */
+  ip: string;
+  /**
+   * Groups
+   *
+   * its certificate's groups: role and namespaces, for the firewall
+   */
+  groups?: Array<string>;
+  /**
+   * Namespaces
+   *
+   * the namespaces it serves (none: every one)
+   */
+  namespaces?: Array<string>;
+  /**
+   * Fingerprint
+   *
+   * its current certificate's fingerprint
+   */
+  fingerprint?: string | null;
+  /**
+   * Not After
+   *
+   * when its certificate runs out (it renews it at two thirds)
+   */
+  not_after?: string | null;
+  /**
+   * Joined At
+   */
+  joined_at?: string | null;
+  /**
+   * Joined By
+   *
+   * the admin who made the token it joined with
+   */
+  joined_by?: string | null;
+  /**
+   * Last Seen
+   *
+   * its last report, every minute while it runs
+   */
+  last_seen?: string | null;
+  /**
+   * Status
+   *
+   * what it last reported: Nebula, its peers, its machine
+   */
+  status?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Revoked At
+   *
+   * when it was taken off the mesh
+   */
+  revoked_at?: string | null;
+  /**
+   * Revoked By
+   */
+  revoked_by?: string | null;
+  /**
+   * Hosts
+   *
+   * the address it reached this install at to join
+   */
+  hosts?: Array<string>;
+  /**
+   * Workers
+   *
+   * the job workers running on it
+   */
+  workers?: Array<WorkerInfo>;
+  [key: string]: unknown;
+};
+
+/**
+ * MeshNodeChange
+ */
+export type MeshNodeChange = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Namespaces
+   *
+   * the namespaces it serves (empty: every one)
+   */
+  namespaces?: Array<string> | null;
+};
+
+/**
+ * MeshNodeConfig
+ */
+export type MeshNodeConfig = {
+  /**
+   * Config
+   *
+   * its Nebula config, without its private key
+   */
+  config: {
+    [key: string]: unknown;
+  };
+  /**
+   * Version
+   *
+   * changes whenever the config does
+   */
+  version: string;
+  /**
+   * Not After
+   */
+  not_after?: string | null;
+  /**
+   * Renew Days
+   *
+   * how many days before its certificate runs out it renews it
+   */
+  renew_days: number;
+  /**
+   * Crt
+   *
+   * the new certificate (renew)
+   */
+  crt?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * MeshRenew
+ */
+export type MeshRenew = {
+  /**
+   * Public Key
+   *
+   * its Nebula public key, the same or a new one
+   */
+  public_key: string;
+};
+
+/**
+ * MeshStatus
+ */
+export type MeshStatus = {
+  /**
+   * Enabled
+   *
+   * the mesh is on (mesh.enabled): adding a node turns it on
+   */
+  enabled: boolean;
+  /**
+   * Network
+   *
+   * the mesh's addresses (mesh.network)
+   */
+  network: string;
+  /**
+   * Port
+   *
+   * the UDP port the primary listens on (mesh.port)
+   */
+  port: number;
+  /**
+   * Hosts
+   *
+   * where other machines reach that port (mesh.hosts); empty: where each joined
+   */
+  hosts: Array<string>;
+  /**
+   * Primary Ip
+   *
+   * this machine's address on the mesh
+   */
+  primary_ip: string;
+  /**
+   * the mesh's certificate authority, once made
+   */
+  ca?: MeshAuthority | null;
+  /**
+   * Nodes
+   *
+   * machines on the mesh besides this one
+   */
+  nodes: number;
+  /**
+   * Removed
+   *
+   * machines taken off it
+   */
+  removed: number;
+  /**
+   * Tokens
+   *
+   * join tokens that can still be used
+   */
+  tokens: number;
+  /**
+   * Nebula
+   *
+   * the Nebula version Lens runs
+   */
+  nebula: string;
+  /**
+   * Tools
+   *
+   * Nebula's programs are on this server (else they're fetched when first needed)
+   */
+  tools: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * MeshToken
+ */
+export type MeshToken = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Role
+   */
+  role: "worker" | "compute";
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Namespaces
+   */
+  namespaces?: Array<string>;
+  /**
+   * Expires At
+   */
+  expires_at?: string | null;
+  /**
+   * Uses
+   *
+   * how many machines may join with it
+   */
+  uses?: number;
+  /**
+   * Used
+   *
+   * how many have
+   */
+  used?: number;
+  /**
+   * Expired
+   */
+  expired?: boolean;
+  /**
+   * Created By
+   */
+  created_by?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Last Used At
+   */
+  last_used_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * MeshTokenCreate
+ */
+export type MeshTokenCreate = {
+  /**
+   * Role
+   *
+   * worker: runs jobs against this install's database; compute: runs sandboxes only
+   */
+  role?: "worker" | "compute";
+  /**
+   * Name
+   *
+   * the name it shows as (none: the name the machine sends)
+   */
+  name?: string | null;
+  /**
+   * Namespaces
+   *
+   * the namespaces it serves (empty: every one)
+   */
+  namespaces?: Array<string>;
+  /**
+   * Hours
+   *
+   * how long the token can be used
+   */
+  hours?: number;
+  /**
+   * Uses
+   *
+   * how many machines may join with it
+   */
+  uses?: number;
+};
+
+/**
+ * MeshTokenCreated
+ */
+export type MeshTokenCreated = {
+  token: MeshToken;
+  /**
+   * Secret
+   *
+   * the join token itself, shown this once
+   */
+  secret: string;
+  /**
+   * Join Url
+   *
+   * this install's address the machine joins at
+   */
+  join_url: string;
+  [key: string]: unknown;
+};
+
+/**
  * MessageCreate
  */
 export type MessageCreate = {
@@ -12482,6 +13392,27 @@ export type MetadataEdit = {
    */
   after: {
     [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
+
+/**
+ * Metrics
+ */
+export type Metrics = {
+  /**
+   * Metrics
+   */
+  metrics: {
+    [key: string]: number | number;
+  };
+  /**
+   * About
+   *
+   * what each metric measures
+   */
+  about: {
+    [key: string]: string;
   };
   [key: string]: unknown;
 };
@@ -15009,6 +15940,53 @@ export type Output = {
 };
 
 /**
+ * Overview
+ */
+export type Overview = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Settings
+   */
+  settings: {
+    [key: string]: unknown;
+  };
+  /**
+   * Scaler
+   *
+   * which process scales and when it last looked
+   */
+  scaler: {
+    [key: string]: unknown;
+  };
+  /**
+   * Providers
+   */
+  providers: Array<Provider>;
+  /**
+   * Groups
+   */
+  groups: Array<Group>;
+  /**
+   * Units
+   */
+  units: Array<Unit>;
+  /**
+   * Drivers
+   */
+  drivers: Array<DriverSpec>;
+  /**
+   * Metrics
+   */
+  metrics: {
+    [key: string]: number | number;
+  };
+  [key: string]: unknown;
+};
+
+/**
  * Page
  *
  * A page of a document, or an image (a TIFF has one per frame).
@@ -15411,6 +16389,20 @@ export type PatternUpdate = {
    * Action
    */
   action?: "keep" | "drop" | null;
+};
+
+/**
+ * Paused
+ */
+export type Paused = {
+  /**
+   * Paused
+   */
+  paused?: boolean;
+  /**
+   * Why
+   */
+  why?: string | null;
 };
 
 /**
@@ -16385,6 +17377,177 @@ export type PrimaryFile = {
    */
   pdf?: string | null;
   [key: string]: unknown;
+};
+
+/**
+ * Protected
+ */
+export type Protected = {
+  /**
+   * Protected
+   */
+  protected?: boolean;
+};
+
+/**
+ * Provider
+ */
+export type Provider = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Driver
+   */
+  driver: string;
+  /**
+   * Kind
+   */
+  kind?: string | null;
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Priced
+   */
+  priced?: boolean;
+  /**
+   * Settings
+   */
+  settings: {
+    [key: string]: unknown;
+  };
+  /**
+   * Secrets
+   *
+   * which credentials are set
+   */
+  secrets: {
+    [key: string]: boolean;
+  };
+  /**
+   * Price
+   */
+  price?: number | null;
+  /**
+   * Note
+   */
+  note?: string | null;
+  /**
+   * Checked At
+   */
+  checked_at?: string | null;
+  /**
+   * Check
+   *
+   * the last check: {ok, error?}
+   */
+  check?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Updated By
+   */
+  updated_by?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ProviderChange
+ */
+export type ProviderChange = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Settings
+   */
+  settings?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Secrets
+   *
+   * a secret given as null is removed; one left out is kept
+   */
+  secrets?: {
+    [key: string]: string | null;
+  } | null;
+  /**
+   * Price
+   */
+  price?: number | null;
+  /**
+   * Note
+   */
+  note?: string | null;
+  /**
+   * Check
+   */
+  check?: boolean;
+};
+
+/**
+ * ProviderIn
+ */
+export type ProviderIn = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Driver
+   *
+   * the kind of provider (see /scaling/drivers)
+   */
+  driver: string;
+  /**
+   * Settings
+   *
+   * the driver's non-secret settings
+   */
+  settings?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Secrets
+   *
+   * its credentials: sealed, never shown again
+   */
+  secrets?: {
+    [key: string]: string | null;
+  };
+  /**
+   * Price
+   *
+   * USD per unit-hour, when the driver doesn't know it; an estimate
+   */
+  price?: number | null;
+  /**
+   * Note
+   */
+  note?: string | null;
+  /**
+   * Check
+   *
+   * prove the credentials with a read-only call before answering
+   */
+  check?: boolean;
 };
 
 /**
@@ -19459,6 +20622,90 @@ export type RoutineUpdate = {
    * Enabled
    */
   enabled?: boolean | null;
+};
+
+/**
+ * Rule
+ */
+export type Rule = {
+  /**
+   * Type
+   */
+  type: "target" | "step" | "schedule";
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Metric
+   *
+   * target and step rules: see /scaling/metrics
+   */
+  metric?: string | null;
+  /**
+   * Target
+   *
+   * target rules: the value to keep the metric at
+   */
+  target?: number | null;
+  /**
+   * Above
+   *
+   * step rules: fires while the metric is above this
+   */
+  above?: number | null;
+  /**
+   * Below
+   *
+   * step rules: fires while the metric is below this
+   */
+  below?: number | null;
+  /**
+   * Minutes
+   *
+   * step rules: for how long before it fires (default 1)
+   */
+  minutes?: number | null;
+  /**
+   * Add
+   *
+   * step rules: units to add, a count or a percentage like "50%"
+   */
+  add?: number | string | null;
+  /**
+   * Remove
+   *
+   * step rules: units to remove, a count or a percentage
+   */
+  remove?: number | string | null;
+  /**
+   * Cron
+   *
+   * schedule rules: when, as a cron expression
+   */
+  cron?: string | null;
+  /**
+   * Timezone
+   */
+  timezone?: string | null;
+  /**
+   * Min
+   *
+   * schedule rules: the new min
+   */
+  min?: number | null;
+  /**
+   * Max
+   *
+   * schedule rules: the new max
+   */
+  max?: number | null;
+  /**
+   * Desired
+   *
+   * schedule rules: the new desired count
+   */
+  desired?: number | null;
 };
 
 /**
@@ -23652,6 +24899,16 @@ export type TermSuggestion = {
 };
 
 /**
+ * Terminate
+ */
+export type Terminate = {
+  /**
+   * Why
+   */
+  why?: string | null;
+};
+
+/**
  * TicketRequest
  */
 export type TicketRequest = {
@@ -24418,6 +25675,112 @@ export type Undone = {
    * changes that couldn't be undone (an entity in them was deleted since)
    */
   failed?: number;
+  [key: string]: unknown;
+};
+
+/**
+ * Unit
+ */
+export type Unit = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Group
+   */
+  group: number;
+  /**
+   * Provider
+   */
+  provider: number;
+  /**
+   * Driver
+   */
+  driver?: string | null;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * External Id
+   *
+   * the provider's id for it
+   */
+  external_id?: string | null;
+  /**
+   * State
+   */
+  state: "launching" | "running" | "draining" | "terminating" | "terminated" | "failed";
+  /**
+   * Address
+   */
+  address?: string | null;
+  /**
+   * Endpoint
+   *
+   * a model unit's endpoint: base_url, model; api_key true when set
+   */
+  endpoint?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Price
+   *
+   * USD per hour, an estimate
+   */
+  price?: number | null;
+  /**
+   * Launched At
+   */
+  launched_at?: string | null;
+  /**
+   * Ready At
+   */
+  ready_at?: string | null;
+  /**
+   * Ended At
+   */
+  ended_at?: string | null;
+  /**
+   * By
+   */
+  by?: string | null;
+  /**
+   * Why
+   */
+  why?: string | null;
+  /**
+   * Protected
+   */
+  protected?: boolean;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Accrued At
+   */
+  accrued_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * UnitCounts
+ */
+export type UnitCounts = {
+  /**
+   * Launching
+   */
+  launching: number;
+  /**
+   * Running
+   */
+  running: number;
+  /**
+   * Draining
+   */
+  draining: number;
   [key: string]: unknown;
 };
 
@@ -46174,3 +47537,908 @@ export type WriteSpecResponses = {
 };
 
 export type WriteSpecResponse = WriteSpecResponses[keyof WriteSpecResponses];
+
+export type OverviewData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/scaling";
+};
+
+export type OverviewResponses = {
+  /**
+   * Successful Response
+   */
+  200: Overview;
+};
+
+export type OverviewResponse = OverviewResponses[keyof OverviewResponses];
+
+export type ListDriversData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/scaling/drivers";
+};
+
+export type ListDriversResponses = {
+  /**
+   * Response Scaling-List Drivers
+   *
+   * Successful Response
+   */
+  200: Array<DriverSpec>;
+};
+
+export type ListDriversResponse = ListDriversResponses[keyof ListDriversResponses];
+
+export type MetricsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Steps
+     *
+     * comma-separated steps for the queue metrics
+     */
+    steps?: string | null;
+  };
+  url: "/api/v1/scaling/metrics";
+};
+
+export type MetricsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type MetricsError = MetricsErrors[keyof MetricsErrors];
+
+export type MetricsResponses = {
+  /**
+   * Successful Response
+   */
+  200: Metrics;
+};
+
+export type MetricsResponse = MetricsResponses[keyof MetricsResponses];
+
+export type ListProvidersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/scaling/providers";
+};
+
+export type ListProvidersResponses = {
+  /**
+   * Response Scaling-List Providers
+   *
+   * Successful Response
+   */
+  200: Array<Provider>;
+};
+
+export type ListProvidersResponse = ListProvidersResponses[keyof ListProvidersResponses];
+
+export type AddProviderData = {
+  body: ProviderIn;
+  path?: never;
+  query?: never;
+  url: "/api/v1/scaling/providers";
+};
+
+export type AddProviderErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AddProviderError = AddProviderErrors[keyof AddProviderErrors];
+
+export type AddProviderResponses = {
+  /**
+   * Successful Response
+   */
+  201: Provider;
+};
+
+export type AddProviderResponse = AddProviderResponses[keyof AddProviderResponses];
+
+export type RemoveProviderData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/providers/{pid}";
+};
+
+export type RemoveProviderErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveProviderError = RemoveProviderErrors[keyof RemoveProviderErrors];
+
+export type RemoveProviderResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RemoveProviderResponse = RemoveProviderResponses[keyof RemoveProviderResponses];
+
+export type GetProviderData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/providers/{pid}";
+};
+
+export type GetProviderErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetProviderError = GetProviderErrors[keyof GetProviderErrors];
+
+export type GetProviderResponses = {
+  /**
+   * Successful Response
+   */
+  200: Provider;
+};
+
+export type GetProviderResponse = GetProviderResponses[keyof GetProviderResponses];
+
+export type ChangeProviderData = {
+  body: ProviderChange;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/providers/{pid}";
+};
+
+export type ChangeProviderErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ChangeProviderError = ChangeProviderErrors[keyof ChangeProviderErrors];
+
+export type ChangeProviderResponses = {
+  /**
+   * Successful Response
+   */
+  200: Provider;
+};
+
+export type ChangeProviderResponse = ChangeProviderResponses[keyof ChangeProviderResponses];
+
+export type CheckProviderData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/providers/{pid}/check";
+};
+
+export type CheckProviderErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CheckProviderError = CheckProviderErrors[keyof CheckProviderErrors];
+
+export type CheckProviderResponses = {
+  /**
+   * Response Scaling-Check Provider
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type CheckProviderResponse = CheckProviderResponses[keyof CheckProviderResponses];
+
+export type ListGroupsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/scaling/groups";
+};
+
+export type ListGroupsResponses = {
+  /**
+   * Response Scaling-List Groups
+   *
+   * Successful Response
+   */
+  200: Array<Group>;
+};
+
+export type ListGroupsResponse = ListGroupsResponses[keyof ListGroupsResponses];
+
+export type CreateGroupData = {
+  body: GroupIn;
+  path?: never;
+  query?: never;
+  url: "/api/v1/scaling/groups";
+};
+
+export type CreateGroupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateGroupError = CreateGroupErrors[keyof CreateGroupErrors];
+
+export type CreateGroupResponses = {
+  /**
+   * Successful Response
+   */
+  201: Group;
+};
+
+export type CreateGroupResponse = CreateGroupResponses[keyof CreateGroupResponses];
+
+export type RemoveGroupData = {
+  body?: never;
+  path: {
+    /**
+     * Gid
+     */
+    gid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/groups/{gid}";
+};
+
+export type RemoveGroupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveGroupError = RemoveGroupErrors[keyof RemoveGroupErrors];
+
+export type RemoveGroupResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RemoveGroupResponse = RemoveGroupResponses[keyof RemoveGroupResponses];
+
+export type GetGroupData = {
+  body?: never;
+  path: {
+    /**
+     * Gid
+     */
+    gid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/groups/{gid}";
+};
+
+export type GetGroupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetGroupError = GetGroupErrors[keyof GetGroupErrors];
+
+export type GetGroupResponses = {
+  /**
+   * Successful Response
+   */
+  200: Group;
+};
+
+export type GetGroupResponse = GetGroupResponses[keyof GetGroupResponses];
+
+export type ChangeGroupData = {
+  body: GroupChange;
+  path: {
+    /**
+     * Gid
+     */
+    gid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/groups/{gid}";
+};
+
+export type ChangeGroupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ChangeGroupError = ChangeGroupErrors[keyof ChangeGroupErrors];
+
+export type ChangeGroupResponses = {
+  /**
+   * Successful Response
+   */
+  200: Group;
+};
+
+export type ChangeGroupResponse = ChangeGroupResponses[keyof ChangeGroupResponses];
+
+export type ApproveGroupData = {
+  body?: never;
+  path: {
+    /**
+     * Gid
+     */
+    gid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/groups/{gid}/approve";
+};
+
+export type ApproveGroupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ApproveGroupError = ApproveGroupErrors[keyof ApproveGroupErrors];
+
+export type ApproveGroupResponses = {
+  /**
+   * Successful Response
+   */
+  200: Group;
+};
+
+export type ApproveGroupResponse = ApproveGroupResponses[keyof ApproveGroupResponses];
+
+export type SetDesiredData = {
+  body: Desired;
+  path: {
+    /**
+     * Gid
+     */
+    gid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/groups/{gid}/desired";
+};
+
+export type SetDesiredErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetDesiredError = SetDesiredErrors[keyof SetDesiredErrors];
+
+export type SetDesiredResponses = {
+  /**
+   * Successful Response
+   */
+  200: Group;
+};
+
+export type SetDesiredResponse = SetDesiredResponses[keyof SetDesiredResponses];
+
+export type PauseGroupData = {
+  body: Paused;
+  path: {
+    /**
+     * Gid
+     */
+    gid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/groups/{gid}/pause";
+};
+
+export type PauseGroupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PauseGroupError = PauseGroupErrors[keyof PauseGroupErrors];
+
+export type PauseGroupResponses = {
+  /**
+   * Successful Response
+   */
+  200: Group;
+};
+
+export type PauseGroupResponse = PauseGroupResponses[keyof PauseGroupResponses];
+
+export type GroupHistoryData = {
+  body?: never;
+  path: {
+    /**
+     * Gid
+     */
+    gid: number;
+  };
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Before
+     */
+    before?: number | null;
+  };
+  url: "/api/v1/scaling/groups/{gid}/history";
+};
+
+export type GroupHistoryErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GroupHistoryError = GroupHistoryErrors[keyof GroupHistoryErrors];
+
+export type GroupHistoryResponses = {
+  /**
+   * Response Scaling-Group History
+   *
+   * Successful Response
+   */
+  200: Array<{
+    [key: string]: unknown;
+  }>;
+};
+
+export type GroupHistoryResponse = GroupHistoryResponses[keyof GroupHistoryResponses];
+
+export type ListUnitsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Group
+     */
+    group?: number | null;
+    /**
+     * Alive
+     *
+     * only units not yet gone
+     */
+    alive?: boolean;
+  };
+  url: "/api/v1/scaling/units";
+};
+
+export type ListUnitsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListUnitsError = ListUnitsErrors[keyof ListUnitsErrors];
+
+export type ListUnitsResponses = {
+  /**
+   * Response Scaling-List Units
+   *
+   * Successful Response
+   */
+  200: Array<Unit>;
+};
+
+export type ListUnitsResponse = ListUnitsResponses[keyof ListUnitsResponses];
+
+export type ProtectUnitData = {
+  body: Protected;
+  path: {
+    /**
+     * Nid
+     */
+    nid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/units/{nid}/protect";
+};
+
+export type ProtectUnitErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ProtectUnitError = ProtectUnitErrors[keyof ProtectUnitErrors];
+
+export type ProtectUnitResponses = {
+  /**
+   * Successful Response
+   */
+  200: Unit;
+};
+
+export type ProtectUnitResponse = ProtectUnitResponses[keyof ProtectUnitResponses];
+
+export type TerminateUnitData = {
+  body: Terminate;
+  path: {
+    /**
+     * Nid
+     */
+    nid: number;
+  };
+  query?: never;
+  url: "/api/v1/scaling/units/{nid}/terminate";
+};
+
+export type TerminateUnitErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TerminateUnitError = TerminateUnitErrors[keyof TerminateUnitErrors];
+
+export type TerminateUnitResponses = {
+  /**
+   * Successful Response
+   */
+  200: Unit;
+};
+
+export type TerminateUnitResponse = TerminateUnitResponses[keyof TerminateUnitResponses];
+
+export type TickData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/scaling/tick";
+};
+
+export type TickResponses = {
+  /**
+   * Response Scaling-Tick
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type TickResponse = TickResponses[keyof TickResponses];
+
+export type MeshStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/mesh";
+};
+
+export type MeshStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: MeshStatus;
+};
+
+export type MeshStatusResponse = MeshStatusResponses[keyof MeshStatusResponses];
+
+export type MeshNodesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/mesh/nodes";
+};
+
+export type MeshNodesResponses = {
+  /**
+   * Response Mesh-Mesh Nodes
+   *
+   * Successful Response
+   */
+  200: Array<MeshNode>;
+};
+
+export type MeshNodesResponse = MeshNodesResponses[keyof MeshNodesResponses];
+
+export type RemoveNodeData = {
+  body?: never;
+  path: {
+    /**
+     * Node Id
+     */
+    node_id: number;
+  };
+  query?: never;
+  url: "/api/v1/mesh/nodes/{node_id}";
+};
+
+export type RemoveNodeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveNodeError = RemoveNodeErrors[keyof RemoveNodeErrors];
+
+export type RemoveNodeResponses = {
+  /**
+   * Successful Response
+   */
+  200: MeshNode;
+};
+
+export type RemoveNodeResponse = RemoveNodeResponses[keyof RemoveNodeResponses];
+
+export type ChangeNodeData = {
+  body: MeshNodeChange;
+  path: {
+    /**
+     * Node Id
+     */
+    node_id: number;
+  };
+  query?: never;
+  url: "/api/v1/mesh/nodes/{node_id}";
+};
+
+export type ChangeNodeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ChangeNodeError = ChangeNodeErrors[keyof ChangeNodeErrors];
+
+export type ChangeNodeResponses = {
+  /**
+   * Successful Response
+   */
+  200: MeshNode;
+};
+
+export type ChangeNodeResponse = ChangeNodeResponses[keyof ChangeNodeResponses];
+
+export type RestoreNodeData = {
+  body?: never;
+  path: {
+    /**
+     * Node Id
+     */
+    node_id: number;
+  };
+  query?: never;
+  url: "/api/v1/mesh/nodes/{node_id}/restore";
+};
+
+export type RestoreNodeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RestoreNodeError = RestoreNodeErrors[keyof RestoreNodeErrors];
+
+export type RestoreNodeResponses = {
+  /**
+   * Successful Response
+   */
+  200: MeshNode;
+};
+
+export type RestoreNodeResponse = RestoreNodeResponses[keyof RestoreNodeResponses];
+
+export type MeshTokensData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/mesh/tokens";
+};
+
+export type MeshTokensResponses = {
+  /**
+   * Response Mesh-Mesh Tokens
+   *
+   * Successful Response
+   */
+  200: Array<MeshToken>;
+};
+
+export type MeshTokensResponse = MeshTokensResponses[keyof MeshTokensResponses];
+
+export type MakeMeshTokenData = {
+  body: MeshTokenCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/mesh/tokens";
+};
+
+export type MakeMeshTokenErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type MakeMeshTokenError = MakeMeshTokenErrors[keyof MakeMeshTokenErrors];
+
+export type MakeMeshTokenResponses = {
+  /**
+   * Successful Response
+   */
+  200: MeshTokenCreated;
+};
+
+export type MakeMeshTokenResponse = MakeMeshTokenResponses[keyof MakeMeshTokenResponses];
+
+export type WithdrawMeshTokenData = {
+  body?: never;
+  path: {
+    /**
+     * Token Id
+     */
+    token_id: number;
+  };
+  query?: never;
+  url: "/api/v1/mesh/tokens/{token_id}";
+};
+
+export type WithdrawMeshTokenErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type WithdrawMeshTokenError = WithdrawMeshTokenErrors[keyof WithdrawMeshTokenErrors];
+
+export type WithdrawMeshTokenResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type WithdrawMeshTokenResponse = WithdrawMeshTokenResponses[keyof WithdrawMeshTokenResponses];
+
+export type JoinMeshData = {
+  body: MeshJoin;
+  path?: never;
+  query?: never;
+  url: "/api/v1/mesh/join";
+};
+
+export type JoinMeshErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type JoinMeshError = JoinMeshErrors[keyof JoinMeshErrors];
+
+export type JoinMeshResponses = {
+  /**
+   * Successful Response
+   */
+  200: MeshJoined;
+};
+
+export type JoinMeshResponse = JoinMeshResponses[keyof JoinMeshResponses];
+
+export type NodeConfigData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/mesh/node/config";
+};
+
+export type NodeConfigResponses = {
+  /**
+   * Successful Response
+   */
+  200: MeshNodeConfig;
+};
+
+export type NodeConfigResponse = NodeConfigResponses[keyof NodeConfigResponses];
+
+export type RenewNodeData = {
+  body: MeshRenew;
+  path?: never;
+  query?: never;
+  url: "/api/v1/mesh/node/renew";
+};
+
+export type RenewNodeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RenewNodeError = RenewNodeErrors[keyof RenewNodeErrors];
+
+export type RenewNodeResponses = {
+  /**
+   * Successful Response
+   */
+  200: MeshNodeConfig;
+};
+
+export type RenewNodeResponse = RenewNodeResponses[keyof RenewNodeResponses];
+
+export type NodeBeatData = {
+  body: MeshBeat;
+  path?: never;
+  query?: never;
+  url: "/api/v1/mesh/node/beat";
+};
+
+export type NodeBeatErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type NodeBeatError = NodeBeatErrors[keyof NodeBeatErrors];
+
+export type NodeBeatResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type NodeBeatResponse = NodeBeatResponses[keyof NodeBeatResponses];

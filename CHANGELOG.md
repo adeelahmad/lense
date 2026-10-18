@@ -44,6 +44,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   a time (for the same sender, say), when one came a number of times, when one didn't come in time after another (no
   reply within two days), or once for a batch collected over a time. What it waits on outlasts a restart, and switching
   the automation off drops it ([Joins](docs/automations.md#joins)).
+- **A decide node for judgement calls.** An automation's workflow can ask the decision model a question with a few
+  options ("Does this need me today?") and go on along the option it picked, or along `unsure` when it isn't sure
+  enough, none is set up or the budget is spent. The email it reads is marked as outside text, the answer is kept per
+  activity so a retry doesn't pay again, and the call shows in the activity ledger under the run
+  ([The decide node](docs/automations.md#the-decide-node)).
 - **Specs from transcripts.** Turn a voice session or a meeting into a technical spec, saved as a note linked to it:
   the model writes the spec, then lists every named decision, every "no" and "not that, this", every constraint and
   every gap the speaker left to decide later, each with its quote and a link to the moment it was said; a quote the
@@ -68,6 +73,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   rclone keeps files being written in a cache on Lens's disk and puts them to Lens once they're closed; a file Lens
   can't take shows in the share's log. **Import files people add** in Settings, NFS share (`nfs.add_files`, on) turns it
   off and serves the share read-only again ([Adding files](docs/file-shares.md#adding-files)).
+- **A private network between Lens's machines** (in progress). Lens is the certificate authority of a Nebula mesh
+  between the machines it runs on: an admin adds a node with a join token (`POST /api/v1/mesh/tokens`), the machine
+  joins without ever sending the token (`POST /api/v1/mesh/join`: an HMAC proves it, the answer comes back sealed with
+  a key derived from it) and gets an address, a certificate naming its role and namespaces, and its Nebula config,
+  whose firewall lets worker nodes reach the database and every node the API, and nothing else; a node renews, reports
+  and refreshes its config with its own node token, and removing one blocklists its certificates on every machine.
+  Off until a node is added; settings in `mesh`. Nebula running on the primary, the install line that joins a machine
+  and the Settings pages follow in their own pull requests ([Nodes and the mesh](docs/mesh.md)).
 - **Export a conversation.** `GET /api/v1/chats/<id>/export.md`, `.pdf` or `.json` gives the version showing, one
   message (`?message=`) or, as JSON, every version (`?all=true`). The Markdown has each question and answer, its
   citations as footnotes linking back to the moment in Lens and the tools it used; the PDF is that Markdown printed by
@@ -111,6 +124,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   recording, and keeps the types it is sure of. Settings › Analysis › Names the rules can't type (`analysis.typing`)
   can also let the language model answer, or turn it off; the language model is never asked by default
   ([Names the rules can't type](docs/processing.md#entities-and-the-graph-explorer)).
+- **A loading bar, as in Gmail.** A thin blue bar runs along the top of the web app while a page or its data loads:
+  on every page change, and while a page waits for its first answers from the API. Refreshing what's already on screen
+  and anything quicker than a blink don't show it ([The web app](docs/frontend.md#data)).
 
 - **Published feeds.** A namespace publishes a private RSS feed, or a podcast feed with Apple Podcasts' tags, that any
   feed reader or podcast app follows at its address: resources (with their audio as the enclosure), podcast episodes
@@ -119,6 +135,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   one stops the old address at once, and the feed asks directories and search engines not to list it. Editors make and
   fill feeds with `POST /api/v1/feeds` and `POST /api/v1/feeds/{id}/items`; agents use the MCP tools `list_feeds`,
   `create_feed` and `publish_to_feed` ([Published feeds](docs/feeds.md)).
+    - Routines fill them: the graph workflow nodes Select assets and Select activities pick what came in since the
+      routine last ran, Publish to feed adds it to a feed, and Podcast episode makes an episode about it (added to a
+      feed, listed once it's made). Try on the canvas says what they would do
+      ([Publishing from the graph](docs/processing.md#publishing-from-the-graph)).
+
 ## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
 
 - **Dates read as days, for agents.** With Settings → Analysis → Read dates on (off by default), analysis reads the
@@ -245,6 +266,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   machine's upgrade agent starts and stops them), and agents do the same with `PUT /api/v1/admin/services/<profile>`
   or the MCP tools `services` and `set_service`. A server whose spec says `keep: true` keeps one session between
   calls ([The browser](docs/assistant.md#the-browser), [Optional containers](docs/assistant.md#optional-containers)).
+- **MCP servers in Settings, and for agents.** Settings › AI assistant now lists the MCP servers the assistant calls,
+  each with how many of its tools are on and a link to its page, next to Add MCP server and the switches for the MCP
+  runner and the browser. Agents list them with the MCP tool `mcp_servers` and add one, ready-made or their own, with
+  `add_mcp_server` (an admin's API key with the write scope)
+  ([Adding an MCP server](docs/assistant.md#adding-an-mcp-server)).
 - **Describe an automation in words.** `POST /api/v1/automations/draft` asks the model once to turn a sentence into
   a draft automation to try and save, and says what didn't fit and what it couldn't express
   ([Describe it in words](docs/automations.md#describe-it-in-words)).

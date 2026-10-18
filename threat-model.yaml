@@ -8,7 +8,7 @@ project: lens
 prose_version: "threat-model.md@same-commit"
 model_status: under-review
 triage_policy: strict
-confidence: {documented: 208, maintainer: 46, inferred: 91, assumption: 8}
+confidence: {documented: 210, maintainer: 46, inferred: 91, assumption: 8}
 
 generation:
   model: "Claude Opus 5.5 (claude-opus-5-5)"
@@ -456,7 +456,7 @@ entry_points:
         obligation_id: enable-only-trusted-extensions
         caller_must_enforce: "person enables only extensions they trust"
         provenance: {kind: documented, source: 'docs/assistant.md "other people''s run only when an admin shared them"'}
-  - id: "MCP servers: POST /extensions/mcp/read and /mcp/test, GET /extensions/mcp/presets, saving an extension of kind mcp, PATCH /extensions/{id}/tools"
+  - id: "MCP servers: POST /extensions/mcp/read and /mcp/test, GET /extensions/mcp/presets, saving an extension of kind mcp, PATCH /extensions/{id}/tools, MCP mcp_servers and add_mcp_server"
     component: assistant
     parameters:
       - name: "config text (JSON or YAML), a server's address and headers, or a command, its arguments and env; a tool name and its switches"
@@ -554,6 +554,33 @@ entry_points:
         control_kinds: [x-credential, resource-name, x-network-source]
         caller_must_enforce: "admin enables both; per-person access keys, files added imported as at the ports (shares.add_files); failed WebDAV sign-ins throttled per visitor from X-Forwarded-For as trusted proxies report it"
         provenance: {kind: documented, source: 'docs/file-tree.md "At the web app''s address"'}
+  - id: "POST /api/v1/mesh/join (a machine joining the mesh)"
+    component: optional
+    parameters:
+      - name: "a join token's id, a nonce, the machine's name and Nebula public key, an HMAC of those keyed with the token's secret, facts about the machine"
+        attacker_controllable: true
+        x-condition: "anyone reaching the web app, once a token exists"
+        control_kinds: [x-credential, data]
+        caller_must_enforce: "no sign-in: the token's secret never crosses the wire, the HMAC is checked in constant time, wrong proofs throttled per address (8 in 15 minutes), a token is spent on use and expires, and the answer is sealed with a key derived from the secret"
+        provenance: {kind: documented, source: 'docs/mesh.md "Joining"'}
+  - id: "/api/v1/mesh/node/config, /node/renew, /node/beat (a node's own calls, with its node token)"
+    component: optional
+    parameters:
+      - name: "a public key to certify; a status report: whether Nebula runs, its peers, its machine, its log lines"
+        attacker_controllable: true
+        x-condition: "a machine that joined (a removed one is refused)"
+        control_kinds: [x-credential, data, x-peer]
+        caller_must_enforce: "the node token is 256 random bits kept only as a hash; a node gets its own config and a certificate for its own address and groups only; reports are capped"
+        provenance: {kind: documented, source: 'docs/mesh.md "After joining"'}
+  - id: "POST /api/v1/mesh/tokens, PATCH and DELETE /api/v1/mesh/nodes/{id}, PUT /api/v1/settings/mesh"
+    component: optional
+    parameters:
+      - name: "a node's role, name, namespaces, token hours and uses; the mesh's network, port, hosts, cipher"
+        attacker_controllable: false
+        x-condition: "admin only"
+        control_kinds: [x-env-config]
+        caller_must_enforce: "admin is trusted; audited (mesh.token.create, mesh.join, mesh.node.*); the network can't change once machines have addresses in it"
+        provenance: {kind: documented, source: 'docs/mesh.md "Settings"'}
   - id: ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY"
     component: outbound
     parameters:
@@ -611,6 +638,16 @@ entry_points:
         obligation_id: admin-is-trusted
         caller_must_enforce: "admin is trusted; audited (lens.services, lens.monitoring); unknown profiles are a 404; one change at a time; reaches the machine only as an inbox request the agent checks again"
         provenance: {kind: documented, source: 'docs/assistant.md "Optional containers"'}
+  - id: "admin auto scaling"
+    component: authz
+    parameters:
+      - name: "/api/v1/scaling (providers, groups, units, tick), PUT /api/v1/settings/scaling, MCP and assistant scaling tools: provider credentials, a group's terms and rules, a unit id"
+        attacker_controllable: false
+        x-condition: "admin only (MCP: with the write scope)"
+        control_kinds: [x-credential, x-env-config]
+        obligation_id: admin-is-trusted
+        caller_must_enforce: "admin is trusted; off until turned on; audited (scaling.*) and in the activity ledger; credentials sealed and shown only as set; a group launches nothing until a person signed in to the web app approves its terms (P-SCALING)"
+        provenance: {kind: documented, source: 'docs/scaling.md "The person approves"'}
   - id: "admin sandbox gateway"
     component: authz
     parameters:
@@ -637,7 +674,7 @@ entry_points:
         attacker_controllable: true
         x-condition: "any editor, for automations in namespaces they edit; indirectly through activity text (mail, titles, chat) that reaches action params"
         control_kinds: [callback/code, data, x-prompt-injection]
-        caller_must_enforce: "none — it runs as its maker with their permissions at run time (P-AUTOMATION-ACTOR); actions reaching outside Lens ask first; outside text marks intents untrusted and breaks up links (P-INJECTION-EGRESS); chains and bursts are bounded (P-AUTOMATION-LOOP)"
+        caller_must_enforce: "none — it runs as its maker with their permissions at run time (P-AUTOMATION-ACTOR); actions reaching outside Lens ask first; outside text marks intents untrusted and breaks up links (P-INJECTION-EGRESS); chains and bursts are bounded (P-AUTOMATION-LOOP); `matches` patterns refuse nested repeats and repeated alternatives that start alike, read at most 20,000 characters and give up after 50 ms"
         provenance: {kind: documented, source: 'docs/automations.md "Running automations"'}
   - id: "code sandbox"
     component: assistant
@@ -780,7 +817,7 @@ contract_dimensions:
   - {component: query, dimension: concurrency-reentrancy, status: unresolved, conditions: "SPARQL sets a process-global rdflib flag per call", question_id: Q19, x-prose-provenance-kind: assumption, provenance: {kind: inferred, question_id: Q19}}
   - {component: query, dimension: resource-complexity, status: unresolved, conditions: "SPARQL has a row cap only; the Cypher regex guard is heuristic", question_id: Q25, x-also-questions: [Q16], provenance: {kind: inferred, question_id: Q25}}
   # --- Assistant
-  - {component: assistant, dimension: numeric-domain, status: claimed, property_id: P-RETRIEVAL, conditions: "tool loop capped by ai.max_steps and ai.max_transcript_reads", provenance: {kind: documented, source: 'docs/assistant.md "capped by"'}}
+  - {component: assistant, dimension: numeric-domain, status: claimed, property_id: P-RETRIEVAL, conditions: "tool loop capped by ai.max_steps (or a question's max_tool_calls, at most ai.max_tool_calls) and ai.max_transcript_reads", provenance: {kind: documented, source: 'docs/assistant.md "capped by"'}}
   - {component: assistant, dimension: failure-atomicity, status: claimed, property_id: P-APPROVAL, conditions: "change tools become approval cards; approval re-checks the role; notes and setup excepted", provenance: {kind: documented, source: 'docs/assistant.md "Approvals"'}}
   - {component: assistant, dimension: recursive-cyclic-topology, status: claimed, property_id: P-FLOW, conditions: "flow graphs never loop back; step budget", provenance: {kind: documented, source: 'domain/flow.py docstring "Graphs never loop back"'}}
   - {component: assistant, dimension: callback-execution, status: claimed, property_id: P-RETRIEVAL, conditions: "tools see only the person's reads; Python tools from admins only", x-routes-to: "P-RETRIEVAL, P-NO-CODE", provenance: {kind: documented, source: 'docs/assistant.md "limited to what the person can read"'}}
@@ -1344,6 +1381,14 @@ build_flags:
     affects_properties:
       - {property_id: P-SHARES, effect: narrows}
     provenance: {kind: documented, source: 'docs/file-tree.md "At the web app''s address"'}
+  - name: "mesh.enabled"
+    default: "off"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "Lens is the CA of a Nebula mesh between its machines (key sealed in the database); a certificate per machine names its role and namespaces as groups; the rendered firewall opens the database port to worker nodes and the API port to every node on the primary, a node's agent port to the primary only; single-machine installs never turn it on"
+    affects_properties:
+      - {property_id: P-MESH, effect: enables}
+    provenance: {kind: documented, source: 'docs/mesh.md "Off until an admin adds a node"'}
   - name: "https.enabled"
     default: "off"
     security_relevant: true
@@ -1494,8 +1539,16 @@ properties_claimed:
     tier: security-critical
     conditions: "a published feed's address opens that feed alone, read-only, with no session; only an editor of the namespace makes one; it lists only items whose resource or activity the readers of the feed's namespace can read, never a vault's, and a namespace made a vault stops its feeds; the token is found by its hash, and rotating or deleting the feed stops the old address at once; text in an item cannot add markup to a reader"
     violation_symptoms: [info-leak]
-    x-voided-by: "the token is sealed with the server key, not only hashed, so the namespace's readers and whoever holds secret.key see the address again (domain/syndication.py token_of); anyone given the address reads the feed until it is rotated; editors choose what goes in, and a resource's title and summary show as they are now; the fit is by namespace roles (domain/syndication.py Fit), not per-asset grants"
+    x-voided-by: "the token is sealed with the server key, not only hashed, so the namespace's readers and whoever holds secret.key see the address again (domain/syndication.py token_of); anyone given the address reads the feed until it is rotated; editors choose what goes in, as does a routine (admins make them) whose workflow nodes publish what they pick, bounded the same way; a resource's title and summary show as they are now; the fit is by namespace roles (domain/syndication.py Fit), not per-asset grants"
     provenance: {kind: documented, source: 'docs/feeds.md "Private by default"'}
+  - id: P-SCALING
+    kind: integrity
+    components: [authz, optional]
+    tier: security-critical
+    conditions: "auto scaling launches nothing unless a person signed in to the web app approved the group's terms (its provider, what each unit is, its max, its budget, what happens at its cap); an API key, an app, MCP and the assistant acting on its own never approve, and a change that widens the terms takes the approval away; a provider's credentials are sealed per provider and field, opened only for a call to it and never shown; a unit is handed no long-lived Lens secret"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "an admin's web session approves, and an admin is trusted; a yes on the Approvals page to the assistant's proposal approves the terms that proposal names; within the terms agents may raise the desired count up to max, spending up to the budget; costs are estimates from list prices (domain/scaling.py accrue), not bills, so a provider can charge more than the budget counts"
+    provenance: {kind: documented, source: 'docs/scaling.md "The person approves"'}
   - id: P-AUTH-REQ
     kind: authentication
     components: [web, identity]
@@ -1659,7 +1712,7 @@ properties_claimed:
     components: [assistant, authz]
     tier: security-critical
     x-tier-detail: "security-critical (scope); correctness-only (caps)"
-    conditions: "chat, assistant tools and MCP return only what the person can read, within the conversation's scope, and the tool loop stops at ai.max_steps and ai.max_transcript_reads; a namespace's chat completions answer from that namespace alone, with only the read tools its owners offered"
+    conditions: "chat, assistant tools and MCP return only what the person can read, within the conversation's scope, and the tool loop stops at ai.max_steps (or the tool calls a question allows, at most ai.max_tool_calls) and ai.max_transcript_reads; a namespace's chat completions answer from that namespace alone, with only the read tools its owners offered"
     violation_symptoms: [info-leak, hang]
     x-voided-by: "admins read everything; an admin setup conversation adds server tools and the act flag (domain/ai_tools.py:287-289); ai.extensions: false turns extensions off"
     provenance: {kind: documented, source: 'docs/assistant.md "limited to what the person can read"'}
@@ -1882,6 +1935,14 @@ properties_claimed:
     violation_symptoms: [integrity-bypass]
     x-voided-by: "the consequential check is the model's flag plus a word list (extensions/browser/src/core/act.js): an unlabelled control a misled model doesn't mark runs without asking; removing a site keeps the browser's access for the clipper; Lens sends the ask (confirm) and an extension older than this doesn't honour it"
     provenance: {kind: documented, source: 'docs/browser-assistant.md "Letting it use your browser"'}
+  - id: P-MESH
+    kind: authentication
+    components: [optional]
+    tier: security-critical
+    conditions: "the mesh (mesh.enabled, off until an admin adds a node) admits only machines that joined with a token an admin made, spent on use and expiring, which never crosses the wire (HMAC proof; answer sealed with a key derived from it); each machine's certificate names only its own address, role and namespaces; the rendered firewall opens the database port to worker nodes and the API port to every node on the primary, a node's agent port to the primary only; removing a node blocklists every certificate it was given on every machine and stops its node token; nodes still sign in to Lens as any client does"
+    violation_symptoms: [info-leak, integrity-bypass]
+    x-voided-by: "a wrong address in the install line gives a stranger the token's id (not its secret); a worker node holds the database credential (trusted peer, Q9); the lighthouse must be reachable on UDP mesh.port; Nebula's own isolation is upstream's (domain/mesh.py)"
+    provenance: {kind: documented, source: 'docs/mesh.md "What keeps it safe"'}
   - id: P-SANDBOX
     kind: integrity
     components: [assistant]
