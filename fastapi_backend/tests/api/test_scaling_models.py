@@ -21,7 +21,10 @@ NOW = dt.datetime(2026, 10, 18, 12, 0, tzinfo=dt.UTC)
 
 
 class Pods:
-    """RunPod's API in memory, and each pod's vLLM: healthy once `loaded` names it."""
+    """RunPod's API in memory, held to RunPod's published API document (tests/data/openapi/runpod.json), and each
+    pod's vLLM: healthy once `loaded` names it."""
+
+    spec = contract.load("runpod")
 
     def __init__(self):
         self.calls, self.pods, self.loaded, self.next = [], {}, set(), 0
@@ -29,23 +32,32 @@ class Pods:
     def __call__(self, req):
         body = json.loads(req.content) if req.content else None
         self.calls.append((req.method, req.url.path, body, req.headers.get("authorization")))
-        path = req.url.path.removeprefix("/v1")
-        if path == "/pods" and req.method == "POST":
+        contract.check_request(self.spec, req.method, req.url.path, body, dict(req.url.params))
+        status, answer = self.answer(req.method, req.url.path.removeprefix("/v1"), body)
+        if status < 400:
+            answer = contract.answer(self.spec, req.method, req.url.path, status, answer)
+        return httpx.Response(status, json=answer) if answer is not None else httpx.Response(status)
+
+    def answer(self, method, path, body):
+        if path == "/pods" and method == "POST":
             if body["gpuTypeIds"] == ["NVIDIA H200"]:
-                return httpx.Response(400, json={"error": "There are no instances currently available"})
+                return 400, {"error": "There are no instances currently available"}
             self.next += 1
             pid = f"pod{self.next}"
             self.pods[pid] = {"id": pid, "name": body["name"], "desiredStatus": "RUNNING", "costPerHr": 0.43, "body": body}
-            return httpx.Response(201, json=self.pods[pid])
+            return 201, self.shown(pid)
         if path == "/pods":
-            return httpx.Response(200, json=list(self.pods.values()))
+            return 200, [self.shown(pid) for pid in self.pods]
         pid = path.rsplit("/", 1)[1]
         if pid not in self.pods:
-            return httpx.Response(404, json={"error": "pod not found"})
-        if req.method == "DELETE":
+            return 404, {"error": "pod not found"}
+        if method == "DELETE":
             del self.pods[pid]
-            return httpx.Response(204)
-        return httpx.Response(200, json=self.pods[pid])
+            return 204, None
+        return 200, self.shown(pid)
+
+    def shown(self, pid):
+        return {k: v for k, v in self.pods[pid].items() if k != "body"}
 
     def health(self, req):
         pid = req.url.host.split("-", 1)[0]
@@ -311,3 +323,8 @@ def test_lens_reads_only_fields_hugging_face_answers_with():
         contract.check_request(
             spec, "POST", "/v2/endpoint/ada", {"name": "x", "type": "public", "provider": {"vendor": "aws", "region": "r"}}
         )
+
+
+def test_lens_reads_only_fields_runpod_answers_with():
+    for f in ("id", "name", "desiredStatus", "costPerHr", "adjustedCostPerHr"):
+        contract.check_fields(Pods.spec, "Pod", f)

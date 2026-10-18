@@ -68,7 +68,7 @@ class Endpoints:
         if req.url.host == "huggingface.co":  # whoami-v2: not in the Endpoints document
             assert req.url.path == "/api/whoami-v2"
             return httpx.Response(200, json={"type": "user", **ME})
-        contract.check_request(SPEC, req.method, req.url.path, body)
+        contract.check_request(SPEC, req.method, req.url.path, body, dict(req.url.params))
         status, answer = self.answer(req.method, req.url.path.removeprefix("/v2"), body)
         if status < 400:
             contract.check_response(SPEC, req.method, req.url.path, status, answer)

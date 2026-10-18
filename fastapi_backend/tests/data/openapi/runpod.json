@@ -1,0 +1,982 @@
+{
+ "components": {
+  "schemas": {
+   "Pod": {
+    "properties": {
+     "adjustedCostPerHr": {
+      "example": 0.69,
+      "type": "number"
+     },
+     "aiApiId": {
+      "example": null,
+      "type": "string"
+     },
+     "consumerUserId": {
+      "type": "string"
+     },
+     "containerDiskInGb": {
+      "example": 50,
+      "type": "integer"
+     },
+     "containerRegistryAuthId": {
+      "type": "string"
+     },
+     "costPerHr": {
+      "format": "currency",
+      "type": "number"
+     },
+     "cpuFlavorId": {
+      "type": "string"
+     },
+     "desiredStatus": {
+      "enum": [
+       "RUNNING",
+       "EXITED",
+       "TERMINATED"
+      ],
+      "type": "string"
+     },
+     "dockerEntrypoint": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "dockerStartCmd": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "endpointId": {
+      "example": null,
+      "type": "string"
+     },
+     "env": {
+      "default": {},
+      "items": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "gpu": {
+      "properties": {
+       "communityPrice": {
+        "type": "number"
+       },
+       "communitySpotPrice": {
+        "type": "number"
+       },
+       "count": {
+        "example": 1,
+        "type": "integer"
+       },
+       "displayName": {
+        "type": "string"
+       },
+       "id": {
+        "type": "string"
+       },
+       "oneMonthPrice": {
+        "type": "number"
+       },
+       "oneWeekPrice": {
+        "type": "number"
+       },
+       "securePrice": {
+        "type": "number"
+       },
+       "secureSpotPrice": {
+        "type": "number"
+       },
+       "sixMonthPrice": {
+        "type": "number"
+       },
+       "threeMonthPrice": {
+        "type": "number"
+       }
+      },
+      "type": "object"
+     },
+     "id": {
+      "type": "string"
+     },
+     "image": {
+      "type": "string"
+     },
+     "interruptible": {
+      "example": false,
+      "type": "boolean"
+     },
+     "lastStartedAt": {
+      "type": "string"
+     },
+     "lastStatusChange": {
+      "type": "string"
+     },
+     "locked": {
+      "example": false,
+      "type": "boolean"
+     },
+     "machine": {
+      "properties": {
+       "costPerHr": {
+        "type": "number"
+       },
+       "cpuCount": {
+        "type": "integer"
+       },
+       "cpuType": {
+        "properties": {
+         "cores": {
+          "type": "number"
+         },
+         "displayName": {
+          "type": "string"
+         },
+         "groupId": {
+          "type": "string"
+         },
+         "id": {
+          "type": "string"
+         },
+         "threadsPerCore": {
+          "type": "number"
+         }
+        },
+        "type": "object"
+       },
+       "cpuTypeId": {
+        "type": "string"
+       },
+       "currentPricePerGpu": {
+        "type": "number"
+       },
+       "dataCenterId": {
+        "type": "string"
+       },
+       "diskThroughputMBps": {
+        "type": "integer"
+       },
+       "gpuAvailable": {
+        "type": "integer"
+       },
+       "gpuDisplayName": {
+        "type": "string"
+       },
+       "gpuType": {
+        "properties": {
+         "communityPrice": {
+          "type": "number"
+         },
+         "communitySpotPrice": {
+          "type": "number"
+         },
+         "count": {
+          "example": 1,
+          "type": "integer"
+         },
+         "displayName": {
+          "type": "string"
+         },
+         "id": {
+          "type": "string"
+         },
+         "oneMonthPrice": {
+          "type": "number"
+         },
+         "oneWeekPrice": {
+          "type": "number"
+         },
+         "securePrice": {
+          "type": "number"
+         },
+         "secureSpotPrice": {
+          "type": "number"
+         },
+         "sixMonthPrice": {
+          "type": "number"
+         },
+         "threeMonthPrice": {
+          "type": "number"
+         }
+        },
+        "type": "object"
+       },
+       "gpuTypeId": {
+        "type": "string"
+       },
+       "location": {
+        "type": "string"
+       },
+       "maintenanceEnd": {
+        "type": "string"
+       },
+       "maintenanceNote": {
+        "type": "string"
+       },
+       "maintenanceStart": {
+        "type": "string"
+       },
+       "maxDownloadSpeedMbps": {
+        "type": "integer"
+       },
+       "maxUploadSpeedMbps": {
+        "type": "integer"
+       },
+       "minPodGpuCount": {
+        "type": "integer"
+       },
+       "note": {
+        "type": "string"
+       },
+       "secureCloud": {
+        "type": "boolean"
+       },
+       "supportPublicIp": {
+        "type": "boolean"
+       }
+      },
+      "type": "object"
+     },
+     "machineId": {
+      "type": "string"
+     },
+     "memoryInGb": {
+      "example": 62,
+      "type": "number"
+     },
+     "name": {
+      "maxLength": 191,
+      "type": "string"
+     },
+     "networkVolume": {
+      "properties": {
+       "dataCenterId": {
+        "type": "string"
+       },
+       "id": {
+        "type": "string"
+       },
+       "name": {
+        "type": "string"
+       },
+       "size": {
+        "example": 50,
+        "type": "integer"
+       }
+      },
+      "type": "object"
+     },
+     "portMappings": {
+      "items": {
+       "type": "integer"
+      },
+      "type": [
+       "object",
+       "null"
+      ]
+     },
+     "ports": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "publicIp": {
+      "format": "ipv4",
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "savingsPlans": {
+      "items": {
+       "$ref": "#/components/schemas/SavingsPlan"
+      },
+      "type": "array"
+     },
+     "slsVersion": {
+      "example": 0,
+      "type": "integer"
+     },
+     "templateId": {
+      "example": null,
+      "type": "string"
+     },
+     "vcpuCount": {
+      "example": 24,
+      "type": "number"
+     },
+     "volumeEncrypted": {
+      "example": false,
+      "type": "boolean"
+     },
+     "volumeInGb": {
+      "example": 20,
+      "type": "integer"
+     },
+     "volumeMountPath": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "PodCreateInput": {
+    "properties": {
+     "allowedCudaVersions": {
+      "items": {
+       "enum": [
+        "13.0",
+        "12.9",
+        "12.8",
+        "12.7",
+        "12.6",
+        "12.5",
+        "12.4",
+        "12.3",
+        "12.2",
+        "12.1",
+        "12.0",
+        "11.8"
+       ],
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "cloudType": {
+      "default": "SECURE",
+      "enum": [
+       "SECURE",
+       "COMMUNITY"
+      ],
+      "type": "string"
+     },
+     "computeType": {
+      "default": "GPU",
+      "enum": [
+       "GPU",
+       "CPU"
+      ],
+      "type": "string"
+     },
+     "containerDiskInGb": {
+      "default": 50,
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "containerRegistryAuthId": {
+      "type": "string"
+     },
+     "countryCodes": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "cpuFlavorIds": {
+      "items": {
+       "enum": [
+        "cpu3c",
+        "cpu3g",
+        "cpu3m",
+        "cpu5c",
+        "cpu5g",
+        "cpu5m"
+       ],
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "cpuFlavorPriority": {
+      "default": "availability",
+      "enum": [
+       "availability",
+       "custom"
+      ],
+      "type": "string"
+     },
+     "dataCenterIds": {
+      "default": [
+       "EU-RO-1",
+       "CA-MTL-1",
+       "EU-SE-1",
+       "US-IL-1",
+       "EUR-IS-1",
+       "EU-CZ-1",
+       "US-TX-3",
+       "EUR-IS-2",
+       "US-KS-2",
+       "US-GA-2",
+       "US-WA-1",
+       "US-TX-1",
+       "CA-MTL-3",
+       "EU-NL-1",
+       "US-TX-4",
+       "US-CA-2",
+       "US-NC-1",
+       "OC-AU-1",
+       "US-DE-1",
+       "EUR-IS-3",
+       "CA-MTL-2",
+       "AP-JP-1",
+       "EUR-NO-1",
+       "EU-FR-1",
+       "US-KS-3",
+       "US-GA-1",
+       "AP-IN-1",
+       "US-MD-1",
+       "US-MO-1",
+       "US-MO-2"
+      ],
+      "items": {
+       "enum": [
+        "EU-RO-1",
+        "CA-MTL-1",
+        "EU-SE-1",
+        "US-IL-1",
+        "EUR-IS-1",
+        "EU-CZ-1",
+        "US-TX-3",
+        "EUR-IS-2",
+        "US-KS-2",
+        "US-GA-2",
+        "US-WA-1",
+        "US-TX-1",
+        "CA-MTL-3",
+        "EU-NL-1",
+        "US-TX-4",
+        "US-CA-2",
+        "US-NC-1",
+        "OC-AU-1",
+        "US-DE-1",
+        "EUR-IS-3",
+        "CA-MTL-2",
+        "AP-JP-1",
+        "EUR-NO-1",
+        "EU-FR-1",
+        "US-KS-3",
+        "US-GA-1",
+        "AP-IN-1",
+        "US-MD-1",
+        "US-MO-1",
+        "US-MO-2"
+       ],
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "dataCenterPriority": {
+      "default": "availability",
+      "enum": [
+       "availability",
+       "custom"
+      ],
+      "type": "string"
+     },
+     "dockerEntrypoint": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "dockerStartCmd": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "env": {
+      "default": {},
+      "items": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "globalNetworking": {
+      "default": false,
+      "example": true,
+      "type": "boolean"
+     },
+     "gpuCount": {
+      "default": 1,
+      "minimum": 1,
+      "type": "integer"
+     },
+     "gpuTypeIds": {
+      "items": {
+       "enum": [
+        "AMD Instinct MI300X OAM",
+        "NVIDIA A100 80GB PCIe",
+        "NVIDIA A100-SXM4-40GB",
+        "NVIDIA A100-SXM4-80GB",
+        "NVIDIA A40",
+        "NVIDIA B200",
+        "NVIDIA B300 SXM6 AC",
+        "NVIDIA B300 SXM6 AC MIG 1g.34gb",
+        "NVIDIA GeForce RTX 3070",
+        "NVIDIA GeForce RTX 3080",
+        "NVIDIA GeForce RTX 3080 Ti",
+        "NVIDIA GeForce RTX 3090",
+        "NVIDIA GeForce RTX 3090 Ti",
+        "NVIDIA GeForce RTX 4070 Ti",
+        "NVIDIA GeForce RTX 4080",
+        "NVIDIA GeForce RTX 4080 SUPER",
+        "NVIDIA GeForce RTX 4090",
+        "NVIDIA GeForce RTX 5080",
+        "NVIDIA GeForce RTX 5090",
+        "NVIDIA H100 80GB HBM3",
+        "NVIDIA H100 NVL",
+        "NVIDIA H100 PCIe",
+        "NVIDIA H200",
+        "NVIDIA H200 NVL",
+        "NVIDIA L4",
+        "NVIDIA L40",
+        "NVIDIA L40S",
+        "NVIDIA RTX 2000 Ada Generation",
+        "NVIDIA RTX 4000 Ada Generation",
+        "NVIDIA RTX 4000 SFF Ada Generation",
+        "NVIDIA RTX 5000 Ada Generation",
+        "NVIDIA RTX 6000 Ada Generation",
+        "NVIDIA RTX A2000",
+        "NVIDIA RTX A4000",
+        "NVIDIA RTX A4500",
+        "NVIDIA RTX A5000",
+        "NVIDIA RTX A6000",
+        "NVIDIA RTX PRO 4000 Blackwell",
+        "NVIDIA RTX PRO 4500 Blackwell",
+        "NVIDIA RTX PRO 5000 Blackwell",
+        "NVIDIA RTX PRO 6000 Blackwell Max-Q Workstation Edition",
+        "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+        "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+        "Tesla V100-PCIE-16GB",
+        "Tesla V100-SXM2-16GB"
+       ],
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "gpuTypePriority": {
+      "default": "availability",
+      "enum": [
+       "availability",
+       "custom"
+      ],
+      "type": "string"
+     },
+     "imageName": {
+      "type": "string"
+     },
+     "interruptible": {
+      "default": false,
+      "type": "boolean"
+     },
+     "locked": {
+      "default": false,
+      "type": "boolean"
+     },
+     "minDiskBandwidthMBps": {
+      "type": "number"
+     },
+     "minDownloadMbps": {
+      "type": "number"
+     },
+     "minRAMPerGPU": {
+      "default": 8,
+      "type": "integer"
+     },
+     "minUploadMbps": {
+      "type": "number"
+     },
+     "minVCPUPerGPU": {
+      "default": 2,
+      "type": "integer"
+     },
+     "name": {
+      "default": "my pod",
+      "maxLength": 191,
+      "type": "string"
+     },
+     "networkVolumeId": {
+      "type": "string"
+     },
+     "ports": {
+      "default": "8888/http,22/tcp",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "supportPublicIp": {
+      "example": true,
+      "type": "boolean"
+     },
+     "templateId": {
+      "example": null,
+      "type": "string"
+     },
+     "vcpuCount": {
+      "default": 2,
+      "type": "integer"
+     },
+     "volumeInGb": {
+      "default": 20,
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "volumeMountPath": {
+      "default": "/workspace",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "Pods": {
+    "items": {
+     "$ref": "#/components/schemas/Pod"
+    },
+    "type": "array"
+   },
+   "SavingsPlan": {
+    "properties": {
+     "costPerHr": {
+      "example": 0.21,
+      "type": "number"
+     },
+     "endTime": {
+      "type": "string"
+     },
+     "gpuTypeId": {
+      "type": "string"
+     },
+     "id": {
+      "type": "string"
+     },
+     "podId": {
+      "type": "string"
+     },
+     "startTime": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   }
+  }
+ },
+ "info": {
+  "title": "Runpod API",
+  "version": "0.1.0",
+  "x-lens-converted": "OpenAPI 3.0 nullable as a null type",
+  "x-lens-fetched": "2026-10-18",
+  "x-lens-source": "https://rest.runpod.io/v1/openapi.json"
+ },
+ "openapi": "3.0.3",
+ "paths": {
+  "/pods": {
+   "get": {
+    "operationId": "ListPods",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "computeType",
+      "schema": {
+       "enum": [
+        "GPU",
+        "CPU"
+       ],
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "cpuFlavorId",
+      "schema": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     {
+      "in": "query",
+      "name": "dataCenterId",
+      "schema": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     {
+      "in": "query",
+      "name": "desiredStatus",
+      "schema": {
+       "enum": [
+        "RUNNING",
+        "EXITED",
+        "TERMINATED"
+       ],
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "endpointId",
+      "required": false,
+      "schema": {
+       "maxLength": 191,
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "gpuTypeId",
+      "schema": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     {
+      "in": "query",
+      "name": "id",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "imageName",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "includeMachine",
+      "schema": {
+       "default": false,
+       "example": true,
+       "type": "boolean"
+      }
+     },
+     {
+      "in": "query",
+      "name": "includeNetworkVolume",
+      "schema": {
+       "default": false,
+       "example": true,
+       "type": "boolean"
+      }
+     },
+     {
+      "in": "query",
+      "name": "includeSavingsPlans",
+      "schema": {
+       "default": false,
+       "example": true,
+       "type": "boolean"
+      }
+     },
+     {
+      "in": "query",
+      "name": "includeTemplate",
+      "schema": {
+       "default": false,
+       "example": true,
+       "type": "boolean"
+      }
+     },
+     {
+      "in": "query",
+      "name": "includeWorkers",
+      "schema": {
+       "default": false,
+       "example": true,
+       "type": "boolean"
+      }
+     },
+     {
+      "in": "query",
+      "name": "name",
+      "required": false,
+      "schema": {
+       "maxLength": 191,
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "networkVolumeId",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "templateId",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Pods"
+        }
+       }
+      }
+     },
+     "400": {},
+     "404": {}
+    },
+    "tags": [
+     "pods"
+    ]
+   },
+   "post": {
+    "operationId": "CreatePod",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PodCreateInput"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Pod"
+        }
+       }
+      }
+     },
+     "400": {}
+    },
+    "tags": [
+     "pods"
+    ]
+   }
+  },
+  "/pods/{podId}": {
+   "delete": {
+    "operationId": "DeletePod",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "podId",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {},
+     "400": {},
+     "401": {}
+    },
+    "tags": [
+     "pods"
+    ]
+   },
+   "get": {
+    "operationId": "GetPod",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "includeMachine",
+      "schema": {
+       "default": false,
+       "example": true,
+       "type": "boolean"
+      }
+     },
+     {
+      "in": "query",
+      "name": "includeNetworkVolume",
+      "schema": {
+       "default": false,
+       "example": true,
+       "type": "boolean"
+      }
+     },
+     {
+      "in": "query",
+      "name": "includeSavingsPlans",
+      "schema": {
+       "default": false,
+       "example": true,
+       "type": "boolean"
+      }
+     },
+     {
+      "in": "query",
+      "name": "includeTemplate",
+      "schema": {
+       "default": false,
+       "example": true,
+       "type": "boolean"
+      }
+     },
+     {
+      "in": "query",
+      "name": "includeWorkers",
+      "schema": {
+       "default": false,
+       "example": true,
+       "type": "boolean"
+      }
+     },
+     {
+      "in": "path",
+      "name": "podId",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Pod"
+        }
+       }
+      }
+     },
+     "400": {},
+     "404": {}
+    },
+    "tags": [
+     "pods"
+    ]
+   }
+  }
+ },
+ "servers": [
+  {
+   "url": "https://rest.runpod.io/v1"
+  }
+ ]
+}

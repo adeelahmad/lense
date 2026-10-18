@@ -141,9 +141,12 @@ A unit that never comes up, whether it doesn't join within `join_minutes` or its
 as a failed launch: three in a row pause the group (with the reason in its `paused_why`), and a unit that comes up
 clears the count.
 
-The tests hold the Hugging Face fake to Hugging Face's own published API document (a trimmed copy in
-`fastapi_backend/tests/data/openapi/`, with where and when it was fetched): a request the real API wouldn't take, or
-an answer it couldn't give, fails the test.
+The tests hold the fakes of Hugging Face, RunPod, DigitalOcean and Hetzner Cloud to each provider's own published
+API document (trimmed copies in `fastapi_backend/tests/data/openapi/`, each with where and when it was fetched): a
+request the real API wouldn't take, an answer it couldn't give, or a field Lens reads that the document doesn't have,
+fails the test. AWS runs against [moto](https://github.com/getmoto/moto), which keeps instances, tags, volumes and spot
+markets the way EC2 does, so the driver and the scaler go from launch to scale-in as they would on a real account.
+Proxmox and SSH hosts have no published document to hold their fakes to yet.
 
 While a model group's unit runs, it is Lens's LLM provider (the template's `use_as_provider`, on by default): the
 scaler points Settings › LLM provider at the unit's address, model and key, keeping the provider that was there

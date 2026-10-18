@@ -1,0 +1,1555 @@
+{
+ "components": {
+  "headers": {
+   "content-type": {
+    "schema": {
+     "type": "string"
+    }
+   },
+   "ratelimit-limit": {
+    "example": 5000,
+    "schema": {
+     "type": "integer"
+    }
+   },
+   "ratelimit-remaining": {
+    "example": 4816,
+    "schema": {
+     "type": "integer"
+    }
+   },
+   "ratelimit-reset": {
+    "example": 1444931833,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  },
+  "parameters": {
+   "droplet_id": {
+    "example": 3164444,
+    "in": "path",
+    "name": "droplet_id",
+    "required": true,
+    "schema": {
+     "minimum": 1,
+     "type": "integer"
+    }
+   },
+   "droplet_name": {
+    "in": "query",
+    "name": "name",
+    "required": false,
+    "schema": {
+     "type": "string"
+    }
+   },
+   "droplet_tag_name": {
+    "in": "query",
+    "name": "tag_name",
+    "required": false,
+    "schema": {
+     "type": "string"
+    }
+   },
+   "droplet_type": {
+    "in": "query",
+    "name": "type",
+    "required": false,
+    "schema": {
+     "enum": [
+      "droplets",
+      "gpus"
+     ],
+     "type": "string"
+    }
+   },
+   "page": {
+    "example": 1,
+    "in": "query",
+    "name": "page",
+    "required": false,
+    "schema": {
+     "default": 1,
+     "minimum": 1,
+     "type": "integer"
+    }
+   },
+   "parameters_per_page": {
+    "example": 2,
+    "in": "query",
+    "name": "per_page",
+    "required": false,
+    "schema": {
+     "default": 20,
+     "maximum": 200,
+     "minimum": 1,
+     "type": "integer"
+    }
+   }
+  },
+  "responses": {
+   "all_droplets": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "allOf": [
+        {
+         "properties": {
+          "droplets": {
+           "items": {
+            "$ref": "#/components/schemas/droplet"
+           },
+           "type": "array"
+          }
+         },
+         "type": "object"
+        },
+        {
+         "$ref": "#/components/schemas/pages_pagination"
+        },
+        {
+         "$ref": "#/components/schemas/meta"
+        }
+       ]
+      }
+     }
+    },
+    "headers": {
+     "ratelimit-limit": {
+      "$ref": "#/components/headers/ratelimit-limit"
+     },
+     "ratelimit-remaining": {
+      "$ref": "#/components/headers/ratelimit-remaining"
+     },
+     "ratelimit-reset": {
+      "$ref": "#/components/headers/ratelimit-reset"
+     }
+    }
+   },
+   "all_regions": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "allOf": [
+        {
+         "properties": {
+          "regions": {
+           "items": {
+            "$ref": "#/components/schemas/region"
+           },
+           "type": "array"
+          }
+         },
+         "required": [
+          "regions"
+         ],
+         "type": "object"
+        },
+        {
+         "$ref": "#/components/schemas/pages_pagination"
+        },
+        {
+         "$ref": "#/components/schemas/meta"
+        }
+       ]
+      }
+     }
+    },
+    "headers": {
+     "ratelimit-limit": {
+      "$ref": "#/components/headers/ratelimit-limit"
+     },
+     "ratelimit-remaining": {
+      "$ref": "#/components/headers/ratelimit-remaining"
+     },
+     "ratelimit-reset": {
+      "$ref": "#/components/headers/ratelimit-reset"
+     }
+    }
+   },
+   "all_sizes": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "allOf": [
+        {
+         "properties": {
+          "sizes": {
+           "items": {
+            "$ref": "#/components/schemas/size"
+           },
+           "type": "array"
+          }
+         },
+         "required": [
+          "sizes"
+         ],
+         "type": "object"
+        },
+        {
+         "$ref": "#/components/schemas/pages_pagination"
+        },
+        {
+         "$ref": "#/components/schemas/meta"
+        }
+       ]
+      }
+     }
+    },
+    "headers": {
+     "ratelimit-limit": {
+      "$ref": "#/components/headers/ratelimit-limit"
+     },
+     "ratelimit-remaining": {
+      "$ref": "#/components/headers/ratelimit-remaining"
+     },
+     "ratelimit-reset": {
+      "$ref": "#/components/headers/ratelimit-reset"
+     }
+    }
+   },
+   "droplet_create": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "oneOf": [
+        {
+         "properties": {
+          "droplet": {
+           "$ref": "#/components/schemas/droplet"
+          },
+          "links": {
+           "properties": {
+            "actions": {
+             "items": {
+              "$ref": "#/components/schemas/action_link"
+             },
+             "type": "array"
+            }
+           },
+           "type": "object"
+          }
+         },
+         "required": [
+          "droplet",
+          "links"
+         ],
+         "title": "Single Droplet Response"
+        },
+        {
+         "properties": {
+          "droplets": {
+           "items": {
+            "$ref": "#/components/schemas/droplet"
+           },
+           "type": "array"
+          },
+          "links": {
+           "properties": {
+            "actions": {
+             "items": {
+              "$ref": "#/components/schemas/action_link"
+             },
+             "type": "array"
+            }
+           },
+           "type": "object"
+          }
+         },
+         "required": [
+          "droplets",
+          "links"
+         ],
+         "title": "Multiple Droplet Response"
+        }
+       ]
+      }
+     }
+    },
+    "headers": {
+     "ratelimit-limit": {
+      "$ref": "#/components/headers/ratelimit-limit"
+     },
+     "ratelimit-remaining": {
+      "$ref": "#/components/headers/ratelimit-remaining"
+     },
+     "ratelimit-reset": {
+      "$ref": "#/components/headers/ratelimit-reset"
+     }
+    }
+   },
+   "existing_droplet": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "droplet": {
+         "$ref": "#/components/schemas/droplet"
+        }
+       }
+      }
+     }
+    },
+    "headers": {
+     "ratelimit-limit": {
+      "$ref": "#/components/headers/ratelimit-limit"
+     },
+     "ratelimit-remaining": {
+      "$ref": "#/components/headers/ratelimit-remaining"
+     },
+     "ratelimit-reset": {
+      "$ref": "#/components/headers/ratelimit-reset"
+     }
+    }
+   },
+   "no_content_with_content_type": {
+    "headers": {
+     "content-type": {
+      "$ref": "#/components/headers/content-type"
+     },
+     "ratelimit-limit": {
+      "$ref": "#/components/headers/ratelimit-limit"
+     },
+     "ratelimit-remaining": {
+      "$ref": "#/components/headers/ratelimit-remaining"
+     },
+     "ratelimit-reset": {
+      "$ref": "#/components/headers/ratelimit-reset"
+     }
+    }
+   },
+   "not_found": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/error"
+      }
+     }
+    },
+    "headers": {
+     "ratelimit-limit": {
+      "$ref": "#/components/headers/ratelimit-limit"
+     },
+     "ratelimit-remaining": {
+      "$ref": "#/components/headers/ratelimit-remaining"
+     },
+     "ratelimit-reset": {
+      "$ref": "#/components/headers/ratelimit-reset"
+     }
+    }
+   },
+   "server_error": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/error"
+      }
+     }
+    },
+    "headers": {
+     "ratelimit-limit": {
+      "$ref": "#/components/headers/ratelimit-limit"
+     },
+     "ratelimit-remaining": {
+      "$ref": "#/components/headers/ratelimit-remaining"
+     },
+     "ratelimit-reset": {
+      "$ref": "#/components/headers/ratelimit-reset"
+     }
+    }
+   },
+   "too_many_requests": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/error"
+      }
+     }
+    },
+    "headers": {
+     "ratelimit-limit": {
+      "$ref": "#/components/headers/ratelimit-limit"
+     },
+     "ratelimit-remaining": {
+      "$ref": "#/components/headers/ratelimit-remaining"
+     },
+     "ratelimit-reset": {
+      "$ref": "#/components/headers/ratelimit-reset"
+     }
+    }
+   },
+   "unauthorized": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/error"
+      }
+     }
+    },
+    "headers": {
+     "ratelimit-limit": {
+      "$ref": "#/components/headers/ratelimit-limit"
+     },
+     "ratelimit-remaining": {
+      "$ref": "#/components/headers/ratelimit-remaining"
+     },
+     "ratelimit-reset": {
+      "$ref": "#/components/headers/ratelimit-reset"
+     }
+    }
+   },
+   "unexpected_error": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/error"
+      }
+     }
+    },
+    "headers": {
+     "ratelimit-limit": {
+      "$ref": "#/components/headers/ratelimit-limit"
+     },
+     "ratelimit-remaining": {
+      "$ref": "#/components/headers/ratelimit-remaining"
+     },
+     "ratelimit-reset": {
+      "$ref": "#/components/headers/ratelimit-reset"
+     }
+    }
+   }
+  },
+  "schemas": {
+   "action_link": {
+    "properties": {
+     "href": {
+      "format": "uri",
+      "type": "string"
+     },
+     "id": {
+      "example": 7515,
+      "type": "integer"
+     },
+     "rel": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "backward_links": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/link_to_first_page"
+     },
+     {
+      "$ref": "#/components/schemas/link_to_prev_page"
+     }
+    ]
+   },
+   "disk_info": {
+    "properties": {
+     "size": {
+      "properties": {
+       "amount": {
+        "example": 25,
+        "type": "integer"
+       },
+       "unit": {
+        "type": "string"
+       }
+      },
+      "type": "object"
+     },
+     "type": {
+      "enum": [
+       "local",
+       "boot",
+       "scratch"
+      ],
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "distribution": {
+    "enum": [
+     "Arch Linux",
+     "CentOS",
+     "CoreOS",
+     "Debian",
+     "Fedora",
+     "Fedora Atomic",
+     "FreeBSD",
+     "Gentoo",
+     "openSUSE",
+     "RancherOS",
+     "Rocky Linux",
+     "Ubuntu",
+     "Unknown"
+    ],
+    "type": "string"
+   },
+   "droplet": {
+    "properties": {
+     "backup_ids": {
+      "items": {
+       "type": "integer"
+      },
+      "type": "array"
+     },
+     "created_at": {
+      "format": "date-time",
+      "type": "string"
+     },
+     "disk": {
+      "example": 25,
+      "type": "integer"
+     },
+     "disk_info": {
+      "items": {
+       "$ref": "#/components/schemas/disk_info"
+      },
+      "type": "array"
+     },
+     "features": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "gpu_info": {
+      "$ref": "#/components/schemas/gpu_info"
+     },
+     "id": {
+      "example": 3164444,
+      "type": "integer"
+     },
+     "image": {
+      "allOf": [
+       {
+        "$ref": "#/components/schemas/image"
+       },
+       {}
+      ]
+     },
+     "kernel": {
+      "$ref": "#/components/schemas/kernel"
+     },
+     "locked": {
+      "example": false,
+      "type": "boolean"
+     },
+     "memory": {
+      "example": 1024,
+      "multipleOf": 8,
+      "type": "integer"
+     },
+     "name": {
+      "type": "string"
+     },
+     "networks": {
+      "properties": {
+       "v4": {
+        "items": {
+         "$ref": "#/components/schemas/network_v4"
+        },
+        "type": "array"
+       },
+       "v6": {
+        "items": {
+         "$ref": "#/components/schemas/network_v6"
+        },
+        "type": "array"
+       }
+      },
+      "type": "object"
+     },
+     "next_backup_window": {
+      "allOf": [
+       {
+        "$ref": "#/components/schemas/droplet_next_backup_window"
+       },
+       {}
+      ]
+     },
+     "region": {
+      "$ref": "#/components/schemas/region"
+     },
+     "size": {
+      "$ref": "#/components/schemas/size"
+     },
+     "size_slug": {
+      "type": "string"
+     },
+     "snapshot_ids": {
+      "items": {
+       "type": "integer"
+      },
+      "type": "array"
+     },
+     "status": {
+      "enum": [
+       "new",
+       "active",
+       "off",
+       "archive"
+      ],
+      "type": "string"
+     },
+     "subnet_uuid": {
+      "type": "string"
+     },
+     "tags": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "vcpus": {
+      "example": 1,
+      "type": "integer"
+     },
+     "volume_ids": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "vpc_uuid": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "memory",
+     "vcpus",
+     "disk",
+     "locked",
+     "status",
+     "created_at",
+     "features",
+     "backup_ids",
+     "next_backup_window",
+     "snapshot_ids",
+     "image",
+     "volume_ids",
+     "size",
+     "size_slug",
+     "networks",
+     "region",
+     "tags"
+    ],
+    "type": "object"
+   },
+   "droplet_backup_policy": {
+    "properties": {
+     "hour": {
+      "enum": [
+       0,
+       4,
+       8,
+       12,
+       16,
+       20
+      ],
+      "example": 0,
+      "type": "integer"
+     },
+     "plan": {
+      "enum": [
+       "daily",
+       "weekly"
+      ],
+      "type": "string"
+     },
+     "retention_period_days": {
+      "example": 7,
+      "readOnly": true,
+      "type": "integer"
+     },
+     "weekday": {
+      "enum": [
+       "SUN",
+       "MON",
+       "TUE",
+       "WED",
+       "THU",
+       "FRI",
+       "SAT"
+      ],
+      "type": "string"
+     },
+     "window_length_hours": {
+      "example": 4,
+      "readOnly": true,
+      "type": "integer"
+     }
+    },
+    "type": "object"
+   },
+   "droplet_create": {
+    "properties": {
+     "backup_policy": {
+      "allOf": [
+       {
+        "$ref": "#/components/schemas/droplet_backup_policy"
+       },
+       {}
+      ]
+     },
+     "backups": {
+      "default": false,
+      "example": true,
+      "type": "boolean"
+     },
+     "image": {
+      "oneOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "integer"
+       }
+      ]
+     },
+     "ipv6": {
+      "default": false,
+      "example": true,
+      "type": "boolean"
+     },
+     "monitoring": {
+      "default": false,
+      "example": true,
+      "type": "boolean"
+     },
+     "private_networking": {
+      "default": false,
+      "deprecated": true,
+      "example": true,
+      "type": "boolean"
+     },
+     "public_networking": {
+      "default": true,
+      "example": true,
+      "type": "boolean"
+     },
+     "region": {
+      "type": "string"
+     },
+     "size": {
+      "type": "string"
+     },
+     "ssh_keys": {
+      "default": [],
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        }
+       ]
+      },
+      "type": "array"
+     },
+     "subnet_uuid": {
+      "type": "string"
+     },
+     "tags": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "type": [
+       "array",
+       "null"
+      ]
+     },
+     "user_data": {
+      "type": "string"
+     },
+     "volumes": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "vpc_uuid": {
+      "type": "string"
+     },
+     "with_droplet_agent": {
+      "example": true,
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "size",
+     "image"
+    ],
+    "type": "object"
+   },
+   "droplet_multi_create": {
+    "allOf": [
+     {
+      "properties": {
+       "names": {
+        "items": {
+         "maxLength": 255,
+         "pattern": "^[a-zA-Z0-9]?[a-z0-9A-Z.\\-]*[a-z0-9A-Z]$",
+         "type": "string"
+        },
+        "type": "array"
+       }
+      },
+      "required": [
+       "names"
+      ],
+      "type": "object"
+     },
+     {
+      "$ref": "#/components/schemas/droplet_create"
+     }
+    ],
+    "title": "Multiple Droplet Request"
+   },
+   "droplet_next_backup_window": {
+    "properties": {
+     "end": {
+      "format": "date-time",
+      "type": "string"
+     },
+     "start": {
+      "format": "date-time",
+      "type": "string"
+     }
+    },
+    "type": [
+     "object",
+     "null"
+    ]
+   },
+   "droplet_single_create": {
+    "allOf": [
+     {
+      "properties": {
+       "name": {
+        "maxLength": 255,
+        "pattern": "^[a-zA-Z0-9]?[a-z0-9A-Z.\\-]*[a-z0-9A-Z]$",
+        "type": "string"
+       }
+      },
+      "required": [
+       "name"
+      ],
+      "type": "object"
+     },
+     {
+      "$ref": "#/components/schemas/droplet_create"
+     }
+    ],
+    "title": "Single Droplet Request"
+   },
+   "error": {
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "message": {
+      "type": "string"
+     },
+     "request_id": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "message"
+    ],
+    "type": "object"
+   },
+   "forward_links": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/link_to_last_page"
+     },
+     {
+      "$ref": "#/components/schemas/link_to_next_page"
+     }
+    ]
+   },
+   "gpu_info": {
+    "properties": {
+     "count": {
+      "example": 1,
+      "type": "integer"
+     },
+     "model": {
+      "type": "string"
+     },
+     "vram": {
+      "properties": {
+       "amount": {
+        "example": 25,
+        "type": "integer"
+       },
+       "unit": {
+        "type": "string"
+       }
+      },
+      "type": "object"
+     }
+    },
+    "type": "object"
+   },
+   "image": {
+    "properties": {
+     "created_at": {
+      "format": "date-time",
+      "type": "string"
+     },
+     "description": {
+      "$ref": "#/components/schemas/image_description"
+     },
+     "distribution": {
+      "$ref": "#/components/schemas/distribution"
+     },
+     "error_message": {
+      "type": "string"
+     },
+     "id": {
+      "example": 7555620,
+      "readOnly": true,
+      "type": "integer"
+     },
+     "min_disk_size": {
+      "example": 20,
+      "minimum": 0,
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "name": {
+      "$ref": "#/components/schemas/image_name"
+     },
+     "public": {
+      "example": true,
+      "type": "boolean"
+     },
+     "regions": {
+      "$ref": "#/components/schemas/regions_array"
+     },
+     "size_gigabytes": {
+      "example": 2.34,
+      "format": "float",
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "slug": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "status": {
+      "enum": [
+       "NEW",
+       "available",
+       "pending",
+       "deleted",
+       "retired"
+      ],
+      "type": "string"
+     },
+     "tags": {
+      "$ref": "#/components/schemas/tags_array"
+     },
+     "type": {
+      "enum": [
+       "base",
+       "snapshot",
+       "backup",
+       "custom",
+       "admin"
+      ],
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "image_description": {
+    "type": "string"
+   },
+   "image_name": {
+    "type": "string"
+   },
+   "kernel": {
+    "deprecated": true,
+    "properties": {
+     "id": {
+      "example": 7515,
+      "type": "integer"
+     },
+     "name": {
+      "type": "string"
+     },
+     "version": {
+      "type": "string"
+     }
+    },
+    "type": [
+     "object",
+     "null"
+    ]
+   },
+   "link_to_first_page": {
+    "properties": {
+     "first": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "link_to_last_page": {
+    "properties": {
+     "last": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "link_to_next_page": {
+    "properties": {
+     "next": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "link_to_prev_page": {
+    "properties": {
+     "prev": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "meta": {
+    "properties": {
+     "meta": {
+      "allOf": [
+       {
+        "$ref": "#/components/schemas/meta_properties"
+       },
+       {
+        "required": [
+         "total"
+        ]
+       }
+      ]
+     }
+    },
+    "required": [
+     "meta"
+    ],
+    "type": "object"
+   },
+   "meta_properties": {
+    "properties": {
+     "total": {
+      "example": 1,
+      "type": "integer"
+     }
+    },
+    "type": "object"
+   },
+   "network_v4": {
+    "properties": {
+     "gateway": {
+      "type": "string"
+     },
+     "ip_address": {
+      "format": "ipv4",
+      "type": "string"
+     },
+     "netmask": {
+      "format": "ipv4",
+      "type": "string"
+     },
+     "type": {
+      "enum": [
+       "public",
+       "private"
+      ],
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "network_v6": {
+    "properties": {
+     "gateway": {
+      "format": "ipv6",
+      "type": "string"
+     },
+     "ip_address": {
+      "format": "ipv6",
+      "type": "string"
+     },
+     "netmask": {
+      "example": 64,
+      "type": "integer"
+     },
+     "type": {
+      "enum": [
+       "public"
+      ],
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "page_links": {
+    "properties": {
+     "pages": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/forward_links"
+       },
+       {
+        "$ref": "#/components/schemas/backward_links"
+       },
+       {}
+      ]
+     }
+    },
+    "type": "object"
+   },
+   "pages_pagination": {
+    "properties": {
+     "links": {
+      "$ref": "#/components/schemas/page_links"
+     }
+    },
+    "type": "object"
+   },
+   "region": {
+    "properties": {
+     "available": {
+      "example": true,
+      "type": "boolean"
+     },
+     "features": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "name": {
+      "type": "string"
+     },
+     "sizes": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "slug": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "available",
+     "features",
+     "name",
+     "sizes",
+     "slug"
+    ],
+    "type": "object"
+   },
+   "region_slug": {
+    "enum": [
+     "ams1",
+     "ams2",
+     "ams3",
+     "blr1",
+     "fra1",
+     "lon1",
+     "nyc1",
+     "nyc2",
+     "nyc3",
+     "sfo1",
+     "sfo2",
+     "sfo3",
+     "sgp1",
+     "tor1",
+     "syd1"
+    ],
+    "type": "string"
+   },
+   "regions_array": {
+    "items": {
+     "$ref": "#/components/schemas/region_slug"
+    },
+    "type": "array"
+   },
+   "size": {
+    "properties": {
+     "available": {
+      "default": true,
+      "example": true,
+      "type": "boolean"
+     },
+     "description": {
+      "type": "string"
+     },
+     "disk": {
+      "example": 25,
+      "type": "integer"
+     },
+     "disk_info": {
+      "items": {
+       "$ref": "#/components/schemas/disk_info"
+      },
+      "type": "array"
+     },
+     "gpu_info": {
+      "$ref": "#/components/schemas/gpu_info"
+     },
+     "memory": {
+      "example": 1024,
+      "minimum": 8,
+      "multipleOf": 8,
+      "type": "integer"
+     },
+     "price_hourly": {
+      "example": 0.00743999984115362,
+      "format": "float",
+      "type": "number"
+     },
+     "price_monthly": {
+      "example": 5,
+      "format": "float",
+      "type": "number"
+     },
+     "regions": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "slug": {
+      "type": "string"
+     },
+     "transfer": {
+      "example": 1,
+      "format": "float",
+      "type": "number"
+     },
+     "vcpus": {
+      "example": 1,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "available",
+     "disk",
+     "memory",
+     "price_hourly",
+     "price_monthly",
+     "regions",
+     "slug",
+     "transfer",
+     "vcpus",
+     "description"
+    ],
+    "type": "object"
+   },
+   "tags_array": {
+    "items": {
+     "type": "string"
+    },
+    "type": [
+     "array",
+     "null"
+    ]
+   }
+  }
+ },
+ "info": {
+  "title": "DigitalOcean API",
+  "version": "2.0",
+  "x-lens-converted": "OpenAPI 3.0 nullable as a null type",
+  "x-lens-fetched": "2026-10-18",
+  "x-lens-source": "https://api-engineering.nyc3.cdn.digitaloceanspaces.com/spec-ci/DigitalOcean-public.v2.yaml"
+ },
+ "openapi": "3.0.0",
+ "paths": {
+  "/v2/droplets": {
+   "get": {
+    "operationId": "droplets_list",
+    "parameters": [
+     {
+      "$ref": "#/components/parameters/parameters_per_page"
+     },
+     {
+      "$ref": "#/components/parameters/page"
+     },
+     {
+      "$ref": "#/components/parameters/droplet_tag_name"
+     },
+     {
+      "$ref": "#/components/parameters/droplet_name"
+     },
+     {
+      "$ref": "#/components/parameters/droplet_type"
+     }
+    ],
+    "responses": {
+     "200": {
+      "$ref": "#/components/responses/all_droplets"
+     },
+     "401": {
+      "$ref": "#/components/responses/unauthorized"
+     },
+     "429": {
+      "$ref": "#/components/responses/too_many_requests"
+     },
+     "500": {
+      "$ref": "#/components/responses/server_error"
+     },
+     "default": {
+      "$ref": "#/components/responses/unexpected_error"
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": [
+       "droplet:read"
+      ]
+     }
+    ],
+    "tags": [
+     "Droplets"
+    ]
+   },
+   "post": {
+    "operationId": "droplets_create",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "oneOf": [
+         {
+          "$ref": "#/components/schemas/droplet_single_create"
+         },
+         {
+          "$ref": "#/components/schemas/droplet_multi_create"
+         }
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "202": {
+      "$ref": "#/components/responses/droplet_create"
+     },
+     "401": {
+      "$ref": "#/components/responses/unauthorized"
+     },
+     "429": {
+      "$ref": "#/components/responses/too_many_requests"
+     },
+     "500": {
+      "$ref": "#/components/responses/server_error"
+     },
+     "default": {
+      "$ref": "#/components/responses/unexpected_error"
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": [
+       "droplet:create"
+      ]
+     }
+    ],
+    "tags": [
+     "Droplets"
+    ]
+   }
+  },
+  "/v2/droplets/{droplet_id}": {
+   "delete": {
+    "operationId": "droplets_destroy",
+    "parameters": [
+     {
+      "$ref": "#/components/parameters/droplet_id"
+     }
+    ],
+    "responses": {
+     "204": {
+      "$ref": "#/components/responses/no_content_with_content_type"
+     },
+     "401": {
+      "$ref": "#/components/responses/unauthorized"
+     },
+     "404": {
+      "$ref": "#/components/responses/not_found"
+     },
+     "429": {
+      "$ref": "#/components/responses/too_many_requests"
+     },
+     "500": {
+      "$ref": "#/components/responses/server_error"
+     },
+     "default": {
+      "$ref": "#/components/responses/unexpected_error"
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": [
+       "droplet:delete"
+      ]
+     }
+    ],
+    "tags": [
+     "Droplets"
+    ]
+   },
+   "get": {
+    "operationId": "droplets_get",
+    "parameters": [
+     {
+      "$ref": "#/components/parameters/droplet_id"
+     }
+    ],
+    "responses": {
+     "200": {
+      "$ref": "#/components/responses/existing_droplet"
+     },
+     "401": {
+      "$ref": "#/components/responses/unauthorized"
+     },
+     "404": {
+      "$ref": "#/components/responses/not_found"
+     },
+     "429": {
+      "$ref": "#/components/responses/too_many_requests"
+     },
+     "500": {
+      "$ref": "#/components/responses/server_error"
+     },
+     "default": {
+      "$ref": "#/components/responses/unexpected_error"
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": [
+       "droplet:read"
+      ]
+     }
+    ],
+    "tags": [
+     "Droplets"
+    ]
+   }
+  },
+  "/v2/regions": {
+   "get": {
+    "operationId": "regions_list",
+    "parameters": [
+     {
+      "$ref": "#/components/parameters/parameters_per_page"
+     },
+     {
+      "$ref": "#/components/parameters/page"
+     }
+    ],
+    "responses": {
+     "200": {
+      "$ref": "#/components/responses/all_regions"
+     },
+     "401": {
+      "$ref": "#/components/responses/unauthorized"
+     },
+     "429": {
+      "$ref": "#/components/responses/too_many_requests"
+     },
+     "500": {
+      "$ref": "#/components/responses/server_error"
+     },
+     "default": {
+      "$ref": "#/components/responses/unexpected_error"
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": [
+       "regions:read"
+      ]
+     }
+    ],
+    "tags": [
+     "Regions"
+    ]
+   }
+  },
+  "/v2/sizes": {
+   "get": {
+    "operationId": "sizes_list",
+    "parameters": [
+     {
+      "$ref": "#/components/parameters/parameters_per_page"
+     },
+     {
+      "$ref": "#/components/parameters/page"
+     }
+    ],
+    "responses": {
+     "200": {
+      "$ref": "#/components/responses/all_sizes"
+     },
+     "401": {
+      "$ref": "#/components/responses/unauthorized"
+     },
+     "429": {
+      "$ref": "#/components/responses/too_many_requests"
+     },
+     "500": {
+      "$ref": "#/components/responses/server_error"
+     },
+     "default": {
+      "$ref": "#/components/responses/unexpected_error"
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": [
+       "sizes:read",
+       "regions:read"
+      ]
+     }
+    ],
+    "tags": [
+     "Sizes"
+    ]
+   }
+  }
+ },
+ "servers": [
+  {
+   "description": "production",
+   "url": "https://api.digitalocean.com"
+  }
+ ]
+}
