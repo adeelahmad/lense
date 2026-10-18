@@ -8,8 +8,9 @@ launched. Everything it does is in the [activity ledger](activity.md), and its c
 
 Status: in progress. Built: groups, rules, approvals, budgets, the scaler, the API, MCP and assistant tools,
 Settings › Auto scaling (the switch, and each group's terms to approve or pause), and **This machine**, a provider that
-runs more `lens worker` processes where Lens runs. Planned: providers for AWS, DigitalOcean, Hetzner, Proxmox and any
-Linux host over SSH, joining Lens over its Nebula mesh network; model hosts (RunPod, Lambda, Hugging Face, SageMaker,
+runs more `lens worker` processes where Lens runs, and **AWS EC2**, spot or on demand (its units launch once the
+[mesh](mesh.md) can join machines: until then a launch says so and costs nothing). Planned: providers for
+DigitalOcean, Hetzner, Proxmox and any Linux host over SSH, joining Lens over its Nebula mesh network; model hosts (RunPod, Lambda, Hugging Face, SageMaker,
 Bedrock) for models; and making providers and groups in Settings.
 
 Auto scaling is **off** until an admin turns it on, and a group launches nothing until a person approves its terms
@@ -53,9 +54,70 @@ carries none of them.
 | Driver | Units | Costs | Template |
 | --- | --- | --- | --- |
 | `local` (This machine) | more `lens worker` processes where the scaler runs | nothing | `steps`: the steps they run (none: every step) |
+| `aws` (AWS EC2) | EC2 instances that join over the mesh and run `lens worker` | the spot or on-demand price, an estimate | `instance_type`, `market` (`spot` or `on-demand`), `max_price`, `fallback`, `image`, `disk_gb`, `steps` |
 
 A worker on This machine stops with the process that started it, and the scaler that takes over starts them again where
 it runs.
+
+## AWS EC2
+
+Lens grows onto AWS when work waits: from a Raspberry Pi at home to as many EC2 instances as the group's max and
+budget allow, and back to none. Each unit is an instance that joins Lens over the [mesh](mesh.md) and runs its worker.
+
+```http
+POST /api/v1/scaling/providers
+{"name": "AWS", "driver": "aws", "settings": {"region": "eu-west-1"},
+ "secrets": {"access_key_id": "AKIA...", "secret_access_key": "..."}}
+```
+
+| Provider setting | Default | |
+| --- | --- | --- |
+| `region` | `us-east-1` | the region units launch in |
+| `access_key_id`, `secret_access_key` | | an IAM user's keys, sealed |
+| `subnet_id` | the default VPC's | where units launch |
+| `security_group_ids` | the VPC's default group | units only reach out (to the mesh's lighthouse), so they need no inbound rule |
+| `key_name` | none | an EC2 key pair, to sign in to units yourself |
+
+| Unit (template) | Default | |
+| --- | --- | --- |
+| `instance_type` | `t4g.medium` | any EC2 type; Arm (Graviton) and x86 both work |
+| `market` | `spot` | `spot`: AWS's spare capacity, often far cheaper, which AWS may take back with two minutes' notice; `on-demand` |
+| `max_price` | the on-demand price | the most a spot unit may cost per hour |
+| `fallback` | `true` | when AWS has no spot capacity of that type, or none under the max price, launch on demand instead |
+| `image` | the latest Ubuntu 24.04 | an AMI; by default Canonical's for the type's architecture, found in the region |
+| `disk_gb` | `30` | the unit's disk (gp3, encrypted) |
+| `steps` | every step | the steps its worker runs |
+
+**Spot instances.** When AWS takes a spot instance back, the scaler sees it gone, records why ("AWS took the spot
+instance back") and launches another, on demand if spot has run out and `fallback` allows. The job its worker was
+running goes back in the queue once its heartbeat stops, so nothing is lost.
+
+**What it costs.** Each unit's price is an estimate: the spot price in the zone it landed in (from
+`DescribeSpotPriceHistory`), or the on-demand list price (from the AWS Price List API). A price you give the provider
+wins over both. Without any price Lens launches nothing, because a unit with no price would never count against the
+budget. AWS bills separately; the ledger's figures are estimates.
+
+**Hardened by default.** Every instance requires IMDSv2, has an encrypted disk that goes with it, terminates itself
+when it shuts down (a stopped one is terminated too, so its disk doesn't keep costing), and is tagged `lens-unit` with
+its name. Its user-data is the mesh's install line with a join token that works once, within the hour, so it carries
+no long-lived secret.
+
+The keys need these permissions (an IAM policy for a user only Lens uses):
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {"Effect": "Allow", "Resource": "*", "Action": [
+      "ec2:DescribeAvailabilityZones", "ec2:DescribeInstanceTypes", "ec2:DescribeImages",
+      "ec2:DescribeSpotPriceHistory", "ec2:DescribeInstances", "ec2:RunInstances",
+      "ec2:CreateTags", "ec2:TerminateInstances", "pricing:GetProducts"]}
+  ]
+}
+```
+
+`pricing:GetProducts` is only needed for on-demand prices you don't give yourself. Lens talks to AWS through botocore
+(Apache-2.0), fetched the first time an AWS provider is saved.
 
 ## Groups
 
@@ -145,5 +207,8 @@ Turning scaling on (`change_settings scaling`) always asks.
 
 ## Refine later
 
-Providers beyond This machine; spot and preemptible instances; warm pools; predictive scaling; health checks beyond
+Providers beyond This machine and AWS; preemptible and spot instances at other clouds; draining an AWS spot unit on
+its two-minute notice (the node agent reading the instance's metadata) and handing its job back at once; following
+the spot price as it changes; AWS sign-in with an instance role or IAM Identity Center instead of keys; mixed instance
+types per group; warm pools; predictive scaling; health checks beyond
 joining; prices fetched from providers' pricing APIs.

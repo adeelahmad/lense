@@ -176,8 +176,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
 - **Scale out.** Scaling groups add workers when work waits and let them go when it doesn't, by target, step and
   schedule rules, within min and max and a monthly budget, with every launch, join and hour of cost in the activity
   ledger. A group launches nothing until you approve its terms in Settings › Auto scaling; agents propose and manage
-  groups over the API, MCP and the assistant, and never approve one. It runs more workers on this machine today;
-  cloud, Proxmox, Linux and model hosts are planned. ([Auto scaling](docs/scaling.md);
+  groups over the API, MCP and the assistant, and never approve one. It runs more workers on this machine, and on AWS EC2
+  as spot or on-demand instances (they launch once the mesh joins machines); other clouds, Proxmox, Linux and model
+  hosts are planned. ([Auto scaling](docs/scaling.md);
   [checks](docs/requirements.md#scale-out))
 - **Keep it up to date and backed up.** Lens checks for a new release once a day and tells admins by email or a
   notification. One click in Settings › Updates (or one API call) upgrades it through a small agent on the machine,
@@ -253,7 +254,7 @@ Next, and not in a pull request yet; each links to where it is tracked:
   topics, recordings and the other things that have pages ([notes](docs/notes.md)).
 - **Local models:** GPU builds of llama.cpp fetched by Lens, and local embedding models
   ([local models](docs/local-models.md)).
-- **Auto scaling:** providers for AWS, DigitalOcean, Hetzner, Proxmox and Linux hosts over SSH, joining over the
+- **Auto scaling:** providers for DigitalOcean, Hetzner, Proxmox and Linux hosts over SSH, joining over the
   Nebula mesh, model hosts (RunPod, Lambda, Hugging Face, SageMaker, Bedrock), and making providers and groups in
   Settings ([auto scaling](docs/scaling.md)).
 - **Speech providers:** their summaries, chapters and entities as optional imports, and per-minute prices in the
