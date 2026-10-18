@@ -184,6 +184,39 @@ def test_where_they_came_from_and_their_language(client, db, cfg, archive, folde
     assert {x["origin"] for x in client.get("/api/v1/recordings/origins", headers=hv).json()} == {"upload", "paste", f"source:{sid}"}
 
 
+def test_the_space_each_origin_takes(client, db, cfg, archive):
+    import pathlib
+
+    from app.domain import files as filemod
+    from app.domain import video
+
+    a, b, h = archive["a"], archive["b"], archive["h"]
+    sid = db.next_id("storage_source")
+    db.q("CREATE $r CONTENT {name: 'Team drive', type: 'local'}", r=R("storage_source", sid))
+    db.q("UPDATE $r SET remote = {source: $s, path: 'talks/b.wav'}, size = 4000", r=R("recording", b), s=sid)
+
+    def sizes():
+        got = client.get("/api/v1/recordings/origins", params={"storage": True}, headers=h).json()
+        return {o["origin"]: (o["media_bytes"], o["made_bytes"]) for o in got}
+
+    before = sizes()
+    assert before[f"source:{sid}"] == (4000, 0)
+    assert client.get("/api/v1/recordings/origins", headers=h).json()[0].get("media_bytes") is None  # only when asked
+    data = pathlib.Path(cfg["data_dir"])
+    frames = video.frames_dir(cfg, a)
+    frames.mkdir(parents=True, exist_ok=True)
+    (frames / "f1.jpg").write_bytes(b"x" * 1200)
+    (data / "renditions").mkdir(parents=True, exist_ok=True)
+    (data / "renditions" / f"{a}.pdf").write_bytes(b"x" * 300)
+    att = filemod.folder(cfg, a) / "1"
+    att.mkdir(parents=True, exist_ok=True)
+    (att / "notes.txt").write_bytes(b"x" * 700)
+    after = sizes()
+    media, made = after["file"]
+    assert (media - before["file"][0], made - before["file"][1]) == (700, 1500)  # its own files; what Lens made
+    assert after[f"source:{sid}"] == (4000, 0)
+
+
 def test_edited_by_me(client, db, cfg, archive):
     from app.domain import metadata
 

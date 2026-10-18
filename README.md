@@ -274,8 +274,10 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   same through the API and MCP.
   The Analytics page shows admins active people, churn, retention and which features get used, worked out on this
   machine; the same daily events can also go to a Google Analytics 4 property of your own (off unless you turn it on).
+  System health shows the space each source takes, its files and what Lens made of them.
   ([Logging](docs/logging.md), [telemetry](docs/telemetry.md), [Prometheus](docs/prometheus.md),
-  [usage analytics](docs/analytics.md); [checks](docs/requirements.md#watch-it-run))
+  [usage analytics](docs/analytics.md), [storage per source](docs/api.md#resources);
+  [checks](docs/requirements.md#watch-it-run))
 - **Stay private and safe.** Passkeys instead of passwords (one at Lens's remote address added from a signed-in one with
   Open signed in), encryption at rest with a key per namespace, roles per namespace (viewer, editor, owner, or custom
   roles made of permissions), who sees each asset, set for many at once from the Library, email invitations, removing

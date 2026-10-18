@@ -239,12 +239,18 @@ def list_tags(acl: Acl, user: CurrentUser, db: Db, ns: str | None = Query(None, 
 
 @router.get("/origins")
 def list_origins(
-    acl: Acl, user: CurrentUser, db: Db, cfg: Cfg, ns: str | None = Query(None, description="one namespace")
+    acl: Acl,
+    user: CurrentUser,
+    db: Db,
+    cfg: Cfg,
+    ns: str | None = Query(None, description="one namespace"),
+    storage: bool = Query(False, description="also the disk space each takes (media_bytes, made_bytes), read from the disk"),
 ) -> list[OriginCount]:
     """Where the assets you can read (or one namespace's) came from, with how many came from each: connected sources
-    by name, uploads, pasted text, IIIF imports, the archive's own folders and other imported files."""
+    by name, uploads, pasted text, IIIF imports, the archive's own folders and other imported files. With
+    ``storage=true``, the space each origin's files take and what Lens made of them."""
     spaces, within = acl.scope(ns)
-    return [OriginCount.model_validate(o) for o in library.Origins(db, cfg).counts(spaces, within)]
+    return [OriginCount.model_validate(o) for o in library.Origins(db, cfg).counts(spaces, within, storage=storage)]
 
 
 @router.get("/languages")

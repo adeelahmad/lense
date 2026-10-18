@@ -5794,7 +5794,8 @@ export class Resources {
    * List Origins
    *
    * Where the assets you can read (or one namespace's) came from, with how many came from each: connected sources
-   * by name, uploads, pasted text, IIIF imports, the archive's own folders and other imported files.
+   * by name, uploads, pasted text, IIIF imports, the archive's own folders and other imported files. With
+   * ``storage=true``, the space each origin's files take and what Lens made of them.
    */
   public static listOrigins<ThrowOnError extends boolean = false>(
     options?: Options<ListOriginsData, ThrowOnError>,
