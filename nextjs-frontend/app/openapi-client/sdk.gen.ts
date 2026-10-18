@@ -12649,8 +12649,8 @@ export class ImportHooks {
   /**
    * Update Import Hook
    *
-   * Rename a hook, pause or resume it (`enabled`), or change its collection or pipeline (null for the namespace's
-   * own) (owners).
+   * Rename a hook, pause or resume it (`enabled`), turn PDF hand-back on or off (`hand_back`), or change its
+   * collection or pipeline (null for the namespace's own) (owners).
    */
   public static updateImportHook<ThrowOnError extends boolean = false>(
     options: Options<UpdateImportHookData, ThrowOnError>,
@@ -12709,9 +12709,12 @@ export class ImportHooks {
    * - JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as text), with an optional
    * `title`.
    *
-   * Each runs the hook's pipeline, or the namespace's. 401 for an unknown token, saying which kind it is; 403 while the
-   * hook is paused, for a read-only token, or without the import permission; 413 over uploads.max_mb. Audited as
-   * `import.hook` (by the hook) or `import.push` (by the person).
+   * Each runs the hook's pipeline, or the namespace's. A hook with `hand_back` on takes documents this server can't
+   * make into PDFs itself too: they're kept with `needs_pdf` and wait; push the PDF back (the raw body, or one form
+   * file) with `?for=<recording>` and it becomes the document's rendition and its pipeline runs (404 when that document
+   * doesn't wait for a PDF from this hook). 401 for an unknown token, saying which kind it is; 403 while the hook is
+   * paused, for a read-only token, or without the import permission; 413 over uploads.max_mb. Audited as `import.hook`
+   * (by the hook) or `import.push` (by the person).
    */
   public static pushToImportHook<ThrowOnError extends boolean = false>(
     options?: Options<PushToImportHookData, ThrowOnError>,

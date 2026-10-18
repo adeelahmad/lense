@@ -340,7 +340,7 @@ entry_points:
         attacker_controllable: true
         x-condition: "anyone holding a hook's token, for its namespace; a person's token, for namespaces where its person has the import permission and only with write scope"
         control_kinds: [data, resource-name, size]
-        caller_must_enforce: "none — P-UPLOAD; the address form /hooks/import/{token} takes hook tokens only, so a person's token never sits in a logged path"
+        caller_must_enforce: "none — P-UPLOAD; the address form /hooks/import/{token} takes hook tokens only, so a person's token never sits in a logged path; ?for= hands a PDF back only for a document the same hook brought in that still waits for one (hand_back, off by default), and it becomes that document's rendition"
         provenance: {kind: documented, source: 'docs/api.md "the address form takes hook tokens only"'}
   - id: "watched folders, storage sources, IMAP, Gmail, iCal, news feeds"
     component: outbound

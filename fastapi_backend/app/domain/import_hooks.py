@@ -11,6 +11,13 @@ What a hook takes (see accept_* below):
 - a web address: captured as a document when its pipeline runs (a PDF link as it is, a page printed by Chromium);
 - text: imported as a transcript, as pasted text is.
 
+PDF hand-back (`hand_back`, off unless an owner turns it on for the hook): a server that can't make a document into a
+PDF itself (no LibreOffice or Chromium, as on a Raspberry Pi) still takes a Word file, email or saved page through the
+hook. It's kept, and waits for its PDF instead of running its pipeline: the answer says `needs_pdf`, and the service
+that sent it (a conversion node such as anytopdf) converts the file it already has and pushes the PDF back with
+`?for=<recording>` (hand_back below). That PDF becomes the document's rendition, made by "pushed", and its pipeline
+runs. Only the hook a document came through can hand back its PDF, and only while it waits for one.
+
 Everything a hook brings in is audited under the hook's own name (`import.hook`), never a person's.
 
 A person can push the same way with their own token (an API token with write access, an app's, or the web app's
@@ -25,10 +32,12 @@ import re
 import secrets
 import urllib.parse
 
-from . import convert, ingest, jobs, pipelines, store, uploads, webcapture
+from . import convert, ingest, jobs, keyring, pipelines, store, uploads, webcapture
 
 R = store.R
-FIELDS = "record::id(id) AS id, space, name, collection, pipeline, enabled, created_by, created_at, last_used_at, used, token_tail"
+FIELDS = (
+    "record::id(id) AS id, space, name, collection, pipeline, enabled, hand_back, created_by, created_at, last_used_at, used, token_tail"
+)
 NAME_MAX = 80
 TOKEN_PREFIX = "lih_"  # recognisable in logs and secret scanners
 TRANSCRIPT_EXT = frozenset({".srt", ".vtt", ".json", ".jsonl", ".ics"})  # read as transcripts, not uploaded as documents
@@ -45,7 +54,13 @@ def _token():
 
 def _view(db, row):
     names = store.space_names(db)
-    return {**row, "namespace": names.get(row.get("space")), "enabled": row.get("enabled", True), "used": row.get("used") or 0}
+    return {
+        **row,
+        "namespace": names.get(row.get("space")),
+        "enabled": row.get("enabled", True),
+        "hand_back": bool(row.get("hand_back")),
+        "used": row.get("used") or 0,
+    }
 
 
 def _check(db, sid, name, collection, pipeline):
@@ -76,8 +91,9 @@ def get(db, hid, sid=None):
     return _view(db, row)
 
 
-def create(db, sid, name, collection=None, pipeline=None, by=None):
-    """A new hook for namespace `sid`. Returns (hook, token): the token is shown this once."""
+def create(db, sid, name, collection=None, pipeline=None, by=None, hand_back=False):
+    """A new hook for namespace `sid`. Returns (hook, token): the token is shown this once. `hand_back` lets the service
+    that pushes to it send back the PDFs of documents this server can't convert itself."""
     name = _check(db, sid, name, collection, pipeline)
     hid, token = db.next_id("import_hook"), _token()
     db.q(
@@ -90,6 +106,7 @@ def create(db, sid, name, collection=None, pipeline=None, by=None):
                 "collection": collection,
                 "pipeline": pipeline,
                 "enabled": True,
+                "hand_back": bool(hand_back) or None,
                 "token_hash": _hash(token),
                 "token_tail": token[-4:],
                 "created_by": by,
@@ -101,17 +118,19 @@ def create(db, sid, name, collection=None, pipeline=None, by=None):
 
 
 def update(db, hid, sid, changes):
-    """Rename a hook, pause or resume it, or change where its imports go (null for the namespace's defaults)."""
+    """Rename a hook, pause or resume it, turn PDF hand-back on or off, or change where its imports go (null for the
+    namespace's defaults)."""
     before = get(db, hid, sid)
     after = {**before, **changes}
     name = _check(db, sid, after["name"], after.get("collection"), after.get("pipeline"))
     db.q(
-        "UPDATE $r SET name = $n, collection = $c, pipeline = $p, enabled = $e",
+        "UPDATE $r SET name = $n, collection = $c, pipeline = $p, enabled = $e, hand_back = $b",
         r=R("import_hook", int(hid)),
         n=name,
         c=after.get("collection"),
         p=after.get("pipeline"),
         e=bool(after.get("enabled", True)),
+        b=bool(after.get("hand_back")) or None,
     )
     return before, get(db, hid, sid)
 
@@ -191,16 +210,27 @@ def kind_of(cfg, filename):
     raise ValueError(f"{shown} can't be imported; these can: {kinds}")
 
 
+def waits(cfg, hook, name):
+    """Whether a document pushed to this hook is kept to wait for its PDF: the hook hands PDFs back, and this server
+    can't make this kind of document into one itself."""
+    return bool(hook.get("hand_back")) and not hook.get("person") and convert.needs(name) and bool(convert.unavailable(cfg, name))
+
+
 def accept_file(db, cfg, hook, path, filename, title=None):
     """A whole file the hook was sent, at `path` (on the uploads disk; it's moved or removed). One result:
-    {kind, name, recording, job, duplicate}."""
+    {kind, name, recording, job, duplicate, needs_pdf}."""
     by = actor(hook)
     name = uploads.clean_name(filename)
+    needs_pdf = False
     try:
         how = kind_of(cfg, name)
         if how == "upload":
-            up = uploads.take(db, cfg, hook["namespace"], path, name, by, title, hook.get("pipeline"), _collection(db, hook))
+            wait = waits(cfg, hook, name)
+            up = uploads.take(
+                db, cfg, hook["namespace"], path, name, by, title, hook.get("pipeline"), _collection(db, hook), await_pdf=wait
+            )
             rid, job, dup = up["recording"], up.get("job"), bool(up.get("duplicate"))
+            needs_pdf = wait and bool(db.one("SELECT VALUE awaits_pdf FROM $r", r=R("recording", rid)))
         else:
             if path.stat().st_size > cfg["server"]["max_upload_mb"] * uploads.MB:
                 raise uploads.TooLarge(f"text files up to {cfg['server']['max_upload_mb']} MB")
@@ -225,7 +255,43 @@ def accept_file(db, cfg, hook, path, filename, title=None):
     finally:
         path.unlink(missing_ok=True)
     _used(db, hook, 1)
-    return store.clean({"kind": "file", "name": name, "recording": rid, "job": job, "duplicate": dup})
+    return store.clean({"kind": "file", "name": name, "recording": rid, "job": job, "duplicate": dup, "needs_pdf": needs_pdf or None})
+
+
+PDF_MAGIC = b"%PDF-"
+
+
+def hand_back(db, cfg, hook, rid, path):
+    """The PDF of a document that came through this hook and waits for one, at `path` (on the uploads disk; it's moved
+    or removed): it becomes the document's rendition (made by "pushed"), and the pipeline it was pushed with runs.
+    KeyError when no document of the hook's namespace waits for a PDF from this hook; ValueError when it isn't a PDF."""
+    try:
+        rec = db.one("SELECT space, path, title, awaits_pdf FROM $r", r=R("recording", int(rid)))
+        waiting = (rec or {}).get("awaits_pdf") or {}
+        if not rec or rec.get("space") != hook["space"] or waiting.get("by") != actor(hook)["id"]:
+            raise KeyError(rid)
+        with open(path, "rb") as f:
+            if f.read(1024).lstrip()[: len(PDF_MAGIC)] != PDF_MAGIC:
+                raise ValueError("send the document's PDF (application/pdf) with ?for=")
+        dest = convert.rendition_path(cfg, rid)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        path.replace(dest)
+        try:
+            keyring.protect(db, cfg, hook["space"], dest)  # a locked vault's: never kept plain
+        except BaseException:
+            dest.unlink(missing_ok=True)
+            raise
+    finally:
+        path.unlink(missing_ok=True)
+    db.q(
+        "UPDATE $r SET rendition = $d, awaits_pdf = NONE",
+        r=R("recording", int(rid)),
+        d={"from": convert.ext_of(rec.get("path")), "by": "pushed"},
+    )
+    job = jobs.enqueue(db, int(rid), None, by=actor(hook)["email"], pipeline=waiting.get("pipeline"))
+    _used(db, hook, 1)
+    name = f"{rec.get('title') or rid}.pdf"
+    return store.clean({"kind": "pdf", "name": name, "recording": int(rid), "job": job, "duplicate": False})
 
 
 def accept_url(db, cfg, hook, url, title=None):
