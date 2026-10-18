@@ -205,6 +205,15 @@ entry_points:
         obligation_id: keep-one-time-secrets
         caller_must_enforce: "holder keeps them secret"
         provenance: {kind: documented, source: 'docs/authentication.md "A link lasts three days"'}
+  - id: "POST /auth/passkeys/elsewhere"
+    component: identity
+    parameters:
+      - name: "an address to take your sign-in to"
+        attacker_controllable: true
+        x-condition: "signed in themselves; not API tokens or apps"
+        control_kinds: [resource-name]
+        caller_must_enforce: "only an address Lens opens at (tunnel, HTTPS domains); 15 minutes, once, other links left alone"
+        provenance: {kind: documented, source: 'docs/authentication.md "Lens opens at another address"'}
   - id: "/oauth/register, /authorize, /token, /revoke"
     component: identity
     parameters:
@@ -1476,7 +1485,7 @@ properties_claimed:
     components: [identity]
     tier: correctness-only
     x-tier-question: Q37
-    conditions: "access JWT 900 s; sign-in link 72 h, emailed links 60 min; OAuth code 5 min; app tokens 60 min / 30 days; API tokens default 90 days, never past tokens.max_days"
+    conditions: "access JWT 900 s; sign-in link 72 h, emailed links 60 min, your own link to another address 15 min; OAuth code 5 min; app tokens 60 min / 30 days; API tokens default 90 days, never past tokens.max_days"
     violation_symptoms: [bad-data-accepted]
     x-voided-by: "admin token settings; the API-key cap check (domain/auth.py:282)"
     provenance: {kind: documented, source: 'docs/authentication.md "A link lasts three days"'}

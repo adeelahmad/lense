@@ -288,6 +288,15 @@
       "source": "docs/authentication.md \"A link lasts three days\""
     },
     {
+      "entry_point": "POST /auth/passkeys/elsewhere",
+      "parameter": "an address to take your sign-in to",
+      "attacker_controllable": "yes",
+      "component": "identity",
+      "caller_must_enforce": "signed in themselves, not API tokens or apps; only an address Lens opens at; 15 minutes, once, other links left alone",
+      "provenance": "documented",
+      "source": "docs/authentication.md \"Lens opens at another address\""
+    },
+    {
       "entry_point": "/oauth/register, /authorize, /token, /revoke",
       "parameter": "redirect URIs, client metadata, code, verifier, refresh token",
       "attacker_controllable": "yes",
@@ -1032,7 +1041,7 @@
       "property": "P-LIFETIMES",
       "violation_symptom": "bad-data-accepted",
       "severity_tier": "correctness",
-      "conditions": "access JWT 900 s; sign-in link 72 h, emailed links 60 min; OAuth code 5 min; app tokens 60 min / 30 days; API tokens default 90 days, never past tokens.max_days",
+      "conditions": "access JWT 900 s; sign-in link 72 h, emailed links 60 min, your own link to another address 15 min; OAuth code 5 min; app tokens 60 min / 30 days; API tokens default 90 days, never past tokens.max_days",
       "provenance": "documented",
       "source": "docs/authentication.md \"A link lasts three days\""
     },
