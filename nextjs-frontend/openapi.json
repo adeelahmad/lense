@@ -40905,6 +40905,12 @@
             "type": "integer",
             "title": "Account"
           },
+          "answering": {
+            "type": "boolean",
+            "title": "Answering",
+            "description": "an answer is being written in it now: streamed, or a brief's in the background",
+            "default": false
+          },
           "head": {
             "anyOf": [
               {
