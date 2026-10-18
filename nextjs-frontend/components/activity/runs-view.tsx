@@ -1,31 +1,49 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, ChevronRight, Cloud, FolderSync, ListFilter, Settings2, User } from "lucide-react";
+import {
+  ArrowDownToLine,
+  ArrowUp,
+  ArrowUpToLine,
+  ChevronRight,
+  Cloud,
+  FolderSync,
+  GripVertical,
+  ListFilter,
+  MoreHorizontal,
+  Settings2,
+  User,
+} from "lucide-react";
 import Link from "next/link";
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 
 import { Batches } from "@/app/openapi-client";
 import { CancelJobDialog } from "@/components/activity/cancel-dialog";
 import {
   batchPhase,
+  byQueue,
   canRetry,
+  dropPlace,
   isActive,
   jobPhase,
+  movedOrder,
   pipelineKey,
   pipelineLabel,
   pipelineOptions,
   reconcileOrder,
   shortWhen,
+  stepPlace,
   stepSpecs,
   triggerOf,
   waitingReason,
   type BatchAction,
   type BatchInfo,
   type JobRecord,
+  type QueuePlace,
   type Trigger,
 } from "@/components/activity/job-model";
 import { JobListItem, JobStateIcon, StepSegments } from "@/components/activity/job-row";
+import { QueueControls, useQueueActions } from "@/components/activity/queue-controls";
 import {
   useJobActions,
   useJobList,
@@ -36,7 +54,15 @@ import {
 } from "@/components/activity/use-activity";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/field";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/menu";
+import {
+  Menu,
+  MenuContent,
+  MenuItem,
+  MenuTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/menu";
 import { EmptyState, SkeletonRows } from "@/components/ui/states";
 import { Table, Td, Th, THead, Tr } from "@/components/ui/table";
 import { useToast } from "@/components/ui/toast";
@@ -122,10 +148,13 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
   const [open, setOpen] = useState<Set<number>>(new Set());
   const [cancelling, setCancelling] = useState<JobRecord | null>(null);
   const nsFilter = filters.ns || namespace || "";
+  // Under Queued, runs show in the order workers take them, and can be dragged into another
+  const queueView = status === "queued";
   const list = useJobList({
     status: status === "all" ? undefined : status,
     limit: 200,
     namespace: nsFilter, // on the server, so the counts and the 200 rows are that namespace's
+    order: queueView ? "queue" : undefined,
   });
   const batches = useQuery({
     queryKey: ["batches"],
@@ -138,6 +167,9 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
   const spaces = useSpaceNames();
   const names = usePeopleNames();
   const { cancel, retry } = useJobActions();
+  const { move } = useQueueActions();
+  const [drag, setDrag] = useState<number | null>(null);
+  const [moving, setMoving] = useState<number[] | null>(null); // the order shown while a move is saved
   const { text: announcement, announce } = useAnnouncer();
   const { ref: topRef, atTop } = useAtTop();
 
@@ -176,13 +208,14 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
       .filter((j) => !filters.trigger || j.created_by === filters.trigger)
       .filter((j) => !filters.pipeline || pipelineKey(j.pipeline) === filters.pipeline)
       .map((j) => ({ id: `j${j.id}`, at: j.created_at ?? "", job: j }));
+    if (queueView) return out.sort((a, b) => byQueue(a.job!, b.job!));
     if (status === "all" && !filters.worker && !filters.trigger && !filters.pipeline)
       // with a namespace chosen, only batches with runs in it (a batch can span namespaces)
       for (const b of (batches.data ?? []) as BatchInfo[])
         if (!nsFilter || jobs.some((j) => j.batch === b.id))
           out.push({ id: `b${b.id}`, at: b.created_at ?? "", batch: b });
     return out.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
-  }, [jobs, batches.data, status, nsFilter, filters.worker, filters.trigger, filters.pipeline]);
+  }, [jobs, batches.data, status, queueView, nsFilter, filters.worker, filters.trigger, filters.pipeline]);
 
   // Keep what is on screen still while scrolled down; new runs wait behind a pill.
   const filterKey = `${status}|${nsFilter}|${filters.worker}|${filters.trigger}|${filters.pipeline}`;
@@ -190,7 +223,7 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
     key: "",
     order: [],
   });
-  const view = reconcileOrder(shown.key === filterKey ? shown.order : [], items, atTop);
+  const view = reconcileOrder(shown.key === filterKey ? shown.order : [], items, atTop || queueView);
   const orderKey = view.order.join(",");
   useEffect(() => {
     setShown((s) =>
@@ -200,7 +233,80 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
     );
   }, [filterKey, orderKey]);
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
-  const rows = view.order.map((id) => byId.get(id)).filter((i): i is Item => Boolean(i));
+  const ordered = view.order.map((id) => byId.get(id)).filter((i): i is Item => Boolean(i));
+  const rows =
+    queueView && moving ? moving.map((id) => byId.get(`j${id}`)).filter((i): i is Item => Boolean(i)) : ordered;
+  const queueIds = queueView ? ordered.map((it) => it.job!.id) : [];
+
+  const moveTo = (j: JobRecord, place: QueuePlace | null) => {
+    if (!place) return;
+    setMoving(movedOrder(moving ?? queueIds, j.id, place));
+    move.mutate(
+      { id: j.id, place },
+      {
+        onSettled: async () => {
+          await qc.invalidateQueries({ queryKey: ["jobs"] });
+          setMoving(null);
+        },
+      },
+    );
+  };
+  const movable = (j: JobRecord) => queueView && j.status === "queued" && can("editor", nsOf(j));
+  // Drag a queued run onto another to put it there; the grip also takes Alt+↑ and Alt+↓.
+  const dragProps = (j: JobRecord) =>
+    movable(j)
+      ? {
+          draggable: true,
+          onDragStart: (e: DragEvent) => {
+            setDrag(j.id);
+            e.dataTransfer.effectAllowed = "move";
+          },
+          onDragEnd: () => setDrag(null),
+          onDragOver: (e: DragEvent) => drag != null && e.preventDefault(),
+          onDrop: (e: DragEvent) => {
+            e.preventDefault();
+            if (drag != null) {
+              const dragged = jobs.find((x) => x.id === drag);
+              if (dragged) moveTo(dragged, dropPlace(moving ?? queueIds, drag, j.id));
+            }
+            setDrag(null);
+          },
+        }
+      : {};
+  const grip = (j: JobRecord) =>
+    movable(j) ? (
+      <button
+        type="button"
+        aria-label={`Move ${j.title ?? `run ${j.id}`} in the queue. Alt+Up or Alt+Down moves it`}
+        title="Drag to reorder, or Alt+↑ / Alt+↓"
+        onKeyDown={(e) => {
+          if (!e.altKey || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+          e.preventDefault();
+          moveTo(j, stepPlace(moving ?? queueIds, j.id, e.key === "ArrowUp" ? -1 : 1));
+        }}
+        className="grid size-6 shrink-0 cursor-grab place-items-center rounded-sm text-fg-muted hover:bg-surface-neutral focus-visible:ring-2 focus-visible:ring-blue"
+      >
+        <GripVertical aria-hidden className="size-4" />
+      </button>
+    ) : null;
+  const moveMenu = (j: JobRecord) =>
+    movable(j) ? (
+      <Menu>
+        <MenuTrigger asChild>
+          <Button variant="ghost" size="sm" aria-label={`Move ${j.title ?? `run ${j.id}`}`}>
+            <MoreHorizontal />
+          </Button>
+        </MenuTrigger>
+        <MenuContent>
+          <MenuItem icon={<ArrowUpToLine />} onSelect={() => moveTo(j, { to: "top" })}>
+            Move to top
+          </MenuItem>
+          <MenuItem icon={<ArrowDownToLine />} onSelect={() => moveTo(j, { to: "bottom" })}>
+            Move to bottom
+          </MenuItem>
+        </MenuContent>
+      </Menu>
+    ) : null;
 
   // Screen readers hear when a run finishes or fails.
   const lastStatus = useRef(new Map<number, string>());
@@ -328,6 +434,12 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
             })}
           </div>
           <span className="flex-1" />
+          <QueueControls
+            namespace={nsFilter || undefined}
+            queued={(list.counts.queued ?? 0) + (list.counts.held ?? 0)}
+            failed={list.counts.failed ?? 0}
+            allowed={can("editor", nsFilter || undefined)}
+          />
           <Popover>
             <PopoverTrigger asChild>
               <button
@@ -479,7 +591,16 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
                     title={`${j.title ?? `Asset ${j.recording}`}${cur && j.status !== "succeeded" ? ` · ${cur.label}` : ""}`}
                     sub={phaseOf(j) + (j.worker && j.status === "running" ? ` · ${j.worker}` : "")}
                     progress={j.status === "running" ? (j.progress ?? 0) : null}
-                    action={jobAction(j, true)}
+                    action={
+                      movable(j) ? (
+                        <span className="flex items-center gap-1">
+                          {jobAction(j, true)}
+                          {moveMenu(j)}
+                        </span>
+                      ) : (
+                        jobAction(j, true)
+                      )
+                    }
                   />
                 );
               })}
@@ -610,9 +731,24 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
                     const failed = j.status === "failed";
                     const specs = stepSpecs(j.steps);
                     return (
-                      <Tr key={it.id} className={cn("h-[60px]", failed && "bg-red-surface hover:bg-red-surface")}>
+                      <Tr
+                        key={it.id}
+                        className={cn(
+                          "h-[60px]",
+                          failed && "bg-red-surface hover:bg-red-surface",
+                          drag === j.id && "opacity-50",
+                        )}
+                        {...dragProps(j)}
+                      >
                         <Td className="first:pl-6">
-                          <JobStateIcon status={j.status} />
+                          {movable(j) ? (
+                            <span className="-ml-5 flex items-center gap-0.5">
+                              {grip(j)}
+                              <JobStateIcon status={j.status} />
+                            </span>
+                          ) : (
+                            <JobStateIcon status={j.status} />
+                          )}
                         </Td>
                         <Td>
                           <div className="flex min-w-0 flex-col gap-1">
@@ -653,7 +789,12 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
                         <Td className="tabular text-right text-[12.5px] text-fg-muted" title={absolute(j.started_at)}>
                           {j.started_at ? shortWhen(j.started_at) : "—"}
                         </Td>
-                        <Td className="text-right last:pr-6">{jobAction(j)}</Td>
+                        <Td className="text-right last:pr-6">
+                          <span className="inline-flex items-center gap-1">
+                            {jobAction(j)}
+                            {moveMenu(j)}
+                          </span>
+                        </Td>
                       </Tr>
                     );
                   })}
@@ -661,7 +802,15 @@ export function RunsView({ tabs }: { tabs: ReactNode }) {
               </Table>
             </div>
             {list.jobs.length >= 200 && (
-              <p className="px-6 py-3 text-[12.5px] text-fg-muted">Showing the 200 newest runs.</p>
+              <p className="px-6 py-3 text-[12.5px] text-fg-muted">
+                {queueView ? "Showing the next 200 runs in the queue." : "Showing the 200 newest runs."}
+              </p>
+            )}
+            {queueView && rows.some((it) => it.job && movable(it.job)) && (
+              <p className="hidden px-6 py-3 text-[12.5px] text-fg-muted md:block">
+                Workers take queued runs from the top, when they can run their step. Drag a run by its grip to reorder,
+                or focus the grip and press Alt+↑ or Alt+↓.
+              </p>
             )}
           </>
         )}
