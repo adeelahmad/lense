@@ -30,7 +30,7 @@ const ROLES = [
   {
     value: "worker",
     label: "Worker",
-    hint: "Runs jobs (transcription, OCR, model steps) against this install’s database.",
+    hint: "Transcribes and tells voices apart with its own models, against this install’s database, which it can read in full.",
   },
   {
     value: "compute",
@@ -128,8 +128,8 @@ export function NodesBody() {
       {(tokens.data ?? []).length > 0 && <Tokens list={tokens.data ?? []} />}
       <p className="text-[12.5px] leading-[1.45] text-fg-muted">
         Agents do the same over <code className="font-mono">/api/v1/mesh</code>: nodes, tokens and the network. In
-        progress: worker nodes taking this install’s jobs, and compute nodes running the assistant’s code. Today a node
-        joins, renews its certificate and reports here.
+        progress: compute nodes running the assistant’s code. Today a node joins, renews its certificate and reports
+        here, and a worker node takes this install’s jobs.
       </p>
     </>
   );
