@@ -2,7 +2,7 @@
 
 A question streams back server-sent events: ``branch`` (a new version: regenerated, edited, or beside others),
 ``scoped`` (the namespace a conversation over everything was narrowed
-to) or ``suggested`` (namespaces to offer when it isn't clear, new ones included), ``step`` (a tool the assistant used), ``approval`` (work it proposed that waits for you), ``notice``, ``passages`` (the numbered excerpts), ``token`` (answer text), ``error``, ``meta`` (the answer's record) and ``done``.
+to) or ``suggested`` (namespaces to offer when it isn't clear, new ones included), ``step`` (a tool the assistant used), ``approval`` (work it proposed that waits for you), ``notice``, ``passages`` (the numbered excerpts), ``token`` (answer text), ``error``, ``meta`` (the answer's record), ``done`` and, after a first answer, ``title`` (the title Lens gave the conversation).
 The assistant only ever sees, and cites, what the asker can read.
 """
 
@@ -52,6 +52,7 @@ from app.schemas.chats import (
     ChatCreate,
     ChatScope,
     ChatSummary,
+    ChatTitle,
     ChatTools,
     ChatUpdate,
     HeadUpdate,
@@ -96,8 +97,8 @@ def _own_chat(db: DB, cid: int, user: Principal) -> dict[str, Any]:
 def list_chats(user: CurrentUser, db: Db) -> list[ChatSummary]:
     """Your conversations, most recent first."""
     return db.rows(
-        "SELECT record::id(id) AS id, title, scope, model, kind ?? 'chat' AS kind, tools, max_tool_calls, created_at, updated_at "
-        "FROM chat WHERE account = $a ORDER BY updated_at DESC LIMIT 200",
+        "SELECT record::id(id) AS id, title, title_by, scope, model, kind ?? 'chat' AS kind, tools, max_tool_calls, created_at, "
+        "updated_at FROM chat WHERE account = $a ORDER BY updated_at DESC LIMIT 200",
         a=user.id,
     )
 
@@ -171,7 +172,7 @@ def _limit(cfg: dict[str, Any], n: int | None) -> int | None:
 def create_chat(user: Writer, acl: Acl, db: Db, cfg: Cfg, request: Request, body: ChatCreate | None = None) -> Created:
     """A conversation. Its answers may use what `tools` and `max_tool_calls` say, which become your latest choice;
     left out, your latest choice (here or PATCH /chats/{cid}), else Auto: everything you may use, limited by the rounds
-    alone."""
+    alone. A `title` is yours, and kept; without one, Lens titles it after its first answer (ai.auto_title)."""
     body = body or ChatCreate()
     if body.kind == "setup" and not user.admin:
         raise HTTPException(403, "only admins set up the server")
@@ -179,7 +180,7 @@ def create_chat(user: Writer, acl: Acl, db: Db, cfg: Cfg, request: Request, body
     last = chat.remembered_tools(db, user.id) if body.kind == "chat" else {"tools": None, "max_tool_calls": None}
     tools = _tools(_box(db, cfg, user, acl, None, request), body.tools) if "tools" in body.model_fields_set else last["tools"]
     limit = _limit(cfg, body.max_tool_calls) if "max_tool_calls" in body.model_fields_set else _most(cfg, last["max_tool_calls"])
-    cid = chat.create(db, user.id, body.title, _scope(acl, db, body.scope), _model(cfg, body.model), body.kind, tools, limit)
+    cid = chat.create(db, user.id, body.title, _scope(acl, db, body.scope), _model(cfg, body.model), body.kind, tools, limit, "person")
     if body.kind == "chat" and {"tools", "max_tool_calls"} & body.model_fields_set:
         chat.remember_tools(db, user.id, tools, limit)
     return Created(id=cid)
@@ -347,8 +348,8 @@ def update_chat(cid: int, body: ChatUpdate, user: Writer, acl: Acl, db: Db, cfg:
     c = _own_chat(db, cid, user)
     if "model" in body.model_fields_set:
         db.q("UPDATE $r SET model = $m", r=R("chat", cid), m=_model(cfg, body.model))
-    if body.title:
-        db.q("UPDATE $r SET title = $t", r=R("chat", cid), t=body.title[:120])
+    if body.title:  # yours from now on: Lens doesn't retitle it (POST /chats/{cid}/title has it title it again)
+        chat.rename(db, cid, body.title)
     if "scope" in body.model_fields_set:  # replaces the scope as a whole, so narrowing can also be removed
         db.q("UPDATE $r SET scope = $s", r=R("chat", cid), s=_scope(acl, db, body.scope))
     chose = {"tools", "max_tool_calls"} & body.model_fields_set
@@ -359,6 +360,22 @@ def update_chat(cid: int, body: ChatUpdate, user: Writer, acl: Acl, db: Db, cfg:
         if c.get("kind") == "chat":
             chat.remember_tools(db, user.id, tools, limit)
     return Ok()
+
+
+@router.post("/chats/{cid}/title")
+def title_chat(cid: int, user: Writer, db: Db, cfg: Cfg) -> ChatTitle:
+    """Have Lens title a conversation now, from how it starts (the version showing's first messages), even one you
+    named: the title is Lens's again, as after a first answer. Written by the model for summaries (ai.compact_model)
+    when set, else the chat's, in one call counted for the conversation in the activity ledger. 409 before the first
+    question; 400 with no model, or when the model writes no title."""
+    _own_chat(db, cid, user)
+    try:
+        title = chat.retitle(db, cfg, cid)
+    except ValueError as e:
+        raise HTTPException(409, str(e)) from None
+    except (llm.LLMError, activity.OverBudget) as e:
+        raise HTTPException(400, str(e)) from None
+    return ChatTitle(title=title, title_by="assistant")
 
 
 @router.delete("/chats/{cid}")
@@ -493,7 +510,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
     limit = _limit(cfg, body.max_tool_calls) if body.max_tool_calls is not None else _most(cfg, c.get("max_tool_calls"))
     own_scope = await run_in_threadpool(_scope, acl, db, body.scope) if body.scope is not None else None
     record = chat.Record(cfg, model, picked=tools, tool_calls=limit)  # what produced the answer (from here: it times it)
-    title = c["title"]
+    retitle = chat.lens_titles(c)  # whether a first question titles the conversation (nobody has named it)
     page = body.context.model_dump() if body.context else None
     kept = chat.shared_context(page)  # what the question keeps of the page
     if again is not None:
@@ -506,8 +523,8 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         except KeyError:
             raise HTTPException(404, "no such question in this conversation") from None
         under = old.get("parent")
-        if title == old["content"][:80]:  # titled after the question being edited: retitle it after the edit
-            title = "New conversation"
+        if c.get("title_by") is None and c["title"] == old["content"][:80]:  # from before Lens kept who titled it
+            retitle = True
         if page is None and old.get("context"):
             page = kept = old["context"]
     # what the model reads: the question with the page it was asked from, and the files it can import
@@ -542,8 +559,8 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
             return draw_on(past)
 
     def draw_on(past: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], Any]:
-        if not past and again is None and title == "New conversation":
-            db.q("UPDATE $r SET title = $t", r=R("chat", cid), t=q[:80])
+        if not past and again is None and retitle:  # its first words, until the model's title comes after the answer
+            chat.title_from_question(db, cid, q)
         if own_scope is not None:  # this answer's own scope, as asked: nothing is narrowed for it
             return past, chat.retrieve(db, q, readable, own_scope, cfg=cfg), None
         # A conversation over everything gets the namespace its first question is about, when that's clear.
@@ -573,10 +590,12 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
             }
         )
     notice: str | None = None
+    answered: dict[str, Any] = {}  # the answer as saved: its text and outcome
 
     def save(text: str, cited: list[dict[str, Any]], outcome: str = "answered", **kw: Any) -> Iterator[str]:
         """The answer saved with its record: `meta`, then `done` (its id)."""
         wrote = (model or cfg["llm"].get("model")) if llm.configured(cfg) else None
+        answered.update(text=text, outcome=outcome)
         meta = record.meta(db, outcome, f"chat_message:{answer_id}")
         chat.add(
             db, cid, "assistant", text, cited, steps=steps, notice=notice, model=wrote, parent=question, mid=answer_id, meta=meta, **kw
@@ -696,6 +715,10 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                 chat.compact(db, cfg, cid)
             except Exception:  # noqa: BLE001 - tried again after the next answer
                 log.warning("chat %s: couldn't update the summary", cid, exc_info=True)
+        # a first answer titles the conversation: a cheap model call, counted for the conversation, not the answer
+        if not past and again is None and retitle and answered.get("outcome") not in (None, "error"):
+            if titled := chat.title_soon(db, cfg, cid, q, answered["text"]):
+                yield _ev("title", {"title": titled})
 
     # A sync generator: Starlette iterates it in the threadpool, so the domain calls inside don't block the loop.
     return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)

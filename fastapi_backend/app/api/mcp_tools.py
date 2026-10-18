@@ -1850,8 +1850,8 @@ def write_note(
 @tool(
     "list_chats",
     "List your conversations",
-    "Your conversations with Lens's assistant, most recent first: each one's id, title, kind, when it was last added "
-    "to, and its link. Only your own: conversations aren't shared.",
+    "Your conversations with Lens's assistant, most recent first: each one's id, title (`title_by` person when someone "
+    "named it), kind, when it was last added to, and its link. Only your own: conversations aren't shared.",
     Arg("words", "string", "only those whose title has all these words", max_length=200),
     Arg("limit", "integer", "how many", default=20, minimum=1, maximum=200),
     personal=True,
@@ -1866,6 +1866,7 @@ def list_chats(ctx: Context, words: str | None, limit: int) -> dict[str, Any]:
                 {
                     "chat_id": c.id,
                     "title": c.title,
+                    "title_by": c.title_by,
                     "kind": c.kind if c.kind != "chat" else None,
                     "updated_at": c.updated_at,
                     "url": f"{ctx.web}/chat/{c.id}",
@@ -1927,6 +1928,7 @@ def read_chat(ctx: Context, chat_id: int, message: int | None, tree: bool) -> di
         {
             "chat_id": c["id"],
             "title": c["title"],
+            "title_by": c.get("title_by"),
             "url": f"{ctx.web}/chat/{c['id']}",
             "draws_on": chat_export.scope_words(c.get("scope")),
             "model": c.get("model"),
@@ -1935,6 +1937,29 @@ def read_chat(ctx: Context, chat_id: int, message: int | None, tree: bool) -> di
             "tree": [store.clean(n) for n in nodes] if tree else None,
         }
     )
+
+
+@tool(
+    "rename_chat",
+    "Rename a conversation",
+    "Name one of your conversations, or leave `title` out to have Lens title it now from how it starts (one call to the "
+    "model for summaries, counted in the activity ledger). Lens titles a conversation after its first answer on its "
+    "own; one someone named keeps its name. Needs a token with the write scope.",
+    Arg("chat_id", "integer", "the conversation (from list_chats)", required=True),
+    Arg("title", "string", "its new name; left out, Lens writes one", max_length=120),
+    writes=True,
+    personal=True,
+)
+def rename_chat(ctx: Context, chat_id: int, title: str | None) -> dict[str, Any]:
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to rename conversations")
+    chat_routes._own_chat(ctx.db, chat_id, ctx.user)
+    if name := (title or "").strip():
+        chat.rename(ctx.db, chat_id, name)
+        named = {"title": name[:120], "title_by": "person"}
+    else:
+        named = chat_routes.title_chat(chat_id, ctx.user, ctx.db, ctx.cfg).model_dump()
+    return {"chat_id": chat_id, **named, "url": f"{ctx.web}/chat/{chat_id}"}
 
 
 @tool(

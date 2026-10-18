@@ -26,7 +26,7 @@ class ChatScope(RequestModel):
 
 
 class ChatCreate(RequestModel):
-    title: str | None = None
+    title: str | None = Field(None, description="yours, and kept; left out, Lens titles it after its first answer (ai.auto_title)")
     kind: Literal["chat", "setup"] = Field(
         "chat",
         description="setup (admins): the assistant sets the server up with you, and makes the changes it proposes without asking "
@@ -48,7 +48,7 @@ class ChatCreate(RequestModel):
 
 
 class ChatUpdate(RequestModel):
-    title: str | None = None
+    title: str | None = Field(None, description="rename it: yours from then on, so Lens doesn't retitle it (POST /chats/{cid}/title does)")
     scope: ChatScope | None = None
     model: str | None = Field(
         None, description="the model that answers in it (one of GET /chats/capabilities `models`); null: the configured one"
@@ -64,9 +64,17 @@ class ChatUpdate(RequestModel):
     )
 
 
+TitleBy = Literal["assistant", "person"]
+TITLE_BY = (
+    "who titled it: assistant (Lens, from its first question and answer; it titles it again when the first question is "
+    "edited) or person (named by someone, so Lens leaves it); null: from before Lens kept who titled it"
+)
+
+
 class ChatSummary(ResponseModel):
     id: int
     title: str
+    title_by: TitleBy | None = Field(None, description=TITLE_BY)
     kind: Literal["chat", "setup", "bridge"] = Field("chat", description="bridge: a conversation in a chat room, through Matterbridge")
     scope: dict[str, Any] = {}
     model: str | None = Field(None, description="the model chosen for this conversation; null: the configured one")
@@ -74,6 +82,11 @@ class ChatSummary(ResponseModel):
     max_tool_calls: int | None = Field(None, description="at most this many tool calls in each answer; null: no limit but the rounds")
     created_at: str | None = None
     updated_at: str | None = None
+
+
+class ChatTitle(ResponseModel):
+    title: str
+    title_by: TitleBy = Field(description=TITLE_BY)
 
 
 class Passage(ResponseModel):
