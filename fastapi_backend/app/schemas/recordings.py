@@ -202,20 +202,35 @@ class EnhanceMeasured(ResponseModel):
     smallest_face: int | None = Field(None, description="the height of its smallest face, in pixels")
 
 
-class Enhanced(ResponseModel):
-    """What the enhance step found and did (docs/enhance.md): whether the picture looked low quality and why, and the
-    enhanced copy it's read from, if one was made. The original stays as it is."""
+class EnhanceSoundMeasured(ResponseModel):
+    """How good a recording sounded to the enhance step (docs/enhance.md), over 30 ms frames of it at 16 kHz mono."""
 
-    kind: Literal["image"]
-    low: list[Literal["small", "blurry", "noisy", "dull", "small_faces"]] = Field(
-        default_factory=list, description="why it looked low quality; empty when it looked good enough"
+    duration: float = Field(description="seconds")
+    snr_db: float = Field(description="signal to noise: its loudest frames over its quietest, in dB")
+    level_db: float = Field(description="the level of its loud half, dBFS")
+    floor_db: float = Field(description="its noise floor (its quietest frames), dBFS")
+    peak_db: float = Field(description="its peak, dBFS")
+    clipped: float = Field(description="the share of its samples at full scale (0 to 1)")
+
+
+class Enhanced(ResponseModel):
+    """What the enhance step found and did (docs/enhance.md): whether the picture or the sound was low quality and why,
+    and the enhanced copy it's read or transcribed from, if one was made. The original stays as it is."""
+
+    kind: Literal["image", "audio"]
+    low: list[Literal["small", "blurry", "noisy", "dull", "small_faces", "quiet", "clipped"]] = Field(
+        default_factory=list, description="why it looked or sounded low quality; empty when it was good enough"
     )
-    measured: EnhanceMeasured
-    enhanced: bool = Field(description="an enhanced copy was made, and the steps after it read that")
-    engine: str | None = Field(None, description="what enhanced it: classic, or realesr-general-x4v3 (Real-ESRGAN)")
-    scale: float | None = Field(None, description="how many times bigger the copy is")
-    width: int | None = Field(None, description="the copy's width in pixels")
+    measured: EnhanceMeasured | EnhanceSoundMeasured
+    enhanced: bool = Field(description="an enhanced copy was made, and the steps after it read or transcribe that")
+    engine: str | None = Field(
+        None, description="what enhanced it: classic or realesr-general-x4v3 (Real-ESRGAN) for an image, ffmpeg or webrtc for sound"
+    )
+    scale: float | None = Field(None, description="how many times bigger an image's copy is")
+    width: int | None = Field(None, description="an image's copy's width in pixels")
     height: int | None = None
+    filters: list[str] | None = Field(None, description="the ffmpeg filters that made a sound's copy")
+    speech: float | None = Field(None, description="the share of the sound WebRTC's voice detector heard as speech (0 to 1)")
     forced: bool | None = Field(None, description="enhanced on request, whatever the settings and its quality")
     at: str | None = None
     download: str | None = Field(None, description="a signed link to save the enhanced copy")
@@ -327,7 +342,9 @@ class Recording(ResponseModel):
     web: WebPage | None = Field(None, description="a web page captured as a document")
     enrichment: Enrichment | None = Field(None, description="the places and dates anytopdf found (analysis.anytopdf)")
     nsfw: NsfwState | None = Field(None, description="NSFW classification, where it's on in its namespace and it was classified")
-    enhanced: Enhanced | None = Field(None, description="an image the enhance step looked at: what it found, and its enhanced copy")
+    enhanced: Enhanced | None = Field(
+        None, description="an image or a recording the enhance step looked at: what it found, and its enhanced copy"
+    )
 
 
 class Page(ResponseModel):

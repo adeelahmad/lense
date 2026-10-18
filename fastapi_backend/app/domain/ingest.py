@@ -501,10 +501,18 @@ def add_envelope(db, cfg, rid):
 
 def transcribe_one(db, cfg, rid, log=print, engine=None):
     r = db.one("SELECT record::id(id) AS id, space, path, title, remote FROM $r", r=store.R("recording", rid))
+    from . import enhance
+
     engine, t = engine or get_engine(cfg, log), time.time()
-    audio = decode(audio_path(db, cfg, r))
+    own = audio_path(db, cfg, r)
+    heard = enhance.sound(db, cfg, rid, own)  # its enhanced sound, where the enhance step made one
+    audio = decode(heard)
     words = vocabulary.terms(db, cfg, r["space"])
     segs = engine.transcribe(audio, terms=words) if words else engine.transcribe(audio)  # an engine of a plugin may take no hints
+    if heard != own:
+        log("transcribed from its enhanced sound")
+        del audio
+        audio = decode(own)  # the waveform is the original's: what the player plays
     env = envelope(audio)
     del audio
     write_transcript(

@@ -68,6 +68,10 @@ def test_off_by_default_the_original_is_read(client, env, db, cfg):
         "min_sharpness": 100,
         "min_face_px": 64,
         "max_scale": 4,
+        "audio": False,
+        "audio_engine": "ffmpeg",
+        "min_snr_db": 15,
+        "min_level_db": -35,
     }
     assert store.DEFAULTS["workers"]["steps"][0] == "enhance" and jobs.PIPELINE[0] == "enhance"
     rid = _photo(client, env["he"], _scene(160, 120).filter(ImageFilter.GaussianBlur(3)))
@@ -137,7 +141,7 @@ def test_asked_for_it_is_enhanced_whatever_the_settings_and_kept(client, env, db
     drain(db, cfg)
     assert "kept the copy made on request" in _log(db, rid) and enhance.files(cfg, rid)
 
-    # documents and recordings aren't enhanced
+    # documents aren't enhanced
     doc = _upload(client, he, b"%PDF-1.4\n", "x.pdf")["recording"]
     r = client.post(f"/api/v1/recordings/{doc}/enhance", headers=he)
     assert r.status_code == 400 and "only images" in r.json()["detail"]

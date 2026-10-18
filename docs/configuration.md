@@ -113,7 +113,7 @@ Admins can change, in Settings: transcription, speaker separation, speech provid
 provider and key, a local model, the AI assistant, the [code sandbox](assistant.md#code-sandbox), search (word
 search and search by meaning), reports and graph,
 video, OCR, faces and objects, [NSFW classification](nsfw.md), [enhancing
-images](enhance.md), workers, sign-in, components (and the edition, full or
+images and sound](enhance.md), workers, sign-in, components (and the edition, full or
 lean), access and embedding (whether other devices on the network reach Lens, embed frame ancestors, text and transcript
 upload limit, allowed hosts, trusted proxies, session length), remote access, email, chat rooms, notifications,
 automations, telemetry, the Fedora repository, sensors, file shares, uploads, storage, documents, API keys,

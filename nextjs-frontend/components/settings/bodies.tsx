@@ -433,11 +433,18 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             <F ctx={ctx} id="enhance.min_face_px" />
             <F ctx={ctx} id="enhance.max_scale" />
           </div>
+          <F ctx={ctx} id="enhance.audio" />
+          <div className="grid gap-3 sm:grid-cols-3">
+            <F ctx={ctx} id="enhance.audio_engine" />
+            <F ctx={ctx} id="enhance.min_snr_db" />
+            <F ctx={ctx} id="enhance.min_level_db" />
+          </div>
           <p className="text-[12.5px] leading-[1.45] text-fg-muted">
-            The enhanced copy is kept beside the original, encrypted like it, and is what OCR and descriptions read.
-            Real-ESRGAN general x4v3 (BSD-3-Clause) runs with ONNX Runtime on this server: pictures aren’t sent
-            anywhere. Any image can be enhanced on request from its Details tab, even with this off. Audio isn’t
-            enhanced yet.
+            The enhanced copy is kept beside the original, encrypted like it, and is what OCR and descriptions read, or
+            what transcription hears; its times stay in step with the original, and voices are still told apart from the
+            original. Real-ESRGAN general x4v3 (BSD-3-Clause) runs with ONNX Runtime, and WebRTC’s audio processing
+            (Apache-2.0) in Lens, on this server: nothing is sent anywhere. Any image or recording can be enhanced on
+            request from its Details tab, even with this off.
           </p>
         </>
       );

@@ -1,11 +1,12 @@
-"""Enhancing low quality pictures (docs/enhance.md): the enhance step looks at an image before it's read and, when it's
-low quality, makes an enhanced copy that the read step (OCR), faces, objects, NSFW and descriptions then work from. The
-original stays as it is: the copy is a rendition, data_dir/renditions/<resource>-enhanced.jpg (encrypted where the
-namespace's files are), which the asset page offers to save.
+"""Enhancing low quality pictures and sound (docs/enhance.md): the enhance step looks at an image before it's read and,
+when it's low quality, makes an enhanced copy that the read step (OCR), faces, objects, NSFW and descriptions then work
+from. The original stays as it is: the copy is a rendition, data_dir/renditions/<resource>-enhanced.jpg (encrypted
+where the namespace's files are), which the asset page offers to save. Audio and video are listened to the same way
+before they're transcribed (enhance_audio.py), with a copy of their sound, <resource>-enhanced.flac.
 
-Off by default: Settings → Enhance, `enhance.images`. Run with `force` (an agent's `enhance` tool, POST
-/resources/{rid}/enhance, the `enhance` automation action, or a pipeline step that says so), it enhances an image
-whatever the settings and its quality.
+Off by default: Settings → Enhance, `enhance.images` and `enhance.audio`. Run with `force` (an agent's `enhance` tool,
+POST /resources/{rid}/enhance, the `enhance` automation action, or a pipeline step that says so), it enhances an image
+or a recording whatever the settings and its quality.
 
 What counts as low quality (each a reason kept in recording.enhanced.low):
 - `small`: its shorter side is under enhance.min_side pixels.
@@ -26,9 +27,10 @@ times and MAX_SIDE pixels. The engine (`enhance.image_engine`):
   the result is brought to the size wanted. components.py fetches it and ONNX Runtime the first time the step runs with
   it chosen. A picture over REAL_MAX_PIXELS goes to classic instead, so a small machine isn't swamped.
 
-What a resource keeps (recording.enhanced): `kind`, `low` (the reasons), `measured` (width, height, sharpness, noise,
-contrast, brightness, and faces and smallest_face where they were looked for), `enhanced` (whether a copy was made),
-and for a copy its `engine`, `scale`, `width`, `height` and `forced`; `at`.
+What a resource keeps (recording.enhanced): `kind` (image or audio), `low` (the reasons), `measured` (for an image its
+width, height, sharpness, noise, contrast, brightness, and faces and smallest_face where they were looked for; for
+sound what enhance_audio.measure says), `enhanced` (whether a copy was made), and for a copy its `engine`, `forced`, an
+image's `scale`, `width` and `height`, and the sound's `filters` or `speech`; `at`.
 """
 
 from __future__ import annotations
@@ -40,7 +42,7 @@ import threading
 
 import numpy as np
 
-from . import convert, ingest, jobs, keyring, store
+from . import convert, enhance_audio, ingest, jobs, keyring, store
 
 R = store.R
 ENGINES = ("classic", "realesrgan")
@@ -55,8 +57,23 @@ NOISE = 6.0  # noise (levels out of 255) over this is noisy
 DULL = 30.0  # a standard deviation of tones under this is dull
 MIN_SCALE = 1.1  # enlarging less than this isn't worth it
 QUALITY = 92  # JPEG quality of the enhanced copy
-LIMITS = {"min_side": (64, 4000), "min_sharpness": (0, 10000), "min_face_px": (0, 1024), "max_scale": (1, 4)}
-REASONS = {"small": "small", "blurry": "blurry", "noisy": "noisy", "dull": "low contrast", "small_faces": "faces too small"}
+LIMITS = {
+    "min_side": (64, 4000),
+    "min_sharpness": (0, 10000),
+    "min_face_px": (0, 1024),
+    "max_scale": (1, 4),
+    "min_snr_db": (0, 60),
+    "min_level_db": (-70, 0),
+}
+REASONS = {
+    "small": "small",
+    "blurry": "blurry",
+    "noisy": "noisy",
+    "dull": "low contrast",
+    "small_faces": "faces too small",
+    **enhance_audio.REASONS,
+}
+KINDS = {"image": ".jpg", "audio": ".flac"}  # what's enhanced, and its copy's extension
 _SESSIONS: dict[str, object] = {}
 _LOCK = threading.Lock()
 
@@ -67,13 +84,17 @@ def options(cfg):
 
 def check(key, value):
     """A setting's value, checked: ValueError naming the problem."""
-    if key in ("images", "only_faces"):
+    if key in ("images", "only_faces", "audio"):
         if not isinstance(value, bool):
             raise ValueError(f"enhance.{key} is true or false")
         return value
     if key == "image_engine":
         if value not in ENGINES:
             raise ValueError(f"enhance.image_engine is one of {', '.join(ENGINES)}")
+        return value
+    if key == "audio_engine":
+        if value not in enhance_audio.ENGINES:
+            raise ValueError(f"enhance.audio_engine is one of {', '.join(enhance_audio.ENGINES)}")
         return value
     if key in LIMITS:
         lo, hi = LIMITS[key]
@@ -90,19 +111,24 @@ def wants_faces(cfg):
 
 
 # ---------- the copy ----------
-def enhanced_path(cfg, rid):
-    return pathlib.Path(cfg["data_dir"]) / "renditions" / f"{int(rid)}-enhanced.jpg"
+def enhanced_path(cfg, rid, kind="image"):
+    return pathlib.Path(cfg["data_dir"]) / "renditions" / f"{int(rid)}-enhanced{KINDS[kind]}"
 
 
 def files(cfg, rid):
     """The enhanced copies a resource has, as paths."""
-    p = enhanced_path(cfg, rid)
-    return [p] if p.is_file() else []
+    return [p for p in (enhanced_path(cfg, rid, k) for k in KINDS) if p.is_file()]
 
 
 def picture(db, cfg, rid, path):
     """The file an image is read from: its enhanced copy when the enhance step made one, else its own file."""
     p = enhanced_path(cfg, rid)
+    return keyring.working_copy(db, cfg, str(p)) if p.is_file() else path
+
+
+def sound(db, cfg, rid, path):
+    """The file a recording is transcribed from: its enhanced sound when the enhance step made it, else its own file."""
+    p = enhanced_path(cfg, rid, "audio")
     return keyring.working_copy(db, cfg, str(p)) if p.is_file() else path
 
 
@@ -314,11 +340,14 @@ def _said(m):
 
 
 def step(db, cfg, rid, say, spec=None):
-    """The enhance step: an image that looks low quality gets an enhanced copy, which it's read from."""
-    rec = db.one("SELECT space, path, remote, source, enhanced FROM $r", r=R("recording", rid)) or {}
+    """The enhance step: an image that looks low quality gets an enhanced copy, which it's read from; a recording that
+    sounds low quality, a copy of its sound, which it's transcribed from."""
+    rec = db.one("SELECT space, path, remote, source, enhanced, engine, status, web FROM $r", r=R("recording", rid)) or {}
     force = bool((spec or {}).get("force"))
+    if rec.get("source") == "audio":
+        return _sound_step(db, cfg, rid, rec, say, force)
     if rec.get("source") != "image":
-        raise jobs.Skip("only images are enhanced so far")
+        raise jobs.Skip("only images, audio and video are enhanced")
     opts = options(cfg)
     if not (opts["images"] or force):
         if (rec.get("enhanced") or {}).get("forced"):  # someone asked for this one: kept
@@ -379,6 +408,55 @@ def step(db, cfg, rid, say, spec=None):
     say(f"enhanced ({why}): {m['width']}×{m['height']} to {out.width}×{out.height} by {engine}")
 
 
+def _sound_step(db, cfg, rid, rec, say, force):
+    """The enhance step on audio or a video's soundtrack (enhance_audio.py)."""
+    opts = options(cfg)
+    if not (opts["audio"] or force):
+        if (rec.get("enhanced") or {}).get("forced"):
+            raise jobs.Skip("enhancing sound is off (Settings → Enhance); kept the copy made on request")
+        clear(db, cfg, rid)
+        raise jobs.Skip("enhancing sound is off (Settings → Enhance)")
+    if str(rec.get("engine") or "").startswith("import:") and rec.get("status") != "new" and not force:
+        raise jobs.Skip("the transcript came with the media, so there's nothing to transcribe from a copy")
+    path = None if (rec.get("web") or {}).get("media") and not rec.get("path") else ingest.audio_path(db, cfg, rec)
+    if not path:
+        raise jobs.Skip("its media isn't downloaded yet (the transcribe step downloads it): enhance it on request after")
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"its file isn't there ({rec.get('path')})")
+    m = enhance_audio.measure(path)
+    now = store.now()
+    if enhance_audio.silent(m):
+        clear(db, cfg, rid)
+        raise jobs.Skip(f"it's silent (its loud half is at {m['level_db']:g} dBFS): nothing to enhance")
+    low = enhance_audio.assess(m, opts)
+    if not low and not force:
+        for p in files(cfg, rid):
+            p.unlink(missing_ok=True)
+        _keep(db, rid, {"kind": "audio", "low": [], "measured": m, "enhanced": False, "at": now})
+        return say(f"good enough as it is ({enhance_audio.said(m)})")
+    e = {"kind": "audio", "low": low, "measured": m, "enhanced": True, "forced": force or None, "at": now}
+    engine = opts["audio_engine"]
+    if engine == "webrtc" and not enhance_audio.webrtc_installed():
+        say("WebRTC's audio processing isn't here yet (it's fetched the first time the step runs with it chosen): enhanced by ffmpeg")
+        engine = "ffmpeg"
+    with keyring.scratch(cfg) as d:
+        out = d / "enhanced.flac"
+        if engine == "webrtc":
+            e["speech"] = enhance_audio.run_webrtc(path, out, low, m)
+        else:
+            e["filters"] = enhance_audio.run_ffmpeg(path, out, low, m)
+        keyring.keep(db, cfg, rec["space"], enhanced_path(cfg, rid, "audio"), _chunks(out))
+    _keep(db, rid, {**e, "engine": engine})
+    why = ", ".join(REASONS[x] for x in low) if low else "on request"
+    done = f"{', '.join(e['filters'])}" if "filters" in e else f"WebRTC ({round(e['speech'] * 100)}% of it speech)"
+    say(f"enhanced its sound ({why}; {enhance_audio.said(m)}) by {done}")
+
+
+def _chunks(path, size=1 << 20):
+    with open(path, "rb") as f:
+        yield from iter(lambda: f.read(size), b"")
+
+
 def _open(path):
     """An image file as one flat RGB picture (documents.py's way: its EXIF orientation, transparency on white), or
     None when it has several frames."""
@@ -401,15 +479,15 @@ def _open(path):
 
 
 def queue(db, rid, by=None):
-    """Enhance an image whatever the settings and its quality, then run what reads it again: the steps of its pipeline
-    after enhance (the read step, faces, objects, …). The job's id."""
+    """Enhance an image or a recording whatever the settings and its quality, then run what reads it again: the steps
+    of its pipeline after enhance (the read step, faces, objects, …; or transcribe and what follows). The job's id."""
     from . import content_types, pipelines
 
     rec = db.one("SELECT space, source FROM $r", r=R("recording", rid))
     if not rec:
         raise KeyError(rid)
-    if rec.get("source") != "image":
-        raise ValueError("only images are enhanced so far")
+    if rec.get("source") not in jobs.ENHANCED:
+        raise ValueError("only images, audio and video are enhanced")
     steps, _ = pipelines.resolve(db, rec["space"], None, content_types.of_recording(db, rid)[0])
     rest = [s for s in steps if (s if isinstance(s, str) else s.get("type")) != "enhance"]
     return jobs.add_steps(db, rid, [{"type": "enhance", "force": True}, *rest], by)

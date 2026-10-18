@@ -1,8 +1,9 @@
 """Pipelines: named, versioned lists of steps a recording goes through. Each namespace can choose its default; without
-one, recordings get the standard pipeline. Steps: enhance (an enhanced copy of a low quality image, enhance.py, which
-the steps after it read), transcribe (speech to text), read (a document's or an
-image's pages and their text), convert (new assets made from one: a video's soundtrack as audio, a document's pages
-as images, conversions.py), diarize, shots, ocr, faces, objects, nsfw (NSFW classification, nsfw.py), describe,
+one, recordings get the standard pipeline. Steps: enhance (an enhanced copy of a low quality image or of a
+recording's sound, enhance.py, which the steps after it read or transcribe), transcribe (speech to text), read (a
+document's or an image's pages and their text), convert (new assets made from one: a video's soundtrack as audio, a
+document's pages as images, conversions.py), diarize, shots, ocr, faces, objects, nsfw (NSFW classification, nsfw.py),
+describe,
 clean (a transcript tidied before analysis, cleanup.py), analyze, embed (passages for search by meaning, semantic.py),
 summarize, llm (a prompt template whose structured result is saved as a named output), spec (a technical spec from the
 transcript, written to a note linked to the recording, specs.py), report (built in, or from a report template) and

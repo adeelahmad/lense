@@ -72,6 +72,9 @@ web = ["ddgs>=9.16,<10"]
 # auto scaling onto AWS EC2 (scaling_aws.py): botocore (Apache-2.0); fetched when the first AWS provider is saved in
 # Settings › Auto scaling
 aws = ["botocore>=1.43.113"]
+# WebRTC's noise suppression and automatic gain for enhancing sound (enhance.audio_engine "webrtc"): webrtc-noise-gain
+# (Apache-2.0), wheels for Linux on x86-64 and ARM64 only
+webrtc = ["webrtc-noise-gain>=1.3,<2; sys_platform == 'linux'"]
 # Outlook .msg emails (extract-msg is GPL-3.0; .eml needs nothing)
 msg = ["extract-msg"]
 # secrets read from a Vaultwarden or Bitwarden vault (vaultwarden_secrets.py): python-vaultwarden (Apache-2.0); fetched

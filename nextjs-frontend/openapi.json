@@ -11125,7 +11125,7 @@
           "resources"
         ],
         "summary": "Enhance Recording",
-        "description": "Enhance an image whatever the settings and its quality (docs/enhance.md): an enhanced copy is made, and its\npipeline's steps after enhance (reading its text, faces, objects, \u2026) run again on that copy. The original stays as\nit is. 400 for anything but an image. Audited as `recording.enhance`.",
+        "description": "Enhance an image, or a recording's sound, whatever the settings and its quality (docs/enhance.md): an enhanced\ncopy is made, and its pipeline's steps after enhance (reading an image's text, faces, objects, \u2026; transcribing a\nrecording and what follows) run again on that copy. The original stays as it is. 400 for a document or a\ntranscript. Audited as `recording.enhance`.",
         "operationId": "enhance_recording",
         "parameters": [
           {
@@ -21106,7 +21106,7 @@
           "video"
         ],
         "summary": "Get Enhanced",
-        "description": "The enhanced copy the enhance step made of a low quality image (docs/enhance.md), to save. Members of its\nnamespace only (a bearer token, or a signed link the API gave one): visitors get its pages, with faces pixelated\nwhere the namespace does that.",
+        "description": "The enhanced copy the enhance step made of a low quality image (a JPEG) or a recording's sound (FLAC, 16 kHz\nmono) (docs/enhance.md), to save. Members of its namespace only (a bearer token, or a signed link the API gave\none): visitors get its pages or its media, with faces pixelated where the namespace does that.",
         "operationId": "get_enhanced",
         "parameters": [
           {
@@ -21133,7 +21133,8 @@
           "200": {
             "description": "Successful Response",
             "content": {
-              "image/jpeg": {}
+              "image/jpeg": {},
+              "audio/flac": {}
             }
           },
           "422": {
@@ -45751,11 +45752,60 @@
         "title": "EnhanceMeasured",
         "description": "How good a picture looked to the enhance step (docs/enhance.md)."
       },
+      "EnhanceSoundMeasured": {
+        "properties": {
+          "duration": {
+            "type": "number",
+            "title": "Duration",
+            "description": "seconds"
+          },
+          "snr_db": {
+            "type": "number",
+            "title": "Snr Db",
+            "description": "signal to noise: its loudest frames over its quietest, in dB"
+          },
+          "level_db": {
+            "type": "number",
+            "title": "Level Db",
+            "description": "the level of its loud half, dBFS"
+          },
+          "floor_db": {
+            "type": "number",
+            "title": "Floor Db",
+            "description": "its noise floor (its quietest frames), dBFS"
+          },
+          "peak_db": {
+            "type": "number",
+            "title": "Peak Db",
+            "description": "its peak, dBFS"
+          },
+          "clipped": {
+            "type": "number",
+            "title": "Clipped",
+            "description": "the share of its samples at full scale (0 to 1)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "duration",
+          "snr_db",
+          "level_db",
+          "floor_db",
+          "peak_db",
+          "clipped"
+        ],
+        "title": "EnhanceSoundMeasured",
+        "description": "How good a recording sounded to the enhance step (docs/enhance.md), over 30 ms frames of it at 16 kHz mono."
+      },
       "Enhanced": {
         "properties": {
           "kind": {
             "type": "string",
-            "const": "image",
+            "enum": [
+              "image",
+              "audio"
+            ],
             "title": "Kind"
           },
           "low": {
@@ -45766,20 +45816,30 @@
                 "blurry",
                 "noisy",
                 "dull",
-                "small_faces"
+                "small_faces",
+                "quiet",
+                "clipped"
               ]
             },
             "type": "array",
             "title": "Low",
-            "description": "why it looked low quality; empty when it looked good enough"
+            "description": "why it looked or sounded low quality; empty when it was good enough"
           },
           "measured": {
-            "$ref": "#/components/schemas/EnhanceMeasured"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnhanceMeasured"
+              },
+              {
+                "$ref": "#/components/schemas/EnhanceSoundMeasured"
+              }
+            ],
+            "title": "Measured"
           },
           "enhanced": {
             "type": "boolean",
             "title": "Enhanced",
-            "description": "an enhanced copy was made, and the steps after it read that"
+            "description": "an enhanced copy was made, and the steps after it read or transcribe that"
           },
           "engine": {
             "anyOf": [
@@ -45791,7 +45851,7 @@
               }
             ],
             "title": "Engine",
-            "description": "what enhanced it: classic, or realesr-general-x4v3 (Real-ESRGAN)"
+            "description": "what enhanced it: classic or realesr-general-x4v3 (Real-ESRGAN) for an image, ffmpeg or webrtc for sound"
           },
           "scale": {
             "anyOf": [
@@ -45803,7 +45863,7 @@
               }
             ],
             "title": "Scale",
-            "description": "how many times bigger the copy is"
+            "description": "how many times bigger an image's copy is"
           },
           "width": {
             "anyOf": [
@@ -45815,7 +45875,7 @@
               }
             ],
             "title": "Width",
-            "description": "the copy's width in pixels"
+            "description": "an image's copy's width in pixels"
           },
           "height": {
             "anyOf": [
@@ -45827,6 +45887,33 @@
               }
             ],
             "title": "Height"
+          },
+          "filters": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filters",
+            "description": "the ffmpeg filters that made a sound's copy"
+          },
+          "speech": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speech",
+            "description": "the share of the sound WebRTC's voice detector heard as speech (0 to 1)"
           },
           "forced": {
             "anyOf": [
@@ -45872,7 +45959,7 @@
           "enhanced"
         ],
         "title": "Enhanced",
-        "description": "What the enhance step found and did (docs/enhance.md): whether the picture looked low quality and why, and the\nenhanced copy it's read from, if one was made. The original stays as it is."
+        "description": "What the enhance step found and did (docs/enhance.md): whether the picture or the sound was low quality and why,\nand the enhanced copy it's read or transcribed from, if one was made. The original stays as it is."
       },
       "EnrichedDate": {
         "properties": {
@@ -68431,7 +68518,7 @@
                 "type": "null"
               }
             ],
-            "description": "an image the enhance step looked at: what it found, and its enhanced copy"
+            "description": "an image or a recording the enhance step looked at: what it found, and its enhanced copy"
           }
         },
         "additionalProperties": true,

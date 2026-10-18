@@ -1399,16 +1399,18 @@ Audited as `recording.nsfw`. `GET /resources/nsfw` (`ns` for one namespace) says
 you read, how many resources are `flagged`, and how many of those the Library leaves out (`hidden`). Search hits and
 photo search results carry `nsfw: true` for the ones the web app blurs.
 
-### Enhancing images
+### Enhancing images and sound
 
-The `enhance` step comes first in the standard pipeline: where [enhancing images](enhance.md) is on (off by
-default), it measures an image and, when it's small, blurry, noisy, dull or has small faces, keeps an enhanced copy
-that `read` and the steps after it work from; the original stays as it is. Other resources skip it. A resource
-carries `enhanced`: `{kind, low, measured, enhanced, engine, scale, width, height, forced, at, download}` (`download`
-a signed link to the copy), or `null` until the step looked at it. `POST /resources/{rid}/enhance` (the process
-permission) enhances an image whatever the settings and its quality and runs its pipeline's later steps again,
-answering the `job`; 400 for anything but an image. Audited as `recording.enhance`. `GET /resources/{rid}/enhanced`
-is the copy, for members of its namespace.
+The `enhance` step comes first in the standard pipeline: where [enhancing](enhance.md) is on (off by default), it
+measures an image and, when it's small, blurry, noisy, dull or has small faces, keeps an enhanced copy that `read`
+and the steps after it work from; it listens to audio and video and, when the sound is noisy, quiet or clipped,
+keeps a cleaned-up copy (FLAC, 16 kHz mono, in step with the original) that `transcribe` hears. The original stays
+as it is. Documents and transcripts skip it. A resource carries `enhanced`: `{kind, low, measured, enhanced, engine,
+forced, at, download}`, with `scale`, `width` and `height` for an image and `filters` or `speech` for sound
+(`download` a signed link to the copy), or `null` until the step looked at it. `POST /resources/{rid}/enhance` (the
+process permission) enhances an image or a recording whatever the settings and its quality and runs its pipeline's
+later steps again, answering the `job`; 400 for a document or a transcript. Audited as `recording.enhance`.
+`GET /resources/{rid}/enhanced` is the copy, for members of its namespace.
 
 ### Descriptions
 

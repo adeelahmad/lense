@@ -6002,9 +6002,10 @@ export class Resources {
   /**
    * Enhance Recording
    *
-   * Enhance an image whatever the settings and its quality (docs/enhance.md): an enhanced copy is made, and its
-   * pipeline's steps after enhance (reading its text, faces, objects, …) run again on that copy. The original stays as
-   * it is. 400 for anything but an image. Audited as `recording.enhance`.
+   * Enhance an image, or a recording's sound, whatever the settings and its quality (docs/enhance.md): an enhanced
+   * copy is made, and its pipeline's steps after enhance (reading an image's text, faces, objects, …; transcribing a
+   * recording and what follows) run again on that copy. The original stays as it is. 400 for a document or a
+   * transcript. Audited as `recording.enhance`.
    */
   public static enhanceRecording<ThrowOnError extends boolean = false>(
     options: Options<EnhanceRecordingData, ThrowOnError>,
@@ -8951,9 +8952,9 @@ export class Video {
   /**
    * Get Enhanced
    *
-   * The enhanced copy the enhance step made of a low quality image (docs/enhance.md), to save. Members of its
-   * namespace only (a bearer token, or a signed link the API gave one): visitors get its pages, with faces pixelated
-   * where the namespace does that.
+   * The enhanced copy the enhance step made of a low quality image (a JPEG) or a recording's sound (FLAC, 16 kHz
+   * mono) (docs/enhance.md), to save. Members of its namespace only (a bearer token, or a signed link the API gave
+   * one): visitors get its pages or its media, with faces pixelated where the namespace does that.
    */
   public static getEnhanced<ThrowOnError extends boolean = false>(
     options: Options<GetEnhancedData, ThrowOnError>,

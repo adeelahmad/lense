@@ -2068,6 +2068,9 @@ voices = [
 web = [
     { name = "ddgs" },
 ]
+webrtc = [
+    { name = "webrtc-noise-gain", marker = "sys_platform == 'linux'" },
+]
 whisper = [
     { name = "faster-whisper" },
 ]
@@ -2156,8 +2159,9 @@ requires-dist = [
     { name = "transformers", marker = "extra == 'moondream'" },
     { name = "transformers", marker = "extra == 'punctuation'" },
     { name = "webauthn", specifier = ">=3.0.1,<4" },
+    { name = "webrtc-noise-gain", marker = "sys_platform == 'linux' and extra == 'webrtc'", specifier = ">=1.3,<2" },
 ]
-provides-extras = ["sensevoice", "whisper", "mlx", "laya", "voices", "pyannote", "faces", "mac-ocr", "rapidocr", "doctr", "insightface", "objects", "punctuation", "spacy", "injection", "florence", "moondream", "validate", "smb", "sandbox", "web", "aws", "msg", "vaultwarden"]
+provides-extras = ["sensevoice", "whisper", "mlx", "laya", "voices", "pyannote", "faces", "mac-ocr", "rapidocr", "doctr", "insightface", "objects", "punctuation", "spacy", "injection", "florence", "moondream", "validate", "smb", "sandbox", "web", "aws", "webrtc", "msg", "vaultwarden"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -5843,6 +5847,16 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d5/a0/8fd707bcb776a7be556bad06a2ea5fb9bd519df78ef8e26f70ccf0f38bff/webencodings-0.6.1.tar.gz", hash = "sha256:565f9ad031c702dae404e27a099e3e09186a3ab1b9520f06d215502b651fd910", size = 15001, upload-time = "2026-08-15T14:22:57.549Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/77/c6/040cbc72480d789a5f40d63fb484d3106554c4dfa2d2b70ad5022057750f/webencodings-0.6.1-py3-none-any.whl", hash = "sha256:7fab6269c8bf237c657876b52058ccb182e861518d1c695c1a9aaa8c1c105d5b", size = 8745, upload-time = "2026-08-15T14:22:56.31Z" },
+]
+
+[[package]]
+name = "webrtc-noise-gain"
+version = "1.3.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e5/70/675fc3b28b7212f32959dd222bce6e753f235a9fcccc924826e135302e66/webrtc_noise_gain-1.3.0.tar.gz", hash = "sha256:67c96337db3b074a7a5dce0936c98a93886f22a0724e4387198ae86f31914643", size = 3073970, upload-time = "2026-05-28T18:24:57.967Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bc/e2/711f829859a869aeda2dd58bc9eed32261418c5d1942b2d7929056fe74a0/webrtc_noise_gain-1.3.0-cp39-abi3-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:ba7df808439bae994459be7e916802e384ffa4f0e750035b5284f7fe4ff466dc", size = 8803028, upload-time = "2026-05-28T18:24:52.933Z" },
+    { url = "https://files.pythonhosted.org/packages/3c/0f/b475e7c58de013d634df63da60e3d9a81601d8416c212739ab0eeb21e478/webrtc_noise_gain-1.3.0-cp39-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:3d052501c2cbe4948101e011450e93bff22b800f89014f192dfb861e319522a3", size = 8949702, upload-time = "2026-05-28T18:24:55.519Z" },
 ]
 
 [[package]]

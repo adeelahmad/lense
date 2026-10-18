@@ -56,7 +56,8 @@ def _spec(s):
 
 
 def _enhance(db, cfg, rid, say, spec=None):
-    """A low quality image's enhanced copy, which the steps after it read (enhance.py)."""
+    """A low quality image's enhanced copy, which the steps after it read, or a recording's enhanced sound, which it's
+    transcribed from (enhance.py)."""
     from . import enhance
 
     enhance.step(db, cfg, rid, say, spec)
@@ -258,15 +259,15 @@ STEPS = {
 
 
 # The sources the enhance step works on (docs/enhance.md).
-ENHANCED = {"image"}
+ENHANCED = {"image", "audio"}
 
 
 def for_source(steps, source):
     """A pipeline's steps as they run on a resource of this source: a document or an image is read, not transcribed,
     and has no voices to tell apart, so a speech or voice model is never fetched for it. An imported transcript has
     nothing to transcribe and its speakers came with it, so it skips both steps too (unless they're all that was asked
-    for: those still run, to say why there's nothing to do). Only images are enhanced so far, so the others skip enhance
-    the same way."""
+    for: those still run, to say why there's nothing to do). Only images and media (audio and video) are enhanced, so
+    the others skip enhance the same way."""
     if source not in ENHANCED:
         steps = [s for s in steps if s.get("type") != "enhance"] or steps
     if source == "transcript":

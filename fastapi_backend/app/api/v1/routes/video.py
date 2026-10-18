@@ -81,19 +81,21 @@ def get_pdf(rid: int, request: Request, acl: Acl, db: Db, cfg: Cfg, s: str = "")
     return stored_file(db, cfg, path, request, "application/pdf", f"{name}.pdf", files.HEADERS)
 
 
-@router.get("/recordings/{rid}/enhanced", response_class=FileResponse, responses={200: {"content": {"image/jpeg": {}}}})
+@router.get("/recordings/{rid}/enhanced", response_class=FileResponse, responses={200: {"content": {"image/jpeg": {}, "audio/flac": {}}}})
 def get_enhanced(rid: int, request: Request, acl: Acl, db: Db, cfg: Cfg, s: str = "") -> Response:
-    """The enhanced copy the enhance step made of a low quality image (docs/enhance.md), to save. Members of its
-    namespace only (a bearer token, or a signed link the API gave one): visitors get its pages, with faces pixelated
-    where the namespace does that."""
+    """The enhanced copy the enhance step made of a low quality image (a JPEG) or a recording's sound (FLAC, 16 kHz
+    mono) (docs/enhance.md), to save. Members of its namespace only (a bearer token, or a signed link the API gave
+    one): visitors get its pages or its media, with faces pixelated where the namespace does that."""
     rec = acl.recording(rid, share=s)
     if not acl.member(rec):
         raise HTTPException(404, "not found")
-    path = enhance.enhanced_path(cfg, rid)
+    kind = "audio" if rec.get("source") == "audio" else "image"
+    path = enhance.enhanced_path(cfg, rid, kind)
     if not path.is_file():
         raise HTTPException(404, "not found")
-    name = pathlib.PurePosixPath(str((rec.get("remote") or {}).get("path") or rec.get("path") or "image")).stem or "image"
-    return stored_file(db, cfg, path, request, "image/jpeg", f"{name}-enhanced.jpg", files.HEADERS)
+    name = pathlib.PurePosixPath(str((rec.get("remote") or {}).get("path") or rec.get("path") or kind)).stem or kind
+    ext = enhance.KINDS[kind]
+    return stored_file(db, cfg, path, request, "audio/flac" if kind == "audio" else "image/jpeg", f"{name}-enhanced{ext}", files.HEADERS)
 
 
 @router.get("/recordings/{rid}/frames/{name}", response_class=FileResponse, responses={200: {"content": {"image/jpeg": {}}}})

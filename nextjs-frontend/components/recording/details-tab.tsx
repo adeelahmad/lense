@@ -105,7 +105,14 @@ export function DetailsTab() {
     ["Fingerprint", rec.fingerprint ?? null, true],
   ];
   const processing: Row[] = [
-    ["Enhance", model.media.kind === "image" ? <EnhanceDetail key="enhance" /> : null],
+    [
+      "Enhance",
+      model.media.kind === "image" ? (
+        <EnhanceDetail key="enhance" />
+      ) : !paged && model.audio ? (
+        <EnhanceDetail key="enhance" sound />
+      ) : null,
+    ],
     [
       "Transcribe",
       rec.transcribed_at

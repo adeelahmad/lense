@@ -178,6 +178,7 @@ ENUMS = {
     ("video", "face_engine"): {"opencv", "insightface", "anytopdf", "none"},
     ("video", "object_engine"): {"yolox", "ultralytics", "anytopdf", "off"},
     ("enhance", "image_engine"): {"classic", "realesrgan"},
+    ("enhance", "audio_engine"): {"ffmpeg", "webrtc"},
     ("decisions", "engine"): {"auto", "jev", "laya", "llm", "off"},
     ("voice", "input"): {"auto", "server", "browser"},
     ("voice", "stt"): {"same", "sensevoice", "whisper", "mlx-whisper", "openai", "elevenlabs", "assemblyai", "deepgram"},
@@ -581,7 +582,7 @@ def _check(section, key, value, default):
         return _component_setting(key, value)
     if section == "nsfw":
         return _nsfw_setting(key, value)
-    if section == "enhance" and key != "image_engine":
+    if section == "enhance" and key not in ("image_engine", "audio_engine"):
         from . import enhance
 
         return enhance.check(key, value)

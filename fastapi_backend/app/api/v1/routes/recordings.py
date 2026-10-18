@@ -637,9 +637,10 @@ def reprocess_recording(rid: int, acl: Acl, user: Writer, db: Db, body: Reproces
 
 @router.post("/{rid}/enhance")
 def enhance_recording(rid: int, acl: Acl, user: Writer, db: Db) -> JobQueued:
-    """Enhance an image whatever the settings and its quality (docs/enhance.md): an enhanced copy is made, and its
-    pipeline's steps after enhance (reading its text, faces, objects, …) run again on that copy. The original stays as
-    it is. 400 for anything but an image. Audited as `recording.enhance`."""
+    """Enhance an image, or a recording's sound, whatever the settings and its quality (docs/enhance.md): an enhanced
+    copy is made, and its pipeline's steps after enhance (reading an image's text, faces, objects, …; transcribing a
+    recording and what follows) run again on that copy. The original stays as it is. 400 for a document or a
+    transcript. Audited as `recording.enhance`."""
     acl.recording(rid, "process")
     with domain_errors():
         job = enhance.queue(db, rid, user.email)

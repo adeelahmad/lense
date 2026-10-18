@@ -67,11 +67,13 @@ def _enhance(db, cfg, intent, user, dry):
     p = intent["params"]
     acc = actions.person(db, intent, user)
     rec = actions.asset_for(db, intent, acc, actions.asset_id(p.get("asset")), "process")
-    if (db.one("SELECT source FROM $r", r=store.R("recording", rec["id"])) or {}).get("source") != "image":
-        raise ValueError(f"{rec.get('title') or rec['id']} isn't an image: only images are enhanced so far")
+    source = (db.one("SELECT source FROM $r", r=store.R("recording", rec["id"])) or {}).get("source")
+    if source not in jobs.ENHANCED:
+        raise ValueError(f"{rec.get('title') or rec['id']} isn't an image, audio or video: only those are enhanced")
     out = {"asset": rec["id"]}
     if dry:
-        return {**out, "job": None, "would": f"enhance {rec.get('title') or rec['id']} and read it again"}
+        again = "read it again" if source == "image" else "transcribe it again"
+        return {**out, "job": None, "would": f"enhance {rec.get('title') or rec['id']} and {again}"}
     return {**out, "job": enhance.queue(db, rec["id"], actions.actor(db, intent)["email"])}
 
 
@@ -161,11 +163,12 @@ actions.register(
 actions.register(
     actions.ActionSpec(
         name="enhance",
-        label="Enhance an image",
+        label="Enhance an image or a recording",
         group="Run",
-        description="Makes an enhanced copy of an image (bigger, sharper, less noisy) and reads it again from that copy; "
-        "the original stays.",
-        params={"type": "object", "properties": {"asset": actions.asset_param("Image")}},
+        description="Makes an enhanced copy of an image (bigger, sharper, less noisy) and reads it again from that copy, "
+        "or of a recording's sound (less noise, an even level, clipping repaired) and transcribes it again; the original "
+        "stays.",
+        params={"type": "object", "properties": {"asset": actions.asset_param("Image, audio or video")}},
         effect="lens",
         subject=actions.asset_subject,
         output={"type": "object", "properties": {"job": {"type": "integer"}, "asset": {"type": "integer"}}},

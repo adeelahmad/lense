@@ -213,7 +213,7 @@ export const SECTIONS: SectionSpec[] = [
     label: "Enhance",
     backend: ["enhance"],
     description:
-      "Find small, blurry, noisy or dull images and keep a sharper copy that Lens reads instead. The original stays as it is. Off until you turn it on.",
+      "Find small, blurry, noisy or dull images, and noisy, quiet or clipped sound, and keep a better copy that Lens reads or transcribes instead. The original stays as it is. Off until you turn it on.",
   },
   {
     id: "workers",
@@ -2673,6 +2673,42 @@ export const FIELDS: FieldSpec[] = [
     min: 1,
     max: 4,
     hint: "Times the original size, and never past 4000 pixels a side",
+  },
+  {
+    section: "enhance",
+    key: "audio",
+    label: "Enhance low quality sound",
+    kind: "switch",
+    hint: "Keeps a cleaned-up copy of noisy, quiet or clipped audio and video sound and transcribes that instead; the original stays",
+  },
+  {
+    section: "enhance",
+    key: "audio_engine",
+    label: "Sound engine",
+    kind: "select",
+    options: [
+      { value: "ffmpeg", label: "ffmpeg: denoise, high-pass, declip, level (light)" },
+      { value: "webrtc", label: "WebRTC noise suppression and gain (about 1 MB, Linux)" },
+    ],
+    hint: "WebRTC is fetched the first time and runs on this server; elsewhere ffmpeg does it",
+  },
+  {
+    section: "enhance",
+    key: "min_snr_db",
+    label: "Noisy below",
+    kind: "number",
+    min: 0,
+    max: 60,
+    hint: "dB of speech over the noise floor",
+  },
+  {
+    section: "enhance",
+    key: "min_level_db",
+    label: "Quiet below",
+    kind: "number",
+    min: -70,
+    max: 0,
+    hint: "dBFS: the level of its loud half",
   },
   // Workers
   {

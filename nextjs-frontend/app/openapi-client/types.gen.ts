@@ -6264,51 +6264,111 @@ export type EnhanceMeasured = {
 };
 
 /**
+ * EnhanceSoundMeasured
+ *
+ * How good a recording sounded to the enhance step (docs/enhance.md), over 30 ms frames of it at 16 kHz mono.
+ */
+export type EnhanceSoundMeasured = {
+  /**
+   * Duration
+   *
+   * seconds
+   */
+  duration: number;
+  /**
+   * Snr Db
+   *
+   * signal to noise: its loudest frames over its quietest, in dB
+   */
+  snr_db: number;
+  /**
+   * Level Db
+   *
+   * the level of its loud half, dBFS
+   */
+  level_db: number;
+  /**
+   * Floor Db
+   *
+   * its noise floor (its quietest frames), dBFS
+   */
+  floor_db: number;
+  /**
+   * Peak Db
+   *
+   * its peak, dBFS
+   */
+  peak_db: number;
+  /**
+   * Clipped
+   *
+   * the share of its samples at full scale (0 to 1)
+   */
+  clipped: number;
+  [key: string]: unknown;
+};
+
+/**
  * Enhanced
  *
- * What the enhance step found and did (docs/enhance.md): whether the picture looked low quality and why, and the
- * enhanced copy it's read from, if one was made. The original stays as it is.
+ * What the enhance step found and did (docs/enhance.md): whether the picture or the sound was low quality and why,
+ * and the enhanced copy it's read or transcribed from, if one was made. The original stays as it is.
  */
 export type Enhanced = {
   /**
    * Kind
    */
-  kind: "image";
+  kind: "image" | "audio";
   /**
    * Low
    *
-   * why it looked low quality; empty when it looked good enough
+   * why it looked or sounded low quality; empty when it was good enough
    */
-  low?: Array<"small" | "blurry" | "noisy" | "dull" | "small_faces">;
-  measured: EnhanceMeasured;
+  low?: Array<"small" | "blurry" | "noisy" | "dull" | "small_faces" | "quiet" | "clipped">;
+  /**
+   * Measured
+   */
+  measured: EnhanceMeasured | EnhanceSoundMeasured;
   /**
    * Enhanced
    *
-   * an enhanced copy was made, and the steps after it read that
+   * an enhanced copy was made, and the steps after it read or transcribe that
    */
   enhanced: boolean;
   /**
    * Engine
    *
-   * what enhanced it: classic, or realesr-general-x4v3 (Real-ESRGAN)
+   * what enhanced it: classic or realesr-general-x4v3 (Real-ESRGAN) for an image, ffmpeg or webrtc for sound
    */
   engine?: string | null;
   /**
    * Scale
    *
-   * how many times bigger the copy is
+   * how many times bigger an image's copy is
    */
   scale?: number | null;
   /**
    * Width
    *
-   * the copy's width in pixels
+   * an image's copy's width in pixels
    */
   width?: number | null;
   /**
    * Height
    */
   height?: number | null;
+  /**
+   * Filters
+   *
+   * the ffmpeg filters that made a sound's copy
+   */
+  filters?: Array<string> | null;
+  /**
+   * Speech
+   *
+   * the share of the sound WebRTC's voice detector heard as speech (0 to 1)
+   */
+  speech?: number | null;
   /**
    * Forced
    *
@@ -19464,7 +19524,7 @@ export type Recording = {
    */
   nsfw?: NsfwState | null;
   /**
-   * an image the enhance step looked at: what it found, and its enhanced copy
+   * an image or a recording the enhance step looked at: what it found, and its enhanced copy
    */
   enhanced?: Enhanced | null;
   [key: string]: unknown;

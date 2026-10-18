@@ -561,6 +561,10 @@ DEFAULTS = {
         "min_sharpness": 100,
         "min_face_px": 64,
         "max_scale": 4,
+        "audio": False,
+        "audio_engine": "ffmpeg",
+        "min_snr_db": 15,
+        "min_level_db": -35,
     },
     # rclone and local_roots are bootstrap-only on purpose: the web app must not be able to pick an executable
     # or open up arbitrary folders on the server. Local folders can only be watched inside local_roots.

@@ -94,7 +94,7 @@ def _files(db, cfg, rec, rid, ns):
         reports / f"{name}.html",
         *reports.glob(f"{name}--*.html"),
         data / "renditions" / f"{int(rid)}.pdf",
-        enhance.enhanced_path(cfg, rid),
+        *(enhance.enhanced_path(cfg, rid, kind) for kind in enhance.KINDS),
     ]
     if rec.get("converted_from") and rec.get("path") and keyring.owned(cfg, rec["path"]):
         out.append(pathlib.Path(rec["path"]))

@@ -33,6 +33,7 @@ import struct
 import tempfile
 import threading
 import time
+from collections.abc import Iterable
 
 from . import settings, store
 
@@ -601,20 +602,22 @@ def protect(db, cfg, sid, path) -> bool:
     return True
 
 
-def keep(db, cfg, sid, path, data: bytes | str) -> pathlib.Path:
+def keep(db, cfg, sid, path, data: bytes | str | Iterable[bytes]) -> pathlib.Path:
     """Write a file Lens makes (a rendition, a report, an export) in one go: encrypted when wanted(), never plain on
-    disk on the way; else as it is. Either way it replaces `path` atomically."""
+    disk on the way; else as it is. Either way it replaces `path` atomically. `data` may come in chunks."""
     p = pathlib.Path(path)
-    raw = data.encode("utf-8") if isinstance(data, str) else data
+    chunks = [data.encode("utf-8") if isinstance(data, str) else data] if isinstance(data, (str, bytes)) else data
     p.parent.mkdir(parents=True, exist_ok=True)
     if wanted(db, cfg, sid, p):
         with Writer(db, cfg, sid, p) as w:
-            w.write(raw)
+            for c in chunks:
+                w.write(c)
         return p
     fd, tmp = tempfile.mkstemp(dir=p.parent, prefix=".keep-")
     try:
         with os.fdopen(fd, "wb") as f:
-            f.write(raw)
+            for c in chunks:
+                f.write(c)
         os.replace(tmp, p)
     except BaseException:
         with contextlib.suppress(OSError):

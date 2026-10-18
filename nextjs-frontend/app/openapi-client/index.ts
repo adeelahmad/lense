@@ -1030,6 +1030,7 @@ export type {
   EnhanceRecordingErrors,
   EnhanceRecordingResponse,
   EnhanceRecordingResponses,
+  EnhanceSoundMeasured,
   EnrichedDate,
   EnrichedPlace,
   Enrichment,

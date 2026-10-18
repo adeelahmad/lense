@@ -562,6 +562,23 @@ class Enhance(Component):
             fetch_file(cfg, name, say)
 
 
+class EnhanceSound(Component):
+    """WebRTC's audio processing (webrtc-noise-gain; enhance_audio.py), when Settings → Enhance chooses it for sound.
+    Its wheels are for Linux on x86-64 and ARM64; elsewhere ffmpeg's filters do it."""
+
+    def needed(self, cfg, m):
+        from . import enhance
+
+        o = enhance.options(cfg)
+        return bool(o["audio"] and o["audio_engine"] == "webrtc" and m["os"] == "linux" and m["arch"] in ("x86_64", "arm64"))
+
+    def present(self, cfg):
+        return importable("webrtc_noise_gain")
+
+    def fetch(self, cfg, m, say):
+        pip_install(cfg, "webrtc", say)
+
+
 class Florence(Component):
     """Florence-2 and ONNX Runtime (florence.py), when Settings → LLM provider has it describe pictures."""
 
@@ -999,6 +1016,14 @@ COMPONENTS = [
         steps={"enhance"},
         size_mb=6,
         license="BSD-3-Clause",
+    ),
+    EnhanceSound(
+        "enhance-sound",
+        "WebRTC audio processing",
+        "cleans up noisy or quiet sound before it's transcribed (enhance.audio_engine webrtc)",
+        steps={"enhance"},
+        size_mb=1,
+        license="Apache-2.0",
     ),
     Florence(
         "florence",

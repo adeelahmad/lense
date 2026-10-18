@@ -2456,20 +2456,22 @@ def mark_nsfw(ctx: Context, recording_id: int, verdict: str) -> dict[str, Any]:
     return {"recording_id": recording_id, "nsfw": got, "url": ctx.link(recording_id)}
 
 
-# ---------- enhancing low quality images ----------
+# ---------- enhancing low quality images and sound ----------
 @tool(
     "enhance",
-    "Enhance an image",
-    "Make an enhanced copy of an image asset (enlarged, sharpened, cleaned of noise, its contrast stretched), whatever "
-    "the settings and its quality, and read it again from that copy: its text, faces and objects. The original stays "
-    "as it is. Low quality images are enhanced on their own where an admin turned that on (enhance.images); "
-    "get_recording says what was found and done (enhanced). Editors, with a token that has the write scope.",
-    Arg("recording_id", "integer", "the image", required=True),
+    "Enhance an image or a recording",
+    "Make an enhanced copy of an image asset (enlarged, sharpened, cleaned of noise, its contrast stretched) and read "
+    "it again from that copy (its text, faces and objects), or of an audio or video asset's sound (noise taken out, its "
+    "level evened, clipping repaired) and transcribe it again from that copy, whatever the settings and its quality. "
+    "The original stays as it is; transcribing again replaces corrections made to the transcript. Low quality ones are "
+    "enhanced on their own where an admin turned that on (enhance.images, enhance.audio); get_recording says what was "
+    "found and done (enhanced). Editors, with a token that has the write scope.",
+    Arg("recording_id", "integer", "the image, audio or video", required=True),
     writes=True,
 )
 def enhance_image(ctx: Context, recording_id: int) -> dict[str, Any]:
     if not ctx.user.can_write:
-        raise ToolError("this token is read-only: ask for a token with the write scope to enhance images")
+        raise ToolError("this token is read-only: ask for a token with the write scope to enhance assets")
     ctx.acl.recording(recording_id, "process")
     job = enhance.queue(ctx.db, recording_id, ctx.user.email)
     auth.audit(ctx.db, ctx.user.as_audit(), "recording.enhance", f"recording:{recording_id}", {"job": job, "via": "mcp"})
