@@ -63,6 +63,12 @@ from a LanguageTool server, spaCy fetched for named entities, and dates found an
 
 Refine later: revert a whole cleanup at once; cleanup rules for other languages' fillers; per-namespace switch.
 
+Grammar: the clean step takes a LanguageTool server's GRAMMAR, PUNCTUATION and TYPOGRAPHY fixes, and EN_A_VS_AN (filed
+under MISC) (analysis.cleanup_grammar_url, the compose files' `languagetool` profile), never spelling, style or a word
+with a capital. language_tool_python from the script is GPL-3.0 and starts Java itself, so Lens talks to a server
+instead. Refine later: start the profile from Settings through the machine agent; per-namespace grammar; LanguageTool's
+other categories as opt-in switches.
+
 ## 2026-10-17 · Describing pictures with Moondream on this machine
 
 Moondream is the third describe engine (`llm.describe_engine` `moondream`), opt-in, through Hugging Face transformers
@@ -575,7 +581,7 @@ Todo:
 - [x] Canvas editor for tool graphs in the web app (Extensions → Draw a tool)
 - [x] Authoring from chat and voice: the assistant drafts and saves extensions behind an approval card
 - [x] Extensions page in the web app: list, manifest editor, switch on/off, share, try, versions
-- [ ] `lens ext` CLI (push/pull manifests)
+- [x] `lens ext` CLI: list, pull, push and check manifests, here or over the API (docs/assistant.md)
 
 Refine later: hook-called tools don't show as steps; web tools reach ports 80/443 only and have no secret
 references yet; extensions aren't offered over MCP yet; marketplace on top of plugins.

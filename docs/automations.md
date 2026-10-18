@@ -1208,7 +1208,8 @@ when it completes. It gives the run's id, or none when nothing ran. A run goes:
    Routine actions are done; ones that ask first wait for the person's pick and ones with a time wait for it (until
    approvals and timers are built, they stay waiting).
 6. **It finishes** `done`, `partly` (some actions failed), `failed` or `waiting` (actions wait), with its cost and
-   tokens, what each node did (`trace`), its log (at most 500 lines) and an `automation.<status>` row in the activity
+   tokens, what each node did (`trace`: `done`, `skipped`, `failed`, or `waiting` and `scheduled` for an action that
+   asks first or waits for its time), its log (at most 500 lines) and an `automation.<status>` row in the activity
    ledger; and it appears in the stream as `automation.ran`. When a waiting action is decided or its time comes, its
    status changes (`automations.update_intent`) and the run's follows.
 

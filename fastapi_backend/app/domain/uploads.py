@@ -23,14 +23,14 @@ import secrets
 import shutil
 import unicodedata
 
-from . import convert, deletion, documents, ingest, jobs, keyring, render, store
+from . import content_types, convert, deletion, documents, ingest, jobs, keyring, render, store
 
 R = store.R
 MB = 1024 * 1024
 ROOM = 512 * MB  # what an upload must leave free on the server's disk
 FIELDS = (
-    "record::id(id) AS id, account, email, namespace, collection, filename, title, size, modified, attach, pipeline, hold, state, "
-    "recording, job, duplicate, created_at, touched_at"
+    "record::id(id) AS id, account, email, namespace, collection, filename, title, size, modified, attach, pipeline, content_type, "
+    "hold, state, recording, job, duplicate, created_at, touched_at"
 )
 # What runs once media is attached to a transcript: its waveform (the transcript is kept), speakers by voice unless the
 # transcript named them, shots, text on screen and faces for video, then the analysis and report pages again.
@@ -115,6 +115,7 @@ def view(cfg, row):
         "state": "done" if done else "held" if held else "receiving",
         "attach": row.get("attach"),
         "pipeline": row.get("pipeline"),
+        "content_type": row.get("content_type"),
         "recording": row.get("recording"),
         "job": row.get("job"),
         "duplicate": bool(row.get("duplicate")),
@@ -167,16 +168,24 @@ def check(cfg, filename, size, attach=None):
     return name
 
 
-def start(db, cfg, ns, filename, size, by, title=None, modified=None, attach=None, pipeline=None, collection=None, hold=False):
+def start(
+    db, cfg, ns, filename, size, by, title=None, modified=None, attach=None, pipeline=None, collection=None, hold=False, content_type=None
+):
     """A new upload into namespace `ns`, by `by` ({id, email}). Its name, type and size are checked, and the disk
     must have room for it; nothing is in the archive until the last byte arrives. `modified` is the file's own time
     (milliseconds since 1970), which dates the recording when its name doesn't. `attach` is a transcript-only
     recording in `ns` the file becomes the audio of, instead of a recording of its own; `pipeline` runs instead of the
     namespace's once a new recording is made; `collection` (one of the namespace's) is where it goes, else the
     namespace's default. `hold` keeps it out of the archive once it's all here (state "held", no namespace yet), for
-    the assistant to place with `place` (a file dropped into a conversation)."""
+    the assistant to place with `place` (a file dropped into a conversation). `content_type` is the subtype its asset
+    gets (one of the file's base type) instead of the one its file is recognised as, so its pipeline runs from the
+    start; an attached file keeps the asset's."""
     sweep(db, cfg)
     name = check(cfg, filename, size, attach)
+    if content_type is not None:
+        if attach:
+            raise ValueError("the asset keeps its content type; one can't be chosen for audio attached to it")
+        content_type = content_types.check(db, content_type, content_types.base_of_file(name))
     folder = _dir(cfg) / ".partial"
     folder.mkdir(parents=True, exist_ok=True)
     if shutil.disk_usage(folder).free < size + ROOM:
@@ -197,6 +206,7 @@ def start(db, cfg, ns, filename, size, by, title=None, modified=None, attach=Non
                 "modified": modified,
                 "attach": attach,
                 "pipeline": pipeline,
+                "content_type": content_type,
                 "collection": collection,
                 "hold": hold or None,
                 "state": "receiving",
@@ -272,10 +282,10 @@ def received(db, cfg, uid, admin=False):
     return finish(db, cfg, row, admin)
 
 
-def place(db, cfg, uid, ns, account, admin=False, collection=None):
+def place(db, cfg, uid, ns, account, admin=False, collection=None, content_type=None):
     """Put a held upload (all of it here) into namespace `ns` (and `collection`, one of its own): it becomes a
-    recording or a resource as if it had been uploaded there. Only its uploader may; `admin` may name a new
-    namespace. The caller checks they may add to `ns`."""
+    recording or a resource as if it had been uploaded there, of `content_type` when one is given (as start() takes
+    it). Only its uploader may; `admin` may name a new namespace. The caller checks they may add to `ns`."""
     row = get(db, uid)
     if row.get("account") != account:
         raise KeyError(uid)
@@ -283,8 +293,17 @@ def place(db, cfg, uid, ns, account, admin=False, collection=None):
         raise ValueError(f"{row['filename']} isn't waiting to be placed")
     if collection is not None:
         store.home(db, store.ns_id(db, ns, create=False), collection)
-    db.q("UPDATE $r SET namespace = $n, collection = $c, hold = NONE", r=R("upload", uid), n=ns, c=collection)
-    return finish(db, cfg, {**row, "namespace": ns, "collection": collection}, admin)
+    kind = row.get("content_type")
+    if content_type is not None:
+        kind = content_types.check(db, content_type, content_types.base_of_file(row["filename"]))
+    db.q(
+        "UPDATE $r SET namespace = $n, collection = $c, content_type = $k, hold = NONE",
+        r=R("upload", uid),
+        n=ns,
+        c=collection,
+        k=kind,
+    )
+    return finish(db, cfg, {**row, "namespace": ns, "collection": collection, "content_type": kind}, admin)
 
 
 def finish(db, cfg, row, admin=False):
@@ -292,9 +311,12 @@ def finish(db, cfg, row, admin=False):
     namespace's pipeline is queued. The same file already in the namespace (uploaded, scanned or imported before)
     isn't added twice: the upload points at that recording instead, and gives it back its media if it had lost it.
     `admin` creates the namespace if it doesn't exist (only admins may start an upload into a new one). An upload for
-    a transcript-only recording becomes its media instead, and the steps that need media run (ATTACH_STEPS). If
-    anything fails, the file goes back to where it was, so finishing can be tried again."""
+    a transcript-only recording becomes its media instead, and the steps that need media run (ATTACH_STEPS). A
+    content type chosen for the upload is the asset's before its pipeline is queued (the one it was before too, when
+    it's a file the namespace had). If anything fails, the file goes back to where it was, so finishing can be tried
+    again."""
     uid, by, target = row["id"], row.get("email"), row.get("attach")
+    chosen = None if target else row.get("content_type")
     if target:
         rec = db.one("SELECT record::id(id) AS id, space, remote FROM $r", r=R("recording", target))
         if not rec:
@@ -334,19 +356,29 @@ def finish(db, cfg, row, admin=False):
             rid, job = target, _attach(db, cfg, target, sid, dest, st, fp, by, probed)
         elif copy:
             rid = dup["id"]
+            _typed(db, rid, chosen)
         elif read:
             home = _home(db, sid, row.get("collection"))
             title = row.get("title") or pathlib.Path(row["filename"]).stem
             at = ingest.recorded_at(dest, st.st_mtime)
             how = "import:" + (read.get("form") or dest.suffix.lstrip("."))
             rid = ingest._store_import(db, cfg, row["namespace"], read, title, fp, str(dest), at, None, None, how, home)
+            _typed(db, rid, chosen)
             job = jobs.enqueue(db, rid, None, by=by, pipeline=row.get("pipeline"))
         elif kind:
-            rid, job = _document(db, dest, st, fp, sid, row, kind, dup, by)
+            rid, job = _document(db, dest, st, fp, sid, {**row, "content_type": chosen}, kind, dup, by)
         else:
             dur, ch = probed
             media = store.clean(
-                {"path": str(dest), "source": "audio", "size": st.st_size, "mtime": st.st_mtime, "duration_ms": dur, "channels": ch}
+                {
+                    "path": str(dest),
+                    "source": "audio",
+                    "size": st.st_size,
+                    "mtime": st.st_mtime,
+                    "duration_ms": dur,
+                    "channels": ch,
+                    "content_type": chosen,
+                }
             )
             if dup:
                 rid = dup["id"]
@@ -386,6 +418,12 @@ def finish(db, cfg, row, admin=False):
     return get(db, uid)
 
 
+def _typed(db, rid, key):
+    """The content type chosen for an upload becomes its asset's (no choice leaves the asset's as it was)."""
+    if key:
+        db.q("UPDATE $r SET content_type = $k", r=R("recording", rid), k=key)
+
+
 def _as_text(dest):
     """What a file read as text holds: a chat export (chats.py) for a text file that is one, and whatever a JSON or
     JSON Lines file holds (a chat, records or a transcript); else None. ValueError for JSON that can't be read."""
@@ -409,6 +447,8 @@ def _document(db, dest, st, fp, sid, row, kind, dup, by):
     whose file went), which takes it as this kind; its pages are drawn and read by the namespace's pipeline (or the
     one chosen)."""
     d = {"path": str(dest), "source": kind, "size": st.st_size, "mtime": st.st_mtime, "media": {"kind": kind}, "status": "new"}
+    if row.get("content_type"):
+        d["content_type"] = row["content_type"]
     if dup:
         rid = dup["id"]
         db.q("UPDATE $r MERGE $d", r=R("recording", rid), d=d)
@@ -442,14 +482,27 @@ def _attach(db, cfg, rid, sid, dest, st, fp, by, probed):
     return jobs.add_steps(db, rid, ATTACH_STEPS, by=by)
 
 
-def take(db, cfg, ns, path, filename, by, title=None, pipeline=None, collection=None, hold=False, modified=None):
+def take(db, cfg, ns, path, filename, by, title=None, pipeline=None, collection=None, hold=False, modified=None, content_type=None):
     """A whole file that arrived some other way (an import webhook, a chat channel, a file share), at `path` on the same
     disk as the uploads folder, uploaded into namespace `ns` in one go: it's checked as start() checks a file, moved
     into place and finished as if its last chunk had just arrived. The namespace must exist; with `hold` there's none
     yet (ns ""): it's held for the assistant to place, as a file dropped into a conversation is. `modified` is the
-    file's own time, as for start(). Returns the upload."""
+    file's own time and `content_type` the asset's subtype, as for start(). Returns the upload."""
     size = os.path.getsize(path)
-    row = start(db, cfg, ns, filename, size, by, title=title, modified=modified, pipeline=pipeline, collection=collection, hold=hold)
+    row = start(
+        db,
+        cfg,
+        ns,
+        filename,
+        size,
+        by,
+        title=title,
+        modified=modified,
+        pipeline=pipeline,
+        collection=collection,
+        hold=hold,
+        content_type=content_type,
+    )
     os.replace(path, _part(cfg, row["id"]))
     try:
         return received(db, cfg, row["id"])

@@ -22,6 +22,12 @@ transcripts only, "always" for every one; either way a mark the transcript has i
 once. The model and PyTorch (about 2 GB) are fetched the first time a clean step needs them (components.py); until
 then, or where it can't run, the rules run alone.
 
+Grammar (`analysis.cleanup_grammar_url`, none by default): with a LanguageTool server's address (the compose files'
+`languagetool` profile: http://languagetool:8010), its grammar and punctuation fixes are made too ("he go" → "he goes",
+"a apple" → "an apple"), and only those: spelling, style, wording and repeated-word suggestions are left out, and so is
+any fix to a word with a capital in it, so names stay as they were said. A line goes to that server and nowhere else; when it
+doesn't answer, the rules' changes stand alone.
+
 Every line it changes is kept in the asset's edit history, by "text cleanup": Change history lists them and Revert
 puts a line back. A line someone corrected is never cleaned, since people's corrections outrank the rules, and running
 the rules again on what they made changes nothing.
@@ -29,9 +35,13 @@ the rules again on what they made changes nothing.
 
 from __future__ import annotations
 
+import json
 import re
+import urllib.error
+import urllib.parse
+import urllib.request
 
-from . import store
+from . import activity, store
 
 R = store.R
 CLEANER = "text cleanup"  # who the edit history says changed a line
@@ -258,6 +268,104 @@ def _punctuation(cfg, rec, segs):
     return texts, [segs[k]["id"] for k in todo], f"punctuation restored by {PUNCTUATION_MODEL[0]}"
 
 
+# ---------- grammar, by a LanguageTool server ----------
+# LanguageTool's fixes taken: its grammar, punctuation and typography categories, and "a" or "an", which it files under
+# MISC. Spelling (TYPOS), style, wording and its repeated-word rule ("very very") would rewrite how people talk.
+GRAMMAR = {"GRAMMAR", "PUNCTUATION", "TYPOGRAPHY"}
+GRAMMAR_RULES = {"EN_A_VS_AN"}
+GRAMMAR_CHARS = 10_000  # text sent to the server at once
+GRAMMAR_ANSWER = 4 << 20  # the most of an answer read
+GRAMMAR_SECONDS = 60
+
+
+def _check(url, text, lang, cfg):
+    """LanguageTool's matches for `text` ([{offset, length, replacements, rule}]); Unavailable when it doesn't answer."""
+    body = urllib.parse.urlencode({"text": text, "language": lang or "auto"}).encode()
+    req = urllib.request.Request(f"{url}/v2/check", data=body, headers={"Accept": "application/json"}, method="POST")
+    host = urllib.parse.urlsplit(url).hostname
+    try:
+        with activity.call("grammar.check", cfg, detail={"host": host, "chars": len(text)}):
+            with _opener.open(req, timeout=GRAMMAR_SECONDS) as r:
+                got = json.loads(r.read(GRAMMAR_ANSWER))
+    except (OSError, ValueError) as e:
+        raise Unavailable(f"the LanguageTool server at {host} didn't answer ({e})") from None
+    return got.get("matches") or [] if isinstance(got, dict) else []
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):  # the text goes to the address set, and nowhere it sends it on
+        return None
+
+
+_opener = urllib.request.build_opener(_NoRedirect)
+
+
+def _u16(text):
+    return len(text.encode("utf-16-le")) // 2
+
+
+def _cp(text, units):
+    """A UTF-16 offset into `text` (LanguageTool's, from Java) as Python's."""
+    if text.isascii():
+        return units
+    n = 0
+    for i, ch in enumerate(text):
+        if n >= units:
+            return i
+        n += 2 if ord(ch) > 0xFFFF else 1
+    return len(text)
+
+
+def _fix(text, matches):
+    """`text` with the fixes taken (GRAMMAR, GRAMMAR_RULES): the first replacement of each, none to a word with a
+    capital, and none that overlaps another."""
+    upto = len(text)
+    for m in sorted(matches, key=lambda m: -m["offset"]):
+        a, b = _cp(text, m["offset"]), _cp(text, m["offset"] + m["length"])
+        rule = m.get("rule") or {}
+        cat = ((rule.get("category") or {}).get("id") or "").upper()
+        reps = [r.get("value") for r in m.get("replacements") or [] if isinstance(r.get("value"), str)]
+        taken = cat in GRAMMAR or rule.get("id") in GRAMMAR_RULES
+        if not taken or not reps or a < 0 or b > upto or any(c.isupper() for c in text[a:b] + reps[0]):
+            continue
+        text, upto = text[:a] + reps[0] + text[b:], a
+    return text
+
+
+def grammar(cfg, texts, lang=None):
+    """The texts with a LanguageTool server's grammar and punctuation fixes (analysis.cleanup_grammar_url), sent a
+    batch of lines at a time. Unavailable when no server is set or it doesn't answer."""
+    url = ((cfg.get("analysis") or {}).get("cleanup_grammar_url") or "").rstrip("/")
+    if not url:
+        raise Unavailable("no LanguageTool server is set")
+    batches, batch, size = [], [], 0
+    for k, t in enumerate(texts):
+        if not t.strip():
+            continue
+        if batch and size + len(t) + 2 > GRAMMAR_CHARS:
+            batches.append(batch)
+            batch, size = [], 0
+        batch.append(k)
+        size += len(t) + 2
+    batches += [batch] if batch else []
+    lang = lang if lang and lang not in ("auto", "nospeech") else "auto"
+    out = list(texts)
+    for batch in batches:  # a batch's lines one after another, a blank line between them
+        joined, starts, at = "", [], 0
+        for j in batch:
+            starts.append(at)  # where each line starts, in UTF-16 units as LanguageTool counts
+            joined += texts[j] + "\n\n"
+            at += _u16(texts[j]) + 2
+        found = _check(url, joined, lang, cfg)
+        for j, at in zip(batch, starts, strict=True):
+            end = at + _u16(texts[j])
+            mine = [
+                {**m, "offset": m["offset"] - at} for m in found if at <= m.get("offset", -1) and m["offset"] + m.get("length", 0) <= end
+            ]
+            out[j] = _fix(texts[j], mine)
+    return out
+
+
 # ---------- an asset's lines ----------
 def plan(db, cfg, rid):
     """What cleaning an asset does: {changes: [(segment id, idx, text, cleaned)], punctuated: [segment ids], note}.
@@ -272,20 +380,32 @@ def plan(db, cfg, rid):
     fillers = bool((cfg.get("analysis") or {}).get("cleanup_fillers", True))
     whole = english(rec.get("language"), [s.get("text") or "" for s in segs[:400]])
     marked, punctuated, note = _punctuation(cfg, rec, segs)
-    out, prev = [], None
-    for s, text in zip(segs, marked):
+    cleaned, prev = [], None
+    for s, text in zip(segs, marked, strict=True):
         ended = prev is None or prev["speaker"] != s.get("speaker") or SENTENCE_END.search(prev["text"]) is not None
         prev = {"speaker": s.get("speaker"), "text": text}
         if s["idx"] in people or not text.strip():
+            cleaned.append(None)
             continue
         lang = s.get("lang")
         en = english(lang, [text]) if lang and lang not in ("auto", "nospeech") else whole
-        new = clean_line(text, en, fillers, ended)
-        if new and new != (s.get("text") or ""):
-            out.append((s["id"], s["idx"], s.get("text") or "", new))
-            prev["text"] = new
+        prev["text"] = clean_line(text, en, fillers, ended) or text
+        cleaned.append(prev["text"])
+    notes = [note] if note else []
+    if (cfg.get("analysis") or {}).get("cleanup_grammar_url"):
+        todo = [k for k, t in enumerate(cleaned) if t]
+        try:
+            fixed = grammar(cfg, [cleaned[k] for k in todo], rec.get("language"))
+            for k, t in zip(todo, fixed, strict=True):
+                cleaned[k] = t
+            notes.append("grammar checked by LanguageTool")
+        except Unavailable as e:
+            notes.append(f"grammar not checked: {e}")
+    out = [
+        (s["id"], s["idx"], s.get("text") or "", new) for s, new in zip(segs, cleaned, strict=True) if new and new != (s.get("text") or "")
+    ]
     kept = {s["id"] for s in segs if s["idx"] in people}
-    return {"changes": out, "punctuated": [i for i in punctuated if i not in kept], "note": note}
+    return {"changes": out, "punctuated": [i for i in punctuated if i not in kept], "note": "; ".join(notes) or None}
 
 
 def clean_recording(db, cfg, rid, say=None):
