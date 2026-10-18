@@ -248,17 +248,11 @@ export function SchedulesPage() {
         <EmptyState
           icon={<AlarmClock />}
           title="Nothing runs on a clock yet"
+          // New routine is in the header already
           actions={
-            <>
-              {admin && (
-                <Button asChild variant="primary">
-                  <Link href="/routines/new">New routine</Link>
-                </Button>
-              )}
-              <Button asChild>
-                <Link href="/automations">Automations</Link>
-              </Button>
-            </>
+            <Button asChild>
+              <Link href="/automations">Automations</Link>
+            </Button>
           }
         >
           A routine or an automation with a schedule shows here, with when it runs next, how it last went and a switch.
