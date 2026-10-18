@@ -144,11 +144,14 @@ async function surveyPages(page, base, phone) {
   // On a phone the navigation sits behind the menu button: one more tap to reach every page
   const menu = phone ? 1 : 0;
   for (const item of items) {
+    // one of each kind of page: the notes in the navigation are one page, whichever notes the journeys left there
+    if (item.href && pages.some((p) => p.page === pageKey(base + item.href))) continue;
     await page.goto(base + "/", { waitUntil: "domcontentloaded" });
     await settle();
     if (phone) await page.getByRole("button", { name: "Open navigation" }).tap();
-    const name = new RegExp(`^${item.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}( \\d+)?$`);
-    const link = page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name }).first();
+    // found by where it goes: a link's name can carry more than its label (a note the assistant wrote is "Written by
+    // the assistant" and its title)
+    const link = page.getByRole("navigation", { name: "Primary" }).locator(`a[href="${item.href}"]`).first();
     await (phone ? link.tap() : link.click());
     await page.waitForLoadState("domcontentloaded");
     await settle();
