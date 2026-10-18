@@ -5667,6 +5667,28 @@
         }
       }
     },
+    "/api/v1/automations/starters": {
+      "get": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "List Starters",
+        "description": "Starter automations: each a draft to open, change and save (POST /automations), switched off until you turn\nit on.",
+        "operationId": "list_starters",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationStarters"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/automations/{aid}/vars": {
       "get": {
         "tags": [
@@ -38926,6 +38948,55 @@
         "additionalProperties": true,
         "type": "object",
         "title": "AutomationStarted"
+      },
+      "AutomationStarter": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "what it does, and what to change before turning it on"
+          },
+          "draft": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Draft",
+            "description": "what POST /automations takes, switched off"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "draft"
+        ],
+        "title": "AutomationStarter"
+      },
+      "AutomationStarters": {
+        "properties": {
+          "starters": {
+            "items": {
+              "$ref": "#/components/schemas/AutomationStarter"
+            },
+            "type": "array",
+            "title": "Starters"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "starters"
+        ],
+        "title": "AutomationStarters"
       },
       "AutomationSwitch": {
         "properties": {
