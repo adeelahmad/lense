@@ -800,7 +800,7 @@ export function NodeSettings({
               optional={node.type === "podcast_episode"}
               hint={
                 feeds && !feeds.length
-                  ? "No feeds yet: make one under Explore → Feeds"
+                  ? "No feeds yet: make one with Feeds on the Podcasts page"
                   : node.type === "podcast_episode"
                     ? "The episode is added to it once it’s made; none just makes the episode"
                     : "In a namespace the routine covers"

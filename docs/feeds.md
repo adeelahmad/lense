@@ -50,9 +50,11 @@ last read it (`fetched_at`, at most once a minute), so the web app can show that
 
 ## In the web app
 
-**Feeds**, under Explore, lists the feeds in the namespaces you can read: each one's kind, namespace, how many items it
-holds and when an app last read it. **New feed** asks for a title (focused; Enter makes it), the kind and the namespace,
-which is the one picked in the top bar when you can edit it; the feed opens on its page.
+**Feeds** lists the feeds in the namespaces you can read: each one's kind, namespace, how many items it holds and when
+an app last read it. Open it with **Feeds** at the top of the Podcasts page, or Jump to; once there's a feed, it's also
+under Explore in the navigation (left out before that, so a phone's menu stays as short as it was). **New feed** asks
+for a title (focused; Enter makes it), the kind and the namespace, which is the one picked in the top bar when you can
+edit it; the feed opens on its page.
 
 A feed's page shows its address with a **Copy** button, when an app last read it, and **New address** (editors), which
 stops the old one at once. Editors change what readers show (title, description, author, language, category, artwork,

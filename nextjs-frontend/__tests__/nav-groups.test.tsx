@@ -50,6 +50,14 @@ test("feeds are under Explore, after Podcasts, for everyone", () => {
   expect(isActive("/feeds/7", "/feeds")).toBe(true);
 });
 
+test("Feeds is in the nav only once there is a feed, so a phone's nav stays as short as it was", () => {
+  const { unmount } = nav(false);
+  expect(screen.queryByRole("link", { name: /^Feeds/ })).not.toBeInTheDocument();
+  unmount();
+  nav(false, { feeds: 1 });
+  expect(screen.getByRole("link", { name: "Feeds 1" })).toHaveAttribute("href", "/feeds");
+});
+
 test("Approvals is in the nav only while something waits, and Automate keeps its name either way", () => {
   const { unmount } = nav(false);
   expect(screen.queryByRole("link", { name: /Approvals/ })).not.toBeInTheDocument();
