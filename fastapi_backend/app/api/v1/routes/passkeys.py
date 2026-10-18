@@ -8,6 +8,7 @@ one-time ticket; the web app's server swaps it for a session at POST /auth/ticke
 from __future__ import annotations
 
 import secrets
+import urllib.parse
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 
@@ -20,6 +21,8 @@ from app.schemas.auth import (
     ForgotPasswordRequest,
     LoginTicket,
     Passkey,
+    PasskeyAddress,
+    PasskeyAddressAsk,
     PasskeyAnswer,
     PasskeyOptions,
     PasskeyRename,
@@ -275,6 +278,30 @@ def remove_passkey(pid: str, user: Writer, request: Request, db: Db, cfg: Cfg) -
             raise HTTPException(404, "not found")
     auth.audit(db, user.as_audit(), "passkey.remove", f"account:{user.id}")
     return Ok()
+
+
+@router.get("/passkeys/elsewhere")
+def passkey_addresses(user: CurrentUser, request: Request, db: Db, cfg: Cfg) -> list[PasskeyAddress]:
+    """The other https:// addresses Lens opens at (Settings › Remote access and HTTPS), and whether you have a passkey
+    for each: a passkey works only on the address it was made at."""
+    here = web_origin(request).rstrip("/").lower()
+    mine = {p.get("rp_id") for p in passkeys.list_for(db, user.id)}
+    return [PasskeyAddress(url=u, passkey=urllib.parse.urlsplit(u).hostname in mine) for u in passkeys.addresses(db, cfg) if u != here]
+
+
+@router.post("/passkeys/elsewhere")
+def passkey_elsewhere(body: PasskeyAddressAsk, user: Writer, db: Db, cfg: Cfg) -> SigninLink:
+    """A sign-in link of your own at another address Lens opens at, to sign in there and add a passkey for it, with no
+    email and no admin. It lasts 15 minutes and works once; links others have are left alone. For people signed in
+    themselves, not API tokens or apps. Audited as `passkey.elsewhere`."""
+    _signed_in(user)
+    url = body.url.strip().rstrip("/").lower()
+    if url not in passkeys.addresses(db, cfg):
+        raise HTTPException(400, "that isn't an address Lens opens at: see Settings › Remote access and Settings › HTTPS")
+    raw = passkeys.create_link(db, user.id, hours=passkeys.ELSEWHERE_MINUTES / 60, by=user.email, replace=False)
+    auth.audit(db, user.as_audit(), "passkey.elsewhere", f"account:{user.id}", [urllib.parse.urlsplit(url).netloc])
+    row = db.one("SELECT expires_at FROM $r", r=auth.R("signin_link", auth.sha(raw)))
+    return SigninLink(url=passkeys.link_url(raw, url), expires_at=row["expires_at"])
 
 
 # ---------- admins ----------

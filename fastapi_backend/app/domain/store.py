@@ -548,6 +548,7 @@ DEFAULTS = {
         "bind": os.environ.get("LENS_SMB_LISTEN") or "127.0.0.1",
         "port": int(os.environ.get("LENS_SMB_LISTEN_PORT") or 4445),
         "allowed_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "100.64.0.0/10", "fc00::/7", "::1/128"],
+        "add_files": True,  # files people copy in are imported (share_import.py); off: read-only
     },
     # the assistant's code sandbox (sandbox.py, docs/assistant.md#code-sandbox): off until an admin turns it on. Then
     # each conversation's Python and bash run in a sandbox of its own on the OpenShell gateway at `gateway`, made from
@@ -570,13 +571,16 @@ DEFAULTS = {
     # sensors (sensors.py, docs/sensors.md): off until an admin turns them on. Then the MQTT hub and the syslog listener
     # run in the process that runs routines (`lens worker`), on these ports; syslog is taken only from syslog_networks.
     # store, raw_days, rollup_days, important_days and max_per_minute are what a stream sensor gets unless it has its own.
-    # bind is a startup setting only.
+    # bind is a startup setting only. mqtt_web: the broker over WebSockets too, on mqtt_web_port, which the web app
+    # relays at /mqtt (so Remote access and HTTPS reach it), for clients with a hub login only.
     "sensors": {
         "enabled": False,
         "bind": "0.0.0.0",
         "mqtt": True,
         "mqtt_port": 1883,
         "mqtt_anonymous": False,
+        "mqtt_web": False,
+        "mqtt_web_port": 9883,
         "syslog": True,
         "syslog_port": 5514,
         "syslog_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "fc00::/7", "::1/128"],

@@ -2,6 +2,17 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-17 · Read any chat message aloud
+
+Adeel: play any message in the chat through the TTS model. A speaker button on every question and answer reads it by
+`POST /voice/speak` (so the provider layer, the voice picker's voice and the activity ledger are voice mode's), one
+message at a time, in pieces of at most 1,500 characters (Deepgram's limit is 2,000; `speech.speak` cuts at 4,000),
+with the next piece asked for while one plays. Audio is kept in the page by text, the 32 most recent pieces.
+
+Refine later: keep audio across reloads (encrypted on the server, or the browser's Cache Storage); a shorter first
+piece so long answers start sooner; voice mode reading answers through the same pieces; pause and resume rather than
+stop; the speaker button in an asset's Chat tab; drop kept audio when the voice is changed.
+
 ## 2026-10-17 · Dates read as days
 
 Adeel: dates extraction. `dates.py` reads the dates each line gives (written out, numeric, and relative to the day)

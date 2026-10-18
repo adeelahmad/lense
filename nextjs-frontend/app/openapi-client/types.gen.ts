@@ -9298,6 +9298,12 @@ export type HubStatus = {
    */
   mqtt_port?: number | null;
   /**
+   * Mqtt Web
+   *
+   * the broker over WebSockets too, which the web app relays at /mqtt
+   */
+  mqtt_web?: boolean;
+  /**
    * Syslog
    */
   syslog: boolean;
@@ -14781,6 +14787,37 @@ export type Passkey = {
    */
   last_used_at?: string | null;
   [key: string]: unknown;
+};
+
+/**
+ * PasskeyAddress
+ */
+export type PasskeyAddress = {
+  /**
+   * Url
+   *
+   * an https:// address Lens opens at besides this one (Remote access, HTTPS)
+   */
+  url: string;
+  /**
+   * Passkey
+   *
+   * whether you have a passkey for it: a passkey works only where it was made
+   */
+  passkey: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * PasskeyAddressAsk
+ */
+export type PasskeyAddressAsk = {
+  /**
+   * Url
+   *
+   * one of GET /auth/passkeys/elsewhere's addresses
+   */
+  url: string;
 };
 
 /**
@@ -20901,6 +20938,12 @@ export type SmbStatus = {
    * the command that mounts it on Linux
    */
   mount: string;
+  /**
+   * Add Files
+   *
+   * whether files people copy in are imported (smb.add_files); off: read-only
+   */
+  add_files?: boolean;
   [key: string]: unknown;
 };
 
@@ -25860,6 +25903,49 @@ export type RenamePasskeyResponses = {
 };
 
 export type RenamePasskeyResponse = RenamePasskeyResponses[keyof RenamePasskeyResponses];
+
+export type PasskeyAddressesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/passkeys/elsewhere";
+};
+
+export type PasskeyAddressesResponses = {
+  /**
+   * Response Auth-Passkey Addresses
+   *
+   * Successful Response
+   */
+  200: Array<PasskeyAddress>;
+};
+
+export type PasskeyAddressesResponse = PasskeyAddressesResponses[keyof PasskeyAddressesResponses];
+
+export type PasskeyElsewhereData = {
+  body: PasskeyAddressAsk;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/passkeys/elsewhere";
+};
+
+export type PasskeyElsewhereErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PasskeyElsewhereError = PasskeyElsewhereErrors[keyof PasskeyElsewhereErrors];
+
+export type PasskeyElsewhereResponses = {
+  /**
+   * Successful Response
+   */
+  200: SigninLink;
+};
+
+export type PasskeyElsewhereResponse = PasskeyElsewhereResponses[keyof PasskeyElsewhereResponses];
 
 export type ExternalProvidersData = {
   body?: never;

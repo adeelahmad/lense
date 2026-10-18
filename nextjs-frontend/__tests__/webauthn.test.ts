@@ -3,6 +3,7 @@ import {
   deviceName,
   fromB64url,
   passkeyErrorMessage,
+  passkeySignInMessage,
   prfRequestOptions,
   requestOptions,
   signWithPasskeyPrf,
@@ -40,6 +41,14 @@ describe("passkey helpers", () => {
   it("says what went wrong in words", () => {
     expect(passkeyErrorMessage(new DOMException("x", "NotAllowedError"))).toMatch(/closed or timed out/);
     expect(passkeyErrorMessage(new DOMException("x", "InvalidStateError"), true)).toMatch(/already has a passkey/);
+  });
+
+  it("points a failed sign-in to the address the passkey was made at", () => {
+    expect(passkeySignInMessage(new DOMException("x", "NotAllowedError"))).toMatch(
+      /only at the address it was made at/,
+    );
+    expect(passkeySignInMessage(new DOMException("x", "NotAllowedError"))).toMatch(/Open signed in/);
+    expect(passkeySignInMessage(new DOMException("x", "SecurityError"))).not.toMatch(/Open signed in/);
   });
 
   it("suggests a name from the device", () => {
