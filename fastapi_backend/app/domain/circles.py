@@ -689,3 +689,6 @@ events.kind(
         "space": None,
     },
 )
+
+# what builds on circles' sources, loaded once they're defined, so that any of these modules can be imported first
+from . import circles_ask  # noqa: E402, F401 - what people's agents ask of each other, as agent.asked
