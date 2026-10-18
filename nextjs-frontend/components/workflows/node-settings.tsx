@@ -640,11 +640,13 @@ export function NodeSettings({
                   options={[
                     { value: "merge", label: "Look-alikes in a namespace (to merge)" },
                     { value: "link", label: "Look-alikes across shared namespaces (to link)" },
+                    { value: "retype", label: "Entities whose type looks wrong (to retype)" },
+                    { value: "hide", label: "Noise: filler words, fragments, one-offs (to hide)" },
                   ]}
                 />
               )}
             </Field>
-            <Field label="At least this sure" hint="0 to 1: how sure the rules must be that a pair is one thing">
+            <Field label="At least this sure" hint="0 to 1: how sure the rules must be">
               {({ id, describedBy }) => (
                 <Input
                   id={id}
@@ -658,7 +660,7 @@ export function NodeSettings({
                 />
               )}
             </Field>
-            <Field label="At most" hint="Pairs a run, 1 to 1000, most likely first">
+            <Field label="At most" hint="Candidates a run, 1 to 1000, most likely first">
               {({ id, describedBy }) => (
                 <Input
                   id={id}
@@ -687,7 +689,7 @@ export function NodeSettings({
 
         {node.type === "llm_judge" && (
           <>
-            <Field label="Pairs a call" hint="How many pairs the model judges at once, 1 to 100">
+            <Field label="At a time" hint="How many candidates the model judges in one call, 1 to 100">
               {({ id, describedBy }) => (
                 <Input
                   id={id}

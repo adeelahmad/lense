@@ -170,12 +170,14 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   workflow, pipeline or routine, or change assets and notes. The Schedules page is Lens's crontab: every routine,
   automation schedule and the backup in one list with when each runs next and last, to switch, re-time or run now, and
   agents do the same over the API and MCP. A Classify node in a workflow sorts an asset into labels, content types or
-  topics, acting only on a sure answer, and an Entity filter node keeps the entities you want. Anything that reaches
-  outside Lens or changes more than what set it off asks first, until you let it run on its own: on the Approvals page
-  or, for a change inside Lens, with a yes in the chat it told you in; agents can decline an approval but never give
-  one. Each automation has limits and budgets, and agents make, try and run them over MCP and in the assistant, or
-  draft one from a sentence. An automation's workflow is drawn and tried on the workflow canvas, with its actions in
-  the palette; the studio's builder is planned. ([Processing](docs/processing.md#workflows-and-the-canvas),
+  topics, acting only on a sure answer, and an Entity filter node keeps the entities you want. Graph workflows tidy the
+  entities on a routine: look-alikes to merge or link, types the rules now read differently, and noise to hide, making
+  the changes they're sure of and proposing the rest, each one undoable. Anything that reaches outside Lens or changes
+  more than what set it off asks first, until you let it run on its own: on the Approvals page or, for a change inside
+  Lens, with a yes in the chat it told you in; agents can decline an approval but never give one. Each automation has
+  limits and budgets, and agents make, try and run them over MCP and in the assistant, or draft one from a sentence. An
+  automation's workflow is drawn and tried on the workflow canvas, with its actions in the palette; the studio's
+  builder is planned. ([Processing](docs/processing.md#workflows-and-the-canvas),
   [converting assets](docs/processing.md#converting-assets), [notifications](docs/notifications.md),
   [automations](docs/automations.md), [approvals](docs/automations.md#approvals), [schedules](docs/schedules.md),
   [timeline](docs/timeline.md); [checks](docs/requirements.md#automate-it))

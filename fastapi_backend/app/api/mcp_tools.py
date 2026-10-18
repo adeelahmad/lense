@@ -1590,7 +1590,8 @@ def propose_graph_change(ctx: Context, kind: str, a: str, b: str, reason: str | 
 @tool(
     "undo_graph_change",
     "Undo a graph change",
-    "Take back a merge or link made by propose_graph_change (with apply, or once accepted): its id is the change's. "
+    "Take back a graph change that was made: a merge or link from propose_graph_change (with apply, or once accepted), "
+    "or a merge, link, type change or hide a graph workflow made (GET /api/v1/graph-changes). Its id is the change's. "
     "Needs a token with the write scope and editor access.",
     Arg("change_id", "integer", "the change (propose_graph_change's id)", required=True),
     writes=True,
