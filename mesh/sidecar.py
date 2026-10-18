@@ -412,7 +412,7 @@ def main():
     stop = threading.Event()
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, lambda *_: stop.set())
-    say(f"waiting for Lens to write {shared / 'lens.json'} (it does once a node is added)")
+    say(f"waiting for Lens to write {shared / 'lens.json'} (it does once the mesh is on)")
     svc.loop(stop)
     return 0
 

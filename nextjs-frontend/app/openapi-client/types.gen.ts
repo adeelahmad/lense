@@ -13274,6 +13274,12 @@ export type MeshTokenCreated = {
    * this install's address the machine joins at
    */
   join_url: string;
+  /**
+   * Install Line
+   *
+   * the line to run on the machine: install.sh with LENS_JOIN and LENS_JOIN_TOKEN
+   */
+  install_line: string;
   [key: string]: unknown;
 };
 
