@@ -17,7 +17,8 @@ closed part: whoever may see the asset's page sees it, as IIIF manifests always 
 
 Publishing is for owners: they set an asset's access, open parts and featured flag (in its Access dialog, or
 through its metadata, bulk edits and reverts), and their namespace's default access and parts in its metadata
-profile. Editors edit the rest of the metadata. Every change is kept in the metadata history and can be reverted.
+profile. To change many at once, select them in the Library and pick Visibility › Public, Restricted or Private;
+its toast's Undo puts each back as it was (agents: `POST /api/v1/metadata/bulk` with `set: {access}`). Editors edit the rest of the metadata. Every change is kept in the metadata history and can be reverted.
 Moving an asset to another namespace doesn't change who sees it: the access it had from its old namespace is pinned
 on it.
 

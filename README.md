@@ -275,7 +275,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [usage analytics](docs/analytics.md); [checks](docs/requirements.md#watch-it-run))
 - **Stay private and safe.** Passkeys instead of passwords (one at Lens's remote address added from a signed-in one with
   Open signed in), encryption at rest with a key per namespace, roles per namespace (viewer, editor, owner, or custom
-  roles made of permissions), email invitations, removing someone for good, and an audit log. Prompt injection meets
+  roles made of permissions), who sees each asset, set for many at once from the Library, email invitations, removing
+  someone for good, and an audit log. Prompt injection meets
   several layers: what the assistant reads (recordings, documents, web pages, tool results) reaches the model marked as
   data, not instructions, and text that reads like instructions to an AI is flagged (by free patterns, or an optional
   classifier model that runs on your machine and is fetched only when you pick it). Once an answer has read such text,
