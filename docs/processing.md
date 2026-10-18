@@ -751,6 +751,10 @@ A pipeline runs a workflow as a Workflow step, pinned to the workflow's publishe
 means "runs after", and the graph is put in order (ties left to right) and kept as the version's steps, so runs and
 Activity work as before. A pipeline saved as a list is drawn as a chain.
 
+An automation's workflow (scope `event`) is drawn on the same canvas, from What happened (the run) to Action and
+Decide nodes, with every action in the catalog listed in the palette and its settings drawn from the action's params
+([On the canvas](automations.md#on-the-canvas)).
+
 ## Content types
 
 Every resource is video, audio, image or text (transcripts, documents, web pages, emails and calendar events are
@@ -791,6 +795,9 @@ The schedule is a five-field cron expression (minute hour day-of-month month day
 now. Every 30 seconds, `lens worker` checks (and so does the API process when it runs background work, and `lens watch`); a routine is
 never started twice at once, and one started in two processes runs once. Each run keeps what every action did and a
 log.
+
+The [Schedules](schedules.md) page (Automate › Schedules) lists every routine next to the automations' schedules and
+the backup, to switch, re-time and run each from one place; the Routines page and New routine open from its top.
 
 ### Organising the graph
 

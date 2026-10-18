@@ -91,6 +91,7 @@ nav:
       - NSFW classification: nsfw.md
       - Notifications: notifications.md
       - Automations: automations.md
+      - Schedules: schedules.md
       - Timeline: timeline.md
   - Knowledge:
       - Graph and Cypher: graph.md
