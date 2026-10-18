@@ -48,6 +48,27 @@ network reach them. Run natively, it runs in `lens worker` (and in
 the API when it runs background work). Several processes can run it: the first to get the port serves it, and the
 others try again every minute.
 
+## At the web app's address
+
+Devices away from home (a phone, a sensor at another site) can reach the hub wherever the web app opens, through
+[Remote access](remote-access.md) or [HTTPS](https.md): MQTT over WebSockets at `/mqtt`. An admin turns it on with
+**MQTT at the web app's address too** in Settings → Sensors (`sensors.mqtt_web`, off by default, and only with MQTT on).
+
+- The address is the web app's with `wss://` and `/mqtt` (`ws://` on plain http), such as
+  `wss://lens.example.com/mqtt`. The sensors page shows it next to the MQTT port once it's on. Any client with a
+  WebSocket transport takes it, for example paho-mqtt (`transport="websockets"`, path `/mqtt`) or mqtt.js in a browser.
+- Every client signs in with a hub login. Clients without one are turned away here even when `sensors.mqtt_anonymous`
+  lets them in on port 1883, and eight wrong passwords from one address in 15 minutes turn that address away for a
+  while, as sign-in does.
+- It is the same broker: what a client publishes over WebSockets reaches subscribers on port 1883 and becomes a sensor
+  as it would there (in the login's namespace), and the other way round.
+
+How it works: the worker listens for MQTT over WebSockets on `sensors.mqtt_web_port` (9883, on `sensors.bind` like
+1883), and the web app passes `/mqtt` on to it (`nextjs-frontend/lens-relay.js`, at `LENS_MQTT_WS_URL`:
+`http://worker:9883` in the Docker Compose files, else this machine's port 9883). The broker reads each visitor's address
+from the web app's `X-Forwarded-For`, which it trusts from the hosts in `LENS_TRUSTED_PROXY_HOSTS` and this machine. In
+Docker, port 9883 isn't published: devices reach it through the web app.
+
 ## Organising itself
 
 A device publishing to the hub, or a host sending syslog, becomes a sensor the first time it does, marked **new**. Its
@@ -137,6 +158,7 @@ folders feeding their namespaces):
 
 ## Refine later
 
-Notifications for alert patterns, sensors for namespace members (admins only for now), MQTT 5, the port mappings of
+Notifications for alert patterns, sensors for namespace members (admins only for now), MQTT 5, per-topic access for
+hub logins (any login can subscribe to `#`, at `/mqtt` too), the port mappings of
 the Synology, QNAP, Proxmox and Cloudron packages; in the web app, a chart with axes and zoom, paging back through
 readings, and labelling many log patterns at once.

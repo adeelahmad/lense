@@ -12,6 +12,7 @@ import {
   Pipelines,
   Resources,
   Speakers,
+  Specs,
   Templates,
   Video,
 } from "@/app/openapi-client";
@@ -37,6 +38,7 @@ export const rk = {
   comments: (id: number) => ["recording", id, "comments"] as const,
   highlights: (id: number) => ["recording", id, "highlights"] as const,
   files: (id: number) => ["recording", id, "files"] as const,
+  spec: (id: number) => ["recording", id, "spec"] as const,
   fileLines: (id: number, fid: number) => ["recording", id, "files", fid, "lines"] as const,
   job: (jid: number) => ["job", jid] as const,
 };
@@ -427,6 +429,17 @@ export function useFileActions(id: number) {
   return { add, update, remove };
 }
 
+/** The asset's spec from its transcript (docs/notes.md, Specs from transcripts), checked again while it's being written. */
+export function useSpec(id: number, enabled = true) {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: rk.spec(id),
+    enabled,
+    queryFn: () => data(Specs.getSpec({ client, path: { rid: id } })),
+    refetchInterval: (query) => (query.state.data?.status === "writing" ? 3000 : false),
+  });
+}
+
 export function useRecordingActions(id: number) {
   const client = useApiClient();
   const qc = useQueryClient();
@@ -444,6 +457,14 @@ export function useRecordingActions(id: number) {
       data(Resources.reprocessRecording({ client, path: { rid: id }, body })),
     onSuccess: () => void qc.invalidateQueries({ queryKey: rk.jobs(id) }),
     onError: fail("Couldn't start the job"),
+  });
+  const writeSpec = useMutation({
+    mutationFn: () => data(Specs.writeSpec({ client, path: { rid: id }, body: {} })),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: rk.spec(id) });
+      void qc.invalidateQueries({ queryKey: rk.jobs(id) });
+    },
+    onError: fail("Couldn't start the spec"),
   });
   const retry = useMutation({
     mutationFn: (jid: number) => data(Jobs.retryJob({ client, path: { jid } })),
@@ -555,6 +576,7 @@ export function useRecordingActions(id: number) {
   });
   return {
     reprocess,
+    writeSpec,
     retry,
     editSegment,
     splitSegment,

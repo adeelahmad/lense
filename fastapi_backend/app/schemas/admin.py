@@ -58,6 +58,7 @@ class SmbStatus(ResponseModel):
     installed: bool = Field(description="whether the SMB server (impacket) is installed here; it's fetched when the share is turned on")
     address: str = Field(description="the address Finder and Linux file managers open (the machine's name filled in by the caller)")
     mount: str = Field(description="the command that mounts it on Linux")
+    add_files: bool = Field(False, description="whether files people copy in are imported (smb.add_files); off: read-only")
 
 
 class SlackStatus(ResponseModel):
@@ -175,6 +176,7 @@ class NfsStatus(ResponseModel):
     process: str | None = Field(None, description="the worker running it")
     mount: str = Field(description="the command that mounts it on Linux")
     rclone: bool = Field(description="whether rclone is installed here")
+    add_files: bool = Field(False, description="whether files written to the share are imported (nfs.add_files); off: read-only")
 
 
 class Removed(ResponseModel):
@@ -261,6 +263,16 @@ class EncryptionProgress(ResponseModel):
     skipped: int = 0
     error: str | None = None
     finished_at: float | None = None
+
+
+class LlmTry(RequestModel):
+    """What to test before saving it (Settings → LLM provider); anything left out is taken from what is saved."""
+
+    base_url: str | None = Field(None, max_length=500, description="the server's address, as typed")
+    model: str | None = Field(None, max_length=200, description="the model name, as typed")
+    api_key: str | None = Field(
+        None, max_length=500, description="a key typed but not saved; the saved key is used only at the saved address"
+    )
 
 
 class LlmTestResult(ResponseModel):

@@ -584,6 +584,30 @@ class Florence(Component):
             fetch_file(cfg, n, say)
 
 
+class Moondream(Component):
+    """PyTorch, transformers and the chosen Moondream (moondream.py), when Settings → LLM provider has it describe
+    pictures and this machine can run it (Moondream 3 needs a GPU: 19 GB isn't fetched where it can't run)."""
+
+    kind = "model"
+
+    def needed(self, cfg, m):
+        from . import moondream
+
+        return (cfg.get("llm") or {}).get("describe_engine") == "moondream" and not moondream.cannot_run(cfg, m)
+
+    def present(self, cfg):
+        from . import moondream
+
+        return moondream.ready(cfg)
+
+    def fetch(self, cfg, m, say):
+        from . import moondream
+
+        if not importable("torch", "transformers"):
+            pip_install(cfg, "moondream", say)
+        moondream.fetch(cfg, say)
+
+
 class InjectionModel(Component):
     """The prompt-injection classifier (injection_model.py), fetched when ai.injection_check asks for it."""
 
@@ -969,6 +993,15 @@ COMPONENTS = [
         steps={"describe"},
         size_mb=280,
         license="MIT",
+    ),
+    Moondream(
+        "moondream",
+        "Moondream",
+        "describes pages and shots on this machine (llm.describe_engine moondream): Moondream 3 Preview, about 19 GB and "
+        "a GPU, or Moondream 2, about 3.7 GB, with PyTorch and transformers",
+        steps={"describe"},
+        size_mb=19000,
+        license="BSL-1.1 (Moondream 3 Preview) or Apache-2.0 (Moondream 2)",
     ),
     LAYA,
     Spacy(

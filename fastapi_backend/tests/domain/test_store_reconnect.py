@@ -47,7 +47,7 @@ class _Conn:
 def _db(monkeypatch, first):
     d = store.DB.__new__(store.DB)
     d.url, d.embedded = "ws://test", False
-    d._pool = store.queue.LifoQueue()
+    d._pool, d._held = store.queue.LifoQueue(), store.threading.local()
     d._all = [first]
     d._pool.put(first)
     fresh = _Conn()

@@ -11,13 +11,66 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   x4v3 (BSD-3-Clause, 5 MB) is fetched the first time it's chosen. The Details tab says what was found, saves the
   copy, and enhances an image on request; agents use `POST /api/v1/resources/{rid}/enhance`, the MCP tool `enhance`
   or the `enhance` automation action ([Enhancing images](docs/enhance.md)).
+- **Deep research.** Give the assistant a goal (`/research <goal>`, `research: true` on a question, `POST
+  /api/v1/chats/<id>/research`, its `start_research` tool, or MCP) and it plans the research: up to three follow-up
+  questions, the sub-questions, where it looks (the archive, the graph, notes, the web, the code sandbox), the tool
+  calls it may make, the report's outline, and a labelled cost estimate. Approve the plan as it is or edited, revise
+  it, or say "yes" in a chat room; an API key or an app only declines it unless `research.agents_skip_review` is on.
+  It runs in the background, one run per person at a time, within its tool calls, `research.max_minutes` and your
+  budgets, survives a restart, and stops when asked; the cited report comes back in the conversation, its claims
+  checked against their sources, and saves as a note or makes a podcast episode. In the web app, the composer's Deep
+  research switch asks for it; the plan is a card to edit and approve with Enter, then a progress card that survives a
+  reload; and the report saves as a note, reads aloud, makes a podcast or exports as Markdown. Settings → AI assistant
+  → Deep research holds its limits ([Deep research](docs/assistant.md#deep-research)).
+- **Read any message aloud.** Every question and answer in a conversation has a speaker button: one click reads it
+  aloud by the speech model and voice picked in Settings → AI assistant → Voice (else the browser's own speech),
+  another stops it. One message plays at a time, long answers go in pieces under every provider's limit, and each
+  piece's audio is kept in the page, so playing it again doesn't call the model again. Each call is logged in the
+  activity ledger ([Read a message aloud](docs/assistant.md#read-a-message-aloud)).
+- **Conversations title themselves.** After a conversation's first answer, the model gives it a short title from the
+  question and the answer, with the model for summaries (`ai.compact_model`) when one is set, in one call counted for
+  the conversation in the activity ledger; until then, and when there's no model, it's titled with the first
+  question's words. A title someone gives it is kept. `title_by` says who titled it, `POST /api/v1/chats/<id>/title`
+  and the MCP tool `rename_chat` (without a title) have Lens title it again, and `rename_chat` with a title renames it.
+  Settings → AI assistant → Title conversations (on) turns it off ([Titles](docs/assistant.md#titles)).
+- **More tests for automations' conditions.** An If, a trigger's where and a condition node can now test that text
+  starts or ends with something or matches a pattern, that a value is in a list, that a number or a time is between
+  two, before or after a time or within a duration, falls on certain days or times of day, and whether a value changed
+  since the last activity. Each value is checked when it's saved, and patterns that could tie up the worker are refused
+  ([Operators](docs/automations.md#operators)).
+- **Automations look back.** An automation's If can ask whether something like this happened before: activities of
+  some kinds within a time, from the same sender or about the same thing, at least or at most so many times, looked for
+  only in the automation's namespaces and only as its person may see them. `changed` in a trigger's where or an If
+  compares each activity with the last one, and trying an automation keeps nothing
+  ([Looking back](docs/automations.md#looking-back)).
+- **Automations wait for their triggers together.** An automation's join runs it when all of its triggers came within
+  a time (for the same sender, say), when one came a number of times, when one didn't come in time after another (no
+  reply within two days), or once for a batch collected over a time. What it waits on outlasts a restart, and switching
+  the automation off drops it ([Joins](docs/automations.md#joins)).
 - **Specs from transcripts.** Turn a voice session or a meeting into a technical spec, saved as a note linked to it:
   the model writes the spec, then lists every named decision, every "no" and "not that, this", every constraint and
   every gap the speaker left to decide later, each with its quote and a link to the moment it was said; a quote the
   transcript doesn't hold word for word is marked. The prompt is the "Spec from transcript" template, editable on
-  the Templates page. Agents write one with `POST /api/v1/recordings/{id}/spec`, the MCP tools `write_spec` and
+  the Templates page. In the web app it's Write a spec, then Open spec, in an asset's More actions menu, and a Spec
+  step in the pipeline editor. Agents write one with `POST /api/v1/recordings/{id}/spec`, the MCP tools `write_spec` and
   `get_spec`, and the assistant's `write_spec` (which asks first); pipelines and batches run it as a `spec` step
   ([Specs from transcripts](docs/notes.md#specs-from-transcripts)).
+- **MQTT through Remote access.** Devices away from home can publish to the sensor hub, and subscribe to it, at the
+  web app's own address: MQTT over WebSockets at `/mqtt` (`wss://` under HTTPS), through the Cloudflare tunnel and
+  HTTPS too. It's off until an admin turns on **MQTT at the web app's address too** in Settings › Sensors, and there
+  every client signs in with a hub login, with too many wrong passwords from one address turned away for a while. It's
+  the same broker as on port 1883. SMB, NFS and syslog stay on the local network, and Remote access now says why
+  ([Sensors](docs/sensors.md#at-the-web-apps-address), [Remote access](docs/remote-access.md#what-it-reaches)).
+- **Passkeys at your remote address in one step.** A passkey works only at the address it was made at, so one made at
+  `localhost` or on the network didn't work at the Remote access or HTTPS address, and getting one there took a
+  sign-in link from email or an admin. Now Profile and sign-in › Passkeys lists Lens's other addresses with **Open
+  signed in**, which opens one with a 15-minute sign-in link of your own, where one fingerprint adds a passkey for it
+  ([Authentication](docs/authentication.md#signing-in-passkeys)).
+- **Files added over NFS are imported.** A file copied into a collection's folder on the NFS share is imported a moment
+  after it's closed, as the account the share shows the tree as (`nfs.account`), with the same checks as an upload.
+  rclone keeps files being written in a cache on Lens's disk and puts them to Lens once they're closed; a file Lens
+  can't take shows in the share's log. **Import files people add** in Settings, NFS share (`nfs.add_files`, on) turns it
+  off and serves the share read-only again ([Adding files](docs/file-shares.md#adding-files)).
 - **Export a conversation.** `GET /api/v1/chats/<id>/export.md`, `.pdf` or `.json` gives the version showing, one
   message (`?message=`) or, as JSON, every version (`?all=true`). The Markdown has each question and answer, its
   citations as footnotes linking back to the moment in Lens and the tools it used; the PDF is that Markdown printed by
@@ -27,7 +80,35 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   Markdown or plain text and exports it, questions and code blocks have their own copy buttons, and the conversation's
   header has Export; without a PDF printer on the server, the browser prints it instead
   ([Copy and export](docs/assistant.md#copy-and-export)).
+- **Files added over SMB are imported.** Copy files into a collection's folder on the SMB share and each is imported
+  when it's closed, as an upload is; a new folder under `Collections` is a new collection. Files of a type Lens doesn't
+  take are refused as they're made, files over the upload limit are cut off as they're written, and a file deleted as
+  it's closed or left open when its client goes away isn't imported. The system's own files (`.DS_Store`, `Thumbs.db`,
+  Office's `~$` files) are kept aside, and renaming a file saved under a temporary name imports it. **Import files
+  people add** in Settings, SMB share (`smb.add_files`, on) turns it off and makes the share read-only again ([Adding
+  files](docs/smb.md#adding-files)).
+- **News feeds.** Subscribe to a blog's or a news site's RSS or Atom feed: add it on the Sources page (its address,
+  or just the site's) and watch it, and each new post comes into a namespace as text, with its link, author and date,
+  so answers cite it. Feeds are asked for again only when they've changed, and a private feed's address is kept like a
+  password ([News feeds](docs/processing.md#news-feeds-rss-and-atom)).
+- **Automations on feed posts.** Each new post of a news feed is a `feed_post.received` activity with its address,
+  site, feed, author, date and categories, so an automation can start on posts from one feed, author or category
+  ([Kinds](docs/automations.md#kinds)).
+- **Agents follow news feeds.** `subscribe_feed` (MCP and the assistant, admins) follows a feed into a namespace in one
+  step, checked before it's kept; `news_feeds` lists them and `unsubscribe_feed` stops one
+  ([News feeds](docs/processing.md#news-feeds-rss-and-atom)).
+- **Fixed: Lens could freeze after an answer.** When a browser left a streaming answer early, the cleanup of that
+  stream could wait for a database connection its own thread already held, and every request after it waited too.
+  A query made inside another on the same thread now runs on that connection
+  ([Concurrency](docs/database.md#concurrency)).
 
+- **Published feeds.** A namespace publishes a private RSS feed, or a podcast feed with Apple Podcasts' tags, that any
+  feed reader or podcast app follows at its address: resources (with their audio as the enclosure), podcast episodes
+  once they're made (with the sources they cite), timeline activities and text. A feed holds only what everyone who
+  reads its namespace can already read, never a vault's; its token is all a reader needs, so it's kept sealed, a new
+  one stops the old address at once, and the feed asks directories and search engines not to list it. Editors make and
+  fill feeds with `POST /api/v1/feeds` and `POST /api/v1/feeds/{id}/items`; agents use the MCP tools `list_feeds`,
+  `create_feed` and `publish_to_feed` ([Published feeds](docs/feeds.md)).
 ## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
 
 - **Dates read as days, for agents.** With Settings → Analysis → Read dates on (off by default), analysis reads the
@@ -67,6 +148,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   fixed, by rules, on English lines. Every changed line is in Change history with Revert, and lines someone corrected
   are left alone. Reprocess, pipelines, `POST /api/v1/recordings/<id>/reprocess` and `lens clean` run it
   ([Cleaning up transcripts](docs/processing.md#cleaning-up-transcripts)).
+- **Describe pictures on this machine with Moondream.** Settings → LLM provider → Describing pictures can also have
+  M87 Labs' Moondream caption each page and shot (`llm.describe_engine` `moondream`), through transformers and
+  PyTorch, so no picture leaves the machine: Moondream 3 Preview (`llm.moondream_model` `moondream3-preview`, about
+  19 GB, an NVIDIA GPU or a Mac with 32 GB; BSL 1.1, not open source) or Moondream 2 (`moondream2`, Apache-2.0, about
+  3.7 GB, on a CPU, slowly). It's fetched, pinned to a revision, the first time a job waits to describe something, and
+  only where the chosen one can run; elsewhere the step says why. Agents choose it with `set_picture_descriptions`
+  ([Descriptions](docs/configuration.md#descriptions)).
 - **Describe pictures on this machine with Florence-2.** Settings → LLM provider → Describing pictures can now have
   Microsoft's Florence-2 (MIT) describe each page and shot instead of the provider's model that can see images
   (`llm.describe_engine` `florence-2`). It runs on the CPU through ONNX Runtime, so no picture leaves the machine and
@@ -79,10 +167,6 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   each run shows what its actions did. Try one on an activity without keeping or sending anything, or run it now;
   Settings → Automations switches them all off and sets how far they may go
   ([Running automations](docs/automations.md#running-automations)).
-- **News feeds.** Subscribe to a blog's or a news site's RSS or Atom feed: add it on the Sources page (its address,
-  or just the site's) and watch it, and each new post comes into a namespace as text, with its link, author and date,
-  so answers cite it. Feeds are asked for again only when they've changed, and a private feed's address is kept like a
-  password ([News feeds](docs/processing.md#news-feeds-rss-and-atom)).
 - **Each answer says what produced it.** The *i* in an answer's header shows the model and the host it ran on, the
   tools it was offered and used, the scope, its limits and what it used, tokens, cost (an estimate from your prices),
   how long it took, how it ended and which tool results read like instructions to an AI, with the calls made for it.
@@ -143,6 +227,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   sealed and never shown again (manifests say `••••`), and an upgrade step seals the ones saved before. Each server's
   tools have a switch and "Asks first", kept in its manifest
   ([Adding an MCP server](docs/assistant.md#adding-an-mcp-server)).
+- **A browser for the assistant, and ready-made MCP servers.** Add MCP server now starts with Ready-made:
+  **Browser** runs a headless Chromium ([Playwright MCP](https://github.com/microsoft/playwright-mcp)) in a container
+  of its own, whose only way out is a proxy to public addresses on ports 80 and 443, and adds it with one click;
+  **GitHub** fills in GitHub's own server with a field for its token. Values written as `${NAME}` in a pasted config
+  now get a field of their own too. The MCP runner, the browser and monitoring turn on and off from the web app (the
+  machine's upgrade agent starts and stops them), and agents do the same with `PUT /api/v1/admin/services/<profile>`
+  or the MCP tools `services` and `set_service`. A server whose spec says `keep: true` keeps one session between
+  calls ([The browser](docs/assistant.md#the-browser), [Optional containers](docs/assistant.md#optional-containers)).
 - **Describe an automation in words.** `POST /api/v1/automations/draft` asks the model once to turn a sentence into
   a draft automation to try and save, and says what didn't fit and what it couldn't express
   ([Describe it in words](docs/automations.md#describe-it-in-words)).

@@ -20,6 +20,7 @@ import { CitationChip } from "@/components/chat/citation";
 import { AnswerDetails } from "@/components/chat/details";
 import { AnswerMenu, type ExportFormat } from "@/components/chat/export";
 import { keywords } from "@/components/chat/keywords";
+import { ReadAloud } from "@/components/chat/read-aloud";
 import { RichText } from "@/components/chat/rich-text";
 import { scopeWords, type Scope } from "@/components/chat/scope";
 import { SharedFiles } from "@/components/chat/shared-files";
@@ -161,6 +162,8 @@ export type AnswerProps = {
   meta?: MessageRecord | null;
   /** Export this answer, with its question (a saved answer's copy menu). */
   onExport?: (fmt: ExportFormat) => void;
+  /** More of what can be done with it, under it (a research report's: save as note, read aloud...). */
+  actions?: React.ReactNode;
 };
 
 /** One answer: where it comes from, the tools used, approvals, the text with citations, and its error states. */
@@ -364,6 +367,7 @@ export function Answer(p: AnswerProps) {
             {check.isPending ? "Checking sources…" : "Check sources"}
           </Button>
         )}
+        {!streaming && !blank && !noModel && !nothing && !failed && <ReadAloud text={p.text} />}
         {!streaming && !blank && !noModel && <AnswerMenu text={p.text} passages={p.passages} onExport={p.onExport} />}
       </div>
       {check.isError && (
@@ -372,6 +376,7 @@ export function Answer(p: AnswerProps) {
         </p>
       )}
       {result && <CheckResult result={result} cited={cites.length} />}
+      {!streaming && p.actions}
     </article>
   );
 }

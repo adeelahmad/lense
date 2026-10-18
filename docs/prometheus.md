@@ -20,7 +20,9 @@ page.
 upgrade agent (the one that [installs new releases](updates.md)) adds `monitoring` to `COMPOSE_PROFILES` in `.env` and
 starts the three containers; the page shows how it goes and then links to Grafana. Off stops and removes them (their
 history stays in the `prometheus-data` volume) and turns `/metrics` off again if this switch turned it on. Agents do
-the same with `PUT /api/v1/admin/monitoring` (`{"on": true}`) or the MCP tools `monitoring` and `set_monitoring`.
+the same with `PUT /api/v1/admin/monitoring` (`{"on": true}`) or the MCP tools `monitoring` and `set_monitoring`,
+or with the switch every optional container shares, `PUT /api/v1/admin/services/monitoring` and the MCP tool
+`set_service` ([Optional containers](assistant.md#optional-containers)).
 
 Grafana listens where the web app does (`LENS_BIND`: this machine only unless Lens was opened to the network) on port
 3001 (`LENS_GRAFANA_PORT`), and System health links to it on the address you opened Lens at, unless

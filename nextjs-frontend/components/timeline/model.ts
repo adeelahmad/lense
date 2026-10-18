@@ -210,6 +210,7 @@ const NOUNS: Record<string, [string, string, string]> = {
   "email.received": ["received", "email", "emails"],
   "calendar_event.added": ["added", "calendar event", "calendar events"],
   "calendar_event.changed": ["changed", "calendar event", "calendar events"],
+  "feed_post.received": ["received", "post", "posts"],
   "file.added": ["added", "file", "files"],
   "upload.added": ["uploaded", "file", "files"],
   "web_page.saved": ["saved", "web page", "web pages"],

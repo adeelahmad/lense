@@ -96,6 +96,7 @@ const LIB_ORDER = [
   "embed",
   "summarize",
   "llm",
+  "spec",
   "report",
   "export",
   "workflow",
