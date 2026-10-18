@@ -4404,7 +4404,8 @@ export class Activities {
    *
    * Comment on an activity, or with `parent` reply on a thread (a reply to a reply goes on the thread too). Anyone
    * who sees the activity can, up to 1,000 each; everyone who sees it reads them, and each one is a `comment.added`
-   * activity. On an asset's arrival the comment goes on the asset itself.
+   * activity. On an asset's arrival the comment goes on the asset itself. A comment that tags @lens gets the agent's
+   * answer on the thread.
    */
   public static commentOnActivity<ThrowOnError extends boolean = false>(
     options: Options<CommentOnActivityData, ThrowOnError>,
@@ -6887,7 +6888,7 @@ export class Comments {
    *
    * Comment on a moment or passage (`t0`–`t1`, with the `quote` picked in the text) or on the whole resource, or
    * with `parent` reply on a thread (a reply to a reply goes on the thread too). Anyone who can read the resource
-   * can, up to 1,000 each on a resource.
+   * can, up to 1,000 each on a resource. A comment that tags @lens gets the agent's answer on the thread.
    */
   public static createComment<ThrowOnError extends boolean = false>(
     options: Options<CreateCommentData, ThrowOnError>,

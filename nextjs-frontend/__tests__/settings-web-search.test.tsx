@@ -25,6 +25,7 @@ const web = (values: Record<string, unknown>) =>
         tools: true,
         browser: true,
         refine_notes: true,
+        answer_comments: true,
         organise_notes: true,
         compact: true,
         auto_title: true,

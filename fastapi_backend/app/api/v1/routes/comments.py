@@ -10,8 +10,8 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-from app.api.deps import Access, Acl, CurrentUser, Db, Principal, Writer, domain_errors
-from app.domain import auth, comments, highlights, store
+from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer, domain_errors
+from app.domain import auth, comment_agent, comments, highlights, store
 from app.domain.store import DB
 from app.schemas.comments import Comment, CommentCreate, CommentUpdate, Highlight, HighlightCreate, HighlightUpdate
 from app.schemas.common import Ok
@@ -56,7 +56,8 @@ def _comments_out(db: DB, rows: list[dict[str, Any]], rank: int, user: Principal
     out = []
     for c in rows:
         by, res = people.get(c["account"], {}), people.get(int(c["resolved_by"]), {}) if c.get("resolved_by") is not None else {}
-        mine = c["account"] == user.id
+        agent = c.get("author") == "assistant"  # the agent's answer, for the person it names: theirs to delete, not to edit
+        mine = c["account"] == user.id and not agent
         out.append(
             Comment(
                 id=c["id"],
@@ -71,14 +72,15 @@ def _comments_out(db: DB, rows: list[dict[str, Any]], rank: int, user: Principal
                 resolved_by=res.get("email"),
                 resolved_by_name=res.get("name") or None,
                 resolved_at=c.get("resolved_at"),
-                created_by=by.get("email"),
-                created_by_name=by.get("name") or None,
+                created_by=None if agent else by.get("email"),
+                created_by_name="Lens" if agent else by.get("name") or None,
+                by_agent=agent,
                 created_at=c.get("created_at"),
                 updated_at=c.get("updated_at"),
                 edited_at=c.get("edited_at"),
                 mine=mine,
                 can_resolve=c.get("parent") is None and (mine or editor),
-                can_delete=mine or owner,
+                can_delete=mine or owner or (agent and c["account"] == user.id),
             )
         )
     return out
@@ -93,13 +95,14 @@ def list_comments(rid: int, user: CurrentUser, acl: Acl, db: Db) -> list[Comment
 
 
 @router.post("/comments")
-def create_comment(rid: int, body: CommentCreate, user: Writer, acl: Acl, db: Db) -> Comment:
+def create_comment(rid: int, body: CommentCreate, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> Comment:
     """Comment on a moment or passage (`t0`–`t1`, with the `quote` picked in the text) or on the whole resource, or
     with `parent` reply on a thread (a reply to a reply goes on the thread too). Anyone who can read the resource
-    can, up to 1,000 each on a resource."""
+    can, up to 1,000 each on a resource. A comment that tags @lens gets the agent's answer on the thread."""
     rec = _recording(acl, db, rid)
     with domain_errors():
         cid = comments.create(db, rid, rec["space"], user.id, body.text, body.t0, body.t1, body.quote, body.parent, rec.get("duration_ms"))
+    comment_agent.wake(db, cfg, cid, body.text)
     return _comments_out(db, [comments.get(db, cid)], _rank(acl, rec), user)[0]
 
 
@@ -112,7 +115,7 @@ def update_comment(rid: int, cid: int, body: CommentUpdate, user: Writer, acl: A
     rank = _rank(acl, rec)
     if body.text is None and body.resolved is None:
         raise HTTPException(400, "change the text, or resolve or reopen the thread")
-    if body.text is not None and c["account"] != user.id:
+    if body.text is not None and (c["account"] != user.id or c.get("author") == "assistant"):
         raise HTTPException(403, "only its writer can change a comment")
     if body.resolved is not None and c["account"] != user.id and rank < auth.ROLES["editor"]:
         raise HTTPException(403, "only its writer or an editor of the resource can resolve a thread")

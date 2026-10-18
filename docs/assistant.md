@@ -766,6 +766,12 @@ A chat room can be given to a namespace's assistant too ([chat rooms](chat-rooms
 
 Refine later: a decision model choosing what's worth remembering, similar memories merged.
 
+## Asking the assistant in a comment
+
+Tag **@lens** (or the assistant's own name) in a comment on the timeline or on an asset's page and it answers in the
+thread, as you, with your tools, in a conversation of yours it opens for the thread; changes it proposes wait for
+your yes as they do in chat ([Asking the agent in a comment](timeline.md#asking-the-agent-in-a-comment)).
+
 ## Extending the assistant: tools, skills, hooks and plugins
 
 Anyone who can edit can add to what the assistant does. Each addition is an *extension*: versioned, kept private or

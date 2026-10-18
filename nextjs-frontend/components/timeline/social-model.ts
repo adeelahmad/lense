@@ -47,3 +47,19 @@ export function commentsLabel(n: number): string {
   if (!n) return "";
   return n === 1 ? "1 comment" : `${n} comments`;
 }
+
+const URL_RX = /https?:\/\/[^\s<>"')\]]+/g;
+
+/** A comment's text split into plain runs and the web addresses in it, so the agent's "Decide in Lens: …" lines
+ * and sources open with a click. */
+export function linked(text: string): { text: string; url?: string }[] {
+  const out: { text: string; url?: string }[] = [];
+  let at = 0;
+  for (const m of text.matchAll(URL_RX)) {
+    if (m.index! > at) out.push({ text: text.slice(at, m.index) });
+    out.push({ text: m[0], url: m[0] });
+    at = m.index! + m[0].length;
+  }
+  if (at < text.length) out.push({ text: text.slice(at) });
+  return out;
+}

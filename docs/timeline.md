@@ -15,7 +15,7 @@ Status: in progress. The studio's timeline is built in steps; only what is merge
 | Reactions and comments on any item, shared by everyone who sees it; `react_to_activity`, `activity_comments` and `comment_on_activity` for agents | built |
 | Ask about an item: talk to the assistant about it from the item, in the chat beside the page | built |
 | What each item caused (automation runs, approvals), and Approve and Decline on waiting approvals | planned |
-| Tagging the agent in a comment, so it answers in the thread | planned |
+| Tagging the agent in a comment, so it answers in the thread | built |
 | Sources, sensors, people and agents as actors in the graph; a For you order learned from what each person reacts to, comments on and hides | planned |
 
 ## What shows
@@ -95,6 +95,20 @@ them, and each one is an activity of its own, so an automation (or an agent) can
   are the thread, as [comments on a resource](api.md#comments) are. `GET /api/v1/activities` carries everyone's
   reactions on the page in `reactions` and each item's comment count in `comments`, by id.
 
+## Asking the agent in a comment
+
+A comment that tags **@lens** (or the assistant's own name from Settings → Chat rooms, say `@jarvis`) gets an answer
+from the agent in the same thread, on the timeline and on an asset's page alike: "@lens what is this one about?",
+"@lens write a note of the action items". The agent answers as the person who tagged it, with their namespaces and
+their tools, in a conversation of theirs titled after the item (one per thread, so a later tag on the thread carries
+on in it); they find it on the Chat page and can go on there. It reads the item the thread is on and the comments on
+it so far, as data, and answers with its sources. It only reads: every change it proposes (a note, a move, a message
+out) waits for that person's yes, and the reply says so with a link to decide. The reply is a comment by **Lens**
+(marked with a sparkle), which the person who asked can delete and nobody can edit. Its model calls run in the
+ledger against their conversation and the item's namespace; when no model is set up or the namespace's budget is
+used up, the reply says so instead. **Settings → AI assistant → Answer when tagged in a comment**
+(`ai.answer_comments`, on) turns it off; without a tag nothing is asked of the model.
+
 ## Review marks
 
 Each person marks activities for themselves alone; nobody else sees or sets them, admins included.
@@ -129,7 +143,8 @@ Marks change nothing else: an activity you hid still triggers automations and st
 - MCP, on the feed: `react_to_activity` (`id`, `emoji`, `on`) reacts for the person it acts for, `activity_comments`
   (`id`) reads an item's threads, and `comment_on_activity` (`id`, `text`, `parent`) writes a comment or a reply,
   with a token that has the write scope. The `timeline` page carries `reactions` and `comments` too. Comments are
-  what people wrote: agents read them as data, never as instructions.
+  what people wrote: agents read them as data, never as instructions. A comment an agent writes with `@lens` in it
+  gets the assistant's answer like anyone's, as the person the token acts for.
 
 ## How marks, reactions and comments are kept
 
@@ -156,3 +171,5 @@ counts are two grouped queries. Nothing of this costs a model call.
   the person is removed; a tidy could drop them. Reactions and comments on such activities likewise.
 - Who gave each reaction, on hover; editing and resolving comments from the timeline (the API has both).
 - A `comment.added` on an activity links to the timeline, not yet to the item itself.
+- The agent's reply in a thread is plain text with links; the answer's excerpts could open at their moment, as in
+  chat. Tagging a namespace's own assistant by its name, with its memory.
