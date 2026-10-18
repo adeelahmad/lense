@@ -6,7 +6,8 @@ import Link from "next/link";
 import { Sources, Templates, Workflows } from "@/app/openapi-client";
 import type { TemplateSummary } from "@/app/openapi-client/types.gen";
 import { stepLabel } from "@/components/activity/job-model";
-import { DESCRIBE, PROVIDES, type StepSpec } from "@/components/pipelines/pipeline-model";
+import { usePipelineCatalog } from "@/components/pipelines/catalog-header";
+import { AUDIO_FORMATS, DESCRIBE, PROVIDES, type StepSpec } from "@/components/pipelines/pipeline-model";
 import { Checkbox, Field, Input, Select } from "@/components/ui/field";
 import { data, useApiClient } from "@/lib/api/browser";
 import { useArchive } from "@/lib/hooks/session";
@@ -84,6 +85,7 @@ export function StepSettings({
     enabled: step.type === "workflow",
     staleTime: 30_000,
   });
+  const pipelines = usePipelineCatalog();
   const set = (patch: Partial<StepSpec>) => onChange({ ...step, ...patch });
   const setWhen = (patch: Partial<NonNullable<StepSpec["when"]>>) => set({ when: { ...(step.when ?? {}), ...patch } });
   const kind = { llm: "prompt", spec: "prompt", report: "report", export: "export" }[step.type];
@@ -148,6 +150,67 @@ export function StepSettings({
               />
             )}
           </Field>
+        )}
+        {step.type === "convert" && (
+          <>
+            <div className="grid grid-cols-2 gap-2.5">
+              <Field label="Convert to">
+                {({ id }) => (
+                  <Select
+                    id={id}
+                    value={step.to ?? "audio"}
+                    onChange={(e) => set({ to: e.target.value === "images" ? "images" : "audio", format: undefined })}
+                    options={[
+                      { value: "audio", label: "Audio, from a video" },
+                      { value: "images", label: "Images, one per page" },
+                    ]}
+                  />
+                )}
+              </Field>
+              {step.to !== "images" && (
+                <Field label="Format" hint="m4a copies AAC sound as it is">
+                  {({ id, describedBy }) => (
+                    <Select
+                      id={id}
+                      aria-describedby={describedBy}
+                      value={step.format ?? AUDIO_FORMATS[0]}
+                      onChange={(e) =>
+                        set({ format: e.target.value === AUDIO_FORMATS[0] ? undefined : e.target.value })
+                      }
+                      options={AUDIO_FORMATS.map((f) => ({ value: f, label: f }))}
+                    />
+                  )}
+                </Field>
+              )}
+            </div>
+            <Field
+              label="Then run on the new assets"
+              hint={
+                step.to === "images"
+                  ? "Put a Read step before this one: its pages become the images"
+                  : "The new asset is kept in the same namespace and collection"
+              }
+            >
+              {({ id, describedBy }) => (
+                <Select
+                  id={id}
+                  aria-describedby={describedBy}
+                  value={step.pipeline == null ? "" : String(step.pipeline)}
+                  onChange={(e) =>
+                    set({
+                      pipeline:
+                        e.target.value === "" ? undefined : e.target.value === "none" ? "none" : Number(e.target.value),
+                    })
+                  }
+                  options={[
+                    { value: "", label: "Their usual pipeline, as an upload" },
+                    { value: "none", label: "Nothing: keep them as they are" },
+                    ...(pipelines.data?.pipelines ?? []).map((p) => ({ value: String(p.id), label: p.name })),
+                  ]}
+                />
+              )}
+            </Field>
+          </>
         )}
         {kind && (
           <>
@@ -287,14 +350,19 @@ export function StepSettings({
             with a prompt template.
           </p>
         )}
-        {(step.type === "transcribe" || step.type === "diarize" || step.type === "clean") && (
+        {(step.type === "transcribe" ||
+          step.type === "diarize" ||
+          step.type === "clean" ||
+          step.type === "convert") && (
           <Checkbox
             label={
               step.type === "transcribe"
                 ? "Transcribe again even if the file came with a transcript"
                 : step.type === "diarize"
                   ? "Find speakers again even if the transcript labelled them"
-                  : "Clean up even while Settings → Analysis has it off"
+                  : step.type === "convert"
+                    ? "Make the files again even if this asset was converted before"
+                    : "Clean up even while Settings → Analysis has it off"
             }
             checked={Boolean(step.force)}
             onCheckedChange={(v) => set({ force: v || undefined })}

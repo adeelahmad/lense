@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { Feeds, Fields, Workflows } from "@/app/openapi-client";
+import { Activities, Automations, Feeds, Fields, Workflows } from "@/app/openapi-client";
 import type { TemplateSummary, Workflow, WorkflowTry } from "@/app/openapi-client/types.gen";
 import { useTemplateList, useWorkflowCatalog } from "@/components/pipelines/catalog-header";
 import { RunDialog } from "@/components/pipelines/pipeline-editor";
@@ -20,6 +20,8 @@ import {
   sameGraph,
   starter,
   suggestedWorkflowName,
+  wouldDo,
+  type ActionDef,
   type CustomDef,
   type Scope,
   type WfGraph,
@@ -72,7 +74,25 @@ export function WorkflowEditor({ id }: { id?: number }) {
 
   const base: Workflow | undefined = q.data;
   const [newScope, setNewScope] = useState<Exclude<Scope, "tool">>("recording");
-  const scope: Exclude<Scope, "tool"> = creating ? newScope : base?.scope === "graph" ? "graph" : "recording";
+  const scope: Exclude<Scope, "tool"> = creating
+    ? newScope
+    : base?.scope === "graph" || base?.scope === "event"
+      ? base.scope
+      : "recording";
+  // an automation's workflow: its actions for the palette, and the kinds of activity to try it on
+  const actions = useQuery({
+    queryKey: ["automation-actions"],
+    queryFn: () => data(Automations.listActions({ client })),
+    enabled: scope === "event",
+    staleTime: 300_000,
+  });
+  const kinds = useQuery({
+    queryKey: ["activity-kinds"],
+    queryFn: () => data(Activities.listActivityKinds({ client })),
+    enabled: scope === "event",
+    staleTime: 300_000,
+  });
+  const actionDefs = actions.data as ActionDef[] | undefined;
   const [graph, setGraph] = useState<WfGraph>(() => (creating ? starter() : { nodes: [], edges: [] }));
   const [name, setName] = useState("");
   const [notes, setNotes] = useState("");
@@ -99,7 +119,7 @@ export function WorkflowEditor({ id }: { id?: number }) {
     (catalog.data?.workflows ?? []).map((w) => w.name),
   );
   const named = name.trim() || guess;
-  const problems = findProblems(graph, (tid) => tpl.get(tid)?.kind, scope, "workflow", customOf);
+  const problems = findProblems(graph, (tid) => tpl.get(tid)?.kind, scope, "workflow", customOf, actionDefs);
   // The feeds a Publish to feed or Podcast episode node can add to, named on the canvas (graph workflows only).
   const feeds = useQuery({
     queryKey: ["feeds", "list", null],
@@ -147,7 +167,7 @@ export function WorkflowEditor({ id }: { id?: number }) {
         tone: "green",
         title: publish ? `Published v${r.version}` : `Saved draft v${r.version}`,
         body: publish
-          ? `${scope === "graph" ? "Routines" : "Pipelines"} that run it use this version from their next run.`
+          ? `${scope === "graph" ? "Routines" : scope === "event" ? "Automations" : "Pipelines"} that run it use this version from their next run.`
           : "Publish it when it’s ready.",
       });
     },
@@ -166,11 +186,16 @@ export function WorkflowEditor({ id }: { id?: number }) {
   });
 
   const tryIt = useMutation({
-    mutationFn: ({ rid }: { rid?: number; title: string }) =>
+    mutationFn: ({ rid, kind }: { rid?: number; kind?: string; title: string }) =>
       data(
         Workflows.tryWorkflow({
           client,
-          body: { graph: cleanGraph(graph), scope, ...(rid != null ? { recording: rid } : {}) },
+          body: {
+            graph: cleanGraph(graph),
+            scope,
+            ...(rid != null ? { recording: rid } : {}),
+            ...(kind ? { kind } : {}),
+          },
         }),
       ),
     onSuccess: (r, v) => {
@@ -297,16 +322,40 @@ export function WorkflowEditor({ id }: { id?: number }) {
             </MenuContent>
           </Menu>
         )}
-        <Button
-          size="sm"
-          variant="secondary"
-          icon={<Play />}
-          disabled={readOnly || Boolean(firstProblem) || tryIt.isPending}
-          disabledReason={why ?? (firstProblem ? `Fix this first: ${firstProblem[1]}` : "Trying…")}
-          onClick={() => (scope === "graph" ? tryIt.mutate({ title: "every namespace" }) : setTryOpen(true))}
-        >
-          {tryIt.isPending ? "Trying…" : scope === "graph" ? "Try it" : "Try on an asset"}
-        </Button>
+        {scope === "event" ? (
+          <Menu>
+            <MenuTrigger asChild>
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={<Play />}
+                disabled={readOnly || Boolean(firstProblem) || tryIt.isPending}
+                disabledReason={why ?? (firstProblem ? `Fix this first: ${firstProblem[1]}` : "Trying…")}
+              >
+                {tryIt.isPending ? "Trying…" : "Try on a sample"} <ChevronDown />
+              </Button>
+            </MenuTrigger>
+            <MenuContent align="end" className="max-h-[360px] w-[300px] overflow-y-auto">
+              <MenuLabel>What happened</MenuLabel>
+              {(kinds.data ?? []).map((k) => (
+                <MenuItem key={k.name} onSelect={() => tryIt.mutate({ kind: k.name, title: `a sample of ${k.label}` })}>
+                  {k.label}
+                </MenuItem>
+              ))}
+            </MenuContent>
+          </Menu>
+        ) : (
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={<Play />}
+            disabled={readOnly || Boolean(firstProblem) || tryIt.isPending}
+            disabledReason={why ?? (firstProblem ? `Fix this first: ${firstProblem[1]}` : "Trying…")}
+            onClick={() => (scope === "graph" ? tryIt.mutate({ title: "every namespace" }) : setTryOpen(true))}
+          >
+            {tryIt.isPending ? "Trying…" : scope === "graph" ? "Try it" : "Try on an asset"}
+          </Button>
+        )}
         {!creating && scope === "recording" && (
           <Button
             size="sm"
@@ -385,6 +434,13 @@ export function WorkflowEditor({ id }: { id?: number }) {
               Clear
             </button>
           </summary>
+          {(tried.intents ?? []).length > 0 && (
+            <ul aria-label="What it would do" className="mt-2 flex flex-col gap-0.5 text-[12.5px]">
+              {(tried.intents ?? []).map((i, k) => (
+                <li key={k}>{wouldDo(i, actionDefs)}</li>
+              ))}
+            </ul>
+          )}
           <pre className="mt-2 max-h-[160px] overflow-auto whitespace-pre-wrap font-mono text-[11.5px] text-fg-secondary">
             {tried.log.join("\n") || "Nothing logged."}
           </pre>
@@ -406,8 +462,26 @@ export function WorkflowEditor({ id }: { id?: number }) {
         onSaveAsCustom={saveAsCustom}
         feeds={scope === "graph" ? (feeds.data ?? []) : undefined}
         namespaces={scope === "graph" ? namespaces.map((n) => n.name) : undefined}
+        actions={actionDefs}
         emptyPanel={
-          scope === "graph" ? (
+          scope === "event" ? (
+            <div className="flex flex-col gap-2 text-[13px] text-fg-secondary">
+              <h2 className="text-[15px] font-bold text-fg">How an automation’s workflow runs</h2>
+              <p>
+                It starts from what happened: the activity as event, the automation, you, now, saved vars and, as nodes
+                run, steps. Each Action does one thing from the Actions list, its settings filled in from the run with{" "}
+                {"{{ }}"}; what it gives back passes on.
+              </p>
+              <p>
+                Decide asks the decision model which option fits and goes on along that option’s port, or unsure. An
+                action that reaches outside Lens, or that waits first, asks you or waits, so nothing connects after it.
+              </p>
+              <p>
+                Try on a sample runs it on a kind’s sample: nothing is kept or sent, and each action says what it would
+                do.
+              </p>
+            </div>
+          ) : scope === "graph" ? (
             <div className="flex flex-col gap-2 text-[13px] text-fg-secondary">
               <h2 className="text-[15px] font-bold text-fg">How graph workflows run</h2>
               <p>

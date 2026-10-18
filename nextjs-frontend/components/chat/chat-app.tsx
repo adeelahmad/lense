@@ -31,6 +31,7 @@ import {
   type TurnState,
 } from "@/components/chat/stream";
 import { onlyFiles, UserBubble } from "@/components/chat/user-bubble";
+import { SummaryMark } from "@/components/chat/summary-mark";
 import { switched, VersionSwitch } from "@/components/chat/versions";
 import { SharedFrom } from "@/components/page-chat/page-chat";
 import { useRecordingIndex, useSpeakerDirectory } from "@/components/search/data";
@@ -558,6 +559,8 @@ export function ChatApp() {
   }, [chat.data?.id, chat.data]);
 
   const msgs = chat.data?.messages ?? [];
+  // where the model stops reading the conversation word for word: under the last message its summary covers
+  const memory = chat.data?.summary ?? null;
   const items = useMemo(() => {
     const here = live && live.chatId === activeId;
     // a version being written streams in place of the one beside it (what came before it has smaller ids)
@@ -799,6 +802,7 @@ export function ChatApp() {
                       />
                     </div>
                   )}
+                  {memory && it.q && it.a && memory.upto === it.q.id && <SummaryMark summary={memory} />}
                   {it.a?.kind === "research_plan" && it.a.meta?.research != null ? (
                     <ResearchCard id={it.a.meta.research} chatId={activeId} text={it.a.content} />
                   ) : it.a ? (
@@ -874,6 +878,9 @@ export function ChatApp() {
                         No answer was saved for this question. Ask it again to get one.
                       </p>
                     )
+                  )}
+                  {memory && (it.a ? memory.upto === it.a.id : memory.upto === it.q?.id) && (
+                    <SummaryMark summary={memory} />
                   )}
                 </div>
               );

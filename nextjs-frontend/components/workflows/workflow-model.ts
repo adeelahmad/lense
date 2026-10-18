@@ -6,6 +6,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Braces,
+  Bolt,
   CheckCheck,
   FileText,
   FolderSearch,
@@ -20,6 +21,7 @@ import {
   GitBranch,
   GitMerge,
   Gavel,
+  Milestone,
   Network,
   PlayCircle,
   Podcast,
@@ -27,6 +29,7 @@ import {
   Save,
   ScanSearch,
   SearchCheck,
+  Zap,
   Shapes,
   Sparkles,
   Tags,
@@ -50,8 +53,9 @@ export type WfNode = {
 export type WfEdge = { source: string; target: string; port?: string; input?: string; branch?: string };
 export type WfGraph = { nodes: WfNode[]; edges: WfEdge[] };
 /** What a workflow runs on: one recording (from a pipeline), or the entity graph of namespaces (from a routine); or
- * an assistant tool drawn on the canvas, from its parameters to what it gives back. */
-export type Scope = "recording" | "graph" | "tool";
+ * an assistant tool drawn on the canvas, from its parameters to what it gives back; or what an automation does when
+ * something happens (event: from the run context, with action and decide nodes). */
+export type Scope = "recording" | "graph" | "tool" | "event";
 
 type Info = {
   label: string;
@@ -62,7 +66,7 @@ type Info = {
   outputs: string[];
   takes: string;
   gives: string;
-  group: "Start" | "Entities" | "AI" | "Logic" | "Data" | "Loops" | "Body" | "Keep";
+  group: "Start" | "Entities" | "AI" | "Logic" | "Data" | "Loops" | "Body" | "Keep" | "Act";
 };
 
 export const NODES: Record<string, Info> = {
@@ -361,6 +365,29 @@ export const NODES: Record<string, Info> = {
     gives: "the entities kept",
     group: "Entities",
   },
+  action: {
+    label: "Action",
+    describe:
+      "Does one thing from the actions catalog, its settings filled in from the run ({{ event.summary }}); what reaches outside Lens asks you first",
+    icon: Zap,
+    tone: "gold",
+    inputs: 1,
+    outputs: ["out"],
+    takes: "the run",
+    gives: "what the action gave back",
+    group: "Act",
+  },
+  decide: {
+    label: "Decide",
+    describe: "Asks the decision model which of its options fits, and goes on along that option’s port (or unsure)",
+    icon: Milestone,
+    tone: "gold",
+    inputs: 1,
+    outputs: ["unsure"],
+    takes: "the run",
+    gives: "{port, choice, confidence, sure}",
+    group: "AI",
+  },
   apply_changes: {
     label: "Apply changes",
     describe: "Merges or links the pairs it’s sure of and proposes the rest for someone to accept; all can be undone",
@@ -450,8 +477,21 @@ const GRAPH_INPUT: Info = {
   gives: "namespaces",
 };
 
+/** The start of an automation's workflow: the run context (what happened, the automation, the person, now…). */
+const EVENT_INPUT: Info = {
+  ...NODES.input,
+  label: "What happened",
+  describe: "Where an automation’s workflow starts: the run, with the activity as event, now, vars and steps",
+  icon: Bolt,
+  gives: "the run",
+};
+
 export function infoFor(type: string, scope: Scope = "recording"): Info | undefined {
-  return type === "input" && scope === "graph" ? GRAPH_INPUT : NODES[type];
+  return type === "input" && scope === "graph"
+    ? GRAPH_INPUT
+    : type === "input" && scope === "event"
+      ? EVENT_INPUT
+      : NODES[type];
 }
 
 /** The building blocks every workflow has. */
@@ -487,6 +527,7 @@ const SCOPE_NODES: Record<Scope, string[]> = {
     "podcast_episode",
   ],
   tool: [...PRIMITIVES, "ask_model", "call_tool"],
+  event: [...PRIMITIVES, "action", "decide"],
 };
 
 /** Whether a node type can be used in a workflow of this scope. */
@@ -498,6 +539,44 @@ export function inScope(type: string, scope: Scope, catalog?: { type: string; sc
 export const GROUPS = ["Entities", "AI", "Logic", "Data", "Loops", "Keep"] as const;
 /** The nodes a graph workflow ends in: they change the graph or publish from it. */
 export const GRAPH_KEEPS = ["apply_changes", "publish_feed", "podcast_episode"];
+/** An action as the actions catalog (GET /api/v1/automations/actions) lists it: enough to set one up and say what it
+ * reaches. */
+export type ActionDef = {
+  name: string;
+  label: string;
+  group: string;
+  description?: string;
+  params: Record<string, unknown>;
+  required?: string[];
+  effect: "read" | "self" | "lens" | "out" | "depends";
+};
+/** What an action node reaches, from the catalog: out asks first; depends is worked out from its params when saved. */
+export const actionEffect = (n: WfNode, actions?: ActionDef[]) =>
+  actions?.find((a) => a.name === n.config.action)?.effect;
+/** What an action's effect means for whether it runs on its own, as its badge says it. */
+export function effectBadge(effect: ActionDef["effect"] | undefined): { label: string; tone: "green" | "gate" } {
+  if (effect === "read" || effect === "self") return { label: "Runs on its own", tone: "green" };
+  if (effect === "out") return { label: "Asks you first", tone: "gate" };
+  if (effect === "lens") return { label: "Asks you first unless it changes what happened", tone: "gate" };
+  return { label: "Asks you first when it reaches other people", tone: "gate" };
+}
+
+/** One action a try would carry out, as a line: what, and whether it would run at once, ask first or wait. */
+export function wouldDo(i: Record<string, unknown>, actions?: ActionDef[]): string {
+  const what = actions?.find((a) => a.name === i.action)?.label ?? String(i.action);
+  const how =
+    i.status === "done"
+      ? "would run at once"
+      : i.status === "scheduled"
+        ? "would wait for its time"
+        : i.status === "failed"
+          ? `would fail${i.error ? `: ${String(i.error)}` : ""}`
+          : "would ask you first";
+  return `${String(i.node)} · ${what}: ${how}${i.untrusted ? " (reads outside text)" : ""}`;
+}
+
+/** An action node waits before it acts: for a delay, or until a time. */
+export const waits = (n: WfNode) => n.config.delay != null || n.config.when != null;
 /** Nodes that keep something: a workflow needs one (or a node that keeps something as set up, see savesAsSet). */
 export const KEEPS = ["output", "field", "save_entities", ...GRAPH_KEEPS];
 /** A node that keeps something only as it's set up: a classify node that acts on a sure answer. */
@@ -522,8 +601,16 @@ export const OPS: Record<string, string> = {
 };
 
 /** A new workflow: today’s entity extraction, ready to extend (an LLM pass, your own rules); or, for the graph,
- * look-alikes judged by the model and proposed. */
+ * look-alikes judged by the model and proposed; or, for an automation, a message to you about what happened. */
 export function starter(scope: Scope = "recording"): WfGraph {
+  if (scope === "event")
+    return {
+      nodes: [
+        { id: "in", type: "input", config: {}, x: 0, y: 120 },
+        { id: "tell", type: "action", config: defaultConfig("action"), x: 300, y: 120 },
+      ],
+      edges: [{ source: "in", target: "tell" }],
+    };
   if (scope === "graph")
     return {
       nodes: [
@@ -555,7 +642,16 @@ export function starter(scope: Scope = "recording"): WfGraph {
 
 /** A name for a workflow nobody named, from what it runs on ("Asset workflow", then "Asset workflow 2"). */
 export function suggestedWorkflowName(scope: Scope, taken: Iterable<string>): string {
-  return uniqueName(scope === "graph" ? "Graph workflow" : scope === "tool" ? "Tool" : "Asset workflow", taken);
+  return uniqueName(
+    scope === "graph"
+      ? "Graph workflow"
+      : scope === "tool"
+        ? "Tool"
+        : scope === "event"
+          ? "Automation workflow"
+          : "Asset workflow",
+    taken,
+  );
 }
 
 /** A new tool's graph: its text goes to the model, and the reply is what it gives back. */
@@ -605,6 +701,8 @@ export function defaultConfig(type: string): Record<string, unknown> {
   if (type === "group") return { body: starterBody("group") };
   if (type === "arg") return { name: "in" };
   if (type === "return") return { name: "out" };
+  if (type === "action") return { action: "notify", params: { text: "{{ event.summary }}" } };
+  if (type === "decide") return { question: "", options: { yes: "", no: "" } };
   return {};
 }
 
@@ -667,6 +765,8 @@ export function portsOf(
       return { inputs: ["in"], outputs: [], many: false };
     case "condition":
       return { inputs: ["in"], outputs: ["yes", "no"], many: false };
+    case "decide":
+      return { inputs: ["in"], outputs: [...decideOptions(c), "unsure"], many: false };
     case "switch":
       return {
         inputs: ["in"],
@@ -692,6 +792,12 @@ export function portsOf(
   }
   if (KEEPS.includes(n.type)) return { inputs: ["in"], outputs: [], many: false };
   return { inputs: ["in"], outputs: ["out"], many: false };
+}
+
+/** A decide node's options, by name (its output ports before unsure). */
+export function decideOptions(c: Record<string, unknown>): string[] {
+  const o = c.options;
+  return o && typeof o === "object" && !Array.isArray(o) ? Object.keys(o) : [];
 }
 
 /** An edge's ports, with an old condition edge's branch read as its port. */
@@ -866,6 +972,7 @@ export function nodeSummary(
     field: (id: number) => string | undefined;
     custom?: (id: number) => CustomDef | undefined;
     feed?: (id: number) => string | undefined;
+    actions?: ActionDef[];
   },
 ) {
   const c = n.config;
@@ -927,6 +1034,21 @@ export function nodeSummary(
       );
     case "call_tool":
       return c.tool ? String(c.tool) : "Name the tool";
+    case "action": {
+      if (!c.action) return "Choose an action";
+      const a = names.actions?.find((x) => x.name === c.action);
+      const first = Object.values((c.params as Record<string, unknown> | undefined) ?? {}).find(
+        (v) => typeof v === "string" && v.trim(),
+      );
+      const wait = c.delay != null ? ` · after ${String(c.delay)}` : c.when != null ? " · at a time" : "";
+      return `${a?.label ?? String(c.action)}${first ? `: ${String(first).replace(/\s+/g, " ").slice(0, 50)}` : ""}${wait}`;
+    }
+    case "decide": {
+      const opts = decideOptions(c);
+      return `${String(c.question || "Ask a question")
+        .replace(/\s+/g, " ")
+        .slice(0, 50)}${opts.length ? ` · ${opts.join(" / ")}` : ""}`;
+    }
     case "extract_rules": {
       const parts = [c.builtin === false ? "your rules only" : "built-in"];
       const t = (c.terms as string[] | undefined)?.length;
@@ -1002,6 +1124,7 @@ export function problems(
   scope: Scope = "recording",
   kind: BodyKind = "workflow",
   custom?: (id: number) => CustomDef | undefined,
+  actions?: ActionDef[],
 ): Record<string, string> {
   const out: Record<string, string> = {};
   const by = new Map(g.nodes.map((n) => [n.id, n]));
@@ -1020,9 +1143,13 @@ export function problems(
       fail(
         scope === "tool"
           ? "This node isn’t for tools."
-          : scope === "graph"
-            ? "This node works on assets, not the graph."
-            : "This node is for graph workflows.",
+          : scope === "event"
+            ? "This node isn’t for automations."
+            : n.type === "action" || n.type === "decide"
+              ? "This node is for automations."
+              : scope === "graph"
+                ? "This node works on assets, not the graph."
+                : "This node is for graph workflows.",
       );
     if (kind === "workflow" && (n.type === "arg" || n.type === "return"))
       fail("Input and Return nodes belong in a body.");
@@ -1041,6 +1168,10 @@ export function problems(
     for (const e of g.edges.filter((x) => x.source === n.id)) {
       const { port, input } = edgePorts(e);
       if (!by.has(e.target)) fail("A connection goes nowhere.");
+      else if (n.type === "action" && waits(n))
+        fail("It waits before it acts, so it passes nothing on: connect nothing after it.");
+      else if (n.type === "action" && actionEffect(n, actions) === "out")
+        fail("It reaches outside Lens, so it asks you first and passes nothing on: connect nothing after it.");
       else if (!p.outputs.includes(port))
         fail(
           n.type === "condition" ? "Connect its yes or its no." : `It has no ${port} output any more; reconnect it.`,
@@ -1102,7 +1233,29 @@ export function problems(
     else if (n.type === "ask_model" && !String(c.prompt ?? "").trim()) fail("Write its prompt.");
     else if (n.type === "call_tool" && !/^[a-z][a-z0-9_]{1,40}$/.test(String(c.tool ?? "")))
       fail("Name the tool it calls.");
-    else if (n.type === "output" && !KEY_RX.test(String(c.key ?? "")))
+    else if (n.type === "action" && (!c.action || (actions && !actions.some((a) => a.name === c.action))))
+      fail("Choose an action.");
+    else if (
+      n.type === "action" &&
+      actions
+        ?.find((a) => a.name === c.action)
+        ?.required?.some((k) => (c.params as Record<string, unknown> | undefined)?.[k] == null)
+    )
+      fail(`Fill in ${actionLabel(c, actions)}.`);
+    else if (n.type === "action" && c.delay != null && c.when != null)
+      fail("Wait for a delay or until a time, not both.");
+    else if (n.type === "action" && c.delay != null && !/^[1-9]\d{0,5}[smhd]$/.test(String(c.delay).trim()))
+      fail("A wait is a whole number and s, m, h or d, like 30m.");
+    else if (n.type === "decide") {
+      const opts = (c.options && typeof c.options === "object" ? c.options : {}) as Record<string, unknown>;
+      const names = Object.keys(opts);
+      if (!String(c.question ?? "").trim()) fail("Ask its question.");
+      else if (names.length < 2 || names.length > 10) fail("Give 2 to 10 options.");
+      else if (names.some((x) => !NAME_RX.test(x) || x === "unsure" || x === "default"))
+        fail("Name each option in lowercase letters, digits and _ (not unsure).");
+      else if (names.some((x) => !String(opts[x] ?? "").trim())) fail("Say what each option means.");
+      else if (!between(c.min_confidence, 0, 1, false)) fail("How sure is a number from 0 to 1.");
+    } else if (n.type === "output" && !KEY_RX.test(String(c.key ?? "")))
       fail("Name it: lowercase letters, digits and _, e.g. meeting_notes.");
     else if (n.type === "field" && c.field == null) fail("Choose a custom field.");
     else if (n.type === "classify" && (c.vocabulary == null) === (c.labels == null))
@@ -1179,13 +1332,16 @@ export function problems(
     out[""] =
       scope === "graph"
         ? "Add an Apply changes, Publish to feed or Podcast episode node, or the workflow changes nothing."
-        : "Add a Save output, Set field or Save entities node (or a Classify node that acts), or the workflow keeps nothing.";
+        : scope === "event"
+          ? "Add an action, or the automation does nothing."
+          : "Add a Save output, Set field or Save entities node (or a Classify node that acts), or the workflow keeps nothing.";
   return out;
 }
 
 /** Whether a graph keeps something: a saving node here, inside a body, or in a custom node. */
 function keeps(g: WfGraph, custom?: (id: number) => CustomDef | undefined, scope: Scope = "recording"): boolean {
-  const saving = scope === "graph" ? GRAPH_KEEPS : KEEPS.filter((t) => !GRAPH_KEEPS.includes(t));
+  const saving =
+    scope === "graph" ? GRAPH_KEEPS : scope === "event" ? ["action"] : KEEPS.filter((t) => !GRAPH_KEEPS.includes(t));
   return g.nodes.some(
     (n) =>
       saving.includes(n.type) ||
@@ -1193,6 +1349,14 @@ function keeps(g: WfGraph, custom?: (id: number) => CustomDef | undefined, scope
       (BODIES.includes(n.type) && n.config.body ? keeps(n.config.body as WfGraph, custom, scope) : false) ||
       (n.type === "custom" && Boolean(custom?.(Number(n.config.node))?.keeps)),
   );
+}
+
+/** The title of an action's first required param that isn't set. */
+function actionLabel(c: Record<string, unknown>, actions: ActionDef[]): string {
+  const a = actions.find((x) => x.name === c.action);
+  const k = a?.required?.find((r) => (c.params as Record<string, unknown> | undefined)?.[r] == null) ?? "";
+  const props = (a?.params.properties ?? {}) as Record<string, { title?: string }>;
+  return props[k]?.title ?? k;
 }
 
 /** Unset, or a number in [lo, hi] (a whole one when `whole`). */

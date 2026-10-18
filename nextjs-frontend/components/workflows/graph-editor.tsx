@@ -23,11 +23,13 @@ import {
   Sparkles,
   Tags,
   Wand2,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 import type { TemplateSummary } from "@/app/openapi-client/types.gen";
+import type { Variable } from "@/components/forms/schema-form";
 import { FlowCanvas, PaletteItem, freshId, type CanvasEdge, type CanvasNode } from "@/components/canvas/flow-canvas";
 import { Button } from "@/components/ui/button";
 import { NodeSettings, type FeedOption, type NsField } from "@/components/workflows/node-settings";
@@ -47,6 +49,7 @@ import {
   problems as findProblems,
   replaceSelection,
   withBody,
+  type ActionDef,
   type BodyKind,
   type CustomDef,
   type Scope,
@@ -100,6 +103,8 @@ export function GraphEditor({
   onSaveAsCustom,
   feeds,
   namespaces,
+  actions,
+  variables,
 }: {
   graph: WfGraph;
   setGraph: (fn: (g: WfGraph) => WfGraph) => void;
@@ -121,6 +126,10 @@ export function GraphEditor({
   /** The feeds publishing nodes can add to, and the namespaces they can name (graph workflows). */
   feeds?: FeedOption[];
   namespaces?: string[];
+  /** The actions catalog: an automation's workflow (scope event) lists each one in the palette. */
+  actions?: ActionDef[];
+  /** What templates can read, for the variable picker in an action's settings. */
+  variables?: Variable[];
 }) {
   const [path, setPath] = useState<string[]>([]);
   const [sel, setSel] = useState<string | null>(null);
@@ -154,7 +163,7 @@ export function GraphEditor({
     setMulti([]);
   };
 
-  const problems = findProblems(view, (t) => tpl.get(t)?.kind, scope, kind, custom);
+  const problems = findProblems(view, (t) => tpl.get(t)?.kind, scope, kind, custom, actions);
   const traceKey = (nid: string) => [...path, nid].join("/");
 
   const add = (type: string, x?: number, y?: number, config?: Record<string, unknown>) => {
@@ -308,6 +317,7 @@ export function GraphEditor({
         template: (x) => tpl.get(x)?.name,
         field: fieldName,
         custom,
+        actions,
         feed: (x) => feeds?.find((f) => f.id === x)?.title,
       }),
       icon: d ? (ICONS[d.icon ?? ""] ?? Puzzle) : n.type === "group" ? GroupIcon : info?.icon,
@@ -353,6 +363,22 @@ export function GraphEditor({
                 hint={NODES[type].describe}
                 disabled={readOnly}
                 onAdd={() => add(type)}
+              />
+            ))}
+          </div>
+        )}
+        {scope === "event" && (
+          <div className="flex flex-col gap-1.5 pb-2">
+            <span className="label-caps pt-1">Actions</span>
+            {(actions ?? []).map((a) => (
+              <PaletteItem
+                key={a.name}
+                payload={`action:${a.name}`}
+                icon={Zap}
+                title={a.label}
+                hint={a.description ?? a.group}
+                disabled={readOnly}
+                onAdd={() => add("action", undefined, undefined, { action: a.name, params: {} })}
               />
             ))}
           </div>
@@ -457,7 +483,9 @@ export function GraphEditor({
               if (payload.startsWith("custom:")) {
                 const d = custom(Number(payload.slice(7)));
                 if (d) add("custom", x, y, { node: d.id, version: d.version });
-              } else if (NODES[payload] && payload !== "input" && inScope(payload, scope, catalog)) add(payload, x, y);
+              } else if (payload.startsWith("action:") && scope === "event")
+                add("action", x, y, { action: payload.slice(7), params: {} });
+              else if (NODES[payload] && payload !== "input" && inScope(payload, scope, catalog)) add(payload, x, y);
             }}
           />
         </div>
@@ -485,6 +513,8 @@ export function GraphEditor({
             }}
             params={params}
             settings={settingsOf(cur.type)}
+            actions={actions}
+            variables={variables}
             peek={trace?.[traceKey(cur.id)] as { status: string; value?: string; error?: string } | undefined}
             feeds={feeds}
             namespaces={namespaces}

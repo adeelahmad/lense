@@ -60,6 +60,16 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   a time (for the same sender, say), when one came a number of times, when one didn't come in time after another (no
   reply within two days), or once for a batch collected over a time. What it waits on outlasts a restart, and switching
   the automation off drops it ([Joins](docs/automations.md#joins)).
+- **Secrets from Vaultwarden.** A secret field in Settings (a model's API key, a chat app's token, a mail password)
+  can refer to an item in a Vaultwarden or Bitwarden vault, like `vaultwarden://OpenAI/password`, instead of holding
+  the secret. Lens reads the value, keeps it in memory for `secrets.cache_minutes` (10 by default) and reads it again
+  in the background, so a key changed in the vault reaches Lens by itself. Only the reference is stored, and it's
+  checked against the vault before it's saved. Lens signs in as an account of its own and reads one folder of it
+  (`secrets.vaultwarden_folder`, "Lens"). Settings, the API (`GET /api/v1/secrets`, `GET /api/v1/secrets/items`,
+  `POST /api/v1/secrets/test`), the MCP tools `list_secrets`, `list_vault_items` and `set_secret_reference`, and the
+  assistant's `list_secrets` and `vault_items` show references and whether they could be read, never a value. The
+  client (python-vaultwarden, Apache-2.0) is fetched once a Vaultwarden address is set. Secrets saved in Lens stay
+  the default ([Secrets](docs/secrets.md)).
 - **A decide node for judgement calls.** An automation's workflow can ask the decision model a question with a few
   options ("Does this need me today?") and go on along the option it picked, or along `unsure` when it isn't sure
   enough, none is set up or the budget is spent. The email it reads is marked as outside text, the answer is kept per
