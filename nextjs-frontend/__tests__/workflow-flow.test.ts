@@ -153,3 +153,32 @@ describe("classify", () => {
     );
   });
 });
+
+describe("entity filter", () => {
+  const names = { template: () => undefined, field: () => undefined };
+  const wf = (config: Record<string, unknown>): WfGraph => ({
+    nodes: [
+      { id: "in", type: "input", config: {} },
+      { id: "f", type: "entity_filter", config },
+      { id: "o", type: "save_entities", config: {} },
+    ],
+    edges: [
+      { source: "in", target: "f" },
+      { source: "f", target: "o" },
+    ],
+  });
+
+  it("an entity filter says what it keeps and refuses lowercase types", () => {
+    expect(inScope("entity_filter", "recording") && inScope("entity_filter", "graph")).toBe(true);
+    expect(problems(wf({}), kind)).toEqual({});
+    expect(problems(wf({ types: ["person"] }), kind).f).toMatch(/in capitals/);
+    expect(problems(wf({ min_mentions: 0 }), kind).f).toMatch(/whole numbers/);
+    expect(
+      nodeSummary(
+        { id: "f", type: "entity_filter", config: { types: ["PERSON"], skip_names: ["Thanks"], min_mentions: 2 } },
+        names,
+      ),
+    ).toBe("PERSON · not Thanks · said 2+ times");
+    expect(nodeSummary({ id: "f", type: "entity_filter", config: {} }, names)).toBe("all types");
+  });
+});
