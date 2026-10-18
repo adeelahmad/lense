@@ -242,6 +242,24 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     ]
                 }
             )
+        elif "tidying" in schema.get("properties", {}):
+            # graph tidying, one entity at a time: the rules are right (the type they think, or noise), and sure
+            text = body["messages"][-1]["content"]
+            guesses = re.findall(r"^(\d+)\. .*\n   rules think: (\S+)", text, re.M)
+            asked = schema["properties"]["tidying"]["items"]["properties"]
+            content = json.dumps(
+                {
+                    "tidying": [
+                        {
+                            "item": int(k),
+                            **({"type": g} if "type" in asked else {"noise": True}),
+                            "confidence": 0.96,
+                            "why": "the lines say so",
+                        }
+                        for k, g in guesses
+                    ]
+                }
+            )
         elif "mappings" in schema.get("properties", {}):
             # entity matching: a name goes to the entity whose description says it, else the first other answer offered
             text = body["messages"][-1]["content"]

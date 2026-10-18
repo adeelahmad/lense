@@ -636,6 +636,15 @@ def _check(section, key, value, default):
         if not (isinstance(value, str) and VIEWER_URL.match(value.strip())):
             raise ValueError("documents.anytopdf_url is a conversion node's http(s) address, such as https://convert.home:8640")
         return value.strip().rstrip("/")
+    if (section, key) == ("analysis", "cleanup_grammar_url"):
+        if value in (None, ""):
+            return None
+        u = urllib.parse.urlsplit(value.strip()) if isinstance(value, str) else None
+        if not (u and VIEWER_URL.match(value.strip()) and u.hostname and u.username is None and u.password is None):
+            raise ValueError(
+                "analysis.cleanup_grammar_url is a LanguageTool server's http(s) address with no password in it, such as http://languagetool:8010"
+            )
+        return value.strip().rstrip("/")
     if (section, key) == ("documents", "tika_url"):
         if value in (None, ""):
             return None

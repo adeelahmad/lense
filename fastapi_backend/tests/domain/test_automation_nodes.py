@@ -232,7 +232,7 @@ def test_an_intent_that_asks_first_or_fails_passes_nothing_on(db, cfg, made):
     # a change to another asset asks first: the node passes nothing on and what comes after it is skipped
     g = graph(node("a", "action", action="tag", params={"object": "lens:recording/99"}), after, edges=[edge("in", "a"), edge("a", "l")])
     out = _try(db, cfg, g)
-    assert out["trace"]["a"]["status"] == "done" and out["trace"]["a"]["ports"] == [] and out["trace"]["l"]["status"] == "skipped"
+    assert out["trace"]["a"]["status"] == "waiting" and out["trace"]["a"]["ports"] == [] and out["trace"]["l"]["status"] == "skipped"
     assert [(i["node"], i["status"], i["risk"]) for i in out["intents"]] == [("a", "waiting", "ask")]
     assert "stopped at a: waiting for your pick" in out["log"] and made == []
     # an out action asks first too (nothing can come after it)

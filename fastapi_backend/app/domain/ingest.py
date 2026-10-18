@@ -15,7 +15,7 @@ from difflib import SequenceMatcher
 
 import numpy as np
 
-from . import speech, store
+from . import speech, store, vocabulary
 
 TAG_RX = re.compile(r"<\|([^|]*)\|>")
 SR = 16000
@@ -300,7 +300,7 @@ class SenseVoice:
         except Exception:  # noqa: BLE001 - older FunASR builds only take one input at a time
             return [self.asr.generate(input=c, cache={}, language=self.lang, use_itn=True)[0] for c in clips]
 
-    def transcribe(self, audio):
+    def transcribe(self, audio, terms=()):  # SenseVoice takes no hints (vocabulary.py)
         spans = self.vad.generate(input=audio)[0]["value"]
         pieces = [(s, min(int(e), s + self.max_ms)) for b, e in spans for s in range(int(b), int(e), self.max_ms)]
         out = []
@@ -350,12 +350,14 @@ class Whisper:
             name = "mlx-whisper" if mlx else "faster-whisper"
             raise EngineMissing(f"{name} isn't installed: uv sync --extra {'mlx' if mlx else 'whisper'}") from e
 
-    def transcribe(self, audio):
+    def transcribe(self, audio, terms=()):
+        """The segments; `terms` (vocabulary.py) go in as the prompt, the names Whisper should expect."""
+        hint = {"initial_prompt": vocabulary.prompt(terms)} if terms else {}
         if self.mlx:
-            segs = self.m.transcribe(audio, path_or_hf_repo=self.repo, word_timestamps=True, language=self.lang)["segments"]
+            segs = self.m.transcribe(audio, path_or_hf_repo=self.repo, word_timestamps=True, language=self.lang, **hint)["segments"]
             rows = [(s["start"], s["end"], s["text"], [(w["word"], w["start"], w["end"]) for w in s.get("words") or []]) for s in segs]
         else:
-            segs, _ = self.m.transcribe(audio, vad_filter=True, word_timestamps=True, language=self.lang)
+            segs, _ = self.m.transcribe(audio, vad_filter=True, word_timestamps=True, language=self.lang, **hint)
             rows = [(s.start, s.end, s.text, [(w.word, w.start, w.end) for w in (s.words or [])]) for s in segs]
         return [
             {
@@ -507,7 +509,8 @@ def transcribe_one(db, cfg, rid, log=print, engine=None):
         from . import audio_cleanup
 
         audio, joins = audio_cleanup.hear(cfg, r, path, audio, log)
-    segs = engine.transcribe(audio)
+    words = vocabulary.terms(db, cfg, r["space"])
+    segs = engine.transcribe(audio, terms=words) if words else engine.transcribe(audio)  # an engine of a plugin may take no hints
     del audio
     if joins:
         segs = audio_cleanup.remap(segs, joins)

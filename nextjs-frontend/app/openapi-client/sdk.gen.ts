@@ -258,6 +258,9 @@ import type {
   CreatePodcastData,
   CreatePodcastErrors,
   CreatePodcastResponses,
+  CreateProjectData,
+  CreateProjectErrors,
+  CreateProjectResponses,
   CreateRoleData,
   CreateRoleErrors,
   CreateRoleResponses,
@@ -407,6 +410,9 @@ import type {
   DeletePodcastData,
   DeletePodcastErrors,
   DeletePodcastResponses,
+  DeleteProjectData,
+  DeleteProjectErrors,
+  DeleteProjectResponses,
   DeleteRecordingData,
   DeleteRecordingErrors,
   DeleteRecordingResponses,
@@ -684,6 +690,9 @@ import type {
   GetPodcastData,
   GetPodcastErrors,
   GetPodcastResponses,
+  GetProjectData,
+  GetProjectErrors,
+  GetProjectResponses,
   GetProviderData,
   GetProviderErrors,
   GetProviderResponses,
@@ -1051,6 +1060,9 @@ import type {
   ListPodcastsData,
   ListPodcastsErrors,
   ListPodcastsResponses,
+  ListProjectsData,
+  ListProjectsErrors,
+  ListProjectsResponses,
   ListProvidersData,
   ListProvidersResponses,
   ListReadingsData,
@@ -1113,6 +1125,9 @@ import type {
   ListTemplatesData,
   ListTemplatesErrors,
   ListTemplatesResponses,
+  ListThreadsData,
+  ListThreadsErrors,
+  ListThreadsResponses,
   ListTokensData,
   ListTokensResponses,
   ListTopicChangesData,
@@ -1388,6 +1403,9 @@ import type {
   ReleaseJobData,
   ReleaseJobErrors,
   ReleaseJobResponses,
+  ReleaseThreadData,
+  ReleaseThreadErrors,
+  ReleaseThreadResponses,
   RemoteBackupsData,
   RemoteBackupsResponses,
   RemoveBudgetData,
@@ -1679,6 +1697,9 @@ import type {
   StartResearchData,
   StartResearchErrors,
   StartResearchResponses,
+  StartThreadData,
+  StartThreadErrors,
+  StartThreadResponses,
   StartUpgradeData,
   StartUpgradeErrors,
   StartUpgradeResponses,
@@ -1924,6 +1945,9 @@ import type {
   UpdatePipelineData,
   UpdatePipelineErrors,
   UpdatePipelineResponses,
+  UpdateProjectData,
+  UpdateProjectErrors,
+  UpdateProjectResponses,
   UpdateRecordingAccessData,
   UpdateRecordingAccessErrors,
   UpdateRecordingAccessResponses,
@@ -1954,6 +1978,9 @@ import type {
   UpdateTemplateData,
   UpdateTemplateErrors,
   UpdateTemplateResponses,
+  UpdateThreadData,
+  UpdateThreadErrors,
+  UpdateThreadResponses,
   UpdateTopicData,
   UpdateTopicErrors,
   UpdateTopicResponses,
@@ -7114,7 +7141,8 @@ export class Imports {
    * Import Transcript
    *
    * Import a transcript into a namespace (editors; admins may name a new namespace). The namespace's pipeline, or
-   * the one chosen (`pipeline`), is queued as a job.
+   * the one chosen (`pipeline`), is queued as a job; `content_type` (a text one) is the asset's instead of the one
+   * recognised from it, so its pipeline runs.
    */
   public static importTranscript<ThrowOnError extends boolean = false>(
     options: Options<ImportTranscriptData, ThrowOnError>,
@@ -7135,7 +7163,8 @@ export class Imports {
    * Capture a web page as a document (editors; admins may name a new namespace): the namespace's pipeline, or
    * `pipeline`, keeps the page as it is now, as a PDF (a link to a PDF is kept as it is; other pages are printed by
    * headless Chromium), and reads it page by page. Only public addresses on ports 80 and 443 can be captured (and the
-   * networks in documents.web_networks). Audited as `import.web`.
+   * networks in documents.web_networks). `content_type` (a text one) is the page's instead of the one recognised from it. Audited as
+   * `import.web`.
    */
   public static importWebPage<ThrowOnError extends boolean = false>(
     options: Options<ImportWebPageData, ThrowOnError>,
@@ -7178,8 +7207,9 @@ export class Imports {
    * Capture one or many web pages at once (editors; admins may name a new namespace): pasted addresses, one per
    * line, a JSON list of them (`urls`), or a file: a list of addresses, a browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON). Each link becomes
    * a page captured as a document, as `POST /import/web` does, tagged with the bookmark folders it was in
-   * (`folders_as_tags`). At most 500 links; a link already captured in the namespace isn't captured again, and one that
-   * can't be is skipped, saying why. Audited as `import.web` once, with how many were queued.
+   * (`folders_as_tags`), of `content_type` when one (a text one) is chosen. At most 500 links; a link already captured
+   * in the namespace isn't captured again, and one that can't be is skipped, saying why. Audited as `import.web` once,
+   * with how many were queued.
    */
   public static importWebLinks<ThrowOnError extends boolean = false>(
     options: Options<ImportWebLinksData, ThrowOnError>,
@@ -7271,7 +7301,8 @@ export class Uploads {
    *
    * Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of
    * a text-only asset (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the
-   * namespace's. Then send the file with PUT /uploads/{uid}.
+   * namespace's; `content_type` (one of the file's base type) is the asset's instead of the one recognised from its
+   * file, so that content type's pipeline runs. Then send the file with PUT /uploads/{uid}.
    * 400 for a type not in uploads.extensions, 409 when the asset has audio already, 413 over uploads.max_mb, 507
    * when the server's disk can't hold it.
    */
@@ -10837,6 +10868,151 @@ export class Chats {
   ): RequestResult<DecideApprovalResponses, DecideApprovalErrors, ThrowOnError> {
     return (options.client ?? client).post<DecideApprovalResponses, DecideApprovalErrors, ThrowOnError>({
       url: "/api/v1/approvals/{aid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Projects {
+  /**
+   * List Projects
+   *
+   * Your projects, the most recently changed first (not archived ones, unless asked).
+   */
+  public static listProjects<ThrowOnError extends boolean = false>(
+    options?: Options<ListProjectsData, ThrowOnError>,
+  ): RequestResult<ListProjectsResponses, ListProjectsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListProjectsResponses, ListProjectsErrors, ThrowOnError>({
+      url: "/api/v1/projects",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Project
+   *
+   * A project: its name, goal, instructions and the namespaces it draws on, with its coordinator conversation.
+   */
+  public static createProject<ThrowOnError extends boolean = false>(
+    options: Options<CreateProjectData, ThrowOnError>,
+  ): RequestResult<CreateProjectResponses, CreateProjectErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateProjectResponses, CreateProjectErrors, ThrowOnError>({
+      url: "/api/v1/projects",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Project
+   *
+   * Delete a project. Its conversations stay, as ordinary ones in Chat.
+   */
+  public static deleteProject<ThrowOnError extends boolean = false>(
+    options: Options<DeleteProjectData, ThrowOnError>,
+  ): RequestResult<DeleteProjectResponses, DeleteProjectErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteProjectResponses, DeleteProjectErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Project
+   *
+   * A project with its threads, the most recently added to first.
+   */
+  public static getProject<ThrowOnError extends boolean = false>(
+    options: Options<GetProjectData, ThrowOnError>,
+  ): RequestResult<GetProjectResponses, GetProjectErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetProjectResponses, GetProjectErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Project
+   *
+   * Rename it, change its goal, instructions or namespaces (its conversations draw on the new ones), or archive it.
+   */
+  public static updateProject<ThrowOnError extends boolean = false>(
+    options: Options<UpdateProjectData, ThrowOnError>,
+  ): RequestResult<UpdateProjectResponses, UpdateProjectErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateProjectResponses, UpdateProjectErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Threads
+   *
+   * The project's threads, the most recently added to first, the coordinator among them.
+   */
+  public static listThreads<ThrowOnError extends boolean = false>(
+    options: Options<ListThreadsData, ThrowOnError>,
+  ): RequestResult<ListThreadsResponses, ListThreadsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListThreadsResponses, ListThreadsErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}/threads",
+      ...options,
+    });
+  }
+
+  /**
+   * Start Thread
+   *
+   * A new thread: a conversation in the project's namespaces (ask in it with POST /chats/{id}/messages). With `chat`,
+   * one of your conversations joins the project instead, drawing on its namespaces from then on.
+   */
+  public static startThread<ThrowOnError extends boolean = false>(
+    options: Options<StartThreadData, ThrowOnError>,
+  ): RequestResult<StartThreadResponses, StartThreadErrors, ThrowOnError> {
+    return (options.client ?? client).post<StartThreadResponses, StartThreadErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}/threads",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Release Thread
+   *
+   * Take a thread out of the project: the conversation stays in Chat (DELETE /chats/{id} deletes it).
+   */
+  public static releaseThread<ThrowOnError extends boolean = false>(
+    options: Options<ReleaseThreadData, ThrowOnError>,
+  ): RequestResult<ReleaseThreadResponses, ReleaseThreadErrors, ThrowOnError> {
+    return (options.client ?? client).delete<ReleaseThreadResponses, ReleaseThreadErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}/threads/{cid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Thread
+   *
+   * Mark a thread done (it stays to read and to go on with), or not done.
+   */
+  public static updateThread<ThrowOnError extends boolean = false>(
+    options: Options<UpdateThreadData, ThrowOnError>,
+  ): RequestResult<UpdateThreadResponses, UpdateThreadErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateThreadResponses, UpdateThreadErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}/threads/{cid}",
       ...options,
       headers: {
         "Content-Type": "application/json",

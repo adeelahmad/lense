@@ -1,0 +1,27 @@
+{
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "name": "mesh",
+  "projectType": "application",
+  "tags": ["lang:python"],
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "commands": [
+          "uvx ruff check sidecar.py",
+          "uvx ruff format --check sidecar.py"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "inputs": ["default", "{workspaceRoot}/fastapi_backend/tests/api/test_mesh_service.py"],
+      "options": {
+        "cwd": "{workspaceRoot}/fastapi_backend",
+        "command": "uv run pytest tests/api/test_mesh_service.py -q"
+      }
+    }
+  }
+}

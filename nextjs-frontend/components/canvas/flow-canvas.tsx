@@ -43,7 +43,7 @@ export type CanvasNode = {
   outputs: string[];
   tone?: "blue" | "green" | "gold" | "red" | "purple" | "neutral";
   /** What the last try did: ran, was skipped or failed, and a peek at what it passed on. */
-  status?: "done" | "skipped" | "failed";
+  status?: "done" | "skipped" | "failed" | "waiting" | "scheduled";
   peek?: string;
   /** It has a body of nodes, opened by double-clicking. */
   opens?: boolean;
@@ -111,11 +111,21 @@ function CardNode({ data, selected }: NodeProps<Node<Data>>) {
               ? "Ran in the last try"
               : data.status === "skipped"
                 ? "Skipped in the last try"
-                : "Failed in the last try"
+                : data.status === "waiting"
+                  ? "Would ask you first in the last try"
+                  : data.status === "scheduled"
+                    ? "Would wait for its time in the last try"
+                    : "Failed in the last try"
           }
           className={cn(
             "absolute -right-1.5 -top-1.5 size-3 rounded-full border-2 border-background",
-            data.status === "done" ? "bg-green" : data.status === "failed" ? "bg-red" : "bg-fg-muted",
+            data.status === "done"
+              ? "bg-green"
+              : data.status === "failed"
+                ? "bg-red"
+                : data.status === "waiting" || data.status === "scheduled"
+                  ? "bg-gold"
+                  : "bg-fg-muted",
           )}
         />
       )}

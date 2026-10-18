@@ -260,3 +260,30 @@ def test_the_assistant_follows_news_feeds(app, db, cfg, folder, new_client, llm,
     assert appr["summary"] == "Stop following the news feed Harbour news" and rss.subscriptions(db)
     assert c.post(f"/api/v1/approvals/{appr['id']}", headers=h, json={"decision": "approve"}).json()["status"] == "done"
     assert rss.subscriptions(db) == []
+
+
+def test_the_assistant_imports_files_as_the_content_type_said(app, db, cfg, folder, new_client, llm):
+    """'These are interviews': the assistant imports attached files as that content type, and one that doesn't fit
+    them is refused before anything is placed."""
+    from app.domain import content_types
+
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["admin"]
+    wav = folder / "chat with ann.wav"
+    write_wav(wav, seconds=1.5)
+    up = held(c, h, wav.read_bytes(), "chat with ann.wav")
+    llm.tool_script = [
+        {"content": "", "tool_calls": [call(1, "import_files", {"upload_ids": [up["id"]], "namespace": "pods", "content_type": "scan"})]},
+        {
+            "content": "",
+            "tool_calls": [call(2, "import_files", {"upload_ids": [up["id"]], "namespace": "pods", "content_type": "interview"})],
+        },
+        {"content": "Imported it as an interview."},
+    ]
+    cid = c.post("/api/v1/chats", headers=h, json={"kind": "setup"}).json()["id"]
+    sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "an interview", "attachments": [up["id"]]}).text)
+    refused = llm.seen[-2]["messages"][-1]["content"]
+    assert "this is audio; Scanned page is a image type" in refused and "interview" in refused
+    done = c.get(f"/api/v1/uploads/{up['id']}", headers=h).json()
+    assert (done["state"], done["content_type"]) == ("done", "interview")
+    assert content_types.of_recording(db, done["recording"]) == (content_types.get(db, "interview"), True)
