@@ -34,7 +34,7 @@ class _Conn:
 def _db(conn):
     d = store.DB.__new__(store.DB)
     d.url, d.embedded = "ws://test", False
-    d._pool = store.queue.LifoQueue()
+    d._pool, d._held = store.queue.LifoQueue(), store.threading.local()
     d._all = [conn]
     d._pool.put(conn)
     return d
