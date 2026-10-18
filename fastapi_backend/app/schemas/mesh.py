@@ -142,11 +142,17 @@ class MeshRenew(RequestModel):
     public_key: str = Field(max_length=500, description="its Nebula public key, the same or a new one")
 
 
+class MeshSandboxGateway(RequestModel):
+    ca: str = Field(max_length=16384, description="the gateway's CA certificate, PEM")
+    cert: str = Field(max_length=16384, description="the client certificate Lens shows the gateway, PEM")
+    key: str = Field(max_length=16384, description="its private key, PEM: kept sealed")
+
+
 class MeshBeat(RequestModel):
     nebula: str | None = Field(None, max_length=40, description="running, starting, stopped or failed")
     version: str | None = Field(None, max_length=40, description="the Lens version it runs")
     peers: list[dict[str, Any]] | None = Field(None, max_length=500, description="the machines it has tunnels to")
     machine: dict[str, Any] | None = Field(None, description="its processors, memory and system")
-    sandbox: dict[str, Any] | None = Field(None, description="the sandboxes it can run")
+    sandbox: dict[str, Any] | None = Field(None, description="a compute node's sandbox gateway, when it answers: {gateway}")
     error: str | None = Field(None, max_length=500)
     log: list[str] | None = Field(None, max_length=40, description="Nebula's last lines")

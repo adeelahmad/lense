@@ -3,8 +3,8 @@
 Status: **in progress**. Built: Lens as the mesh's certificate authority, join tokens, joining without sending the
 token, each machine's Nebula config, a node's renewals and reports, removing a node, the `mesh` settings, the API
 under `/api/v1/mesh`, Nebula running on the primary in the `mesh` container, relaying the database and the API,
-`lens node` with the install line that joins another machine, worker nodes running jobs, and Settings › Network and
-Nodes in the web app. Coming in its own pull request: running code on compute nodes.
+`lens node` with the install line that joins another machine, worker nodes running jobs, compute nodes running the
+assistant's code, and Settings › Network and Nodes in the web app. Not yet tried between two real machines.
 
 Lens runs on one machine until you add another: a Mac with a GPU to transcribe on, a box to run the assistant's code
 on, a server with more disk. Those machines talk to this install over a private network of Lens's own, a
@@ -22,7 +22,7 @@ install.
 | --- | --- | --- |
 | **primary** | This install: the lighthouse other machines find each other through, the relay for machines that can't reach each other directly, and the certificate authority | |
 | **worker** | Runs jobs against this install's database, as `lens worker` does on this machine: transcribing and telling voices apart with the models on that machine ([Worker nodes](#worker-nodes)) | the database port (8000) and the API (8080) |
-| **compute** | Runs code in sandboxes for the assistant. It gets nothing of Lens's: no database, no keys | the API (8080) |
+| **compute** | Runs the assistant's code in sandboxes, on a gateway of its own ([Compute nodes](#compute-nodes)). It gets nothing of Lens's: no database, no keys | the API (8080) |
 
 A worker node needs this install's database to be a SurrealDB server, which Docker installs have (`SURREAL_URL`);
 on an install with the embedded database only compute nodes can be added. A node may serve some namespaces only
@@ -64,7 +64,8 @@ Over the mesh, with its node token (`Authorization: Bearer lensnode1.…`):
 | --- | --- |
 | `GET /api/v1/mesh/node/config` | its Nebula config as it is now, and a `version` that changes when the config does (the blocklist grew, the primary's addresses changed): the node reloads Nebula when it sees a new one |
 | `POST /api/v1/mesh/node/renew` | a new certificate for its public key (the same or a new one), with the groups its row has now. A node renews at a third of `mesh.cert_days` before its certificate runs out |
-| `POST /api/v1/mesh/node/beat` | its report, every minute: whether Nebula runs, its peers, its machine, the sandboxes it can run, Nebula's last lines. Shown on the Nodes page |
+| `POST /api/v1/mesh/node/beat` | its report, every minute: whether Nebula runs, its peers, its machine, whether its sandbox gateway answers, Nebula's last lines. Shown on the Nodes page |
+| `PUT /api/v1/mesh/node/sandbox` | a compute node's sandbox gateway's client certificate (`ca`, `cert`, `key`, PEM), once, and again only when it changes: kept sealed ([Compute nodes](#compute-nodes)) |
 
 A removed node is refused on all three. Nodes make these calls at the primary's mesh address (`10.73.0.1:8080` by
 default), which isn't a host name the web app is served at: the API admits it for these paths alone, while the mesh
@@ -115,6 +116,26 @@ and its last lines are in the node's report on the Nodes page.
   machines elsewhere counts only the jobs these steps run, so it never launches a machine for work it wouldn't take.
 - **Its name** is the node's, or the auto scaling unit's (`LENS_SCALING_UNIT`), and it runs only the steps it's
   given, never routines or the other services this machine's worker runs.
+
+## Compute nodes
+
+A compute node's install line has `LENS_NODE_SANDBOX=1` (Settings › Nodes adds it to a compute node's line), which
+also starts an NVIDIA OpenShell gateway on that machine, as Settings › Code sandbox does on this one
+([Code sandbox](assistant.md#code-sandbox)): `docker-compose.node.yml`'s `sandbox` profile, kept in the node's
+`.env` for later runs. Its machine needs what the gateway needs here: Linux with Landlock (6.2 or newer) and Docker.
+
+- **Its certificate, once.** The gateway makes its certificates on its first start. `lens node` hands this install
+  the client certificate Lens shows the gateway (`PUT /api/v1/mesh/node/sandbox`), which is kept sealed in the node's
+  row like a setting's secret; it's sent again only when it changes.
+- **Over the mesh only.** Lens reaches the gateway at the node's mesh address, port 7443, which the node's mesh
+  container relays to the gateway and Nebula's firewall opens to the primary only, with mutual TLS. The gateway's
+  certificate is checked against the name it was made for (`openshell-gateway`), not the address.
+- **Ready when it answers.** Each beat says whether the gateway answers; one that doesn't is in the node's error
+  ("isn't answering") and the assistant won't pick it. A compute node without a gateway says how to start it.
+- **What the assistant gets.** Once a compute node has handed over its certificate, the code sandbox lists it
+  (`sandbox_nodes`) and runs a conversation's code there when asked ([Compute nodes](assistant.md#compute-nodes));
+  removing the node takes it away again, and an undo brings it back. Its sandboxes have the same image, limits and
+  network setting as this machine's, and none of Lens's data or keys.
 
 ## On this machine
 
@@ -197,7 +218,7 @@ In the web app:
   machine shows in the list when it joins. Every machine is listed, this one first, with its role, mesh address,
   online or when it was last seen (offline after three minutes without a report), Nebula, its Lens version, its
   processors, memory and system, when its certificate runs out, the namespaces it serves (ticked in place), its
-  workers and Nebula's last lines. Click the pencil to rename a node (Enter saves, Escape keeps the name). Remove
+  workers, on a compute node whether its sandbox gateway runs, and Nebula's last lines. Click the pencil to rename a node (Enter saves, Escape keeps the name). Remove
   asks nothing: the row stays, dimmed and marked Removed, with Undo while its certificate is good. Join tokens not
   used yet are listed under it, each with Withdraw. The list refreshes every 15 seconds.
 
@@ -213,6 +234,9 @@ In the web app:
   the primary's calls to a node carry its agent key.
 - A worker node never gets the archive's secret, a vault's files or another namespace's: it reads the files of the
   namespaces it serves, plain, over the mesh.
+- A compute node gets nothing of Lens's. Lens holds its gateway's client certificate, sealed, and reaches that gateway
+  only over the mesh, with mutual TLS on top of Nebula's; the gateway listens on the node's loopback and the mesh
+  relay, nowhere else.
 - Removing a node blocks every certificate it was given, on every machine, and its credentials stop at once.
 - The CA's key and the tokens' secrets are sealed in the database like any setting's secret (`ARCHIVE_SECRET_KEY` or
   `secret.key`); node tokens are kept only as hashes.
@@ -235,4 +259,5 @@ names an address that forwards to it). Nebula's own isolation is upstream's.
 
 - A second transport for networks that block UDP.
 - Rotating the CA.
-- Compute nodes running the assistant's sandboxes through the mesh, and their load shown on the Nodes page.
+- Compute nodes' load on the Nodes page, and the assistant picking a ready compute node by itself when this machine
+  has no gateway (a Raspberry Pi primary): today it runs here unless the person or the model names a node.

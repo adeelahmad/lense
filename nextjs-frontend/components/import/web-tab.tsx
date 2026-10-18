@@ -66,9 +66,11 @@ export function WebTab({
     onSuccess: (r) => {
       setCaptured((c) => [{ url: webAddress(url), id: r.id }, ...c].slice(0, 10));
       toast(
-        media
-          ? { title: "Importing the video", body: "Its media is downloaded, then transcribed.", tone: "green" }
-          : { title: "Capturing the page", body: "It’s kept as a PDF and read like any document.", tone: "green" },
+        r.duplicate
+          ? { title: "It’s here already", body: "This namespace has it from that address, so it isn’t fetched again." }
+          : media
+            ? { title: "Importing the video", body: "Its media is downloaded, then transcribed.", tone: "green" }
+            : { title: "Capturing the page", body: "It’s kept as a PDF and read like any document.", tone: "green" },
       );
       setUrl("");
       setTitle("");

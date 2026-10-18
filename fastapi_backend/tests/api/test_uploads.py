@@ -390,3 +390,23 @@ def test_a_held_file_is_placed_as_a_content_type(db, cfg, folder):
     assert uploads.get(db, up["id"])["state"] == "held"  # nothing changed
     done = uploads.place(db, cfg, up["id"], "pods", 1, content_type="interview")
     assert content_types.of_recording(db, done["recording"]) == (content_types.get(db, "interview"), True)
+
+
+def test_a_copy_in_a_folder_on_this_machine_links_to_the_one_there(client, env, db, cfg, folder, monkeypatch):
+    """The same file in two folders of a source on this machine, or uploaded after, is one resource, read once."""
+    from tests.api.test_sources import _lsjson_without_rclone
+
+    _lsjson_without_rclone(monkeypatch)
+    data, ha, he = env["data"], env["ha"], env["he"]
+    for sub in ("phone", "laptop"):
+        (folder / "inbox" / sub).mkdir(parents=True)
+        (folder / "inbox" / sub / f"{sub}.wav").write_bytes(data)
+    (folder / "inbox" / "laptop" / "other.wav").write_bytes(data[:100] + b"\1\1" + data[102:])
+    sid = client.post("/api/v1/sources", json={"name": "inbox", "type": "local"}, headers=ha).json()["id"]
+    paths = [str(folder / "inbox" / p) for p in ("phone/phone.wav", "laptop/laptop.wav", "laptop/other.wav")]
+    got = client.post("/api/v1/import/source", json={"source": sid, "paths": paths, "namespace": "pods"}, headers=ha).json()["results"]
+    assert [x["status"] for x in got] == ["queued", "already", "queued"]
+    assert got[1]["recording"] == got[0]["recording"] != got[2]["recording"] and got[1]["job"] is None
+    assert db.one("SELECT count() AS n FROM recording GROUP ALL")["n"] == 2
+    done = _upload(client, he, data)  # and an upload of it finds it there
+    assert (done["recording"], done["duplicate"]) == (got[0]["recording"], True)

@@ -187,6 +187,7 @@ GET    /api/v1/automations
 POST   /api/v1/automations
 GET    /api/v1/automations/actions
 POST   /api/v1/automations/draft
+GET    /api/v1/automations/starters
 GET    /api/v1/automations/{id}
 PATCH  /api/v1/automations/{id}
 DELETE /api/v1/automations/{id}
@@ -1000,7 +1001,8 @@ a storage source now, rather than watching their folder (admins, like sources; u
 `GET /sources/{sid}/browse` lists them). Audio, video, documents and images stay on the source and run the namespace's
 pipeline, or `pipeline`; transcripts are imported. A PDF, Word, text or Markdown file is a document unless
 `documents_as` is `transcript` (its text only), or the server can't make a PDF of it. Each path gets a result: `queued` (with `recording` and `job`), `already` (the namespace has it from this
-source), `skipped` (a folder, or not audio, video, a document, an image or a transcript) or `error`. Choosing a file
+source, or, for a folder on this machine, has the same file from anywhere: another folder, an upload or a scan, by
+what's in it, so it isn't read twice; with that `recording`), `skipped` (a folder, or not audio, video, a document, an image or a transcript) or `error`. Choosing a file
 whose asset was deleted brings it back. Audited as `import.source`.
 
 ### Web pages
@@ -1010,7 +1012,8 @@ of the namespace; admins may name a new one). Its pipeline keeps the page as it 
 any document ([Documents and images](#documents-and-images)): a link to a PDF is kept as it is, any other page is
 printed by headless Chromium with its scripts run. Its `web` is `{url, final, captured_at, how}`: the address given,
 the one it ended at after redirects, when it was captured, and `printed` or `pdf`. Its title is the page's own once it's
-captured, unless `title` gave one. Capturing happens once: reading it again keeps the page it captured.
+captured, unless `title` gave one. Capturing happens once: reading it again keeps the page it captured. An address the
+namespace has a page from already isn't captured again: the answer is that resource, with `duplicate` true and no `job`.
 
 Only public addresses are reached, on ports 80 and 443: the address is checked when it's given (400, saying why: not
 http(s), a user name or password in it, another port, or a host with an address that isn't public), and every request
@@ -1036,7 +1039,8 @@ as the checks above would). Audited as `import.web` once, with how many were que
 
 `POST /api/v1/import/video {url, namespace, title?, collection?, pipeline?}` imports a video or a podcast episode by its
 address (editors of the namespace; admins may name a new one): a page on a video site, a podcast's episode page, or a
-media file. It's off by default: `documents.video_urls` (Settings › Documents) turns it on, and until then it answers
+media file. An address the namespace has the video from already isn't downloaded again: the answer is that resource,
+with `duplicate` true and no `job`. It's off by default: `documents.video_urls` (Settings › Documents) turns it on, and until then it answers
 400. Its transcribe step downloads the media with [yt-dlp](https://github.com/yt-dlp/yt-dlp) (Unlicense), which Lens
 fetches on first use (release 2026.08.19, checked against its SHA-256, into `data_dir/models/`) unless one is on PATH,
 then transcribes it like an upload. One video is downloaded, never a playlist: the best single file with both sound and
@@ -1168,7 +1172,8 @@ GET    /api/v1/mentions
 `GET /search?q=` finds the moments where the words appear (in an asset's text or transcript, on screen in a video, in a resource's
 supplementary transcripts, captions, translations and indexes, or in what a model says its shots and pages show) in the
 namespaces you can read, best first: every word
-(English stemming), "quoted phrases" as written, `OR` between alternatives; `ns`, `speaker`, `emotion` and `recording`
+(English stemming), "quoted phrases" as written, `OR` between alternatives, `NOT` or `-` before a word or phrase to leave out the lines
+with it; `ns`, `speaker`, `emotion` and `recording`
 narrow it, and `object` keeps to the assets a kind of object is seen in ([Objects](#objects));
 `limit`/`offset` page through it. `total` counts the moments ranked so far (`capped` when there may be more).
 With `facets=true` it also counts all the matching moments, whatever the page, by namespace, person, emotion and

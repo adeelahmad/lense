@@ -40,6 +40,9 @@ import type {
   AddRecordingPermissionData,
   AddRecordingPermissionErrors,
   AddRecordingPermissionResponses,
+  AddScheduleData,
+  AddScheduleErrors,
+  AddScheduleResponses,
   AddVaultPasskeyData,
   AddVaultPasskeyErrors,
   AddVaultPasskeyResponses,
@@ -1141,6 +1144,8 @@ import type {
   ListSpeakersData,
   ListSpeakersErrors,
   ListSpeakersResponses,
+  ListStartersData,
+  ListStartersResponses,
   ListTagsData,
   ListTagsErrors,
   ListTagsResponses,
@@ -1276,6 +1281,9 @@ import type {
   NodeMediaData,
   NodeMediaErrors,
   NodeMediaResponses,
+  NodeSandboxData,
+  NodeSandboxErrors,
+  NodeSandboxResponses,
   NodeWorkerData,
   NodeWorkerResponses,
   NotSameSpeakerData,
@@ -1467,6 +1475,9 @@ import type {
   RemoveRecordingPermissionData,
   RemoveRecordingPermissionErrors,
   RemoveRecordingPermissionResponses,
+  RemoveScheduleData,
+  RemoveScheduleErrors,
+  RemoveScheduleResponses,
   RemoveUserData,
   RemoveUserErrors,
   RemoveUserResponses,
@@ -2001,6 +2012,9 @@ import type {
   UpdateRoutineData,
   UpdateRoutineErrors,
   UpdateRoutineResponses,
+  UpdateScheduleData,
+  UpdateScheduleErrors,
+  UpdateScheduleResponses,
   UpdateSearchData,
   UpdateSearchErrors,
   UpdateSearchResponses,
@@ -4359,6 +4373,21 @@ export class Automations {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * List Starters
+   *
+   * Starter automations: each a draft to open, change and save (POST /automations), switched off until you turn
+   * it on.
+   */
+  public static listStarters<ThrowOnError extends boolean = false>(
+    options?: Options<ListStartersData, ThrowOnError>,
+  ): RequestResult<ListStartersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListStartersResponses, unknown, ThrowOnError>({
+      url: "/api/v1/automations/starters",
+      ...options,
     });
   }
 
@@ -11165,6 +11194,57 @@ export class Projects {
       },
     });
   }
+
+  /**
+   * Add Schedule
+   *
+   * Ask a prompt on a schedule: each time, in a new thread or always the same one, answered in the background as
+   * you, with your tools, approvals and budgets.
+   */
+  public static addSchedule<ThrowOnError extends boolean = false>(
+    options: Options<AddScheduleData, ThrowOnError>,
+  ): RequestResult<AddScheduleResponses, AddScheduleErrors, ThrowOnError> {
+    return (options.client ?? client).post<AddScheduleResponses, AddScheduleErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}/schedules",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove Schedule
+   *
+   * Remove a schedule. The threads it started stay.
+   */
+  public static removeSchedule<ThrowOnError extends boolean = false>(
+    options: Options<RemoveScheduleData, ThrowOnError>,
+  ): RequestResult<RemoveScheduleResponses, RemoveScheduleErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveScheduleResponses, RemoveScheduleErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}/schedules/{sid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Schedule
+   *
+   * Change a schedule, or switch it off or on.
+   */
+  public static updateSchedule<ThrowOnError extends boolean = false>(
+    options: Options<UpdateScheduleData, ThrowOnError>,
+  ): RequestResult<UpdateScheduleResponses, UpdateScheduleErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateScheduleResponses, UpdateScheduleErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}/schedules/{sid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
 }
 
 export class Research {
@@ -13706,9 +13786,28 @@ export class Mesh {
   }
 
   /**
+   * Node Sandbox
+   *
+   * The client certificate of the calling compute node's sandbox gateway, which Lens keeps sealed and reaches that
+   * gateway over the mesh with. 403 for a node of another role, 400 for what isn't a certificate and key.
+   */
+  public static nodeSandbox<ThrowOnError extends boolean = false>(
+    options: Options<NodeSandboxData, ThrowOnError>,
+  ): RequestResult<NodeSandboxResponses, NodeSandboxErrors, ThrowOnError> {
+    return (options.client ?? client).put<NodeSandboxResponses, NodeSandboxErrors, ThrowOnError>({
+      url: "/api/v1/mesh/node/sandbox",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Node Beat
    *
-   * The calling node's report, every minute: Nebula, its peers, its machine.
+   * The calling node's report, every minute: Nebula, its peers, its machine, its sandbox gateway.
    */
   public static nodeBeat<ThrowOnError extends boolean = false>(
     options: Options<NodeBeatData, ThrowOnError>,

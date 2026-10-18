@@ -106,7 +106,14 @@ from app.schemas.chats import ChatScope, ChatSummary
 from app.schemas.entities import EntityHide, EntityList, EntityRename, EntityRetype, EntityUpdate
 from app.schemas.jobs import JobMove, JobsPick
 from app.schemas.notebook import NotePage
-from app.schemas.projects import ProjectCreate, ProjectUpdate, ThreadCreate, ThreadUpdate
+from app.schemas.projects import (
+    ProjectCreate,
+    ProjectScheduleCreate,
+    ProjectScheduleUpdate,
+    ProjectUpdate,
+    ThreadCreate,
+    ThreadUpdate,
+)
 from app.schemas.schedules import ScheduleChange, ScheduleRun
 from app.schemas.search import SearchResults
 from app.schemas.topics import TopicMerge, TopicUpdate
@@ -441,7 +448,7 @@ def _recording(ctx: Context, rid: int) -> dict[str, Any]:
     "Search the archive",
     "Full-text search for moments in the archive: the text of every asset — speech in audio and video (transcripts), "
     "text shown on screen in videos or written in documents and images, supplementary files, and kinds of object seen. Words are all required "
-    '(matched after stemming), "quoted phrases" must appear as written, OR separates alternatives. Results are the best '
+    '(matched after stemming), "quoted phrases" must appear as written, OR separates alternatives, NOT or a leading - leaves out lines with a word or phrase. Results are the best '
     "moments first, each with the asset, the person (who said or wrote it), where in it, the matching text (matches in **bold**) "
     "and a url that opens the asset at that moment. Use get_transcript for the lines around a moment.",
     Arg("query", "string", 'what to look for: words, "a phrase", or alternatives separated by OR', required=True, max_length=500),
@@ -2040,6 +2047,22 @@ def _project(ctx: Context, p: Any, threads: bool = True) -> dict[str, Any]:
             )
             for t in d.get("thread_list") or []
         ]
+        out["schedules"] = [
+            store.clean(
+                {
+                    "schedule_id": sc["id"],
+                    "prompt": sc["prompt"],
+                    "cron": sc["cron"],
+                    "timezone": sc["timezone"],
+                    "thread": sc["thread"],
+                    "on": sc["on"],
+                    "when": sc["when"],
+                    "next_at": sc.get("next_at"),
+                    "last": sc.get("last"),
+                }
+            )
+            for sc in d.get("schedules") or []
+        ] or None
     return store.clean(out)
 
 
@@ -2139,6 +2162,53 @@ def update_project(
     out = _project(ctx, project_routes.get_project(project_id, ctx.user, ctx.db))
     if started is not None:
         out["started"] = {"chat_id": started, "url": f"{ctx.web}/chat/{started}"}
+    return out
+
+
+@tool(
+    "schedule_project",
+    "Ask on a schedule in a project",
+    "Ask a prompt in one of your projects on a schedule (cron: five fields, like 0 8 * * 1-5 for 8:00 on weekdays), "
+    "in a new thread each time or always the same one; Lens's assistant answers it in the background as you. With "
+    "schedule_id, change that schedule instead, switch it off or on (on), or remove it (remove). Needs a token with "
+    "the write scope.",
+    Arg("project_id", "integer", "the project (from list_projects)", required=True),
+    Arg("schedule_id", "string", "a schedule to change or remove (from read_project)", max_length=20),
+    Arg("prompt", "string", "what to ask each time", max_length=4000),
+    Arg("cron", "string", "when, as five cron fields or @daily, @weekly...", max_length=200),
+    Arg("timezone", "string", "the time zone it's in, like Europe/London (UTC when left out)", max_length=64),
+    Arg("thread", "string", "new: a new thread each time; same: always the same one", enum=("new", "same")),
+    Arg("on", "boolean", "with schedule_id: switch it on or off"),
+    Arg("remove", "boolean", "with schedule_id: remove it"),
+    writes=True,
+    personal=True,
+)
+def schedule_project(
+    ctx: Context,
+    project_id: int,
+    schedule_id: str | None,
+    prompt: str | None,
+    cron: str | None,
+    timezone: str | None,
+    thread: str | None,
+    on: bool | None,
+    remove: bool | None,
+) -> dict[str, Any]:
+    _writer(ctx, "change projects")
+    if schedule_id is None:
+        if not prompt or not cron:
+            raise ToolError("give prompt and cron for a new schedule, or schedule_id to change one")
+        body = ProjectScheduleCreate(prompt=prompt, cron=cron, timezone=timezone or "UTC", thread=thread or "new")
+        sid = project_routes.add_schedule(project_id, body, ctx.user, ctx.db).id
+    elif remove:
+        project_routes.remove_schedule(project_id, schedule_id, ctx.user, ctx.db)
+        sid = None
+    else:
+        changes = {"prompt": prompt, "cron": cron, "timezone": timezone, "thread": thread, "on": on}
+        sid = project_routes.update_schedule(project_id, schedule_id, ProjectScheduleUpdate(**store.clean(changes)), ctx.user, ctx.db).id
+    out = _project(ctx, project_routes.get_project(project_id, ctx.user, ctx.db))
+    if sid is not None:
+        out["schedule_id"] = sid
     return out
 
 
