@@ -760,6 +760,7 @@ def beat(db, row, status):
 # transcribing and telling voices apart with models on that machine (WORKER_STEPS). Removing the node removes its
 # user; an undo makes it again with a new password.
 WORKER_STEPS = ("transcribe", "diarize")
+WORKER_NODES = True  # a worker node runs `lens worker`, named for its scaling unit: auto scaling launches on it
 
 
 def _db_user(nid):
