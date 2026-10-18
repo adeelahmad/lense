@@ -822,6 +822,9 @@ automations}`, for a badge).
 Time is a trigger and a step: "every weekday at 7:00", "at 9:00 on the 20th", "30 minutes before a calendar event",
 "wait 2 hours, then...", and the clock behind a join's "if no reply within 2 days". All of it rests on timers.
 
+Every automation's schedule and at trigger is also a row on the [Schedules](schedules.md) page, next to the routines
+and the backup, where it is switched, re-timed and run now.
+
 ### Timers
 
 Built (`app/domain/timers.py`). A timer is one row per key in the `timer` table: when it is due, what runs then (its
