@@ -686,6 +686,8 @@ audio skip themselves for imported text. Steps:
   template unless the step names another prompt template ([Specs from transcripts](notes.md#specs-from-transcripts)).
 - `report` with a template: renders an HTML page into the namespace's reports. These pages may not run scripts.
 - `export`: renders a template to a file (Markdown, text, HTML...) and can copy it to a storage source.
+- `convert`: makes new assets from one, a video's soundtrack as audio or a document's pages as images
+  ([Converting assets](#converting-assets)).
 
 Any step can carry a condition: `min_minutes`, `max_minutes`, `source` (audio or transcript), `languages`.
 
@@ -702,6 +704,26 @@ the model.
 New pipelines, workflows, templates and routines don't need a name typed: the web app guesses one (from a pipeline's
 steps, what a workflow runs on, a template's kind, a routine's schedule and actions), numbered when it's taken
 ("Prompt template 2"). The pencil next to the name on its page renames it later, as does `PATCH` on its address.
+
+### Converting assets
+
+A Convert step makes new assets from the one it runs on. Default pipelines have none; add one in the pipeline editor
+or on the canvas (Step library → Convert).
+
+- **To audio** (`{"type": "convert", "to": "audio"}`): a video's soundtrack becomes an audio asset, titled
+  "<the video's title> (audio)". It is m4a unless `format` says `mp3`, `opus` or `flac`; AAC sound in m4a (or MP3
+  sound in mp3) is copied as it is, not encoded again. Audio, documents and videos with no sound are skipped.
+- **To images** (`{"type": "convert", "to": "images"}`): each page the Read step drew becomes an image asset,
+  titled "<title>, page N", the same JPEG the asset's page shows (documents.page_pixels on its longest side). Put a
+  Read step before it; without drawn pages it skips. A multi-page TIFF's frames work too; at most 200 pages are made
+  into images from one document.
+
+New assets are kept in the same namespace and collection, encrypted where its files are, and each says which asset
+(and page) it was made from: `converted_from` on `GET /api/v1/recordings/{id}`, and a link on its page. They then run
+the pipeline their content type gives them, as an upload does; `pipeline` names another pipeline by its id, or
+`"none"` keeps them as they are until a pipeline is run on them. Running the step again keeps what it made before;
+`force` makes their files again. An asset a Convert step made isn't converted again, so a pipeline can't feed itself,
+and deleting it deletes its file.
 
 ## Workflows and the canvas
 
