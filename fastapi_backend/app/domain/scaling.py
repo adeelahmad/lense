@@ -582,8 +582,20 @@ def group_view(db, g, now=None):
         "updated_at": g.get("updated_at"),
         "updated_by": g.get("updated_by"),
     }
+    out["unit_steps"] = unit_steps((g.get("template") or {}).get("steps"), out["needs_join"])
     out["waiting_for"] = waiting_for(out)
     return out
+
+
+def unit_steps(steps, needs_join):
+    """The steps a group's units run, which its queue metrics count: the template's (None: every step). A machine
+    elsewhere joins as a worker node, which runs only the steps a node can, with no archive key (mesh.WORKER_STEPS):
+    counting jobs it never takes would launch machines for nothing. [] when none of the template's are such steps."""
+    mesh = mesh_module() if needs_join else None
+    allowed = getattr(mesh, "WORKER_STEPS", None)
+    if not allowed:
+        return list(steps) if steps else None
+    return [s for s in steps if s in allowed] if steps else list(allowed)
 
 
 def waiting_for(view, cfg=None):
@@ -599,7 +611,9 @@ def waiting_for(view, cfg=None):
     if view.get("capped"):
         return f"its budget: {view['capped']}"
     if cfg is not None and view.get("needs_join") and not can_join(cfg):
-        return join_wait(cfg)
+        return "the mesh, which other machines join Lens over: turn it on in Settings › Network"
+    if view.get("unit_steps") == []:
+        return "steps its machines can run: a machine elsewhere runs only transcribe and diarize (docs/mesh.md)"
     return None
 
 
@@ -966,30 +980,20 @@ def mesh_module():
     return mesh
 
 
-def join_wait(cfg):
-    """What a group on other machines waits for before it launches, or None: the mesh's install line, the mesh turned
-    on, and nodes that run `lens worker` (the mesh says so with WORKER_NODES), since a machine that joins without a
-    worker never counts as joined and only costs."""
-    mesh = mesh_module()
-    if mesh is None or not (getattr(mesh, "make_token", None) and getattr(mesh, "join_line", None)):
-        return "the mesh's install line, which other machines join Lens with (in progress, docs/mesh.md)"
-    if not (getattr(mesh, "conf", lambda c: {})(cfg) or {}).get("enabled"):
-        return "the mesh, which other machines join Lens over: turn it on (docs/mesh.md)"
-    if not getattr(mesh, "WORKER_NODES", False):
-        return "nodes that run Lens workers: the mesh's install line doesn't start one yet (in progress, docs/mesh.md)"
-    return None
-
-
 def can_join(cfg):
-    """Whether another machine can join Lens now and work: see join_wait."""
-    return join_wait(cfg) is None
+    """Whether another machine can join Lens now: the mesh is on and has the install line machines join with."""
+    mesh = mesh_module()
+    if mesh is None or not (getattr(mesh, "conf", lambda c: {})(cfg) or {}).get("enabled"):
+        return False
+    return bool(getattr(mesh, "make_token", None) and getattr(mesh, "join_line", None))
 
 
 def bootstrap(db, cfg, g, name):
     """How a unit joins Lens: a worker started here gets its name and inherits the rest; a machine elsewhere gets the
     mesh's install line (`LENS_JOIN=… LENS_JOIN_TOKEN=… sh install.sh`) with a one-time join token good for an hour,
-    named for the unit, so the provider's user-data carries no long-lived secret: the database credential travels
-    inside the sealed join answer. {env, line, token_id, tag} (line and token_id None without the mesh)."""
+    named for the unit, so the provider's user-data carries no long-lived secret: the node asks for its database
+    user over the mesh once it has joined (docs/mesh.md, Worker nodes). {env, line, token_id, tag} (line and token_id
+    None without the mesh)."""
     boot = {"env": {"LENS_SCALING_UNIT": name}, "line": None, "token_id": None, "tag": conf(cfg)["tag"]}
     if not can_join(cfg):
         return boot
@@ -1059,11 +1063,11 @@ class Scaler:
         launching = [n for n in units if n.get("state") == "launching"]
         view = group_view(db, g, now)
         may_launch = enabled(cfg) and view["enabled"] and not view["paused"] and view["approved"] and not capped
-        joinable = not drv.needs_join or can_join(cfg)
+        joinable = not drv.needs_join or (can_join(cfg) and view["unit_steps"] != [])
         lo, hi, desired = g.get("min") or 0, g.get("max") or 0, g.get("desired") or 0
         if may_launch and g.get("rules"):
             want, state, said, new_min, new_max = evaluate(
-                g, metrics(db, cfg, (g.get("template") or {}).get("steps"), now), len(running), now, g.get("rule_state")
+                g, metrics(db, cfg, view["unit_steps"], now), len(running), now, g.get("rule_state")
             )
             sets = {"rule_state": state, "last_eval": {"at": _iso(now), "said": said}}
             if new_min is not None or new_max is not None:

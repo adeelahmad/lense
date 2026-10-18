@@ -246,6 +246,11 @@ def unlocked_until(db, sid):
     return _until(db).get(int(sid))
 
 
+def is_vault(db, sid):
+    """Whether namespace `sid` is a vault (its key opens with a passkey only)."""
+    return bool(db.values("SELECT VALUE space FROM data_key WHERE space = $s AND vault = true", s=int(sid)))
+
+
 def locked_vaults(db):
     """The vault namespaces nobody has unlocked in this process: their work waits."""
     out = set()
@@ -794,6 +799,17 @@ def plain_picture(db, cfg, path):
         shutil.rmtree(d, ignore_errors=True)
 
 
+@contextlib.contextmanager
+def scratch(cfg):
+    """A private folder for plain files a step needs for a moment (a picture handed to a tool), removed straight
+    after."""
+    d = pathlib.Path(tempfile.mkdtemp(dir=_work_dir(cfg).parent, prefix="pic-"))
+    try:
+        yield d
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 def _make(db, cfg, path, folder, out):
     if out.exists():
         return
@@ -875,11 +891,15 @@ def stored_files(db, cfg):
 
 def made_files(db, cfg):
     """(space, path) for the files Lens makes from them: documents' PDF renditions, frames, page images and face
-    crops, reports and exports."""
+    crops, enhanced copies, reports and exports."""
+    from . import enhance
+
     data = pathlib.Path(cfg["data_dir"])
     for r in db.rows("SELECT record::id(id) AS id, space, source FROM recording"):
         p = data / "renditions" / f"{int(r['id'])}.pdf"
         if r.get("source") == "document" and p.is_file():
+            yield r["space"], str(p)
+        for p in enhance.files(cfg, r["id"]):  # an enhanced copy (enhance.py)
             yield r["space"], str(p)
         d = data / "frames" / str(int(r["id"]))
         if d.is_dir():
@@ -908,9 +928,9 @@ def made_files(db, cfg):
 
 def recording_files(db, cfg, rid):
     """The files Lens keeps of one recording, where they are for its namespace now: its own file under data_dir, its
-    supplementary files, its rendition, frames, page images and face crops, its cached copy from a storage source,
-    and its report pages and exports."""
-    from . import files as filemod, render, sources
+    supplementary files, its rendition and enhanced copy, frames, page images and face crops, its cached copy from a
+    storage source, and its report pages and exports."""
+    from . import enhance, files as filemod, render, sources
 
     rec = db.one("SELECT title, space, path, remote, source FROM $r", r=store.R("recording", rid))
     if not rec:
@@ -927,6 +947,7 @@ def recording_files(db, cfg, rid):
     p = data / "renditions" / f"{int(rid)}.pdf"
     if p.is_file():
         yield str(p)
+    yield from (str(p) for p in enhance.files(cfg, rid))
     d = data / "frames" / str(int(rid))
     if d.is_dir():
         yield from (str(f) for f in sorted(d.glob("*.jpg")))

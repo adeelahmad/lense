@@ -25,13 +25,16 @@ export function useChats() {
   });
 }
 
-export function useChat(id: number | null) {
+/** A conversation. With `poll`, it is fetched again every few seconds while an answer is written somewhere other than
+ * this tab (a project's brief, answered in the background), so the answer shows once it's saved. */
+export function useChat(id: number | null, { poll = false }: { poll?: boolean } = {}) {
   const client = useApiClient();
   return useQuery({
     queryKey: ["chat", id],
     queryFn: () => data(Chats.getChat({ client, path: { cid: id as number } })),
     enabled: id != null,
     staleTime: 10_000,
+    refetchInterval: (q) => (poll && q.state.data?.answering ? 3000 : false),
   });
 }
 

@@ -18,6 +18,9 @@ describe("navigation", () => {
     expect(labels(false)).toEqual(
       expect.arrayContaining(["Home", "Library", "Search", "Chat", "Graph", "Reports", "Pipelines", "Sources"]),
     );
+    // members make and manage automations in namespaces they edit, so everyone has the page
+    expect(labels(true)).toContain("Automations");
+    expect(labels(false)).toContain("Automations");
   });
 
   it("keeps each group together, in order: every day, Explore, Automate, Manage", () => {
@@ -33,16 +36,16 @@ describe("navigation", () => {
     ).toEqual(["Costs", "Analytics", "Settings", "Admin"]);
   });
 
-  it("has Schedules, everything that runs on a clock, under Automate for everyone, where Routines was", () => {
+  it("has Schedules and Routines open from Automations, so the nav is no longer than before (one phone screen)", () => {
     for (const admin of [true, false]) {
-      expect(navFor(admin).find((i) => i.href === "/schedules")?.group).toBe("Automate");
-      // the Routines page opens from Schedules, so the nav is no longer than before (one phone screen)
+      expect(navFor(admin).find((i) => i.href === "/automations")?.group).toBe("Automate");
+      expect(navFor(admin).find((i) => i.href === "/schedules")).toBeUndefined();
       expect(navFor(admin).find((i) => i.href === "/routines")).toBeUndefined();
     }
-    expect(isActive("/schedules", "/schedules")).toBe(true);
-    expect(isActive("/routines", "/schedules")).toBe(true);
-    expect(isActive("/routines/3", "/schedules")).toBe(true);
-    expect(isActive("/routines/history", "/schedules")).toBe(true);
+    expect(isActive("/schedules", "/automations")).toBe(true);
+    expect(isActive("/routines", "/automations")).toBe(true);
+    expect(isActive("/routines/3", "/automations")).toBe(true);
+    expect(isActive("/routines/history", "/automations")).toBe(true);
   });
 
   it("matches the active section", () => {
@@ -55,6 +58,8 @@ describe("navigation", () => {
     expect(isActive("/speakersx", "/settings")).toBe(false);
     expect(isActive("/sources", "/sensors")).toBe(true); // files, email and calendars: a tab of Sensors
     expect(isActive("/sensors/4", "/sensors")).toBe(true);
+    expect(isActive("/automations/4", "/automations")).toBe(true); // an automation's page
+    expect(isActive("/automations", "/approvals")).toBe(false);
   });
 });
 

@@ -1,6 +1,7 @@
 # A machine on another Lens install's mesh (docs/mesh.md, Nodes): what install.sh starts with LENS_JOIN and
 # LENS_JOIN_TOKEN. No database, no web app, nothing published: `mesh` runs Nebula, and `node` (`lens node`) joins once,
-# then follows the primary's config over the mesh and reports every minute.
+# then follows the primary's config over the mesh and reports every minute; on a worker node it runs `lens worker` too,
+# against the primary's database over the mesh.
 #   LENS_JOIN=http://lens.home:3000 LENS_JOIN_TOKEN=lensjoin1.… docker compose -p lens-node -f docker-compose.node.yml up -d --build
 name: lens-node
 
@@ -36,9 +37,8 @@ services:
     depends_on: [mesh]
     security_opt: ["no-new-privileges:true"]
     cap_drop: [ALL]
-    read_only: true
-    tmpfs: [/tmp]
-    mem_limit: 512m
+    # not read-only and no memory cap: on a worker node it also runs `lens worker`, which fetches its speech model
+    # into the image's folders and needs the machine's memory, as the primary's worker does
     healthcheck:
       disable: true  # the image's check is the API's, which a node doesn't run
     environment:

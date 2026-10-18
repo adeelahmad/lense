@@ -58,6 +58,21 @@ test("Feeds is in the nav only once there is a feed, so a phone's nav stays as s
   expect(screen.getByRole("link", { name: "Feeds 1" })).toHaveAttribute("href", "/feeds");
 });
 
+test("Automations is under Automate for everyone, right after Approvals", () => {
+  for (const admin of [true, false]) {
+    const items = navFor(admin);
+    const i = items.findIndex((it) => it.href === "/automations");
+    expect(items[i]).toMatchObject({ label: "Automations", group: "Automate" });
+    expect(items[i - 1].href).toBe("/approvals");
+  }
+  nav(false);
+  expect(screen.getByRole("link", { name: "Automations" })).toHaveAttribute("href", "/automations");
+  const text = screen.getByRole("navigation", { name: "Primary" }).textContent ?? "";
+  expect(text.indexOf("Automate")).toBeLessThan(text.indexOf("Automations"));
+  expect(text.indexOf("Automations")).toBeLessThan(text.indexOf("Pipelines"));
+  expect(isActive("/automations/4", "/automations")).toBe(true);
+});
+
 test("Approvals is in the nav only while something waits, and Automate keeps its name either way", () => {
   const { unmount } = nav(false);
   expect(screen.queryByRole("link", { name: /Approvals/ })).not.toBeInTheDocument();

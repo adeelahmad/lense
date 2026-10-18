@@ -89,8 +89,11 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "create_feed",
         "publish_to_feed",
         "write_spec",
+        "draft_reply",
+        "edit_reply",
         "set_nsfw",
         "mark_nsfw",
+        "enhance",
         "set_namespace_integrations",
         "set_picture_descriptions",
         "set_file_storage",
@@ -115,6 +118,9 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "run_automation",
         "set_schedule",
         "run_schedule",
+        "clear_queue",
+        "retry_runs",
+        "move_run",
     ]
     assert next(t for t in tools if t["name"] == "search")["inputSchema"]["required"] == ["query"]
     # API tokens and sessions work too

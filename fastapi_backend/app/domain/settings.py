@@ -111,6 +111,7 @@ EDITABLE = {
         "object_min_score",
     ),
     "nsfw": None,
+    "enhance": None,
     "server": ("embed_frame_ancestors", "max_upload_mb", "allowed_hosts", "session_hours", "secure_cookies", "trusted_proxies"),
     "uploads": None,
     "files": None,
@@ -176,6 +177,7 @@ ENUMS = {
     ("video", "ocr_engine"): {"auto", "tesseract", "apple-vision", "rapidocr", "doctr", "none"},
     ("video", "face_engine"): {"opencv", "insightface", "anytopdf", "none"},
     ("video", "object_engine"): {"yolox", "ultralytics", "anytopdf", "off"},
+    ("enhance", "image_engine"): {"classic", "realesrgan"},
     ("decisions", "engine"): {"auto", "jev", "laya", "llm", "off"},
     ("voice", "input"): {"auto", "server", "browser"},
     ("voice", "stt"): {"same", "sensevoice", "whisper", "mlx-whisper", "openai", "elevenlabs", "assemblyai", "deepgram"},
@@ -579,6 +581,10 @@ def _check(section, key, value, default):
         return _component_setting(key, value)
     if section == "nsfw":
         return _nsfw_setting(key, value)
+    if section == "enhance" and key != "image_engine":
+        from . import enhance
+
+        return enhance.check(key, value)
     if section == "mail" and key != "security":
         return _mail_setting(key, value)
     if section == "bridge" and key not in ("answer", "enabled", "approve"):

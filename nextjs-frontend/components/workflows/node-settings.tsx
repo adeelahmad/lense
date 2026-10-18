@@ -662,6 +662,7 @@ export function NodeSettings({
                     { value: "link", label: "Look-alikes across shared namespaces (to link)" },
                     { value: "retype", label: "Entities whose type looks wrong (to retype)" },
                     { value: "hide", label: "Noise: filler words, fragments, one-offs (to hide)" },
+                    { value: "cluster", label: "Topics that go under one broader topic (to group)" },
                   ]}
                 />
               )}

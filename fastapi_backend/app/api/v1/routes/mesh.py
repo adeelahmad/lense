@@ -7,14 +7,16 @@ nodes are audited.
 
 from __future__ import annotations
 
+import os
 import urllib.parse
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import Response, StreamingResponse
 
 from app.api.deps import AdminReader, AdminWriter, Cfg, Db, client_ip, domain_errors, web_origin
 from app.api.v1.routes.jobs import _worker as worker_info
-from app.domain import auth, jobs, mesh, settings
+from app.domain import auth, jobs, keyring, mesh, settings
 from app.schemas.common import Ok
 from app.schemas.mesh import (
     MeshBeat,
@@ -28,6 +30,7 @@ from app.schemas.mesh import (
     MeshToken,
     MeshTokenCreate,
     MeshTokenCreated,
+    MeshWorkerAccess,
 )
 
 router = APIRouter(prefix="/mesh", tags=["mesh"])
@@ -86,10 +89,10 @@ def remove_node(node_id: int, user: AdminWriter, db: Db) -> MeshNode:
 
 
 @router.post("/nodes/{node_id}/restore")
-def restore_node(node_id: int, user: AdminWriter, db: Db) -> MeshNode:
+def restore_node(node_id: int, user: AdminWriter, db: Db, cfg: Cfg) -> MeshNode:
     """Undo removing a node."""
     with domain_errors():
-        n = mesh.undo_remove(db, node_id)
+        n = mesh.undo_remove(db, node_id, cfg)
     auth.audit(db, user.as_audit(), "mesh.node.restore", f"mesh_node:{node_id}")
     return _with_workers(db, [n])[0]
 
@@ -177,6 +180,44 @@ def renew_node(body: MeshRenew, node: Node, db: Db, cfg: Cfg) -> MeshNodeConfig:
         raise HTTPException(400, str(e)) from None
     except mesh.MeshError as e:
         raise HTTPException(503, str(e)) from None
+
+
+@router.get("/node/worker")
+def node_worker(node: Node, db: Db, cfg: Cfg) -> MeshWorkerAccess:
+    """What the calling worker node's `lens worker` signs in to the database with: its own user of it. 403 for a node
+    of another role, 409 where the database is embedded."""
+    try:
+        return MeshWorkerAccess(**mesh.worker_access(db, cfg, node))
+    except PermissionError as e:
+        raise HTTPException(403, str(e)) from None
+    except mesh.MeshError as e:
+        raise HTTPException(409, str(e)) from None
+
+
+@router.get("/node/media/{recording_id}", response_class=StreamingResponse)
+def node_media(recording_id: int, node: Node, request: Request, db: Db, cfg: Cfg) -> Response:
+    """A recording's file, plain, for a job on the calling worker node (a vault's never). Its ETag is its size and
+    time: a node that has it sends If-None-Match and gets 304."""
+    try:
+        path = mesh.media(db, cfg, node, recording_id)
+        st = os.stat(path)
+        tag = f'"{st.st_size}-{st.st_mtime_ns}"'
+        if request.headers.get("if-none-match") == tag:
+            return Response(status_code=304, headers={"ETag": tag})
+        f = keyring.open_plain(db, cfg, path)
+    except PermissionError as e:
+        raise HTTPException(403, str(e)) from None
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e)) from None
+    except keyring.Locked:
+        raise HTTPException(423, "its namespace is a locked vault") from None
+
+    def chunks():
+        with f:
+            while block := f.read(1 << 20):
+                yield block
+
+    return StreamingResponse(chunks(), media_type="application/octet-stream", headers={"ETag": tag})
 
 
 @router.post("/node/beat")
