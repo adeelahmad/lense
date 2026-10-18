@@ -10,9 +10,10 @@ What each unit costs is an estimate: the spot price in the instance's zone when 
 price from the AWS Price List API; an admin's price on the provider wins over both. Without any of them Lens doesn't
 launch, because a unit with no price would never count against its group's budget.
 
-Each instance is tagged `lens-unit` with its unit's name (`listing` finds the ones Lens lost by it), asks for
-IMDSv2, encrypts its disk and terminates itself when it shuts down, so a machine that stops never keeps costing. Its
-user-data is the mesh's install line, whose join token works once, within the hour: no long-lived secret is in it.
+Each instance is tagged `lens-unit` with its unit's name (`listing` finds the ones Lens lost by it) and `lens` with
+Lens's tag, asks for IMDSv2, encrypts its disk and terminates itself when it shuts down, so a machine that stops never
+keeps costing. Its user-data is every cloud unit's (scaling_drivers.user_data): the mesh's install line, whose join
+token works once, within the hour, so no long-lived secret is in it.
 
 It talks to AWS through botocore (Apache-2.0), the `aws` extra, fetched when the first AWS provider is saved.
 """
@@ -21,11 +22,11 @@ from __future__ import annotations
 
 import datetime as dt
 import json
-import shlex
 import threading
 import time
 
 from . import jobs
+from . import scaling_drivers as drivers
 from .scaling_drivers import Driver, DriverError, _field, register
 
 TAG = "lens-unit"
@@ -67,6 +68,7 @@ class Ec2(Driver):
         "price, falling back to on demand when AWS has no spot capacity, or on demand only."
     )
     priced = True
+    needs_join = True  # its units are EC2 instances, which join over the mesh's install line
     extra = "aws"
     modules = ("botocore",)
     license = "Apache-2.0"
@@ -290,17 +292,6 @@ class Ec2(Driver):
         zones = sorted(z["ZoneName"] for z in out.get("AvailabilityZones") or [] if z.get("State") == "available")
         return {"region": self._region(p), "zones": zones}
 
-    def user_data(self, name, template, boot):
-        """The script an instance runs on its first boot: the mesh's install line, with the unit's name and the
-        steps its worker runs."""
-        env = {**(boot.get("env") or {}), "LENS_SCALING_UNIT": name}
-        if template.get("steps"):
-            env["LENS_WORKER_STEPS"] = ",".join(template["steps"])
-        lines = ["#!/bin/sh", f"# Lens scaling unit {name}: joins Lens over the mesh and runs a worker", "set -eu"]
-        lines += [f"export {k}={shlex.quote(str(v))}" for k, v in sorted(env.items())]
-        lines.append(boot["line"])
-        return "\n".join(lines) + "\n"
-
     def launch(self, p, template, name, boot):
         if not boot.get("line"):
             raise DriverError("an EC2 unit joins Lens over the mesh: turn the mesh on in Settings › Network first")
@@ -320,12 +311,14 @@ class Ec2(Driver):
         else:
             image_id, root = self.image(p, arch)
         tags = [{"Key": "Name", "Value": name}, {"Key": TAG, "Value": name}]
+        if boot.get("tag"):
+            tags.append({"Key": "lens", "Value": boot["tag"]})  # Lens's tag, as on every provider's machines
         params = {
             "ImageId": image_id,
             "InstanceType": itype,
             "MinCount": 1,
             "MaxCount": 1,
-            "UserData": self.user_data(name, template, boot),
+            "UserData": drivers.user_data(boot, template),
             "InstanceInitiatedShutdownBehavior": "terminate",
             "MetadataOptions": {"HttpTokens": "required", "HttpEndpoint": "enabled"},
             "BlockDeviceMappings": [

@@ -110,7 +110,7 @@ def aws(monkeypatch):
     return Aws(monkeypatch)
 
 
-BOOT = {"env": {"LENS_SCALING_UNIT": "lens-workers-1"}, "line": LINE, "token_id": 7}
+BOOT = {"env": {"LENS_SCALING_UNIT": "lens-workers-1"}, "line": LINE, "token_id": 7, "tag": "lens"}
 
 
 def test_a_spot_unit_launches_hardened_and_priced_in_its_zone(aws):
@@ -135,7 +135,7 @@ def test_a_spot_unit_launches_hardened_and_priced_in_its_zone(aws):
     assert run["InstanceInitiatedShutdownBehavior"] == "terminate"  # one that stops never keeps costing
     assert run["BlockDeviceMappings"][0]["Ebs"] == {"VolumeSize": 30, "VolumeType": "gp3", "Encrypted": True, "DeleteOnTermination": True}
     tags = {t["Key"]: t["Value"] for t in run["TagSpecifications"][0]["Tags"]}
-    assert tags == {"Name": "lens-workers-1", TAG: "lens-workers-1"}
+    assert tags == {"Name": "lens-workers-1", TAG: "lens-workers-1", "lens": "lens"}
     # the user-data is the mesh's install line, named for the unit: its one-time token is the only credential in it
     data = run["UserData"]
     data = data if data.startswith("#!") else base64.b64decode(data).decode()
@@ -245,7 +245,7 @@ def test_terminate_check_and_listing(aws):
 def test_the_driver_is_offered_and_its_settings_are_checked():
     drv = drivers.get("aws")
     spec = drv.spec()
-    assert (spec["kind"], spec["priced"], spec["extra"], spec["license"]) == ("node", True, "aws", "Apache-2.0")
+    assert (spec["kind"], spec["priced"], spec["needs_join"], spec["extra"], spec["license"]) == ("node", True, True, "aws", "Apache-2.0")
     assert set(drv.secrets) == {"access_key_id", "secret_access_key"}
     assert drivers.check_template(drv, {}) == {"instance_type": "t4g.medium", "market": "spot", "fallback": True, "disk_gb": 30}
     with pytest.raises(ValueError, match="market"):
@@ -261,7 +261,10 @@ def h(client, db):
 
 def test_the_scaler_replaces_a_spot_unit_aws_took_back(client, db, cfg, h, aws, monkeypatch):
     monkeypatch.setitem(drivers.DRIVERS, "aws", aws.drv)
-    monkeypatch.setattr(scaling, "bootstrap", lambda db, cfg, g, name: {"env": {"LENS_SCALING_UNIT": name}, "line": LINE, "token_id": None})
+    monkeypatch.setattr(scaling, "can_join", lambda cfg: True)  # the mesh is on and has its install line
+    monkeypatch.setattr(
+        scaling, "bootstrap", lambda db, cfg, g, name: {"env": {"LENS_SCALING_UNIT": name}, "line": LINE, "token_id": None, "tag": "lens"}
+    )
     settings.save(db, cfg, "scaling", {"enabled": True}, "root@x.io")
     cfg = settings.effective(db, cfg)
     aws.add("describe_availability_zones", {"AvailabilityZones": []})  # the check when it's saved
