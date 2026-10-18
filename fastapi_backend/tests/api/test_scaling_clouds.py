@@ -96,7 +96,9 @@ def h(client, db):
 
 
 class Mesh:
-    """The mesh with its install line, as mesh.py will have it."""
+    """The mesh with its install line, and nodes that run workers, as mesh.py will have it."""
+
+    WORKER_NODES = True
 
     def __init__(self):
         self.tokens = []
@@ -136,7 +138,14 @@ def test_a_digitalocean_group_waits_for_the_install_line_then_launches_droplets(
     assert g["template"] == {"size": "s-1vcpu-2gb", "image": "ubuntu-24-04-x64", "steps": ["transcribe"]}
     assert tick(db, cfg)["launched"] == 0 and not do.machines  # no way for a droplet to join yet: none is started
     (view,) = client.get("/api/v1/scaling", headers=h).json()["groups"]
-    assert "install line" in view["waiting_for"]
+    assert "turn it on" in view["waiting_for"]  # the mesh is off
+
+    from app.domain import mesh as real_mesh
+
+    monkeypatch.setattr(real_mesh, "conf", lambda cfg: {"enabled": True})
+    (view,) = client.get("/api/v1/scaling", headers=h).json()["groups"]
+    assert "nodes that run Lens workers" in view["waiting_for"]  # the mesh joins machines, but they don't work yet
+    assert tick(db, cfg)["launched"] == 0 and not do.machines
 
     mesh = Mesh()
     monkeypatch.setattr(scaling, "mesh_module", lambda: mesh)

@@ -599,7 +599,7 @@ def waiting_for(view, cfg=None):
     if view.get("capped"):
         return f"its budget: {view['capped']}"
     if cfg is not None and view.get("needs_join") and not can_join(cfg):
-        return "the mesh's install line, which other machines join Lens with (in progress, docs/mesh.md)"
+        return join_wait(cfg)
     return None
 
 
@@ -966,12 +966,23 @@ def mesh_module():
     return mesh
 
 
-def can_join(cfg):
-    """Whether another machine can join Lens now: the mesh is on and has the install line machines join with."""
+def join_wait(cfg):
+    """What a group on other machines waits for before it launches, or None: the mesh's install line, the mesh turned
+    on, and nodes that run `lens worker` (the mesh says so with WORKER_NODES), since a machine that joins without a
+    worker never counts as joined and only costs."""
     mesh = mesh_module()
-    if mesh is None or not (getattr(mesh, "conf", lambda c: {})(cfg) or {}).get("enabled"):
-        return False
-    return bool(getattr(mesh, "make_token", None) and getattr(mesh, "join_line", None))
+    if mesh is None or not (getattr(mesh, "make_token", None) and getattr(mesh, "join_line", None)):
+        return "the mesh's install line, which other machines join Lens with (in progress, docs/mesh.md)"
+    if not (getattr(mesh, "conf", lambda c: {})(cfg) or {}).get("enabled"):
+        return "the mesh, which other machines join Lens over: turn it on (docs/mesh.md)"
+    if not getattr(mesh, "WORKER_NODES", False):
+        return "nodes that run Lens workers: the mesh's install line doesn't start one yet (in progress, docs/mesh.md)"
+    return None
+
+
+def can_join(cfg):
+    """Whether another machine can join Lens now and work: see join_wait."""
+    return join_wait(cfg) is None
 
 
 def bootstrap(db, cfg, g, name):

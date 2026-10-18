@@ -10,7 +10,8 @@ Status: in progress. Built: groups, rules, approvals, budgets, the scaler, the A
 Settings › Auto scaling (the switch, and each group's terms to approve or pause), and **This machine**, a provider that
 runs more `lens worker` processes where Lens runs. In progress: **AWS EC2** (spot or on demand), **DigitalOcean**
 and **Hetzner Cloud** providers are built (credentials checked, prices, launching, watching and deleting machines),
-and launch once the mesh's install line, which another machine joins Lens with, lands ([the mesh](mesh.md)); so are
+and launch once machines that join over the [mesh](mesh.md) run Lens workers (they join today, but run no worker
+yet); so are
 **Proxmox VE**, clones of a VM template on your own server, and **Linux hosts over SSH**, workers started on machines
 you have. Planned: model hosts (RunPod, Lambda, Hugging Face, SageMaker, Bedrock) for models; and making providers and
 groups in Settings.
@@ -91,8 +92,10 @@ fails), and every other call refuses a host whose key differs. A host whose key 
 the provider and added back. The SSH client is Paramiko (LGPL-2.1, used unmodified), the `ssh` extra, fetched the
 first time an SSH provider is saved.
 
-Until the mesh is on and has its install line, a group on these providers waits (`waiting_for` says so) and launches
-nothing, since its machines couldn't join. They call the providers' REST APIs with httpx, so they install nothing.
+Until the mesh is on and the machines that join it run Lens workers, a group on these providers waits
+(`waiting_for` says which) and launches nothing: a machine that joined without a worker would never count as joined,
+and would only cost until it was given up on. The mesh says its nodes run workers once they do (`WORKER_NODES` in
+`domain/mesh.py`). The cloud providers call their REST APIs with httpx, so they install nothing.
 
 ## AWS EC2
 

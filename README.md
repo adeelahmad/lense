@@ -201,7 +201,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   ledger. A group launches nothing until you approve its terms in Settings › Auto scaling; agents propose and manage
   groups over the API, MCP and the assistant, and never approve one. It runs more workers on this machine today;
   AWS EC2 (spot or on demand), DigitalOcean, Hetzner Cloud, Proxmox VE and Linux hosts over SSH providers are in
-  progress (built, launching once the mesh's install line lands), and model hosts are planned.
+  progress (built, launching once machines that join the mesh run workers), and model hosts are planned.
   ([Auto scaling](docs/scaling.md);
   [checks](docs/requirements.md#scale-out))
 - **Keep it up to date and backed up.** Lens checks for a new release once a day and tells admins by email or a
