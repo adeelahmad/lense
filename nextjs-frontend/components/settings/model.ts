@@ -80,6 +80,8 @@ export type SectionId =
   | "access"
   | "remote-access"
   | "https"
+  | "nodes"
+  | "network"
   | "sign-in"
   | "encryption"
   | "secrets"
@@ -269,6 +271,20 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["https"],
     description:
       "Off unless you turn it on. Serve Lens at your own domain over https://, with certificates from Let’s Encrypt or ZeroSSL that Lens gets and renews itself.",
+  },
+  {
+    id: "nodes",
+    label: "Nodes",
+    backend: [],
+    description:
+      "Other machines Lens runs on, joined over its own private network: add one with a line to run on it, see how each is doing, rename or remove it. A single machine needs none.",
+  },
+  {
+    id: "network",
+    label: "Network",
+    backend: ["mesh"],
+    description:
+      "The private network between Lens’s machines, a Nebula mesh Lens issues the certificates for: every packet between them is encrypted. Off until you add a node.",
   },
   {
     id: "mail",
@@ -1396,6 +1412,76 @@ export const FIELDS: FieldSpec[] = [
     mono: true,
     placeholder: "as installed",
     hint: "Where cloudflared reaches the web app from the server. Leave empty unless you moved it.",
+  },
+  // Network (the Nebula mesh between Lens's machines, docs/mesh.md)
+  {
+    section: "mesh",
+    key: "enabled",
+    label: "Run the mesh",
+    kind: "switch",
+    hint: "On when you add a node; off stops the mesh on this machine.",
+  },
+  {
+    section: "mesh",
+    key: "network",
+    label: "Mesh addresses",
+    kind: "text",
+    mono: true,
+    placeholder: "10.73.0.0/16",
+    hint: "A private IPv4 range from /8 to /28; this machine is its first address. It can’t change once machines have addresses in it.",
+  },
+  {
+    section: "mesh",
+    key: "port",
+    label: "UDP port",
+    kind: "int",
+    min: 1,
+    max: 65535,
+    hint: "The port nodes reach this machine at: the one Docker publishes (LENS_MESH_PORT), unless a router forwards another.",
+  },
+  {
+    section: "mesh",
+    key: "hosts",
+    label: "Where nodes reach it",
+    kind: "lines",
+    mono: true,
+    placeholder: "lens.example.com:4242",
+    hint: "One per line, a host or host:port, up to 8. Empty: the address each node joined this install at.",
+  },
+  {
+    section: "mesh",
+    key: "cipher",
+    label: "Cipher",
+    kind: "select",
+    options: [
+      { value: "aes", label: "AES-256-GCM" },
+      { value: "chachapoly", label: "ChaCha20-Poly1305" },
+    ],
+    hint: "The same on every machine. ChaCha20-Poly1305 is faster on machines without AES hardware, such as some Raspberry Pis.",
+  },
+  {
+    section: "mesh",
+    key: "cert_days",
+    label: "Certificates last",
+    kind: "int",
+    min: 2,
+    max: 365,
+    unit: "days",
+    hint: "Each machine renews its certificate at two thirds of this.",
+  },
+  { section: "mesh", key: "relay", label: "Relay for machines that can’t reach each other directly", kind: "switch" },
+  { section: "mesh", key: "mtu", label: "MTU", kind: "int", min: 1200, max: 9000, hint: "The mesh interface’s MTU." },
+  {
+    section: "mesh",
+    key: "log_level",
+    label: "Nebula’s log level",
+    kind: "select",
+    options: [
+      { value: "error", label: "Errors" },
+      { value: "warning", label: "Warnings" },
+      { value: "info", label: "Info" },
+      { value: "debug", label: "Debug" },
+    ],
   },
   // HTTPS (Caddy run by Lens, certificates over ACME)
   { section: "https", key: "enabled", label: "Serve Lens over HTTPS", kind: "switch" },
@@ -4090,6 +4176,8 @@ export function parse(f: FieldSpec, ui: unknown): Parsed {
 const HOST_RX = /^(\*|\[[0-9a-f:]+\]|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*)$/i;
 const ENTITY_TYPES = ["PERSON", "ORG", "PRODUCT", "PLACE", "EVENT", "WORK", "TERM"];
 const URL_RX = /^https?:\/\/[^\s]+$/;
+/** mesh.hosts: a host name or address, with or without :port (mesh.HOST_RX on the server). */
+const MESH_HOST_RX = /^(\[[0-9A-Fa-f:]+\]|[A-Za-z0-9][A-Za-z0-9.-]{0,252})(:\d{1,5})?$/;
 const TUNNEL_HOST_RX = /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}\.?$/i;
 
 /** "Line 4: missing “|” between name and type" for the custom vocabulary. */
@@ -4223,6 +4311,16 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   const sNets = values["sensors.syslog_networks"] as string[] | undefined;
   const badSNet = sNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badSNet) e["sensors.syslog_networks"] = `“${badSNet}” isn’t a network like 192.168.1.0/24`;
+  const meshNet = values["mesh.network"] as string | undefined;
+  if (meshNet !== undefined) {
+    const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\/(\d{1,2})$/.exec(meshNet);
+    if (!m || m.slice(1, 5).some((x) => Number(x) > 255) || Number(m[5]) < 8 || Number(m[5]) > 28)
+      e["mesh.network"] = "Use a private IPv4 range from /8 to /28, like 10.73.0.0/16";
+  }
+  const meshHosts = values["mesh.hosts"] as string[] | undefined;
+  const badMeshHost = meshHosts?.find((x) => !MESH_HOST_RX.test(x));
+  if (meshHosts && meshHosts.length > 8) e["mesh.hosts"] = "Up to 8 addresses";
+  else if (badMeshHost) e["mesh.hosts"] = `“${badMeshHost}” isn’t a host name or address, with or without :port`;
   const mode = values["tunnel.mode"] as string | undefined;
   const tHost = values["tunnel.hostname"] as string | undefined;
   if ((mode === "token" || mode === "managed") && "tunnel.hostname" in values && !TUNNEL_HOST_RX.test(tHost ?? ""))

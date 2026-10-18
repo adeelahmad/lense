@@ -31,6 +31,7 @@ from . import (
     graph_history,
     llm,
     manual,
+    marketplace as marketmod,
     notebook,
     ns_assistant,
     ops_tools,
@@ -479,6 +480,23 @@ AUTHOR_TOOLS = [
         "Switch an extension the person can change on or off. Needs the person's approval.",
         {"name": _S, "enabled": {"type": "boolean"}},
         ["name", "enabled"],
+        True,
+    ),
+    (
+        "find_plugins",
+        "Plugins and skills in the marketplaces an admin added that have every word of query in their name, "
+        "description, category or author (or all of them); updates true: only the person's installed ones with another "
+        "version listed. Each gives its marketplace id, version, whether Lens can install it and whether it's installed.",
+        {"query": _S, "marketplace": _I, "updates": {"type": "boolean"}},
+        [],
+        False,
+    ),
+    (
+        "install_plugin",
+        "Install a plugin or skill from a marketplace (find_plugins gives marketplace and plugin) as the person's own "
+        "extension, or bring an installed one to the version listed now. Needs the person's approval.",
+        {"marketplace": _I, "plugin": _S},
+        ["marketplace", "plugin"],
         True,
     ),
 ]
@@ -1376,6 +1394,20 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
             raise ValueError(f"{name} is someone else's; only its owner or an admin switches it")
         what = f"Switch {g['kind']} {name} {'on' if enabled else 'off'}"
         return self._approval("switch_extension", {"extension": g["id"], "name": name, "enabled": bool(enabled)}, what)
+
+    def t_find_plugins(self, query=None, marketplace=None, updates=False):
+        found, n = marketmod.find(self.db, self.me, query, marketplace, bool(updates), 30)
+        keep = ("marketplace", "marketplace_name", "name", "description", "version", "installable", "why_not", "installed", "update")
+        out = [{k: p[k] for k in keep if k in p} for p in found]
+        return {"plugins": out, "matched": n}, f"Found {n} plugin{'' if n == 1 else 's'}"
+
+    def t_install_plugin(self, marketplace, plugin):
+        got = marketmod.preview(self.db, self.cfg, self.me, int(marketplace), plugin)
+        items = ", ".join(f"{i['kind']} {i['name']}" for i in got["manifest"].get("items") or []) or "nothing"
+        have = next((p for p in marketmod.plugins(self.db, self.me, int(marketplace)) if p["name"] == plugin), {})
+        verb = "Update" if have.get("installed") else "Install"
+        what = f"{verb} the plugin {plugin} from {got['source']}: {items}"
+        return self._approval("install_plugin", {"marketplace": int(marketplace), "plugin": plugin}, what[:300])
 
     # ---- the namespace's memory (ns_assistant.py) ----
     def t_remember(self, fact, source_ref=None):
@@ -2378,9 +2410,9 @@ def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=F
     """Carry out an approved action: a batch run (or a sample of it), an entity change, a note an automation's agent
     proposed, or a change to the server (ops_tools.py: settings, a namespace, importing attached files or web pages,
     following a news feed).
-    An automation's action (an approval with an intent) is decided by approvals.decide: `params` are an edit's, `via`
-    where the pick was made (web, chat, token, oauth or agent; only the person, signed in or in their own chat,
-    approves it)."""
+    An automation's action (an approval with an intent) is decided by approvals.decide: `params` are an edit's. `via`
+    is where the pick was made (web, chat, token, oauth or agent): only the person, signed in or in their own chat,
+    approves; an API key, an app, MCP and the assistant can only decline (PermissionError)."""
     from . import approvals  # it carries actions out, and actions load the assistant's tools
 
     a = approvals.get(db, aid)
@@ -2399,6 +2431,10 @@ def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=F
             "UPDATE $r SET status = 'declined', decided_at = $t, decided_by = $u", r=R("approval", a["id"]), t=store.now(), u=user["email"]
         )
         return {"status": "declined"}
+    if not approvals.can(a, via)["approve"]:
+        raise PermissionError(
+            "approve what the assistant asks yourself, signed in to Lens or in the chat: an API key or an app can only decline it"
+        )
     with graph_history.acting(actor=user["email"], via="assistant", approval=a["id"]):
         result = _carry_out(db, cfg, a, user, editable, decision, base, admin, readable, via)
     db.q(
@@ -2418,6 +2454,11 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable, via=
         result = run_extension(db, cfg, args, user, admin, box.readable, box)
     elif a["tool"] in ("save_extension", "switch_extension"):
         result = author_extension(db, a["tool"], args, user, admin, readable if readable is not None else editable, editable)
+    elif a["tool"] == "install_plugin":
+        rd = readable if readable is not None else editable
+        me = extensions.who(user["id"], user.get("email"), admin, {s: "editor" if s in editable else "viewer" for s in rd})
+        eid, n = marketmod.install(db, cfg, me, args["marketplace"], args["plugin"])
+        result = {"extension": eid, "version": n}
     elif a["tool"] in ("switch_automation", "run_automation"):
         result = _automation_approved(db, cfg, a["tool"], args, user, admin)
     elif a["tool"] in ("run_python", "run_bash"):  # a run that can reach another host, asked first (Toolbox._sandbox_run)

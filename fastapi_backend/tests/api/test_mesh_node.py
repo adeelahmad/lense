@@ -20,8 +20,31 @@ def folders(tmp_path):
     return tmp_path / "node", tmp_path / "mesh"
 
 
+class Proc:
+    """`lens worker` as a worker node's agent starts it, without running it."""
+
+    started: list = []
+
+    def __init__(self, cmd, env):
+        self.cmd, self.env, self.returncode, self.stopped = cmd, env, None, False
+        Proc.started.append(self)
+
+    def poll(self):
+        return self.returncode
+
+    def terminate(self):
+        self.stopped, self.returncode = True, -15
+
+    def wait(self, timeout=None):
+        return self.returncode
+
+    def kill(self):
+        self.terminate()
+
+
 def agent(client, folders, token, name="pi"):
     a = mesh_node.Agent(folders[0], folders[1], "http://testserver/", token, name, http=client)
+    a.worker.popen = Proc
     return a
 
 
@@ -66,7 +89,8 @@ def test_a_machine_joins_and_follows_the_primary(client, db, cfg, nebula, server
     a.tick()
     me = client.get("/api/v1/mesh/nodes", headers=h).json()[1]
     assert me["last_seen"] and me["status"]["machine"]["cpus"] and me["status"]["version"] and a.error is None
-    assert me["status"]["nebula"] == "running" and me["status"]["error"] == "a peer is slow" and me["status"]["log"] == ["up"]
+    assert me["status"]["nebula"] == "running" and me["status"]["error"] == "a peer is slow" and me["status"]["log"][0] == "up"
+    assert "started lens worker Studio Mac -M2--" in me["status"]["log"][1]  # a worker node's worker (test_mesh_workers.py)
 
     # a removed node is refused, and keeps asking: an undo brings it back
     client.delete(f"/api/v1/mesh/nodes/{me['id']}", headers=h)
@@ -112,6 +136,7 @@ def test_a_machine_joins_and_follows_the_primary(client, db, cfg, nebula, server
 
     # started again (a restart of the machine), it carries on as the same node without its token
     again = mesh_node.Agent(node_dir, shared, None, None, "whatever", http=client)
+    again.worker.popen = Proc
     again.tick()
     assert again.node["node"]["id"] == me["id"] and not again.refused and again.error is None
     view = again.view()

@@ -11,6 +11,7 @@ import {
   NotebookPen,
   Podcast,
   RadioTower,
+  Reply,
   Rss,
   Search,
   Settings,
@@ -32,8 +33,8 @@ export type NavItem = {
   adminOnly?: boolean;
   /** Only shown to people who aren't administrators (admins have it under another item). */
   membersOnly?: boolean;
-  /** A count shown next to the label (library size, speakers to review in Settings, approvals waiting). */
-  countKey?: "recordings" | "reviews" | "approvals" | "feeds";
+  /** A count shown next to the label (library size, speakers to review in Settings, approvals and email waiting). */
+  countKey?: "recordings" | "reviews" | "approvals" | "feeds" | "replies";
   /** Shown only while its count is above zero, or while its page is open, so the nav of a Lens with nothing there
    * stays as short as it was (on a phone, every item more pushes the ones below off the screen). */
   whileCounted?: boolean;
@@ -57,6 +58,8 @@ export const NAV: NavItem[] = [
   { label: "Search", href: "/search", icon: Search, group: "" },
   { label: "Chat", href: "/chat", icon: MessagesSquare, group: "" },
   { label: "Notes", href: "/notes", icon: NotebookPen, group: "" },
+  // email that may need an answer: in the nav while any does, so a Lens that reads no mail doesn't show it
+  { label: "Replies", href: "/replies", icon: Reply, countKey: "replies", whileCounted: true, group: "" },
   { label: "Timeline", href: "/timeline", icon: History, group: "Explore" },
   { label: "Entities", href: "/entities", icon: Shapes, group: "Explore" },
   { label: "Topics", href: "/topics", icon: Tags, group: "Explore" },
@@ -112,6 +115,8 @@ export function isActive(pathname: string, href: string): boolean {
   if (href === "/sensors" && (pathname === "/sources" || pathname.startsWith("/sources/"))) return true;
   // Members opening /sensors see their Sources page.
   if (href === "/sources" && pathname === "/sensors") return true;
+  // Projects are conversations working toward a goal, under Chat.
+  if (href === "/chat" && (pathname === "/projects" || pathname.startsWith("/projects/"))) return true;
   // An entity's page is under /wiki, by name.
   if (href === "/entities" && pathname.startsWith("/wiki/")) return true;
   // Schedules is a tab of Automations, and the Routines page (its list, proposed graph changes, history) opens from it.

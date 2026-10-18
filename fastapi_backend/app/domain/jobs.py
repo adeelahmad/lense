@@ -202,6 +202,14 @@ def _write_spec(db, cfg, rid, say, spec=None):
     specs.write(db, cfg, rid, say, spec)
 
 
+def _draft_reply(db, cfg, rid, say, spec=None):
+    from . import responder
+
+    if not (cfg["llm"].get("base_url") and cfg["llm"].get("model")):
+        raise Skip("no LLM is configured")
+    responder.draft(db, cfg, rid, say, spec)
+
+
 def _shots(db, cfg, rid, say, spec=None):
     from . import video
 
@@ -269,6 +277,7 @@ STEPS = {
     "workflow": _workflow,
     "podcast": _podcast,
     "spec": _write_spec,
+    "reply": _draft_reply,
 }
 
 
@@ -380,13 +389,27 @@ def enqueue_pending(db, space=None, by=None):
     return out
 
 
+def node_spaces(db):
+    """On a worker node that serves some namespaces only (docs/mesh.md), their ids; else None (every namespace)."""
+    if MESH_NODE is None:
+        return None
+    names = (db.one("SELECT namespaces FROM $r", r=R("mesh_node", MESH_NODE)) or {}).get("namespaces") or []
+    if not names:
+        return None
+    return sorted(sid for sid, name in store.space_names(db).items() if name in names)
+
+
 def claim(db, worker, can):
     locked = keyring.locked_vaults(db)  # a vault's work waits until someone unlocks it here
+    only = node_spaces(db)
     for r in db.rows(
         "SELECT record::id(id) AS id, space, priority, created_at, started_at FROM job WHERE status = 'queued' AND next_step IN $can "
-        "AND space NOTINSIDE $locked ORDER BY priority DESC, created_at ASC, id ASC LIMIT 10",
+        "AND space NOTINSIDE $locked"
+        + ("" if only is None else " AND space INSIDE $only")
+        + " ORDER BY priority DESC, created_at ASC, id ASC LIMIT 10",
         can=sorted(can),
         locked=sorted(locked),
+        only=only,
     ):
         t = store.now()
         try:
@@ -1088,8 +1111,8 @@ class Worker:
         self.can = set(steps or cfg_fn()["workers"]["steps"]) & set(STEPS)
         if not steps and "transcribe" in self.can:  # reading documents moved out of transcribe; older lists run it too
             self.can.add("read")
-        if "llm" in self.can:  # a workflow, a podcast or a spec needs what an llm step needs; older lists run them too
-            self.can |= {"workflow", "podcast", "spec"}
+        if "llm" in self.can:  # a workflow, a podcast, a spec or a reply needs what an llm step needs; older lists run them too
+            self.can |= {"workflow", "podcast", "spec", "reply"}
         if not steps and "transcribe" in self.can and not self.can & VIDEO_STEPS:
             # a workers.steps list written before the video steps existed (archive.yaml copied from an older example):
             # without them every import would wait for a worker that can run shots

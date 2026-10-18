@@ -14,6 +14,7 @@ import {
   FileText,
   FlaskConical,
   List,
+  Reply,
   ScanFace,
   ScanSearch,
   ScanText,
@@ -76,6 +77,7 @@ const ICON: Record<string, LucideIcon> = {
   summarize: Sparkles,
   llm: Sparkles,
   spec: ScrollText,
+  reply: Reply,
   report: FileText,
   export: FileOutput,
   workflow: Workflow,
@@ -94,7 +96,7 @@ const ASSETS = [
   "describe",
   "convert",
 ];
-const METADATA = ["clean", "analyze", "embed", "summarize", "llm", "spec", "report", "export"];
+const METADATA = ["clean", "analyze", "embed", "summarize", "llm", "spec", "reply", "report", "export"];
 
 /** A pipeline drawn as a graph: asset steps, metadata steps and workflows, an edge saying what runs after what. */
 export function PipelineCanvas({ id }: { id: number }) {

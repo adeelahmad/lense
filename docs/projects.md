@@ -7,8 +7,8 @@ it draws on. Every conversation in it reads all of that, so you don't explain th
 Status: **built**: projects with a goal, instructions and one or more namespaces; a coordinator conversation for the
 project as a whole, told about every thread, which starts threads with a brief, reads them and marks them done;
 threads, each a conversation in the project's namespaces, marked done when finished; briefs answered in the background;
-your own conversations brought in or taken out; through the REST API and MCP. **Planned**: scheduled threads, a
-Projects page in the web app, chat rooms and email routed to a project, members sharing one, and a project's own
+your own conversations brought in or taken out; through the REST API, MCP and the Projects page in the web app.
+**Planned**: scheduled threads, chat rooms and email routed to a project, members sharing one, and a project's own
 memory.
 
 ## What a project is
@@ -70,6 +70,17 @@ there (the conversation's choice of them) and the same approvals, every model ca
 Stop (`POST /api/v1/chats/{id}/stop`) stops it between steps. If Lens stops while a brief is being answered, the thread
 says so within a few minutes, so it's never left waiting: ask again.
 
+## In the web app
+
+**Projects** is at the top of the conversation list in Chat (`/projects`). **New project** asks for a name, the goal
+and the namespaces, starting from the one picked in the top bar; the instructions are in **Edit** on the project's
+page. That page shows the goal, a **Coordinator** button that opens the project's own conversation, a **New thread**
+field and the threads, open ones first. Type what a thread should work on and press Enter: it is answered in the
+background and marked **Working** until the answer is written. Press Enter with the field empty to open a new thread
+and ask in it yourself. The box beside a thread marks it done. **Archive** in the project's menu moves it to the
+archived list, with Undo. A conversation in a project has a **Project** link at its top, and one answered in the
+background shows "Working on it" until its answer arrives.
+
 ## The API
 
 | Call | What it does |
@@ -92,6 +103,7 @@ same for agents; the last two need a token with the write scope.
 
 - Threads answering their briefs at the same time as each other, with a limit per person.
 - Scheduled threads: a prompt asked on a schedule, in a new thread each time or the same one.
-- A Projects page in the web app.
+- Deleting a project from the web app (the API and MCP can), with Undo.
+- A project's threads in the Chat sidebar, grouped under it.
 - Chat rooms, Telegram, Slack and email routed to a project.
 - Members sharing a project, a project's own memory, and its outputs (notes, files) listed together.

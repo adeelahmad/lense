@@ -362,7 +362,7 @@ def remembered_tools(db, account):
 def get(db, cid, account):
     c = db.one(
         "SELECT record::id(id) AS id, account, title, title_by, scope, model, kind ?? 'chat' AS kind, head, tools, max_tool_calls, "
-        "project, done ?? false AS done, created_at, updated_at FROM $r",
+        "project, done ?? false AS done, answering ?? false AS answering, created_at, updated_at FROM $r",
         r=R("chat", cid),
     )
     if not c or c["account"] != account:
