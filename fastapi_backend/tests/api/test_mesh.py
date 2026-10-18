@@ -15,8 +15,10 @@ import tarfile
 
 import httpx
 import pytest
+from fastapi.testclient import TestClient
 
-from app.domain import auth, jobs, mesh, settings
+from app.domain import auth, jobs, mesh, settings, store
+from tests.conftest import make_cfg
 from tests.helpers import login, make_user
 
 FAKE = pathlib.Path(__file__).resolve().parents[1] / "fake_nebula_cert.py"
@@ -100,12 +102,22 @@ def test_adding_a_node_makes_the_ca_a_token_and_turns_the_mesh_on(client, db, cf
     assert client.post("/api/v1/mesh/tokens", json={}, headers=login(client, "v@x.io", "viewer password 1")).status_code == 403
 
 
-def test_a_worker_node_needs_a_database_server(client, db, cfg, nebula, monkeypatch):
-    monkeypatch.setattr(db, "url", "mem://")  # an install on the embedded database (CI runs these on a server too)
-    h = admin(client, db)
-    r = client.post("/api/v1/mesh/tokens", json={"role": "worker"}, headers=h)
-    assert r.status_code == 400 and "SurrealDB server" in r.text
-    assert client.get("/api/v1/mesh", headers=h).json()["enabled"] is False  # nothing was turned on
+def test_a_worker_node_needs_a_database_server(folder, nebula):
+    """An install on the embedded database: its own app, not the fixtures' (CI runs those against a server too),
+    because a worker's token is refused by the database's URL, and a connection the pool opens meanwhile goes to that
+    URL as well, so pretending the fixtures' server is embedded failed a query now and then."""
+    from app.main import create_app
+
+    cfg = make_cfg(folder, url="mem://")
+    db = store.connect(cfg)
+    try:
+        client = TestClient(create_app(cfg, db, background=False), base_url="http://127.0.0.1")
+        h = admin(client, db)
+        r = client.post("/api/v1/mesh/tokens", json={"role": "worker"}, headers=h)
+        assert r.status_code == 400 and "SurrealDB server" in r.text
+        assert client.get("/api/v1/mesh", headers=h).json()["enabled"] is False  # nothing was turned on
+    finally:
+        db.close()
 
 
 def test_a_machine_joins_without_sending_the_token(client, db, cfg, nebula, server_db):
