@@ -281,7 +281,8 @@ When the configured model supports function calling, chat becomes an agent.
   and its other names, hiding one, or adding one to a namespace's fixed list) and changing topics (merging,
   renaming, describing or deleting one; [Topics](topics.md)) don't happen directly.
   They become approval cards (with the batch estimate) that the person approves, approves on a sample, or declines
-  (`POST /api/v1/approvals/<id>`). Viewers only get the read tools. When an [automation](automations.md#the-model-and-the-agent)
+  (`POST /api/v1/approvals/<id>`). Only the person approves one, signed in to Lens or in the chat: an API key, an app,
+  MCP and the assistant can only decline it. Viewers only get the read tools. When an [automation](automations.md#the-model-and-the-agent)
   uses the assistant, every change it would make is an approval of yours, notes included, with the run as its origin.
 - **Check sources** (`POST /api/v1/chats/<id>/messages/<id>/check`) re-checks every cited claim against the lines it
   cites, and lists sentences that cite nothing.

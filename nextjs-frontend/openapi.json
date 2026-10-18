@@ -26969,7 +26969,7 @@
           "chats"
         ],
         "summary": "Decide Approval",
-        "description": "Approve (or run a sample of, or decline) something the assistant proposed or an automation's action. Each\napproval is decided once. An automation's action can also be edited (`params`) and then carried out, or allowed\nfrom now on for that automation (`always`); approving one needs you signed in, since it's your pick: an API key\nor an app can only decline it.",
+        "description": "Approve (or run a sample of, or decline) something the assistant proposed or an automation's action. Each\napproval is decided once. An automation's action can also be edited (`params`) and then carried out, or allowed\nfrom now on for that automation (`always`). Approving is your pick, so it needs you signed in: an API key or an\napp can only decline (403 otherwise).",
         "operationId": "decide_approval",
         "parameters": [
           {

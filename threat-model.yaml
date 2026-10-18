@@ -1756,7 +1756,7 @@ properties_claimed:
     kind: integrity
     components: [assistant]
     tier: security-critical
-    conditions: "assistant tools that change data wait for the person's approval, except notes and an admin's setup conversation"
+    conditions: "assistant tools that change data wait for the person's approval, except notes and an admin's setup conversation; only the person approves, signed in or in the chat (API keys, apps, MCP and the assistant only decline)"
     violation_symptoms: [integrity-bypass]
     x-voided-by: "admins read everything; an admin setup conversation adds server tools and the act flag (domain/ai_tools.py:287-289); ai.extensions: false turns extensions off"
     provenance: {kind: documented, source: 'docs/assistant.md "Approvals"'}
