@@ -102,6 +102,7 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "set_service",
         "set_sandbox_gateway",
         "add_mcp_server",
+        "install_plugin",
         "set_install_settings",
         "subscribe_feed",
         "unsubscribe_feed",

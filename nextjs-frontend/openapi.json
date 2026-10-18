@@ -25554,6 +25554,87 @@
         }
       }
     },
+    "/api/v1/marketplaces/plugins": {
+      "get": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Find Marketplace Plugins",
+        "description": "Plugins across every marketplace added, to find one to install or see which have updates.",
+        "operationId": "find_marketplace_plugins",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "words its name, description, category or author has",
+              "title": "Q"
+            },
+            "description": "words its name, description, category or author has"
+          },
+          {
+            "name": "updates",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "only plugins you installed that their marketplace lists another version of",
+              "default": false,
+              "title": "Updates"
+            },
+            "description": "only plugins you installed that their marketplace lists another version of"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MarketplacePluginFound"
+                  },
+                  "title": "Response Extensions-Find Marketplace Plugins"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/marketplaces/{mid}/refresh": {
       "post": {
         "tags": [
@@ -55335,6 +55416,24 @@
             ],
             "title": "Installed",
             "description": "your extension installed from it, if you installed it"
+          },
+          "installed_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installed Version",
+            "description": "the version you installed, when the marketplace gave one"
+          },
+          "update": {
+            "type": "boolean",
+            "title": "Update",
+            "description": "the marketplace lists another version than the one you installed",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -55344,6 +55443,133 @@
           "installable"
         ],
         "title": "MarketplacePlugin"
+      },
+      "MarketplacePluginFound": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "homepage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Homepage"
+          },
+          "installable": {
+            "type": "boolean",
+            "title": "Installable",
+            "description": "whether Lens can read it (why_not says why when it can't)"
+          },
+          "why_not": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why Not"
+          },
+          "installed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installed",
+            "description": "your extension installed from it, if you installed it"
+          },
+          "installed_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installed Version",
+            "description": "the version you installed, when the marketplace gave one"
+          },
+          "update": {
+            "type": "boolean",
+            "title": "Update",
+            "description": "the marketplace lists another version than the one you installed",
+            "default": false
+          },
+          "marketplace": {
+            "type": "integer",
+            "title": "Marketplace",
+            "description": "the marketplace that lists it"
+          },
+          "marketplace_name": {
+            "type": "string",
+            "title": "Marketplace Name"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "installable",
+          "marketplace",
+          "marketplace_name"
+        ],
+        "title": "MarketplacePluginFound"
       },
       "MarketplaceSuggestion": {
         "properties": {

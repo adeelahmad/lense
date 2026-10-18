@@ -513,6 +513,9 @@ import type {
   FindGraphPathData,
   FindGraphPathErrors,
   FindGraphPathResponses,
+  FindMarketplacePluginsData,
+  FindMarketplacePluginsErrors,
+  FindMarketplacePluginsResponses,
   FindResourcesData,
   FindResourcesErrors,
   FindResourcesResponses,
@@ -10429,6 +10432,19 @@ export class Extensions {
       url: "/api/v1/marketplaces/suggested",
       ...options,
     });
+  }
+
+  /**
+   * Find Marketplace Plugins
+   *
+   * Plugins across every marketplace added, to find one to install or see which have updates.
+   */
+  public static findMarketplacePlugins<ThrowOnError extends boolean = false>(
+    options?: Options<FindMarketplacePluginsData, ThrowOnError>,
+  ): RequestResult<FindMarketplacePluginsResponses, FindMarketplacePluginsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<FindMarketplacePluginsResponses, FindMarketplacePluginsErrors, ThrowOnError>(
+      { url: "/api/v1/marketplaces/plugins", ...options },
+    );
   }
 
   /**
