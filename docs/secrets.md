@@ -10,8 +10,8 @@ and whether it could be read, but never the value.
 
 | | |
 |---|---|
-| Built | References in Settings' secret fields; Vaultwarden (and Bitwarden) as the first password manager; the API, the assistant's tools and MCP tools for them |
-| Planned | Settings › Secrets in the web app, with a picker for the vault's items; references in other stores of secrets (sources, MCP servers, sign-in providers); more password managers |
+| Built | References in Settings' secret fields; Vaultwarden (and Bitwarden) as the first password manager; Settings › Secrets in the web app, and a picker for the vault's items beside every secret field; the API, the assistant's tools and MCP tools for them |
+| Planned | References in other stores of secrets (sources, MCP servers, sign-in providers); more password managers |
 
 ## References
 
@@ -43,10 +43,16 @@ of the vault:
 2. Make a folder called `Lens` in it. Put the items Lens may read there, or share them into it. Lens reads that folder
    only.
 3. In that account, open **Settings › Security › Keys › View API key**. Copy the `client_id` and `client_secret`.
-4. Give Lens the vault's address, the account's email, the API key and the account's master password with
-   `PUT /api/v1/settings/secrets`, or ask the admin assistant to (`change_settings`, which asks first). Then
-   `POST /api/v1/secrets/test` signs in and counts the items in the folder. (Settings › Secrets in the web app is
-   planned.)
+4. In Lens, open **Settings › Secrets** (under Security and access). Set the vault's address, the account's email, the
+   API key and the account's master password, save, then click **Test**. It signs in and counts the items in the
+   folder. Agents do the same with `PUT /api/v1/settings/secrets` and `POST /api/v1/secrets/test`, or the admin
+   assistant's `change_settings` (which asks first).
+
+Then, in any secret field in Settings, **From Vaultwarden** lists the folder's items by name with their fields:
+pick one, or type part of a name and press Enter for the first. The field fills with its reference, shown in plain
+text since it isn't a secret, and saves like any change. A saved reference shows as **From Vaultwarden ·
+vaultwarden://Item/field**, with when it was last read or why it couldn't be. Settings › Secrets lists every field
+that refers to the vault, each linked to its place in Settings.
 
 The vault encrypts its items end to end, so the server holds them only encrypted. The master password is what opens
 them, so Lens needs it as well as the API key. Both are sealed with the server's key, like any other secret in

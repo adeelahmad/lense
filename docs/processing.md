@@ -806,6 +806,9 @@ now. Every 30 seconds, `lens worker` checks (and so does the API process when it
 never started twice at once, and one started in two processes runs once. Each run keeps what every action did and a
 log.
 
+The [Schedules](schedules.md) page (Automate › Schedules) lists every routine next to the automations' schedules and
+the backup, to switch, re-time and run each from one place; the Routines page and New routine open from its top.
+
 ### Organising the graph
 
 A workflow's scope is assets (above), the graph, or an event: an automation's workflow, run by its automation

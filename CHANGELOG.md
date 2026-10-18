@@ -4,6 +4,16 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+## 0.16.0 <small>October 18, 2026</small> {id="0.16.0"}
+
+### Features
+
+- **web:** SchemaForm, a form generated from a JSON Schema with a variable picker ([#566](https://github.com/adeelahmad/lense/pull/566))
+- **chat:** recover when the model's context is full, and show what a summary covers ([#558](https://github.com/adeelahmad/lense/pull/558))
+- **pipelines:** convert steps that make a video's soundtrack an audio asset and a document's pages image assets ([#568](https://github.com/adeelahmad/lense/pull/568))
+- **scaling:** DigitalOcean and Hetzner Cloud providers ([#573](https://github.com/adeelahmad/lense/pull/573))
+- **workflows:** draw an automation's workflow on the canvas, with action and decide nodes ([#576](https://github.com/adeelahmad/lense/pull/576))
+
 ## 0.15.0 <small>October 18, 2026</small> {id="0.15.0"}
 
 - **The assistant sends mail, adds events and writes files, after your yes.** New tools `send_mail` (send, or save a
@@ -63,7 +73,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   `POST /api/v1/secrets/test`), the MCP tools `list_secrets`, `list_vault_items` and `set_secret_reference`, and the
   assistant's `list_secrets` and `vault_items` show references and whether they could be read, never a value. The
   client (python-vaultwarden, Apache-2.0) is fetched once a Vaultwarden address is set. Secrets saved in Lens stay
-  the default ([Secrets](docs/secrets.md)).
+  the default. In the web app, Settings › Secrets sets the vault up and tests it, and every secret field gets From
+  Vaultwarden, a picker of the vault's items that fills in the reference ([Secrets](docs/secrets.md)).
 - **A decide node for judgement calls.** An automation's workflow can ask the decision model a question with a few
   options ("Does this need me today?") and go on along the option it picked, or along `unsure` when it isn't sure
   enough, none is set up or the budget is spent. The email it reads is marked as outside text, the answer is kept per
