@@ -4,10 +4,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useCallback } from "react";
 
-import { Jobs, Resources } from "@/app/openapi-client";
+import { Jobs, Metadata, Resources } from "@/app/openapi-client";
 import type { RecordingSummary } from "@/app/openapi-client/types.gen";
 import { useToast } from "@/components/ui/toast";
-import { catalogueRows, deletedToast, hasSound, movedToast } from "@/components/library/model";
+import { accessLabel } from "@/components/access/model";
+import { catalogueRows, deletedToast, hasSound, movedToast, visibilityGroups } from "@/components/library/model";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
 import { saveText, toCsvText } from "@/lib/csv";
 import { plural } from "@/lib/format";
@@ -250,5 +251,41 @@ export function useRecordingActions() {
     [client, qc, refresh, toast],
   );
 
-  return { retryJob, reprocess, exportMany, exportCatalogue, deleteMany, moveMany, retag };
+  /** Who may see the rows, all at once (owners), with an Undo that puts each back as it was. */
+  const setVisibility = useCallback(
+    async (rows: RecordingSummary[], to: "public" | "restricted" | "private") => {
+      const before = visibilityGroups(rows, to);
+      const ids = Object.values(before).flat();
+      if (!ids.length) {
+        toast({ title: `They’re all ${accessLabel(to).toLowerCase()} already`, tone: "green" });
+        return;
+      }
+      const apply = (recordings: number[], access: string) =>
+        data(Metadata.bulkUpdateMetadata({ client, body: { recordings, set: { access }, dry_run: false } }));
+      try {
+        await apply(ids, to);
+        refresh();
+        toast({
+          title: `${plural(ids.length, "asset")} made ${accessLabel(to).toLowerCase()}`,
+          tone: "green",
+          action: {
+            label: "Undo",
+            onClick: () => {
+              void Promise.all(Object.entries(before).map(([was, back]) => apply(back, was)))
+                .then(() => {
+                  refresh();
+                  toast({ title: "Put back as they were", tone: "green" });
+                })
+                .catch((e: Error) => toast({ title: "Couldn’t put them back", body: e.message, tone: "red" }));
+            },
+          },
+        });
+      } catch (e) {
+        toast({ title: "Couldn’t change who sees them", body: (e as Error).message, tone: "red" });
+      }
+    },
+    [client, refresh, toast],
+  );
+
+  return { retryJob, reprocess, exportMany, exportCatalogue, setVisibility, deleteMany, moveMany, retag };
 }

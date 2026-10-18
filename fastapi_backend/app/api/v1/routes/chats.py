@@ -38,6 +38,7 @@ from app.domain import (
     chat_export,
     convert,
     llm,
+    ops_tools,
     research,
     sandbox,
     store,
@@ -943,6 +944,6 @@ def decide_approval(aid: int, body: ApprovalDecision, user: Writer, acl: Acl, db
         raise HTTPException(403, str(e)) from None
     except (ValueError, KeyError) as e:
         raise HTTPException(400, str(e)) from None
-    auth.audit(db, user.as_audit(), "assistant.approval", f"approval:{aid}", {"decision": body.decision, **out})
+    auth.audit(db, user.as_audit(), "assistant.approval", f"approval:{aid}", {"decision": body.decision, **ops_tools.kept(out)})
     request.app.state.graph_cache.clear()  # an approved entity or topic change shows in the graph at once
     return out

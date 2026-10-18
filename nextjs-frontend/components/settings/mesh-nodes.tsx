@@ -128,9 +128,10 @@ export function NodesBody() {
       </section>
       {(tokens.data ?? []).length > 0 && <Tokens list={tokens.data ?? []} />}
       <p className="text-[12.5px] leading-[1.45] text-fg-muted">
-        Agents do the same over <code className="font-mono">/api/v1/mesh</code>: nodes, tokens and the network. A node
-        joins, renews its certificate and reports here; a worker node takes this install’s jobs, and a compute node runs
-        the assistant’s code.
+        Agents do the same over <code className="font-mono">/api/v1/mesh</code>, MCP and the assistant: nodes, tokens
+        and the network; the assistant asks you before a machine joins or is taken off. A node joins, renews its
+        certificate and reports here; a worker node takes this install’s jobs, and a compute node runs the assistant’s
+        code.
       </p>
     </>
   );

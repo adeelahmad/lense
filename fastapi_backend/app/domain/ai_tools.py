@@ -662,6 +662,7 @@ OWN_RESULTS = {
     "mark_activities",
     "decline_approval",
     "scaling",
+    "mesh",
     "connections",
     "lens_help",
 } | {
@@ -2525,7 +2526,7 @@ def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=F
         r=R("approval", a["id"]),
         t=store.now(),
         u=user["email"],
-        res=result,
+        res=ops_tools.kept(result),  # a new node's install line goes to the person who approved, once, and isn't kept
     )
     return {"status": "done", **result}
 
@@ -2565,6 +2566,7 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable, via=
         "subscribe_feed",
         "unsubscribe_feed",
         *ops_tools.scaling.TOOLS,
+        *ops_tools.MESH,
     ):  # a scaling group's terms are approved only by a yes in the web app (via web)
         result = ops_tools.apply(db, cfg, base or cfg, a["tool"], args, user, editable, admin, via)
     elif a["tool"] == "decline_approval":  # the person's yes to declining another of their approvals

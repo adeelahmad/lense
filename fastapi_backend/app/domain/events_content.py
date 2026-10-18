@@ -407,16 +407,27 @@ def _asset(db, r, types):
     }
 
 
-def _activities(db, rows):
-    """The rows as activities of their kinds (a row whose created_at isn't a time is skipped)."""
+def added_by(db, rows):
+    """{recording id: the actor that brought it in}, for recording rows carrying id, space, remote, created_by and
+    sensor: the asset.added activity's actor (an automation, the storage source, whoever made it, the upload's account,
+    a sensor, whoever queued its first job, else Lens). The graph's Source nodes come from it (graph_model.py)."""
     rows = [r for r in rows if r]
     ids = [r["id"] for r in rows]
     if not ids:
-        return []
+        return {}
     first = _first_jobs(db, ids)
     uploads = {u["recording"]: u for u in db.rows("SELECT recording, account, email FROM upload WHERE recording IN $ids", ids=ids)}
     labels = {r["id"]: (_label_of(r, first.get(r["id"]), uploads.get(r["id"])), r.get("space")) for r in rows}
     who = actors(db, labels.values())
+    return {rid: who[label] for rid, label in labels.items()}
+
+
+def _activities(db, rows):
+    """The rows as activities of their kinds (a row whose created_at isn't a time is skipped)."""
+    rows = [r for r in rows if r]
+    if not rows:
+        return []
+    who = added_by(db, rows)
     srcs = _lookup(
         db,
         "storage_source",
@@ -430,7 +441,7 @@ def _activities(db, rows):
             published = events.stamp(r["created_at"])
         except (TypeError, ValueError):
             continue
-        actor = who[labels[r["id"]]]
+        actor = who[r["id"]]
         obj = _asset(db, r, types)
         kind = _kind(r, obj["content_type"], (srcs.get((r.get("remote") or {}).get("source")) or {}).get("type"), actor)
         if kind == "email.received":

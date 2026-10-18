@@ -28,8 +28,8 @@ labelled an estimate, so what scaling costs shows next to what the model calls c
 
 One process runs the scaler (a lease on `app_service:scaling`, as the tunnel and the local model do), in `lens
 worker` and the API: every `scaling.tick_seconds` it accrues cost, enforces budgets, reconciles each unit with its
-provider (one that never joined within `join_minutes` is terminated, so a broken image costs one attempt; three
-failures in a row pause the group), evaluates the rules, and launches or drains and terminates. Draining hands a
+provider (one that never joined within `join_minutes`, or that the provider reports failed, is terminated, so a broken
+image costs one attempt; three failures in a row, of launches or of units that never came up, pause the group), evaluates the rules, and launches or drains and terminates. Draining hands a
 worker's job back (jobs.control), so nothing is lost. Every launch, termination and change is in the activity ledger
 with who or what caused it, next to the audit log.
 """
@@ -1252,12 +1252,20 @@ class Scaler:
                 }
             ),
         )
-        db.q("UPDATE $r SET failures = 0, error = NONE", r=R("scale_group", g["id"]))
+        db.q("UPDATE $r SET error = NONE", r=R("scale_group", g["id"]))  # failures clear once a unit comes up
         activity.record(
             "run", "scaling.launch", refs, cfg, db, detail={"why": why, "unit": name, "price_per_hour": got.get("price", price)}
         )
         self.log(f"scaling: launched {name} on {p.get('name')} ({why})")
         return True
+
+    def _failed(self, cfg, g):
+        """A unit that never came up: after MAX_FAILURES in a row the group pauses rather than keep paying for more."""
+        g["failures"] = fails = (g.get("failures") or 0) + 1
+        self.db.q("UPDATE $r SET failures = $f", r=R("scale_group", g["id"]), f=fails)
+        if fails >= MAX_FAILURES:  # and this tick launches no more of them
+            g["paused"], g["paused_why"] = True, f"{fails} units in a row failed to come up"
+            pause_group(self.db, cfg, g["id"], True, g["paused_why"])
 
     def _reconcile(self, cfg, g, drv, p, n, now, did):
         """One unit against its provider and Lens: True while it's still alive."""
@@ -1277,6 +1285,8 @@ class Scaler:
             why = d.get("why") or ("stopped at the provider" if state != "launching" else "never came up at the provider")
             gone = n if drv.delete_gone else {**n, "external_id": None}
             _terminate(db, cfg, drv, p, gone, why, state="failed" if state == "launching" else "terminated", now=now)
+            if state == "launching":  # it never came up (a model that won't load, say): it counts as a failed launch
+                self._failed(cfg, g)
             did["terminated"] += 1
             return False
         sets = {k: d[k] for k in ("address", "endpoint") if d.get(k) and d.get(k) != n.get(k)}
@@ -1292,16 +1302,16 @@ class Scaler:
             joined = (beat is not None and beat <= WORKER_ALIVE_SECONDS) if drv.kind == "node" else d.get("state") == "running"
             if joined:
                 sets |= {"state": "running", "ready_at": _iso(now), "error": None}
+                if g.get("failures"):
+                    g["failures"] = 0
+                    db.q("UPDATE $r SET failures = 0", r=R("scale_group", g["id"]))
                 activity.record(
                     "run", "scaling.join", [_ref("scale_node", n["id"]), _ref("scale_group", g["id"])], cfg, db, detail={"unit": n["name"]}
                 )
                 self.log(f"scaling: {n['name']} joined")
             elif (_age(n.get("launched_at"), now) or 0) > conf(cfg)["join_minutes"] * 60:
                 _terminate(db, cfg, drv, p, n, f"didn't join within {conf(cfg)['join_minutes']} minutes", state="failed", now=now)
-                fails = (g.get("failures") or 0) + 1
-                db.q("UPDATE $r SET failures = $f", r=R("scale_group", g["id"]), f=fails)
-                if fails >= MAX_FAILURES:
-                    pause_group(db, cfg, g["id"], True, f"{fails} units in a row failed to join")
+                self._failed(cfg, g)
                 did["terminated"] += 1
                 return False
         elif state == "running" and drv.kind == "node" and beat is not None and beat > WORKER_LOST_SECONDS:

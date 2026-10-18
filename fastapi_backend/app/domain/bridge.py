@@ -49,6 +49,7 @@ from . import (
     llm,
     matterbridge,
     ns_assistant,
+    ops_tools,
     research,
     store,
     untrusted,
@@ -501,7 +502,13 @@ def decide_in_room(db, cfg, base, account, cid, m, q):
         except (ValueError, PermissionError, KeyError) as e:
             lines.append(f"Couldn't do “{a['summary']}”: {e}")
             continue
-        auth.audit(db, user, "assistant.approval", f"approval:{a['id']}", {"decision": decision, "via": "chat room", "by": who, **out})
+        auth.audit(
+            db,
+            user,
+            "assistant.approval",
+            f"approval:{a['id']}",
+            {"decision": decision, "via": "chat room", "by": who, **ops_tools.kept(out)},
+        )
         if out.get("status") == "failed":
             lines.append(f"Couldn't do “{a['summary']}”: {out.get('error')}")
             continue

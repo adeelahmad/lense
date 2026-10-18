@@ -8,6 +8,7 @@ export function nodeFill(n: Pick<GraphNode, "kind" | "type" | "refs">): string {
   if (n.kind === "collection") return "var(--aladdin-gold)";
   if (n.kind === "namespace") return "var(--text-strong)";
   if (n.kind === "topic") return "var(--aladdin-green)";
+  if (n.kind === "source") return "var(--aladdin-blue)";
   switch (n.type) {
     case "ORG":
     case "PERSON":
@@ -95,6 +96,15 @@ export function ShapePath({
       return (
         <path
           d={`M${-r} ${-r * 0.7} H${-r * 0.2} L${r * 0.05} ${-r * 0.45} H${r} V${r * 0.75} H${-r} Z`}
+          strokeLinejoin="round"
+          {...common}
+        />
+      );
+    case "cloud":
+      // a source: where things come in from
+      return (
+        <path
+          d={`M${-r * 0.55} ${r * 0.7} H${r * 0.6} A${r * 0.42} ${r * 0.42} 0 0 0 ${r * 0.45} ${-r * 0.12} A${r * 0.5} ${r * 0.5} 0 0 0 ${-r * 0.5} ${-r * 0.1} A${r * 0.42} ${r * 0.42} 0 0 0 ${-r * 0.55} ${r * 0.7} Z`}
           strokeLinejoin="round"
           {...common}
         />

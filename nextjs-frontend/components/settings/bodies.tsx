@@ -731,6 +731,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           </More>
           <F ctx={ctx} id="documents.attachment_resources" />
           <F ctx={ctx} id="documents.video_urls" />
+          {v("documents.video_urls") ? <F ctx={ctx} id="documents.video_captions" /> : null}
           <F ctx={ctx} id="documents.web_networks" />
           <F ctx={ctx} id="documents.converter" />
           <F ctx={ctx} id="documents.anytopdf_url" />

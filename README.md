@@ -146,10 +146,11 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   Office files, photos, JSON and zip or tar archives, and, with an Apache Tika server (an opt-in extra), documents
   nothing else here can read; capture web pages one at a time, from a link list or a bookmarks file, by API or by asking
   the assistant, from private networks you allow in Settings too; and import videos and podcasts by their address (off
-  by default). Say what a file or a page is as it comes in (a podcast, an interview, a scan), in Import, by API or
-  to the assistant, and its content type's pipeline runs from the start. A file, page or video the namespace already
-  has links to the one there instead of being imported again. Media browsers can't play, such as an AVI or HEVC from a
-  phone, can get a copy they can (off by default).
+  by default), taking a video's own captions as its transcript when people wrote some (off by default too). Say what a
+  file or a page is as it comes in (a podcast, an interview, a scan), in Import, by API or to the assistant, and its
+  content type's pipeline runs from the start. A file, page or video the namespace already has links to the one there
+  instead of being imported again. Media browsers can't play, such as an AVI or HEVC from a phone, can get a copy they
+  can (off by default).
   ([Sensors](docs/sensors.md), [processing](docs/processing.md), [Apache Tika](docs/configuration.md#apache-tika),
   [import webhooks](docs/api.md#import-webhooks), [playable copies](docs/video.md#playable-copies);
   [checks](docs/requirements.md#bring-in-everything))
@@ -165,7 +166,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   recognised by voice (long recordings go to a speech provider in pieces that fit its limits), text on screen and in scans, faces (off by default), NSFW pictures flagged by a model on your own
   server (off by default, per namespace), low quality images enhanced before they're read (off by default), entities
   and topics in a knowledge graph you can explore, query with Cypher or
-  SPARQL, and see as it was at any version. Every entity has its own page at a wiki address
+  SPARQL, and see as it was at any version, where every source, sensor, person and agent is a node linked to what it
+  brought in. Every entity has its own page at a wiki address
   (`/wiki/<namespace>/<Name>`), and entities, topics and people are edited and merged from their lists, the graph or an
   asset, with Undo instead of a confirm. Names get their real types (people, places, organisations, events, works) by
   rules, without a model, and a decision model types the ones the rules can't. Find what is most like a passage, an
@@ -248,14 +250,15 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   its terms there; agents propose and manage groups over the API, MCP and the assistant, and never approve one. It
   runs more workers on this machine today; AWS EC2 (spot or on demand), DigitalOcean, Hetzner Cloud, Proxmox VE and
   Linux hosts over SSH providers are in progress (built, with machines that join over the mesh to transcribe and tell
-  voices apart, not yet tried on a real cloud), so is RunPod for GPUs that serve Lens's model calls while they run,
-  and more model hosts are planned. ([Auto scaling](docs/scaling.md); [checks](docs/requirements.md#scale-out))
+  voices apart, not yet tried on a real cloud), so are RunPod GPUs and Hugging Face Inference Endpoints that serve
+  Lens's model calls while they run, and more model hosts are planned. ([Auto scaling](docs/scaling.md); [checks](docs/requirements.md#scale-out))
 - **Run on more machines.** Add a Mac with a GPU, a box for the assistant's code or a server with more disk, and
   Lens joins it over a private network of its own, a Nebula mesh it issues the certificates for: one install line
   with a one-time token, and the machine needs nothing else. Worker nodes run jobs as their own user of the
   database, never with Lens's keys; compute nodes run the assistant's code on a sandbox gateway of their own.
-  Settings › Nodes and Network show each machine and the mesh, and agents do the same over the API. Not yet tried
-  between two real machines. ([Nodes and the mesh](docs/mesh.md); [checks](docs/requirements.md#run-on-more-machines))
+  Settings › Nodes and Network show each machine and the mesh, and agents do the same over the API, MCP and the
+  assistant. Not yet tried between two real machines. ([Nodes and the mesh](docs/mesh.md);
+  [checks](docs/requirements.md#run-on-more-machines))
 - **Keep it up to date and backed up.** Lens checks for a new release once a day and tells admins by email or a
   notification. One click in Settings › Updates (or one API call) upgrades it through a small agent on the machine,
   showing each step, and rolls back when the new version doesn't start; nothing installs unless an admin says so. The
@@ -278,7 +281,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [usage analytics](docs/analytics.md); [checks](docs/requirements.md#watch-it-run))
 - **Stay private and safe.** Passkeys instead of passwords (one at Lens's remote address added from a signed-in one with
   Open signed in), encryption at rest with a key per namespace, roles per namespace (viewer, editor, owner, or custom
-  roles made of permissions), email invitations, removing someone for good, and an audit log. Prompt injection meets
+  roles made of permissions), who sees each asset, set for many at once from the Library, email invitations, removing
+  someone for good, and an audit log. Prompt injection meets
   several layers: what the assistant reads (recordings, documents, web pages, tool results) reaches the model marked as
   data, not instructions, and text that reads like instructions to an AI is flagged (by free patterns, or an optional
   classifier model that runs on your machine and is fetched only when you pick it). Once an answer has read such text,
@@ -328,8 +332,7 @@ Next, and not in a pull request yet; each links to where it is tracked:
   topics, recordings and the other things that have pages ([notes](docs/notes.md)).
 - **Local models:** GPU builds of llama.cpp fetched by Lens, and local embedding models
   ([local models](docs/local-models.md)).
-- **Auto scaling:** spreading model calls across GPUs, and more model hosts (Lambda, Hugging Face, SageMaker,
-  Bedrock) ([auto scaling](docs/scaling.md)).
+- **Auto scaling:** spreading model calls across GPUs, and more model hosts (Lambda, SageMaker, Bedrock) ([auto scaling](docs/scaling.md)).
 - **Speech providers:** their summaries, chapters and entities as optional imports, and per-minute prices in the
   activity ledger ([speech providers](docs/speech-providers.md)).
 - **Storage:** uploads and assets' media in the file store, and a storage key to download

@@ -1,8 +1,20 @@
 "use client";
 
-import { Download, FolderInput, FolderTree, Podcast, RefreshCw, Tag, Trash2, X, type LucideIcon } from "lucide-react";
+import {
+  Download,
+  Eye,
+  FolderInput,
+  FolderTree,
+  Podcast,
+  RefreshCw,
+  Tag,
+  Trash2,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
+import { ACCESS, type Access } from "@/components/access/model";
 import { EXPORT_FORMATS, type ExportFormat } from "@/components/library/actions";
 import { hasSound, tagsFromText, tagsOn } from "@/components/library/model";
 import { Button } from "@/components/ui/button";
@@ -63,6 +75,7 @@ export function BulkBar({
   onReprocess,
   onExport,
   onCatalogue,
+  onVisibility,
   onMove,
   onPlace,
   placeReason,
@@ -82,6 +95,8 @@ export function BulkBar({
   onExport: (fmt: ExportFormat) => void;
   /** Save the selection as one catalogue spreadsheet (CSV). */
   onCatalogue?: () => void;
+  /** Make them all public, restricted or private (owners). */
+  onVisibility?: (to: Access) => void;
   onMove: () => void;
   /** File them in a collection of their namespace. */
   onPlace?: () => void;
@@ -99,6 +114,9 @@ export function BulkBar({
     : undefined;
   const deleteReason = notOwner.count
     ? `Only owners delete assets. You don’t own ${notOwner.namespaces.join(", ")}: ${count(notOwner.count)} of ${count(selected)} selected can’t be deleted.`
+    : undefined;
+  const visibilityReason = notOwner.count
+    ? `Only owners choose who sees assets. You don’t own ${notOwner.namespaces.join(", ")}: ${count(notOwner.count)} of ${count(selected)} selected can’t be changed.`
     : undefined;
   const moveReason = notOwner.count
     ? `Only owners move assets out of their namespace. You don’t own ${notOwner.namespaces.join(", ")}: ${count(notOwner.count)} of ${count(selected)} selected can’t be moved.`
@@ -136,6 +154,25 @@ export function BulkBar({
             }
           />
         )}
+        {onVisibility &&
+          (notOwner.count ? (
+            <BarButton icon={Eye} label="Visibility" onClick={() => undefined} disabledReason={visibilityReason} />
+          ) : (
+            <Menu>
+              <MenuTrigger className={actionCls}>
+                <Eye aria-hidden />
+                Visibility
+              </MenuTrigger>
+              <MenuContent align="center">
+                <MenuLabel>Who sees them</MenuLabel>
+                {ACCESS.map((a) => (
+                  <MenuItem key={a.value} onSelect={() => onVisibility(a.value)}>
+                    {a.label} · {a.hint}
+                  </MenuItem>
+                ))}
+              </MenuContent>
+            </Menu>
+          ))}
         <Menu>
           <MenuTrigger className={actionCls}>
             <Download aria-hidden />

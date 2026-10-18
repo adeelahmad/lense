@@ -1222,6 +1222,12 @@ export type ApprovalOutcome = {
    * that node runs without asking from now on
    */
   always?: boolean | null;
+  /**
+   * Install Line
+   *
+   * the line to run on the new machine, for add_mesh_node: shown this once and not kept
+   */
+  install_line?: string | null;
   [key: string]: unknown;
 };
 
@@ -41614,7 +41620,7 @@ export type GraphRelatedData = {
     /**
      * Node
      *
-     * a node id: n<id>, c<id>, r<id>, s<id>, e<id> or e:<name key>
+     * a node id: n<id>, c<id>, r<id>, s<id>, e<id> or e:<name key>, t<id>, or a:<actor> for a source
      */
     node: string;
     /**

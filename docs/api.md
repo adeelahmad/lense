@@ -1090,6 +1090,13 @@ the video steps then see its picture. Its `web` is `{url, media: true, final, si
 the video's own unless `title` gave one. Downloading happens once: transcribing it again keeps the file, which is the
 resource's media (`GET /resources/{rid}/media`). Audited as `import.video`.
 
+**Its own captions.** With `documents.video_captions` on too (Settings › Documents › Use a video's own captions, off
+by default), captions people wrote for the video come down with it (a site's subtitles, never its automatic ones) and
+become its transcript, so nothing is transcribed and no speech model or provider is used. Of the languages it has,
+Lens takes the one set for transcription, else the video's own, else the first; the file is kept next to the media
+(`web.captions` names it and its language), encrypted like the rest when the namespace is, and the transcript's
+engine is `import:captions`. A video without such captions is transcribed as before.
+
 ### Import webhooks
 
 An import webhook is an address other services push files, web addresses or text to (a scanner, a phone shortcut,

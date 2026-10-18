@@ -1,5 +1,5 @@
 import type { RecordingSummary } from "@/app/openapi-client/types.gen";
-import { catalogueRows, CATALOGUE_COLUMNS } from "@/components/library/model";
+import { catalogueRows, CATALOGUE_COLUMNS, visibilityGroups } from "@/components/library/model";
 import { csvCell, toCsvText } from "@/lib/csv";
 
 const row = (r: Partial<RecordingSummary>): RecordingSummary =>
@@ -61,5 +61,19 @@ describe("the library's catalogue CSV", () => {
         ["1", "2"],
       ]),
     ).toBe("a,b\n1,2\n");
+  });
+});
+
+describe("changing who sees the selection", () => {
+  it("touches only those not there yet, and remembers how to put each back", () => {
+    const rows = [
+      { id: 1, access: "public" },
+      { id: 2, access: "private" },
+      { id: 3, access: null },
+      { id: 4, access: "restricted" },
+    ];
+    expect(visibilityGroups(rows, "public")).toEqual({ private: [2, 3], restricted: [4] });
+    expect(visibilityGroups(rows, "private")).toEqual({ public: [1], restricted: [4] });
+    expect(visibilityGroups([{ id: 5, access: "public" }], "public")).toEqual({});
   });
 });

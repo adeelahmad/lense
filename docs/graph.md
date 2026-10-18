@@ -47,6 +47,7 @@ to itself and has one. On a computer the Find in graph box has the focus, so typ
 | Speaker | `s<id>` | a person: name, seconds (talk time), namespace |
 | Entity | `e<id>`, or `e:<key>` in the global scope | name, type, key, mentions, namespaces, ids |
 | Topic | `t<id>`, or `t:<key>` in the global scope | name (the label), alt, definition, recordings, namespaces, ids |
+| Source | `a:<actor>`, such as `a:source/12` or `a:account/1` | who brought assets in, as the [timeline](timeline.md)'s actors: name, actor (the activity's actor id), type (Service, Person or Application), kind (source, sensor, person, hook or agent), recordings, namespaces |
 
 An entity has its type as a second label: `Person`, `Organisation`, `Product`, `Place`, `Event`, `Work`, `Term`, or
 a namespace's own type (`MY_TYPE` becomes `MyType`). Every node also has `id`, `name` and `namespace`. Hidden entities
@@ -65,10 +66,14 @@ and quiet types (dates and numbers) are left out, as in the overview graph.
 | ABOUT | Recording → Topic | source, weight |
 | NARROWER | Topic → Topic (from the broader one) | |
 | RELATED | Topic → Topic | |
+| ADDED | Source → Recording (the source brought the asset in) | |
 
-CONTAINS, HAS_SPEAKER, MENTIONS, SAID, ABOUT and NARROWER are the hierarchy: an entity's parents are the assets that
-mention it and the people who said or wrote it; its ancestors go on up to collections and the namespace. A topic's parents
-are its broader topics and the assets about it. Topics are each namespace's vocabulary ([Topics](topics.md)).
+CONTAINS, HAS_SPEAKER, MENTIONS, SAID, ABOUT, NARROWER and ADDED are the hierarchy: an entity's parents are the assets
+that mention it and the people who said or wrote it; its ancestors go on up to collections and the namespace. A topic's
+parents are its broader topics and the assets about it. Topics are each namespace's vocabulary ([Topics](topics.md)).
+An asset's parents are its collection and the source that added it, so `MATCH (s:Source)-[:ADDED]->(:Recording)-[:MENTIONS]->(e:Organisation) RETURN s.name, count(DISTINCT e)`
+says where Lens learns about each organisation. On the canvas, a source links to what its assets mention (Brought in),
+and the Timeline page's Graph button opens the canvas on the sources alone.
 
 ## Scope and rights
 
