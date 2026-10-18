@@ -188,7 +188,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   Lens, with a yes in the chat it told you in; agents can decline an approval but never give one. Each automation has
   limits and budgets, and agents make, try and run them over MCP and in the assistant, or draft one from a sentence. An
   automation's workflow is drawn and tried on the workflow canvas, with its actions in the palette, and the studio
-  lists your automations and builds one in When, If and Then, tested on a recent activity before you save it.
+  lists your automations, builds one in When, If and Then (tested on a recent activity before you save it), and shows
+  its runs, what's coming up, its variables and its costs.
   ([Processing](docs/processing.md#workflows-and-the-canvas),
   [converting assets](docs/processing.md#converting-assets), [notifications](docs/notifications.md),
   [automations](docs/automations.md), [approvals](docs/automations.md#approvals), [schedules](docs/schedules.md),
@@ -276,8 +277,6 @@ These are open pull requests, not yet part of Lens:
 
 Next, and not in a pull request yet; each links to where it is tracked:
 
-- **The automations studio:** each automation's runs, what's coming up, its variables and its costs, in tabs
-  ([automations](docs/automations.md)).
 - **Timeline:** what each item caused, and Approve and Decline on waiting approvals ([timeline](docs/timeline.md)).
 - **Notes:** nesting a note under its project or area without a click, pages in the graph, and wiki addresses for
   topics, recordings and the other things that have pages ([notes](docs/notes.md)).
