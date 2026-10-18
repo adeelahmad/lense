@@ -503,7 +503,10 @@ export function AddSensorDialog({
       {types[type]?.help && <p className="text-[13px] text-fg-secondary">Use this for {types[type].help}.</p>}
       {type !== "webhook" && type !== "bridge" && (
         <Banner>
-          Point it at <span className="font-mono">{connectText(type, host, hub)}</span>
+          Point it at{" "}
+          <span className="font-mono">
+            {connectText(type, host, hub, null, typeof window === "undefined" ? undefined : window.location.origin)}
+          </span>
           {!hub.enabled && ". The hub is off: turn it on in Settings → Sensors"}.
         </Banner>
       )}
