@@ -200,6 +200,7 @@ def _held(files):
     have)."""
     have: dict[str, pathlib.Path] = {}
     bad: list[tuple[pathlib.Path, str]] = []
+    twice: dict[str, pathlib.Path] = {}
     for f in files:
         try:
             name = str(_read(f.read_text(encoding="utf-8")).get("name") or "")
@@ -208,8 +209,11 @@ def _held(files):
             continue
         if not name:
             bad.append((f, "a manifest starts with its name, kind and description"))
-        elif name in have:
-            bad.append((f, f"{name} is in {have[name].name} too"))
+        elif name in have or name in twice:
+            bad.append((f, f"{name} is in {(have.get(name) or twice[name]).name} too"))
+            if name in have:
+                twice[name] = have.pop(name)  # neither is pushed: which one is meant is the person's call
+                bad.append((twice[name], f"{name} is in {f.name} too"))
         else:
             have[name] = f
     return have, bad
