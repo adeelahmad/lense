@@ -18,6 +18,12 @@ the top of `install.sh` lists them. Whether the network reaches it and the editi
 (Access & embedding, Components), with no terminal ([Updates](updates.md#setting-the-machine-up-again)). If Lens doesn't answer in time (`LENS_WAIT`, in seconds: 10 minutes with Docker,
 30 in a microsandbox), the installer stops waiting and shows the last lines Lens logged and why.
 
+To download a release's prebuilt images instead of building them (much quicker on a Raspberry Pi), put
+`LENS_IMAGES=pull` before `sh`: with no `LENS_REF`, a new install then gets the newest release, and later runs and
+upgrades from Settings › Updates keep pulling ([prebuilt images](deployment.md#prebuilt-images)). An install that
+follows a branch such as `main`, or bakes in extras (`EXTRAS`), is still built, and so is one whose download fails.
+`LENS_IMAGES=build` goes back to building. Building stays the default.
+
 Where it can (Linux with KVM, or a Mac with Apple silicon), a first install asks whether to run Lens in Docker (the
 default) or in a [microsandbox](microsandbox.md) microVM, which needs no Docker; `LENS_BACKEND=microsandbox` chooses
 it without asking.

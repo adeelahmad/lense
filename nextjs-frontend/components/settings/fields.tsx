@@ -1,10 +1,19 @@
 "use client";
 
-import { KeyRound, Lock, LockOpen } from "lucide-react";
+import { KeyRound, KeySquare, Lock, LockOpen } from "lucide-react";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { ChoiceCards, Pills } from "@/components/settings/controls";
 import { fieldId, type FieldSpec } from "@/components/settings/model";
+import {
+  isReference,
+  providerLabel,
+  ReferenceStatus,
+  savedReference,
+  useVaults,
+  VaultButton,
+  VaultPicker,
+} from "@/components/settings/vault-picker";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Input, Select, Switch, Textarea } from "@/components/ui/field";
 import { absolute } from "@/lib/format";
@@ -168,7 +177,9 @@ export function SettingField({
 
 /**
  * A write-only secret, in its three states (Settings ST3): not set · set ("updated by … on …", Clear, Replace) ·
- * replacing (Cancel). `value` undefined = unchanged, "" = clear, text = replace.
+ * replacing (Cancel). `value` undefined = unchanged, "" = clear, text = replace. A secret can also be a reference to a
+ * password manager's item (vaultwarden://Item/field, docs/secrets.md): `saved` is the field as Settings shows it, so a
+ * saved reference shows itself and whether it could be read; with a vault set up, "From Vaultwarden" picks one.
  */
 export function SecretSetting({
   label,
@@ -180,6 +191,7 @@ export function SecretSetting({
   placeholder = "Paste an API key",
   hint,
   focus = 0,
+  saved,
 }: {
   label: string;
   isSet: boolean;
@@ -191,9 +203,15 @@ export function SecretSetting({
   hint?: ReactNode;
   /** Changed to ask for a key now (a cloud provider was picked): the field takes the focus, replacing a saved key. */
   focus?: number;
+  /** The saved field as Settings shows it ({set, ref, read, …}): a reference shows itself and its status. */
+  saved?: unknown;
 }) {
   const id = useId();
   const [replacing, setReplacing] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const vault = useVaults()[0];
+  const ref = isSet ? savedReference(saved) : null;
+  const typedRef = isReference(value);
   const box = "flex h-10 items-center gap-1.5 rounded-sm border pl-3 pr-1";
   const showSet = isSet && !replacing && value === undefined;
   const input = useRef<HTMLInputElement>(null);
@@ -224,10 +242,22 @@ export function SecretSetting({
         </div>
       ) : showSet ? (
         <div className={cn(box, "border-border bg-surface")}>
-          <Lock aria-hidden className="size-3.5 shrink-0 text-green-dark" />
+          {ref ? (
+            <KeySquare aria-hidden className="size-3.5 shrink-0 text-green-dark" />
+          ) : (
+            <Lock aria-hidden className="size-3.5 shrink-0 text-green-dark" />
+          )}
           <span id={id} className="flex-1 truncate text-[13px] font-medium">
-            Set{updatedBy ? ` · updated by ${updatedBy}` : ""}
-            {updatedAt ? ` on ${absolute(updatedAt)}` : ""}
+            {ref ? (
+              <>
+                From {providerLabel(ref.ref ?? "")} · <span className="font-mono">{ref.ref}</span>
+              </>
+            ) : (
+              <>
+                Set{updatedBy ? ` · updated by ${updatedBy}` : ""}
+                {updatedAt ? ` on ${absolute(updatedAt)}` : ""}
+              </>
+            )}
           </span>
           <Button variant="danger-ghost" size="xs" onClick={() => onChange("")}>
             Clear
@@ -246,7 +276,7 @@ export function SecretSetting({
           <input
             ref={input}
             id={id}
-            type="password"
+            type={typedRef ? "text" : "password"}
             autoComplete="off"
             autoFocus={replacing}
             value={value ?? ""}
@@ -254,12 +284,14 @@ export function SecretSetting({
             onChange={(e) => onChange(e.target.value || undefined)}
             className="min-w-0 flex-1 bg-transparent font-mono text-[13px] outline-hidden placeholder:font-sans placeholder:text-fg-muted"
           />
+          <VaultButton open={picking} onClick={() => setPicking((p) => !p)} />
           {isSet && (
             <Button
               variant="secondary"
               size="xs"
               onClick={() => {
                 setReplacing(false);
+                setPicking(false);
                 onChange(undefined);
               }}
             >
@@ -268,13 +300,30 @@ export function SecretSetting({
           )}
         </div>
       )}
+      {picking && vault && !showSet && value !== "" && (
+        <VaultPicker
+          provider={vault}
+          onPick={(r) => {
+            setPicking(false);
+            onChange(r);
+          }}
+        />
+      )}
       <p className="text-[12px] leading-[1.3] text-fg-muted">
         {hint && <>{hint}. </>}
-        {showSet
-          ? "The value is never shown again, not even to admins."
-          : isSet && value !== ""
-            ? "The old key keeps working until you save."
-            : "Stored encrypted with the server’s key."}
+        {showSet && ref ? (
+          <>
+            <ReferenceStatus saved={ref} /> The value is never shown, not even to admins.
+          </>
+        ) : showSet ? (
+          "The value is never shown again, not even to admins."
+        ) : typedRef ? (
+          "Lens reads it from the vault when you save, and only the reference is kept."
+        ) : isSet && value !== "" ? (
+          "The old key keeps working until you save."
+        ) : (
+          "Stored encrypted with the server’s key."
+        )}
       </p>
     </div>
   );
