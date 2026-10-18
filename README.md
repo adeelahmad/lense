@@ -271,8 +271,7 @@ Next, and not in a pull request yet; each links to where it is tracked:
   activity ledger ([speech providers](docs/speech-providers.md)).
 - **Storage:** uploads and assets' media in the file store, and a storage key to download
   ([storage](docs/storage.md)).
-- **Secrets:** Settings › Secrets in the web app, with a picker for the vault's items, and references in sources'
-  credentials and MCP servers ([secrets](docs/secrets.md)).
+- **Secrets:** references in sources' credentials and MCP servers ([secrets](docs/secrets.md)).
 - **Logging:** sending straight to Loki or another HTTP endpoint, and client certificates for TLS
   ([logging](docs/logging.md)).
 - **Proof:** each release tested by upgrading an install of the last one, holding data
