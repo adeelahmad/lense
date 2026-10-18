@@ -2089,8 +2089,9 @@ def create_project(ctx: Context, name: str, goal: str | None, instructions: str 
     "update_project",
     "Change a project",
     "Change one of your projects: its name, goal, instructions or namespaces (its conversations draw on the new ones), "
-    "archive it, mark one of its threads done (thread_id, done), or start a thread (new_thread: its title; ask in it "
-    "with the web app or POST /api/v1/chats/{id}/messages). Only what you give changes. Needs a token with the write scope.",
+    "archive it, mark one of its threads done (thread_id, done), or start a thread (new_thread: its title) with a "
+    "brief Lens's assistant answers there in the background (read it with read_chat). Only what you give changes. "
+    "Needs a token with the write scope.",
     Arg("project_id", "integer", "the project (from list_projects)", required=True),
     Arg("name", "string", "its new name", max_length=120),
     Arg("goal", "string", "its new goal", max_length=4000),
@@ -2100,6 +2101,7 @@ def create_project(ctx: Context, name: str, goal: str | None, instructions: str 
     Arg("thread_id", "integer", "a thread to mark done or not done"),
     Arg("done", "boolean", "with thread_id: done or not"),
     Arg("new_thread", "string", "start a thread with this title", max_length=120),
+    Arg("brief", "string", "with new_thread: what to do there, answered in the background by Lens's assistant", max_length=4000),
     writes=True,
     personal=True,
 )
@@ -2114,8 +2116,11 @@ def update_project(
     thread_id: int | None,
     done: bool | None,
     new_thread: str | None,
+    brief: str | None,
 ) -> dict[str, Any]:
     _writer(ctx, "change projects")
+    if brief and not new_thread:
+        raise ToolError("give new_thread (its title) with brief")
     changes = {"name": name, "goal": goal, "instructions": instructions, "namespaces": namespaces, "archived": archived}
     started = None
     if any(v is not None for v in changes.values()):
@@ -2125,7 +2130,7 @@ def update_project(
             raise ToolError("give done (true or false) with thread_id")
         project_routes.update_thread(project_id, thread_id, ThreadUpdate(done=done), ctx.user, ctx.db)
     if new_thread:
-        started = project_routes.start_thread(project_id, ctx.user, ctx.db, ThreadCreate(title=new_thread)).id
+        started = project_routes.start_thread(project_id, ctx.user, ctx.db, ctx.cfg, ThreadCreate(title=new_thread, brief=brief)).id
     out = _project(ctx, project_routes.get_project(project_id, ctx.user, ctx.db))
     if started is not None:
         out["started"] = {"chat_id": started, "url": f"{ctx.web}/chat/{started}"}

@@ -11042,8 +11042,10 @@ export class Projects {
   /**
    * Start Thread
    *
-   * A new thread: a conversation in the project's namespaces (ask in it with POST /chats/{id}/messages). With `chat`,
-   * one of your conversations joins the project instead, drawing on its namespaces from then on.
+   * A new thread: a conversation in the project's namespaces (ask in it with POST /chats/{id}/messages). With a
+   * `brief`, it is asked there at once and answered in the background, as you, with your tools and approvals: GET
+   * /chats/{id} shows the answer once it's written (the thread is `answering` until then). With `chat`, one of your
+   * conversations joins the project instead, drawing on its namespaces from then on (with a brief, asked there next).
    */
   public static startThread<ThrowOnError extends boolean = false>(
     options: Options<StartThreadData, ThrowOnError>,
