@@ -348,7 +348,7 @@ export const SECTIONS: SectionSpec[] = [
     label: "SMB share",
     backend: ["smb"],
     description:
-      "Off unless you turn it on. The graph as folders and files over SMB, read-only, for Finder, Explorer and Linux: each person signs in with a file access key and sees what they see in the web app.",
+      "Off unless you turn it on. The graph as folders and files over SMB, for Finder, Explorer and Linux: each person signs in with a file access key, sees what they see in the web app, and files they copy into a collection’s folder are imported there.",
   },
   {
     id: "shares",
@@ -2666,7 +2666,14 @@ export const FIELDS: FieldSpec[] = [
     key: "enabled",
     label: "Share the file tree over SMB",
     kind: "switch",
-    hint: "Read-only. Off: nothing listens",
+    hint: "Off: nothing listens",
+  },
+  {
+    section: "smb",
+    key: "add_files",
+    label: "Import files people add",
+    kind: "switch",
+    hint: "A file copied into a collection’s folder is imported there, as an upload; a new folder under Collections is a new collection. Off: read-only",
   },
   {
     section: "smb",

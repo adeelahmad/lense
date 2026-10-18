@@ -33,6 +33,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   Markdown or plain text and exports it, questions and code blocks have their own copy buttons, and the conversation's
   header has Export; without a PDF printer on the server, the browser prints it instead
   ([Copy and export](docs/assistant.md#copy-and-export)).
+- **Files added over SMB are imported.** Copy files into a collection's folder on the SMB share and each is imported
+  when it's closed, as an upload is; a new folder under `Collections` is a new collection. Files of a type Lens doesn't
+  take are refused as they're made, files over the upload limit are cut off as they're written, and a file deleted as
+  it's closed or left open when its client goes away isn't imported. The system's own files (`.DS_Store`, `Thumbs.db`,
+  Office's `~$` files) are kept aside, and renaming a file saved under a temporary name imports it. **Import files
+  people add** in Settings, SMB share (`smb.add_files`, on) turns it off and makes the share read-only again ([Adding
+  files](docs/smb.md#adding-files)).
 - **News feeds.** Subscribe to a blog's or a news site's RSS or Atom feed: add it on the Sources page (its address,
   or just the site's) and watch it, and each new post comes into a namespace as text, with its link, author and date,
   so answers cite it. Feeds are asked for again only when they've changed, and a private feed's address is kept like a

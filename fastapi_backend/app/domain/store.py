@@ -548,6 +548,7 @@ DEFAULTS = {
         "bind": os.environ.get("LENS_SMB_LISTEN") or "127.0.0.1",
         "port": int(os.environ.get("LENS_SMB_LISTEN_PORT") or 4445),
         "allowed_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "100.64.0.0/10", "fc00::/7", "::1/128"],
+        "add_files": True,  # files people copy in are imported (share_import.py); off: read-only
     },
     # the assistant's code sandbox (sandbox.py, docs/assistant.md#code-sandbox): off until an admin turns it on. Then
     # each conversation's Python and bash run in a sandbox of its own on the OpenShell gateway at `gateway`, made from
