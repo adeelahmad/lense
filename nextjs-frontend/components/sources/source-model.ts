@@ -84,6 +84,7 @@ export const FIELD_LABEL: Record<string, string> = {
   calendars: "Calendars",
   days_back: "Days back",
   via: "Read through",
+  write: "The assistant",
 };
 
 export const S3_PROVIDERS = [
@@ -115,9 +116,30 @@ export const GMAIL_VIA = [
   { value: "imap", label: "IMAP (Google asks for all of Gmail)" },
 ];
 
-/** What a Gmail source reads with, the way it reads: what a Workspace admin allows a service account. */
-export function gmailScope(via: string | undefined): string {
-  return via === "imap" ? "https://mail.google.com/" : "https://www.googleapis.com/auth/gmail.readonly";
+/** What the assistant may do with a Gmail or Google Calendar connection: only read (the default), or also send mail
+ * or add events, each once the person approves it. */
+export const WRITE_OPTIONS: Partial<Record<SourceType, { value: string; label: string }[]>> = {
+  gmail: [
+    { value: "", label: "Only reads" },
+    { value: "yes", label: "Also sends mail and saves drafts, after your yes" },
+  ],
+  gcal: [
+    { value: "", label: "Only reads" },
+    { value: "yes", label: "Also adds events, after your yes" },
+  ],
+};
+
+/** What a Gmail source reads (and sends) with, the way it reads: what a Workspace admin allows a service account. */
+export function gmailScope(via: string | undefined, write?: string): string {
+  if (via === "imap") return "https://mail.google.com/";
+  const read = "https://www.googleapis.com/auth/gmail.readonly";
+  return write === "yes" ? `${read} and https://www.googleapis.com/auth/gmail.compose` : read;
+}
+
+/** What a Google Calendar source reads (and adds events) with: what a Workspace admin allows a service account. */
+export function calendarScope(write?: string): string {
+  const read = "https://www.googleapis.com/auth/calendar.readonly";
+  return write === "yes" ? `${read} and https://www.googleapis.com/auth/calendar.events` : read;
 }
 
 const IMAP_HOSTS: Record<string, string> = {
@@ -170,7 +192,7 @@ export function sourceSubtitle(s: Pick<Source, "type" | "params">): string {
     case "imap":
       return `IMAP · ${str(p.user) ? `${str(p.user)}@` : ""}${str(p.host) || "no host"}${str(p.port) ? `:${str(p.port)}` : ""}`;
     case "gmail":
-      return `Gmail · ${str(p.user) || "no address"} · ${str(p.via) === "imap" ? "IMAP" : "API"}`;
+      return `Gmail · ${str(p.user) || "no address"} · ${str(p.via) === "imap" ? "IMAP" : "API"}${str(p.write) === "yes" ? " · sends after your yes" : ""}`;
     case "ical":
       return "Calendar feed · address kept secret";
     case "rss":
@@ -181,7 +203,8 @@ export function sourceSubtitle(s: Pick<Source, "type" | "params">): string {
         .filter(Boolean).length;
       const as = str(p.impersonate) || str(p.account);
       const who = as ? ` · as ${as}` : "";
-      return `Google Calendar${who} · ${chosen ? plural(chosen, "calendar") : "every calendar"}`;
+      const adds = str(p.write) === "yes" ? " · adds events after your yes" : "";
+      return `Google Calendar${who} · ${chosen ? plural(chosen, "calendar") : "every calendar"}${adds}`;
     }
     default:
       return "Folder on this machine";
