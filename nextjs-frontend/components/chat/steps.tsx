@@ -5,11 +5,13 @@ import {
   BookOpen,
   Building2,
   CalendarDays,
+  CalendarPlus,
   ChartLine,
   ChevronDown,
   ChevronRight,
   Download,
   FileInput,
+  FilePlus,
   FileText,
   FolderOpen,
   List,
@@ -18,6 +20,7 @@ import {
   Play,
   Quote,
   Search,
+  Send,
   Shapes,
   SquareTerminal,
   Waypoints,
@@ -54,6 +57,9 @@ const ICON: Record<string, LucideIcon> = {
   find_files: Search,
   read_file: FileText,
   import_from_connection: FileInput,
+  send_mail: Send,
+  add_event: CalendarPlus,
+  write_file: FilePlus,
 };
 
 /** A code sandbox run's code, as the model wrote it (run_python's code, run_bash's command), or null. */

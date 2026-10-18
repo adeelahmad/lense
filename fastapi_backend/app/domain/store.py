@@ -734,6 +734,11 @@ DEFAULTS = {
     # for none; the newest `keep` scheduled backups are kept. connection: a storage connection (sources.py) every new
     # backup is also copied to, under folder, encrypted with a key from secret.key first (none: kept here only)
     "backups": {"schedule": None, "timezone": "UTC", "keep": 7, "connection": None, "folder": "lens-backups"},
+    # auto scaling (domain/scaling.py, docs/scaling.md): off by default, and a group launches nothing until a person
+    # approves its terms in the web app. tick_seconds: how often the scaler looks; join_minutes: how long a launched
+    # unit may take to join before it's given up on; accrue_minutes: how often a running unit's price goes into the
+    # ledger; tag: the prefix of units' names (and the tag they carry at the provider)
+    "scaling": {"enabled": False, "tick_seconds": 30, "join_minutes": 15, "accrue_minutes": 5, "tag": "lens"},
     "telemetry": {
         "enabled": False,
         "endpoint": None,
@@ -1368,6 +1373,14 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS activity_resources ON activity FIELDS resources",
     # caps on what a routine, pipeline, workflow or namespace may cost (domain/budgets.py): budget:<table>_<id>
     "DEFINE TABLE IF NOT EXISTS budget SCHEMALESS",
+    # auto scaling (domain/scaling.py): providers with their credentials sealed, groups with their rules and approval,
+    # and each unit launched (a worker machine or a model endpoint), alive or gone
+    "DEFINE TABLE IF NOT EXISTS scale_provider SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS scale_group SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS scale_group_provider ON scale_group FIELDS provider",
+    "DEFINE TABLE IF NOT EXISTS scale_node SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS scale_node_group ON scale_node FIELDS group",
+    "DEFINE INDEX IF NOT EXISTS scale_node_state ON scale_node FIELDS state",
     # background work
     "DEFINE TABLE IF NOT EXISTS job SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_status ON job FIELDS status",
