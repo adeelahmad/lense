@@ -1271,9 +1271,9 @@
     },
     {
       "property": "P-NFS",
-      "violation_symptom": "info-leak",
+      "violation_symptom": "info-leak, integrity-bypass",
       "severity_tier": "security",
-      "conditions": "the NFS share is off until an admin turns it on, is read-only, shows only what one chosen account sees, and lets in only allowed_networks",
+      "conditions": "the NFS share is off until an admin turns it on, shows only what one chosen account sees, imports files written to it only where that account may import (never over what Lens made; nfs.add_files off: read-only), and lets in only allowed_networks",
       "provenance": "documented",
       "source": "docs/file-shares.md \"NFS has no login\""
     },
@@ -1725,7 +1725,7 @@
     "Keep the IIIF cookie SameSite=None; Secure by serving IIIF over HTTPS",
     "Verify webhook-signature on receipt; treat Slack and Discord target URLs as secrets",
     "Keep logs that record request paths private when sensor push tokens are in use",
-    "When the NFS share is on, list only your own networks and pick an account that sees only what the share should show"
+    "When the NFS share is on, list only your own networks and pick an account that sees only what the share should show (and may add only where the share should take files), or turn nfs.add_files off"
   ],
   "known_misuse": [
     {

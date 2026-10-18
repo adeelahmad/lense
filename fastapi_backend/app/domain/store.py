@@ -600,6 +600,7 @@ DEFAULTS = {
         "port": 2049,
         "allowed_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "fc00::/7", "::1/128"],
         "account": None,
+        "add_files": True,  # files written to the share are imported, as `account` (share_import.py); off: read-only
     },
     # the graph as files over S3 and WebDAV (shares.py, docs/file-tree.md): off until an admin turns it on. Then the process
     # that runs routines (`lens worker`) serves it on these ports; add_files imports the files people add to it

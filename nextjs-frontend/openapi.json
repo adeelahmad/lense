@@ -53296,6 +53296,12 @@
             "type": "boolean",
             "title": "Rclone",
             "description": "whether rclone is installed here"
+          },
+          "add_files": {
+            "type": "boolean",
+            "title": "Add Files",
+            "description": "whether files written to the share are imported (nfs.add_files); off: read-only",
+            "default": false
           }
         },
         "additionalProperties": true,

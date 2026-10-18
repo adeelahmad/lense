@@ -65,7 +65,7 @@ EDITABLE = {
     "tunnel": None,
     "https": None,
     # bind is a startup setting only
-    "nfs": ("enabled", "port", "allowed_networks", "account"),
+    "nfs": ("enabled", "port", "allowed_networks", "account", "add_files"),
     # bind is a startup setting only
     # the SMB share of the file tree (smb_share.py): bind and port are startup settings only (Docker publishes the port)
     "smb": ("enabled", "allowed_networks", "add_files"),
@@ -1281,9 +1281,9 @@ def _logs_setting(key, value):
 
 
 def _nfs_setting(key, value):
-    if key == "enabled":
+    if key in ("enabled", "add_files"):
         if not isinstance(value, bool):
-            raise ValueError("nfs.enabled is true or false")
+            raise ValueError(f"nfs.{key} is true or false")
         return value
     if key == "port":
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 65535):

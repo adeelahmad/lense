@@ -34,6 +34,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   sign-in link from email or an admin. Now Profile and sign-in › Passkeys lists Lens's other addresses with **Open
   signed in**, which opens one with a 15-minute sign-in link of your own, where one fingerprint adds a passkey for it
   ([Authentication](docs/authentication.md#signing-in-passkeys)).
+- **Files added over NFS are imported.** A file copied into a collection's folder on the NFS share is imported a moment
+  after it's closed, as the account the share shows the tree as (`nfs.account`), with the same checks as an upload.
+  rclone keeps files being written in a cache on Lens's disk and puts them to Lens once they're closed; a file Lens
+  can't take shows in the share's log. **Import files people add** in Settings, NFS share (`nfs.add_files`, on) turns it
+  off and serves the share read-only again ([Adding files](docs/file-shares.md#adding-files)).
 - **Export a conversation.** `GET /api/v1/chats/<id>/export.md`, `.pdf` or `.json` gives the version showing, one
   message (`?message=`) or, as JSON, every version (`?all=true`). The Markdown has each question and answer, its
   citations as footnotes linking back to the moment in Lens and the tools it used; the PDF is that Markdown printed by
