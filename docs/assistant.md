@@ -38,11 +38,18 @@ then.
   every answer gets that summary plus the messages it doesn't cover yet. Room conversations (chat-rooms.md) go on for
   good, so they rely on it most. A summary covers the version it was written on: on a version that leaves what it
   covers, the model reads that version's messages, and the next summary is made from them. A conversation that fills
-  half of the model's context window (**Chat model's context**, `ai.context_tokens`, 16000 when empty; about four
-  characters a token) is folded in early, before the next answer, whatever the count.
+  half of its model's context window (**Summarise when a conversation fills**, `ai.compact_at`, 50 %; about four
+  characters a token) is folded in early, before the next answer, whatever the count, so the excerpts, tools and the
+  answer fit in the rest. The context window is the conversation's model's: **Chat model's context**
+  (`ai.context_tokens`) when it's set; otherwise the context Lens's own [local model](local-models.md) runs with
+  (`local_llm.context`) when it's the provider; otherwise what the model server says (its model list's
+  `context_length`, `max_model_len`, `max_context_length` or `context_window`, as OpenRouter, vLLM, Mistral, Groq and
+  others give it, or llama.cpp's `/props`), asked once every ten minutes; otherwise 16000 tokens.
   **Model for summaries** (`ai.compact_model`) writes them with a smaller, cheaper model on the same provider; empty,
-  the chat's model does. Settings › AI assistant › Summarise long conversations (`ai.compact`, on) turns it off; off,
-  or with no model, only the last six messages are read.
+  the chat's model does. A long stretch folded at once (`/compact`, or a conversation from before summaries) is
+  written in as many calls as it takes to fit that model's context, each in the [activity ledger](activity.md) as the
+  conversation's. Settings › AI assistant › Summarise long conversations (`ai.compact`, on) turns it off; off, or with
+  no model, only the last six messages are read.
 - **Titles:**{#titles} a conversation nobody named is titled with its first question's words as soon as it's asked,
   then, after the first answer, the model gives it a short title of a few words from the question and the answer
   (streamed as `title` at the end of the answer's stream). It's one small call, written by **Model for summaries**
@@ -163,9 +170,9 @@ Exports carry each tool call's arguments and summary, never its raw result, whic
 export the same way over MCP: `list_chats`, `read_chat` and `export_chat` ([MCP](mcp.md)) work on the person's own
 conversations.
 
-In the web app, an answer's copy button offers **Copy as Markdown** (its citations as footnotes linking back to Lens,
-as in the Markdown export) and **Copy text** (without Markdown or citation numbers), then exports that answer with
-its question as Markdown, PDF or JSON. A question has its own copy button, shown on hover, and each code block in an
+In the web app, an answer's copy button copies it as Markdown in one click (its citations as footnotes linking back to
+Lens, as in the Markdown export); the arrow beside it also offers **Copy text** (without Markdown or citation numbers)
+and exports that answer with its question as Markdown, PDF or JSON. A question has its own copy button, shown on hover, and each code block in an
 answer has one that copies the code as written. The download icon in a conversation's header exports the whole
 conversation. When the server can't make a PDF, the browser's print dialog opens on the conversation (or that one
 answer), without the app around it, so Save as PDF still works.
@@ -283,6 +290,9 @@ When the configured model supports function calling, chat becomes an agent.
   conversation's own, to compute, analyse or convert files. See [Code sandbox](#code-sandbox).
 - **The web:** when an admin turns on web search, `web_search` and `web_read` look up what the archive doesn't hold,
   cited like excerpts ([below](#web-search-and-reading-pages)).
+- **Mail, calendars and files** (admins): the assistant searches and reads the mail, calendars and files connected to
+  Lens in Settings → Sources, Gmail, Google Calendar, Google Drive and S3 among them, and brings what it finds into a
+  namespace once you approve ([below](#mail-calendars-and-files)).
 - **Lens itself:** questions about Lens rather than the archive go to `lens_help` ([below](#questions-about-lens-itself)).
 
 ### Questions about Lens itself
@@ -352,6 +362,51 @@ gets two more tools, for everyone who may use the assistant:
 
 Refine later: an opt-in SearXNG service in the Docker Compose file (SearXNG is AGPL, so it would stay an extra),
 prices per search for the paid providers, web access per namespace, and keeping recent results to search less.
+
+### Mail, calendars and files
+
+Built. The accounts and storage connected to Lens in Settings → Sources are an admin's, so an admin's assistant gets
+tools for them, only for the kinds connected, with nothing to turn on:
+
+- **`connections`** lists them: each one's id, name, what it holds (mail, calendar, files or feed), its account,
+  whether it works, and the tools that read it. The other tools take a connection by its id or name, and leave it out
+  when there's only one of its kind.
+- **`search_mail`** searches a mailbox, newest first: who sent each message to whom, its subject, date, labels and a
+  snippet. A Gmail or Google Workspace connection takes Gmail's own search words (`from:ana subject:invoice
+  after:2026/10/01 has:attachment is:unread label:work`, and plain words); an IMAP mailbox matches the words in the
+  subject and sender of the newest messages in its inbox. With no words, it lists the newest in the inbox.
+- **`read_mail`** reads one message in full: who sent it to whom and when, its attachments by name, and its text (up
+  to 8,000 characters, `max_chars` up to 11,000), by its id from `search_mail` or its path from `list_files`.
+- **`calendar_events`** lists a Google Calendar connection's events between two times (`from` and `to`, ISO 8601
+  dates or times; the next 7 days by default), each time a repeating event happens, optionally only those with some
+  words: title, when, where, organizer, who's invited and their answers, video call, and the start of its
+  description. It says the time now and the span it read; a date or time without an offset is taken as UTC.
+- **`list_files`** shows a folder of any connection: a bucket's or drive's folders and files, a mailbox's folders or
+  labels and their newest messages, a calendar's events. **`find_files`** finds files whose names contain some words,
+  any case, in a storage connection's folder and up to 12 folders below it. **`read_file`** reads a storage file's
+  text: plain text, Markdown, CSV, JSON, code, HTML, email, calendar, PDF or Word, up to 20 MB.
+- **`import_from_connection`** brings files, messages or events into a namespace, as Import → From a connection does
+  (`POST /api/v1/import/source`): they stay where they are and run the namespace's pipeline. It picks the namespace
+  when you don't name one, and waits for your approval, unless an admin's setup conversation acts at once and hasn't
+  read outside text.
+- **Citations:** each message and event is numbered, so an answer cites [n]; the chip shows the connection and the
+  subject or title and opens the message in Gmail or the event in Google Calendar. An IMAP message has no page to
+  open, so it isn't numbered. The answer's header counts them ("2 emails and 1 event").
+- **Read only:** each connection reads as it is set up to: Gmail and Google Calendar with read-only access, so nothing
+  changes in the account and mail stays unread. What they hold was written by other people: the model reads it marked
+  as data, and once it has, tools that could carry it out of Lens ask first
+  ([below](#third-party-content-and-prompt-injection)).
+- **Cost:** no model call of its own. Each search, read and listing is a row in the activity ledger (`gmail.search`,
+  `gmail.read`, `google.calendar`, `connections.list`, `connections.find`, `connections.read`), with what was called,
+  never what came back.
+- **Agents and switches:** an agent asks the assistant (chat, or [MCP](mcp.md)'s chat tool) as an admin. Each tool can
+  be switched off in Tools it may use (`ai.disabled_tools`), and a question can leave the group out
+  ([below](#choosing-tools-namespaces-and-a-limit)); the tool picker says why someone has none ("for admins", or
+  "nothing is connected yet").
+
+Refine later: sending mail, adding events and writing files, each after your yes; searching an IMAP mailbox on its
+server; Google Drive's full-text search; events of an iCal feed by time; and these tools for people other than admins,
+for connections an admin shares with them.
 
 ### Choosing tools, namespaces and a limit
 
@@ -486,8 +541,8 @@ docker compose -f docker-compose.prod.yml --profile sandbox up -d openshell-gate
 - **Size.** About 300 MB of images on disk (the gateway, the supervisor and the sandbox runtime), downloaded the first
   time it starts, plus `sandbox.image`. Each sandbox is a container with its own CPU, memory and process limits.
 
-In progress: the upgrade agent that starts the profile ships with the agent's next release; until this machine's agent
-knows the `sandbox` profile, Settings says to start it by hand and shows the line above.
+The upgrade agent knows the `sandbox` profile from this release on; a machine whose agent is older (it updates itself
+with the next release it installs) says so in Settings and shows the line above to run by hand until then.
 
 Refine later: automations' agent runs without a conversation get no sandbox yet; running admins' Python extension
 tools in the sandbox so people who aren't admins can write them; asking the person before a run reaches a host that
@@ -747,6 +802,13 @@ runs (until then its switch is there to turn it on). **GitHub** puts GitHub's ow
 `GET /api/v1/extensions/mcp/presets` (admins), each with the spec to save and, for the browser, whether its container
 is on and answering.
 
+**Settings › AI assistant › MCP servers** lists the servers added, each with how many of its tools the assistant is
+offered and a link to its page, with **Add MCP server** and the switches that run the MCP runner and the browser on
+this machine. Agents do the same with the MCP tools `mcp_servers`, which lists the servers (header and env names, never
+their values) and the ready-made ones, and `add_mcp_server`, which adds one, a ready-made one (`preset`, with `values`
+for its token) or its own (`server`), checked as the form checks it. Adding one takes an admin's API key with the
+write scope; an app given access (OAuth) can't add one, even an admin's.
+
 Header and environment values whose names say they carry a credential (Authorization, API keys, tokens, secrets,
 passwords, cookies, sessions) are sealed when the server is saved, with the server's key (as notification targets and
 sources are, since an MCP server belongs to the whole install rather than a namespace), bound to the extension, the
@@ -789,8 +851,10 @@ The browser is a headless Chromium the assistant drives over MCP: it opens pages
 in forms. It is [Playwright MCP](https://github.com/microsoft/playwright-mcp) (Apache-2.0), in a container of its own
 (the optional `browser` profile, `mcr.microsoft.com/playwright/mcp`, pinned in the compose file: about 400 MB to
 download, and at most 1 GB of memory). It's off until you turn it on: **Run the browser on this
-machine** under **Ready-made** in **Add MCP server**, then **Add Browser**, which adds it as the MCP server `browser`
-(its tools are `browser__browser_navigate`, `browser__browser_snapshot`, `browser__browser_click` and so on).
+machine** under **Ready-made** in **Add MCP server** (or in Settings › AI assistant › MCP servers), then
+**Add Browser**, which adds it as the MCP server `browser` (its tools are `browser__browser_navigate`,
+`browser__browser_snapshot`, `browser__browser_click` and so on). It's a browser on this machine with nobody signed in,
+not [the assistant in your browser](browser-assistant.md), which uses your own browser where you are signed in.
 
 - **Its sandbox.** None of Lens's data, keys or database; every capability dropped, a read-only image, memory and
   process limits, and its profile (cookies, history) in memory only, gone when it stops (after an hour unused, or with
@@ -809,8 +873,8 @@ machine** under **Ready-made** in **Add MCP server**, then **Add Browser**, whic
 
 ### Optional containers
 
-The MCP runner, the browser and monitoring ([Prometheus and Grafana](prometheus.md)) are containers Lens can run next
-to it, off until an admin turns one on. The web app can't start containers itself, so the machine's upgrade agent does
+The MCP runner, the browser, the [code sandbox](#the-gateway)'s gateway and monitoring
+([Prometheus and Grafana](prometheus.md)) are containers Lens can run next to it, off until an admin turns one on. The web app can't start containers itself, so the machine's upgrade agent does
 ([Updates](updates.md)): it adds the profile to `COMPOSE_PROFILES` in Lens's `.env`, or takes it out, and starts or
 stops that profile's containers, one change at a time. Without an agent (Lens wasn't installed with `install.sh`), the
 switch shows the line to run on the machine instead. Agents use the same switches: `GET /api/v1/admin/services` and

@@ -70,6 +70,7 @@ nav:
       - Updates and backups: updates.md
       - Remote access: remote-access.md
       - HTTPS: https.md
+      - Nodes and the mesh: mesh.md
   - Agents and apps:
       - MCP server: mcp.md
       - API: api.md

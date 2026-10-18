@@ -1,18 +1,19 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Minus, Plus, Wrench } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { Chats } from "@/app/openapi-client";
-import type { ChatTools, ToolGroup } from "@/app/openapi-client/types.gen";
+import type { Chat, ChatTools, ToolGroup } from "@/app/openapi-client/types.gen";
 import { settingHref } from "@/components/settings/find";
 import { FIELDS, fieldId, SECTIONS } from "@/components/settings/model";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/field";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/menu";
+import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +33,39 @@ export function useToolCatalog(chatId: number | null, enabled = true) {
     enabled,
     staleTime: 60_000,
   });
+}
+
+/** Saves what a conversation's answers may use (PATCH /chats/{cid}): shown at once, saved in the order the changes
+ * were made, and read back from the server after the last one. So a change made while the one before is still being
+ * saved builds on it, rather than on what the server said before either (which would put the first change back). */
+export function useSaveTools(chatId: number | null) {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const saving = useRef<Promise<void>>(Promise.resolve());
+  const latest = useRef(0);
+  return useCallback(
+    async (v: ToolChoice) => {
+      if (chatId == null) return;
+      const key = ["chat", chatId];
+      const n = ++latest.current;
+      await qc.cancelQueries({ queryKey: key }); // a read already on its way would show the choice before this one
+      qc.setQueryData<Chat>(key, (was) => (was ? { ...was, ...v } : was));
+      saving.current = saving.current.then(async () => {
+        try {
+          await data(Chats.updateChat({ client, path: { cid: chatId }, body: v }));
+        } catch (e) {
+          toast({ title: "Couldn’t change the tools", body: e instanceof Error ? e.message : undefined, tone: "red" });
+        }
+        if (n !== latest.current) return; // a later change is being saved: read it back after that one
+        await qc.invalidateQueries({ queryKey: key });
+        void qc.invalidateQueries({ queryKey: ["chats"] });
+        void qc.invalidateQueries({ queryKey: ["chat-tools"] });
+      });
+      return saving.current;
+    },
+    [chatId, client, qc, toast],
+  );
 }
 
 /** Where an admin switches a setting back on (`ai.browser`): its field in Settings, else its section. */

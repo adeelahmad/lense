@@ -90,21 +90,24 @@ class ChatTitle(ResponseModel):
 
 
 class Passage(ResponseModel):
-    """A numbered excerpt an answer can cite: a moment of an asset, or a web page (`source` "web", with its `url`)."""
+    """A numbered excerpt an answer can cite: a moment of an asset, a web page (`source` "web", with its `url`), or a
+    message or event of a connected account (`source` "mail" or "event", with its `url` in Gmail or Google Calendar)."""
 
     n: int
-    recording_id: int | None = Field(None, description="the asset it's from; none for a web page, Lens's docs or this server's facts")
+    recording_id: int | None = Field(
+        None, description="the asset it's from; none for a web page, Lens's docs, this server's facts, a message or an event"
+    )
     source: str | None = Field(
         None,
         description="what it is: said (speech), page (a document's), screen (text shown in a video), memory, web, docs (Lens's "
-        "docs) or server (this server's facts)",
+        "docs), server (this server's facts), mail or event (a connection's message or event)",
     )
     url: str | None = Field(
         None,
-        description="where it is when it isn't the archive's: a web page (web), a page of Lens's docs (docs) or this "
-        "server (server); the citation opens it",
+        description="where it is when it isn't the archive's: a web page (web), a page of Lens's docs (docs), this server "
+        "(server), or a message or event at its account (mail, event); the citation opens it",
     )
-    site: str | None = Field(None, description="a web page's site, like example.com")
+    site: str | None = Field(None, description="a web page's site, like example.com; a message's or event's connection")
     fetched_at: str | None = Field(None, description="when the web page or search result was read")
     title: str | None = None
     namespace: str | None = None

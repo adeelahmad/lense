@@ -12131,6 +12131,484 @@ export type MentionMoved = {
 };
 
 /**
+ * MeshAuthority
+ */
+export type MeshAuthority = {
+  /**
+   * Fingerprint
+   *
+   * the CA certificate's fingerprint: every machine on the mesh trusts it
+   */
+  fingerprint: string;
+  /**
+   * Not After
+   *
+   * when the CA runs out
+   */
+  not_after?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * MeshBeat
+ */
+export type MeshBeat = {
+  /**
+   * Nebula
+   *
+   * running, starting, stopped or failed
+   */
+  nebula?: string | null;
+  /**
+   * Version
+   *
+   * the Lens version it runs
+   */
+  version?: string | null;
+  /**
+   * Peers
+   *
+   * the machines it has tunnels to
+   */
+  peers?: Array<{
+    [key: string]: unknown;
+  }> | null;
+  /**
+   * Machine
+   *
+   * its processors, memory and system
+   */
+  machine?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Sandbox
+   *
+   * the sandboxes it can run
+   */
+  sandbox?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Log
+   *
+   * Nebula's last lines
+   */
+  log?: Array<string> | null;
+};
+
+/**
+ * MeshJoin
+ */
+export type MeshJoin = {
+  /**
+   * Token Id
+   *
+   * the number in the join token (lensjoin1.<id>.<secret>)
+   */
+  token_id: number;
+  /**
+   * Nonce
+   *
+   * random, made for this request
+   */
+  nonce: string;
+  /**
+   * Name
+   *
+   * the machine's name
+   */
+  name: string;
+  /**
+   * Public Key
+   *
+   * its Nebula public key (nebula-cert keygen): its private key never leaves it
+   */
+  public_key: string;
+  /**
+   * Proof
+   *
+   * HMAC-SHA256 of the request, keyed with the token's secret (docs/mesh.md)
+   */
+  proof: string;
+  /**
+   * Info
+   *
+   * about the machine: os, arch, cpus, memory
+   */
+  info?: {
+    [key: string]: unknown;
+  } | null;
+};
+
+/**
+ * MeshJoined
+ */
+export type MeshJoined = {
+  /**
+   * Node
+   */
+  node: number;
+  /**
+   * Sealed
+   *
+   * the answer, sealed with a key from the token's secret: certificate, config, credentials
+   */
+  sealed: string;
+  [key: string]: unknown;
+};
+
+/**
+ * MeshNode
+ */
+export type MeshNode = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Role
+   */
+  role: "primary" | "worker" | "compute";
+  /**
+   * Ip
+   *
+   * its address on the mesh
+   */
+  ip: string;
+  /**
+   * Groups
+   *
+   * its certificate's groups: role and namespaces, for the firewall
+   */
+  groups?: Array<string>;
+  /**
+   * Namespaces
+   *
+   * the namespaces it serves (none: every one)
+   */
+  namespaces?: Array<string>;
+  /**
+   * Fingerprint
+   *
+   * its current certificate's fingerprint
+   */
+  fingerprint?: string | null;
+  /**
+   * Not After
+   *
+   * when its certificate runs out (it renews it at two thirds)
+   */
+  not_after?: string | null;
+  /**
+   * Joined At
+   */
+  joined_at?: string | null;
+  /**
+   * Joined By
+   *
+   * the admin who made the token it joined with
+   */
+  joined_by?: string | null;
+  /**
+   * Last Seen
+   *
+   * its last report, every minute while it runs
+   */
+  last_seen?: string | null;
+  /**
+   * Status
+   *
+   * what it last reported: Nebula, its peers, its machine
+   */
+  status?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Revoked At
+   *
+   * when it was taken off the mesh
+   */
+  revoked_at?: string | null;
+  /**
+   * Revoked By
+   */
+  revoked_by?: string | null;
+  /**
+   * Hosts
+   *
+   * the address it reached this install at to join
+   */
+  hosts?: Array<string>;
+  /**
+   * Workers
+   *
+   * the job workers running on it
+   */
+  workers?: Array<WorkerInfo>;
+  [key: string]: unknown;
+};
+
+/**
+ * MeshNodeChange
+ */
+export type MeshNodeChange = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Namespaces
+   *
+   * the namespaces it serves (empty: every one)
+   */
+  namespaces?: Array<string> | null;
+};
+
+/**
+ * MeshNodeConfig
+ */
+export type MeshNodeConfig = {
+  /**
+   * Config
+   *
+   * its Nebula config, without its private key
+   */
+  config: {
+    [key: string]: unknown;
+  };
+  /**
+   * Version
+   *
+   * changes whenever the config does
+   */
+  version: string;
+  /**
+   * Not After
+   */
+  not_after?: string | null;
+  /**
+   * Renew Days
+   *
+   * how many days before its certificate runs out it renews it
+   */
+  renew_days: number;
+  /**
+   * Crt
+   *
+   * the new certificate (renew)
+   */
+  crt?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * MeshRenew
+ */
+export type MeshRenew = {
+  /**
+   * Public Key
+   *
+   * its Nebula public key, the same or a new one
+   */
+  public_key: string;
+};
+
+/**
+ * MeshStatus
+ */
+export type MeshStatus = {
+  /**
+   * Enabled
+   *
+   * the mesh is on (mesh.enabled): adding a node turns it on
+   */
+  enabled: boolean;
+  /**
+   * Network
+   *
+   * the mesh's addresses (mesh.network)
+   */
+  network: string;
+  /**
+   * Port
+   *
+   * the UDP port the primary listens on (mesh.port)
+   */
+  port: number;
+  /**
+   * Hosts
+   *
+   * where other machines reach that port (mesh.hosts); empty: where each joined
+   */
+  hosts: Array<string>;
+  /**
+   * Primary Ip
+   *
+   * this machine's address on the mesh
+   */
+  primary_ip: string;
+  /**
+   * the mesh's certificate authority, once made
+   */
+  ca?: MeshAuthority | null;
+  /**
+   * Nodes
+   *
+   * machines on the mesh besides this one
+   */
+  nodes: number;
+  /**
+   * Removed
+   *
+   * machines taken off it
+   */
+  removed: number;
+  /**
+   * Tokens
+   *
+   * join tokens that can still be used
+   */
+  tokens: number;
+  /**
+   * Nebula
+   *
+   * the Nebula version Lens runs
+   */
+  nebula: string;
+  /**
+   * Tools
+   *
+   * Nebula's programs are on this server (else they're fetched when first needed)
+   */
+  tools: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * MeshToken
+ */
+export type MeshToken = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Role
+   */
+  role: "worker" | "compute";
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Namespaces
+   */
+  namespaces?: Array<string>;
+  /**
+   * Expires At
+   */
+  expires_at?: string | null;
+  /**
+   * Uses
+   *
+   * how many machines may join with it
+   */
+  uses?: number;
+  /**
+   * Used
+   *
+   * how many have
+   */
+  used?: number;
+  /**
+   * Expired
+   */
+  expired?: boolean;
+  /**
+   * Created By
+   */
+  created_by?: string | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Last Used At
+   */
+  last_used_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * MeshTokenCreate
+ */
+export type MeshTokenCreate = {
+  /**
+   * Role
+   *
+   * worker: runs jobs against this install's database; compute: runs sandboxes only
+   */
+  role?: "worker" | "compute";
+  /**
+   * Name
+   *
+   * the name it shows as (none: the name the machine sends)
+   */
+  name?: string | null;
+  /**
+   * Namespaces
+   *
+   * the namespaces it serves (empty: every one)
+   */
+  namespaces?: Array<string>;
+  /**
+   * Hours
+   *
+   * how long the token can be used
+   */
+  hours?: number;
+  /**
+   * Uses
+   *
+   * how many machines may join with it
+   */
+  uses?: number;
+};
+
+/**
+ * MeshTokenCreated
+ */
+export type MeshTokenCreated = {
+  token: MeshToken;
+  /**
+   * Secret
+   *
+   * the join token itself, shown this once
+   */
+  secret: string;
+  /**
+   * Join Url
+   *
+   * this install's address the machine joins at
+   */
+  join_url: string;
+  [key: string]: unknown;
+};
+
+/**
  * MessageCreate
  */
 export type MessageCreate = {
@@ -15096,7 +15574,8 @@ export type PageContext = {
 /**
  * Passage
  *
- * A numbered excerpt an answer can cite: a moment of an asset, or a web page (`source` "web", with its `url`).
+ * A numbered excerpt an answer can cite: a moment of an asset, a web page (`source` "web", with its `url`), or a
+ * message or event of a connected account (`source` "mail" or "event", with its `url` in Gmail or Google Calendar).
  */
 export type Passage = {
   /**
@@ -15106,25 +15585,25 @@ export type Passage = {
   /**
    * Recording Id
    *
-   * the asset it's from; none for a web page, Lens's docs or this server's facts
+   * the asset it's from; none for a web page, Lens's docs, this server's facts, a message or an event
    */
   recording_id?: number | null;
   /**
    * Source
    *
-   * what it is: said (speech), page (a document's), screen (text shown in a video), memory, web, docs (Lens's docs) or server (this server's facts)
+   * what it is: said (speech), page (a document's), screen (text shown in a video), memory, web, docs (Lens's docs), server (this server's facts), mail or event (a connection's message or event)
    */
   source?: string | null;
   /**
    * Url
    *
-   * where it is when it isn't the archive's: a web page (web), a page of Lens's docs (docs) or this server (server); the citation opens it
+   * where it is when it isn't the archive's: a web page (web), a page of Lens's docs (docs), this server (server), or a message or event at its account (mail, event); the citation opens it
    */
   url?: string | null;
   /**
    * Site
    *
-   * a web page's site, like example.com
+   * a web page's site, like example.com; a message's or event's connection
    */
   site?: string | null;
   /**
@@ -46175,3 +46654,291 @@ export type WriteSpecResponses = {
 };
 
 export type WriteSpecResponse = WriteSpecResponses[keyof WriteSpecResponses];
+
+export type MeshStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/mesh";
+};
+
+export type MeshStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: MeshStatus;
+};
+
+export type MeshStatusResponse = MeshStatusResponses[keyof MeshStatusResponses];
+
+export type MeshNodesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/mesh/nodes";
+};
+
+export type MeshNodesResponses = {
+  /**
+   * Response Mesh-Mesh Nodes
+   *
+   * Successful Response
+   */
+  200: Array<MeshNode>;
+};
+
+export type MeshNodesResponse = MeshNodesResponses[keyof MeshNodesResponses];
+
+export type RemoveNodeData = {
+  body?: never;
+  path: {
+    /**
+     * Node Id
+     */
+    node_id: number;
+  };
+  query?: never;
+  url: "/api/v1/mesh/nodes/{node_id}";
+};
+
+export type RemoveNodeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveNodeError = RemoveNodeErrors[keyof RemoveNodeErrors];
+
+export type RemoveNodeResponses = {
+  /**
+   * Successful Response
+   */
+  200: MeshNode;
+};
+
+export type RemoveNodeResponse = RemoveNodeResponses[keyof RemoveNodeResponses];
+
+export type ChangeNodeData = {
+  body: MeshNodeChange;
+  path: {
+    /**
+     * Node Id
+     */
+    node_id: number;
+  };
+  query?: never;
+  url: "/api/v1/mesh/nodes/{node_id}";
+};
+
+export type ChangeNodeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ChangeNodeError = ChangeNodeErrors[keyof ChangeNodeErrors];
+
+export type ChangeNodeResponses = {
+  /**
+   * Successful Response
+   */
+  200: MeshNode;
+};
+
+export type ChangeNodeResponse = ChangeNodeResponses[keyof ChangeNodeResponses];
+
+export type RestoreNodeData = {
+  body?: never;
+  path: {
+    /**
+     * Node Id
+     */
+    node_id: number;
+  };
+  query?: never;
+  url: "/api/v1/mesh/nodes/{node_id}/restore";
+};
+
+export type RestoreNodeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RestoreNodeError = RestoreNodeErrors[keyof RestoreNodeErrors];
+
+export type RestoreNodeResponses = {
+  /**
+   * Successful Response
+   */
+  200: MeshNode;
+};
+
+export type RestoreNodeResponse = RestoreNodeResponses[keyof RestoreNodeResponses];
+
+export type MeshTokensData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/mesh/tokens";
+};
+
+export type MeshTokensResponses = {
+  /**
+   * Response Mesh-Mesh Tokens
+   *
+   * Successful Response
+   */
+  200: Array<MeshToken>;
+};
+
+export type MeshTokensResponse = MeshTokensResponses[keyof MeshTokensResponses];
+
+export type MakeMeshTokenData = {
+  body: MeshTokenCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/mesh/tokens";
+};
+
+export type MakeMeshTokenErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type MakeMeshTokenError = MakeMeshTokenErrors[keyof MakeMeshTokenErrors];
+
+export type MakeMeshTokenResponses = {
+  /**
+   * Successful Response
+   */
+  200: MeshTokenCreated;
+};
+
+export type MakeMeshTokenResponse = MakeMeshTokenResponses[keyof MakeMeshTokenResponses];
+
+export type WithdrawMeshTokenData = {
+  body?: never;
+  path: {
+    /**
+     * Token Id
+     */
+    token_id: number;
+  };
+  query?: never;
+  url: "/api/v1/mesh/tokens/{token_id}";
+};
+
+export type WithdrawMeshTokenErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type WithdrawMeshTokenError = WithdrawMeshTokenErrors[keyof WithdrawMeshTokenErrors];
+
+export type WithdrawMeshTokenResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type WithdrawMeshTokenResponse = WithdrawMeshTokenResponses[keyof WithdrawMeshTokenResponses];
+
+export type JoinMeshData = {
+  body: MeshJoin;
+  path?: never;
+  query?: never;
+  url: "/api/v1/mesh/join";
+};
+
+export type JoinMeshErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type JoinMeshError = JoinMeshErrors[keyof JoinMeshErrors];
+
+export type JoinMeshResponses = {
+  /**
+   * Successful Response
+   */
+  200: MeshJoined;
+};
+
+export type JoinMeshResponse = JoinMeshResponses[keyof JoinMeshResponses];
+
+export type NodeConfigData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/mesh/node/config";
+};
+
+export type NodeConfigResponses = {
+  /**
+   * Successful Response
+   */
+  200: MeshNodeConfig;
+};
+
+export type NodeConfigResponse = NodeConfigResponses[keyof NodeConfigResponses];
+
+export type RenewNodeData = {
+  body: MeshRenew;
+  path?: never;
+  query?: never;
+  url: "/api/v1/mesh/node/renew";
+};
+
+export type RenewNodeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RenewNodeError = RenewNodeErrors[keyof RenewNodeErrors];
+
+export type RenewNodeResponses = {
+  /**
+   * Successful Response
+   */
+  200: MeshNodeConfig;
+};
+
+export type RenewNodeResponse = RenewNodeResponses[keyof RenewNodeResponses];
+
+export type NodeBeatData = {
+  body: MeshBeat;
+  path?: never;
+  query?: never;
+  url: "/api/v1/mesh/node/beat";
+};
+
+export type NodeBeatErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type NodeBeatError = NodeBeatErrors[keyof NodeBeatErrors];
+
+export type NodeBeatResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type NodeBeatResponse = NodeBeatResponses[keyof NodeBeatResponses];
