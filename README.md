@@ -241,7 +241,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   groups over the API, MCP and the assistant, and never approve one. It runs more workers on this machine today;
   AWS EC2 (spot or on demand), DigitalOcean, Hetzner Cloud, Proxmox VE and Linux hosts over SSH providers are in
   progress (built, with machines that join over the mesh to transcribe and tell voices apart, not yet tried on a real
-  cloud), so is RunPod for GPUs serving a model, and more model hosts are planned. ([Auto scaling](docs/scaling.md);
+  cloud), so is RunPod for GPUs that serve Lens's model calls while they run, and more model hosts are planned.
+  ([Auto scaling](docs/scaling.md);
   [checks](docs/requirements.md#scale-out))
 - **Run on more machines.** Add a Mac with a GPU, a box for the assistant's code or a server with more disk, and
   Lens joins it over a private network of its own, a Nebula mesh it issues the certificates for: one install line
@@ -319,8 +320,8 @@ Next, and not in a pull request yet; each links to where it is tracked:
   topics, recordings and the other things that have pages ([notes](docs/notes.md)).
 - **Local models:** GPU builds of llama.cpp fetched by Lens, and local embedding models
   ([local models](docs/local-models.md)).
-- **Auto scaling:** model groups serving Lens's model calls, more model hosts (Lambda, Hugging Face, SageMaker,
-  Bedrock), and making providers and groups in Settings ([auto scaling](docs/scaling.md)).
+- **Auto scaling:** spreading model calls across GPUs, more model hosts (Lambda, Hugging Face, SageMaker, Bedrock),
+  and making providers and groups in Settings ([auto scaling](docs/scaling.md)).
 - **Speech providers:** their summaries, chapters and entities as optional imports, and per-minute prices in the
   activity ledger ([speech providers](docs/speech-providers.md)).
 - **Storage:** uploads and assets' media in the file store, and a storage key to download

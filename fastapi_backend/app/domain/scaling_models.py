@@ -45,6 +45,12 @@ class RunPod(Rest):
         "interruptible": _field("Spot", "boolean", default=False, help="cheaper, but RunPod may stop the pod at any time"),
         "image": _field("Image", default=VLLM_IMAGE, help="a vLLM OpenAI-compatible server image"),
         "args": _field("vLLM options", "list", help="more of vLLM's options, like --quantization awq"),
+        "use_as_provider": _field(
+            "Serve Lens's model calls",
+            "boolean",
+            default=True,
+            help="while a unit runs, it is the LLM provider; the one set before comes back when none runs",
+        ),
     }
     probe: httpx.BaseTransport | None = None  # tests hand in an httpx.MockTransport for the pods' own addresses
 
