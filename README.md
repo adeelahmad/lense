@@ -137,9 +137,10 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   browser](docs/assistant.md#the-browser), [optional containers](docs/assistant.md#optional-containers);
   [checks](docs/requirements.md#extend-the-assistant))
 - **Bring in everything.** Watched folders on S3, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV or local disks (a
-  local folder in four clicks); IMAP mail, Gmail and Google Workspace, iCal calendars, Google Calendar and RSS and Atom
-  news feeds; a built-in MQTT broker, syslog and webhook streams; import webhooks for scanners and phone shortcuts, which can
-  hand back the PDFs of Office files and emails a light server can't convert itself.
+  local folder in four clicks); IMAP mail, Gmail and Google Workspace (routing rules send a shared inbox's mail to the
+  right namespaces), iCal calendars, Google Calendar and RSS and Atom news feeds; a built-in MQTT broker, syslog and
+  webhook streams; import webhooks for scanners and phone shortcuts, which can hand back the PDFs of Office files and
+  emails a light server can't convert itself.
   Google accounts connect with Connect with Google once Lens has a Google client, and Dropbox, OneDrive and Google
   Drive can sign in through rclone on the Lens server, with no app of your own to register. Upload audio, video, PDFs,
   Office files, photos, JSON and zip or tar archives, and, with an Apache Tika server (an opt-in extra), documents

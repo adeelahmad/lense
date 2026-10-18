@@ -23230,6 +23230,63 @@
         }
       }
     },
+    "/api/v1/sources/{sid}/routes": {
+      "put": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Set Shared Routes",
+        "description": "Save an email account's shared routing rules, which every watch on it tries after its own (none: unchanged\nbehaviour). They apply to messages that arrive after they're saved.",
+        "operationId": "set_shared_routes",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SharedRoutes"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RouteView"
+                  },
+                  "title": "Response Sources-Set Shared Routes"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sources/rclone-signin": {
       "post": {
         "tags": [
@@ -73635,7 +73692,8 @@
           "namespace": {
             "type": "string",
             "title": "Namespace",
-            "description": "the watch's own namespace, for messages no rule matches"
+            "description": "the watch's own namespace, for messages no rule matches",
+            "default": ""
           },
           "routes": {
             "items": {
@@ -73643,14 +73701,29 @@
             },
             "type": "array",
             "title": "Routes",
+            "description": "the watch's own rules",
             "default": []
+          },
+          "shared_routes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Route"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shared Routes",
+            "description": "the account's shared rules to try after the watch's; left out, the saved ones"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "source",
-          "namespace"
+          "source"
         ],
         "title": "RoutePreviewRequest"
       },
@@ -73772,7 +73845,13 @@
               }
             ],
             "title": "Rule",
-            "description": "the rule that decided, counted from 1; None: no rule matched"
+            "description": "the rule that decided, counted from 1 in its list; None: no rule matched"
+          },
+          "shared": {
+            "type": "boolean",
+            "title": "Shared",
+            "description": "the rule that decided is one of the account's shared rules",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -78489,6 +78568,22 @@
         "title": "SharedContext",
         "description": "What a question shared from the page it was asked on. The page's text itself isn't kept."
       },
+      "SharedRoutes": {
+        "properties": {
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/Route"
+            },
+            "type": "array",
+            "title": "Routes",
+            "description": "an email account's shared routing rules: every watch on the account tries its own rules first, then these, in order; a message none matches goes to the watch's namespace. They're written like a watch's rules.",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SharedRoutes"
+      },
       "SigninLink": {
         "properties": {
           "url": {
@@ -79206,6 +79301,15 @@
             "type": "integer",
             "title": "Watches",
             "default": 0
+          },
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/RouteView"
+            },
+            "type": "array",
+            "title": "Routes",
+            "description": "an email account's shared routing rules, used by every watch on it after its own",
+            "default": []
           }
         },
         "additionalProperties": true,

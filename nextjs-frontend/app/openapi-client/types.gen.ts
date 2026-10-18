@@ -21977,11 +21977,19 @@ export type RoutePreviewRequest = {
    *
    * the watch's own namespace, for messages no rule matches
    */
-  namespace: string;
+  namespace?: string;
   /**
    * Routes
+   *
+   * the watch's own rules
    */
   routes?: Array<Route>;
+  /**
+   * Shared Routes
+   *
+   * the account's shared rules to try after the watch's; left out, the saved ones
+   */
+  shared_routes?: Array<Route> | null;
 };
 
 /**
@@ -22046,9 +22054,15 @@ export type RoutedMessage = {
   /**
    * Rule
    *
-   * the rule that decided, counted from 1; None: no rule matched
+   * the rule that decided, counted from 1 in its list; None: no rule matched
    */
   rule?: number | null;
+  /**
+   * Shared
+   *
+   * the rule that decided is one of the account's shared rules
+   */
+  shared?: boolean;
   [key: string]: unknown;
 };
 
@@ -24705,6 +24719,18 @@ export type SharedContext = {
 };
 
 /**
+ * SharedRoutes
+ */
+export type SharedRoutes = {
+  /**
+   * Routes
+   *
+   * an email account's shared routing rules: every watch on the account tries its own rules first, then these, in order; a message none matches goes to the watch's namespace. They're written like a watch's rules.
+   */
+  routes?: Array<Route>;
+};
+
+/**
  * SigninLink
  */
 export type SigninLink = {
@@ -25171,6 +25197,12 @@ export type Source = {
    * Watches
    */
   watches?: number;
+  /**
+   * Routes
+   *
+   * an email account's shared routing rules, used by every watch on it after its own
+   */
+  routes?: Array<RouteView>;
   [key: string]: unknown;
 };
 
@@ -43701,6 +43733,38 @@ export type UpdateSourceResponses = {
 };
 
 export type UpdateSourceResponse = UpdateSourceResponses[keyof UpdateSourceResponses];
+
+export type SetSharedRoutesData = {
+  body: SharedRoutes;
+  path: {
+    /**
+     * Sid
+     */
+    sid: number;
+  };
+  query?: never;
+  url: "/api/v1/sources/{sid}/routes";
+};
+
+export type SetSharedRoutesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetSharedRoutesError = SetSharedRoutesErrors[keyof SetSharedRoutesErrors];
+
+export type SetSharedRoutesResponses = {
+  /**
+   * Response Sources-Set Shared Routes
+   *
+   * Successful Response
+   */
+  200: Array<RouteView>;
+};
+
+export type SetSharedRoutesResponse = SetSharedRoutesResponses[keyof SetSharedRoutesResponses];
 
 export type StartRcloneSigninData = {
   body: RcloneSignInStart;

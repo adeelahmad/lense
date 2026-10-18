@@ -10,7 +10,11 @@ ignore case; one without * or ? matches anywhere in the text (`acme.com` matches
 match all of it (`*@acme.com`). `to` covers To, Cc and the address the inbox received the message at (Delivered-To,
 X-Original-To), which is how mail sent to an alias of a shared inbox is told apart.
 
-Rules are kept on the watch with namespace ids (a renamed namespace keeps its mail), and shown with names.
+An email account (the source) can carry shared rules too, which every watch on it uses: an admin writes the
+account's policy once (support@ to support, newsletters skipped) instead of copying it onto each mailbox's watch. A
+watch's own rules are tried first, then the account's, then the message goes to the watch's namespace (`decide`).
+
+Rules are kept with namespace ids (a renamed namespace keeps its mail), and shown with names.
 """
 
 from __future__ import annotations
@@ -108,6 +112,16 @@ def route(rules, mail, home, spaces):
                 return None, i
             return (r["space"], i) if r.get("space") in spaces else (home, i)
     return home, None
+
+
+def decide(own, shared, mail, home, spaces):
+    """Where a message goes under a watch's own rules, then its account's shared ones: (namespace id, or None to skip
+    it; the number of the rule that decided, within its list, or None; whether that rule is a shared one)."""
+    space, n = route(own, mail, home, spaces)
+    if n is not None or not shared:
+        return space, n, False
+    space, n = route(shared, mail, home, spaces)
+    return space, n, n is not None
 
 
 # ---------- rules written as lines (the assistant's mailbox: mailbox.py) ----------
