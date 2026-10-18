@@ -29,7 +29,9 @@ in PowerShell; or skip the terminal and double-click the launcher for your syste
 [Lens.app](docs/get-started.md#the-mac-app) from the same release installs Lens, runs it without Docker and keeps it in
 the menu bar (built, early: not signed yet).
 [Deployment](docs/deployment.md) covers servers and Cloudron; there are also packages for
-[Synology](packaging/synology/README.md), [QNAP](packaging/qnap/README.md) and [Proxmox](proxmox/README.md).
+[Synology](packaging/synology/README.md), [QNAP](packaging/qnap/README.md) and [Proxmox](proxmox/README.md), and each
+release publishes Lens's images for amd64 and arm64 (a Raspberry Pi) to GHCR ([prebuilt
+images](docs/deployment.md#prebuilt-images)).
 The [checks](docs/requirements.md#install) say which of these CI proves.
 
 To work on the code instead, `make run` builds and runs everything from a checkout, `make setup-code` prints the
@@ -86,7 +88,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   cost), opened from its header. It reads answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine
   (opt-in), any message in one click. Long conversations are summarised before they fill the model's context, and
   `/clear` and `/compact` start afresh or summarise now. Conversations title themselves after their first answer, unless
-  you name them. Each namespace can have its own assistant with
+  you name them. It answers questions about Lens itself, from its docs and this server
+  ([Questions about Lens itself](docs/assistant.md#questions-about-lens-itself)). Each namespace can have its own assistant with
   its own name, instructions and memory, answering in Telegram and Slack (built in, with voice notes and files), in
   Discord, Matrix, WhatsApp and other chat rooms through Matterbridge, and by email at an address of its own that you
   email or forward things to. ([Chat](docs/assistant.md), [web search](docs/assistant.md#web-search-and-reading-pages),
@@ -167,7 +170,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   namespaces) and let a decision model pick the branch, then tell you in
   your own chat app, ask the model or the agent, use a tool, call a web address (its credentials kept sealed), run a
   workflow, pipeline or routine, or change assets and notes. A Classify node in a workflow sorts an asset into labels,
-  content types or topics, acting only on a sure answer. Anything that reaches outside Lens or changes more than what
+  content types or topics, acting only on a sure answer, and an Entity filter node keeps the entities you want. Anything that reaches outside Lens or changes more than what
   set it off asks first, until you let it run on its own: on the Approvals page or, for a change inside Lens, with a yes
   in the chat it told you in; agents can decline an approval but never give one. Each automation has limits and budgets,
   and agents make, try and run them over MCP and in the assistant, or draft one from a sentence; the studio to draw them
@@ -240,8 +243,6 @@ still loading. ([Components](docs/components.md),
 
 These are open pull requests, not yet part of Lens:
 
-- **The assistant** answering questions about Lens itself, from its docs and this server
-  ([#400](https://github.com/adeelahmad/lense/pull/400)).
 - **Chat:** a conversation exported as Markdown, PDF or JSON ([#474](https://github.com/adeelahmad/lense/pull/474)).
 - **Pictures:** low-quality images enhanced before they're read ([#479](https://github.com/adeelahmad/lense/pull/479)).
 - **Web clipper:** signing in, or using your API token, not only an import webhook's

@@ -1,4 +1,4 @@
-"""The workflow engine: ports, switch, set and template, loops (for each, repeat), groups, custom nodes (made of
+"""The workflow engine: ports, switch, set and template, entity filters, loops (for each, repeat), groups, custom nodes (made of
 primitives, versioned, pinned, private or shared) and dry runs from the canvas."""
 
 from __future__ import annotations
@@ -130,6 +130,47 @@ def test_for_each_and_repeat(db, cfg, rec):
             run(db, cfg, rec, graph)
     finally:
         flow.MAX_STEPS = old
+
+
+def test_entity_filter_keeps_the_entities_asked_for(db, cfg, rec):
+    ents = [
+        {"name": "Alice", "type": "PERSON", "seg": 0},
+        {"name": "alice ", "type": "PERSON", "seg": 2},
+        {"name": "Dave", "type": "PERSON", "seg": 1},
+        {"name": "Q", "type": "TERM", "seg": 1},
+        {"name": "Acme Corp", "type": "ORG", "mentions": 5},
+        {"name": "Friday", "type": "DATE", "seg": 0},
+        "not an entity",
+    ]
+    keep = lambda **c: [e["name"] for e in flow.entity_filter(c, ents)]  # noqa: E731
+    assert keep() == ["Alice", "alice ", "Dave", "Q", "Acme Corp", "Friday"]
+    assert keep(types=["PERSON", "ORG"]) == ["Alice", "alice ", "Dave", "Acme Corp"]
+    assert keep(skip_types=["DATE", "TERM"], skip_names=["DAVE"]) == ["Alice", "alice ", "Acme Corp"]
+    assert keep(min_mentions=2) == ["Alice", "alice ", "Acme Corp"]  # said twice, or counted by extraction
+    assert keep(min_length=5, pattern="^a") == ["Alice", "alice ", "Acme Corp"]  # case aside, Q too short
+    assert flow.entity_filter({}, "text") == []
+
+    # on the canvas: between extraction and saving, and checked like the rest
+    graph = g(
+        [
+            node("in", "input"),
+            node("rules", "extract_rules", terms=["Capsid|PRODUCT"]),
+            node("people", "entity_filter", types=["PERSON", "PRODUCT"], skip_names=["capsid"]),
+            node("o", "output", key="people"),
+        ],
+        [edge("in", "rules"), edge("rules", "people"), edge("people", "o")],
+    )
+    run(db, cfg, rec, graph)
+    assert {e["name"] for e in outputs(db, rec)["people"]} == {"Dave"}
+    for bad, said in (
+        ({"types": ["person"]}, "names in capitals"),
+        ({"skip_names": [""]}, "lines of text"),
+        ({"pattern": "(a+)+"}, "repeats a part"),
+        ({"min_mentions": 0}, "whole number from 1"),
+    ):
+        graph["nodes"][2]["config"] = bad
+        with pytest.raises(ValueError, match=said):
+            workflows.validate_graph(db, graph)
 
 
 def test_graphs_are_checked(db):
