@@ -119,6 +119,7 @@ dev = [
     "kokoro-onnx>=0.6.1,<0.7",  # Kokoro's tests phonemize with espeak-ng and read with a tiny Kokoro-shaped model
     "pywebrtc-audio>=0.2.0,<0.3",  # the clean_audio step's WebRTC audio processing, tested on synthetic audio
     "python-vaultwarden>=1.1.2,<2",  # the Vaultwarden client, tested against a fake Vaultwarden
+    "moto[ec2]>=5.1,<6",
 ]
 
 [tool.hatch.build.targets.wheel]

@@ -13,15 +13,12 @@
    "BaseContainer": {
     "properties": {
      "healthRoute": {
-      "description": "Container health route",
-      "example": "/health",
       "type": [
        "string",
        "null"
       ]
      },
      "port": {
-      "description": "Endpoint API port. If not specified, uses the container's default port.",
       "example": 80,
       "format": "int32",
       "minimum": 0,
@@ -31,8 +28,6 @@
       ]
      },
      "url": {
-      "description": "URL for the container",
-      "example": "https://host/image:tag",
       "type": "string"
      }
     },
@@ -45,7 +40,6 @@
     "properties": {
      "maxBatchPrefillTokens": {
       "deprecated": true,
-      "description": "Deprecated: set `--max-batch-prefill-tokens` in `args`",
       "example": 2048,
       "format": "int32",
       "minimum": 0,
@@ -56,7 +50,6 @@
      },
      "maxBatchTotalTokens": {
       "deprecated": true,
-      "description": "Deprecated: set `--max-batch-total-tokens` in `args`",
       "example": 2048,
       "format": "int32",
       "minimum": 0,
@@ -67,7 +60,6 @@
      },
      "maxInputLength": {
       "deprecated": true,
-      "description": "Deprecated: set `--max-input-length` (`--max-input-tokens` on Neuron) in `args`",
       "example": 1024,
       "format": "int32",
       "minimum": 0,
@@ -78,7 +70,6 @@
      },
      "maxTotalTokens": {
       "deprecated": true,
-      "description": "Deprecated: set `--max-total-tokens` in `args`",
       "example": 1512,
       "format": "int32",
       "minimum": 0,
@@ -91,19 +82,14 @@
     "type": "object"
    },
    "Compute": {
-    "description": "Hardware configuration for endpoint replicas",
     "properties": {
      "accelerator": {
-      "$ref": "#/components/schemas/Accelerator",
-      "description": "Hardware accelerator type (cpu, gpu, neuron)"
+      "$ref": "#/components/schemas/Accelerator"
      },
      "architecture": {
-      "description": "Hardware architecture description",
-      "example": "NVIDIA T4",
       "type": "string"
      },
      "gpuMemoryGb": {
-      "description": "GPU memory per accelerator in GB",
       "example": 16,
       "format": "int32",
       "minimum": 0,
@@ -113,35 +99,26 @@
       ]
      },
      "id": {
-      "description": "Unique compute identifier (vendor-region-type-size)",
-      "example": "aws-us-east-1-nvidia-t4-x1",
       "type": "string"
      },
      "instanceSize": {
-      "description": "Instance size multiplier",
-      "example": "x1",
       "type": "string"
      },
      "instanceType": {
-      "description": "Instance type identifier",
-      "example": "nvidia-t4",
       "type": "string"
      },
      "memoryGb": {
-      "description": "RAM per replica in GB",
       "example": 16.0,
       "format": "float",
       "type": "number"
      },
      "numAccelerators": {
-      "description": "Number of accelerator units per replica",
       "example": 1,
       "format": "int32",
       "minimum": 0,
       "type": "integer"
      },
      "numCpus": {
-      "description": "Number of vCPUs per replica",
       "example": 4,
       "format": "int32",
       "minimum": 0,
@@ -151,18 +128,15 @@
       ]
      },
      "pricePerHour": {
-      "description": "Cost per replica per hour (USD)",
       "example": 0.6,
       "format": "float",
       "type": "number"
      },
      "quota": {
-      "$ref": "#/components/schemas/ComputeQuota",
-      "description": "Usage quota for this compute type"
+      "$ref": "#/components/schemas/ComputeQuota"
      },
      "status": {
-      "$ref": "#/components/schemas/ComputeStatus",
-      "description": "Availability status"
+      "$ref": "#/components/schemas/ComputeStatus"
      }
     },
     "required": [
@@ -180,17 +154,14 @@
     "type": "object"
    },
    "ComputeQuota": {
-    "description": "Accelerator quota limits and current usage",
     "properties": {
      "maxAccelerators": {
-      "description": "Maximum accelerators allowed for this compute type",
       "example": 10,
       "format": "int32",
       "minimum": 0,
       "type": "integer"
      },
      "usedAccelerators": {
-      "description": "Currently allocated accelerators",
       "example": 3,
       "format": "int32",
       "minimum": 0,
@@ -226,32 +197,27 @@
           "type": "null"
          },
          {
-          "$ref": "#/components/schemas/EndpointImageCredentials",
-          "description": "Credentials to download the image"
+          "$ref": "#/components/schemas/EndpointImageCredentials"
          }
         ]
        }
       },
       "type": "object"
      }
-    ],
-    "description": "Model served by a custom container"
+    ]
    },
    "CustomRouterFeature": {
-    "description": "Custom-router sidecar configuration",
     "properties": {
      "env": {
       "additionalProperties": {
        "type": "string"
       },
-      "description": "Additional environment variables to set on the custom-router sidecar",
       "propertyNames": {
        "type": "string"
       },
       "type": "object"
      },
      "grpcPort": {
-      "description": "Port of the sidecar's Envoy `ExternalProcessor` gRPC service, used with `protocol: extProc`.\nDefaults to 9002.",
       "format": "int32",
       "minimum": 0,
       "type": [
@@ -260,7 +226,6 @@
       ]
      },
      "port": {
-      "description": "Port the custom-router sidecar listens on. Defaults to 3000.",
       "format": "int32",
       "minimum": 0,
       "type": [
@@ -269,11 +234,9 @@
       ]
      },
      "protocol": {
-      "$ref": "#/components/schemas/CustomRouterProtocol",
-      "description": "How the proxy hands requests to the sidecar. Defaults to `http`."
+      "$ref": "#/components/schemas/CustomRouterProtocol"
      },
      "tag": {
-      "description": "Custom-router sidecar image tag. When null or absent, the custom router is removed.",
       "type": [
        "string",
        "null"
@@ -290,18 +253,15 @@
     "type": "string"
    },
    "Empty": {
-    "description": "Empty",
     "type": "object"
    },
    "Endpoint": {
-    "description": "Endpoint",
     "properties": {
      "cacheHttpResponses": {
       "type": "boolean"
      },
      "compute": {
-      "$ref": "#/components/schemas/EndpointCompute",
-      "description": "Compute resources allocated for each endpoint replica"
+      "$ref": "#/components/schemas/EndpointCompute"
      },
      "customRouter": {
       "oneOf": [
@@ -309,22 +269,17 @@
         "type": "null"
        },
        {
-        "$ref": "#/components/schemas/CustomRouterFeature",
-        "description": "Use a custom-router sidecar to load balance requests between replicas"
+        "$ref": "#/components/schemas/CustomRouterFeature"
        }
       ]
      },
      "experimentalFeatures": {
-      "$ref": "#/components/schemas/ExperimentalFeatures",
-      "description": "Experimental features, may be accessible on demand"
+      "$ref": "#/components/schemas/ExperimentalFeatures"
      },
      "model": {
-      "$ref": "#/components/schemas/EndpointModel",
-      "description": "Model served by the endpoint"
+      "$ref": "#/components/schemas/EndpointModel"
      },
      "name": {
-      "description": "Endpoint name. Must only contains lowercase alphanumeric characters or '-' and have a length of 32 characters\nmaximum",
-      "example": "my-endpoint",
       "type": "string"
      },
      "network": {
@@ -333,14 +288,12 @@
         "type": "null"
        },
        {
-        "$ref": "#/components/schemas/NetworkSpec",
-        "description": "Network specification"
+        "$ref": "#/components/schemas/NetworkSpec"
        }
       ]
      },
      "notifications": {
-      "$ref": "#/components/schemas/EndpointNotifications",
-      "description": "Configure endpoint events notifications"
+      "$ref": "#/components/schemas/EndpointNotifications"
      },
      "privateService": {
       "oneOf": [
@@ -348,14 +301,12 @@
         "type": "null"
        },
        {
-        "$ref": "#/components/schemas/EndpointPrivateService",
-        "description": "Endpoint private service specification (for private endpoints only)"
+        "$ref": "#/components/schemas/EndpointPrivateService"
        }
       ]
      },
      "provider": {
-      "$ref": "#/components/schemas/EndpointProvider",
-      "description": "Provider on which the endpoint is deployed"
+      "$ref": "#/components/schemas/EndpointProvider"
      },
      "route": {
       "oneOf": [
@@ -363,21 +314,18 @@
         "type": "null"
        },
        {
-        "$ref": "#/components/schemas/RouteSpec",
-        "description": "Route spec for multipath routing behind a custom domain"
+        "$ref": "#/components/schemas/RouteSpec"
        }
       ]
      },
      "tags": {
-      "description": "Endpoint tags",
       "items": {
        "type": "string"
       },
       "type": "array"
      },
      "type": {
-      "$ref": "#/components/schemas/EndpointType",
-      "description": "Endpoint type"
+      "$ref": "#/components/schemas/EndpointType"
      }
     },
     "required": [
@@ -390,14 +338,11 @@
     "type": "object"
    },
    "EndpointAccount": {
-    "description": "Account",
     "properties": {
      "id": {
-      "description": "Account id",
       "type": "string"
      },
      "name": {
-      "description": "Account name",
       "type": "string"
      }
     },
@@ -408,31 +353,24 @@
     "type": "object"
    },
    "EndpointCompute": {
-    "description": "Endpoint compute",
     "properties": {
      "accelerator": {
-      "$ref": "#/components/schemas/Accelerator",
-      "description": "Accelerator type"
+      "$ref": "#/components/schemas/Accelerator"
      },
      "id": {
-      "description": "Only informational, ignored at specification",
       "type": [
        "string",
        "null"
       ]
      },
      "instanceSize": {
-      "example": "x1",
       "type": "string"
      },
      "instanceType": {
-      "description": "Compute instance type",
-      "example": "intel-spr",
       "type": "string"
      },
      "scaling": {
-      "$ref": "#/components/schemas/EndpointScaling",
-      "description": "Scaling"
+      "$ref": "#/components/schemas/EndpointScaling"
      }
     },
     "required": [
@@ -444,7 +382,6 @@
     "type": "object"
    },
    "EndpointFramework": {
-    "description": "ML framework used by the model",
     "enum": [
      "custom",
      "pytorch",
@@ -453,7 +390,6 @@
     "type": "string"
    },
    "EndpointImageCredentials": {
-    "description": "Model served by the endpoint",
     "properties": {
      "password": {
       "oneOf": [
@@ -466,7 +402,6 @@
       ]
      },
      "username": {
-      "description": "Registry username",
       "type": "string"
      }
     },
@@ -477,7 +412,6 @@
     "type": "object"
    },
    "EndpointLoadBalancerStrategy": {
-    "description": "Load balancer strategy for distributing requests across replicas",
     "enum": [
      "random",
      "sticky",
@@ -486,10 +420,8 @@
     "type": "string"
    },
    "EndpointModel": {
-    "description": "Model and container configuration",
     "properties": {
      "args": {
-      "description": "Arguments passed to the container command",
       "items": {
        "type": "string"
       },
@@ -499,7 +431,6 @@
       ]
      },
      "command": {
-      "description": "Override container entrypoint command",
       "items": {
        "type": "string"
       },
@@ -512,38 +443,27 @@
       "additionalProperties": {
        "type": "string"
       },
-      "description": "Environment variables",
-      "example": {
-       "MAX_CONCURRENT_REQUESTS": "128"
-      },
       "propertyNames": {
        "type": "string"
       },
       "type": "object"
      },
      "framework": {
-      "$ref": "#/components/schemas/EndpointFramework",
-      "description": "ML framework"
+      "$ref": "#/components/schemas/EndpointFramework"
      },
      "fromCatalog": {
-      "description": "Indicates the endpoint was created from a catalog template",
       "type": [
        "boolean",
        "null"
       ]
      },
      "image": {
-      "$ref": "#/components/schemas/EndpointModelImage",
-      "description": "Container image configuration"
+      "$ref": "#/components/schemas/EndpointModelImage"
      },
      "repository": {
-      "description": "HuggingFace model repository (e.g., \"meta-llama/Llama-2-7b-hf\")",
-      "example": "meta-llama/Llama-2-7b-hf",
       "type": "string"
      },
      "revision": {
-      "description": "Git commit SHA or branch name (defaults to latest main)",
-      "example": "main",
       "type": [
        "string",
        "null"
@@ -556,18 +476,13 @@
         "null"
        ]
       },
-      "description": "Secret environment variables (values are encrypted at rest)",
-      "example": {
-       "HF_TOKEN": "hf_xxx"
-      },
       "propertyNames": {
        "type": "string"
       },
       "type": "object"
      },
      "task": {
-      "$ref": "#/components/schemas/EndpointTask",
-      "description": "Model task type for inference"
+      "$ref": "#/components/schemas/EndpointTask"
      }
     },
     "required": [
@@ -714,14 +629,11 @@
     ]
    },
    "EndpointNotifications": {
-    "description": "Endpoint notifications configuration",
     "properties": {
      "email": {
-      "description": "Enable email notifications",
       "type": "boolean"
      },
      "push": {
-      "description": "Enable front push notifications",
       "type": "boolean"
      }
     },
@@ -732,19 +644,14 @@
     "type": "object"
    },
    "EndpointPrivateService": {
-    "description": "AWS PrivateLink configuration for VPC-connected endpoints",
     "properties": {
      "accountId": {
-      "description": "AWS account ID allowed to connect via PrivateLink",
-      "example": "123456789012",
       "type": "string"
      },
      "region": {
-      "$ref": "#/components/schemas/PrivateLinkRegion",
-      "description": "AWS region of the PrivateLink entry point, independent of where the endpoint computes"
+      "$ref": "#/components/schemas/PrivateLinkRegion"
      },
      "shared": {
-      "description": "Share the PrivateLink service across all endpoints for this owner (reduces costs)",
       "type": "boolean"
      }
     },
@@ -755,16 +662,11 @@
     "type": "object"
    },
    "EndpointProvider": {
-    "description": "Endpoint provider",
     "properties": {
      "region": {
-      "description": "Provider region",
-      "example": "us-east-1",
       "type": "string"
      },
      "vendor": {
-      "description": "Provider vendor",
-      "example": "aws",
       "type": "string"
      }
     },
@@ -775,10 +677,8 @@
     "type": "object"
    },
    "EndpointScaling": {
-    "description": "Autoscaling configuration",
     "properties": {
      "maxReplica": {
-      "description": "Maximum number of replicas",
       "example": 4,
       "format": "int32",
       "minimum": 0,
@@ -790,20 +690,17 @@
         "type": "null"
        },
        {
-        "$ref": "#/components/schemas/ScalingMeasure",
-        "description": "Scaling metric and threshold"
+        "$ref": "#/components/schemas/ScalingMeasure"
        }
       ]
      },
      "minReplica": {
-      "description": "Minimum number of replicas (set to 0 to enable scale-to-zero)",
       "example": 1,
       "format": "int32",
       "minimum": 0,
       "type": "integer"
      },
      "scaleToZeroTimeout": {
-      "description": "Minutes of inactivity before scaling to zero (default: 15, requires minReplica=0)",
       "example": 15,
       "format": "int32",
       "minimum": 0,
@@ -813,7 +710,6 @@
       ]
      },
      "schedule": {
-      "description": "Daily scaling schedule (UTC): the entry in effect replaces minReplica, maxReplica and scaleToZeroTimeout",
       "items": {
        "$ref": "#/components/schemas/ScalingScheduleEntry"
       },
@@ -830,7 +726,6 @@
     "type": "object"
    },
    "EndpointState": {
-    "description": "State of the endpoint",
     "enum": [
      "pending",
      "initializing",
@@ -844,37 +739,30 @@
     "type": "string"
    },
    "EndpointStatus": {
-    "description": "Status of the endpoint",
     "properties": {
      "agentMessage": {
-      "description": "Diagnostic message generated by the debugger agent",
       "type": [
        "string",
        "null"
       ]
      },
      "createdAt": {
-      "description": "Date of creation",
       "format": "date-time",
       "type": "string"
      },
      "createdBy": {
-      "$ref": "#/components/schemas/EndpointAccount",
-      "description": "User who created the endpoint"
+      "$ref": "#/components/schemas/EndpointAccount"
      },
      "errorMessage": {
-      "description": "Extra information about the state if in error",
       "type": [
        "string",
        "null"
       ]
      },
      "inferenceMetricsEnabled": {
-      "description": "Whether this endpoint exposes inference metrics (KV cache, requests, TTFT, ITL, prefix\ncache): vLLM, SGLang launched with metrics enabled, or a custom container running either\nengine on the exposed port. Derived from the spec, so independent of the endpoint state.",
       "type": "boolean"
      },
      "lastUsedAt": {
-      "description": "Date of last activity on this endpoint (most recent inference request, or the\nmoment the endpoint transitioned to Running, whichever is later). Null if the\nendpoint has never been active.",
       "format": "date-time",
       "type": [
        "string",
@@ -882,7 +770,6 @@
       ]
      },
      "message": {
-      "description": "Information about the state of the endpoint",
       "type": "string"
      },
      "private": {
@@ -891,41 +778,33 @@
         "type": "null"
        },
        {
-        "$ref": "#/components/schemas/EndpointStatusPrivate",
-        "description": "Status of a private endpoint"
+        "$ref": "#/components/schemas/EndpointStatusPrivate"
        }
       ]
      },
      "readyReplica": {
-      "description": "Number of replica ready to handle requests",
       "example": 2,
       "format": "int32",
       "minimum": 0,
       "type": "integer"
      },
      "state": {
-      "$ref": "#/components/schemas/EndpointState",
-      "description": "State of the endpoint"
+      "$ref": "#/components/schemas/EndpointState"
      },
      "targetReplica": {
-      "description": "Target number of replica to handle requests",
       "example": 4,
       "format": "int32",
       "minimum": 0,
       "type": "integer"
      },
      "updatedAt": {
-      "description": "Date of last update",
       "format": "date-time",
       "type": "string"
      },
      "updatedBy": {
-      "$ref": "#/components/schemas/EndpointAccount",
-      "description": "User who last updated the endpoint"
+      "$ref": "#/components/schemas/EndpointAccount"
      },
      "url": {
-      "description": "URL the endpoint is reachable at",
-      "example": "https://68a0f3b5c6ee5c9dcc0e0a01.endpoints.huggingface.cloud",
       "type": "string"
      }
     },
@@ -943,10 +822,8 @@
     "type": "object"
    },
    "EndpointStatusPrivate": {
-    "description": "Status of a private endpoint",
     "properties": {
      "serviceName": {
-      "description": "VPC service name used to add the private service",
       "type": [
        "string",
        "null"
@@ -956,7 +833,6 @@
     "type": "object"
    },
    "EndpointTask": {
-    "description": "Model task type defining the inference API",
     "enum": [
      "custom",
      "any-to-any",
@@ -985,7 +861,6 @@
     "type": "string"
    },
    "EndpointType": {
-    "description": "Endpoint visibility and authentication mode",
     "enum": [
      "public",
      "authenticated",
@@ -994,11 +869,9 @@
     "type": "string"
    },
    "EndpointWithStatus": {
-    "description": "Endpoint with its status",
     "properties": {
      "compute": {
-      "$ref": "#/components/schemas/EndpointCompute",
-      "description": "Compute resources allocated for each endpoint replica"
+      "$ref": "#/components/schemas/EndpointCompute"
      },
      "customRouter": {
       "oneOf": [
@@ -1006,26 +879,20 @@
         "type": "null"
        },
        {
-        "$ref": "#/components/schemas/CustomRouterFeature",
-        "description": "Use a custom-router sidecar to load balance requests between replicas"
+        "$ref": "#/components/schemas/CustomRouterFeature"
        }
       ]
      },
      "experimentalFeatures": {
-      "$ref": "#/components/schemas/ExperimentalFeatures",
-      "description": "Experimental features, may be accessible on demand"
+      "$ref": "#/components/schemas/ExperimentalFeatures"
      },
      "healthRoute": {
-      "description": "Endpoint health route",
       "type": "string"
      },
      "model": {
-      "$ref": "#/components/schemas/EndpointModel",
-      "description": "Model served by the endpoint"
+      "$ref": "#/components/schemas/EndpointModel"
      },
      "name": {
-      "description": "Endpoint name. Must only contains lowercase alphanumeric characters or '-' and have a length of 32 characters\nmaximum",
-      "example": "my-endpoint",
       "type": "string"
      },
      "network": {
@@ -1039,8 +906,7 @@
       ]
      },
      "notifications": {
-      "$ref": "#/components/schemas/EndpointNotifications",
-      "description": "Endpoint events notifications configuration"
+      "$ref": "#/components/schemas/EndpointNotifications"
      },
      "privateService": {
       "oneOf": [
@@ -1048,14 +914,12 @@
         "type": "null"
        },
        {
-        "$ref": "#/components/schemas/EndpointPrivateService",
-        "description": "Endpoint private service specification (for private endpoints only)"
+        "$ref": "#/components/schemas/EndpointPrivateService"
        }
       ]
      },
      "provider": {
-      "$ref": "#/components/schemas/EndpointProvider",
-      "description": "Provider on which the endpoint is deployed"
+      "$ref": "#/components/schemas/EndpointProvider"
      },
      "route": {
       "oneOf": [
@@ -1068,8 +932,7 @@
       ]
      },
      "status": {
-      "$ref": "#/components/schemas/EndpointStatus",
-      "description": "Endpoint status"
+      "$ref": "#/components/schemas/EndpointStatus"
      },
      "tags": {
       "items": {
@@ -1078,8 +941,7 @@
       "type": "array"
      },
      "type": {
-      "$ref": "#/components/schemas/EndpointType",
-      "description": "Endpoint type"
+      "$ref": "#/components/schemas/EndpointType"
      }
     },
     "required": [
@@ -1097,7 +959,6 @@
     "type": "object"
    },
    "EndpointWithStatusList": {
-    "description": "List of endpoints with their statuses",
     "properties": {
      "items": {
       "items": {
@@ -1106,21 +967,18 @@
       "type": "array"
      },
      "nextCursor": {
-      "description": "Use as query param `cursor` to fetch previous cursor results",
       "type": [
        "string",
        "null"
       ]
      },
      "prevCursor": {
-      "description": "Use as query param `cursor` to fetch next cursor results",
       "type": [
        "string",
        "null"
       ]
      },
      "totalItems": {
-      "description": "Total number of endpoints matching the filters, ignoring `limit`/`cursor`",
       "format": "int32",
       "minimum": 0,
       "type": "integer"
@@ -1133,10 +991,8 @@
     "type": "object"
    },
    "ExperimentalFeatures": {
-    "description": "Endpoint experimental features",
     "properties": {
      "cacheHttpResponses": {
-      "description": "Enable caching of successful HTTP responses. When enabled, responses are\ncached with a 60min TTL (reset on each cache hit) and served instantly\non identical requests. With 100% cache hit rates, endpoints can\nautomatically scale to zero while still serving cached responses,\noptimizing both latency and cost. Cache hits are indicated by the\n'x-cache: HIT' response header, and requests can bypass the cache using\n'x-use-cache: false'.\nCurrently only available for HuggingFace Admins.",
       "type": "boolean"
      },
      "loadBalancer": {
@@ -1145,8 +1001,7 @@
         "type": "null"
        },
        {
-        "$ref": "#/components/schemas/EndpointLoadBalancerStrategy",
-        "description": "Load balancer strategy for distributing requests across replicas.\nDefaults to `random`. Has no effect when `custom_router` or `mcp_lb` is set."
+        "$ref": "#/components/schemas/EndpointLoadBalancerStrategy"
        }
       ]
      },
@@ -1156,13 +1011,11 @@
         "type": "null"
        },
        {
-        "$ref": "#/components/schemas/McpLbFeature",
-        "description": "Use MCP to load balance requests between replicas"
+        "$ref": "#/components/schemas/McpLbFeature"
        }
       ]
      },
      "skipRepoDownload": {
-      "description": "Skip model repository download on initialization",
       "type": [
        "boolean",
        "null"
@@ -1184,19 +1037,15 @@
      {
       "$ref": "#/components/schemas/BaseContainer"
      }
-    ],
-    "description": "Model served by the HF-serve framework"
+    ]
    },
    "HuggingfaceContainer": {
-    "description": "Model served by a Hugging Face container",
     "type": "object"
    },
    "HuggingfaceNeuronContainer": {
-    "description": "Model served by a Hugging Face container specific to Neuronx accelerators",
     "properties": {
      "batchSize": {
       "deprecated": true,
-      "description": "Deprecated: set `HF_BATCH_SIZE` in `env`",
       "format": "int32",
       "minimum": 0,
       "type": [
@@ -1206,7 +1055,6 @@
      },
      "neuronCache": {
       "deprecated": true,
-      "description": "Deprecated: set `CUSTOM_CACHE_REPO` in `env`",
       "type": [
        "string",
        "null"
@@ -1214,7 +1062,6 @@
      },
      "sequenceLength": {
       "deprecated": true,
-      "description": "Deprecated: set `HF_OPTIMUM_SEQUENCE_LENGTH` in `env`",
       "format": "int32",
       "minimum": 0,
       "type": [
@@ -1226,10 +1073,8 @@
     "type": "object"
    },
    "InferenceLoadMeasure": {
-    "description": "Targets of the `inferenceLoad` measure, per replica",
     "properties": {
      "kvCacheUsage": {
-      "description": "KV cache utilization percentage (> 0, <= 100, default: 80)",
       "example": 80.0,
       "format": "double",
       "type": [
@@ -1238,7 +1083,6 @@
       ]
      },
      "requestsWaiting": {
-      "description": "Average requests waiting in the engine queue (> 0, default: 5)",
       "example": 5.0,
       "format": "double",
       "type": [
@@ -1258,7 +1102,6 @@
       "properties": {
        "ctxSize": {
         "deprecated": true,
-        "description": "Deprecated: set `--ctx-size` in `args` (unset: fit to the GPU memory, 8192 on CPU)",
         "example": 8192,
         "format": "int32",
         "minimum": 0,
@@ -1268,8 +1111,6 @@
         ]
        },
        "mmprojModelPath": {
-        "description": "Path to the .gguf vision model file",
-        "example": "mmproj-my_model.Q8_0.gguf",
         "type": [
          "string",
          "null"
@@ -1281,19 +1122,15 @@
           "type": "null"
          },
          {
-          "$ref": "#/components/schemas/LlamacppMode",
-          "description": "Deprecated: set `--embeddings` or `--reranking` in `args`"
+          "$ref": "#/components/schemas/LlamacppMode"
          }
         ]
        },
        "modelPath": {
-        "description": "Path to the .gguf file to be loaded",
-        "example": "my_model.Q8_0.gguf",
         "type": "string"
        },
        "nGpuLayers": {
         "deprecated": true,
-        "description": "Deprecated: set `--n-gpu-layers` in `args`",
         "example": 9999,
         "format": "int32",
         "minimum": 0,
@@ -1304,7 +1141,6 @@
        },
        "nParallel": {
         "deprecated": true,
-        "description": "Deprecated: set `--parallel` in `args`",
         "example": 1,
         "format": "int32",
         "minimum": 0,
@@ -1319,14 +1155,11 @@
           "type": "null"
          },
          {
-          "$ref": "#/components/schemas/LlamacppPooling",
-          "description": "Deprecated: set `--pooling` in `args`"
+          "$ref": "#/components/schemas/LlamacppPooling"
          }
         ]
        },
        "specModelPath": {
-        "description": "Path to the .gguf draft model file, used for speculative decoding",
-        "example": "mtp-my_model.Q8_0.gguf",
         "type": [
          "string",
          "null"
@@ -1334,7 +1167,6 @@
        },
        "threadsHttp": {
         "deprecated": true,
-        "description": "Deprecated: set `--threads-http` in `args`",
         "example": 64,
         "format": "int32",
         "minimum": 0,
@@ -1344,8 +1176,6 @@
         ]
        },
        "variant": {
-        "description": "Pattern of .gguf files to load",
-        "example": "*",
         "type": [
          "string",
          "null"
@@ -1357,8 +1187,7 @@
       ],
       "type": "object"
      }
-    ],
-    "description": "Model served by llama.cpp. User-defined args full list can be found at https://github.com/ggerganov/llama.cpp/tree/master/examples/server/README.md"
+    ]
    },
    "LlamacppMode": {
     "deprecated": true,
@@ -1381,27 +1210,20 @@
    "McpLbFeature": {
     "properties": {
      "stateful": {
-      "description": "If true, we forward the request following the mcp session id",
       "type": "boolean"
      }
     },
     "type": "object"
    },
    "NetworkSpec": {
-    "description": "Network access control specification",
     "properties": {
      "cidrBlock": {
-      "description": "Enable CIDR-based access restriction",
       "type": [
        "boolean",
        "null"
       ]
      },
      "cidrList": {
-      "description": "List of allowed CIDR blocks (e.g., [\"10.0.0.0/8\", \"192.168.1.0/24\"])",
-      "example": [
-       "10.0.0.0/8"
-      ],
       "items": {
        "type": "string"
       },
@@ -1414,7 +1236,6 @@
     "type": "object"
    },
    "PrivateLinkRegion": {
-    "description": "Regions a private link can enter through: one per AWS proxy cluster",
     "enum": [
      "us-east-1",
      "eu-west-1"
@@ -1432,16 +1253,11 @@
     "type": "string"
    },
    "RouteSpec": {
-    "description": "Custom domain routing specification",
     "properties": {
      "domain": {
-      "description": "Custom domain name",
-      "example": "api.example.com",
       "type": "string"
      },
      "path": {
-      "description": "Path prefix for routing",
-      "example": "/v1/models/gpt2",
       "type": "string"
      }
     },
@@ -1460,7 +1276,6 @@
       "properties": {
        "chunkedPrefillSize": {
         "deprecated": true,
-        "description": "Deprecated: set `--chunked-prefill-size` in `args`",
         "example": 4096,
         "format": "int32",
         "minimum": 0,
@@ -1475,14 +1290,12 @@
           "type": "null"
          },
          {
-          "$ref": "#/components/schemas/SGLangKvCacheDtype",
-          "description": "Deprecated: set `--kv-cache-dtype` in `args`"
+          "$ref": "#/components/schemas/SGLangKvCacheDtype"
          }
         ]
        },
        "maxPrefillTokens": {
         "deprecated": true,
-        "description": "Deprecated: set `--max-prefill-tokens` in `args`",
         "example": 8192,
         "format": "int32",
         "minimum": 0,
@@ -1493,7 +1306,6 @@
        },
        "maxRunningRequests": {
         "deprecated": true,
-        "description": "Deprecated: set `--max-running-requests` in `args`",
         "example": 64,
         "format": "int32",
         "minimum": 0,
@@ -1504,7 +1316,6 @@
        },
        "tensorParallelSize": {
         "deprecated": true,
-        "description": "Deprecated: set `--tp-size` in `args`",
         "example": 2,
         "format": "int32",
         "minimum": 0,
@@ -1516,12 +1327,10 @@
       },
       "type": "object"
      }
-    ],
-    "description": "Model served by"
+    ]
    },
    "SGLangKvCacheDtype": {
     "deprecated": true,
-    "description": "From https://docs.sglang.ai/backend/server_arguments.html#model-processor-and-tokenizer",
     "enum": [
      "fp8-e4-m3",
      "fp8-e5-m2"
@@ -1529,16 +1338,10 @@
     "type": "string"
    },
    "ScalingMeasure": {
-    "description": "Scaling metric with threshold",
     "oneOf": [
      {
-      "description": "Scale when hardware utilization exceeds threshold (0-100%)",
-      "example": {
-       "hardwareUsage": 80.0
-      },
       "properties": {
        "hardwareUsage": {
-        "description": "Scale when hardware utilization exceeds threshold (0-100%)",
         "format": "double",
         "type": [
          "number",
@@ -1552,13 +1355,8 @@
       "type": "object"
      },
      {
-      "description": "Scale when pending requests exceed threshold",
-      "example": {
-       "pendingRequests": 10.0
-      },
       "properties": {
        "pendingRequests": {
-        "description": "Scale when pending requests exceed threshold",
         "format": "double",
         "type": [
          "number",
@@ -1572,17 +1370,9 @@
       "type": "object"
      },
      {
-      "description": "Scale on inference engine saturation: KV cache utilization, plus a waiting-queue\ntarget so a burst is absorbed before the cache fills. Only valid for endpoints\nrunning a vLLM or SGLang server with its metrics on, from a managed image or a\ncustom container launching one.",
-      "example": {
-       "inferenceLoad": {
-        "kvCacheUsage": 80.0,
-        "requestsWaiting": 5.0
-       }
-      },
       "properties": {
        "inferenceLoad": {
-        "$ref": "#/components/schemas/InferenceLoadMeasure",
-        "description": "Scale on inference engine saturation: KV cache utilization, plus a waiting-queue\ntarget so a burst is absorbed before the cache fills. Only valid for endpoints\nrunning a vLLM or SGLang server with its metrics on, from a managed image or a\ncustom container launching one."
+        "$ref": "#/components/schemas/InferenceLoadMeasure"
        }
       },
       "required": [
@@ -1593,29 +1383,23 @@
     ]
    },
    "ScalingScheduleEntry": {
-    "description": "Scaling from `at` (UTC time of day) until the next entry, wrapping around midnight. Raising `minReplica` above 0\nstarts a scaled-to-zero endpoint; lowering `maxReplica` removes the replicas above it at once.",
     "properties": {
      "at": {
-      "description": "UTC time of day the entry starts at",
-      "example": "07:30",
       "type": "string"
      },
      "maxReplica": {
-      "description": "Maximum number of replicas, at most the endpoint maxReplica",
       "example": 4,
       "format": "int32",
       "minimum": 0,
       "type": "integer"
      },
      "minReplica": {
-      "description": "Minimum number of replicas (set to 0 to enable scale-to-zero)",
       "example": 1,
       "format": "int32",
       "minimum": 0,
       "type": "integer"
      },
      "scaleToZeroTimeout": {
-      "description": "Minutes of inactivity before scaling to zero (default: 15, requires minReplica=0)",
       "example": 15,
       "format": "int32",
       "minimum": 0,
@@ -1656,7 +1440,6 @@
       "properties": {
        "maxBatchTokens": {
         "deprecated": true,
-        "description": "Deprecated: set `--max-batch-tokens` in `args`",
         "example": 2048,
         "format": "int32",
         "minimum": 0,
@@ -1667,7 +1450,6 @@
        },
        "maxConcurrentRequests": {
         "deprecated": true,
-        "description": "Deprecated: set `--max-concurrent-requests` in `args`",
         "example": 100,
         "format": "int32",
         "minimum": 0,
@@ -1682,16 +1464,14 @@
           "type": "null"
          },
          {
-          "$ref": "#/components/schemas/TEIPooling",
-          "description": "Deprecated: set `--pooling` in `args`"
+          "$ref": "#/components/schemas/TEIPooling"
          }
         ]
        }
       },
       "type": "object"
      }
-    ],
-    "description": "Model served by Text Embedding Inference"
+    ]
    },
    "TgiContainer": {
     "allOf": [
@@ -1705,7 +1485,6 @@
       "properties": {
        "disableCustomKernels": {
         "deprecated": true,
-        "description": "Deprecated: set `--disable-custom-kernels` in `args`",
         "example": true,
         "type": [
          "boolean",
@@ -1718,16 +1497,14 @@
           "type": "null"
          },
          {
-          "$ref": "#/components/schemas/Quantize",
-          "description": "Deprecated: set `--quantize` in `args`"
+          "$ref": "#/components/schemas/Quantize"
          }
         ]
        }
       },
       "type": "object"
      }
-    ],
-    "description": "Model served by Text Generation Inference"
+    ]
    },
    "TgiNeuronContainer": {
     "allOf": [
@@ -1745,14 +1522,12 @@
           "type": "null"
          },
          {
-          "$ref": "#/components/schemas/HFAutoCastType",
-          "description": "Deprecated: set `HF_AUTO_CAST_TYPE` in `env`"
+          "$ref": "#/components/schemas/HFAutoCastType"
          }
         ]
        },
        "hfNumCores": {
         "deprecated": true,
-        "description": "Deprecated: set `HF_NUM_CORES` in `env`",
         "format": "int32",
         "minimum": 0,
         "type": [
@@ -1763,8 +1538,7 @@
       },
       "type": "object"
      }
-    ],
-    "description": "Model served by a Text Generation Inference specific to Neuronx accelerators"
+    ]
    },
    "VLLMContainer": {
     "allOf": [
@@ -1775,7 +1549,6 @@
       "properties": {
        "dataParallelSize": {
         "deprecated": true,
-        "description": "Deprecated: set `--data-parallel-size` in `args`",
         "example": 2,
         "format": "int32",
         "minimum": 0,
@@ -1790,14 +1563,12 @@
           "type": "null"
          },
          {
-          "$ref": "#/components/schemas/VllmKvCacheDtype",
-          "description": "Deprecated: set `--kv-cache-dtype` in `args`"
+          "$ref": "#/components/schemas/VllmKvCacheDtype"
          }
         ]
        },
        "maxNumBatchedTokens": {
         "deprecated": true,
-        "description": "Deprecated: set `--max-num-batched-tokens` in `args`",
         "example": 256,
         "format": "int32",
         "minimum": 0,
@@ -1808,7 +1579,6 @@
        },
        "maxNumSeqs": {
         "deprecated": true,
-        "description": "Deprecated: set `--max-num-seqs` in `args`",
         "example": 8096,
         "format": "int32",
         "minimum": 0,
@@ -1819,7 +1589,6 @@
        },
        "tensorParallelSize": {
         "deprecated": true,
-        "description": "Deprecated: set `--tensor-parallel-size` in `args`",
         "example": 8,
         "format": "int32",
         "minimum": 0,
@@ -1831,16 +1600,14 @@
       },
       "type": "object"
      }
-    ],
-    "description": "Model served by vLLM"
+    ]
    },
    "VLLMNeuronContainer": {
     "allOf": [
      {
       "$ref": "#/components/schemas/BaseContainer"
      }
-    ],
-    "description": "Model served by vLLM on Neuronx accelerators"
+    ]
    },
    "VLLMOmniContainer": {
     "allOf": [
@@ -1851,8 +1618,6 @@
       "properties": {
        "deployConfig": {
         "deprecated": true,
-        "description": "Deprecated: set `--deploy-config` in `args`",
-        "example": "/repository/deploy.yaml",
         "type": [
          "string",
          "null"
@@ -1860,7 +1625,6 @@
        },
        "maxNumSeqs": {
         "deprecated": true,
-        "description": "Deprecated: set `--max-num-seqs` in `args`",
         "example": 16,
         "format": "int32",
         "minimum": 0,
@@ -1872,27 +1636,21 @@
       },
       "type": "object"
      }
-    ],
-    "description": "Model served by vLLM-Omni"
+    ]
    },
    "Vendor": {
-    "description": "Cloud provider (e.g., AWS, GCP, Azure)",
     "properties": {
      "name": {
-      "description": "Provider identifier",
-      "example": "aws",
       "type": "string"
      },
      "regions": {
-      "description": "Available regions for this provider",
       "items": {
        "$ref": "#/components/schemas/VendorRegion"
       },
       "type": "array"
      },
      "status": {
-      "$ref": "#/components/schemas/Status",
-      "description": "Provider availability status"
+      "$ref": "#/components/schemas/Status"
      }
     },
     "required": [
@@ -1903,28 +1661,21 @@
     "type": "object"
    },
    "VendorRegion": {
-    "description": "Geographic region within a cloud provider",
     "properties": {
      "computes": {
-      "description": "Available compute configurations in this region",
       "items": {
        "$ref": "#/components/schemas/Compute"
       },
       "type": "array"
      },
      "label": {
-      "description": "Human-readable region name",
-      "example": "N. Virginia",
       "type": "string"
      },
      "name": {
-      "description": "Region identifier",
-      "example": "us-east-1",
       "type": "string"
      },
      "status": {
-      "$ref": "#/components/schemas/Status",
-      "description": "Region availability status"
+      "$ref": "#/components/schemas/Status"
      }
     },
     "required": [
@@ -1936,10 +1687,8 @@
     "type": "object"
    },
    "Vendors": {
-    "description": "List of provider vendors",
     "properties": {
      "vendors": {
-      "description": "Vendors list",
       "items": {
        "$ref": "#/components/schemas/Vendor"
       },
@@ -1953,7 +1702,6 @@
    },
    "VllmKvCacheDtype": {
     "deprecated": true,
-    "description": "From https://docs.vllm.ai/en/stable/api/vllm/config.html#vllm.config.CacheDType",
     "enum": [
      "fp8",
      "fp8-e4-m3",
@@ -1976,8 +1724,6 @@
     "operationId": "list_endpoint",
     "parameters": [
      {
-      "description": "User or organization name",
-      "example": "johnDoe",
       "in": "path",
       "name": "namespace",
       "required": true,
@@ -1986,8 +1732,6 @@
       }
      },
      {
-      "description": "Filter by tags (comma-separated)",
-      "example": "tag1,tag2",
       "in": "query",
       "name": "tags",
       "required": false,
@@ -1996,8 +1740,6 @@
       }
      },
      {
-      "description": "Filter by name substring",
-      "example": "qwen",
       "in": "query",
       "name": "search",
       "required": false,
@@ -2006,8 +1748,6 @@
       }
      },
      {
-      "description": "Pagination cursor",
-      "example": "3",
       "in": "query",
       "name": "cursor",
       "required": false,
@@ -2016,8 +1756,6 @@
       }
      },
      {
-      "description": "Max results (default: 20)",
-      "example": "100",
       "in": "query",
       "name": "limit",
       "required": false,
@@ -2028,8 +1766,6 @@
       }
      },
      {
-      "description": "Filter by endpoint type(s) (comma-separated): public, authenticated, private",
-      "example": "public,private",
       "in": "query",
       "name": "type",
       "required": false,
@@ -2038,8 +1774,6 @@
       }
      },
      {
-      "description": "Filter by model task(s) (comma-separated)",
-      "example": "text-generation",
       "in": "query",
       "name": "task",
       "required": false,
@@ -2048,8 +1782,6 @@
       }
      },
      {
-      "description": "Filter by endpoint state(s) (comma-separated): updating, running, paused, failed, scaledToZero",
-      "example": "running,paused",
       "in": "query",
       "name": "state",
       "required": false,
@@ -2058,8 +1790,6 @@
       }
      },
      {
-      "description": "Field to sort on: createdAt (default), updatedAt, name",
-      "example": "updatedAt",
       "in": "query",
       "name": "sortBy",
       "required": false,
@@ -2068,8 +1798,6 @@
       }
      },
      {
-      "description": "Sort direction: asc or desc (default)",
-      "example": "asc",
       "in": "query",
       "name": "direction",
       "required": false,
@@ -2086,8 +1814,7 @@
          "$ref": "#/components/schemas/EndpointWithStatusList"
         }
        }
-      },
-      "description": "Endpoints listed successfully"
+      }
      }
     },
     "security": [
@@ -2095,7 +1822,6 @@
       "token": []
      }
     ],
-    "summary": "List endpoints [READ]",
     "tags": [
      "Endpoints"
     ]
@@ -2104,8 +1830,6 @@
     "operationId": "create_endpoint",
     "parameters": [
      {
-      "description": "User or organization name",
-      "example": "johnDoe",
       "in": "path",
       "name": "namespace",
       "required": true,
@@ -2132,8 +1856,7 @@
          "$ref": "#/components/schemas/EndpointWithStatus"
         }
        }
-      },
-      "description": "Endpoint created"
+      }
      }
     },
     "security": [
@@ -2141,7 +1864,6 @@
       "token": []
      }
     ],
-    "summary": "Create endpoint [WRITE]",
     "tags": [
      "Endpoints"
     ]
@@ -2152,8 +1874,6 @@
     "operationId": "delete_endpoint",
     "parameters": [
      {
-      "description": "User or organization name",
-      "example": "johnDoe",
       "in": "path",
       "name": "namespace",
       "required": true,
@@ -2162,8 +1882,6 @@
       }
      },
      {
-      "description": "Endpoint name",
-      "example": "my-endpoint",
       "in": "path",
       "name": "name",
       "required": true,
@@ -2180,8 +1898,7 @@
          "$ref": "#/components/schemas/Empty"
         }
        }
-      },
-      "description": "Endpoint deleted successfully"
+      }
      }
     },
     "security": [
@@ -2189,7 +1906,6 @@
       "token": []
      }
     ],
-    "summary": "Delete endpoint [WRITE]",
     "tags": [
      "Endpoints"
     ]
@@ -2198,8 +1914,6 @@
     "operationId": "get_endpoint",
     "parameters": [
      {
-      "description": "User or organization name",
-      "example": "johnDoe",
       "in": "path",
       "name": "namespace",
       "required": true,
@@ -2208,8 +1922,6 @@
       }
      },
      {
-      "description": "Endpoint name",
-      "example": "my-endpoint",
       "in": "path",
       "name": "name",
       "required": true,
@@ -2226,8 +1938,7 @@
          "$ref": "#/components/schemas/EndpointWithStatus"
         }
        }
-      },
-      "description": "Endpoint returned successfully"
+      }
      }
     },
     "security": [
@@ -2235,7 +1946,6 @@
       "token": []
      }
     ],
-    "summary": "Get endpoint [READ]",
     "tags": [
      "Endpoints"
     ]
@@ -2246,8 +1956,6 @@
     "operationId": "list_vendors_namespace",
     "parameters": [
      {
-      "description": "User or organization name",
-      "example": "johnDoe",
       "in": "path",
       "name": "namespace",
       "required": true,
@@ -2264,8 +1972,7 @@
          "$ref": "#/components/schemas/Vendors"
         }
        }
-      },
-      "description": "Providers listed successfully"
+      }
      }
     },
     "security": [
@@ -2273,11 +1980,11 @@
       "token": []
      }
     ],
-    "summary": "List providers for namespace [READ]",
     "tags": [
      "Providers"
     ]
    }
   }
- }
+ },
+ "servers": []
 }
