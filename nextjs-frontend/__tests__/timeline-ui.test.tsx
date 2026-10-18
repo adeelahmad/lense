@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 
 import { Activities } from "@/app/openapi-client";
 import type { ActivityPage, StreamActivity } from "@/app/openapi-client/types.gen";
+import { ASK_ABOUT_EVENT } from "@/components/page-chat/page-chat-model";
 import { LatestCard } from "@/components/timeline/latest-card";
 import { TimelinePage } from "@/components/timeline/timeline-page";
 import { ToastProvider } from "@/components/ui/toast";
@@ -186,6 +187,34 @@ test("keys: j and k move, r marks reviewed, i marks important", async () => {
   const box = screen.getByRole("searchbox", { name: "Words in the summary" });
   fireEvent.keyDown(box, { key: "r" });
   expect(m(Activities.markActivities)).not.toHaveBeenCalled();
+});
+
+test("asking about an item hands the page chat its id, line and fields, by button or the a key", async () => {
+  const asked: string[] = [];
+  const listen = (e: Event) => asked.push((e as CustomEvent<string>).detail);
+  window.addEventListener(ASK_ABOUT_EVENT, listen);
+  try {
+    wrap(<TimelinePage />);
+    const rows = within(await screen.findByRole("list", { name: "Timeline" })).getAllByTestId("timeline-row");
+    fireEvent.click(within(rows[1]).getByRole("button", { name: "Show details" }));
+    fireEvent.click(within(rows[1]).getByRole("button", { name: "Ask about this" }));
+    expect(asked).toHaveLength(1);
+    expect(asked[0]).toContain("Timeline item u1 (asset.added, ");
+    expect(asked[0]).toContain("Adeel: Adeel received “Mail u1”");
+    expect(asked[0]).toContain("Opens at /resources/u1");
+    expect(asked[0]).toContain("Subject: Mail u1");
+    // a on a line of several asks about all of them
+    fireEvent.keyDown(window, { key: "j" });
+    fireEvent.keyDown(window, { key: "a" });
+    expect(asked).toHaveLength(2);
+    expect(asked[1].match(/^Timeline item /gm)).toHaveLength(3);
+    expect(asked[1]).toContain("Timeline item e1 ");
+    // typing a in a field isn't a key for the page
+    fireEvent.keyDown(screen.getByRole("searchbox", { name: "Words in the summary" }), { key: "a" });
+    expect(asked).toHaveLength(2);
+  } finally {
+    window.removeEventListener(ASK_ABOUT_EVENT, listen);
+  }
 });
 
 test("hiding takes an item out of sight, with an undo", async () => {
