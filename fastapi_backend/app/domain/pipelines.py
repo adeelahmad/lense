@@ -1,6 +1,7 @@
 """Pipelines: named, versioned lists of steps a recording goes through. Each namespace can choose its default; without
 one, recordings get the standard pipeline. Steps: enhance (an enhanced copy of a low quality image, enhance.py, which
-the steps after it read), transcribe (speech to text), read (a document's or an
+the steps after it read), clean_audio (a recording's sound cleaned up before it's transcribed, audio_cleanup.py),
+transcribe (speech to text), read (a document's or an
 image's pages and their text), convert (new assets made from one: a video's soundtrack as audio, a document's pages
 as images, conversions.py), diarize, shots, ocr, faces, objects, nsfw (NSFW classification, nsfw.py), describe,
 clean (a transcript tidied before analysis, cleanup.py), analyze, embed (passages for search by meaning, semantic.py),
@@ -32,8 +33,8 @@ STANDARD = [
     "report",
 ]  # fmt: skip
 TYPES = {
-    "enhance", "transcribe", "read", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "clean", "analyze", "embed",
-    "summarize",
+    "enhance", "clean_audio", "transcribe", "read", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "clean",
+    "analyze", "embed", "summarize",
     "convert",
     "llm",
     "spec",
@@ -44,6 +45,7 @@ TYPES = {
 }  # fmt: skip
 ASSET_STEPS = (
     "enhance",
+    "clean_audio",
     "transcribe",
     "read",
     "diarize",

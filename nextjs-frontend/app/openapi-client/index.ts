@@ -206,6 +206,7 @@ export type {
   AssistantMemoryUpdate,
   AttachedTo,
   Attachment,
+  AudioCleanup,
   AuditEntry,
   AuthStatus,
   Automation,

@@ -30,6 +30,7 @@ FIELDS = (
 )
 MEDIA_STEPS = {
     "enhance",
+    "clean_audio",
     "transcribe",
     "diarize",
     "shots",
@@ -118,6 +119,19 @@ def _transcribe_media(db, cfg, rid, say, spec=None):
 
         mediaurl.ensure(db, cfg, rid, rec, say)
     ingest.transcribe_one(db, cfg, rid, say)
+
+
+def _clean_audio(db, cfg, rid, say, spec=None):
+    """A recording's sound cleaned up before it's transcribed (audio_cleanup.py), as Settings → Transcription → Audio
+    cleanup sets it."""
+    from . import audio_cleanup
+
+    source = _source(db, rid)
+    if source in ("document", "image"):
+        raise Skip(f"{'an image' if source == 'image' else 'a document'} has no sound to clean up")
+    if source != "audio":
+        raise Skip("imported text has no sound to clean up")
+    say(audio_cleanup.summary(audio_cleanup.step(db, cfg, rid, say)))
 
 
 def _diarize(db, cfg, rid, say, spec=None):
@@ -271,6 +285,7 @@ def _describe(db, cfg, rid, say, spec=None):
 
 VIDEO_STEPS = {"shots", "ocr", "faces", "objects", "describe"}  # added after workers.steps lists were first written
 STEPS = {
+    "clean_audio": _clean_audio,
     "enhance": _enhance,
     "transcribe": _transcribe,
     "read": _read,
@@ -309,14 +324,14 @@ def for_source(steps, source):
     if source not in ENHANCED:
         steps = [s for s in steps if s.get("type") != "enhance"] or steps
     if source == "transcript":
-        return [s for s in steps if s.get("type") not in ("transcribe", "diarize")] or steps
+        return [s for s in steps if s.get("type") not in ("clean_audio", "transcribe", "diarize")] or steps
     if source not in ("document", "image"):
         return steps
     out = []
     for s in steps:
         if s.get("type") == "transcribe":
             s = {**s, "type": "read"}
-        if s.get("type") == "diarize" or (s.get("type") == "read" and any(o.get("type") == "read" for o in out)):
+        if s.get("type") in ("clean_audio", "diarize") or (s.get("type") == "read" and any(o.get("type") == "read" for o in out)):
             continue
         out.append(s)
     return out
@@ -1138,6 +1153,8 @@ class Worker:
             self.can |= VIDEO_STEPS
         if self.can & {"analyze", "summarize"}:  # embedding needs what they need; lists written before it existed run it too
             self.can.add("embed")
+        if not steps and "transcribe" in self.can:  # cleaning up the sound needs no more than transcribing; older lists run it
+            self.can.add("clean_audio")
         if "analyze" in self.can:  # cleaning up a transcript needs no more than analysing it; older lists run it too
             self.can.add("clean")
         if not steps and self.can & {"transcribe", "read"}:  # converting needs what they need; older lists run it too

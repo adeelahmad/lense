@@ -491,6 +491,10 @@ def _check(section, key, value, default):
         ):
             raise ValueError("iiif.viewers is a list of {name, url} with an http(s) URL; the URL may use {manifest} and {content_state}")
         return value
+    if (section, key) == ("transcribe", "cleanup"):
+        from . import audio_cleanup
+
+        return audio_cleanup.check(value)
     if (section, key) == ("server", "trusted_proxies"):
         return ipgroups.proxies(value)
     if (section, key) == ("llm", "vision_model"):

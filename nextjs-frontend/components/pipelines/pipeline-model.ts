@@ -102,6 +102,7 @@ export function cleanSpec(s: StepSpec): StepSpec | string {
 /** Which earlier steps a step reads from, when they are in the same pipeline. */
 export const NEEDS: Record<string, string[]> = {
   read: ["enhance"],
+  transcribe: ["clean_audio"],
   diarize: ["transcribe"],
   ocr: ["shots"],
   faces: ["shots"],
@@ -124,6 +125,7 @@ export const NEEDS: Record<string, string[]> = {
 /** What a step makes available to later steps and templates. */
 export const PROVIDES: Record<string, string> = {
   enhance: "an enhanced copy that read uses",
+  clean_audio: "audio_cleanup (speech · silence left out) for transcribe",
   transcribe: "transcript · segments[] · language",
   read: "pages[] · segments[]",
   diarize: "speakers[] · turns",
@@ -149,6 +151,8 @@ export const PROVIDES: Record<string, string> = {
 export const DESCRIBE: Record<string, string> = {
   enhance:
     "Keeps a sharper copy of small, blurry, noisy or dull images for read to use; the original stays (Settings → Enhance)",
+  clean_audio:
+    "Cleans up the sound before it’s transcribed with WebRTC: noise, gain, rumble, echo, and silence left out (Settings → Transcription)",
   transcribe: "Speech to text with word timings (Settings → Transcription)",
   read: "Draws a document’s or an image’s pages and reads their text (Settings → Documents)",
   diarize: "Who spoke when (Settings → Diarization)",

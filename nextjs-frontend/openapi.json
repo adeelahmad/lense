@@ -38253,6 +38253,118 @@
         ],
         "title": "Attachment"
       },
+      "AudioCleanup": {
+        "properties": {
+          "noise": {
+            "type": "string",
+            "title": "Noise",
+            "description": "noise suppression: off, low, moderate, high or very_high (6, 12, 18 or 21 dB)"
+          },
+          "gain": {
+            "type": "boolean",
+            "title": "Gain",
+            "description": "automatic gain control"
+          },
+          "high_pass": {
+            "type": "boolean",
+            "title": "High Pass",
+            "description": "the rumble below speech taken out"
+          },
+          "echo": {
+            "type": "string",
+            "title": "Echo",
+            "description": "echo cancellation: off, or the channel (left or right) holding what the speakers played"
+          },
+          "trim_silence": {
+            "type": "boolean",
+            "title": "Trim Silence",
+            "description": "silences of min_silence_ms or longer left out of what's transcribed"
+          },
+          "min_silence_ms": {
+            "type": "integer",
+            "title": "Min Silence Ms",
+            "description": "the shortest pause left out when trimming silence"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "title": "Duration Ms",
+            "description": "how long the recording is"
+          },
+          "speech_ms": {
+            "type": "integer",
+            "title": "Speech Ms",
+            "description": "how much of it WebRTC's voice detection heard as speech"
+          },
+          "kept_ms": {
+            "type": "integer",
+            "title": "Kept Ms",
+            "description": "how much of it is transcribed: all of it unless silence is trimmed"
+          },
+          "gain_db": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gain Db",
+            "description": "the gain applied by the end of the recording, in dB"
+          },
+          "echo_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Echo Note",
+            "description": "why echo wasn't cancelled though it was asked for"
+          },
+          "engine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine",
+            "description": "what cleaned it up, with its version"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "when the step ran"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "noise",
+          "gain",
+          "high_pass",
+          "echo",
+          "trim_silence",
+          "min_silence_ms",
+          "duration_ms",
+          "speech_ms",
+          "kept_ms"
+        ],
+        "title": "AudioCleanup",
+        "description": "How the clean_audio step cleaned up a recording's sound for transcription (docs/processing.md, Cleaning up audio)."
+      },
       "AuditEntry": {
         "properties": {
           "at": {
@@ -70212,6 +70324,17 @@
               }
             ],
             "description": "NSFW classification, where it's on in its namespace and it was classified"
+          },
+          "audio_cleanup": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AudioCleanup"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "how its clean_audio step cleaned up its sound before transcription"
           },
           "enhanced": {
             "anyOf": [

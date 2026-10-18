@@ -509,13 +509,20 @@ def add_envelope(db, cfg, rid):
 
 
 def transcribe_one(db, cfg, rid, log=print, engine=None):
-    r = db.one("SELECT record::id(id) AS id, space, path, title, remote FROM $r", r=store.R("recording", rid))
+    r = db.one("SELECT record::id(id) AS id, space, path, title, remote, channels, audio_cleanup FROM $r", r=store.R("recording", rid))
     engine, t = engine or get_engine(cfg, log), time.time()
-    audio = decode(audio_path(db, cfg, r))
+    path = audio_path(db, cfg, r)
+    audio, joins = decode(path), None
+    env = envelope(audio)  # the player's waveform is the recording's own
+    if r.get("audio_cleanup"):  # its clean_audio step asked for it to be heard cleaned up (audio_cleanup.py)
+        from . import audio_cleanup
+
+        audio, joins = audio_cleanup.hear(cfg, r, path, audio, log)
     words = vocabulary.terms(db, cfg, r["space"])
     segs = engine.transcribe(audio, terms=words) if words else engine.transcribe(audio)  # an engine of a plugin may take no hints
-    env = envelope(audio)
     del audio
+    if joins:
+        segs = audio_cleanup.remap(segs, joins)
     write_transcript(
         db,
         rid,

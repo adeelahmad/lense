@@ -7,6 +7,8 @@ How assets move through Lens: where they come from, what each step does, and how
 - `scan` finds audio under each namespace's paths and fingerprints it: moved files keep their history, duplicates are skipped,
   and so are files whose asset someone deleted or moved to another namespace (at the same path, or a copy of the same
   file).
+- `clean_audio` (only in a pipeline that has it) cleans up the sound before it's transcribed: noise, volume, rumble,
+  echo, and silence left out of what's transcribed ([Cleaning up audio](#cleaning-up-audio)).
 - `transcribe` uses SenseVoice, faster-whisper or mlx-whisper. When the configured engine isn't installed on a worker (or
   doesn't import there), it uses the next one that is and says so in the job log; with none at all the step fails,
   saying how to add one. A file that fails is marked and the batch carries on. For a
@@ -22,6 +24,36 @@ How assets move through Lens: where they come from, what each step does, and how
   per namespace, with word clouds.
 
 Every step takes `--ns`, `--limit` and `--force`; `run` does them all, and a lock stops two runs overlapping.
+
+### Cleaning up audio
+
+A phone on a table, a fan, a quiet voice across the room or a call with the other side coming back through the
+speakers: speech-to-text hears all of it. The `clean_audio` step (Clean up audio in the pipeline editor and Reprocess)
+runs a recording through WebRTC's audio processing, the code a browser runs on a call, with
+[pywebrtc-audio](https://github.com/strands-labs/pywebrtc-audio) (Apache-2.0, about 0.5 MB; fetched the first time
+the step runs, [Components](components.md)). No pipeline has it until you add it before Transcribe, so nothing changes
+until then. What it does is in Settings → Transcription → Audio cleanup (`transcribe.cleanup`):
+
+| Setting | Default | What it does |
+|---|---|---|
+| `noise` | `moderate` | Noise suppression: `off`, `low`, `moderate`, `high` or `very_high` (6, 12, 18 or 21 dB) |
+| `gain` | on | Automatic gain control, so a quiet voice is as loud as a near one |
+| `high_pass` | on | Takes out the rumble below speech: traffic, handling noise, a knocked desk |
+| `echo` | `off` | Echo cancellation for a two-channel recording with what the speakers played on one channel (`left` or `right`) and the microphone on the other, as call recorders keep them; the far side's voice is taken out of the microphone, then both sides are mixed |
+| `trim_silence` | on | Pauses of `min_silence_ms` (2000) or longer, by WebRTC's voice detection, are left out of what's transcribed |
+
+Leaving silence out means a cloud engine bills fewer minutes (the activity ledger's seconds are what was sent), a
+local one finishes sooner and Whisper has no quiet stretch to imagine words in. The transcript's times are put back on
+the recording's own timeline, so the player and every citation stay where the words were said.
+
+The step measures how much of the recording is speech and keeps what it ran with on the asset (`audio_cleanup` in
+`GET /api/v1/recordings/{id}`: the options, `speech_ms`, `kept_ms`, the gain it ended on). From then on transcribing
+that asset hears it cleaned up that way, also on a later Reprocess. The file is never changed and no second copy is
+stored: cleaning takes a fraction of a second per minute of audio, so it's done again each time. Speaker separation and
+voice IDs still listen to the original. Run the step with every option off to have the asset transcribed as it is
+again. A worker that can't fetch pywebrtc-audio transcribes the original and says so in the job log. Run it on one
+asset with Reprocess → Clean up audio, or `POST /api/v1/recordings/{id}/reprocess` with
+`{"steps": ["clean_audio", "transcribe"]}`; workers whose `workers.steps` list has `transcribe` run it too.
 
 ### Your own names in transcription
 
@@ -712,8 +744,8 @@ A pipeline is a named, versioned list of steps; each namespace can choose its de
 analyze, summarize, report). Imports, watched folders and reprocessing use the namespace's pipeline; steps that need
 audio skip themselves for imported text. Steps:
 
-- `transcribe`, `diarize`, `clean` ([Cleaning up transcripts](#cleaning-up-transcripts)), `analyze`, `summarize`, and
-  `report` (the built-in report).
+- `clean_audio` ([Cleaning up audio](#cleaning-up-audio)), `transcribe`, `diarize`, `clean`
+  ([Cleaning up transcripts](#cleaning-up-transcripts)), `analyze`, `summarize`, and `report` (the built-in report).
 - `llm`: renders a prompt template, sends it to the configured model, checks the reply against the template's JSON
   Schema and saves it as a named output (e.g. `meeting_notes`).
 - `spec`: writes a technical spec from the transcript into a note linked to the asset, with the Spec from transcript
