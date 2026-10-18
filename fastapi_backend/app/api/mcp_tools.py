@@ -3774,6 +3774,8 @@ def undo_share(ctx: Context, share_id: int) -> dict[str, Any]:
     out = circles.undo(ctx.db, _me(ctx), share_id)
     auth.audit(ctx.db, ctx.user.as_audit(), "circle.unshare", f"circle_share:{share_id}", {"via": "mcp"})
     return out
+
+
 # ---------- schedules ----------
 @tool(
     "schedules",
