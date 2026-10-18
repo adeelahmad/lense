@@ -20,6 +20,8 @@ jest.mock("@/app/openapi-client", () => ({
     listActivityComments: jest.fn(),
     commentOnActivity: jest.fn(),
     deleteActivityComment: jest.fn(),
+    listActivityMutes: jest.fn(),
+    muteActivities: jest.fn(),
   },
 }));
 const replace = jest.fn();
@@ -133,6 +135,14 @@ beforeEach(() => {
     ok({ reactions: body.on ? [{ emoji: body.emoji, count: 1, mine: true }] : [] }),
   );
   m(Activities.listActivityComments).mockReturnValue(ok([COMMENT]));
+  m(Activities.listActivityMutes).mockReturnValue(ok({ mutes: [] }));
+  m(Activities.muteActivities).mockImplementation(({ body }) =>
+    ok({
+      mutes: body.on
+        ? [{ actor: body.actor ?? null, kind: body.kind ?? null, name: body.name ?? null, until: null, at: "x" }]
+        : [],
+    }),
+  );
   m(Activities.commentOnActivity).mockImplementation(({ body }) =>
     ok({ ...COMMENT, id: 8, text: body.text, parent: body.parent ?? null, mine: true, can_delete: true }),
   );
@@ -379,6 +389,30 @@ test("For you: the toggle goes in the address, each placed line says why, and La
   expect(rows[0]).toHaveTextContent("You often react to Adeel");
   expect(within(rows[1]).queryByTestId("why")).not.toBeInTheDocument();
   expect(screen.getByRole("radio", { name: "For you" })).toHaveAttribute("aria-checked", "true");
+});
+
+test("muting a source takes everything from it out, lists it as muted, and Undo or the chip brings it back", async () => {
+  wrap(<TimelinePage />);
+  const rows = within(await screen.findByRole("list", { name: "Timeline" })).getAllByTestId("timeline-row");
+  fireEvent.click(within(rows[1]).getByRole("button", { name: "Show details" }));
+  fireEvent.click(within(rows[1]).getByRole("button", { name: "Mute Adeel" }));
+  await waitFor(() =>
+    expect(m(Activities.muteActivities)).toHaveBeenCalledWith(
+      expect.objectContaining({ body: { actor: "lens:account/1", name: "Adeel", on: true } }),
+    ),
+  );
+  await waitFor(() => expect(screen.getAllByTestId("timeline-row")).toHaveLength(1));
+  const muted = await screen.findByLabelText("Muted");
+  expect(muted).toHaveTextContent("Muted:Adeel");
+  // the chip lifts it
+  fireEvent.click(within(muted).getByRole("button", { name: "Unmute Adeel" }));
+  await waitFor(() =>
+    expect(m(Activities.muteActivities)).toHaveBeenLastCalledWith(
+      expect.objectContaining({ body: { actor: "lens:account/1", kind: undefined, on: false } }),
+    ),
+  );
+  await waitFor(() => expect(screen.getAllByTestId("timeline-row")).toHaveLength(2));
+  expect(screen.queryByLabelText("Muted")).not.toBeInTheDocument();
 });
 
 test("Home's Latest card lists what you haven't reviewed", async () => {

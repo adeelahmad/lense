@@ -12,7 +12,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer, domain_errors
 from app.api.v1.routes.comments import _comments_out
-from app.domain import auth, comment_agent, comments, event_marks, event_reactions, events, events_content, for_you, store
+from app.domain import auth, comment_agent, comments, event_marks, event_mutes, event_reactions, events, events_content, for_you, store
 from app.schemas.activities import (
     ActivityKind,
     ActivityMark,
@@ -20,6 +20,9 @@ from app.schemas.activities import (
     MarkIn,
     MarksIn,
     MarksOut,
+    Mute,
+    MuteIn,
+    MutesOut,
     ReactIn,
     ReactionsOut,
     StreamActivity,
@@ -95,12 +98,12 @@ def timeline(
 ) -> dict[str, Any]:
     """A page of the timeline with the namespaces it names, the viewer's own marks on it, everyone's reactions and
     how many comments each item has; `marked` ({reviewed, important, hidden}: true or false) keeps the activities
-    whose marks are so. `order` for_you reorders the newest items by the viewer's own signals (for_you.py), with
-    `why` by id."""
+    whose marks are so, a muted actor's or kind's counting as hidden (event_mutes.py). `order` for_you reorders the
+    newest items by the viewer's own signals (for_you.py), with `why` by id."""
     if order not in for_you.ORDERS:
         raise HTTPException(422, f"order is {' or '.join(for_you.ORDERS)}")
     with domain_errors():
-        keep = event_marks.keeper(db, who["account"], marked)
+        keep = event_mutes.keeper(db, who["account"], marked)
         if order == "for_you":
             page = for_you.page(db, cfg, who, flt, before, limit, keep)
         else:
@@ -145,8 +148,9 @@ def list_activities(
     """What happened in Lens, newest first: new assets and everything else the stream holds, each an Activity Streams
     2.0 activity with a Lens kind. Give `next` as `before` for the page after. Noisy kinds (like sensor readings) are
     left out unless named in `kinds`. Text from outside Lens is listed in each activity's `lens.untrusted`. `marks`
-    has your own marks on the page's activities; `reviewed`, `important` and `hidden` filter by them. `order=for_you`
-    puts what you react to, comment on and mark important first, and what you hid last (docs/timeline.md, For you)."""
+    has your own marks on the page's activities; `reviewed`, `important` and `hidden` filter by them; what you muted
+    (`/activities/mutes`) is left out unless `hidden=true`. `order=for_you` puts what you react to, comment on and
+    mark important first, and what you hid last (docs/timeline.md, For you)."""
     flt = filters(acl, kinds, actor, namespace, tag, since, until, q, where)
     marked = event_marks.want(reviewed, important, hidden)
     return ActivityPage(**timeline(db, cfg, viewer(db, user, acl), flt, before, limit, marked, order))
@@ -177,6 +181,27 @@ def mark_activities(body: MarksIn, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> 
     false, one left out stays as it is. Up to 500 at once; `unknown` lists the ids there are no activities of, or
     that you can't see."""
     return MarksOut(**mark(db, cfg, viewer(db, user, acl), body.ids, body.model_dump(exclude={"ids"})))
+
+
+@router.get("/mutes")
+def list_activity_mutes(user: CurrentUser, db: Db) -> MutesOut:
+    """Your mutes: the sources, people and kinds whose activities the timeline leaves out for you, each for good or
+    until a time (docs/timeline.md, Muting). Nobody else's timeline changes."""
+    return MutesOut(mutes=[Mute(**m) for m in event_mutes.of(db, user.id)])
+
+
+@router.post("/mute")
+def mute_activities(body: MuteIn, user: Writer, db: Db) -> MutesOut:
+    """Mute a source or person (`actor`, by id) or a kind of activity (`kind`, the kinds under it too) for yourself,
+    for good or `until` a time (snooze it for a day), or lift the mute with `on` false. Muting hides, it never
+    deletes: the activities stay, still trigger automations and still show to everyone else, and `hidden=true` on
+    the timeline shows them to you. The answer is your mutes now."""
+    with domain_errors():
+        if body.on:
+            mutes = event_mutes.mute(db, user.id, body.actor, body.kind, body.until, body.name)
+        else:
+            mutes = event_mutes.unmute(db, user.id, body.actor, body.kind)
+    return MutesOut(mutes=[Mute(**m) for m in mutes])
 
 
 @router.get("/{activity_id}", response_model_exclude_unset=True)

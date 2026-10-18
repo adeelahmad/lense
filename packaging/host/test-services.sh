@@ -105,3 +105,14 @@ case "$(said error)" in *"runs in Docker"*) ;; *) fail "it said: $(said error)" 
 [ "$(wc -l <"$work/calls")" = "$calls" ] || fail "a refused request ran docker: $(last)"
 [ "$(profiles)" = matterbridge,monitoring ] || fail "a refused request changed COMPOSE_PROFILES: $(profiles)"
 ok "unknown profiles, other turns and microsandbox installs are refused, with nothing run"
+
+# 9. In a microsandbox the MCP runner is turned on and off through .env alone: the sandbox watches COMPOSE_PROFILES
+# (microsandbox/mcp.sh), and Docker isn't run
+ask id=m4 action=services profile=mcp turn=on
+[ "$(said state)" = "done" ] && [ "$(said profile)" = mcp ] || fail "status: $(cat "$inst/.lens-control/services-status")"
+[ "$(profiles)" = matterbridge,monitoring,mcp ] || fail "COMPOSE_PROFILES is $(profiles)"
+ask id=m5 action=services profile=mcp turn=off
+[ "$(said state)" = "done" ] && [ "$(profiles)" = matterbridge,monitoring ] || fail "COMPOSE_PROFILES is $(profiles)"
+[ "$(wc -l <"$work/calls")" = "$calls" ] || fail "a microsandbox install ran docker: $(last)"
+grep -qx 'LENS_BACKEND=microsandbox' "$inst/.env" || fail "the rest of .env went"
+ok "in a microsandbox the MCP runner is turned on and off in .env, with nothing run"

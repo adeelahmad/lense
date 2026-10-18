@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, CheckCheck, History, ListFilter, Sparkles, Waypoints } from "lucide-react";
+import { ArrowUp, CheckCheck, History, ListFilter, Sparkles, VolumeX, Waypoints, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -29,7 +29,7 @@ import {
 } from "@/components/timeline/model";
 import { Social } from "@/components/timeline/social";
 import { useCommentCounts, useReactions } from "@/components/timeline/use-social";
-import { useKinds, useMarks, useNewItems, useTimeline } from "@/components/timeline/use-timeline";
+import { useKinds, useMarks, useMutes, useNewItems, useTimeline } from "@/components/timeline/use-timeline";
 import { Button } from "@/components/ui/button";
 import { Segmented } from "@/components/ui/tabs";
 import { Drawer } from "@/components/ui/dialog";
@@ -155,7 +155,12 @@ export function TimelinePage() {
   const marks = useMarks(serverMarks);
   const reactions = useReactions(serverReactions);
   const counts = useCommentCounts(serverComments);
-  const shown = useMemo(() => all.filter((a) => !marks.of(a.id).hidden), [all, marks]);
+  const mutes = useMutes();
+  const mutedActors = useMemo(() => new Set(mutes.mutes.map((m) => m.actor).filter(Boolean)), [mutes.mutes]);
+  const shown = useMemo(
+    () => all.filter((a) => !marks.of(a.id).hidden && !mutedActors.has(a.actor.id)),
+    [all, marks, mutedActors],
+  );
   const groups = useMemo(() => group(shown), [shown]);
   const labels = useMemo(() => Object.fromEntries((kinds.data ?? []).map((k) => [k.name, k.label])), [kinds.data]);
 
@@ -207,6 +212,7 @@ export function TimelinePage() {
       ),
     [marks],
   );
+  const muteActor = useCallback((a: Activity) => mutes.mute({ actor: a.actor.id, name: a.actor.name }), [mutes]);
   const markAllShown = () => {
     const ids = shown.filter((a) => !marks.of(a.id).reviewed).map((a) => a.id);
     marks.set(ids, { reviewed: true }, { title: `Marked ${ids.length} reviewed`, undo: true });
@@ -304,6 +310,29 @@ export function TimelinePage() {
         )}
       </div>
       {!phone && bar(false)}
+      {mutes.mutes.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 text-[12.5px] text-fg-secondary" aria-label="Muted">
+          <VolumeX className="size-3.5" aria-hidden />
+          <span>Muted:</span>
+          {mutes.mutes.map((m) => (
+            <span
+              key={`${m.actor ?? ""}|${m.kind ?? ""}`}
+              className="inline-flex items-center gap-1 rounded-pill border border-border px-2 py-0.5 text-fg"
+            >
+              {m.name ?? m.actor ?? m.kind}
+              {m.until && <span className="text-fg-muted">until {new Date(m.until).toLocaleString()}</span>}
+              <button
+                type="button"
+                aria-label={`Unmute ${m.name ?? m.actor ?? m.kind}`}
+                onClick={() => mutes.unmute(m)}
+                className="grid size-4 place-items-center rounded-full text-fg-muted hover:bg-surface-neutral hover:text-fg"
+              >
+                <X className="size-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
       {phone && (
         <Drawer open={sheet} onOpenChange={setSheet} title="Filters" width={360}>
           <div className="p-4">{bar(true)}</div>
@@ -348,6 +377,7 @@ export function TimelinePage() {
                 markOf={marks.of}
                 onMark={mark}
                 onHide={hide}
+                onMute={muteActor}
                 open={open.has(g.key)}
                 onToggle={() => toggle(g.key)}
                 focused={i === active}

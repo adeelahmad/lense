@@ -943,6 +943,8 @@ import type {
   ListActivityCommentsResponses,
   ListActivityKindsData,
   ListActivityKindsResponses,
+  ListActivityMutesData,
+  ListActivityMutesResponses,
   ListAllTokensData,
   ListAllTokensResponses,
   ListApprovalsData,
@@ -1290,6 +1292,9 @@ import type {
   MoveRecordingData,
   MoveRecordingErrors,
   MoveRecordingResponses,
+  MuteActivitiesData,
+  MuteActivitiesErrors,
+  MuteActivitiesResponses,
   NewImportHookTokenData,
   NewImportHookTokenErrors,
   NewImportHookTokenResponses,
@@ -4317,8 +4322,9 @@ export class Activities {
    * What happened in Lens, newest first: new assets and everything else the stream holds, each an Activity Streams
    * 2.0 activity with a Lens kind. Give `next` as `before` for the page after. Noisy kinds (like sensor readings) are
    * left out unless named in `kinds`. Text from outside Lens is listed in each activity's `lens.untrusted`. `marks`
-   * has your own marks on the page's activities; `reviewed`, `important` and `hidden` filter by them. `order=for_you`
-   * puts what you react to, comment on and mark important first, and what you hid last (docs/timeline.md, For you).
+   * has your own marks on the page's activities; `reviewed`, `important` and `hidden` filter by them; what you muted
+   * (`/activities/mutes`) is left out unless `hidden=true`. `order=for_you` puts what you react to, comment on and
+   * mark important first, and what you hid last (docs/timeline.md, For you).
    */
   public static listActivities<ThrowOnError extends boolean = false>(
     options?: Options<ListActivitiesData, ThrowOnError>,
@@ -4357,6 +4363,42 @@ export class Activities {
   ): RequestResult<MarkActivitiesResponses, MarkActivitiesErrors, ThrowOnError> {
     return (options.client ?? client).post<MarkActivitiesResponses, MarkActivitiesErrors, ThrowOnError>({
       url: "/api/v1/activities/mark",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Activity Mutes
+   *
+   * Your mutes: the sources, people and kinds whose activities the timeline leaves out for you, each for good or
+   * until a time (docs/timeline.md, Muting). Nobody else's timeline changes.
+   */
+  public static listActivityMutes<ThrowOnError extends boolean = false>(
+    options?: Options<ListActivityMutesData, ThrowOnError>,
+  ): RequestResult<ListActivityMutesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListActivityMutesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/activities/mutes",
+      ...options,
+    });
+  }
+
+  /**
+   * Mute Activities
+   *
+   * Mute a source or person (`actor`, by id) or a kind of activity (`kind`, the kinds under it too) for yourself,
+   * for good or `until` a time (snooze it for a day), or lift the mute with `on` false. Muting hides, it never
+   * deletes: the activities stay, still trigger automations and still show to everyone else, and `hidden=true` on
+   * the timeline shows them to you. The answer is your mutes now.
+   */
+  public static muteActivities<ThrowOnError extends boolean = false>(
+    options: Options<MuteActivitiesData, ThrowOnError>,
+  ): RequestResult<MuteActivitiesResponses, MuteActivitiesErrors, ThrowOnError> {
+    return (options.client ?? client).post<MuteActivitiesResponses, MuteActivitiesErrors, ThrowOnError>({
+      url: "/api/v1/activities/mute",
       ...options,
       headers: {
         "Content-Type": "application/json",

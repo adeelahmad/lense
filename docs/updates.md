@@ -68,7 +68,9 @@ profiles are fixed in the agent: `mcp` (the MCP runner), `browser` (the browser 
 [code sandbox](assistant.md#the-gateway)'s gateway, its certificates and the client's key), `monitoring`
 ([Charts and history](prometheus.md#prometheus-and-grafana-ready-made): Prometheus, node-exporter and Grafana) and
 `mesh` ([Nodes and the mesh](mesh.md#on-this-machine): Nebula on the primary); it refuses any other. It reports in `services-status` and `services.log`. A request from an older Lens, with
-`monitoring=on` or `off` and no profile, still works.
+`monitoring=on` or `off` and no profile, still works. In a [microsandbox](microsandbox.md) install only `mcp` can be
+turned: the agent changes `.env`, and the sandbox, which reads it every few seconds, starts or stops the runner inside
+itself ([The MCP runner](assistant.md#the-mcp-runner)); the other profiles are refused there.
 
 With no agent (Lens wasn't installed with install.sh, the machine has neither systemd nor launchd, or install.sh ran
 with `LENS_UPGRADE_AGENT=0`), the API gives the one line to run on the machine instead (`manual`).

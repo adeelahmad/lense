@@ -14640,6 +14640,94 @@ export type MonthStats = {
 };
 
 /**
+ * Mute
+ *
+ * One of your mutes: an actor or a kind, until a time or for good.
+ */
+export type Mute = {
+  /**
+   * Actor
+   *
+   * the muted actor's id, like lens:source/12
+   */
+  actor?: string | null;
+  /**
+   * Kind
+   *
+   * the muted kind, like sensor.reading (the kinds under it count too)
+   */
+  kind?: string | null;
+  /**
+   * Name
+   *
+   * the actor's name as the page showed it, or the kind's label
+   */
+  name?: string | null;
+  /**
+   * Until
+   *
+   * when it runs out (ISO 8601); null for good
+   */
+  until?: string | null;
+  /**
+   * At
+   */
+  at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * MuteIn
+ *
+ * Mute an actor or a kind (one of the two) for yourself, for good or until a time; `on` false lifts it.
+ */
+export type MuteIn = {
+  /**
+   * Actor
+   *
+   * an actor's id, like lens:source/12 or lens:account/1
+   */
+  actor?: string | null;
+  /**
+   * Kind
+   *
+   * a kind, like sensor.reading
+   */
+  kind?: string | null;
+  /**
+   * Name
+   *
+   * the actor's name, for the Muted list
+   */
+  name?: string | null;
+  /**
+   * Until
+   *
+   * until this time (ISO 8601); left out: for good
+   */
+  until?: string | null;
+  /**
+   * On
+   *
+   * mute (true) or lift the mute (false)
+   */
+  on?: boolean;
+};
+
+/**
+ * MutesOut
+ */
+export type MutesOut = {
+  /**
+   * Mutes
+   *
+   * your mutes now, the latest first
+   */
+  mutes: Array<Mute>;
+  [key: string]: unknown;
+};
+
+/**
  * Namespace
  */
 export type Namespace = {
@@ -33383,6 +33471,47 @@ export type MarkActivitiesResponses = {
 };
 
 export type MarkActivitiesResponse = MarkActivitiesResponses[keyof MarkActivitiesResponses];
+
+export type ListActivityMutesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/activities/mutes";
+};
+
+export type ListActivityMutesResponses = {
+  /**
+   * Successful Response
+   */
+  200: MutesOut;
+};
+
+export type ListActivityMutesResponse = ListActivityMutesResponses[keyof ListActivityMutesResponses];
+
+export type MuteActivitiesData = {
+  body: MuteIn;
+  path?: never;
+  query?: never;
+  url: "/api/v1/activities/mute";
+};
+
+export type MuteActivitiesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type MuteActivitiesError = MuteActivitiesErrors[keyof MuteActivitiesErrors];
+
+export type MuteActivitiesResponses = {
+  /**
+   * Successful Response
+   */
+  200: MutesOut;
+};
+
+export type MuteActivitiesResponse = MuteActivitiesResponses[keyof MuteActivitiesResponses];
 
 export type GetActivityData = {
   body?: never;

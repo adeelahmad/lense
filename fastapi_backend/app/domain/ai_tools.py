@@ -21,6 +21,7 @@ from . import (
     decide,
     entities,
     event_marks,
+    event_mutes,
     extensions,
     entity_map,
     events,
@@ -182,6 +183,22 @@ TOOLS = [
         "The person's circles of trust (Immediate family, Friends, ...): the people on this Lens they share with, each "
         "circle with its members, and with shares (received or sent) what was shared with them or by them, newest first.",
         {"shares": {"type": "string", "enum": ["received", "sent"]}, "limit": _I},
+        [],
+        False,
+    ),
+    (
+        "mute_activities",
+        "Mute a source or person (actor, by id from timeline) or a kind of activity (kind) on the person's timeline, for "
+        "good or until a time (snooze it for a day), or lift the mute with on false. Muting hides, never deletes: the "
+        "activities stay, still trigger automations and still show to everyone else. Give actor or kind, one of them; "
+        "name is the actor's name, for the Muted list on the page.",
+        {
+            "actor": _S,
+            "kind": _S,
+            "name": _S,
+            "until": _S,
+            "on": {"type": "boolean"},
+        },
         [],
         False,
     ),
@@ -663,6 +680,7 @@ OWN_RESULTS = {
     "graph_schema",
     "use_skill",
     "mark_activities",
+    "mute_activities",
     "decline_approval",
     "scaling",
     "mesh",
@@ -731,6 +749,7 @@ GROUPS = {
         "tools": [
             "timeline",
             "mark_activities",
+            "mute_activities",
             "circles",
             "share_with_circle",
             "approvals",
@@ -1697,7 +1716,7 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
             if not spaces:
                 raise ValueError(f"namespace {namespace} isn't in this conversation")
         flt = {"kinds": kinds or None, "tag": tag, "since": since, "until": until, "q": q, "spaces": sorted(spaces) if namespace else None}
-        keep = event_marks.keeper(self.db, self.account, {"reviewed": False} if unreviewed else None)
+        keep = event_mutes.keeper(self.db, self.account, {"reviewed": False} if unreviewed else None)
         flt, limit = {k: v for k, v in flt.items() if v}, min(int(limit or 20), 50)
         if order and order not in for_you.ORDERS:
             raise ValueError(f"order is {' or '.join(for_you.ORDERS)}")
@@ -1791,6 +1810,21 @@ class Toolbox(ops_tools.OpsTools, connection_tools.ConnectionTools):
         whom = ", ".join(got["circles"]) or ", ".join(circlemod._label(p) for p in got["people"])
         what = circlemod._quoted(got["object"])
         return self._approval("share_with_circle", args, f"Share {what} with {whom}")
+
+    def t_mute_activities(self, actor=None, kind=None, name=None, until=None, on=None):
+        what, value = event_mutes.target(actor, kind)
+        shown = events.kind_info(value)["label"] if what == "kind" else (str(name or "").strip() or value)
+        if on is False:
+            had = next((m for m in event_mutes.of(self.db, self.account) if m.get(what) == value), None)
+            shown = (had or {}).get("name") or shown
+            return {"mutes": event_mutes.unmute(self.db, self.account, actor, kind)}, f"Lifted the mute on {shown}"
+        event_mutes._until(until)
+        said = f"Mute {shown}" + (f" until {until}" if until else "")
+        # outside text (the timeline's own titles too) may have asked to take things out of the person's sight
+        if self.wary():
+            args = {"actor": actor, "kind": kind, "until": until, "name": shown}
+            return self._approval("mute_activities", args, said + self.why())
+        return {"mutes": event_mutes.mute(self.db, self.account, actor, kind, until, shown)}, said.replace("Mute", "Muted", 1)
 
     # ---- approvals (approvals.py): the person's own, read and declined; approving is theirs ----
     def _approval_seen(self, a):
@@ -2616,6 +2650,9 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable, via=
     elif a["tool"] == "mark_activities":  # the person's own marks, on activities they could see when it was asked
         flags = {k: v for k, v in args.items() if k in event_marks.FLAGS}
         result = {"marked": len(event_marks.mark(db, user["id"], args["ids"], flags))}
+    elif a["tool"] == "mute_activities":  # the person's own mute, as asked
+        got = event_mutes.mute(db, user["id"], args.get("actor"), args.get("kind"), args.get("until"), args.get("name"))
+        result = {"mutes": len(got)}
     elif a["tool"] in connection_tools.ASKS:  # bringing things in, sending mail, adding an event, writing a file
         result = connection_tools.carry_out(db, cfg, a["tool"], args, user, admin)
     elif a["tool"] == "send_reply":  # an email's reply an agent asked to send (responder.ask): the approved text

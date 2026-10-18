@@ -209,8 +209,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   the assistant, and people review on the Timeline page (and Latest on Home), marking what they've seen, reacting with
   an emoji and commenting in threads everyone who sees the item shares (agents too, over MCP), and asking the
   assistant about any item from the item; a comment that tags @lens gets the agent's answer in the thread, with
-  every change it proposes waiting for a yes, and a For you order learned from each person's own reactions, comments
-  and marks says why each item is where it is. Automations act
+  every change it proposes waiting for a yes, a For you order learned from each person's own reactions, comments
+  and marks says why each item is where it is, and each person mutes a source or a kind for themselves, with nothing
+  deleted. Automations act
   on that stream, on a schedule, at a time or when their own webhook is called, alone or with their triggers joined (all
   of them, a number of times, one that doesn't come in time, or a batch): they test conditions (text, patterns,
   numbers, lists, times, days, whether a value changed and whether something like it happened before in their
@@ -313,7 +314,8 @@ swapped for a cloud provider instead. Setup asks only what has no default: the m
 Picking a cloud model provider fills in its address and a model, so only its key is left to paste. Every setting lives
 in the web app, which works on a phone too: settings are in named groups, a search finds any one by name, and the
 options most people leave as they are stay folded. A thin bar along the top of the web app shows a page or its data is
-still loading. ([Components](docs/components.md),
+still loading. Heavy steps can be kept to the night, or to so many at a time (off by default).
+([Components](docs/components.md), [quiet processing](docs/architecture.md#background-work),
 [speech providers](docs/speech-providers.md), [local models](docs/local-models.md),
 [cloud model providers](docs/configuration.md#cloud-model-providers); [checks](docs/requirements.md#light-by-default))
 

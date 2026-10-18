@@ -1,0 +1,4265 @@
+{
+ "components": {},
+ "info": {
+  "title": "Hetzner Cloud API",
+  "version": "1.0.0",
+  "x-lens-fetched": "2026-10-18",
+  "x-lens-source": "https://docs.hetzner.cloud/cloud.spec.json"
+ },
+ "openapi": "3.1.2",
+ "paths": {
+  "/locations": {
+   "get": {
+    "operationId": "list_locations",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "name",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "sort",
+      "required": false,
+      "schema": {
+       "items": {
+        "enum": [
+         "id",
+         "id:asc",
+         "id:desc",
+         "name",
+         "name:asc",
+         "name:desc"
+        ],
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     {
+      "in": "query",
+      "name": "page",
+      "required": false,
+      "schema": {
+       "default": 1,
+       "example": 1,
+       "format": "int64",
+       "minimum": 1,
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "per_page",
+      "required": false,
+      "schema": {
+       "default": 25,
+       "example": 25,
+       "format": "int64",
+       "maximum": 50,
+       "minimum": 1,
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": false,
+         "properties": {
+          "locations": {
+           "items": {
+            "properties": {
+             "city": {
+              "type": "string"
+             },
+             "country": {
+              "type": "string"
+             },
+             "description": {
+              "type": "string"
+             },
+             "id": {
+              "example": 42,
+              "format": "int64",
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "type": "integer"
+             },
+             "latitude": {
+              "example": 50.47612,
+              "format": "double",
+              "type": "number"
+             },
+             "longitude": {
+              "example": 12.370071,
+              "format": "double",
+              "type": "number"
+             },
+             "name": {
+              "pattern": "^[a-z0-9]+(-?[a-z0-9]*)*$",
+              "type": "string"
+             },
+             "network_zone": {
+              "pattern": "^[a-z0-9]+(-?[a-z0-9]*)*$",
+              "type": "string"
+             }
+            },
+            "required": [
+             "id",
+             "name",
+             "description",
+             "country",
+             "city",
+             "latitude",
+             "longitude",
+             "network_zone"
+            ],
+            "type": "object"
+           },
+           "type": "array"
+          },
+          "meta": {
+           "properties": {
+            "pagination": {
+             "properties": {
+              "last_page": {
+               "example": 4,
+               "format": "int64",
+               "type": [
+                "integer",
+                "null"
+               ]
+              },
+              "next_page": {
+               "example": 4,
+               "format": "int64",
+               "type": [
+                "integer",
+                "null"
+               ]
+              },
+              "page": {
+               "default": 1,
+               "example": 3,
+               "format": "int64",
+               "minimum": 1,
+               "type": "integer"
+              },
+              "per_page": {
+               "default": 25,
+               "example": 25,
+               "format": "int64",
+               "maximum": 50,
+               "minimum": 1,
+               "type": "integer"
+              },
+              "previous_page": {
+               "example": 2,
+               "format": "int64",
+               "type": [
+                "integer",
+                "null"
+               ]
+              },
+              "total_entries": {
+               "example": 100,
+               "format": "int64",
+               "type": [
+                "integer",
+                "null"
+               ]
+              }
+             },
+             "required": [
+              "page",
+              "per_page",
+              "previous_page",
+              "next_page",
+              "last_page",
+              "total_entries"
+             ],
+             "type": "object"
+            }
+           },
+           "required": [
+            "pagination"
+           ],
+           "title": "ListMeta",
+           "type": "object"
+          }
+         },
+         "required": [
+          "locations",
+          "meta"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "4xx": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "error": {
+           "properties": {
+            "code": {
+             "type": "string"
+            },
+            "details": {
+             "type": [
+              "object",
+              "null"
+             ]
+            },
+            "message": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "code",
+            "message"
+           ],
+           "type": "object"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "5xx": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "error": {
+           "properties": {
+            "code": {
+             "type": "string"
+            },
+            "details": {
+             "type": [
+              "object",
+              "null"
+             ]
+            },
+            "message": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "code",
+            "message"
+           ],
+           "type": "object"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "APIToken": []
+     }
+    ],
+    "tags": [
+     "Locations"
+    ]
+   }
+  },
+  "/server_types": {
+   "get": {
+    "operationId": "list_server_types",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "name",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "page",
+      "required": false,
+      "schema": {
+       "default": 1,
+       "example": 1,
+       "format": "int64",
+       "minimum": 1,
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "per_page",
+      "required": false,
+      "schema": {
+       "default": 25,
+       "example": 25,
+       "format": "int64",
+       "maximum": 50,
+       "minimum": 1,
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "meta": {
+           "properties": {
+            "pagination": {
+             "properties": {
+              "last_page": {
+               "example": 4,
+               "format": "int64",
+               "type": [
+                "integer",
+                "null"
+               ]
+              },
+              "next_page": {
+               "example": 4,
+               "format": "int64",
+               "type": [
+                "integer",
+                "null"
+               ]
+              },
+              "page": {
+               "default": 1,
+               "example": 3,
+               "format": "int64",
+               "minimum": 1,
+               "type": "integer"
+              },
+              "per_page": {
+               "default": 25,
+               "example": 25,
+               "format": "int64",
+               "maximum": 50,
+               "minimum": 1,
+               "type": "integer"
+              },
+              "previous_page": {
+               "example": 2,
+               "format": "int64",
+               "type": [
+                "integer",
+                "null"
+               ]
+              },
+              "total_entries": {
+               "example": 100,
+               "format": "int64",
+               "type": [
+                "integer",
+                "null"
+               ]
+              }
+             },
+             "required": [
+              "page",
+              "per_page",
+              "previous_page",
+              "next_page",
+              "last_page",
+              "total_entries"
+             ],
+             "type": "object"
+            }
+           },
+           "required": [
+            "pagination"
+           ],
+           "title": "ListMeta",
+           "type": "object"
+          },
+          "server_types": {
+           "items": {
+            "properties": {
+             "architecture": {
+              "enum": [
+               "x86",
+               "arm"
+              ],
+              "type": "string"
+             },
+             "category": {
+              "type": "string"
+             },
+             "cores": {
+              "example": 2,
+              "type": "number"
+             },
+             "cpu_type": {
+              "enum": [
+               "shared",
+               "dedicated"
+              ],
+              "type": "string"
+             },
+             "deprecated": {
+              "example": false,
+              "type": "boolean"
+             },
+             "deprecation": {
+              "deprecated": true,
+              "properties": {
+               "announced": {
+                "format": "date-time",
+                "type": "string"
+               },
+               "unavailable_after": {
+                "format": "date-time",
+                "type": "string"
+               }
+              },
+              "required": [
+               "unavailable_after",
+               "announced"
+              ],
+              "title": "DeprecationInfo",
+              "type": [
+               "object",
+               "null"
+              ]
+             },
+             "description": {
+              "type": "string"
+             },
+             "disk": {
+              "example": 80,
+              "type": "number"
+             },
+             "id": {
+              "example": 1,
+              "format": "int64",
+              "type": "integer"
+             },
+             "locations": {
+              "items": {
+               "properties": {
+                "available": {
+                 "example": true,
+                 "type": "boolean"
+                },
+                "deprecation": {
+                 "properties": {
+                  "announced": {
+                   "format": "date-time",
+                   "type": "string"
+                  },
+                  "unavailable_after": {
+                   "format": "date-time",
+                   "type": "string"
+                  }
+                 },
+                 "required": [
+                  "unavailable_after",
+                  "announced"
+                 ],
+                 "title": "DeprecationInfo",
+                 "type": [
+                  "object",
+                  "null"
+                 ]
+                },
+                "id": {
+                 "example": 42,
+                 "format": "int64",
+                 "maximum": 9007199254740991,
+                 "minimum": 1,
+                 "type": "integer"
+                },
+                "name": {
+                 "type": "string"
+                },
+                "recommended": {
+                 "example": false,
+                 "type": "boolean"
+                }
+               },
+               "required": [
+                "id",
+                "name",
+                "deprecation",
+                "recommended",
+                "available"
+               ],
+               "type": "object"
+              },
+              "type": "array"
+             },
+             "memory": {
+              "example": 4,
+              "type": "number"
+             },
+             "name": {
+              "type": "string"
+             },
+             "prices": {
+              "items": {
+               "properties": {
+                "included_traffic": {
+                 "example": 654321,
+                 "format": "int64",
+                 "type": "integer"
+                },
+                "location": {
+                 "type": "string"
+                },
+                "price_hourly": {
+                 "properties": {
+                  "gross": {
+                   "format": "decimal",
+                   "type": "string"
+                  },
+                  "net": {
+                   "format": "decimal",
+                   "type": "string"
+                  }
+                 },
+                 "required": [
+                  "net",
+                  "gross"
+                 ],
+                 "type": "object"
+                },
+                "price_monthly": {
+                 "properties": {
+                  "gross": {
+                   "format": "decimal",
+                   "type": "string"
+                  },
+                  "net": {
+                   "format": "decimal",
+                   "type": "string"
+                  }
+                 },
+                 "required": [
+                  "net",
+                  "gross"
+                 ],
+                 "type": "object"
+                },
+                "price_per_tb_traffic": {
+                 "properties": {
+                  "gross": {
+                   "format": "decimal",
+                   "type": "string"
+                  },
+                  "net": {
+                   "format": "decimal",
+                   "type": "string"
+                  }
+                 },
+                 "required": [
+                  "net",
+                  "gross"
+                 ],
+                 "type": "object"
+                }
+               },
+               "required": [
+                "location",
+                "price_hourly",
+                "price_monthly",
+                "included_traffic",
+                "price_per_tb_traffic"
+               ],
+               "type": "object"
+              },
+              "type": "array"
+             },
+             "storage_type": {
+              "enum": [
+               "local",
+               "network"
+              ],
+              "type": "string"
+             }
+            },
+            "required": [
+             "id",
+             "name",
+             "description",
+             "cores",
+             "memory",
+             "disk",
+             "deprecated",
+             "prices",
+             "storage_type",
+             "cpu_type",
+             "architecture",
+             "locations"
+            ],
+            "type": "object"
+           },
+           "type": "array"
+          }
+         },
+         "required": [
+          "server_types",
+          "meta"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "4xx": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "error": {
+           "properties": {
+            "code": {
+             "type": "string"
+            },
+            "details": {
+             "type": [
+              "object",
+              "null"
+             ]
+            },
+            "message": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "code",
+            "message"
+           ],
+           "type": "object"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "5xx": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "error": {
+           "properties": {
+            "code": {
+             "type": "string"
+            },
+            "details": {
+             "type": [
+              "object",
+              "null"
+             ]
+            },
+            "message": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "code",
+            "message"
+           ],
+           "type": "object"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "APIToken": []
+     }
+    ],
+    "tags": [
+     "Server Types"
+    ]
+   }
+  },
+  "/servers": {
+   "get": {
+    "operationId": "list_servers",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "name",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "label_selector",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "sort",
+      "required": false,
+      "schema": {
+       "items": {
+        "enum": [
+         "id",
+         "id:asc",
+         "id:desc",
+         "name",
+         "name:asc",
+         "name:desc",
+         "created",
+         "created:asc",
+         "created:desc"
+        ],
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "items": {
+        "enum": [
+         "running",
+         "initializing",
+         "starting",
+         "stopping",
+         "off",
+         "deleting",
+         "migrating",
+         "rebuilding",
+         "unknown"
+        ],
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     {
+      "in": "query",
+      "name": "page",
+      "required": false,
+      "schema": {
+       "default": 1,
+       "example": 1,
+       "format": "int64",
+       "minimum": 1,
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "per_page",
+      "required": false,
+      "schema": {
+       "default": 25,
+       "example": 25,
+       "format": "int64",
+       "maximum": 50,
+       "minimum": 1,
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "meta": {
+           "properties": {
+            "pagination": {
+             "properties": {
+              "last_page": {
+               "example": 4,
+               "format": "int64",
+               "type": [
+                "integer",
+                "null"
+               ]
+              },
+              "next_page": {
+               "example": 4,
+               "format": "int64",
+               "type": [
+                "integer",
+                "null"
+               ]
+              },
+              "page": {
+               "default": 1,
+               "example": 3,
+               "format": "int64",
+               "minimum": 1,
+               "type": "integer"
+              },
+              "per_page": {
+               "default": 25,
+               "example": 25,
+               "format": "int64",
+               "maximum": 50,
+               "minimum": 1,
+               "type": "integer"
+              },
+              "previous_page": {
+               "example": 2,
+               "format": "int64",
+               "type": [
+                "integer",
+                "null"
+               ]
+              },
+              "total_entries": {
+               "example": 100,
+               "format": "int64",
+               "type": [
+                "integer",
+                "null"
+               ]
+              }
+             },
+             "required": [
+              "page",
+              "per_page",
+              "previous_page",
+              "next_page",
+              "last_page",
+              "total_entries"
+             ],
+             "type": "object"
+            }
+           },
+           "required": [
+            "pagination"
+           ],
+           "title": "ListMeta",
+           "type": "object"
+          },
+          "servers": {
+           "items": {
+            "properties": {
+             "backup_window": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "created": {
+              "format": "date-time",
+              "type": "string"
+             },
+             "id": {
+              "example": 42,
+              "format": "int64",
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "type": "integer"
+             },
+             "image": {
+              "properties": {
+               "architecture": {
+                "enum": [
+                 "x86",
+                 "arm"
+                ],
+                "type": "string"
+               },
+               "bound_to": {
+                "example": null,
+                "format": "int64",
+                "type": [
+                 "integer",
+                 "null"
+                ]
+               },
+               "created": {
+                "format": "date-time",
+                "type": "string"
+               },
+               "created_from": {
+                "properties": {
+                 "id": {
+                  "example": 1,
+                  "format": "int64",
+                  "type": "integer"
+                 },
+                 "name": {
+                  "type": "string"
+                 }
+                },
+                "required": [
+                 "id",
+                 "name"
+                ],
+                "type": [
+                 "object",
+                 "null"
+                ]
+               },
+               "deleted": {
+                "example": null,
+                "type": [
+                 "string",
+                 "null"
+                ]
+               },
+               "deprecated": {
+                "deprecated": true,
+                "format": "date-time",
+                "type": [
+                 "string",
+                 "null"
+                ]
+               },
+               "deprecation": {
+                "properties": {
+                 "announced": {
+                  "format": "date-time",
+                  "type": "string"
+                 },
+                 "unavailable_after": {
+                  "format": "date-time",
+                  "type": "string"
+                 }
+                },
+                "required": [
+                 "unavailable_after",
+                 "announced"
+                ],
+                "title": "DeprecationInfo",
+                "type": [
+                 "object",
+                 "null"
+                ]
+               },
+               "description": {
+                "type": "string"
+               },
+               "disk_size": {
+                "example": 10,
+                "type": "number"
+               },
+               "id": {
+                "example": 42,
+                "format": "int64",
+                "maximum": 9007199254740991,
+                "minimum": 1,
+                "type": "integer"
+               },
+               "image_size": {
+                "example": 2.3,
+                "type": [
+                 "number",
+                 "null"
+                ]
+               },
+               "labels": {
+                "additionalProperties": {
+                 "type": "string"
+                },
+                "type": "object"
+               },
+               "name": {
+                "type": [
+                 "string",
+                 "null"
+                ]
+               },
+               "os_flavor": {
+                "enum": [
+                 "ubuntu",
+                 "centos",
+                 "debian",
+                 "fedora",
+                 "rocky",
+                 "alma",
+                 "opensuse",
+                 "unknown"
+                ],
+                "type": "string"
+               },
+               "os_version": {
+                "type": [
+                 "string",
+                 "null"
+                ]
+               },
+               "protection": {
+                "properties": {
+                 "delete": {
+                  "example": false,
+                  "type": "boolean"
+                 }
+                },
+                "required": [
+                 "delete"
+                ],
+                "type": "object"
+               },
+               "rapid_deploy": {
+                "example": false,
+                "type": "boolean"
+               },
+               "status": {
+                "enum": [
+                 "available",
+                 "creating",
+                 "unavailable"
+                ],
+                "type": "string"
+               },
+               "type": {
+                "enum": [
+                 "system",
+                 "app",
+                 "snapshot",
+                 "backup"
+                ],
+                "type": "string"
+               }
+              },
+              "required": [
+               "id",
+               "type",
+               "status",
+               "name",
+               "description",
+               "image_size",
+               "disk_size",
+               "created",
+               "created_from",
+               "bound_to",
+               "os_flavor",
+               "os_version",
+               "protection",
+               "deprecated",
+               "deprecation",
+               "deleted",
+               "labels",
+               "architecture"
+              ],
+              "type": [
+               "object",
+               "null"
+              ]
+             },
+             "included_traffic": {
+              "example": 654321,
+              "format": "int64",
+              "type": [
+               "integer",
+               "null"
+              ]
+             },
+             "ingoing_traffic": {
+              "example": 123456,
+              "format": "int64",
+              "type": [
+               "integer",
+               "null"
+              ]
+             },
+             "iso": {
+              "properties": {
+               "architecture": {
+                "enum": [
+                 "x86",
+                 "arm"
+                ],
+                "type": [
+                 "string",
+                 "null"
+                ]
+               },
+               "deprecation": {
+                "properties": {
+                 "announced": {
+                  "format": "date-time",
+                  "type": "string"
+                 },
+                 "unavailable_after": {
+                  "format": "date-time",
+                  "type": "string"
+                 }
+                },
+                "required": [
+                 "unavailable_after",
+                 "announced"
+                ],
+                "title": "DeprecationInfo",
+                "type": [
+                 "object",
+                 "null"
+                ]
+               },
+               "description": {
+                "type": "string"
+               },
+               "id": {
+                "example": 42,
+                "format": "int64",
+                "maximum": 9007199254740991,
+                "minimum": 1,
+                "type": "integer"
+               },
+               "name": {
+                "type": [
+                 "string",
+                 "null"
+                ]
+               },
+               "type": {
+                "enum": [
+                 "public",
+                 "private"
+                ],
+                "type": [
+                 "string",
+                 "null"
+                ]
+               }
+              },
+              "required": [
+               "id",
+               "name",
+               "description",
+               "type",
+               "deprecation",
+               "architecture"
+              ],
+              "type": [
+               "object",
+               "null"
+              ]
+             },
+             "labels": {
+              "additionalProperties": {
+               "type": "string"
+              },
+              "type": "object"
+             },
+             "load_balancers": {
+              "items": {
+               "format": "int64",
+               "type": "integer"
+              },
+              "type": "array"
+             },
+             "location": {
+              "properties": {
+               "city": {
+                "type": "string"
+               },
+               "country": {
+                "type": "string"
+               },
+               "description": {
+                "type": "string"
+               },
+               "id": {
+                "example": 42,
+                "format": "int64",
+                "maximum": 9007199254740991,
+                "minimum": 1,
+                "type": "integer"
+               },
+               "latitude": {
+                "example": 50.47612,
+                "format": "double",
+                "type": "number"
+               },
+               "longitude": {
+                "example": 12.370071,
+                "format": "double",
+                "type": "number"
+               },
+               "name": {
+                "pattern": "^[a-z0-9]+(-?[a-z0-9]*)*$",
+                "type": "string"
+               },
+               "network_zone": {
+                "pattern": "^[a-z0-9]+(-?[a-z0-9]*)*$",
+                "type": "string"
+               }
+              },
+              "required": [
+               "id",
+               "name",
+               "description",
+               "country",
+               "city",
+               "latitude",
+               "longitude",
+               "network_zone"
+              ],
+              "type": "object"
+             },
+             "locked": {
+              "example": false,
+              "type": "boolean"
+             },
+             "name": {
+              "type": "string"
+             },
+             "outgoing_traffic": {
+              "example": 123456,
+              "format": "int64",
+              "type": [
+               "integer",
+               "null"
+              ]
+             },
+             "placement_group": {
+              "properties": {
+               "created": {
+                "format": "date-time",
+                "type": "string"
+               },
+               "id": {
+                "example": 42,
+                "format": "int64",
+                "maximum": 9007199254740991,
+                "minimum": 1,
+                "type": "integer"
+               },
+               "labels": {
+                "additionalProperties": {
+                 "type": "string"
+                },
+                "type": "object"
+               },
+               "name": {
+                "type": "string"
+               },
+               "servers": {
+                "items": {
+                 "format": "int64",
+                 "type": "integer"
+                },
+                "type": "array"
+               },
+               "type": {
+                "enum": [
+                 "spread"
+                ],
+                "type": "string"
+               }
+              },
+              "required": [
+               "id",
+               "name",
+               "labels",
+               "type",
+               "created",
+               "servers"
+              ],
+              "title": "PlacementGroupNullable",
+              "type": [
+               "object",
+               "null"
+              ]
+             },
+             "primary_disk_size": {
+              "example": 50,
+              "type": "number"
+             },
+             "private_net": {
+              "items": {
+               "properties": {
+                "alias_ips": {
+                 "items": {
+                  "type": "string"
+                 },
+                 "type": "array"
+                },
+                "ip": {
+                 "type": "string"
+                },
+                "mac_address": {
+                 "type": "string"
+                },
+                "network": {
+                 "example": 4711,
+                 "format": "int64",
+                 "type": "integer"
+                }
+               },
+               "type": "object"
+              },
+              "type": "array"
+             },
+             "protection": {
+              "properties": {
+               "delete": {
+                "example": false,
+                "type": "boolean"
+               },
+               "rebuild": {
+                "example": false,
+                "type": "boolean"
+               }
+              },
+              "required": [
+               "delete",
+               "rebuild"
+              ],
+              "type": "object"
+             },
+             "public_net": {
+              "properties": {
+               "firewalls": {
+                "items": {
+                 "properties": {
+                  "id": {
+                   "example": 42,
+                   "format": "int64",
+                   "maximum": 9007199254740991,
+                   "minimum": 1,
+                   "type": "integer"
+                  },
+                  "status": {
+                   "enum": [
+                    "applied",
+                    "pending"
+                   ],
+                   "type": "string"
+                  }
+                 },
+                 "title": "ServerPublicNetFirewall",
+                 "type": "object"
+                },
+                "type": "array"
+               },
+               "floating_ips": {
+                "items": {
+                 "format": "int64",
+                 "type": "integer"
+                },
+                "type": "array"
+               },
+               "ipv4": {
+                "properties": {
+                 "blocked": {
+                  "example": false,
+                  "type": "boolean"
+                 },
+                 "dns_ptr": {
+                  "type": "string"
+                 },
+                 "id": {
+                  "example": 42,
+                  "format": "int64",
+                  "maximum": 9007199254740991,
+                  "minimum": 1,
+                  "type": "integer"
+                 },
+                 "ip": {
+                  "type": "string"
+                 }
+                },
+                "required": [
+                 "ip",
+                 "blocked",
+                 "dns_ptr"
+                ],
+                "type": [
+                 "object",
+                 "null"
+                ]
+               },
+               "ipv6": {
+                "properties": {
+                 "blocked": {
+                  "example": false,
+                  "type": "boolean"
+                 },
+                 "dns_ptr": {
+                  "items": {
+                   "properties": {
+                    "dns_ptr": {
+                     "type": "string"
+                    },
+                    "ip": {
+                     "type": "string"
+                    }
+                   },
+                   "required": [
+                    "ip",
+                    "dns_ptr"
+                   ],
+                   "type": "object"
+                  },
+                  "type": [
+                   "array",
+                   "null"
+                  ]
+                 },
+                 "id": {
+                  "example": 42,
+                  "format": "int64",
+                  "maximum": 9007199254740991,
+                  "minimum": 1,
+                  "type": "integer"
+                 },
+                 "ip": {
+                  "type": "string"
+                 }
+                },
+                "required": [
+                 "ip",
+                 "blocked",
+                 "dns_ptr"
+                ],
+                "type": [
+                 "object",
+                 "null"
+                ]
+               }
+              },
+              "required": [
+               "ipv4",
+               "ipv6",
+               "floating_ips"
+              ],
+              "type": "object"
+             },
+             "rescue_enabled": {
+              "example": false,
+              "type": "boolean"
+             },
+             "server_type": {
+              "properties": {
+               "architecture": {
+                "enum": [
+                 "x86",
+                 "arm"
+                ],
+                "type": "string"
+               },
+               "category": {
+                "type": "string"
+               },
+               "cores": {
+                "example": 2,
+                "type": "number"
+               },
+               "cpu_type": {
+                "enum": [
+                 "shared",
+                 "dedicated"
+                ],
+                "type": "string"
+               },
+               "deprecated": {
+                "example": false,
+                "type": "boolean"
+               },
+               "deprecation": {
+                "deprecated": true,
+                "properties": {
+                 "announced": {
+                  "format": "date-time",
+                  "type": "string"
+                 },
+                 "unavailable_after": {
+                  "format": "date-time",
+                  "type": "string"
+                 }
+                },
+                "required": [
+                 "unavailable_after",
+                 "announced"
+                ],
+                "title": "DeprecationInfo",
+                "type": [
+                 "object",
+                 "null"
+                ]
+               },
+               "description": {
+                "type": "string"
+               },
+               "disk": {
+                "example": 80,
+                "type": "number"
+               },
+               "id": {
+                "example": 1,
+                "format": "int64",
+                "type": "integer"
+               },
+               "locations": {
+                "items": {
+                 "properties": {
+                  "available": {
+                   "example": true,
+                   "type": "boolean"
+                  },
+                  "deprecation": {
+                   "properties": {
+                    "announced": {
+                     "format": "date-time",
+                     "type": "string"
+                    },
+                    "unavailable_after": {
+                     "format": "date-time",
+                     "type": "string"
+                    }
+                   },
+                   "required": [
+                    "unavailable_after",
+                    "announced"
+                   ],
+                   "title": "DeprecationInfo",
+                   "type": [
+                    "object",
+                    "null"
+                   ]
+                  },
+                  "id": {
+                   "example": 42,
+                   "format": "int64",
+                   "maximum": 9007199254740991,
+                   "minimum": 1,
+                   "type": "integer"
+                  },
+                  "name": {
+                   "type": "string"
+                  },
+                  "recommended": {
+                   "example": false,
+                   "type": "boolean"
+                  }
+                 },
+                 "required": [
+                  "id",
+                  "name",
+                  "deprecation",
+                  "recommended",
+                  "available"
+                 ],
+                 "type": "object"
+                },
+                "type": "array"
+               },
+               "memory": {
+                "example": 4,
+                "type": "number"
+               },
+               "name": {
+                "type": "string"
+               },
+               "prices": {
+                "items": {
+                 "properties": {
+                  "included_traffic": {
+                   "example": 654321,
+                   "format": "int64",
+                   "type": "integer"
+                  },
+                  "location": {
+                   "type": "string"
+                  },
+                  "price_hourly": {
+                   "properties": {
+                    "gross": {
+                     "format": "decimal",
+                     "type": "string"
+                    },
+                    "net": {
+                     "format": "decimal",
+                     "type": "string"
+                    }
+                   },
+                   "required": [
+                    "net",
+                    "gross"
+                   ],
+                   "type": "object"
+                  },
+                  "price_monthly": {
+                   "properties": {
+                    "gross": {
+                     "format": "decimal",
+                     "type": "string"
+                    },
+                    "net": {
+                     "format": "decimal",
+                     "type": "string"
+                    }
+                   },
+                   "required": [
+                    "net",
+                    "gross"
+                   ],
+                   "type": "object"
+                  },
+                  "price_per_tb_traffic": {
+                   "properties": {
+                    "gross": {
+                     "format": "decimal",
+                     "type": "string"
+                    },
+                    "net": {
+                     "format": "decimal",
+                     "type": "string"
+                    }
+                   },
+                   "required": [
+                    "net",
+                    "gross"
+                   ],
+                   "type": "object"
+                  }
+                 },
+                 "required": [
+                  "location",
+                  "price_hourly",
+                  "price_monthly",
+                  "included_traffic",
+                  "price_per_tb_traffic"
+                 ],
+                 "type": "object"
+                },
+                "type": "array"
+               },
+               "storage_type": {
+                "enum": [
+                 "local",
+                 "network"
+                ],
+                "type": "string"
+               }
+              },
+              "required": [
+               "id",
+               "name",
+               "description",
+               "cores",
+               "memory",
+               "disk",
+               "deprecated",
+               "prices",
+               "storage_type",
+               "cpu_type",
+               "architecture",
+               "locations"
+              ],
+              "type": "object"
+             },
+             "status": {
+              "enum": [
+               "running",
+               "initializing",
+               "starting",
+               "stopping",
+               "off",
+               "deleting",
+               "migrating",
+               "rebuilding",
+               "unknown"
+              ],
+              "type": "string"
+             },
+             "volumes": {
+              "items": {
+               "format": "int64",
+               "type": "integer"
+              },
+              "type": "array"
+             }
+            },
+            "required": [
+             "id",
+             "name",
+             "status",
+             "created",
+             "public_net",
+             "private_net",
+             "server_type",
+             "location",
+             "image",
+             "iso",
+             "rescue_enabled",
+             "locked",
+             "backup_window",
+             "outgoing_traffic",
+             "ingoing_traffic",
+             "included_traffic",
+             "protection",
+             "labels",
+             "primary_disk_size"
+            ],
+            "type": "object"
+           },
+           "type": "array"
+          }
+         },
+         "required": [
+          "servers",
+          "meta"
+         ],
+         "type": "object"
+        }
+       }
+      },
+      "headers": {
+       "x-next": {
+        "schema": {
+         "type": "string"
+        }
+       }
+      }
+     },
+     "4xx": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "error": {
+           "properties": {
+            "code": {
+             "type": "string"
+            },
+            "details": {
+             "type": [
+              "object",
+              "null"
+             ]
+            },
+            "message": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "code",
+            "message"
+           ],
+           "type": "object"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "5xx": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "error": {
+           "properties": {
+            "code": {
+             "type": "string"
+            },
+            "details": {
+             "type": [
+              "object",
+              "null"
+             ]
+            },
+            "message": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "code",
+            "message"
+           ],
+           "type": "object"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "APIToken": []
+     }
+    ],
+    "tags": [
+     "Servers"
+    ]
+   },
+   "post": {
+    "operationId": "create_server",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "automount": {
+          "example": false,
+          "type": "boolean"
+         },
+         "firewalls": {
+          "items": {
+           "properties": {
+            "firewall": {
+             "format": "int64",
+             "type": "integer"
+            }
+           },
+           "required": [
+            "firewall"
+           ],
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "image": {
+          "type": "string"
+         },
+         "labels": {
+          "additionalProperties": {
+           "type": "string"
+          },
+          "type": "object"
+         },
+         "location": {
+          "type": "string"
+         },
+         "name": {
+          "type": "string"
+         },
+         "networks": {
+          "items": {
+           "format": "int64",
+           "type": "integer"
+          },
+          "type": "array"
+         },
+         "placement_group": {
+          "example": 1,
+          "format": "int64",
+          "type": "integer"
+         },
+         "public_net": {
+          "properties": {
+           "enable_ipv4": {
+            "default": true,
+            "type": "boolean"
+           },
+           "enable_ipv6": {
+            "default": true,
+            "type": "boolean"
+           },
+           "ipv4": {
+            "type": [
+             "integer",
+             "null"
+            ]
+           },
+           "ipv6": {
+            "type": [
+             "integer",
+             "null"
+            ]
+           }
+          },
+          "type": "object"
+         },
+         "server_type": {
+          "type": "string"
+         },
+         "ssh_keys": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "start_after_create": {
+          "default": true,
+          "example": true,
+          "type": "boolean"
+         },
+         "user_data": {
+          "type": "string"
+         },
+         "volumes": {
+          "items": {
+           "format": "int64",
+           "type": "integer"
+          },
+          "type": "array"
+         }
+        },
+        "required": [
+         "name",
+         "server_type",
+         "image"
+        ],
+        "title": "CreateServerRequest",
+        "type": "object"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "action": {
+           "properties": {
+            "command": {
+             "type": "string"
+            },
+            "error": {
+             "properties": {
+              "code": {
+               "type": "string"
+              },
+              "message": {
+               "type": "string"
+              }
+             },
+             "required": [
+              "code",
+              "message"
+             ],
+             "type": [
+              "object",
+              "null"
+             ]
+            },
+            "finished": {
+             "format": "date-time",
+             "type": [
+              "string",
+              "null"
+             ]
+            },
+            "id": {
+             "example": 42,
+             "format": "int64",
+             "maximum": 9007199254740991,
+             "minimum": 1,
+             "type": "integer"
+            },
+            "progress": {
+             "example": 100,
+             "format": "int32",
+             "type": "integer"
+            },
+            "resources": {
+             "items": {
+              "properties": {
+               "id": {
+                "example": 42,
+                "format": "int64",
+                "maximum": 9007199254740991,
+                "minimum": 1,
+                "type": "integer"
+               },
+               "type": {
+                "type": "string"
+               }
+              },
+              "required": [
+               "id",
+               "type"
+              ],
+              "type": "object"
+             },
+             "type": "array"
+            },
+            "started": {
+             "format": "date-time",
+             "type": "string"
+            },
+            "status": {
+             "enum": [
+              "running",
+              "success",
+              "error"
+             ],
+             "type": "string"
+            }
+           },
+           "required": [
+            "id",
+            "command",
+            "status",
+            "progress",
+            "started",
+            "finished",
+            "resources",
+            "error"
+           ],
+           "title": "Action",
+           "type": "object"
+          },
+          "next_actions": {
+           "items": {
+            "properties": {
+             "command": {
+              "type": "string"
+             },
+             "error": {
+              "properties": {
+               "code": {
+                "type": "string"
+               },
+               "message": {
+                "type": "string"
+               }
+              },
+              "required": [
+               "code",
+               "message"
+              ],
+              "type": [
+               "object",
+               "null"
+              ]
+             },
+             "finished": {
+              "format": "date-time",
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "id": {
+              "example": 42,
+              "format": "int64",
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "type": "integer"
+             },
+             "progress": {
+              "example": 100,
+              "format": "int32",
+              "type": "integer"
+             },
+             "resources": {
+              "items": {
+               "properties": {
+                "id": {
+                 "example": 42,
+                 "format": "int64",
+                 "maximum": 9007199254740991,
+                 "minimum": 1,
+                 "type": "integer"
+                },
+                "type": {
+                 "type": "string"
+                }
+               },
+               "required": [
+                "id",
+                "type"
+               ],
+               "type": "object"
+              },
+              "type": "array"
+             },
+             "started": {
+              "format": "date-time",
+              "type": "string"
+             },
+             "status": {
+              "enum": [
+               "running",
+               "success",
+               "error"
+              ],
+              "type": "string"
+             }
+            },
+            "required": [
+             "id",
+             "command",
+             "status",
+             "progress",
+             "started",
+             "finished",
+             "resources",
+             "error"
+            ],
+            "title": "Action",
+            "type": "object"
+           },
+           "type": "array"
+          },
+          "root_password": {
+           "type": [
+            "string",
+            "null"
+           ]
+          },
+          "server": {
+           "properties": {
+            "backup_window": {
+             "type": [
+              "string",
+              "null"
+             ]
+            },
+            "created": {
+             "format": "date-time",
+             "type": "string"
+            },
+            "id": {
+             "example": 42,
+             "format": "int64",
+             "maximum": 9007199254740991,
+             "minimum": 1,
+             "type": "integer"
+            },
+            "image": {
+             "properties": {
+              "architecture": {
+               "enum": [
+                "x86",
+                "arm"
+               ],
+               "type": "string"
+              },
+              "bound_to": {
+               "example": null,
+               "format": "int64",
+               "type": [
+                "integer",
+                "null"
+               ]
+              },
+              "created": {
+               "format": "date-time",
+               "type": "string"
+              },
+              "created_from": {
+               "properties": {
+                "id": {
+                 "example": 1,
+                 "format": "int64",
+                 "type": "integer"
+                },
+                "name": {
+                 "type": "string"
+                }
+               },
+               "required": [
+                "id",
+                "name"
+               ],
+               "type": [
+                "object",
+                "null"
+               ]
+              },
+              "deleted": {
+               "example": null,
+               "type": [
+                "string",
+                "null"
+               ]
+              },
+              "deprecated": {
+               "deprecated": true,
+               "format": "date-time",
+               "type": [
+                "string",
+                "null"
+               ]
+              },
+              "deprecation": {
+               "properties": {
+                "announced": {
+                 "format": "date-time",
+                 "type": "string"
+                },
+                "unavailable_after": {
+                 "format": "date-time",
+                 "type": "string"
+                }
+               },
+               "required": [
+                "unavailable_after",
+                "announced"
+               ],
+               "title": "DeprecationInfo",
+               "type": [
+                "object",
+                "null"
+               ]
+              },
+              "description": {
+               "type": "string"
+              },
+              "disk_size": {
+               "example": 10,
+               "type": "number"
+              },
+              "id": {
+               "example": 42,
+               "format": "int64",
+               "maximum": 9007199254740991,
+               "minimum": 1,
+               "type": "integer"
+              },
+              "image_size": {
+               "example": 2.3,
+               "type": [
+                "number",
+                "null"
+               ]
+              },
+              "labels": {
+               "additionalProperties": {
+                "type": "string"
+               },
+               "type": "object"
+              },
+              "name": {
+               "type": [
+                "string",
+                "null"
+               ]
+              },
+              "os_flavor": {
+               "enum": [
+                "ubuntu",
+                "centos",
+                "debian",
+                "fedora",
+                "rocky",
+                "alma",
+                "opensuse",
+                "unknown"
+               ],
+               "type": "string"
+              },
+              "os_version": {
+               "type": [
+                "string",
+                "null"
+               ]
+              },
+              "protection": {
+               "properties": {
+                "delete": {
+                 "example": false,
+                 "type": "boolean"
+                }
+               },
+               "required": [
+                "delete"
+               ],
+               "type": "object"
+              },
+              "rapid_deploy": {
+               "example": false,
+               "type": "boolean"
+              },
+              "status": {
+               "enum": [
+                "available",
+                "creating",
+                "unavailable"
+               ],
+               "type": "string"
+              },
+              "type": {
+               "enum": [
+                "system",
+                "app",
+                "snapshot",
+                "backup"
+               ],
+               "type": "string"
+              }
+             },
+             "required": [
+              "id",
+              "type",
+              "status",
+              "name",
+              "description",
+              "image_size",
+              "disk_size",
+              "created",
+              "created_from",
+              "bound_to",
+              "os_flavor",
+              "os_version",
+              "protection",
+              "deprecated",
+              "deprecation",
+              "deleted",
+              "labels",
+              "architecture"
+             ],
+             "type": [
+              "object",
+              "null"
+             ]
+            },
+            "included_traffic": {
+             "example": 654321,
+             "format": "int64",
+             "type": [
+              "integer",
+              "null"
+             ]
+            },
+            "ingoing_traffic": {
+             "example": 123456,
+             "format": "int64",
+             "type": [
+              "integer",
+              "null"
+             ]
+            },
+            "iso": {
+             "properties": {
+              "architecture": {
+               "enum": [
+                "x86",
+                "arm"
+               ],
+               "type": [
+                "string",
+                "null"
+               ]
+              },
+              "deprecation": {
+               "properties": {
+                "announced": {
+                 "format": "date-time",
+                 "type": "string"
+                },
+                "unavailable_after": {
+                 "format": "date-time",
+                 "type": "string"
+                }
+               },
+               "required": [
+                "unavailable_after",
+                "announced"
+               ],
+               "title": "DeprecationInfo",
+               "type": [
+                "object",
+                "null"
+               ]
+              },
+              "description": {
+               "type": "string"
+              },
+              "id": {
+               "example": 42,
+               "format": "int64",
+               "maximum": 9007199254740991,
+               "minimum": 1,
+               "type": "integer"
+              },
+              "name": {
+               "type": [
+                "string",
+                "null"
+               ]
+              },
+              "type": {
+               "enum": [
+                "public",
+                "private"
+               ],
+               "type": [
+                "string",
+                "null"
+               ]
+              }
+             },
+             "required": [
+              "id",
+              "name",
+              "description",
+              "type",
+              "deprecation",
+              "architecture"
+             ],
+             "type": [
+              "object",
+              "null"
+             ]
+            },
+            "labels": {
+             "additionalProperties": {
+              "type": "string"
+             },
+             "type": "object"
+            },
+            "load_balancers": {
+             "items": {
+              "format": "int64",
+              "type": "integer"
+             },
+             "type": "array"
+            },
+            "location": {
+             "properties": {
+              "city": {
+               "type": "string"
+              },
+              "country": {
+               "type": "string"
+              },
+              "description": {
+               "type": "string"
+              },
+              "id": {
+               "example": 42,
+               "format": "int64",
+               "maximum": 9007199254740991,
+               "minimum": 1,
+               "type": "integer"
+              },
+              "latitude": {
+               "example": 50.47612,
+               "format": "double",
+               "type": "number"
+              },
+              "longitude": {
+               "example": 12.370071,
+               "format": "double",
+               "type": "number"
+              },
+              "name": {
+               "pattern": "^[a-z0-9]+(-?[a-z0-9]*)*$",
+               "type": "string"
+              },
+              "network_zone": {
+               "pattern": "^[a-z0-9]+(-?[a-z0-9]*)*$",
+               "type": "string"
+              }
+             },
+             "required": [
+              "id",
+              "name",
+              "description",
+              "country",
+              "city",
+              "latitude",
+              "longitude",
+              "network_zone"
+             ],
+             "type": "object"
+            },
+            "locked": {
+             "example": false,
+             "type": "boolean"
+            },
+            "name": {
+             "type": "string"
+            },
+            "outgoing_traffic": {
+             "example": 123456,
+             "format": "int64",
+             "type": [
+              "integer",
+              "null"
+             ]
+            },
+            "placement_group": {
+             "properties": {
+              "created": {
+               "format": "date-time",
+               "type": "string"
+              },
+              "id": {
+               "example": 42,
+               "format": "int64",
+               "maximum": 9007199254740991,
+               "minimum": 1,
+               "type": "integer"
+              },
+              "labels": {
+               "additionalProperties": {
+                "type": "string"
+               },
+               "type": "object"
+              },
+              "name": {
+               "type": "string"
+              },
+              "servers": {
+               "items": {
+                "format": "int64",
+                "type": "integer"
+               },
+               "type": "array"
+              },
+              "type": {
+               "enum": [
+                "spread"
+               ],
+               "type": "string"
+              }
+             },
+             "required": [
+              "id",
+              "name",
+              "labels",
+              "type",
+              "created",
+              "servers"
+             ],
+             "title": "PlacementGroupNullable",
+             "type": [
+              "object",
+              "null"
+             ]
+            },
+            "primary_disk_size": {
+             "example": 50,
+             "type": "number"
+            },
+            "private_net": {
+             "items": {
+              "properties": {
+               "alias_ips": {
+                "items": {
+                 "type": "string"
+                },
+                "type": "array"
+               },
+               "ip": {
+                "type": "string"
+               },
+               "mac_address": {
+                "type": "string"
+               },
+               "network": {
+                "example": 4711,
+                "format": "int64",
+                "type": "integer"
+               }
+              },
+              "type": "object"
+             },
+             "type": "array"
+            },
+            "protection": {
+             "properties": {
+              "delete": {
+               "example": false,
+               "type": "boolean"
+              },
+              "rebuild": {
+               "example": false,
+               "type": "boolean"
+              }
+             },
+             "required": [
+              "delete",
+              "rebuild"
+             ],
+             "type": "object"
+            },
+            "public_net": {
+             "properties": {
+              "firewalls": {
+               "items": {
+                "properties": {
+                 "id": {
+                  "example": 42,
+                  "format": "int64",
+                  "maximum": 9007199254740991,
+                  "minimum": 1,
+                  "type": "integer"
+                 },
+                 "status": {
+                  "enum": [
+                   "applied",
+                   "pending"
+                  ],
+                  "type": "string"
+                 }
+                },
+                "title": "ServerPublicNetFirewall",
+                "type": "object"
+               },
+               "type": "array"
+              },
+              "floating_ips": {
+               "items": {
+                "format": "int64",
+                "type": "integer"
+               },
+               "type": "array"
+              },
+              "ipv4": {
+               "properties": {
+                "blocked": {
+                 "example": false,
+                 "type": "boolean"
+                },
+                "dns_ptr": {
+                 "type": "string"
+                },
+                "id": {
+                 "example": 42,
+                 "format": "int64",
+                 "maximum": 9007199254740991,
+                 "minimum": 1,
+                 "type": "integer"
+                },
+                "ip": {
+                 "type": "string"
+                }
+               },
+               "required": [
+                "ip",
+                "blocked",
+                "dns_ptr"
+               ],
+               "type": [
+                "object",
+                "null"
+               ]
+              },
+              "ipv6": {
+               "properties": {
+                "blocked": {
+                 "example": false,
+                 "type": "boolean"
+                },
+                "dns_ptr": {
+                 "items": {
+                  "properties": {
+                   "dns_ptr": {
+                    "type": "string"
+                   },
+                   "ip": {
+                    "type": "string"
+                   }
+                  },
+                  "required": [
+                   "ip",
+                   "dns_ptr"
+                  ],
+                  "type": "object"
+                 },
+                 "type": [
+                  "array",
+                  "null"
+                 ]
+                },
+                "id": {
+                 "example": 42,
+                 "format": "int64",
+                 "maximum": 9007199254740991,
+                 "minimum": 1,
+                 "type": "integer"
+                },
+                "ip": {
+                 "type": "string"
+                }
+               },
+               "required": [
+                "ip",
+                "blocked",
+                "dns_ptr"
+               ],
+               "type": [
+                "object",
+                "null"
+               ]
+              }
+             },
+             "required": [
+              "ipv4",
+              "ipv6",
+              "floating_ips"
+             ],
+             "type": "object"
+            },
+            "rescue_enabled": {
+             "example": false,
+             "type": "boolean"
+            },
+            "server_type": {
+             "properties": {
+              "architecture": {
+               "enum": [
+                "x86",
+                "arm"
+               ],
+               "type": "string"
+              },
+              "category": {
+               "type": "string"
+              },
+              "cores": {
+               "example": 2,
+               "type": "number"
+              },
+              "cpu_type": {
+               "enum": [
+                "shared",
+                "dedicated"
+               ],
+               "type": "string"
+              },
+              "deprecated": {
+               "example": false,
+               "type": "boolean"
+              },
+              "deprecation": {
+               "deprecated": true,
+               "properties": {
+                "announced": {
+                 "format": "date-time",
+                 "type": "string"
+                },
+                "unavailable_after": {
+                 "format": "date-time",
+                 "type": "string"
+                }
+               },
+               "required": [
+                "unavailable_after",
+                "announced"
+               ],
+               "title": "DeprecationInfo",
+               "type": [
+                "object",
+                "null"
+               ]
+              },
+              "description": {
+               "type": "string"
+              },
+              "disk": {
+               "example": 80,
+               "type": "number"
+              },
+              "id": {
+               "example": 1,
+               "format": "int64",
+               "type": "integer"
+              },
+              "locations": {
+               "items": {
+                "properties": {
+                 "available": {
+                  "example": true,
+                  "type": "boolean"
+                 },
+                 "deprecation": {
+                  "properties": {
+                   "announced": {
+                    "format": "date-time",
+                    "type": "string"
+                   },
+                   "unavailable_after": {
+                    "format": "date-time",
+                    "type": "string"
+                   }
+                  },
+                  "required": [
+                   "unavailable_after",
+                   "announced"
+                  ],
+                  "title": "DeprecationInfo",
+                  "type": [
+                   "object",
+                   "null"
+                  ]
+                 },
+                 "id": {
+                  "example": 42,
+                  "format": "int64",
+                  "maximum": 9007199254740991,
+                  "minimum": 1,
+                  "type": "integer"
+                 },
+                 "name": {
+                  "type": "string"
+                 },
+                 "recommended": {
+                  "example": false,
+                  "type": "boolean"
+                 }
+                },
+                "required": [
+                 "id",
+                 "name",
+                 "deprecation",
+                 "recommended",
+                 "available"
+                ],
+                "type": "object"
+               },
+               "type": "array"
+              },
+              "memory": {
+               "example": 4,
+               "type": "number"
+              },
+              "name": {
+               "type": "string"
+              },
+              "prices": {
+               "items": {
+                "properties": {
+                 "included_traffic": {
+                  "example": 654321,
+                  "format": "int64",
+                  "type": "integer"
+                 },
+                 "location": {
+                  "type": "string"
+                 },
+                 "price_hourly": {
+                  "properties": {
+                   "gross": {
+                    "format": "decimal",
+                    "type": "string"
+                   },
+                   "net": {
+                    "format": "decimal",
+                    "type": "string"
+                   }
+                  },
+                  "required": [
+                   "net",
+                   "gross"
+                  ],
+                  "type": "object"
+                 },
+                 "price_monthly": {
+                  "properties": {
+                   "gross": {
+                    "format": "decimal",
+                    "type": "string"
+                   },
+                   "net": {
+                    "format": "decimal",
+                    "type": "string"
+                   }
+                  },
+                  "required": [
+                   "net",
+                   "gross"
+                  ],
+                  "type": "object"
+                 },
+                 "price_per_tb_traffic": {
+                  "properties": {
+                   "gross": {
+                    "format": "decimal",
+                    "type": "string"
+                   },
+                   "net": {
+                    "format": "decimal",
+                    "type": "string"
+                   }
+                  },
+                  "required": [
+                   "net",
+                   "gross"
+                  ],
+                  "type": "object"
+                 }
+                },
+                "required": [
+                 "location",
+                 "price_hourly",
+                 "price_monthly",
+                 "included_traffic",
+                 "price_per_tb_traffic"
+                ],
+                "type": "object"
+               },
+               "type": "array"
+              },
+              "storage_type": {
+               "enum": [
+                "local",
+                "network"
+               ],
+               "type": "string"
+              }
+             },
+             "required": [
+              "id",
+              "name",
+              "description",
+              "cores",
+              "memory",
+              "disk",
+              "deprecated",
+              "prices",
+              "storage_type",
+              "cpu_type",
+              "architecture",
+              "locations"
+             ],
+             "type": "object"
+            },
+            "status": {
+             "enum": [
+              "running",
+              "initializing",
+              "starting",
+              "stopping",
+              "off",
+              "deleting",
+              "migrating",
+              "rebuilding",
+              "unknown"
+             ],
+             "type": "string"
+            },
+            "volumes": {
+             "items": {
+              "format": "int64",
+              "type": "integer"
+             },
+             "type": "array"
+            }
+           },
+           "required": [
+            "id",
+            "name",
+            "status",
+            "created",
+            "public_net",
+            "private_net",
+            "server_type",
+            "location",
+            "image",
+            "iso",
+            "rescue_enabled",
+            "locked",
+            "backup_window",
+            "outgoing_traffic",
+            "ingoing_traffic",
+            "included_traffic",
+            "protection",
+            "labels",
+            "primary_disk_size"
+           ],
+           "type": "object"
+          }
+         },
+         "required": [
+          "server",
+          "action",
+          "next_actions",
+          "root_password"
+         ],
+         "title": "CreateServerResponse",
+         "type": "object"
+        }
+       }
+      }
+     },
+     "4xx": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "error": {
+           "properties": {
+            "code": {
+             "type": "string"
+            },
+            "details": {
+             "type": [
+              "object",
+              "null"
+             ]
+            },
+            "message": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "code",
+            "message"
+           ],
+           "type": "object"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "5xx": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "error": {
+           "properties": {
+            "code": {
+             "type": "string"
+            },
+            "details": {
+             "type": [
+              "object",
+              "null"
+             ]
+            },
+            "message": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "code",
+            "message"
+           ],
+           "type": "object"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "APIToken": []
+     }
+    ],
+    "tags": [
+     "Servers"
+    ]
+   }
+  },
+  "/servers/{id}": {
+   "delete": {
+    "operationId": "delete_server",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "id",
+      "required": true,
+      "schema": {
+       "example": 42,
+       "format": "int64",
+       "maximum": 9007199254740991,
+       "minimum": 1,
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "action": {
+           "properties": {
+            "command": {
+             "type": "string"
+            },
+            "error": {
+             "properties": {
+              "code": {
+               "type": "string"
+              },
+              "message": {
+               "type": "string"
+              }
+             },
+             "required": [
+              "code",
+              "message"
+             ],
+             "type": [
+              "object",
+              "null"
+             ]
+            },
+            "finished": {
+             "format": "date-time",
+             "type": [
+              "string",
+              "null"
+             ]
+            },
+            "id": {
+             "example": 42,
+             "format": "int64",
+             "maximum": 9007199254740991,
+             "minimum": 1,
+             "type": "integer"
+            },
+            "progress": {
+             "example": 100,
+             "format": "int32",
+             "type": "integer"
+            },
+            "resources": {
+             "items": {
+              "properties": {
+               "id": {
+                "example": 42,
+                "format": "int64",
+                "maximum": 9007199254740991,
+                "minimum": 1,
+                "type": "integer"
+               },
+               "type": {
+                "type": "string"
+               }
+              },
+              "required": [
+               "id",
+               "type"
+              ],
+              "type": "object"
+             },
+             "type": "array"
+            },
+            "started": {
+             "format": "date-time",
+             "type": "string"
+            },
+            "status": {
+             "enum": [
+              "running",
+              "success",
+              "error"
+             ],
+             "type": "string"
+            }
+           },
+           "required": [
+            "id",
+            "command",
+            "status",
+            "progress",
+            "started",
+            "finished",
+            "resources",
+            "error"
+           ],
+           "title": "Action",
+           "type": "object"
+          }
+         },
+         "type": "object"
+        }
+       }
+      }
+     },
+     "4xx": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "error": {
+           "properties": {
+            "code": {
+             "type": "string"
+            },
+            "details": {
+             "type": [
+              "object",
+              "null"
+             ]
+            },
+            "message": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "code",
+            "message"
+           ],
+           "type": "object"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "5xx": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "error": {
+           "properties": {
+            "code": {
+             "type": "string"
+            },
+            "details": {
+             "type": [
+              "object",
+              "null"
+             ]
+            },
+            "message": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "code",
+            "message"
+           ],
+           "type": "object"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "APIToken": []
+     }
+    ],
+    "tags": [
+     "Servers"
+    ]
+   },
+   "get": {
+    "operationId": "get_server",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "id",
+      "required": true,
+      "schema": {
+       "example": 42,
+       "format": "int64",
+       "maximum": 9007199254740991,
+       "minimum": 1,
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "server": {
+           "properties": {
+            "backup_window": {
+             "type": [
+              "string",
+              "null"
+             ]
+            },
+            "created": {
+             "format": "date-time",
+             "type": "string"
+            },
+            "id": {
+             "example": 42,
+             "format": "int64",
+             "maximum": 9007199254740991,
+             "minimum": 1,
+             "type": "integer"
+            },
+            "image": {
+             "properties": {
+              "architecture": {
+               "enum": [
+                "x86",
+                "arm"
+               ],
+               "type": "string"
+              },
+              "bound_to": {
+               "example": null,
+               "format": "int64",
+               "type": [
+                "integer",
+                "null"
+               ]
+              },
+              "created": {
+               "format": "date-time",
+               "type": "string"
+              },
+              "created_from": {
+               "properties": {
+                "id": {
+                 "example": 1,
+                 "format": "int64",
+                 "type": "integer"
+                },
+                "name": {
+                 "type": "string"
+                }
+               },
+               "required": [
+                "id",
+                "name"
+               ],
+               "type": [
+                "object",
+                "null"
+               ]
+              },
+              "deleted": {
+               "example": null,
+               "type": [
+                "string",
+                "null"
+               ]
+              },
+              "deprecated": {
+               "deprecated": true,
+               "format": "date-time",
+               "type": [
+                "string",
+                "null"
+               ]
+              },
+              "deprecation": {
+               "properties": {
+                "announced": {
+                 "format": "date-time",
+                 "type": "string"
+                },
+                "unavailable_after": {
+                 "format": "date-time",
+                 "type": "string"
+                }
+               },
+               "required": [
+                "unavailable_after",
+                "announced"
+               ],
+               "title": "DeprecationInfo",
+               "type": [
+                "object",
+                "null"
+               ]
+              },
+              "description": {
+               "type": "string"
+              },
+              "disk_size": {
+               "example": 10,
+               "type": "number"
+              },
+              "id": {
+               "example": 42,
+               "format": "int64",
+               "maximum": 9007199254740991,
+               "minimum": 1,
+               "type": "integer"
+              },
+              "image_size": {
+               "example": 2.3,
+               "type": [
+                "number",
+                "null"
+               ]
+              },
+              "labels": {
+               "additionalProperties": {
+                "type": "string"
+               },
+               "type": "object"
+              },
+              "name": {
+               "type": [
+                "string",
+                "null"
+               ]
+              },
+              "os_flavor": {
+               "enum": [
+                "ubuntu",
+                "centos",
+                "debian",
+                "fedora",
+                "rocky",
+                "alma",
+                "opensuse",
+                "unknown"
+               ],
+               "type": "string"
+              },
+              "os_version": {
+               "type": [
+                "string",
+                "null"
+               ]
+              },
+              "protection": {
+               "properties": {
+                "delete": {
+                 "example": false,
+                 "type": "boolean"
+                }
+               },
+               "required": [
+                "delete"
+               ],
+               "type": "object"
+              },
+              "rapid_deploy": {
+               "example": false,
+               "type": "boolean"
+              },
+              "status": {
+               "enum": [
+                "available",
+                "creating",
+                "unavailable"
+               ],
+               "type": "string"
+              },
+              "type": {
+               "enum": [
+                "system",
+                "app",
+                "snapshot",
+                "backup"
+               ],
+               "type": "string"
+              }
+             },
+             "required": [
+              "id",
+              "type",
+              "status",
+              "name",
+              "description",
+              "image_size",
+              "disk_size",
+              "created",
+              "created_from",
+              "bound_to",
+              "os_flavor",
+              "os_version",
+              "protection",
+              "deprecated",
+              "deprecation",
+              "deleted",
+              "labels",
+              "architecture"
+             ],
+             "type": [
+              "object",
+              "null"
+             ]
+            },
+            "included_traffic": {
+             "example": 654321,
+             "format": "int64",
+             "type": [
+              "integer",
+              "null"
+             ]
+            },
+            "ingoing_traffic": {
+             "example": 123456,
+             "format": "int64",
+             "type": [
+              "integer",
+              "null"
+             ]
+            },
+            "iso": {
+             "properties": {
+              "architecture": {
+               "enum": [
+                "x86",
+                "arm"
+               ],
+               "type": [
+                "string",
+                "null"
+               ]
+              },
+              "deprecation": {
+               "properties": {
+                "announced": {
+                 "format": "date-time",
+                 "type": "string"
+                },
+                "unavailable_after": {
+                 "format": "date-time",
+                 "type": "string"
+                }
+               },
+               "required": [
+                "unavailable_after",
+                "announced"
+               ],
+               "title": "DeprecationInfo",
+               "type": [
+                "object",
+                "null"
+               ]
+              },
+              "description": {
+               "type": "string"
+              },
+              "id": {
+               "example": 42,
+               "format": "int64",
+               "maximum": 9007199254740991,
+               "minimum": 1,
+               "type": "integer"
+              },
+              "name": {
+               "type": [
+                "string",
+                "null"
+               ]
+              },
+              "type": {
+               "enum": [
+                "public",
+                "private"
+               ],
+               "type": [
+                "string",
+                "null"
+               ]
+              }
+             },
+             "required": [
+              "id",
+              "name",
+              "description",
+              "type",
+              "deprecation",
+              "architecture"
+             ],
+             "type": [
+              "object",
+              "null"
+             ]
+            },
+            "labels": {
+             "additionalProperties": {
+              "type": "string"
+             },
+             "type": "object"
+            },
+            "load_balancers": {
+             "items": {
+              "format": "int64",
+              "type": "integer"
+             },
+             "type": "array"
+            },
+            "location": {
+             "properties": {
+              "city": {
+               "type": "string"
+              },
+              "country": {
+               "type": "string"
+              },
+              "description": {
+               "type": "string"
+              },
+              "id": {
+               "example": 42,
+               "format": "int64",
+               "maximum": 9007199254740991,
+               "minimum": 1,
+               "type": "integer"
+              },
+              "latitude": {
+               "example": 50.47612,
+               "format": "double",
+               "type": "number"
+              },
+              "longitude": {
+               "example": 12.370071,
+               "format": "double",
+               "type": "number"
+              },
+              "name": {
+               "pattern": "^[a-z0-9]+(-?[a-z0-9]*)*$",
+               "type": "string"
+              },
+              "network_zone": {
+               "pattern": "^[a-z0-9]+(-?[a-z0-9]*)*$",
+               "type": "string"
+              }
+             },
+             "required": [
+              "id",
+              "name",
+              "description",
+              "country",
+              "city",
+              "latitude",
+              "longitude",
+              "network_zone"
+             ],
+             "type": "object"
+            },
+            "locked": {
+             "example": false,
+             "type": "boolean"
+            },
+            "name": {
+             "type": "string"
+            },
+            "outgoing_traffic": {
+             "example": 123456,
+             "format": "int64",
+             "type": [
+              "integer",
+              "null"
+             ]
+            },
+            "placement_group": {
+             "properties": {
+              "created": {
+               "format": "date-time",
+               "type": "string"
+              },
+              "id": {
+               "example": 42,
+               "format": "int64",
+               "maximum": 9007199254740991,
+               "minimum": 1,
+               "type": "integer"
+              },
+              "labels": {
+               "additionalProperties": {
+                "type": "string"
+               },
+               "type": "object"
+              },
+              "name": {
+               "type": "string"
+              },
+              "servers": {
+               "items": {
+                "format": "int64",
+                "type": "integer"
+               },
+               "type": "array"
+              },
+              "type": {
+               "enum": [
+                "spread"
+               ],
+               "type": "string"
+              }
+             },
+             "required": [
+              "id",
+              "name",
+              "labels",
+              "type",
+              "created",
+              "servers"
+             ],
+             "title": "PlacementGroupNullable",
+             "type": [
+              "object",
+              "null"
+             ]
+            },
+            "primary_disk_size": {
+             "example": 50,
+             "type": "number"
+            },
+            "private_net": {
+             "items": {
+              "properties": {
+               "alias_ips": {
+                "items": {
+                 "type": "string"
+                },
+                "type": "array"
+               },
+               "ip": {
+                "type": "string"
+               },
+               "mac_address": {
+                "type": "string"
+               },
+               "network": {
+                "example": 4711,
+                "format": "int64",
+                "type": "integer"
+               }
+              },
+              "type": "object"
+             },
+             "type": "array"
+            },
+            "protection": {
+             "properties": {
+              "delete": {
+               "example": false,
+               "type": "boolean"
+              },
+              "rebuild": {
+               "example": false,
+               "type": "boolean"
+              }
+             },
+             "required": [
+              "delete",
+              "rebuild"
+             ],
+             "type": "object"
+            },
+            "public_net": {
+             "properties": {
+              "firewalls": {
+               "items": {
+                "properties": {
+                 "id": {
+                  "example": 42,
+                  "format": "int64",
+                  "maximum": 9007199254740991,
+                  "minimum": 1,
+                  "type": "integer"
+                 },
+                 "status": {
+                  "enum": [
+                   "applied",
+                   "pending"
+                  ],
+                  "type": "string"
+                 }
+                },
+                "title": "ServerPublicNetFirewall",
+                "type": "object"
+               },
+               "type": "array"
+              },
+              "floating_ips": {
+               "items": {
+                "format": "int64",
+                "type": "integer"
+               },
+               "type": "array"
+              },
+              "ipv4": {
+               "properties": {
+                "blocked": {
+                 "example": false,
+                 "type": "boolean"
+                },
+                "dns_ptr": {
+                 "type": "string"
+                },
+                "id": {
+                 "example": 42,
+                 "format": "int64",
+                 "maximum": 9007199254740991,
+                 "minimum": 1,
+                 "type": "integer"
+                },
+                "ip": {
+                 "type": "string"
+                }
+               },
+               "required": [
+                "ip",
+                "blocked",
+                "dns_ptr"
+               ],
+               "type": [
+                "object",
+                "null"
+               ]
+              },
+              "ipv6": {
+               "properties": {
+                "blocked": {
+                 "example": false,
+                 "type": "boolean"
+                },
+                "dns_ptr": {
+                 "items": {
+                  "properties": {
+                   "dns_ptr": {
+                    "type": "string"
+                   },
+                   "ip": {
+                    "type": "string"
+                   }
+                  },
+                  "required": [
+                   "ip",
+                   "dns_ptr"
+                  ],
+                  "type": "object"
+                 },
+                 "type": [
+                  "array",
+                  "null"
+                 ]
+                },
+                "id": {
+                 "example": 42,
+                 "format": "int64",
+                 "maximum": 9007199254740991,
+                 "minimum": 1,
+                 "type": "integer"
+                },
+                "ip": {
+                 "type": "string"
+                }
+               },
+               "required": [
+                "ip",
+                "blocked",
+                "dns_ptr"
+               ],
+               "type": [
+                "object",
+                "null"
+               ]
+              }
+             },
+             "required": [
+              "ipv4",
+              "ipv6",
+              "floating_ips"
+             ],
+             "type": "object"
+            },
+            "rescue_enabled": {
+             "example": false,
+             "type": "boolean"
+            },
+            "server_type": {
+             "properties": {
+              "architecture": {
+               "enum": [
+                "x86",
+                "arm"
+               ],
+               "type": "string"
+              },
+              "category": {
+               "type": "string"
+              },
+              "cores": {
+               "example": 2,
+               "type": "number"
+              },
+              "cpu_type": {
+               "enum": [
+                "shared",
+                "dedicated"
+               ],
+               "type": "string"
+              },
+              "deprecated": {
+               "example": false,
+               "type": "boolean"
+              },
+              "deprecation": {
+               "deprecated": true,
+               "properties": {
+                "announced": {
+                 "format": "date-time",
+                 "type": "string"
+                },
+                "unavailable_after": {
+                 "format": "date-time",
+                 "type": "string"
+                }
+               },
+               "required": [
+                "unavailable_after",
+                "announced"
+               ],
+               "title": "DeprecationInfo",
+               "type": [
+                "object",
+                "null"
+               ]
+              },
+              "description": {
+               "type": "string"
+              },
+              "disk": {
+               "example": 80,
+               "type": "number"
+              },
+              "id": {
+               "example": 1,
+               "format": "int64",
+               "type": "integer"
+              },
+              "locations": {
+               "items": {
+                "properties": {
+                 "available": {
+                  "example": true,
+                  "type": "boolean"
+                 },
+                 "deprecation": {
+                  "properties": {
+                   "announced": {
+                    "format": "date-time",
+                    "type": "string"
+                   },
+                   "unavailable_after": {
+                    "format": "date-time",
+                    "type": "string"
+                   }
+                  },
+                  "required": [
+                   "unavailable_after",
+                   "announced"
+                  ],
+                  "title": "DeprecationInfo",
+                  "type": [
+                   "object",
+                   "null"
+                  ]
+                 },
+                 "id": {
+                  "example": 42,
+                  "format": "int64",
+                  "maximum": 9007199254740991,
+                  "minimum": 1,
+                  "type": "integer"
+                 },
+                 "name": {
+                  "type": "string"
+                 },
+                 "recommended": {
+                  "example": false,
+                  "type": "boolean"
+                 }
+                },
+                "required": [
+                 "id",
+                 "name",
+                 "deprecation",
+                 "recommended",
+                 "available"
+                ],
+                "type": "object"
+               },
+               "type": "array"
+              },
+              "memory": {
+               "example": 4,
+               "type": "number"
+              },
+              "name": {
+               "type": "string"
+              },
+              "prices": {
+               "items": {
+                "properties": {
+                 "included_traffic": {
+                  "example": 654321,
+                  "format": "int64",
+                  "type": "integer"
+                 },
+                 "location": {
+                  "type": "string"
+                 },
+                 "price_hourly": {
+                  "properties": {
+                   "gross": {
+                    "format": "decimal",
+                    "type": "string"
+                   },
+                   "net": {
+                    "format": "decimal",
+                    "type": "string"
+                   }
+                  },
+                  "required": [
+                   "net",
+                   "gross"
+                  ],
+                  "type": "object"
+                 },
+                 "price_monthly": {
+                  "properties": {
+                   "gross": {
+                    "format": "decimal",
+                    "type": "string"
+                   },
+                   "net": {
+                    "format": "decimal",
+                    "type": "string"
+                   }
+                  },
+                  "required": [
+                   "net",
+                   "gross"
+                  ],
+                  "type": "object"
+                 },
+                 "price_per_tb_traffic": {
+                  "properties": {
+                   "gross": {
+                    "format": "decimal",
+                    "type": "string"
+                   },
+                   "net": {
+                    "format": "decimal",
+                    "type": "string"
+                   }
+                  },
+                  "required": [
+                   "net",
+                   "gross"
+                  ],
+                  "type": "object"
+                 }
+                },
+                "required": [
+                 "location",
+                 "price_hourly",
+                 "price_monthly",
+                 "included_traffic",
+                 "price_per_tb_traffic"
+                ],
+                "type": "object"
+               },
+               "type": "array"
+              },
+              "storage_type": {
+               "enum": [
+                "local",
+                "network"
+               ],
+               "type": "string"
+              }
+             },
+             "required": [
+              "id",
+              "name",
+              "description",
+              "cores",
+              "memory",
+              "disk",
+              "deprecated",
+              "prices",
+              "storage_type",
+              "cpu_type",
+              "architecture",
+              "locations"
+             ],
+             "type": "object"
+            },
+            "status": {
+             "enum": [
+              "running",
+              "initializing",
+              "starting",
+              "stopping",
+              "off",
+              "deleting",
+              "migrating",
+              "rebuilding",
+              "unknown"
+             ],
+             "type": "string"
+            },
+            "volumes": {
+             "items": {
+              "format": "int64",
+              "type": "integer"
+             },
+             "type": "array"
+            }
+           },
+           "required": [
+            "id",
+            "name",
+            "status",
+            "created",
+            "public_net",
+            "private_net",
+            "server_type",
+            "location",
+            "image",
+            "iso",
+            "rescue_enabled",
+            "locked",
+            "backup_window",
+            "outgoing_traffic",
+            "ingoing_traffic",
+            "included_traffic",
+            "protection",
+            "labels",
+            "primary_disk_size"
+           ],
+           "type": "object"
+          }
+         },
+         "type": "object"
+        }
+       }
+      }
+     },
+     "4xx": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "error": {
+           "properties": {
+            "code": {
+             "type": "string"
+            },
+            "details": {
+             "type": [
+              "object",
+              "null"
+             ]
+            },
+            "message": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "code",
+            "message"
+           ],
+           "type": "object"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     },
+     "5xx": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "error": {
+           "properties": {
+            "code": {
+             "type": "string"
+            },
+            "details": {
+             "type": [
+              "object",
+              "null"
+             ]
+            },
+            "message": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "code",
+            "message"
+           ],
+           "type": "object"
+          }
+         },
+         "required": [
+          "error"
+         ],
+         "type": "object"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "APIToken": []
+     }
+    ],
+    "tags": [
+     "Servers"
+    ]
+   }
+  }
+ },
+ "servers": [
+  {
+   "url": "https://api.hetzner.cloud/v1"
+  }
+ ]
+}

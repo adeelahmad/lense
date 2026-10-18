@@ -2,6 +2,12 @@
 
 The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are versioned together.
 
+## Unreleased
+
+### Features
+
+- **microsandbox:** the MCP runner runs inside the sandbox, turned on and off from the web app like Docker's; it runs as a user of its own with the database and the archive closed to it
+
 ## 0.16.0 <small>October 18, 2026</small> {id="0.16.0"}
 
 ### Features

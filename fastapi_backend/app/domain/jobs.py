@@ -14,7 +14,7 @@ import socket
 import threading
 import time
 
-from . import activity, analyze, ingest, keyring, pipelines, render, speakers as spk, store, telemetry
+from . import activity, analyze, ingest, keyring, pipelines, quiet, render, speakers as spk, store, telemetry
 
 R = store.R
 PIPELINE = [
@@ -800,6 +800,10 @@ def _run_job(db, cfg_fn, job, worker, can, log=None):
                 say(f"handing {step} to a worker that can run it")
                 save("status = 'queued', step_index = $i, next_step = $s, worker = NONE", i=i, s=step)
                 return "handed-off"
+            if step in quiet.held(db, cfg_fn(), job=jid):  # Settings › Workers › Quiet processing
+                say(f"{step} waits: {quiet.why(cfg_fn())}")
+                save("status = 'queued', step_index = $i, next_step = $s, worker = NONE", i=i, s=step)
+                return "handed-off"
             t0 = started(i)
             save("step_index = $i, next_step = $s, heartbeat_at = $t", i=i, s=step)
             if spec.get("when") and not pipelines.condition_ok(db, rid, spec["when"]):
@@ -1199,6 +1203,7 @@ class Worker:
             return False
         # steps whose engine or model is still being fetched wait for it
         can = self.can - self.keeper.blocked() if self.keeper else self.can
+        can = can - quiet.held(self.db, self.cfg_fn())  # heavy steps outside their hours, or at their limit
         job = claim(self.db, self.name, can) if can else None
         if not job:
             return False

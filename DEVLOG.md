@@ -188,9 +188,12 @@ plugin's stdio servers come along when an admin installs it. They run in the MCP
 `mcp` Compose profile), a container with none of Lens's data or keys, reached over HTTP with a token on a volume only
 it and the backend share. Recorded in the threat model.
 
-Refine later: turn the runner on from Settings through the machine agent, as monitoring does, instead of
-`COMPOSE_PROFILES=mcp` in `.env`; the runner on installs that don't use Docker (microsandbox, Cloudron, NAS packages);
-plugin servers that run a program from the plugin's own folder; an egress allow-list for the runner's network.
+Refine later: ~~turn the runner on from Settings through the machine agent~~ (done, the services switch);
+~~the runner in a microsandbox~~ (done 2026-10-18: a process as the `mcp` user inside the sandbox, `microsandbox/mcp.sh`);
+the runner on Cloudron and NAS packages; in a microsandbox, keeping the servers' packages across an update (they're on
+the sandbox's disk, fetched again after it's replaced) and limits on the runner's memory and processes (the container
+has them; a cgroup for the process would); plugin servers that run a program from the plugin's own folder; an egress
+allow-list for the runner's network.
 
 ## 2026-10-10 · Pasted transcripts fetch no speech model
 

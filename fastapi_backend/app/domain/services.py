@@ -71,9 +71,15 @@ def _put(db, profile, run):
 
 
 def manual(profile):
-    """The line to run on the machine when there is no agent."""
+    """The line to run on the machine when there is no agent (in a microsandbox, where the runner is a process the
+    sandbox starts as .env says, the setting to write instead: microsandbox/mcp.sh)."""
     where = os.environ.get("LENS_HOST_DIR") or ""
-    cd = f"cd {where} && " if where and updates.REF.match(where.lstrip("/~")) else ""
+    ok = bool(where and updates.REF.match(where.lstrip("/~")))
+    if os.environ.get("LENS_BACKEND") == "microsandbox":
+        if profile != "mcp":
+            return f"this install runs in a microsandbox, where the {PROFILES[profile][0].lower()} doesn't run yet"
+        return f"add COMPOSE_PROFILES=mcp to {where + '/' if ok else ''}.env (the sandbox picks it up by itself)"
+    cd = f"cd {where} && " if ok else ""
     return f"{cd}docker compose -f docker-compose.prod.yml --profile {profile} up -d"
 
 

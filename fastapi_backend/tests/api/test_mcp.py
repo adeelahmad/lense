@@ -120,6 +120,7 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "unsubscribe_feed",
         "set_mail_routing",
         "mark_activities",
+        "mute_activities",
         "react_to_activity",
         "comment_on_activity",
         "decline_approval",

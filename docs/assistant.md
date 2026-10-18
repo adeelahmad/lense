@@ -254,8 +254,9 @@ When the configured model supports function calling, chat becomes an agent.
   types or topics fits an asset or a text, and how sure that is (`classify`, [Classifying](processing.md#classifying));
   it changes nothing.
 - **The person's review marks:** `mark_activities` marks activities of the timeline reviewed, important or hidden for
-  the person ([Timeline](timeline.md#review-marks)). After it has read text from outside Lens, hiding or marking
-  reviewed waits for their yes; marking important or bringing things back acts at once.
+  the person ([Timeline](timeline.md#review-marks)), and `mute_activities` mutes a source, person or kind for them,
+  for good or until a time ([Muting](timeline.md#muting)). After it has read text from outside Lens, hiding, muting
+  or marking reviewed waits for their yes; marking important, lifting a mute or bringing things back acts at once.
 - **The person's circles:** `circles` reads their [circles of trust](circles.md) and, when asked, what was shared
   with them or by them. `share_with_circle` tells people in a circle about an activity or an asset with a note in the
   person's words; it always waits for their yes, since telling other people is their pick.
@@ -935,7 +936,15 @@ as an unprivileged user with every capability dropped, a read-only image and mem
 network only with Lens's backend (and the internet, which `npx` and `uvx` need to fetch the servers). Each server gets
 an empty folder as its home and only the environment its extension gives it; Lens talks to the runner over HTTP with
 a token the runner writes to a volume only the two share. A server starts on first use, stays up while it's used,
-and stops after 15 idle minutes. Installs that don't run on Docker don't have the runner yet.
+and stops after 15 idle minutes.
+
+In a [microsandbox](microsandbox.md) install the same switch works, and the runner is a process inside the sandbox
+rather than a container: it runs as a user of its own, `mcp`, with the volume that holds the database and the archive
+closed to it, with Lens's Node and uv reached through read-only mounts, listening on the sandbox's localhost only
+(`microsandbox/mcp.sh`). The agent adds `mcp` to `COMPOSE_PROFILES` in `.env` and nothing else; the sandbox reads
+`.env` every few seconds and starts or stops the runner to match, so the servers' packages come and go with the
+sandbox (they're fetched again after an update). Other installs that don't run on Docker (Cloudron, NAS packages)
+don't have the runner yet.
 
 ### The browser
 

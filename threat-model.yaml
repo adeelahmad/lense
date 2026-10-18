@@ -1265,6 +1265,15 @@ dependencies:
     covered_here: false
     violation_disposition: "OUT-OF-MODEL: dependency-contract"
     provenance: {kind: inferred, question_id: Q19}
+  - name: "MCP runner (mcp-runner/, opt-in Compose profile mcp; in a microsandbox a process inside the sandbox) and the stdio MCP servers admins add (npx, uvx packages)"
+    relied_on_for: "running those servers away from Lens: with Docker a container with none of Lens's data, keys or database, a non-root user, every capability dropped, no-new-privileges, a read-only image, memory and process limits, a network shared only with the backend, an empty home and only its extension's environment per server, a bearer token on a volume only the two share; in a microsandbox a process as its own user mcp with the volume (database, archive) mode 750 and lens's, Node and uv through read-only bind mounts, a home on the sandbox's disk, the sandbox's localhost only"
+    relied_on_properties: [container-isolation]
+    caller_obligations_acknowledged: []
+    adversary_capabilities_forwarded: [supply-parsed-bytes]
+    outputs_consumed: [tool results, passed to the model as outside text]
+    covered_here: false
+    violation_disposition: "OUT-OF-MODEL: dependency-contract"
+    provenance: {kind: documented, source: 'docs/assistant.md "The MCP runner"; microsandbox/mcp.sh, microsandbox/test-mcp.sh'}
   - name: "Lens's prebuilt images (ghcr.io/<owner>/lens-backend, lens-frontend; opt-in LENS_IMAGES=pull)"
     relied_on_for: "the API, worker and web app a pulling install runs, built by images.yml from the release tag with GITHUB_TOKEN and pulled over TLS by version tag"
     relied_on_properties: [build-toolchain-integrity]

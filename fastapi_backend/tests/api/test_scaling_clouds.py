@@ -13,6 +13,7 @@ import pytest
 from app.domain import scaling, settings, store
 from app.domain import scaling_drivers as drivers
 from app.domain.mesh import WORKER_STEPS
+from tests import openapi_contract as contract
 from tests.helpers import login, make_user
 
 R = store.R
@@ -20,7 +21,10 @@ NOW = dt.datetime(2026, 10, 18, 12, 0, tzinfo=dt.UTC)
 
 
 class Cloud:
-    """One cloud's API in memory: what it was asked, and its machines."""
+    """One cloud's API in memory, held to the cloud's own published API document (tests/data/openapi/): every request
+    must be one it takes, and every answer is built from its schemas, so it carries every field the real one does."""
+
+    spec = None
 
     def __init__(self):
         self.calls, self.machines, self.next = [], {}, 100
@@ -28,52 +32,65 @@ class Cloud:
     def __call__(self, request):
         body = json.loads(request.content) if request.content else None
         self.calls.append((request.method, request.url.path, dict(request.url.params), body, request.headers.get("authorization")))
-        return self.answer(request.method, request.url.path, dict(request.url.params), body)
+        contract.check_request(self.spec, request.method, request.url.path, body, dict(request.url.params))
+        status, answer = self.answer(request.method, request.url.path, dict(request.url.params), body)
+        if status < 400:
+            answer = contract.answer(self.spec, request.method, request.url.path, status, answer)
+        return httpx.Response(status, json=answer) if answer is not None else httpx.Response(status)
 
 
 class DO(Cloud):
+    spec = contract.load("digitalocean")
+
     def answer(self, method, path, params, body):
         if path == "/v2/regions":
-            return httpx.Response(200, json={"regions": [{"slug": "nyc3", "available": True}, {"slug": "fra1", "available": True}]})
+            return 200, {"regions": [{"slug": "nyc3", "available": True}, {"slug": "fra1", "available": True}]}
         if path == "/v2/sizes":
-            return httpx.Response(200, json={"sizes": [{"slug": "s-1vcpu-2gb", "price_hourly": 0.01786}]})
+            return 200, {"sizes": [{"slug": "s-1vcpu-2gb", "price_hourly": 0.01786}]}
         if path == "/v2/droplets" and method == "POST":
             self.next += 1
-            self.machines[self.next] = {"id": self.next, "name": body["name"], "status": "new", "tags": body["tags"], "body": body}
-            return httpx.Response(202, json={"droplet": self.machines[self.next]})
+            self.machines[self.next] = {"id": self.next, "name": body["name"], "status": "new", "tags": body["tags"]}
+            self.machines[self.next]["body"] = body
+            return 202, {"droplet": self._shown(self.machines[self.next])}
         if path == "/v2/droplets":
             tag = params.get("tag_name")
-            return httpx.Response(200, json={"droplets": [m for m in self.machines.values() if tag in m["tags"]]})
+            return 200, {"droplets": [self._shown(m) for m in self.machines.values() if tag in m["tags"]]}
         did = int(path.rsplit("/", 1)[1])
         if did not in self.machines:
-            return httpx.Response(404, json={"id": "not_found", "message": "The resource you requested could not be found."})
+            return 404, {"id": "not_found", "message": "The resource you requested could not be found."}
         if method == "DELETE":
             del self.machines[did]
-            return httpx.Response(204)
-        return httpx.Response(200, json={"droplet": self.machines[did]})
+            return 204, None
+        return 200, {"droplet": self._shown(self.machines[did])}
+
+    @staticmethod
+    def _shown(m):
+        return {k: v for k, v in m.items() if k != "body"}
 
 
 class Hz(Cloud):
+    spec = contract.load("hetzner-cloud")
+
     def answer(self, method, path, params, body):
         if path == "/v1/locations":
-            return httpx.Response(200, json={"locations": [{"name": "fsn1"}, {"name": "hel1"}]})
+            return 200, {"locations": [{"name": "fsn1"}, {"name": "hel1"}]}
         if path == "/v1/server_types":
             prices = [{"location": "fsn1", "price_hourly": {"net": "0.0060", "gross": "0.0071"}}]
-            return httpx.Response(200, json={"server_types": [{"name": params.get("name"), "prices": prices}]})
+            return 200, {"server_types": [{"name": params.get("name"), "prices": prices}]}
         if path == "/v1/servers" and method == "POST":
             self.next += 1
             self.machines[self.next] = {"id": self.next, "name": body["name"], "status": "initializing", "labels": body["labels"]}
             self.machines[self.next]["public_net"] = {"ipv4": {"ip": "203.0.113.7"}}
-            return httpx.Response(201, json={"server": self.machines[self.next]})
+            return 201, {"server": self.machines[self.next]}
         if path == "/v1/servers":
-            return httpx.Response(200, json={"servers": list(self.machines.values())})
+            return 200, {"servers": list(self.machines.values())}
         sid = int(path.rsplit("/", 1)[1])
         if sid not in self.machines:
-            return httpx.Response(404, json={"error": {"code": "not_found", "message": "server not found"}})
+            return 404, {"error": {"code": "not_found", "message": "server not found"}}
         if method == "DELETE":
             del self.machines[sid]
-            return httpx.Response(200, json={"action": {}})
-        return httpx.Response(200, json={"server": self.machines[sid]})
+            return 200, {"action": {}}
+        return 200, {"server": self.machines[sid]}
 
 
 @pytest.fixture
@@ -219,3 +236,18 @@ def test_a_group_elsewhere_counts_only_the_jobs_a_node_takes(client, db, cfg, h,
     db.q("CREATE job CONTENT {status: 'queued', next_step: 'transcribe', created_at: $t}", t=NOW.isoformat())
     assert tick(db, cfg)["launched"] == 1  # the Any group, for the transcription; Odd still launches nothing
     assert [len(scaling.nodes(db, x["id"])) for x in (g, odd)] == [1, 0]
+
+
+def test_lens_reads_only_fields_the_clouds_answer_with():
+    do, hz = DO.spec, Hz.spec
+    contract.check_answer_fields(do, "GET", "/v2/regions", 200, "regions.slug", "regions.available")
+    contract.check_answer_fields(do, "GET", "/v2/sizes", 200, "sizes.slug", "sizes.price_hourly")
+    contract.check_answer_fields(do, "POST", "/v2/droplets", 202, "droplet.id")
+    contract.check_answer_fields(do, "GET", "/v2/droplets/{droplet_id}", 200, "droplet.status", "droplet.networks.v4.ip_address")
+    contract.check_answer_fields(do, "GET", "/v2/droplets/{droplet_id}", 200, "droplet.networks.v4.type")
+    contract.check_answer_fields(do, "GET", "/v2/droplets", 200, "droplets.id", "droplets.name")
+    contract.check_answer_fields(hz, "GET", "/locations", 200, "locations.name")
+    contract.check_answer_fields(hz, "GET", "/server_types", 200, "server_types.prices.location", "server_types.prices.price_hourly.gross")
+    contract.check_answer_fields(hz, "POST", "/servers", 201, "server.id", "server.public_net.ipv4.ip")
+    contract.check_answer_fields(hz, "GET", "/servers/{id}", 200, "server.status", "server.public_net.ipv4.ip")
+    contract.check_answer_fields(hz, "GET", "/servers", 200, "servers.id", "servers.name")

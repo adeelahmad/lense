@@ -54,6 +54,7 @@ from app.domain import (
     decide,
     descriptions,
     enhance,
+    event_mutes,
     event_reactions,
     events,
     extensions,
@@ -3777,6 +3778,7 @@ def set_mail_routing(ctx: Context, account: int, rules: list[str], watch: int | 
         max_length=20000,
     ),
     Arg("unreviewed", "boolean", "only those you haven't marked reviewed"),
+    Arg("hidden", "boolean", "true: only what you hid or muted; false: none of it (left out: what you hid shows, what you muted doesn't)"),
     Arg(
         "order",
         "string",
@@ -3798,6 +3800,7 @@ def timeline(
     q: str | None,
     where: str | None,
     unreviewed: bool | None,
+    hidden: bool | None,
     order: str | None,
     before: str | None,
     limit: int,
@@ -3806,9 +3809,8 @@ def timeline(
         ctx.acl, kinds, [actor] if actor else None, [namespace] if namespace else None, tag, since, until, q, where
     )
     who = activity_routes.viewer(ctx.db, ctx.user, ctx.acl)
-    return activity_routes.timeline(
-        ctx.db, ctx.cfg, who, flt, before, limit, {"reviewed": False} if unreviewed else None, order or "latest"
-    )
+    marked = {**({"reviewed": False} if unreviewed else {}), **({"hidden": hidden} if hidden is not None else {})}
+    return activity_routes.timeline(ctx.db, ctx.cfg, who, flt, before, limit, marked or None, order or "latest")
 
 
 @tool(
@@ -3832,6 +3834,45 @@ def mark_activities(
         raise ToolError("ids is required")
     who = activity_routes.viewer(ctx.db, ctx.user, ctx.acl)
     return activity_routes.mark(ctx.db, ctx.cfg, who, ids, {"reviewed": reviewed, "important": important, "hidden": hidden})
+
+
+@tool(
+    "activity_mutes",
+    "Your mutes on the timeline",
+    "The sources, people and kinds of activity the timeline leaves out for the person you act for (docs/timeline.md, "
+    "Muting), each for good or until a time. Nobody else's timeline changes.",
+)
+def activity_mutes(ctx: Context) -> dict[str, Any]:
+    return {"mutes": event_mutes.of(ctx.db, ctx.user.id)}
+
+
+@tool(
+    "mute_activities",
+    "Mute a source or a kind",
+    "Mute a source or person (actor, by id) or a kind of activity (kind; the kinds under it count too) on the timeline "
+    "for the person you act for, for good or until a time (snooze it for a day), or lift the mute with on false. "
+    "Muting hides, it never deletes: the activities stay, still trigger automations and still show to everyone else, "
+    "and timeline with hidden true shows them. The answer is their mutes now. Needs a token with the write scope.",
+    Arg("actor", "string", "an actor's id, like lens:source/12 or lens:account/1", max_length=240),
+    Arg("kind", "string", "a kind, like sensor.reading", max_length=120),
+    Arg("name", "string", "the actor's name, for the Muted list on the page", max_length=200),
+    Arg("until", "string", "until this time (ISO 8601); left out: for good", max_length=40),
+    Arg("on", "boolean", "mute (true, the default) or lift the mute (false)"),
+    writes=True,
+)
+def mute_activities(
+    ctx: Context, actor: str | None, kind: str | None, name: str | None, until: str | None, on: bool | None
+) -> dict[str, Any]:
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to mute")
+    try:
+        if on is False:
+            mutes = event_mutes.unmute(ctx.db, ctx.user.id, actor, kind)
+        else:
+            mutes = event_mutes.mute(ctx.db, ctx.user.id, actor, kind, until, name)
+    except ValueError as e:
+        raise ToolError(str(e)) from None
+    return {"mutes": mutes}
 
 
 @tool(
