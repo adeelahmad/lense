@@ -643,6 +643,13 @@ export const FIELDS: FieldSpec[] = [
     kind: "text",
     mono: true,
   },
+  {
+    section: "transcribe",
+    key: "vocabulary",
+    label: "Expect your own names",
+    kind: "switch",
+    hint: "Each recording is transcribed knowing its namespace's named people, defined entities, custom vocabulary and the names you fixed in its transcripts, so the same mistakes stop coming back (Whisper, OpenAI-compatible, Deepgram and AssemblyAI; SenseVoice and ElevenLabs take no hints)",
+  },
   // Speaker separation
   {
     section: "diarize",
@@ -814,6 +821,16 @@ export const FIELDS: FieldSpec[] = [
       { value: "always", label: "In every transcript" },
     ],
     hint: "A local model adds full stops, commas and question marks, keeping the ones there; about 2 GB, fetched the first time it’s needed",
+  },
+  {
+    section: "analysis",
+    key: "cleanup_grammar_url",
+    label: "LanguageTool server",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "http://languagetool:8010",
+    hint: "Grammar and punctuation fixes from LanguageTool, such as the compose files’ languagetool profile: off while empty. Spelling and style are left alone, and so are names. Transcripts are sent to it",
   },
   {
     section: "analysis",

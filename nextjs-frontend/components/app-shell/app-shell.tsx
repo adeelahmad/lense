@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 
-import { Speakers } from "@/app/openapi-client";
+import { Feeds, Speakers } from "@/app/openapi-client";
 import { AccountMenu } from "@/components/app-shell/account-menu";
 import { ActivityPill } from "@/components/app-shell/activity";
 import { CommandPalette } from "@/components/app-shell/command-palette";
@@ -117,7 +117,17 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
     staleTime: 60_000,
   });
   const approvals = useApprovalCount();
-  const counts = { recordings, reviews: reviews.data, approvals: approvals.data?.waiting || undefined };
+  const feeds = useQuery({
+    queryKey: ["feeds", "list", null],
+    queryFn: () => data(Feeds.listFeeds({ client })),
+    staleTime: 60_000,
+  });
+  const counts = {
+    recordings,
+    reviews: reviews.data,
+    approvals: approvals.data?.waiting || undefined,
+    feeds: feeds.data?.length || undefined,
+  };
   const canImport = can("editor", namespace);
 
   return (

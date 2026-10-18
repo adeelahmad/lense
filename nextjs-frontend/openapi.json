@@ -14927,7 +14927,7 @@
           "imports"
         ],
         "summary": "Import Transcript",
-        "description": "Import a transcript into a namespace (editors; admins may name a new namespace). The namespace's pipeline, or\nthe one chosen (`pipeline`), is queued as a job.",
+        "description": "Import a transcript into a namespace (editors; admins may name a new namespace). The namespace's pipeline, or\nthe one chosen (`pipeline`), is queued as a job; `content_type` (a text one) is the asset's instead of the one\nrecognised from it, so its pipeline runs.",
         "operationId": "import_transcript",
         "requestBody": {
           "content": {
@@ -14969,7 +14969,7 @@
           "imports"
         ],
         "summary": "Import Web Page",
-        "description": "Capture a web page as a document (editors; admins may name a new namespace): the namespace's pipeline, or\n`pipeline`, keeps the page as it is now, as a PDF (a link to a PDF is kept as it is; other pages are printed by\nheadless Chromium), and reads it page by page. Only public addresses on ports 80 and 443 can be captured (and the\nnetworks in documents.web_networks). Audited as `import.web`.",
+        "description": "Capture a web page as a document (editors; admins may name a new namespace): the namespace's pipeline, or\n`pipeline`, keeps the page as it is now, as a PDF (a link to a PDF is kept as it is; other pages are printed by\nheadless Chromium), and reads it page by page. Only public addresses on ports 80 and 443 can be captured (and the\nnetworks in documents.web_networks). `content_type` (a text one) is the page's instead of the one recognised from it. Audited as\n`import.web`.",
         "operationId": "import_web_page",
         "requestBody": {
           "content": {
@@ -15053,7 +15053,7 @@
           "imports"
         ],
         "summary": "Import Web Links",
-        "description": "Capture one or many web pages at once (editors; admins may name a new namespace): pasted addresses, one per\nline, a JSON list of them (`urls`), or a file: a list of addresses, a browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON). Each link becomes\na page captured as a document, as `POST /import/web` does, tagged with the bookmark folders it was in\n(`folders_as_tags`). At most 500 links; a link already captured in the namespace isn't captured again, and one that\ncan't be is skipped, saying why. Audited as `import.web` once, with how many were queued.",
+        "description": "Capture one or many web pages at once (editors; admins may name a new namespace): pasted addresses, one per\nline, a JSON list of them (`urls`), or a file: a list of addresses, a browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON). Each link becomes\na page captured as a document, as `POST /import/web` does, tagged with the bookmark folders it was in\n(`folders_as_tags`), of `content_type` when one (a text one) is chosen. At most 500 links; a link already captured\nin the namespace isn't captured again, and one that can't be is skipped, saying why. Audited as `import.web` once,\nwith how many were queued.",
         "operationId": "import_web_links",
         "requestBody": {
           "content": {
@@ -15225,7 +15225,7 @@
           "uploads"
         ],
         "summary": "Start Upload",
-        "description": "Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of\na text-only asset (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the\nnamespace's. Then send the file with PUT /uploads/{uid}.\n400 for a type not in uploads.extensions, 409 when the asset has audio already, 413 over uploads.max_mb, 507\nwhen the server's disk can't hold it.",
+        "description": "Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of\na text-only asset (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the\nnamespace's; `content_type` (one of the file's base type) is the asset's instead of the one recognised from its\nfile, so that content type's pipeline runs. Then send the file with PUT /uploads/{uid}.\n400 for a type not in uploads.extensions, 409 when the asset has audio already, 413 over uploads.max_mb, 507\nwhen the server's disk can't hold it.",
         "operationId": "start_upload",
         "requestBody": {
           "content": {
@@ -26754,6 +26754,455 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApprovalOutcome"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "List Projects",
+        "description": "Your projects, the most recently changed first (not archived ones, unless asked).",
+        "operationId": "list_projects",
+        "parameters": [
+          {
+            "name": "archived",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "true: only archived ones; left out: every one",
+              "default": false,
+              "title": "Archived"
+            },
+            "description": "true: only archived ones; left out: every one"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectSummary"
+                  },
+                  "title": "Response Projects-List Projects"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Create Project",
+        "description": "A project: its name, goal, instructions and the namespaces it draws on, with its coordinator conversation.",
+        "operationId": "create_project",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{pid}": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get Project",
+        "description": "A project with its threads, the most recently added to first.",
+        "operationId": "get_project",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Update Project",
+        "description": "Rename it, change its goal, instructions or namespaces (its conversations draw on the new ones), or archive it.",
+        "operationId": "update_project",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Delete Project",
+        "description": "Delete a project. Its conversations stay, as ordinary ones in Chat.",
+        "operationId": "delete_project",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{pid}/threads": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "List Threads",
+        "description": "The project's threads, the most recently added to first, the coordinator among them.",
+        "operationId": "list_threads",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectThread"
+                  },
+                  "title": "Response Projects-List Threads"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Start Thread",
+        "description": "A new thread: a conversation in the project's namespaces (ask in it with POST /chats/{id}/messages). With `chat`,\none of your conversations joins the project instead, drawing on its namespaces from then on.",
+        "operationId": "start_thread",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ThreadCreate"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{pid}/threads/{cid}": {
+      "patch": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Update Thread",
+        "description": "Mark a thread done (it stays to read and to go on with), or not done.",
+        "operationId": "update_thread",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          },
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ThreadUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Release Thread",
+        "description": "Take a thread out of the project: the conversation stays in Chat (DELETE /chats/{id} deletes it).",
+        "operationId": "release_thread",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          },
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
                 }
               }
             }
@@ -40402,6 +40851,24 @@
             "title": "Max Tool Calls",
             "description": "at most this many tool calls in each answer; null: no limit but the rounds"
           },
+          "project": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project",
+            "description": "the project it's in (GET /projects/{id}): one of its threads, or its coordinator"
+          },
+          "done": {
+            "type": "boolean",
+            "title": "Done",
+            "description": "a project's thread marked done",
+            "default": false
+          },
           "created_at": {
             "anyOf": [
               {
@@ -41182,6 +41649,24 @@
             ],
             "title": "Max Tool Calls",
             "description": "at most this many tool calls in each answer; null: no limit but the rounds"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project",
+            "description": "the project it's in (GET /projects/{id}): one of its threads, or its coordinator"
+          },
+          "done": {
+            "type": "boolean",
+            "title": "Done",
+            "description": "a project's thread marked done",
+            "default": false
           },
           "created_at": {
             "anyOf": [
@@ -50193,19 +50678,42 @@
             "type": "string",
             "enum": [
               "merge",
-              "link"
+              "link",
+              "retype",
+              "hide"
             ],
             "title": "Kind"
           },
           "a": {
             "additionalProperties": true,
             "type": "object",
-            "title": "A"
+            "title": "A",
+            "description": "the entity changed, or the first of a pair"
           },
           "b": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "B"
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "B",
+            "description": "a merge's or link's other entity"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To",
+            "description": "a retype's new type"
           },
           "spaces": {
             "items": {
@@ -50342,7 +50850,6 @@
           "id",
           "kind",
           "a",
-          "b",
           "spaces",
           "status"
         ],
@@ -50361,6 +50868,19 @@
             ],
             "title": "Keep",
             "description": "for a merge: the entity to keep (default: the one proposed)"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To",
+            "description": "for a retype: the type to give (default: the one proposed)"
           }
         },
         "additionalProperties": false,
@@ -52940,6 +53460,18 @@
             ],
             "title": "Collection",
             "description": "a collection of the namespace to put it in; default: its default collection"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type",
+            "description": "a text content type (GET /content-types), e.g. transcript, instead of the one recognised from it"
           }
         },
         "additionalProperties": false,
@@ -54350,6 +54882,18 @@
             ],
             "title": "Collection",
             "description": "a collection of the namespace to put them in; default: its default collection"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type",
+            "description": "a text content type (GET /content-types) for each page instead of the one recognised from it"
           }
         },
         "additionalProperties": false,
@@ -56821,6 +57365,49 @@
         ],
         "title": "MeshNodeConfig"
       },
+      "MeshRelay": {
+        "properties": {
+          "port": {
+            "type": "integer",
+            "title": "Port",
+            "description": "the port on this machine's mesh address"
+          },
+          "to": {
+            "type": "string",
+            "title": "To",
+            "description": "the container it passes connections to"
+          },
+          "listening": {
+            "type": "boolean",
+            "title": "Listening"
+          },
+          "open": {
+            "type": "integer",
+            "title": "Open",
+            "description": "connections through it now",
+            "default": 0
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "port",
+          "to",
+          "listening"
+        ],
+        "title": "MeshRelay"
+      },
       "MeshRenew": {
         "properties": {
           "public_key": {
@@ -56837,6 +57424,101 @@
         ],
         "title": "MeshRenew"
       },
+      "MeshService": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available",
+            "description": "this install runs the primary's Nebula in the `mesh` container (Docker installs)"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State",
+            "description": "off, waiting (for its key to be signed), starting, running or error"
+          },
+          "nebula": {
+            "type": "boolean",
+            "title": "Nebula",
+            "description": "Nebula runs on this machine now",
+            "default": false
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since",
+            "description": "when Nebula last started"
+          },
+          "restarts": {
+            "type": "integer",
+            "title": "Restarts",
+            "default": 0
+          },
+          "relays": {
+            "items": {
+              "$ref": "#/components/schemas/MeshRelay"
+            },
+            "type": "array",
+            "title": "Relays",
+            "description": "what the mesh reaches on this machine"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "log": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Log",
+            "description": "Nebula's last lines"
+          },
+          "seen_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seen At",
+            "description": "when the container last said how it runs"
+          },
+          "manual": {
+            "type": "string",
+            "title": "Manual",
+            "description": "the line that starts the container on this machine, where there's no upgrade agent"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "available",
+          "manual"
+        ],
+        "title": "MeshService"
+      },
       "MeshStatus": {
         "properties": {
           "enabled": {
@@ -56852,7 +57534,7 @@
           "port": {
             "type": "integer",
             "title": "Port",
-            "description": "the UDP port the primary listens on (mesh.port)"
+            "description": "the UDP port other machines reach the primary at (mesh.port)"
           },
           "hosts": {
             "items": {
@@ -56902,6 +57584,10 @@
             "type": "boolean",
             "title": "Tools",
             "description": "Nebula's programs are on this server (else they're fetched when first needed)"
+          },
+          "service": {
+            "$ref": "#/components/schemas/MeshService",
+            "description": "Nebula on this machine, in the `mesh` container"
           }
         },
         "additionalProperties": true,
@@ -56916,7 +57602,8 @@
           "removed",
           "tokens",
           "nebula",
-          "tools"
+          "tools",
+          "service"
         ],
         "title": "MeshStatus"
       },
@@ -64576,6 +65263,387 @@
         ],
         "title": "PrimaryFile",
         "description": "The audio, video, document or image the resource's pipeline runs on."
+      },
+      "Project": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "goal": {
+            "type": "string",
+            "title": "Goal",
+            "default": ""
+          },
+          "namespaces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Namespaces",
+            "description": "the namespaces it draws on, which its conversations are scoped to"
+          },
+          "coordinator": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coordinator",
+            "description": "the project's own conversation (a chat)"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived",
+            "default": false
+          },
+          "threads": {
+            "type": "integer",
+            "title": "Threads",
+            "description": "how many threads it has, besides the coordinator",
+            "default": 0
+          },
+          "open": {
+            "type": "integer",
+            "title": "Open",
+            "description": "how many of them aren't done",
+            "default": 0
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "instructions": {
+            "type": "string",
+            "title": "Instructions",
+            "description": "what its owner tells the assistant in every one of its conversations",
+            "default": ""
+          },
+          "thread_list": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectThread"
+            },
+            "type": "array",
+            "title": "Thread List",
+            "description": "its threads, the most recently added to first"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Project"
+      },
+      "ProjectCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "title": "Name"
+          },
+          "goal": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Goal",
+            "description": "what the project is for, in your words: every answer in it reads it",
+            "default": ""
+          },
+          "instructions": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Instructions",
+            "description": "how the assistant should work in it",
+            "default": ""
+          },
+          "namespaces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Namespaces",
+            "description": "the namespaces it draws on (ones you can read)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "namespaces"
+        ],
+        "title": "ProjectCreate"
+      },
+      "ProjectSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "goal": {
+            "type": "string",
+            "title": "Goal",
+            "default": ""
+          },
+          "namespaces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Namespaces",
+            "description": "the namespaces it draws on, which its conversations are scoped to"
+          },
+          "coordinator": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coordinator",
+            "description": "the project's own conversation (a chat)"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived",
+            "default": false
+          },
+          "threads": {
+            "type": "integer",
+            "title": "Threads",
+            "description": "how many threads it has, besides the coordinator",
+            "default": 0
+          },
+          "open": {
+            "type": "integer",
+            "title": "Open",
+            "description": "how many of them aren't done",
+            "default": 0
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ProjectSummary"
+      },
+      "ProjectThread": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "the conversation (GET /chats/{id}, POST /chats/{id}/messages)"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "title_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title By"
+          },
+          "coordinator": {
+            "type": "boolean",
+            "title": "Coordinator",
+            "description": "the project's own conversation, about the project as a whole",
+            "default": false
+          },
+          "done": {
+            "type": "boolean",
+            "title": "Done",
+            "description": "marked done: it stays to read and to go on with",
+            "default": false
+          },
+          "answering": {
+            "type": "boolean",
+            "title": "Answering",
+            "description": "an answer is being written in it now",
+            "default": false
+          },
+          "messages": {
+            "type": "integer",
+            "title": "Messages",
+            "description": "how many messages it has, every version's",
+            "default": 0
+          },
+          "last": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ThreadLast"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "its last message, of the version showing"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "ProjectThread"
+      },
+      "ProjectUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "goal": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal"
+          },
+          "instructions": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instructions"
+          },
+          "namespaces": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 20,
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespaces",
+            "description": "its conversations draw on these from now on"
+          },
+          "archived": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived",
+            "description": "archived projects are listed apart; nothing in them changes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ProjectUpdate",
+        "description": "Only the fields you send change."
       },
       "Protected": {
         "properties": {
@@ -78481,6 +79549,85 @@
         "type": "object",
         "title": "Terminate"
       },
+      "ThreadCreate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "left out, Lens titles it after its first answer"
+          },
+          "chat": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chat",
+            "description": "bring in one of your conversations instead of starting a new one"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ThreadCreate"
+      },
+      "ThreadLast": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "title": "Role",
+            "description": "user (a question) or assistant (an answer)"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "its first 300 characters"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "role",
+          "text"
+        ],
+        "title": "ThreadLast"
+      },
+      "ThreadUpdate": {
+        "properties": {
+          "done": {
+            "type": "boolean",
+            "title": "Done",
+            "description": "mark it done, or not done"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "done"
+        ],
+        "title": "ThreadUpdate"
+      },
       "TicketRequest": {
         "properties": {
           "ticket": {
@@ -80361,6 +81508,18 @@
             "title": "Pipeline",
             "description": "the pipeline chosen to run once it's here (default: the namespace's)"
           },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type",
+            "description": "the content type chosen for its asset (default: recognised from the file)"
+          },
           "recording": {
             "anyOf": [
               {
@@ -80511,6 +81670,18 @@
             ],
             "title": "Pipeline",
             "description": "run this pipeline once it's here instead of the namespace's (not with `recording`)"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type",
+            "description": "the asset's content type (GET /content-types), one of its file's base type, instead of the one recognised from the file; its pipeline runs (not with `recording`)"
           },
           "collection": {
             "anyOf": [
@@ -82357,6 +83528,18 @@
             ],
             "title": "Collection",
             "description": "a collection of the namespace to put it in; default: its default collection"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type",
+            "description": "a text content type (GET /content-types) for the page instead of the one recognised from it"
           }
         },
         "additionalProperties": false,

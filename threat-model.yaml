@@ -409,7 +409,7 @@ entry_points:
         control_kinds: [resource-name, x-prompt-injection, size]
         caller_must_enforce: "none — admins only, and only the tools for the connections there are; reading changes nothing in the account; a file is read up to 20 MB and a message's or file's text up to 11,000 characters; mail, events and files reach the model marked as data, and once read, tools that could carry it out of Lens ask first (P-INJECTION-EGRESS); bringing anything into a namespace waits for the person's yes; sending mail, saving a draft, adding an event and writing a file always wait for the person's yes, even in a setup conversation, with all of it shown (and a note when the answer read outside text), and the model is told never to act on what it read; sending and adding work only on a Gmail or Google Calendar connection an admin let do so (write, which asks Google for gmail.compose or calendar.events), checked again when approved; at most 50 addresses a field, 50,000 characters a message and 200,000 a file; a file is replaced only when asked and approved, and Google Drive connected read only is never written; each change is in the audit log; the ledger keeps what was called, never what came back"
         provenance: {kind: documented, source: 'docs/assistant.md "Mail, calendars and files"'}
-  - id: "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search)"
+  - id: "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search, LanguageTool server)"
     component: outbound
     parameters:
       - name: "URL, credentials, api_key_env"
@@ -581,6 +581,15 @@ entry_points:
         control_kinds: [x-env-config]
         caller_must_enforce: "admin is trusted; audited (mesh.token.create, mesh.join, mesh.node.*); the network can't change once machines have addresses in it"
         provenance: {kind: documented, source: 'docs/mesh.md "Settings"'}
+  - id: "UDP 4242 on the primary and ports 8000 and 8080 on its mesh address (the mesh container, while the mesh is on)"
+    component: optional
+    parameters:
+      - name: "Nebula handshakes and tunnelled packets from anyone reaching the port; on the mesh, TCP to the database and the API"
+        attacker_controllable: true
+        x-condition: "anyone reaching UDP 4242; on the mesh, a machine with a certificate the mesh's CA signed"
+        control_kinds: [data, x-peer]
+        caller_must_enforce: "Nebula drops what no certificate of the mesh's CA signs and anything on the blocklist; its firewall, rendered by Lens, lets only lens-worker reach 8000 and lens-node 8080; the relays listen on the mesh address only; the container is the only one holding NET_ADMIN, makes its own key pair (the private key stays in its own volume) and runs only Nebula's release with the checksum kept in Lens"
+        provenance: {kind: documented, source: 'docs/mesh.md "On this machine"'}
   - id: ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY"
     component: outbound
     parameters:
@@ -679,11 +688,11 @@ entry_points:
   - id: "code sandbox"
     component: assistant
     parameters:
-      - name: "assistant run_python, run_bash, sandbox_files, share_sandbox_file and import_sandbox_file: code the model writes, attachment ids, a path in the sandbox; sandbox.* settings (admins)"
+      - name: "assistant run_python, run_bash, sandbox_files, sandbox_nodes, share_sandbox_file and import_sandbox_file: code the model writes, attachment ids, a path in the sandbox, a compute node's id or name; sandbox.* settings (admins)"
         attacker_controllable: true
         x-condition: "the people sandbox.who names (editors and admins by default); indirectly through content the model reads"
         control_kinds: [callback/code, data, x-prompt-injection]
-        caller_must_enforce: "none — off by default; the code runs in the conversation's own OpenShell sandbox with none of Lens's data or keys and no network unless sandbox.network allows it (P-SANDBOX); with the network on, a run after outside text asks first (P-INJECTION-EGRESS); files in only from the person's attachments, out only through an approved import or as a download for that person"
+        caller_must_enforce: "none — off by default; the code runs in the conversation's own OpenShell sandbox with none of Lens's data or keys and no network unless sandbox.network allows it (P-SANDBOX); with the network on, a run after outside text asks first (P-INJECTION-EGRESS); files in only from the person's attachments, out only through an approved import or as a download for that person; with compute nodes registered by the mesh, a run may go to a ready compute node's own gateway, reached only over the mesh, with the same sandbox settings, and only where the model passed node or the conversation's sandbox already is"
         provenance: {kind: documented, source: 'docs/assistant.md "Code sandbox"'}
   - id: "code sandbox shared files"
     component: assistant
@@ -1956,7 +1965,7 @@ properties_claimed:
     kind: authentication
     components: [optional]
     tier: security-critical
-    conditions: "the mesh (mesh.enabled, off until an admin adds a node) admits only machines that joined with a token an admin made, spent on use and expiring, which never crosses the wire (HMAC proof; answer sealed with a key derived from it); each machine's certificate names only its own address, role and namespaces; the rendered firewall opens the database port to worker nodes and the API port to every node on the primary, a node's agent port to the primary only; removing a node blocklists every certificate it was given on every machine and stops its node token; nodes still sign in to Lens as any client does"
+    conditions: "the mesh (mesh.enabled, off until an admin adds a node) admits only machines that joined with a token an admin made, spent on use and expiring, which never crosses the wire (HMAC proof; answer sealed with a key derived from it); each machine's certificate names only its own address, role and namespaces; the rendered firewall opens the database port to worker nodes and the API port to every node on the primary, a node's agent port to the primary only; removing a node blocklists every certificate it was given on every machine and stops its node token; nodes still sign in to Lens as any client does; on the primary Nebula runs in the mesh container, the only one holding NET_ADMIN, with a key pair it makes itself and Nebula's release checked against the kept checksum; its relays listen on the mesh address only"
     violation_symptoms: [info-leak, integrity-bypass]
     x-voided-by: "a wrong address in the install line gives a stranger the token's id (not its secret); a worker node holds the database credential (trusted peer, Q9); the lighthouse must be reachable on UDP mesh.port; Nebula's own isolation is upstream's (domain/mesh.py)"
     provenance: {kind: documented, source: 'docs/mesh.md "What keeps it safe"'}
@@ -1996,7 +2005,7 @@ properties_claimed:
 # ---------------------------------------------------------------- §1.12
 properties_disclaimed:
   - {id: N-ADMIN, components: [outbound, ingest, assistant, optional], tier: security-critical, false_friend: false, conditions: "protection from the instance admin or host operator (admin-set URLs reaching internal hosts, admin code, templates, regexes, component installs, api_key_env). Covers only operands an admin or operator alone can set. Excludes the guards Lens documents on them (P-ADMIN-GUARD): an escape of one is VALID. Excludes saved telemetry headers when the endpoint moves host (unresolved, Q35 -> MODEL-GAP). A non-admin reaching any admin operand is in model.", provenance: {kind: maintainer, date: "2026-10"}}
-  - {id: N-EGRESS, components: [outbound], tier: security-critical, false_friend: true, conditions: "an egress firewall; netguard guards web import, iCal and news feeds, extension http tools, notifications, the assistant's web search and page reads, Chromium and the opt-in browser container (as browser-proxy), nothing else; admin-set URLs other than iCal and news feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded", x-false-friend-note: "'public addresses only' reads as server-wide", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: N-EGRESS, components: [outbound], tier: security-critical, false_friend: true, conditions: "an egress firewall; netguard guards web import, iCal and news feeds, extension http tools, notifications, the assistant's web search and page reads, Chromium and the opt-in browser container (as browser-proxy), nothing else; admin-set URLs other than iCal and news feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search, LanguageTool server) are unguarded", x-false-friend-note: "'public addresses only' reads as server-wide", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: N-CODE-GUARD, components: [assistant], tier: security-critical, false_friend: true, conditions: "a sandbox for Python code tools; audit hooks, rlimits and an optional network namespace only raise the bar; admin-written code; runs as the Lens user", x-false-friend-note: "guard is not isolation", provenance: {kind: documented, source: 'domain/code_tools.py docstring "they aren''t a wall"'}}
   - {id: N-DOWNLOADS, components: [optional], tier: security-critical, false_friend: false, conditions: "integrity beyond HTTPS and the publisher for llama.cpp, cloudflared, pip installs and hf: models; catalog GGUF files are still checked (P-MODEL-CHECKSUM)", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: N-DB-PLAIN, components: [outbound], tier: security-critical, false_friend: true, conditions: "encryption of the SurrealDB content (assets' text, indexes), derived files, renditions, reports, exports and the storage-source cache; stated limit", x-false-friend-note: "vaults cover files only", provenance: {kind: documented, source: 'docs/encryption.md "the SurrealDB database itself"'}}

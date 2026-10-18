@@ -287,10 +287,12 @@ When the configured model supports function calling, chat becomes an agent.
   straight away without looking anything up gets the same, when the archive has passages that match.
 - **Files:** attach files to a message with the clip, or by dropping or pasting them on the box. They upload as you
   type (`POST /api/v1/uploads` with `hold`), stay out of the archive, and the assistant puts them in a namespace
-  with `import_files` (`attachments` on `POST /api/v1/chats/<id>/messages`).
+  with `import_files` (`attachments` on `POST /api/v1/chats/<id>/messages`). Say what they are ("these are
+  interviews") and it imports them as that [content type](processing.md#content-types), so its pipeline runs.
 - **Web pages:** give it one address, several, or a list of links (pasted, or attached as a text file or a browser's
   bookmark export) and `import_urls` captures each page as a document, as `POST /api/v1/import/web/links` does. Like
-  `import_files`, it picks the namespace when you don't name one, and waits for your approval.
+  `import_files`, it picks the namespace when you don't name one, takes a content type when you say what the pages
+  are, and waits for your approval.
 - **Keep typing:** what you send while an answer is being written waits its turn and goes next.
 - **Your browser** (Chrome and Edge): asked from the Lens extension's side panel, the assistant can open, read, click
   and type in that browser and download files into the conversation, on sites you allow, asking before anything that
@@ -538,6 +540,26 @@ people it's turned on for: those who can edit a namespace, and admins (`sandbox.
   [activity ledger](activity.md) (`sandbox.run`, with its time, language and exit code), counted for the conversation.
 - **Its client.** Lens's own client for the gateway (the `sandbox` Python extra, OpenShell's SDK, Apache-2.0) is
   fetched once the sandbox is on ([Components](components.md)).
+
+### Compute nodes
+
+In progress: the seam is built, and the mesh that joins the nodes is being built in its own pull request. Once the
+install's mesh registers compute nodes (its other machines, each with its own sandbox gateway, reached only over the
+mesh's own network), the assistant can run a conversation's code on one of them:
+
+- **`sandbox_nodes`** lists where code can run: this machine (`here`) and each compute node, with whether it can run
+  code now and, if not, why (it hasn't reported in the last 3 minutes, it isn't on the mesh, its sandbox gateway isn't
+  running), its machine, its groups, and which one has this conversation's sandbox.
+- **`node`** on `run_python` and `run_bash` (a node's id or name, or `here`) runs there. Left out, code runs where the
+  conversation's sandbox already is: this machine until a run asks for a node. A sandbox that moves starts fresh where
+  it moves to, without earlier files, and the one it left is deleted. The model is told to pick a node only when the
+  person asks for a machine or for more power than this one has.
+- **The same rules everywhere.** A node's sandbox has the same image, limits and network setting as this machine's,
+  is stopped when idle and deleted when unused or with its conversation, by its own gateway. Each run's ledger row
+  names its node (`sandbox.run`, `node`). Turning off this machine's gateway leaves the nodes' sandboxes alone, and a
+  node removed from the mesh takes its sandboxes with it.
+- **Nothing changes without nodes:** until the mesh registers some, there is no `sandbox_nodes` and no `node`, and
+  every sandbox runs on this machine's gateway.
 
 ### The gateway
 
@@ -790,6 +812,29 @@ when: someone asks for a recap of a meeting
 Find the meeting, read it, and answer with three bullets: decisions, owners, dates.
 ```
 
+### Manifests as files: `lens ext`
+
+`lens ext` keeps extensions as files in a folder, for a git repository or an agent that writes them:
+
+```bash
+lens ext list                    # the extensions you can see; --json for scripts and agents
+lens ext pull --dir extensions   # yours (admins: all) as files; names or ids pick some, --all adds shared ones
+lens ext check extensions        # read and check them without saving; exits 1 when one doesn't check
+lens ext push extensions         # changed ones become new versions, new ones extensions; --notes says what changed
+```
+
+With no address it works on this install's database, as the first admin or the account `--as` names (run it with
+`docker compose exec backend lens ext …`). With `--url` and `--token` (or `LENS_URL` and `LENS_TOKEN`) it works on
+any Lens server through `/api/v1/extensions`, as the [API token](authentication.md#api-tokens)'s owner; pushing takes a
+write token.
+
+A skill or a prompt tool is pulled as `<name>.md` (Markdown with frontmatter), the rest as `<name>.yaml`; a folder's
+other `.md` files, a README, are left alone. A pulled file says the version it was pulled at (`version: 3`, which the
+check ignores), so neither side's changes are lost: a push refuses when the extension changed in Lens since that
+version, and a pull refuses to overwrite a file changed since it was pulled, each until it's given `--force`. Pushing
+a file that says what Lens has, written differently or with the defaults left out, saves nothing. `visibility` and
+`namespaces` in a file share the extension as they say when it's pushed; without them, who sees it stays as it is.
+
 ### Skills and plugins from marketplaces
 
 Lens reads Anthropic's open plugin and skill formats as they are, so what's made for Claude installs here unchanged:
@@ -901,8 +946,9 @@ not [the assistant in your browser](browser-assistant.md), which uses your own b
 
 ### Optional containers
 
-The MCP runner, the browser, the [code sandbox](#the-gateway)'s gateway and monitoring
-([Prometheus and Grafana](prometheus.md)) are containers Lens can run next to it, off until an admin turns one on. The web app can't start containers itself, so the machine's upgrade agent does
+The MCP runner, the browser, the [code sandbox](#the-gateway)'s gateway, monitoring
+([Prometheus and Grafana](prometheus.md)) and the mesh ([Nodes and the mesh](mesh.md#on-this-machine), started when an
+admin adds a node) are containers Lens can run next to it, off until an admin turns one on. The web app can't start containers itself, so the machine's upgrade agent does
 ([Updates](updates.md)): it adds the profile to `COMPOSE_PROFILES` in Lens's `.env`, or takes it out, and starts or
 stops that profile's containers, one change at a time. Without an agent (Lens wasn't installed with `install.sh`), the
 switch shows the line to run on the machine instead. Agents use the same switches: `GET /api/v1/admin/services` and

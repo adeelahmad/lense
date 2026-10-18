@@ -3,6 +3,9 @@ left alone, and nothing done while it's off."""
 
 from __future__ import annotations
 
+import json
+import re
+
 import pytest
 
 from app.domain import cleanup, ingest, jobs, store
@@ -228,3 +231,98 @@ def test_the_model_is_fetched_only_when_it_is_asked_for(cfg):
     assert not c.needed(cfg, m)  # cleanup itself is off
     cfg["analysis"]["cleanup"] = True
     assert c.needed(cfg, m) and c.serves(cfg, m) == {"clean"}
+
+
+# ---------- grammar ----------
+# what LanguageTool 6.8 answers for these: the rule, its category, and the words it matches
+FIXES = [
+    (r"(?<=he )go\b", "goes", "HE_VERB_AGR", "GRAMMAR"),
+    (r"\ba(?= apple)", "an", "EN_A_VS_AN", "MISC"),
+    (r"\brealy\b", "really", "MORFOLOGIK_RULE_EN_US", "TYPOS"),
+    (r"very very", "very", "ENGLISH_WORD_REPEAT_RULE", "MISC"),
+    (r"Dyno", "dyno", "MADE_UP", "GRAMMAR"),
+]
+WORDY = """Ann|N|so he go to the shop 🙂 he go home
+Ben|N|I ate a apple and it was realy very very good
+Ann|N|we met Dyno Therapeutics"""
+
+
+@pytest.fixture
+def languagetool():
+    """A LanguageTool server that knows FIXES, counting offsets in UTF-16 units as the real one (in Java) does."""
+    import http.server
+    import threading
+    import urllib.parse
+
+    seen = []
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):  # noqa: N802
+            form = urllib.parse.parse_qs(self.rfile.read(int(self.headers["Content-Length"])).decode())
+            text = form["text"][0]
+            seen.append((form["language"][0], text))
+            u16 = lambda s: len(s.encode("utf-16-le")) // 2  # noqa: E731
+            matches = [
+                {
+                    "offset": u16(text[: m.start()]),
+                    "length": u16(m.group()),
+                    "replacements": [{"value": right}],
+                    "rule": {"id": rule, "category": {"id": cat}},
+                }
+                for wrong, right, rule, cat in FIXES
+                for m in re.finditer(wrong, text)
+            ]
+            body = json.dumps({"matches": matches}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{srv.server_port}", seen
+    srv.shutdown()
+
+
+def test_grammar_fixes_from_languagetool_leave_names_and_spelling(db, cfg, languagetool):
+    url, seen = languagetool
+    cfg["analysis"].update(cleanup=True, cleanup_grammar_url=url)
+    rid = ingest.import_text(db, cfg, "pods", WORDY, "Wordy", "auto")
+    jid = jobs.enqueue(db, rid, ["clean"])
+    drain(db, cfg)
+    assert _lines(db, rid) == [
+        "So he goes to the shop 🙂 he goes home",  # after the emoji too: offsets are counted as LanguageTool counts them
+        "I ate an apple and it was realy very very good",  # nor spelling, nor how people talk
+        "We met Dyno Therapeutics",  # a word with a capital isn't changed
+    ]
+    assert len(seen) == 1 and seen[0][0] == "auto"  # the lines go at once, a blank line between them
+    log = db.one("SELECT log FROM $j", j=R("job", jid))["log"]
+    assert any("grammar checked by LanguageTool" in line for line in log)
+    edits = db.rows("SELECT by FROM segment_edit WHERE recording = $r", r=rid)
+    assert [e["by"] for e in edits] == [cleanup.CLEANER] * 3
+
+
+def test_without_its_server_the_rules_run_alone(db, cfg):
+    cfg["analysis"].update(cleanup=True, cleanup_grammar_url="http://127.0.0.1:9")
+    rid = ingest.import_text(db, cfg, "pods", WORDY, "Wordy", "auto")
+    jid = jobs.enqueue(db, rid, ["clean"])
+    drain(db, cfg)
+    assert _lines(db, rid)[0] == "So he go to the shop 🙂 he go home"
+    log = db.one("SELECT log FROM $j", j=R("job", jid))["log"]
+    assert any("grammar not checked: the LanguageTool server at 127.0.0.1 didn't answer" in line for line in log)
+
+
+def test_the_grammar_server_is_an_address_without_a_password():
+    from app.domain import settings
+
+    def check(v):
+        return settings._check("analysis", "cleanup_grammar_url", v, None)
+
+    assert check(" http://languagetool:8010/ ") == "http://languagetool:8010" and check("") is None
+    for bad in ("ftp://lt", "http://user:pw@lt:8010", "languagetool"):
+        with pytest.raises(ValueError, match="LanguageTool server"):
+            check(bad)
