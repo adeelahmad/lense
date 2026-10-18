@@ -519,9 +519,9 @@ def tokens(db):
     return [_token_view(r) for r in rows if not r.get("revoked_at") and (r.get("used") or 0) < (r.get("uses") or 1)]
 
 
-def make_token(db, cfg, by=None, role="worker", name=None, namespaces=None, hours=24, uses=1):
-    """A token another machine joins with: (token row, the token itself, shown this once). Makes the CA if there isn't
-    one yet. The caller turns the mesh on (settings), which is what adding a node means."""
+def check_token(db, role="worker", name=None, namespaces=None, hours=24, uses=1):
+    """A join token's terms checked, before anything is made (the assistant says what's wrong before it asks): its
+    (name, namespaces) tidied. ValueError says what isn't right."""
     if role not in ROLES:
         raise ValueError(f"a node is a {' or a '.join(ROLES)}")
     name = (name or "").strip() or None
@@ -540,6 +540,13 @@ def make_token(db, cfg, by=None, role="worker", name=None, namespaces=None, hour
             "a worker on another machine needs this install's database to be a SurrealDB server (Docker installs have one); "
             "add a compute node instead"
         )
+    return name, namespaces
+
+
+def make_token(db, cfg, by=None, role="worker", name=None, namespaces=None, hours=24, uses=1):
+    """A token another machine joins with: (token row, the token itself, shown this once). Makes the CA if there isn't
+    one yet. The caller turns the mesh on (settings), which is what adding a node means."""
+    name, namespaces = check_token(db, role, name, namespaces, hours, uses)
     ca(db, cfg)
     primary(db, cfg)
     tid, secret = db.next_id("mesh_token"), secrets.token_urlsafe(32)
@@ -577,6 +584,21 @@ def join_line(cfg, token, url=None, role=None):
     parse_token(token)
     extra = " LENS_NODE_SANDBOX=1" if role == "compute" else ""
     return f"curl -fsSL https://raw.githubusercontent.com/{repo}/main/install.sh | LENS_JOIN={url} LENS_JOIN_TOKEN={token}{extra} sh"
+
+
+def add(db, cfg, base, by, role="worker", name=None, namespaces=None, hours=24, uses=1, url=None):
+    """Add a node, as Settings › Nodes, MCP's add_mesh_node and the assistant's do: a join token and the line to run
+    on the machine (at `url`, else FRONTEND_URL), both shown this once, and the mesh turned on (mesh.enabled, saved
+    over `base` as `by`) when it's off. {token, secret, join_url, install_line, turned_on}; the caller audits."""
+    from app.config import settings as env
+
+    tok, secret = make_token(db, cfg, by, role, name, namespaces, hours, uses)
+    url = (url or env.FRONTEND_URL).rstrip("/")
+    line = join_line(cfg, secret, url, role=role)
+    turned_on = not conf(cfg)["enabled"]
+    if turned_on:
+        settings.save(db, base, "mesh", {"enabled": True}, by)
+    return {"token": tok, "secret": secret, "join_url": url, "install_line": line, "turned_on": turned_on}
 
 
 def revoke_token(db, tid):
@@ -949,6 +971,62 @@ def undo_remove(db, nid, cfg):
     if n["role"] == "compute":
         offer_sandboxes(db)
     return node(db, nid)
+
+
+# ---------- agents: MCP's and the assistant's `mesh` ----------
+OFFLINE_AFTER = 180  # seconds: a node reports every minute, so one not heard from for three is offline (as on the Nodes page)
+
+
+def _online(last_seen, now):
+    try:
+        seen = dt.datetime.fromisoformat(str(last_seen).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if seen.tzinfo is None:
+        seen = seen.replace(tzinfo=dt.timezone.utc)
+    return (now - seen).total_seconds() < OFFLINE_AFTER
+
+
+def agent_view(db, cfg):
+    """The mesh as an agent reads it: on or off, its CA, this machine's address on it, every machine with how it's
+    doing (the primary's Nebula is the `mesh` container's), and the join tokens not used yet, never their secrets."""
+    from . import updates
+
+    c, row, now = conf(cfg), ca_row(db), _now()
+    machines = []
+    for n in nodes(db):
+        s = n["status"] or {}
+        if n["role"] == "primary":
+            svc = service_view(db, cfg)
+            s = {"nebula": svc["state"], "version": updates.current(), "error": svc["error"]}
+        machines.append(
+            {
+                "id": n["id"],
+                "name": n["name"],
+                "role": n["role"],
+                "ip": n["ip"],
+                "online": n["role"] == "primary" or (bool(n["last_seen"]) and _online(n["last_seen"], now)),
+                "last_seen": n["last_seen"],
+                "nebula": s.get("nebula"),
+                "lens_version": s.get("version"),
+                "machine": s.get("machine") or s.get("info"),
+                "namespaces": n["namespaces"],
+                "certificate_until": n["not_after"],
+                # a compute node's sandbox gateway answers (docs/mesh.md, Compute nodes)
+                "sandbox_gateway": bool((s.get("sandbox") or {}).get("gateway")) if n["role"] == "compute" else None,
+                "error": str(s["error"])[:300] if s.get("error") else None,
+                "removed": n["revoked_at"],
+                "removed_by": n["revoked_by"],
+            }
+        )
+    return {
+        "enabled": c["enabled"],
+        "network": c["network"],
+        "primary_ip": primary_ip(cfg),
+        "ca": {"fingerprint": row["fingerprint"], "not_after": row["not_after"]} if row else None,
+        "nodes": machines,
+        "tokens": tokens(db),
+    }
 
 
 # ---------- Nebula on this machine: the `mesh` container ----------

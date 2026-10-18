@@ -605,14 +605,14 @@ entry_points:
         control_kinds: [x-credential, x-peer]
         caller_must_enforce: "compute nodes only (403 for others); each part capped and loaded as a certificate or key (400 otherwise); the key kept sealed like a setting's secret; Lens reaches the gateway over the mesh only (7443 open to the primary only, relayed to the gateway by the node's mesh container), with mutual TLS checked against the name the gateway's certificate was made for; the node gets nothing of Lens's"
         provenance: {kind: documented, source: 'docs/mesh.md "Compute nodes"'}
-  - id: "POST /api/v1/mesh/tokens, PATCH and DELETE /api/v1/mesh/nodes/{id}, PUT /api/v1/settings/mesh"
+  - id: "POST /api/v1/mesh/tokens, PATCH and DELETE /api/v1/mesh/nodes/{id}, PUT /api/v1/settings/mesh, MCP and assistant mesh tools"
     component: optional
     parameters:
       - name: "a node's role, name, namespaces, token hours and uses; the mesh's network, port, hosts, cipher"
         attacker_controllable: false
-        x-condition: "admin only"
-        control_kinds: [x-env-config]
-        caller_must_enforce: "admin is trusted; audited (mesh.token.create, mesh.join, mesh.node.*); the network can't change once machines have addresses in it"
+        x-condition: "admin only (MCP: with the write scope)"
+        control_kinds: [x-env-config, x-credential]
+        caller_must_enforce: "admin is trusted; audited (mesh.token.create, mesh.join, mesh.node.*); the network can't change once machines have addresses in it; the assistant's adding and removing a node always wait for the person's approval; an install line (it holds a join token's secret) goes only to the MCP agent that asked or to the person who approved, once, and is never kept in an approval, the audit log or the model's context; the read tools never show a token's secret"
         provenance: {kind: documented, source: 'docs/mesh.md "Settings"'}
   - id: "UDP 4242 on the primary and ports 8000 and 8080 on its mesh address (the mesh container, while the mesh is on)"
     component: optional

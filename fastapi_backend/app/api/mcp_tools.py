@@ -25,7 +25,7 @@ from typing import Any, Literal
 from fastapi import HTTPException, Request
 from pydantic import ValidationError
 
-from app.api.deps import Access, Principal
+from app.api.deps import Access, Principal, web_origin
 from app.api.v1.routes import activities as activity_routes
 from app.api.v1.routes import automation_vars as var_routes
 from app.api.v1.routes import automations as automation_routes
@@ -66,6 +66,7 @@ from app.domain import (
     mail_routes,
     manual,
     mcp_servers,
+    mesh,
     monitoring,
     moondream,
     notebook,
@@ -3114,6 +3115,144 @@ def pause_scaling_group(ctx: Context, group_id: int, paused: bool = True, why: s
 )
 def terminate_scaling_unit(ctx: Context, unit_id: int, why: str | None = None) -> dict[str, Any]:
     return _scaling_do(ctx, "terminate_scaling_unit", {"unit_id": unit_id, "why": why})
+
+
+# ---------- the mesh: Lens's machines (admins) ----------
+def _mesher(ctx: Context, write: bool = False) -> None:
+    if not ctx.user.admin:
+        raise ToolError("only admins see or change the mesh")
+    if write and not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to change the mesh")
+
+
+def _mesh_do(ctx: Context, change: Callable[[], dict[str, Any]], action: str, target: str, detail: Any = None) -> dict[str, Any]:
+    """A change to the mesh, as an admin's agent: made at once and audited, as the web app's are."""
+    _mesher(ctx, write=True)
+    try:
+        out = change()
+    except mesh.MeshError as e:
+        raise ToolError(str(e)) from None
+    auth.audit(ctx.db, ctx.user.as_audit(), action, target, {**(detail or {}), "via": "mcp"})
+    return out
+
+
+@tool(
+    "mesh",
+    "Nodes and the mesh",
+    "Lens's private network between the machines it runs on (Settings › Nodes and Network): whether it's on, its CA's "
+    "fingerprint and expiry, this machine's address on it, every machine (role worker or compute, address, online and "
+    "last seen, Nebula, its Lens version and machine, the namespaces it serves, whether a compute node's sandbox "
+    "gateway runs, its error, when it was removed) and the join tokens not used yet, never their secrets. Admins only.",
+    admin=True,
+)
+def mesh_overview(ctx: Context) -> dict[str, Any]:
+    _mesher(ctx)
+    return {**mesh.agent_view(ctx.db, ctx.cfg), "settings": f"{ctx.web}/settings/nodes"}
+
+
+@tool(
+    "add_mesh_node",
+    "Add a machine to the mesh",
+    "Let another machine join the mesh: a join token and the line to run on that machine (install_line), shown this "
+    "once, so hand it to the person and don't keep it. role worker runs jobs against this install's database (it "
+    "needs a SurrealDB server, as Docker installs have); compute runs the assistant's code in sandboxes and gets "
+    "nothing of Lens's. Makes the mesh's CA the first time and turns the mesh on. Admins only, with a token that has "
+    "the write scope.",
+    Arg("role", "string", "worker or compute", default="worker", enum=mesh.ROLES),
+    Arg("name", "string", "the name it shows as (none: the name the machine sends)", max_length=63),
+    Arg("namespaces", "string[]", "the namespaces it serves (none: every one)"),
+    Arg("hours", "integer", "how long the token can be used", default=24, minimum=mesh.TOKEN_HOURS[0], maximum=mesh.TOKEN_HOURS[1]),
+    Arg("uses", "integer", "how many machines may join with it", default=1, minimum=mesh.TOKEN_USES[0], maximum=mesh.TOKEN_USES[1]),
+    writes=True,
+    admin=True,
+)
+def add_mesh_node(
+    ctx: Context, role: str = "worker", name: str | None = None, namespaces: list[str] | None = None, hours: int = 24, uses: int = 1
+) -> dict[str, Any]:
+    _mesher(ctx, write=True)
+    base = ctx.request.app.state.archive.base
+    try:
+        made = mesh.add(ctx.db, ctx.cfg, base, ctx.user.email, role, name, namespaces, hours, uses, web_origin(ctx.request))
+    except mesh.MeshError as e:
+        raise ToolError(str(e)) from None
+    if made["turned_on"]:
+        auth.audit(ctx.db, ctx.user.as_audit(), "settings.save", "mesh", ["enabled", "mcp"])
+    tid = made["token"]["id"]
+    auth.audit(ctx.db, ctx.user.as_audit(), "mesh.token.create", f"mesh_token:{tid}", {"role": role, "uses": uses, "via": "mcp"})
+    return {k: made[k] for k in ("token", "secret", "join_url", "install_line", "turned_on")} | {
+        "note": "the install line and its token are shown this once: give them to the person, who runs the line on the machine",
+        "settings": f"{ctx.web}/settings/nodes",
+    }
+
+
+@tool(
+    "change_mesh_node",
+    "Change a machine on the mesh",
+    "Rename a machine on the mesh, or change the namespaces it serves (every_namespace: serve every one again); its "
+    "certificate follows when it next renews. Admins only, with a token that has the write scope.",
+    Arg("node_id", "integer", "the machine (from mesh)", required=True),
+    Arg("name", "string", "its new name", max_length=63),
+    Arg("namespaces", "string[]", "only the namespaces it serves from now on"),
+    Arg("every_namespace", "boolean", "serve every namespace again", default=False),
+    writes=True,
+    admin=True,
+)
+def change_mesh_node(
+    ctx: Context, node_id: int, name: str | None = None, namespaces: list[str] | None = None, every_namespace: bool = False
+) -> dict[str, Any]:
+    if every_namespace:
+        if namespaces:
+            raise ToolError("give namespaces or every_namespace, not both")
+        namespaces = []
+    if name is None and namespaces is None:
+        raise ToolError("say what to change: name, namespaces or every_namespace")
+    changes = {k: v for k, v in (("name", name), ("namespaces", namespaces)) if v is not None}
+    return {
+        "node": _mesh_do(
+            ctx, lambda: mesh.update(ctx.db, node_id, name=name, namespaces=namespaces), "mesh.node.change", f"mesh_node:{node_id}", changes
+        )
+    }
+
+
+@tool(
+    "remove_mesh_node",
+    "Take a machine off the mesh",
+    "Take a machine off the mesh: its certificates go on every machine's blocklist and its credentials stop working "
+    "(a worker's database user goes too). restore_mesh_node undoes it while its certificate is good. Admins only, "
+    "with a token that has the write scope.",
+    Arg("node_id", "integer", "the machine (from mesh)", required=True),
+    writes=True,
+    admin=True,
+)
+def remove_mesh_node(ctx: Context, node_id: int) -> dict[str, Any]:
+    return {"node": _mesh_do(ctx, lambda: mesh.remove(ctx.db, node_id, by=ctx.user.email), "mesh.node.remove", f"mesh_node:{node_id}")}
+
+
+@tool(
+    "restore_mesh_node",
+    "Bring a removed machine back",
+    "Undo taking a machine off the mesh, while its certificate is still good (after that it joins again with a new "
+    "token). Admins only, with a token that has the write scope.",
+    Arg("node_id", "integer", "the machine (from mesh)", required=True),
+    writes=True,
+    admin=True,
+)
+def restore_mesh_node(ctx: Context, node_id: int) -> dict[str, Any]:
+    return {"node": _mesh_do(ctx, lambda: mesh.undo_remove(ctx.db, node_id, ctx.cfg), "mesh.node.restore", f"mesh_node:{node_id}")}
+
+
+@tool(
+    "withdraw_mesh_token",
+    "Withdraw a join token",
+    "Withdraw a join token not used up yet (from mesh): no machine can join with it any more; those that did stay. "
+    "Admins only, with a token that has the write scope.",
+    Arg("token_id", "integer", "the token (from mesh)", required=True),
+    writes=True,
+    admin=True,
+)
+def withdraw_mesh_token(ctx: Context, token_id: int) -> dict[str, Any]:
+    _mesh_do(ctx, lambda: mesh.revoke_token(ctx.db, token_id) or {}, "mesh.token.withdraw", f"mesh_token:{token_id}")
+    return {"withdrawn": token_id, "tokens": mesh.tokens(ctx.db)}
 
 
 # ---------- monitoring: Prometheus and Grafana next to Lens (admins) ----------

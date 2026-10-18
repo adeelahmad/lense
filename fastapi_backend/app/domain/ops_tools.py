@@ -21,6 +21,7 @@ from . import (
     jobs,
     links,
     llm,
+    mesh,
     metadata,
     roles,
     rss,
@@ -75,9 +76,23 @@ SECTIONS = (
 # where new files go; secrets is where Lens signs in to a password manager; scaling turns on what can launch paid
 # machines
 ALWAYS_ASK = {"telemetry", "analytics", "sensors", "shares", "files", "web", "secrets", "scaling"}
-ASK_TOOLS = {"invite_person", "change_person"}  # who gets in always waits for the admin's approval
-# within a scaling group's approved terms (its min, max and budget), so made at once unless the answer read outside text
-WITHIN_BOUNDS = {"set_scaling_desired", "pause_scaling_group", "terminate_scaling_unit"}
+# who gets in always waits for the admin's approval: a person, or a machine joining the mesh; and so does taking a
+# machine off it, which stops what runs there
+ASK_TOOLS = {"invite_person", "change_person", "add_mesh_node", "remove_mesh_node"}
+# within a scaling group's approved terms (its min, max and budget), or a change to the mesh that's undone as easily
+# (renaming a node, the namespaces it serves, bringing a removed one back, withdrawing a token), so made at once
+# unless the answer read outside text
+WITHIN_BOUNDS = {
+    "set_scaling_desired",
+    "pause_scaling_group",
+    "terminate_scaling_unit",
+    "change_mesh_node",
+    "restore_mesh_node",
+    "withdraw_mesh_token",
+}
+# what a change's result shows the person who approved it once and never keeps (in the approval or the audit log):
+# a new node's install line, which holds its join token
+SHOWN_ONCE = ("install_line",)
 _GROUP = {
     "type": "object",
     "description": "name, provider (its id), template (what each unit is, as the provider's driver asks), min, max, "
@@ -131,6 +146,74 @@ SCALING_TOOLS = [
         "Let one unit of a scaling group go now, by its id from scaling: a worker finishes or hands back its job first.",
         {"unit_id": {"type": "integer"}, "why": _S},
         ["unit_id"],
+        True,
+    ),
+]
+
+_NAMESPACES = {"type": "array", "items": _S, "description": "the namespaces it serves (empty: every one)"}
+MESH_TOOLS = [
+    (
+        "mesh",
+        "Lens's private network between the machines it runs on (Settings › Nodes and Network): whether it's on, its "
+        "CA's fingerprint and expiry, this machine's address on it, every machine (id, name, role worker or compute, "
+        "address, online and last seen, Nebula, its Lens version and machine, the namespaces it serves, whether a "
+        "compute node's sandbox gateway runs, its error, when it was removed) and the join tokens not used yet.",
+        {},
+        [],
+        False,
+    ),
+    (
+        "add_mesh_node",
+        "Let another machine join the mesh: makes a join token and the line to run on that machine, which the person "
+        "sees once they approve (you don't). role worker runs jobs against this install's database; compute runs your "
+        "code in sandboxes and gets nothing of Lens's. Turns the mesh on when it's off.",
+        {
+            "role": {"type": "string", "enum": list(mesh.ROLES)},
+            "name": {"type": "string", "description": "the name it shows as (none: the name the machine sends)"},
+            "namespaces": _NAMESPACES,
+            "hours": {
+                "type": "integer",
+                "minimum": mesh.TOKEN_HOURS[0],
+                "maximum": mesh.TOKEN_HOURS[1],
+                "description": "how long the token works (24)",
+            },
+            "uses": {
+                "type": "integer",
+                "minimum": mesh.TOKEN_USES[0],
+                "maximum": mesh.TOKEN_USES[1],
+                "description": "machines that may join with it (1)",
+            },
+        },
+        [],
+        True,
+    ),
+    (
+        "change_mesh_node",
+        "Rename a machine on the mesh (its id from mesh), or change the namespaces it serves (empty: every one).",
+        {"node_id": {"type": "integer"}, "name": _S, "namespaces": _NAMESPACES},
+        ["node_id"],
+        True,
+    ),
+    (
+        "remove_mesh_node",
+        "Take a machine off the mesh (its id from mesh): its certificates are blocked on every machine and its "
+        "credentials stop working. restore_mesh_node brings it back while its certificate is good.",
+        {"node_id": {"type": "integer"}},
+        ["node_id"],
+        True,
+    ),
+    (
+        "restore_mesh_node",
+        "Bring back a machine taken off the mesh (its id from mesh), while its certificate is still good.",
+        {"node_id": {"type": "integer"}},
+        ["node_id"],
+        True,
+    ),
+    (
+        "withdraw_mesh_token",
+        "Withdraw a join token not used up yet (its id from mesh): no machine can join with it any more.",
+        {"token_id": {"type": "integer"}},
+        ["token_id"],
         True,
     ),
 ]
@@ -259,7 +342,7 @@ ADMIN_TOOLS = [
         True,
     ),
 ]
-ADMIN_TOOLS += SCALING_TOOLS
+ADMIN_TOOLS += SCALING_TOOLS + MESH_TOOLS
 
 FILE_TOOLS = [
     (
@@ -348,6 +431,10 @@ def apply(db, cfg, base, tool, args, user, editable, admin, via="agent"):
         table = "scale_group" if "group" in out else "scale_node"
         auth.audit(db, user, f"scaling.{tool}", f"{table}:{what.get('id')}", {"via": via, "assistant": True})
         return out
+    if tool in MESH:
+        if not admin:
+            raise PermissionError("only admins manage the mesh")
+        return _mesh(db, cfg, base, tool, args, user)
     if tool == "change_settings":
         if not admin:
             raise PermissionError("only admins change settings")
@@ -415,6 +502,46 @@ def apply(db, cfg, base, tool, args, user, editable, admin, via="agent"):
         auth.audit(db, user, "import.web", f"space:{sid}", {"links": queued, "namespace": ns, "assistant": True})
         return {"namespace": ns, "pages": out}
     raise ValueError(f"no tool {tool}")
+
+
+MESH = {t[0] for t in MESH_TOOLS if t[4]}
+
+
+def kept(result):
+    """A change's result as it's kept (in its approval and the audit log): without what's shown only once."""
+    return {k: v for k, v in result.items() if k not in SHOWN_ONCE}
+
+
+def _mesh(db, cfg, base, tool, args, user):
+    """A change to the mesh (approved, or one made at once), audited as the web app's are."""
+    by, nid = user["email"], args.get("node_id")
+    try:
+        if tool == "add_mesh_node":
+            role = args.get("role") or "worker"
+            terms = {k: args[k] for k in ("name", "namespaces", "hours", "uses") if args.get(k) is not None}
+            made = mesh.add(db, cfg, base, by, role, url=args.get("url"), **terms)
+            if made["turned_on"]:
+                auth.audit(db, user, "settings.save", "mesh", ["enabled", "assistant"])
+            tid = made["token"]["id"]
+            auth.audit(db, user, "mesh.token.create", f"mesh_token:{tid}", {"role": role, "uses": made["token"]["uses"], "assistant": True})
+            return {"token": made["token"], "install_line": made["install_line"], "turned_on": made["turned_on"]}
+        if tool == "change_mesh_node":
+            changes = {k: args[k] for k in ("name", "namespaces") if args.get(k) is not None}
+            node = mesh.update(db, nid, **changes)
+            auth.audit(db, user, "mesh.node.change", f"mesh_node:{nid}", {**changes, "assistant": True})
+        elif tool == "remove_mesh_node":
+            node = mesh.remove(db, nid, by=by)
+            auth.audit(db, user, "mesh.node.remove", f"mesh_node:{nid}", ["assistant"])
+        elif tool == "restore_mesh_node":
+            node = mesh.undo_remove(db, nid, cfg)
+            auth.audit(db, user, "mesh.node.restore", f"mesh_node:{nid}", ["assistant"])
+        else:
+            mesh.revoke_token(db, args["token_id"])
+            auth.audit(db, user, "mesh.token.withdraw", f"mesh_token:{args['token_id']}", ["assistant"])
+            return {"withdrawn": args["token_id"]}
+    except mesh.MeshError as e:
+        raise ValueError(str(e)) from None
+    return {"node": {k: node[k] for k in ("id", "name", "role", "ip", "namespaces", "revoked_at")}}
 
 
 def people(db):
@@ -588,6 +715,62 @@ class OpsTools:
             raise ValueError("there's no scaling unit with that id: scaling lists them") from None
         args = store.clean({"unit_id": n["id"], "why": why})
         return self._change("terminate_scaling_unit", args, f"Let the unit {n['name']} go")
+
+    def t_mesh(self):
+        v = mesh.agent_view(self.db, self.cfg)
+        if not v["enabled"]:
+            v["note"] = "the mesh is off: add_mesh_node turns it on with the first node"
+        on = sum(n["online"] and n["role"] != "primary" and not n["removed"] for n in v["nodes"])
+        return v, f"Read the mesh: {on} machine{'' if on == 1 else 's'} online besides this one"
+
+    def _mesh_node(self, node_id):
+        try:
+            n = mesh.node(self.db, int(node_id))
+        except (KeyError, TypeError, ValueError):
+            raise ValueError("there's no machine on the mesh with that id: mesh lists them") from None
+        return n
+
+    def t_add_mesh_node(self, role="worker", name=None, namespaces=None, hours=24, uses=1):
+        from app.email import app_url
+
+        role, hours, uses = role or "worker", 24 if hours is None else hours, 1 if uses is None else uses
+        name, namespaces = mesh.check_token(self.db, role, name, namespaces, hours, uses)  # said now, not once approved
+        what = f" named {name}" if name else ""
+        serves = f", serving {', '.join(namespaces)}" if namespaces else ""
+        times = "once" if uses == 1 else f"{uses} times"
+        on = "" if mesh.conf(self.cfg)["enabled"] else ", and turn the mesh on"
+        summary = f"Let a new {role} node{what} join the mesh{serves}: a join token that works {times}, for {hours} hours{on}"
+        url = (getattr(self, "web_app", None) or app_url(self.cfg, self.db)).rstrip("/")  # where the machine joins
+        args = store.clean({"role": role, "name": name, "namespaces": namespaces or None, "hours": hours, "uses": uses, "url": url})
+        return self._change("add_mesh_node", args, summary)
+
+    def t_change_mesh_node(self, node_id, name=None, namespaces=None):
+        n = self._mesh_node(node_id)
+        if name is None and namespaces is None:
+            raise ValueError("say what to change: name or namespaces")
+        parts = [f"rename it {name.strip()}"] if name is not None else []
+        if namespaces is not None:
+            parts.append(f"serve {', '.join(sorted(set(namespaces)))}" if namespaces else "serve every namespace")
+        args = store.clean({"node_id": n["id"], "name": name, "namespaces": None if namespaces is None else list(namespaces)})
+        return self._change("change_mesh_node", args, f"{n['name']} on the mesh: {', '.join(parts)}")
+
+    def t_remove_mesh_node(self, node_id):
+        n = self._mesh_node(node_id)
+        if n["role"] == "primary":
+            raise ValueError("that's this machine, the mesh's primary: the mesh is turned off in Settings › Network")
+        if n["revoked_at"]:
+            raise ValueError(f"{n['name']} is already off the mesh")
+        return self._change("remove_mesh_node", {"node_id": n["id"]}, f"Take {n['name']} ({n['role']}, {n['ip']}) off the mesh")
+
+    def t_restore_mesh_node(self, node_id):
+        n = self._mesh_node(node_id)
+        return self._change("restore_mesh_node", {"node_id": n["id"]}, f"Bring {n['name']} back onto the mesh")
+
+    def t_withdraw_mesh_token(self, token_id):
+        t = next((t for t in mesh.tokens(self.db) if str(t["id"]) == str(token_id)), None)
+        if not t:
+            raise ValueError("there's no join token not used up with that id: mesh lists them")
+        return self._change("withdraw_mesh_token", {"token_id": t["id"]}, f"Withdraw the {t['role']} join token #{t['id']}")
 
     def t_server_status(self):
         return status(self.db, self.cfg, self.base), "Checked what's set up"

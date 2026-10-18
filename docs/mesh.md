@@ -4,7 +4,8 @@ Status: **in progress**. Built: Lens as the mesh's certificate authority, join t
 token, each machine's Nebula config, a node's renewals and reports, removing a node, the `mesh` settings, the API
 under `/api/v1/mesh`, Nebula running on the primary in the `mesh` container, relaying the database and the API,
 `lens node` with the install line that joins another machine, worker nodes running jobs, compute nodes running the
-assistant's code, and Settings › Network and Nodes in the web app. Not yet tried between two real machines.
+assistant's code, Settings › Network and Nodes in the web app, and the same over MCP and in the assistant
+([Agents](#agents)). Not yet tried between two real machines.
 
 Lens runs on one machine until you add another: a Mac with a GPU to transcribe on, a box to run the assistant's code
 on, a server with more disk. Those machines talk to this install over a private network of Lens's own, a
@@ -12,7 +13,8 @@ on, a server with more disk. Those machines talk to this install over a private 
 between them is encrypted and signed with certificates Lens issued, and Nebula's firewall lets through only what each
 role needs. A single-machine install never turns it on.
 
-**Off until an admin adds a node.** Adding a node (Settings › Nodes, or `POST /api/v1/mesh/tokens`) makes the mesh's
+**Off until an admin adds a node.** Adding a node (Settings › Nodes, `POST /api/v1/mesh/tokens`, or an agent's
+`add_mesh_node`) makes the mesh's
 certificate authority the first time and turns `mesh.enabled` on. Nothing goes in `.env`; nothing is asked at
 install.
 
@@ -221,6 +223,26 @@ In the web app:
   workers, on a compute node whether its sandbox gateway runs, and Nebula's last lines. Click the pencil to rename a node (Enter saves, Escape keeps the name). Remove
   asks nothing: the row stays, dimmed and marked Removed, with Undo while its certificate is good. Join tokens not
   used yet are listed under it, each with Withdraw. The list refreshes every 15 seconds.
+
+## Agents
+
+The same for an admin's agent, over [MCP](mcp.md) and in the [assistant](assistant.md#setting-up-and-running-the-server-by-chat)
+(admins, in the server tools):
+
+| Tool | | Over MCP | In the assistant |
+| --- | --- | --- | --- |
+| `mesh` | whether it's on, the CA's fingerprint and expiry, this machine's mesh address, every machine (id, name, role, address, online and last seen, Nebula, its Lens version and machine, the namespaces it serves, on a compute node whether its sandbox gateway runs, its error, when it was removed) and the join tokens not used yet, never their secrets | reads | reads |
+| `add_mesh_node` | a join token and the install line for another machine (`role` worker or compute, optionally `name`, `namespaces`, `hours`, `uses`), shown once; turns the mesh on when it's off | at once, answering with the line | always waits for the person's yes; the line is shown to them on the approval card, once |
+| `change_mesh_node` | renames a machine or changes the namespaces it serves | at once | at once |
+| `remove_mesh_node` | takes a machine off the mesh | at once | always waits for the person's yes |
+| `restore_mesh_node` | brings a removed machine back while its certificate is good | at once | at once |
+| `withdraw_mesh_token` | withdraws a join token not used up yet | at once | at once |
+
+Over MCP the changes need an admin's token with the write scope; they're audited as the web app's are, with `mcp` in
+the detail (`mesh.token.create`, `mesh.node.change`, `mesh.node.remove`, `mesh.node.restore`, `mesh.token.withdraw`),
+and the install line uses the address the agent called Lens at. In the assistant the install line uses the web app's
+address the person is on, and it isn't kept: not in the approval, the audit log or anything the model is sent. What
+happens at once still asks first once the answer has read text from outside Lens.
 
 ## What keeps it safe
 

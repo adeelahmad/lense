@@ -45,8 +45,8 @@ Each namespace can have its own server, at `/mcp/<namespace>` (`https://lens.exa
 that should see that namespace and nothing else: a family assistant, a project's coding agent, a client's app. It
 has the same tools, but sees only that namespace, whatever else the person who signs the agent in can read. Tools
 that take a namespace use this one when none is named, `list_namespaces` and `list_files` show only it, and the tools
-about the server itself (`file_storage`, `monitoring`, `services`, `mcp_servers`, `sandbox_gateway`, `install_settings`
-and the ones that change them) aren't there, even for admins. Nor are the person's own conversations (`list_chats`,
+about the server itself (`file_storage`, `monitoring`, `services`, `mcp_servers`, `sandbox_gateway`, `install_settings`,
+`mesh` and the ones that change them) aren't there, even for admins. Nor are the person's own conversations (`list_chats`,
 `read_chat`, `rename_chat`, `export_chat`) and projects (`list_projects`, `read_project`, `create_project`,
 `update_project`, `schedule_project`), which belong to no namespace. An admin counts as an owner of the namespace there.
 
@@ -164,6 +164,11 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `install_plugin` | install one as your own extension, private until you share it, or bring yours to the version listed now; `preview` installs nothing and says what it would add and what Lens leaves out. Needs a write-scope token |
 | `install_settings` | whether other devices on the network reach Lens and its edition (full or lean), whether the machine's upgrade agent can change them, and the install line to run when it can't. Admins only |
 | `set_install_settings` | open Lens to the network or keep it to this machine, or change the edition: the machine sets itself up again and Lens restarts ([Updates](updates.md#setting-the-machine-up-again)). Admins only, with a write-scope token |
+| `mesh` | Lens's network between its machines ([Nodes and the mesh](mesh.md#agents)): whether it's on, its CA, this machine's address, every machine and how it's doing, and the join tokens not used yet, never their secrets. Admins only |
+| `add_mesh_node` | add a machine: a join token and the install line to run on it, shown once; turns the mesh on. Admins only, with a write-scope token |
+| `change_mesh_node` | rename a machine or change the namespaces it serves (`every_namespace` for every one). Admins only, with a write-scope token |
+| `remove_mesh_node` | take a machine off the mesh; `restore_mesh_node` brings it back while its certificate is good. Admins only, with a write-scope token |
+| `withdraw_mesh_token` | withdraw a join token not used up yet. Admins only, with a write-scope token |
 | `news_feeds` | the news feeds (RSS or Atom) Lens follows, the namespaces each brings posts into and how the last scan went; addresses stay sealed. Admins only |
 | `subscribe_feed` | follow a news feed into a namespace in one step: its address or a page of the site, read first and kept only if it works; `backfill` also brings in the posts it lists now ([News feeds](processing.md#news-feeds-rss-and-atom)). Admins only, with a write-scope token |
 | `unsubscribe_feed` | stop following a news feed; the posts it brought in stay. Admins only, with a write-scope token |
@@ -192,7 +197,9 @@ queues an episode, `create_feed` and `publish_to_feed`, which make and fill a [p
 editors), `enhance`, which enhances an image and reads it again (the process permission),
 `set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_picture_descriptions`, which changes what describes pictures (admins), `set_file_storage`, which changes where new files are kept (admins), `set_secret_reference`, which points a secret field at a password manager's item (admins), `install_plugin`, which
 installs a plugin from a marketplace as your own extension, `add_mcp_server`, which adds an
-MCP server (admins), `subscribe_feed` and `unsubscribe_feed`, which follow and stop following news feeds (admins), `set_mail_routing`, which changes where an email account's messages go (admins), and `set_monitoring`, `set_service`,
+MCP server (admins), `subscribe_feed` and `unsubscribe_feed`, which follow and stop following news feeds (admins), `set_mail_routing`, which changes where an email account's messages go (admins), `add_mesh_node`,
+`change_mesh_node`, `remove_mesh_node`, `restore_mesh_node` and `withdraw_mesh_token`, which manage the machines on
+the [mesh](mesh.md#agents) (admins), and `set_monitoring`, `set_service`,
 `set_sandbox_gateway` (the [code sandbox](assistant.md#code-sandbox)'s gateway) and `set_install_settings`, which have the machine change how Lens runs (admins).
 Importing stays in the web app and the API.
 

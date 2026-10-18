@@ -250,8 +250,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   Lens joins it over a private network of its own, a Nebula mesh it issues the certificates for: one install line
   with a one-time token, and the machine needs nothing else. Worker nodes run jobs as their own user of the
   database, never with Lens's keys; compute nodes run the assistant's code on a sandbox gateway of their own.
-  Settings › Nodes and Network show each machine and the mesh, and agents do the same over the API. Not yet tried
-  between two real machines. ([Nodes and the mesh](docs/mesh.md); [checks](docs/requirements.md#run-on-more-machines))
+  Settings › Nodes and Network show each machine and the mesh, and agents do the same over the API, MCP and the
+  assistant. Not yet tried between two real machines. ([Nodes and the mesh](docs/mesh.md);
+  [checks](docs/requirements.md#run-on-more-machines))
 - **Keep it up to date and backed up.** Lens checks for a new release once a day and tells admins by email or a
   notification. One click in Settings › Updates (or one API call) upgrades it through a small agent on the machine,
   showing each step, and rolls back when the new version doesn't start; nothing installs unless an admin says so. The
