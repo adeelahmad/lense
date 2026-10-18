@@ -559,7 +559,7 @@ Todo:
 - [x] Canvas editor for tool graphs in the web app (Extensions → Draw a tool)
 - [x] Authoring from chat and voice: the assistant drafts and saves extensions behind an approval card
 - [x] Extensions page in the web app: list, manifest editor, switch on/off, share, try, versions
-- [ ] `lens ext` CLI (push/pull manifests)
+- [x] `lens ext` CLI: list, pull, push and check manifests, here or over the API (docs/assistant.md)
 
 Refine later: hook-called tools don't show as steps; web tools reach ports 80/443 only and have no secret
 references yet; extensions aren't offered over MCP yet; marketplace on top of plugins.

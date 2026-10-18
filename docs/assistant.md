@@ -762,6 +762,29 @@ when: someone asks for a recap of a meeting
 Find the meeting, read it, and answer with three bullets: decisions, owners, dates.
 ```
 
+### Manifests as files: `lens ext`
+
+`lens ext` keeps extensions as files in a folder, for a git repository or an agent that writes them:
+
+```bash
+lens ext list                    # the extensions you can see; --json for scripts and agents
+lens ext pull --dir extensions   # yours (admins: all) as files; names or ids pick some, --all adds shared ones
+lens ext check extensions        # read and check them without saving; exits 1 when one doesn't check
+lens ext push extensions         # changed ones become new versions, new ones extensions; --notes says what changed
+```
+
+With no address it works on this install's database, as the first admin or the account `--as` names (run it with
+`docker compose exec backend lens ext …`). With `--url` and `--token` (or `LENS_URL` and `LENS_TOKEN`) it works on
+any Lens server through `/api/v1/extensions`, as the [API token](authentication.md#api-tokens)'s owner; pushing takes a
+write token.
+
+A skill or a prompt tool is pulled as `<name>.md` (Markdown with frontmatter), the rest as `<name>.yaml`; a folder's
+other `.md` files, a README, are left alone. A pulled file says the version it was pulled at (`version: 3`, which the
+check ignores), so neither side's changes are lost: a push refuses when the extension changed in Lens since that
+version, and a pull refuses to overwrite a file changed since it was pulled, each until it's given `--force`. Pushing
+a file that says what Lens has, written differently or with the defaults left out, saves nothing. `visibility` and
+`namespaces` in a file share the extension as they say when it's pushed; without them, who sees it stays as it is.
+
 ### Skills and plugins from marketplaces
 
 Lens reads Anthropic's open plugin and skill formats as they are, so what's made for Claude installs here unchanged:
