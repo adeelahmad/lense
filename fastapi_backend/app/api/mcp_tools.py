@@ -57,6 +57,7 @@ from app.domain import (
     graph_history,
     integrations,
     library,
+    manual,
     monitoring,
     moondream,
     notebook,
@@ -251,6 +252,7 @@ class Tool:
     writes: bool = False  # asks for a change: needs a write-scope token, and says so in its annotations
     admin: bool = False  # about the server, not the archive: admins only, and not on a namespace's own server
     personal: bool = False  # the person's own things (their conversations), not a namespace's: not on its own server
+    own: bool = False  # gives Lens's own text (its docs), not what others said or wrote: not checked for instructions
 
     def definition(self, ns: str | None = None) -> dict[str, Any]:
         """As tools/list has it; on namespace `ns`'s own server, its namespace argument is that one unless given."""
@@ -281,10 +283,17 @@ TOOLS: dict[str, Tool] = {}
 
 
 def tool(
-    name: str, title: str, description: str, *args: Arg, writes: bool = False, admin: bool = False, personal: bool = False
+    name: str,
+    title: str,
+    description: str,
+    *args: Arg,
+    writes: bool = False,
+    admin: bool = False,
+    personal: bool = False,
+    own: bool = False,
 ) -> Callable[[Callable[..., dict[str, Any]]], Callable[..., dict[str, Any]]]:
     def register(fn: Callable[..., dict[str, Any]]) -> Callable[..., dict[str, Any]]:
-        TOOLS[name] = Tool(name, title, description, args, fn, writes, admin, personal)
+        TOOLS[name] = Tool(name, title, description, args, fn, writes, admin, personal, own)
         return fn
 
     return register
@@ -341,7 +350,7 @@ def call(ctx: Context, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         values = {a.name: a.parse(arguments.get(a.name)) for a in t.args}
         with graph_history.acting(via="mcp", tool=name):
             out = t.run(ctx, **values)
-            why = untrusted.flags(json.dumps(out, ensure_ascii=False, default=str), ctx.cfg)
+            why = [] if t.own else untrusted.flags(json.dumps(out, ensure_ascii=False, default=str), ctx.cfg)
             if why:  # for admins to see what an agent was handed
                 auth.audit(ctx.db, ctx.user.as_audit(), "mcp.injection_flagged", f"tool:{name}", {"why": why})
             return _text(out, why=why)
@@ -2075,6 +2084,102 @@ def get_podcast(ctx: Context, episode_id: int) -> dict[str, Any]:
     )
 
 
+# ---------- published feeds (docs/feeds.md) ----------
+def _feed_out(ctx: Context, row: dict[str, Any]) -> dict[str, Any]:
+    from app.domain import syndication
+
+    f = syndication.view(ctx.db, ctx.cfg, row, ctx.web)
+    keep = ("id", "kind", "title", "namespace", "description", "url", "page", "items", "last_item_at", "fetched_at")
+    return store.clean({("feed_id" if k == "id" else k): f.get(k) for k in keep})
+
+
+@tool(
+    "list_feeds",
+    "List published feeds",
+    "The RSS and podcast feeds the person's namespaces publish (docs/feeds.md): each one's kind, title, namespace, how "
+    "many items it holds, and its private address, which feed readers and podcast apps subscribe to. Anyone with the "
+    "address can read the feed, so give it only to the person. With feed_id, one feed and its newest items.",
+    Arg("namespace", "string", "only this namespace's feeds"),
+    Arg("feed_id", "integer", "one feed, with its newest items"),
+)
+def list_feeds(ctx: Context, namespace: str | None, feed_id: int | None) -> dict[str, Any]:
+    from app.domain import syndication
+
+    if feed_id is not None:
+        row = syndication.get(ctx.db, feed_id)  # KeyError: not found
+        ctx.acl.need(row["space"])
+        shown = [
+            store.clean({k: i.get(k) for k in ("id", "kind", "title", "summary", "link", "published_at", "recording")})
+            | ({"url": ctx.link(i["recording"])} if i.get("recording") is not None else {})
+            for i in syndication.items(ctx.db, feed_id, 20)
+        ]
+        return {**_feed_out(ctx, row), "newest": shown}
+    spaces = {ctx.acl.namespace(namespace)} if namespace else ctx.acl.readable()
+    return {"feeds": [_feed_out(ctx, f) for f in syndication.list_feeds(ctx.db, spaces)]}
+
+
+@tool(
+    "create_feed",
+    "Make a published feed",
+    "Make an RSS feed (any items) or a podcast feed (items with audio, with Apple Podcasts' tags) in a namespace, for "
+    "feed readers and podcast apps to follow at its private address; fill it with publish_to_feed, or with a routine "
+    "whose workflow publishes to it. Needs a write-scope token and editor access to the namespace.",
+    Arg("namespace", "string", "the namespace it belongs to", required=True),
+    Arg("title", "string", "its title", required=True, max_length=200),
+    Arg("kind", "string", "rss or podcast", enum=("rss", "podcast"), default="rss"),
+    Arg("description", "string", "what it's about", max_length=2000),
+    writes=True,
+)
+def create_feed(ctx: Context, namespace: str, title: str, kind: str, description: str | None) -> dict[str, Any]:
+    from app.domain import syndication
+
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to make feeds")
+    sid = ctx.acl.namespace(namespace, "editor")
+    fid = syndication.create(ctx.db, ctx.cfg, sid, title, kind, by=ctx.user.email, description=description)
+    auth.audit(ctx.db, ctx.user.as_audit(), "feed.create", f"feed:{fid}", {"kind": kind, "via": "mcp"})
+    return _feed_out(ctx, syndication.get(ctx.db, fid))
+
+
+@tool(
+    "publish_to_feed",
+    "Add to a published feed",
+    "Add resources (podcast episodes too: a podcast feed lists them once their audio is made), timeline activities "
+    "(by id, as timeline gives them) and a text item (title, text, link) to a feed made with create_feed. What's in "
+    "it already isn't added twice; what may not show there (it's in a namespace not everyone who reads the feed can "
+    "read) comes back in `refused`, with why. Needs a write-scope token and editor access to the feed's namespace.",
+    Arg("feed_id", "integer", "the feed", required=True),
+    Arg("recording_ids", "integer[]", "resources or episodes to list", maximum=200),
+    Arg("activity_ids", "string[]", "timeline activities to list"),
+    Arg("title", "string", "a text item's title", max_length=200),
+    Arg("text", "string", "a text item's text", max_length=4000),
+    Arg("link", "string", "a text item's link (http or https)", max_length=2000),
+    writes=True,
+)
+def publish_to_feed(
+    ctx: Context,
+    feed_id: int,
+    recording_ids: list[int] | None,
+    activity_ids: list[str] | None,
+    title: str | None,
+    text: str | None,
+    link: str | None,
+) -> dict[str, Any]:
+    from app.api.v1.routes import feeds as feed_routes
+    from app.schemas.feeds import FeedPublish
+
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to add to feeds")
+    texts = [store.clean({"title": title, "summary": text, "link": link})] if title or text else []
+    if not recording_ids and not activity_ids and not texts:
+        raise ToolError("give recording_ids, activity_ids, or a title or text to add")
+    try:
+        body = FeedPublish(recordings=recording_ids or [], activities=activity_ids or [], texts=texts)
+    except ValueError as e:
+        raise ToolError(str(e)) from None
+    return feed_routes.publish(ctx.acl, ctx.user, ctx.db, ctx.cfg, feed_id, body).model_dump()
+
+
 # ---------- specs from transcripts (docs/notes.md#specs-from-transcripts) ----------
 @tool(
     "write_spec",
@@ -3211,3 +3316,19 @@ def run_automation(ctx: Context, automation_id: int, activity: str | None, trigg
     _writer(ctx, "run automations")
     body = AutomationRunNow(activity=activity, **{"as": trigger})
     return automation_routes.run_automation(automation_id, ctx.user, ctx.acl, ctx.db, ctx.cfg, body).model_dump()
+
+
+# ---------- Lens itself: its docs and this server ----------
+@tool(
+    "lens_help",
+    "Lens's docs and this server",
+    "How Lens works and what it can do (setting it up, its settings, the assistant, chat rooms, connecting apps and "
+    "agents, the API, MCP, sharing, backups, costs...), from its documentation: the sections that match query, or one "
+    "page read whole, each with a link to cite, and the docs' contents. Also this server's own facts: its version and "
+    "addresses (web app, MCP, API), what is turned on, and your access.",
+    Arg("query", "string", "what to look up, in a few words", max_length=300),
+    Arg("page", "string", "one page of the docs to read whole, by its name in the contents, like mcp", max_length=80),
+    own=True,
+)
+def lens_help(ctx: Context, query: str | None = None, page: str | None = None) -> dict[str, Any]:
+    return manual.answer(ctx.db, ctx.cfg, ctx.web, ctx.user.admin, set(ctx.acl.roles), set(ctx.acl.editable()), query, page)

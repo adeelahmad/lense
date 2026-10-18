@@ -94,7 +94,19 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   stream could wait for a database connection its own thread already held, and every request after it waited too.
   A query made inside another on the same thread now runs on that connection
   ([Concurrency](docs/database.md#concurrency)).
+- **The decision model types the names the rules can't.** When Jev or Laya is set up, analysis asks it what each new
+  Term of a recording is (a person, an organisation, a product...), with the lines it's said in, in one call per
+  recording, and keeps the types it is sure of. Settings › Analysis › Names the rules can't type (`analysis.typing`)
+  can also let the language model answer, or turn it off; the language model is never asked by default
+  ([Names the rules can't type](docs/processing.md#entities-and-the-graph-explorer)).
 
+- **Published feeds.** A namespace publishes a private RSS feed, or a podcast feed with Apple Podcasts' tags, that any
+  feed reader or podcast app follows at its address: resources (with their audio as the enclosure), podcast episodes
+  once they're made (with the sources they cite), timeline activities and text. A feed holds only what everyone who
+  reads its namespace can already read, never a vault's; its token is all a reader needs, so it's kept sealed, a new
+  one stops the old address at once, and the feed asks directories and search engines not to list it. Editors make and
+  fill feeds with `POST /api/v1/feeds` and `POST /api/v1/feeds/{id}/items`; agents use the MCP tools `list_feeds`,
+  `create_feed` and `publish_to_feed` ([Published feeds](docs/feeds.md)).
 ## 0.14.0 <small>October 17, 2026</small> {id="0.14.0"}
 
 - **Dates read as days, for agents.** With Settings → Analysis → Read dates on (off by default), analysis reads the

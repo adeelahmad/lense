@@ -17,6 +17,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     blind = False  # behave like a server whose model can't see images
     names = None  # namespace names suggested for a question (auto_scope.py)
     decision = None  # the answer to a decision (decide.py) when no decision model is set up; else the first option
+    pick = None  # a function (question) -> option, for several decisions in one call (decide.choose_all); else the first
     cypher_script = []  # Cypher to answer graph questions with (graph_ask.py), in order
     podcast_script = None  # the lines a podcast script comes back with (podcasts.write), else a built-in one
     spec = None  # a spec's answer (specs.write), else one quoting the transcript's lines in turn (see _spec)
@@ -257,6 +258,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
             title = re.search(r"^Title: (.*)$", text, re.M).group(1)
             first = text.split("Note:\n", 1)[1].strip().splitlines()[0]
             content = json.dumps({"title": "Capsid plan" if title == "Untitled" else title, "summary": f"About {first}"})
+        elif set(schema.get("properties", {})) == {"answers"}:
+            # several decisions at once (decide.choose_all): Handler.pick's option for each question, else the first
+            asked = dict(re.findall(r"^(q\d+): (.*)$", body["messages"][-1]["content"], re.M))
+            answers = {}
+            for i, a in schema["properties"]["answers"]["properties"].items():
+                options = a["properties"]["choice"]["enum"]
+                got = Handler.pick(asked.get(i, "")) if Handler.pick else None
+                answers[i] = {"choice": got or options[0], "confidence": 0.9}
+            content = json.dumps({"answers": answers})
         elif set(schema.get("properties", {})) == {"choice", "confidence"}:
             content = json.dumps(Handler.decision or {"choice": schema["properties"]["choice"]["enum"][0], "confidence": 0.9})
         elif str(body["messages"][0].get("content") or "").startswith("You write research reports"):
