@@ -1,0 +1,80 @@
+name: Kokoro
+
+# Kokoro reading aloud on this machine (docs/speech-providers.md#kokoro) on x64 and arm64 (a Raspberry Pi, Docker on a
+# Mac): in the backend image, Lens fetches the kokoro extra at uv.lock's versions and the pinned model and voices files
+# the way a worker does, and each of the three models reads a sentence aloud in a few languages. kokoro-onnx's wheels
+# (espeak-ng's library is in one) and its release files are what could move, so this runs every week too.
+on:
+  pull_request:
+    paths:
+      - fastapi_backend/Dockerfile
+      - fastapi_backend/pyproject.toml
+      - fastapi_backend/app/domain/kokoro.py
+      - fastapi_backend/app/domain/components.py
+      - .github/workflows/kokoro.yml
+  push:
+    branches: [main]
+    paths:
+      - fastapi_backend/Dockerfile
+      - fastapi_backend/pyproject.toml
+      - fastapi_backend/app/domain/kokoro.py
+      - fastapi_backend/app/domain/components.py
+      - .github/workflows/kokoro.yml
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  kokoro:
+    name: Kokoro in the backend image (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x64, runner: ubuntu-latest }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build the backend image
+        run: docker build --target lean -t lens-backend:ci fastapi_backend
+
+      - name: Lens fetches Kokoro and reads aloud with each model
+        run: |
+          docker run --rm -i lens-backend:ci python - <<'PY'
+          import time
+
+          from app.domain import components, kokoro, machine
+
+          cfg = {"data_dir": "/tmp/lens", "voice": {"tts_provider": "kokoro"}}
+          m = machine.probe(cfg["data_dir"])
+          c = components.BY_ID["kokoro"]
+          assert c.needed(cfg, m) and not c.present(cfg), "nothing should be here before the fetch"
+          lines = (
+              ("af_heart", "Hello from Lens. Kokoro reads this on this machine, and nothing is sent anywhere."),
+              ("bm_george", "Good morning. The shipment leaves on Friday."),
+              ("ef_dora", "Buenos días. El envío sale el viernes."),
+              ("jf_alpha", "おはようございます。"),
+          )
+          for size in kokoro.MODELS:
+              cfg["voice"]["kokoro_model"] = size
+              c.fetch(cfg, m, print)  # the extra the first time, then the model and the voices
+              assert c.present(cfg), f"{size} isn't ready after the fetch"
+              for voice, text in lines:
+                  t = time.monotonic()
+                  pcm, rate = kokoro.read(cfg, text, voice)
+                  seconds = len(pcm) / 2 / rate
+                  print(f"{size} {voice}: {seconds:.2f} s of audio in {time.monotonic() - t:.2f} s")
+                  assert rate == 24000 and seconds > 0.5, f"{size} {voice} read {seconds:.2f} s"
+              kokoro._loaded.clear()
+          assert len(kokoro.voices()) == 54
+          PY

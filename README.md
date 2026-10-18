@@ -93,8 +93,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   question makes a new version beside the old one, and nothing is lost. Each answer keeps a record of what produced it
   (the model, its tools, how long it took and what it cost), opened from its header. Copy an answer as Markdown or plain
   text, a question or a code block, and export a conversation as Markdown, PDF or JSON, its citations as footnotes that
-  link back to the moment in Lens. It reads answers aloud with a speech provider, macOS `say` or StyleTTS2 on this
-  machine (opt-in), any message in one click. Long conversations are summarised before they fill the model's context,
+  link back to the moment in Lens. It reads answers aloud with a speech provider, macOS `say`, or Kokoro (54
+  voices, fetched once picked) or StyleTTS2 on this machine (opt-in), any message in one click. Long conversations are summarised before they fill the model's context,
   and `/clear` and `/compact` start afresh or summarise now. Conversations title themselves after their first answer,
   unless you name them. Each namespace can have its own assistant with its own name, instructions and memory, answering
   in Telegram and Slack (built in, with voice notes and files), in Discord, Matrix, WhatsApp and other chat rooms
@@ -185,7 +185,7 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [cleaning up transcripts](docs/processing.md#cleaning-up-transcripts), [dates](docs/processing.md#dates);
   [checks](docs/requirements.md#understand-it))
 - **Learn from it.** Make a two-host podcast episode about what you pick, every claim cited and checked against its
-  source, read aloud in two voices. Turn a voice session or a meeting into a technical spec, in a note linked to it,
+  source, read aloud in two voices, by Kokoro on this machine or a speech provider. Turn a voice session or a meeting into a technical spec, in a note linked to it,
   that keeps every decision, every no and every constraint in the speaker's own words, linked to when they said them,
   flags what was left to decide later and marks any quote the transcript doesn't hold. Keep notes beside every asset,
   entity and topic, written by you or the assistant, in a tree where notes are renamed, moved, copied and pinned (pins
@@ -206,7 +206,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   warnings) is kept as a stream of activities in W3C Activity Streams form, which agents read through the API, MCP and
   the assistant, and people review on the Timeline page (and Latest on Home), marking what they've seen, reacting with
   an emoji and commenting in threads everyone who sees the item shares (agents too, over MCP), and asking the
-  assistant about any item from the item. Automations act
+  assistant about any item from the item; a comment that tags @lens gets the agent's answer in the thread, with
+  every change it proposes waiting for a yes. Automations act
   on that stream, on a schedule, at a time or when their own webhook is called, alone or with their triggers joined (all
   of them, a number of times, one that doesn't come in time, or a batch): they test conditions (text, patterns,
   numbers, lists, times, days, whether a value changed and whether something like it happened before in their
@@ -243,13 +244,12 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [the meter](docs/budgets.md#the-meter-and-the-costs-page); [checks](docs/requirements.md#see-what-it-costs))
 - **Scale out.** Scaling groups add workers when work waits and let them go when it doesn't, by target, step and
   schedule rules, within min and max and a monthly budget, with every launch, join and hour of cost in the activity
-  ledger. A group launches nothing until you approve its terms in Settings › Auto scaling; agents propose and manage
-  groups over the API, MCP and the assistant, and never approve one. It runs more workers on this machine today;
-  AWS EC2 (spot or on demand), DigitalOcean, Hetzner Cloud, Proxmox VE and Linux hosts over SSH providers are in
-  progress (built, with machines that join over the mesh to transcribe and tell voices apart, not yet tried on a real
-  cloud), so is RunPod for GPUs that serve Lens's model calls while they run, and more model hosts are planned.
-  ([Auto scaling](docs/scaling.md);
-  [checks](docs/requirements.md#scale-out))
+  ledger. You add providers and make groups in Settings › Auto scaling, and a group launches nothing until you approve
+  its terms there; agents propose and manage groups over the API, MCP and the assistant, and never approve one. It
+  runs more workers on this machine today; AWS EC2 (spot or on demand), DigitalOcean, Hetzner Cloud, Proxmox VE and
+  Linux hosts over SSH providers are in progress (built, with machines that join over the mesh to transcribe and tell
+  voices apart, not yet tried on a real cloud), so is RunPod for GPUs that serve Lens's model calls while they run,
+  and more model hosts are planned. ([Auto scaling](docs/scaling.md); [checks](docs/requirements.md#scale-out))
 - **Run on more machines.** Add a Mac with a GPU, a box for the assistant's code or a server with more disk, and
   Lens joins it over a private network of its own, a Nebula mesh it issues the certificates for: one install line
   with a one-time token, and the machine needs nothing else. Worker nodes run jobs as their own user of the
@@ -294,8 +294,10 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   [prompt injection](docs/assistant.md#third-party-content-and-prompt-injection), [HTTPS](docs/https.md),
   [remote access](docs/remote-access.md); [checks](docs/requirements.md#stay-private-and-safe))
 - **Use open standards.** RDF and Dublin Core for every record, OAuth for apps and OpenID Connect sign-in, MCP, MQTT,
-  IIIF for publishing, OpenTelemetry and Prometheus for monitoring, and an optional Fedora mirror.
-  ([Linked data](docs/rdf.md), [IIIF](docs/iiif.md), [Fedora](docs/fedora.md);
+  IIIF for publishing, OpenTelemetry and Prometheus for monitoring, an optional Fedora mirror, and a CSV catalogue of
+  the assets you select in the Library.
+  ([Linked data](docs/rdf.md), [IIIF](docs/iiif.md), [Fedora](docs/fedora.md),
+  [catalogue](docs/processing.md#finding-by-any-attribute);
   [checks](docs/requirements.md#use-open-standards))
 
 ## Light by default
@@ -312,10 +314,7 @@ still loading. ([Components](docs/components.md),
 
 ## In progress
 
-These are open pull requests, not yet part of Lens:
-
-- **Voice:** answers and podcasts read aloud with Kokoro on this machine
-  ([#538](https://github.com/adeelahmad/lense/pull/538)).
+Open pull requests, not yet part of Lens, are listed here; none right now.
 
 ## Planned
 
@@ -329,8 +328,8 @@ Next, and not in a pull request yet; each links to where it is tracked:
   topics, recordings and the other things that have pages ([notes](docs/notes.md)).
 - **Local models:** GPU builds of llama.cpp fetched by Lens, and local embedding models
   ([local models](docs/local-models.md)).
-- **Auto scaling:** spreading model calls across GPUs, more model hosts (Lambda, Hugging Face, SageMaker, Bedrock),
-  and making providers and groups in Settings ([auto scaling](docs/scaling.md)).
+- **Auto scaling:** spreading model calls across GPUs, and more model hosts (Lambda, Hugging Face, SageMaker,
+  Bedrock) ([auto scaling](docs/scaling.md)).
 - **Speech providers:** their summaries, chapters and entities as optional imports, and per-minute prices in the
   activity ledger ([speech providers](docs/speech-providers.md)).
 - **Storage:** uploads and assets' media in the file store, and a storage key to download

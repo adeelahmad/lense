@@ -17,6 +17,7 @@ const DEFAULT_LABEL: Record<string, string> = {
   deepgram: "aura-2-thalia-en",
   gemini: "Kore",
   say: "the Mac’s own voice",
+  kokoro: "af_heart",
   styletts2: "its own reader",
 };
 
@@ -67,7 +68,9 @@ export function VoicePicker({
     : hear.error
       ? hear.error.message
       : list.data?.error
-        ? `${list.data.error}. Type a voice id instead.`
+        ? voices.length
+          ? list.data.error
+          : `${list.data.error}. Type a voice id instead.`
         : unsaved
           ? "Save to hear a voice from this provider."
           : null;

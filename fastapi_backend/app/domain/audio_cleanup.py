@@ -25,6 +25,7 @@ recording back to being transcribed as it is.
 from __future__ import annotations
 
 import importlib.metadata
+import math
 
 import numpy as np
 
@@ -39,8 +40,12 @@ PAD_MS = 300  # kept either side of speech, so a word's first and last sounds ar
 NOISE = {"off": None, "low": 0, "moderate": 1, "high": 2, "very_high": 3}  # WebRTC's levels: 6, 12, 18 and 21 dB
 ECHO = ("off", "left", "right")  # which channel holds what the speakers played
 DEFAULTS = store.DEFAULTS["transcribe"]["cleanup"]
-KEYS = ("noise", "gain", "high_pass", "echo", "trim_silence", "min_silence_ms")
+KEYS = ("noise", "gain", "high_pass", "echo", "trim_silence", "min_silence_ms", "only_if_poor", "snr_floor_db")
 PACKAGE = "pywebrtc-audio"
+QUIET_PCT = 10  # the loudness at this percentile of the 10 ms frames is taken as the noise floor
+LOUD_PCT = 95  # the loudness at this percentile is taken as the speech level
+CLIP = 0.99  # a sample at least this loud (of 1.0) counts as clipped
+CLIP_MAX = 0.5  # more than this percent of samples clipped is poor quality worth cleaning
 
 
 def check(value):
@@ -55,12 +60,15 @@ def check(value):
         raise ValueError(f"transcribe.cleanup.noise is one of: {', '.join(NOISE)}")
     if out["echo"] not in ECHO:
         raise ValueError(f"transcribe.cleanup.echo is one of: {', '.join(ECHO)}")
-    for k in ("gain", "high_pass", "trim_silence"):
+    for k in ("gain", "high_pass", "trim_silence", "only_if_poor"):
         if not isinstance(out[k], bool):
             raise ValueError(f"transcribe.cleanup.{k} is true or false")
     ms = out["min_silence_ms"]
     if not (isinstance(ms, int) and not isinstance(ms, bool) and 500 <= ms <= 60000):
         raise ValueError("transcribe.cleanup.min_silence_ms is a whole number of milliseconds from 500 to 60000")
+    snr = out["snr_floor_db"]
+    if not (isinstance(snr, (int, float)) and not isinstance(snr, bool) and 0 <= snr <= 60):
+        raise ValueError("transcribe.cleanup.snr_floor_db is a number of decibels from 0 to 60")
     return out
 
 
@@ -79,6 +87,38 @@ def options(cfg):
 
 def does_anything(o):
     return o["noise"] != "off" or o["gain"] or o["high_pass"] or o["echo"] != "off" or o["trim_silence"]
+
+
+def quality(mono):
+    """A cheap read of a recording's sound before it's cleaned: (estimated SNR in dB or None, percent of samples
+    clipped). The noise floor and the speech level are the loudness at two percentiles of the 10 ms frames; numpy
+    only, no model. SNR is None when the recording is too short or too quiet to judge."""
+    if not len(mono):
+        return None, 0.0
+    x = np.abs(np.asarray(mono, dtype=np.float32))
+    clip_pct = round(100 * float(np.mean(x >= CLIP)), 2)
+    n = len(x) // FRAME
+    if n < 2:
+        return None, clip_pct
+    rms = np.sqrt(np.square(x[: n * FRAME].reshape(n, FRAME)).mean(axis=1))
+    rms = rms[rms > 0]
+    if len(rms) < 2:
+        return None, clip_pct
+    noise = float(np.percentile(rms, QUIET_PCT))
+    speech = float(np.percentile(rms, LOUD_PCT))
+    if noise <= 0 or speech <= 0:
+        return None, clip_pct
+    return round(20 * math.log10(speech / noise), 1), clip_pct
+
+
+def is_poor(o, snr_db, clip_pct):
+    """Whether a recording measures as low quality, so the quality gate still cleans it. Clipping is poor; an SNR that
+    couldn't be judged counts as poor too, so a doubtful recording is cleaned rather than skipped."""
+    if clip_pct > CLIP_MAX:
+        return True
+    if snr_db is None:
+        return True
+    return snr_db < o["snr_floor_db"]
 
 
 def ready():
@@ -275,6 +315,11 @@ def step(db, cfg, rid, say):
     ensure(cfg, say)
     path = ingest.audio_path(db, cfg, rec)
     mono = ingest.decode(path)
+    snr_db, clip_pct = quality(mono)
+    if o["only_if_poor"] and not is_poor(o, snr_db, clip_pct):
+        del mono
+        db.q("UPDATE $r SET audio_cleanup = NONE", r=r)
+        return {"skipped": True, "snr_db": snr_db, "clip_pct": clip_pct, "snr_floor_db": o["snr_floor_db"]}
     out, probs, gain, echo = clean(o, path, mono, rec.get("channels"))
     del mono
     total = len(out) * 1000 // SR
@@ -288,6 +333,8 @@ def step(db, cfg, rid, say):
             "speech_ms": speech,
             "kept_ms": kept,
             "gain_db": gain,
+            "snr_db": snr_db,
+            "clip_pct": clip_pct,
             "echo_note": echo if echo and echo not in ECHO else None,
             "engine": f"{PACKAGE} {version() or ''}".strip(),
             "at": store.now(),
@@ -301,8 +348,13 @@ def summary(saved):
     """One line for the step's log: what it found and what transcribing will hear."""
     if not saved:
         return "every audio cleanup option is off: it's transcribed as it is"
+    if saved.get("skipped"):
+        snr = "its noise couldn't be judged" if saved.get("snr_db") is None else f"{saved['snr_db']} dB signal-to-noise"
+        return f"good quality ({snr}, over the {saved['snr_floor_db']} dB floor): left as it is, transcribed from the original"
     total = max(saved["duration_ms"], 1)
     parts = [f"speech in {round(100 * saved['speech_ms'] / total)}% of {round(total / 60000, 1)} min"]
+    if saved.get("snr_db") is not None:
+        parts.append(f"{saved['snr_db']} dB signal-to-noise")
     if saved["noise"] != "off":
         parts.append(f"noise suppressed ({saved['noise'].replace('_', ' ')})")
     if saved.get("gain_db") is not None:

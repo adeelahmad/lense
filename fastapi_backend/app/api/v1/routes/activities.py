@@ -12,7 +12,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer, domain_errors
 from app.api.v1.routes.comments import _comments_out
-from app.domain import auth, comments, event_marks, event_reactions, events, events_content, store
+from app.domain import auth, comment_agent, comments, event_marks, event_reactions, events, events_content, store
 from app.schemas.activities import (
     ActivityKind,
     ActivityMark,
@@ -268,6 +268,7 @@ def comment(
             audience=lens.get("audience"),
             owner=lens.get("owner"),
         )
+    comment_agent.wake(db, cfg, cid, text)
     return _comments_out(db, [comments.get(db, cid)], _rank(acl, user, a), user)[0]
 
 
@@ -275,7 +276,8 @@ def comment(
 def comment_on_activity(activity_id: str, body: ActivityCommentCreate, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> Comment:
     """Comment on an activity, or with `parent` reply on a thread (a reply to a reply goes on the thread too). Anyone
     who sees the activity can, up to 1,000 each; everyone who sees it reads them, and each one is a `comment.added`
-    activity. On an asset's arrival the comment goes on the asset itself."""
+    activity. On an asset's arrival the comment goes on the asset itself. A comment that tags @lens gets the agent's
+    answer on the thread."""
     return comment(db, cfg, viewer(db, user, acl), user, acl, activity_id, body.text, body.parent)
 
 
@@ -288,7 +290,7 @@ def update_activity_comment(activity_id: str, cid: int, body: CommentUpdate, use
     rank = _rank(acl, user, a)
     if body.text is None and body.resolved is None:
         raise HTTPException(400, "change the text, or resolve or reopen the thread")
-    if body.text is not None and c["account"] != user.id:
+    if body.text is not None and (c["account"] != user.id or c.get("author") == "assistant"):
         raise HTTPException(403, "only its writer can change a comment")
     if body.resolved is not None and c["account"] != user.id and rank < auth.ROLES["editor"]:
         raise HTTPException(403, "only its writer or an editor of the namespace can resolve a thread")

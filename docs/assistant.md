@@ -221,8 +221,8 @@ Voice goes through one hook, `useVoice()` in `nextjs-frontend/lib/voice.ts` (`li
   Edge and Safari; Chrome sends the audio to its own speech service).
 - **Speaking.** Answers are read by a speech model when one is set (`voice.tts_model`: any OpenAI-compatible
   `/audio/speech`, such as Kokoro-FastAPI, LocalAI or OpenAI's `tts-1`, on `voice.tts_base_url` or the LLM provider),
-  or by ElevenLabs, Deepgram, Google Gemini or macOS `say` ([Speech providers](speech-providers.md#voices)); else by
-  the browser.
+  or by ElevenLabs, Deepgram, Google Gemini, macOS `say`, or Kokoro on this machine
+  ([Speech providers](speech-providers.md#kokoro)); else by the browser.
 
 #### Read a message aloud
 
@@ -768,6 +768,12 @@ It makes no model calls of its own and keeps no index, so it costs nothing extra
 A chat room can be given to a namespace's assistant too ([chat rooms](chat-rooms.md)).
 
 Refine later: a decision model choosing what's worth remembering, similar memories merged.
+
+## Asking the assistant in a comment
+
+Tag **@lens** (or the assistant's own name) in a comment on the timeline or on an asset's page and it answers in the
+thread, as you, with your tools, in a conversation of yours it opens for the thread; changes it proposes wait for
+your yes as they do in chat ([Asking the agent in a comment](timeline.md#asking-the-agent-in-a-comment)).
 
 ## Extending the assistant: tools, skills, hooks and plugins
 

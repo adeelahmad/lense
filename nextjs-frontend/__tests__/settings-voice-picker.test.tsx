@@ -63,6 +63,26 @@ describe("voice picker", () => {
     expect(await screen.findByText(/It couldn’t read it/)).toBeInTheDocument();
   });
 
+  it("lists Kokoro's voices while it's still being fetched", async () => {
+    (Voice.listVoices as jest.Mock).mockImplementation(() =>
+      ok({
+        provider: "kokoro",
+        voices: [
+          { id: "af_heart", name: "Heart", detail: "American English, female" },
+          { id: "bm_george", name: "George", detail: "British English, male" },
+        ],
+        error: "Kokoro is fetched once it’s saved as the voice (Settings → Components)",
+      }),
+    );
+    show("kokoro", null);
+    expect(await screen.findByRole("option", { name: "George · British English, male" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Default (af_heart)" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Kokoro is fetched once it’s saved as the voice (Settings → Components)"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Type a voice id instead/)).not.toBeInTheDocument();
+  });
+
   it("asks to save before hearing a provider not saved yet", async () => {
     (Voice.listVoices as jest.Mock).mockImplementation(() =>
       ok({ provider: "gemini", voices: [{ id: "Kore", name: "Kore", detail: "Firm" }] }),

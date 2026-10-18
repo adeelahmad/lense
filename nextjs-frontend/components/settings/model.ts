@@ -724,6 +724,23 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "transcribe",
+    key: "cleanup.only_if_poor",
+    label: "Clean only low quality recordings",
+    kind: "switch",
+    hint: "The step measures each recording and leaves a clean-sounding one as it is, cleaning only the noisy, quiet or clipped ones",
+  },
+  {
+    section: "transcribe",
+    key: "cleanup.snr_floor_db",
+    label: "Clean below this signal-to-noise",
+    kind: "int",
+    min: 0,
+    max: 60,
+    unit: "dB",
+    hint: "A recording at or above this is counted as clean and left alone; lower is noisier",
+  },
+  {
+    section: "transcribe",
     key: "vocabulary",
     label: "Expect your own names",
     kind: "switch",
@@ -1119,6 +1136,13 @@ export const FIELDS: FieldSpec[] = [
     label: "Keep note titles and summaries up to date",
     kind: "switch",
     hint: "A couple of minutes after a note changes, the model rewrites its one-line summary, and its title when that no longer fits.",
+  },
+  {
+    section: "ai",
+    key: "answer_comments",
+    label: "Answer when tagged in a comment",
+    kind: "switch",
+    hint: "A comment on the timeline or on an asset that tags @lens (or the assistant's own name) gets an answer from the agent in the same thread, as the person who tagged it. Changes it proposes wait for their approval.",
   },
   {
     section: "ai",
@@ -2105,7 +2129,18 @@ export const FIELDS: FieldSpec[] = [
       { value: "deepgram", label: "Deepgram Aura (provider)" },
       { value: "gemini", label: "Google Gemini (provider)" },
       { value: "say", label: "macOS say (Lens running on a Mac)" },
+      { value: "kokoro", label: "Kokoro (on this machine, 54 voices)" },
       { value: "styletts2", label: "StyleTTS2 (on this machine)" },
+    ],
+  },
+  {
+    section: "voice",
+    key: "kokoro_model",
+    label: "Kokoro model",
+    kind: "select",
+    options: [
+      { value: "fp32", label: "Full (326 MB, the best, and fastest on most machines)" },
+      { value: "int8", label: "8-bit (114 MB, for a small disk)" },
     ],
   },
   {
