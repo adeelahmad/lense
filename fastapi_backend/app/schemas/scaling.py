@@ -77,7 +77,7 @@ class Rule(RequestModel):
     above: float | None = Field(None, description="step rules: fires while the metric is above this")
     below: float | None = Field(None, description="step rules: fires while the metric is below this")
     minutes: int | None = Field(None, ge=0, le=1440, description="step rules: for how long before it fires (default 1)")
-    add: int | str | None = Field(None, description="step rules: units to add, a count or a percentage like \"50%\"")
+    add: int | str | None = Field(None, description='step rules: units to add, a count or a percentage like "50%"')
     remove: int | str | None = Field(None, description="step rules: units to remove, a count or a percentage")
     cron: str | None = Field(None, description="schedule rules: when, as a cron expression")
     timezone: str | None = None

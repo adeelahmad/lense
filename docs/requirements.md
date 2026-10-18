@@ -201,6 +201,19 @@ request, to another check that proves the same thing; loosening a requirement or
 | The Costs page's charts | No check yet ([#486](https://github.com/adeelahmad/lense/issues/486)) |
 | Routine choices go to small decision models, the LLM only when it adds value | [test_decisions.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_decisions.py) `test_the_decision_model_answers_when_it_has_a_key`, `test_the_language_model_decides_without_one_and_when_it_fails` |
 
+## Scale out
+
+| Requirement | Checks |
+|---|---|
+| Off until an admin turns it on; off, every unit is let go and the scaler writes nothing | [test_scaling.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_scaling.py) `test_scaling_is_off_and_lists_its_drivers`, `test_the_settings_section`, `test_this_machine_runs_more_workers_at_no_cost` |
+| Providers keep their credentials sealed, shown only as set, and prove them with a read-only call | [test_scaling.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_scaling.py) `test_a_providers_credentials_are_sealed_and_checked` |
+| A group launches nothing until a person signed in to the web app approves its terms; agents never approve, and widening the terms takes the approval away | [test_scaling.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_scaling.py) `test_only_a_person_in_the_web_app_approves_a_groups_terms`; [test_scaling_rules.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/domain/test_scaling_rules.py) `test_what_widens_an_approval` |
+| Target, step and schedule rules pick the number of units, within min and max | [test_scaling_rules.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/domain/test_scaling_rules.py) `test_a_target_rule_keeps_its_metric_at_the_target`, `test_a_step_rule_fires_once_its_condition_has_held`, `test_a_schedule_rule_sets_the_bounds_when_its_time_comes`, `test_the_largest_proposal_wins`; [test_scaling.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_scaling.py) `test_rules_scale_on_waiting_jobs_and_on_a_schedule` |
+| The scaler launches units, sees them join, drains busy workers before letting them go, and fails and pauses on units that don't come up | [test_scaling.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_scaling.py) `test_the_scaler_launches_joins_drains_and_terminates`, `test_a_unit_that_never_joins_fails_and_failures_pause_the_group`, `test_protected_and_terminated_units` |
+| Each unit's cost goes into the activity ledger as an estimate, and a group stops at its budget's cap | [test_scaling.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_scaling.py) `test_the_scaler_launches_joins_drains_and_terminates`, `test_at_its_budgets_cap_a_group_stops` |
+| This machine runs more workers at no cost | [test_scaling.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_scaling.py) `test_this_machine_runs_more_workers_at_no_cost` |
+| Agents manage scaling in the assistant and over MCP: proposals wait for the person, actions within the terms happen at once | [test_scaling_agents.py](https://github.com/adeelahmad/lense/blob/main/fastapi_backend/tests/api/test_scaling_agents.py) `test_the_assistant_proposes_and_the_person_approves_in_the_web_app`, `test_a_setup_conversation_makes_a_group_that_still_waits_for_the_person`, `test_only_admins_get_the_scaling_tools`, `test_mcp_clients_manage_scaling_but_never_approve` |
+
 ## Keep it up to date and backed up
 
 | Requirement | Checks |

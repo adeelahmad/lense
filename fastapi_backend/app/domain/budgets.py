@@ -48,9 +48,7 @@ def _key(resource):
 
 def check_ref(resource):
     if not isinstance(resource, str) or not REF.match(resource):
-        raise ValueError(
-            "a budget is for all, routine:<id>, automation:<id>, pipeline:<id>, workflow:<id>, space:<id> or scale_group:<id>"
-        )
+        raise ValueError("a budget is for all, routine:<id>, automation:<id>, pipeline:<id>, workflow:<id>, space:<id> or scale_group:<id>")
     return resource
 
 

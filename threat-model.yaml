@@ -8,7 +8,7 @@ project: lens
 prose_version: "threat-model.md@same-commit"
 model_status: under-review
 triage_policy: strict
-confidence: {documented: 208, maintainer: 46, inferred: 91, assumption: 8}
+confidence: {documented: 210, maintainer: 46, inferred: 91, assumption: 8}
 
 generation:
   model: "Claude Opus 5.5 (claude-opus-5-5)"
@@ -602,6 +602,16 @@ entry_points:
         obligation_id: admin-is-trusted
         caller_must_enforce: "admin is trusted; audited (lens.services, lens.monitoring); unknown profiles are a 404; one change at a time; reaches the machine only as an inbox request the agent checks again"
         provenance: {kind: documented, source: 'docs/assistant.md "Optional containers"'}
+  - id: "admin auto scaling"
+    component: authz
+    parameters:
+      - name: "/api/v1/scaling (providers, groups, units, tick), PUT /api/v1/settings/scaling, MCP and assistant scaling tools: provider credentials, a group's terms and rules, a unit id"
+        attacker_controllable: false
+        x-condition: "admin only (MCP: with the write scope)"
+        control_kinds: [x-credential, x-env-config]
+        obligation_id: admin-is-trusted
+        caller_must_enforce: "admin is trusted; off until turned on; audited (scaling.*) and in the activity ledger; credentials sealed and shown only as set; a group launches nothing until a person signed in to the web app approves its terms (P-SCALING)"
+        provenance: {kind: documented, source: 'docs/scaling.md "The person approves"'}
   - id: "admin sandbox gateway"
     component: authz
     parameters:
@@ -1478,6 +1488,14 @@ properties_claimed:
     violation_symptoms: [info-leak]
     x-voided-by: "the token is sealed with the server key, not only hashed, so the namespace's readers and whoever holds secret.key see the address again (domain/syndication.py token_of); anyone given the address reads the feed until it is rotated; editors choose what goes in, and a resource's title and summary show as they are now; the fit is by namespace roles (domain/syndication.py Fit), not per-asset grants"
     provenance: {kind: documented, source: 'docs/feeds.md "Private by default"'}
+  - id: P-SCALING
+    kind: integrity
+    components: [authz, optional]
+    tier: security-critical
+    conditions: "auto scaling launches nothing unless a person signed in to the web app approved the group's terms (its provider, what each unit is, its max, its budget, what happens at its cap); an API key, an app, MCP and the assistant acting on its own never approve, and a change that widens the terms takes the approval away; a provider's credentials are sealed per provider and field, opened only for a call to it and never shown; a unit is handed no long-lived Lens secret"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "an admin's web session approves, and an admin is trusted; a yes on the Approvals page to the assistant's proposal approves the terms that proposal names; within the terms agents may raise the desired count up to max, spending up to the budget; costs are estimates from list prices (domain/scaling.py accrue), not bills, so a provider can charge more than the budget counts"
+    provenance: {kind: documented, source: 'docs/scaling.md "The person approves"'}
   - id: P-AUTH-REQ
     kind: authentication
     components: [web, identity]

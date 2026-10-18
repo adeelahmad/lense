@@ -305,18 +305,16 @@ def update_provider(db, cfg, pid, changes, by=None, check=True):
     missing = [k for k in drv.secrets if drv.fields[k].get("required") and k not in sealed]
     if missing:
         raise ValueError(f"a {drv.label} provider needs {', '.join(missing)}")
-    db.q(
-        "UPDATE $r MERGE $d",
+    db.q(  # SET, not MERGE: a merge would keep a setting or a credential taken away
+        "UPDATE $r SET name = $n, settings = $s, sealed = $k, price = $p, note = $o, updated_at = $t, updated_by = $u",
         r=R("scale_provider", p["id"]),
-        d={
-            "name": name.strip(),
-            "settings": settings_,
-            "sealed": sealed,
-            "price": price,
-            "note": note,
-            "updated_at": store.now(),
-            "updated_by": by,
-        },
+        n=name.strip(),
+        s=settings_,
+        k=sealed,
+        p=price,
+        o=note,
+        t=store.now(),
+        u=by,
     )
     activity.record(
         "run", "scaling.provider.change", [_ref("scale_provider", p["id"])], cfg, db, actor=by, detail={"fields": sorted(changes)}
@@ -373,7 +371,7 @@ def check_rule(rule):
         out["minutes"] = _int(rule.get("minutes", 1), "minutes", 0, 1440)
         add, remove = rule.get("add"), rule.get("remove")
         if (add is None) == (remove is None):
-            raise ValueError("a step rule adds or removes units: add or remove, a count or a percentage like \"50%\"")
+            raise ValueError('a step rule adds or removes units: add or remove, a count or a percentage like "50%"')
         for k, v in (("add", add), ("remove", remove)):
             if v is None:
                 continue
@@ -540,6 +538,7 @@ def group_view(db, g, now=None):
     b = budgets.get(db, _budget_ref(g["id"]))
     st = budgets.status(db, _budget_ref(g["id"]), b, now) if b else None
     approval = g.get("approval")
+    t = terms({**g, "budget": b.get("usd") if b else None})  # the budget lives in the budget table, not on the row
     out = {
         "id": g["id"],
         "name": g.get("name"),
@@ -559,9 +558,11 @@ def group_view(db, g, now=None):
         "paused_why": g.get("paused_why"),
         "capped": g.get("capped"),
         "approval": approval,
-        "approved": bool(approval) and not widens(approval.get("terms") or {}, terms(g)),
-        "terms": terms(g),
-        "budget": {"usd": b.get("usd"), "period": b.get("period"), "state": st["state"], "spent": st["spent"], "left": st["left"]} if b else None,
+        "approved": bool(approval) and not widens(approval.get("terms") or {}, t),
+        "terms": t,
+        "budget": {"usd": b.get("usd"), "period": b.get("period"), "state": st["state"], "spent": st["spent"], "left": st["left"]}
+        if b
+        else None,
         "units": {
             "launching": sum(u.get("state") == "launching" for u in units),
             "running": sum(u.get("state") == "running" for u in units),
@@ -631,8 +632,9 @@ def update_group(db, cfg, gid, changes, by=None, via="token"):
     """Change a group. A change that widens its approved terms takes the approval away (a person gives it again);
     one made by a person signed in to the web app carries their approval."""
     g = _group(db, gid)
+    g = {**g, "budget": (budgets.get(db, _budget_ref(g["id"])) or {}).get("usd")}  # a budget left out is kept
     row, budget, p, drv = _check_group_body(db, changes, g)
-    before, after = terms({**g, "budget": (budgets.get(db, _budget_ref(g["id"])) or {}).get("usd")}), terms({**row, "budget": budget})
+    before, after = terms(g), terms({**row, "budget": budget})
     approval = g.get("approval")
     if approval and widens(approval.get("terms") or {}, after):
         approval = None
@@ -749,7 +751,15 @@ def node_view(n):
 def protect(db, cfg, nid, on=True, by=None):
     n = _node(db, nid)
     db.q("UPDATE $r SET protected = $p", r=R("scale_node", n["id"]), p=bool(on))
-    activity.record("run", "scaling.unit.protect", [_ref("scale_node", n["id"]), _ref("scale_group", n["group"])], cfg, db, actor=by, detail={"on": bool(on)})
+    activity.record(
+        "run",
+        "scaling.unit.protect",
+        [_ref("scale_node", n["id"]), _ref("scale_group", n["group"])],
+        cfg,
+        db,
+        actor=by,
+        detail={"on": bool(on)},
+    )
     return node_view(_node(db, nid))
 
 
@@ -772,7 +782,9 @@ def _drain(db, cfg, n, why, by=None):
     except KeyError:
         pass  # never registered as a worker: nothing to hand back
     db.q("UPDATE $r SET state = 'draining', why = $w", r=R("scale_node", n["id"]), w=why)
-    activity.record("run", "scaling.unit.drain", [_ref("scale_node", n["id"]), _ref("scale_group", n["group"])], cfg, db, actor=by, detail={"why": why})
+    activity.record(
+        "run", "scaling.unit.drain", [_ref("scale_node", n["id"]), _ref("scale_group", n["group"])], cfg, db, actor=by, detail={"why": why}
+    )
 
 
 def _terminate(db, cfg, drv, p, n, why, by=None, state="terminated", now=None):
@@ -891,7 +903,7 @@ def _count(v, units):
 
 def evaluate(g, m, units, now, state=None):
     """What the rules propose for a group with `units` running: (desired or None when no rule speaks, the new rule
-    state, [what each rule said]). Step rules fire once their condition has held for their minutes; schedule rules
+    state, [what each rule said], the new min, the new max: None unless a schedule rule set them). Step rules fire once their condition has held for their minutes; schedule rules
     once per time they name."""
     state = dict(state or {})
     proposals, said = [], []
@@ -986,6 +998,8 @@ class Scaler:
         """One pass over every group. Returns what it did: {launched, terminated, groups}."""
         now = now or _now()
         cfg = self.cfg_fn()
+        if not enabled(cfg) and not self.db.values("SELECT VALUE id FROM scale_node WHERE state IN $s LIMIT 1", s=list(ALIVE)):
+            return None  # off, with nothing left to let go: not even the lease is written
         if lease and not self._lease(now):
             return None
         did = {"launched": 0, "terminated": 0, "groups": 0}
@@ -1023,7 +1037,9 @@ class Scaler:
         may_launch = enabled(cfg) and view["enabled"] and not view["paused"] and view["approved"] and not capped
         lo, hi, desired = g.get("min") or 0, g.get("max") or 0, g.get("desired") or 0
         if may_launch and g.get("rules"):
-            want, state, said, new_min, new_max = evaluate(g, metrics(db, cfg, (g.get("template") or {}).get("steps"), now), len(running), now, g.get("rule_state"))
+            want, state, said, new_min, new_max = evaluate(
+                g, metrics(db, cfg, (g.get("template") or {}).get("steps"), now), len(running), now, g.get("rule_state")
+            )
             sets = {"rule_state": state, "last_eval": {"at": _iso(now), "said": said}}
             if new_min is not None or new_max is not None:
                 lo = new_min if new_min is not None else lo
@@ -1139,7 +1155,9 @@ class Scaler:
             ),
         )
         db.q("UPDATE $r SET failures = 0, error = NONE", r=R("scale_group", g["id"]))
-        activity.record("run", "scaling.launch", refs, cfg, db, detail={"why": why, "unit": name, "price_per_hour": got.get("price", price)})
+        activity.record(
+            "run", "scaling.launch", refs, cfg, db, detail={"why": why, "unit": name, "price_per_hour": got.get("price", price)}
+        )
         self.log(f"scaling: launched {name} on {p.get('name')} ({why})")
         return True
 
@@ -1236,6 +1254,10 @@ def overview(db, cfg, now=None):
 
 
 # ---------- the assistant and MCP ----------
+# the assistant's and MCP's tools that change scaling (ops_tools.SCALING_TOOLS, mcp_tools); `scaling` only reads
+TOOLS = ("propose_scaling_group", "change_scaling_group", "set_scaling_desired", "pause_scaling_group", "terminate_scaling_unit")
+
+
 def apply_tool(db, cfg, tool, args, user, via="agent"):
     """Carry out a scaling tool's change, for the assistant (ops_tools.apply) once approved, or at once for what
     agents may do within the approved terms. `via` web is the person's own yes in the web app, which also approves

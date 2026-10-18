@@ -564,6 +564,7 @@ OWN_RESULTS = {
     "use_skill",
     "mark_activities",
     "decline_approval",
+    "scaling",
 } | {
     t[0]
     for t in TOOLS
@@ -2213,7 +2214,7 @@ def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=F
         )
         return {"status": "declined"}
     with graph_history.acting(actor=user["email"], via="assistant", approval=a["id"]):
-        result = _carry_out(db, cfg, a, user, editable, decision, base, admin, readable)
+        result = _carry_out(db, cfg, a, user, editable, decision, base, admin, readable, via)
     db.q(
         "UPDATE $r SET status = 'done', decided_at = $t, decided_by = $u, result = $res",
         r=R("approval", a["id"]),
@@ -2224,7 +2225,7 @@ def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=F
     return {"status": "done", **result}
 
 
-def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
+def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable, via="web"):
     args = a["args"]
     if a["tool"] == "extension":
         box = Toolbox(db, cfg, user, readable if readable is not None else editable, editable, None, a["chat"], base, admin)
@@ -2251,8 +2252,9 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
         "change_person",
         "subscribe_feed",
         "unsubscribe_feed",
-    ):
-        result = ops_tools.apply(db, cfg, base or cfg, a["tool"], args, user, editable, admin)
+        *ops_tools.scaling.TOOLS,
+    ):  # a scaling group's terms are approved only by a yes in the web app (via web)
+        result = ops_tools.apply(db, cfg, base or cfg, a["tool"], args, user, editable, admin, via)
     elif a["tool"] == "decline_approval":  # the person's yes to declining another of their approvals
         from . import approvals
 

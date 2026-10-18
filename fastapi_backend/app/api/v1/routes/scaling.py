@@ -77,7 +77,9 @@ def list_drivers(user: AdminReader) -> list[DriverSpec]:
 
 
 @router.get("/metrics")
-def metrics(user: AdminReader, db: Db, cfg: Cfg, steps: str | None = Query(None, description="comma-separated steps for the queue metrics")) -> Metrics:
+def metrics(
+    user: AdminReader, db: Db, cfg: Cfg, steps: str | None = Query(None, description="comma-separated steps for the queue metrics")
+) -> Metrics:
     """The values rules can watch, now."""
     want = [s.strip() for s in steps.split(",") if s.strip()] if steps else None
     return Metrics(metrics=scaling.metrics(db, cfg, want), about=scaling.METRICS)
@@ -94,7 +96,9 @@ def add_provider(body: ProviderIn, user: AdminWriter, db: Db, cfg: Cfg) -> Provi
     """Add a provider. Its credentials are sealed (never shown again, only whether they're set) and checked with a
     read-only call; its library is fetched the first time."""
     with _errors():
-        p = scaling.add_provider(db, cfg, body.name, body.driver, body.settings, body.secrets, body.price, body.note, user.email, body.check)
+        p = scaling.add_provider(
+            db, cfg, body.name, body.driver, body.settings, body.secrets, body.price, body.note, user.email, body.check
+        )
     auth.audit(db, user.as_audit(), "scaling.provider.add", f"scale_provider:{p['id']}", {"driver": body.driver})
     return Provider(**p)
 

@@ -32523,6 +32523,967 @@
           }
         }
       }
+    },
+    "/api/v1/scaling": {
+      "get": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Overview",
+        "description": "Everything at a glance: the switch, providers, groups with their units, the drivers on offer, the metrics now.",
+        "operationId": "overview",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Overview"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/drivers": {
+      "get": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "List Drivers",
+        "description": "The kinds of provider Lens can launch on, with the settings each asks for.",
+        "operationId": "list_drivers",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DriverSpec"
+                  },
+                  "type": "array",
+                  "title": "Response Scaling-List Drivers"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/metrics": {
+      "get": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Metrics",
+        "description": "The values rules can watch, now.",
+        "operationId": "metrics",
+        "parameters": [
+          {
+            "name": "steps",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "comma-separated steps for the queue metrics",
+              "title": "Steps"
+            },
+            "description": "comma-separated steps for the queue metrics"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Metrics"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/providers": {
+      "get": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "List Providers",
+        "operationId": "list_providers",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Provider"
+                  },
+                  "type": "array",
+                  "title": "Response Scaling-List Providers"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Add Provider",
+        "description": "Add a provider. Its credentials are sealed (never shown again, only whether they're set) and checked with a\nread-only call; its library is fetched the first time.",
+        "operationId": "add_provider",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Provider"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/providers/{pid}": {
+      "get": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Get Provider",
+        "operationId": "get_provider",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Provider"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Change Provider",
+        "operationId": "change_provider",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Provider"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Remove Provider",
+        "operationId": "remove_provider",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/providers/{pid}/check": {
+      "post": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Check Provider",
+        "description": "Prove the provider's credentials with a read-only call: {ok, error?}.",
+        "operationId": "check_provider",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Scaling-Check Provider"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/groups": {
+      "get": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "List Groups",
+        "operationId": "list_groups",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Group"
+                  },
+                  "type": "array",
+                  "title": "Response Scaling-List Groups"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Create Group",
+        "description": "Make a group. From the web app it's approved as it's made (that is your pick); from a token or an app it\nwaits for a person's approval before it launches anything.",
+        "operationId": "create_group",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/groups/{gid}": {
+      "get": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Get Group",
+        "operationId": "get_group",
+        "parameters": [
+          {
+            "name": "gid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Gid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Change Group",
+        "description": "Change a group. A change that widens its approved terms (another provider or unit, a higher max or budget)\ntakes the approval away until a person gives it again, unless it's made from the web app.",
+        "operationId": "change_group",
+        "parameters": [
+          {
+            "name": "gid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Gid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Remove Group",
+        "description": "Remove a group: its units are terminated first.",
+        "operationId": "remove_group",
+        "parameters": [
+          {
+            "name": "gid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Gid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/groups/{gid}/approve": {
+      "post": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Approve Group",
+        "description": "Approve the group's terms as they stand: a person's pick, from a signed-in session only (403 otherwise).",
+        "operationId": "approve_group",
+        "parameters": [
+          {
+            "name": "gid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Gid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/groups/{gid}/desired": {
+      "post": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Set Desired",
+        "description": "Ask for a number of units now, within the group's min and max.",
+        "operationId": "set_desired",
+        "parameters": [
+          {
+            "name": "gid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Gid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Desired"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/groups/{gid}/pause": {
+      "post": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Pause Group",
+        "description": "Pause a group (nothing new launches; what runs stays) or resume it.",
+        "operationId": "pause_group",
+        "parameters": [
+          {
+            "name": "gid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Gid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Paused"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/groups/{gid}/history": {
+      "get": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Group History",
+        "description": "What happened to the group: launches, joins, terminations, changes and the cost it accrued (the ledger).",
+        "operationId": "group_history",
+        "parameters": [
+          {
+            "name": "gid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Gid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Scaling-Group History"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/units": {
+      "get": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "List Units",
+        "operationId": "list_units",
+        "parameters": [
+          {
+            "name": "group",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Group"
+            }
+          },
+          {
+            "name": "alive",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "only units not yet gone",
+              "default": false,
+              "title": "Alive"
+            },
+            "description": "only units not yet gone"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Unit"
+                  },
+                  "title": "Response Scaling-List Units"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/units/{nid}/protect": {
+      "post": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Protect Unit",
+        "description": "Keep a unit out of scale-in (or let it go again).",
+        "operationId": "protect_unit",
+        "parameters": [
+          {
+            "name": "nid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Nid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Protected"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unit"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/units/{nid}/terminate": {
+      "post": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Terminate Unit",
+        "description": "Let a unit go now: a running worker drains first, so its job is handed back.",
+        "operationId": "terminate_unit",
+        "parameters": [
+          {
+            "name": "nid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Nid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Terminate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unit"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scaling/tick": {
+      "post": {
+        "tags": [
+          "scaling"
+        ],
+        "summary": "Tick",
+        "description": "Run one pass of the scaler now, in this process (the scheduled one carries on): what it did.",
+        "operationId": "tick",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Scaling-Tick"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -42702,6 +43663,172 @@
         "title": "Description",
         "description": "What a model that can see images said a page or a shot shows."
       },
+      "Desired": {
+        "properties": {
+          "desired": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Desired"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "desired"
+        ],
+        "title": "Desired"
+      },
+      "DriverField": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "string",
+              "integer",
+              "number",
+              "boolean",
+              "list"
+            ],
+            "title": "Type"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "default": false
+          },
+          "default": {
+            "title": "Default"
+          },
+          "help": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Help"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "secret": {
+            "type": "boolean",
+            "title": "Secret",
+            "description": "a credential: sealed when saved, shown only as set",
+            "default": false
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "label",
+          "type"
+        ],
+        "title": "DriverField"
+      },
+      "DriverSpec": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "node",
+              "model"
+            ],
+            "title": "Kind",
+            "description": "node: machines that run `lens worker`; model: a model endpoint"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "about": {
+            "type": "string",
+            "title": "About"
+          },
+          "priced": {
+            "type": "boolean",
+            "title": "Priced",
+            "description": "it charges money, so its groups need a budget"
+          },
+          "extra": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra",
+            "description": "the optional packages it needs, fetched when a provider of it is saved"
+          },
+          "license": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License"
+          },
+          "ready": {
+            "type": "boolean",
+            "title": "Ready",
+            "description": "its packages are installed"
+          },
+          "fields": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DriverField"
+            },
+            "type": "object",
+            "title": "Fields",
+            "description": "the provider's settings"
+          },
+          "template": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DriverField"
+            },
+            "type": "object",
+            "title": "Template",
+            "description": "what a group picks for each unit"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "label",
+          "about",
+          "priced",
+          "ready",
+          "fields",
+          "template"
+        ],
+        "title": "DriverSpec"
+      },
       "EmailInfo": {
         "properties": {
           "subject": {
@@ -48190,6 +49317,615 @@
           "question"
         ],
         "title": "GraphQuestion"
+      },
+      "Group": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "provider": {
+            "type": "integer",
+            "title": "Provider"
+          },
+          "template": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Template"
+          },
+          "min": {
+            "type": "integer",
+            "title": "Min"
+          },
+          "max": {
+            "type": "integer",
+            "title": "Max"
+          },
+          "desired": {
+            "type": "integer",
+            "title": "Desired"
+          },
+          "cooldown_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cooldown Seconds"
+          },
+          "warmup_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warmup Seconds"
+          },
+          "terminate": {
+            "type": "string",
+            "title": "Terminate"
+          },
+          "rules": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Rules",
+            "description": "each with `says`, the rule in words"
+          },
+          "at_cap": {
+            "type": "string",
+            "title": "At Cap"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "paused": {
+            "type": "boolean",
+            "title": "Paused"
+          },
+          "paused_why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paused Why"
+          },
+          "capped": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capped",
+            "description": "why its budget stops it now, when it does"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval",
+            "description": "a person's approval: {by, at, terms}"
+          },
+          "approved": {
+            "type": "boolean",
+            "title": "Approved",
+            "description": "the approval covers the terms as they stand"
+          },
+          "terms": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Terms",
+            "description": "what an approval binds: kind, provider, template, max, budget, at_cap"
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GroupBudget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "units": {
+            "$ref": "#/components/schemas/UnitCounts"
+          },
+          "waiting_for": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiting For",
+            "description": "why it launches nothing now, when it doesn't"
+          },
+          "last_out_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Out At"
+          },
+          "last_in_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last In At"
+          },
+          "last_eval": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Eval",
+            "description": "what the rules said last: {at, said}"
+          },
+          "failures": {
+            "type": "integer",
+            "title": "Failures",
+            "default": 0
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "provider",
+          "template",
+          "min",
+          "max",
+          "desired",
+          "terminate",
+          "rules",
+          "at_cap",
+          "enabled",
+          "paused",
+          "approved",
+          "terms",
+          "units"
+        ],
+        "title": "Group"
+      },
+      "GroupBudget": {
+        "properties": {
+          "usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usd"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "spent": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Spent"
+          },
+          "left": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Left"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "period",
+          "state",
+          "spent",
+          "left"
+        ],
+        "title": "GroupBudget"
+      },
+      "GroupChange": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "template": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "desired": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desired"
+          },
+          "cooldown_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 86400.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cooldown Seconds"
+          },
+          "warmup_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 7200.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warmup Seconds"
+          },
+          "terminate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "oldest",
+                  "newest"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terminate"
+          },
+          "rules": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Rule"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rules"
+          },
+          "at_cap": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "stop",
+                  "min"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At Cap"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "GroupChange"
+      },
+      "GroupIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Name"
+          },
+          "provider": {
+            "type": "integer",
+            "title": "Provider",
+            "description": "the provider's id"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "node",
+                  "model"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind",
+            "description": "the provider's kind; filled in when left out"
+          },
+          "template": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Template",
+            "description": "what each unit is (the driver's template fields)"
+          },
+          "min": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Min",
+            "default": 0
+          },
+          "max": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Max",
+            "default": 1
+          },
+          "desired": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desired",
+            "description": "units wanted now (default min)"
+          },
+          "cooldown_seconds": {
+            "type": "integer",
+            "maximum": 86400.0,
+            "minimum": 0.0,
+            "title": "Cooldown Seconds",
+            "description": "how long after a change before the next",
+            "default": 300
+          },
+          "warmup_seconds": {
+            "type": "integer",
+            "maximum": 7200.0,
+            "minimum": 0.0,
+            "title": "Warmup Seconds",
+            "description": "how long a new unit may take to join before more are judged",
+            "default": 300
+          },
+          "terminate": {
+            "type": "string",
+            "enum": [
+              "oldest",
+              "newest"
+            ],
+            "title": "Terminate",
+            "description": "which unit goes first when scaling in",
+            "default": "oldest"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/Rule"
+            },
+            "type": "array",
+            "title": "Rules"
+          },
+          "at_cap": {
+            "type": "string",
+            "enum": [
+              "stop",
+              "min"
+            ],
+            "title": "At Cap",
+            "description": "at the budget's cap: stop every unit, or keep min",
+            "default": "stop"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget",
+            "description": "USD per month; needed on a priced provider"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "provider"
+        ],
+        "title": "GroupIn"
       },
       "HTTPValidationError": {
         "properties": {
@@ -54196,6 +55932,39 @@
         ],
         "title": "MetadataEdit"
       },
+      "Metrics": {
+        "properties": {
+          "metrics": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Metrics"
+          },
+          "about": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "About",
+            "description": "what each metric measures"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "metrics",
+          "about"
+        ],
+        "title": "Metrics"
+      },
       "ModelSpend": {
         "properties": {
           "model": {
@@ -58452,6 +60221,80 @@
         ],
         "title": "Output"
       },
+      "Overview": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "settings": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Settings"
+          },
+          "scaler": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Scaler",
+            "description": "which process scales and when it last looked"
+          },
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/Provider"
+            },
+            "type": "array",
+            "title": "Providers"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/Group"
+            },
+            "type": "array",
+            "title": "Groups"
+          },
+          "units": {
+            "items": {
+              "$ref": "#/components/schemas/Unit"
+            },
+            "type": "array",
+            "title": "Units"
+          },
+          "drivers": {
+            "items": {
+              "$ref": "#/components/schemas/DriverSpec"
+            },
+            "type": "array",
+            "title": "Drivers"
+          },
+          "metrics": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Metrics"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "settings",
+          "scaler",
+          "providers",
+          "groups",
+          "units",
+          "drivers",
+          "metrics"
+        ],
+        "title": "Overview"
+      },
       "Page": {
         "properties": {
           "idx": {
@@ -59156,6 +60999,30 @@
         "additionalProperties": false,
         "type": "object",
         "title": "PatternUpdate"
+      },
+      "Paused": {
+        "properties": {
+          "paused": {
+            "type": "boolean",
+            "title": "Paused",
+            "default": true
+          },
+          "why": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Paused"
       },
       "Permission": {
         "properties": {
@@ -60837,6 +62704,318 @@
         ],
         "title": "PrimaryFile",
         "description": "The audio, video, document or image the resource's pipeline runs on."
+      },
+      "Protected": {
+        "properties": {
+          "protected": {
+            "type": "boolean",
+            "title": "Protected",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Protected"
+      },
+      "Provider": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "driver": {
+            "type": "string",
+            "title": "Driver"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "priced": {
+            "type": "boolean",
+            "title": "Priced",
+            "default": true
+          },
+          "settings": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Settings"
+          },
+          "secrets": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Secrets",
+            "description": "which credentials are set"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "checked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked At"
+          },
+          "check": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check",
+            "description": "the last check: {ok, error?}"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "driver",
+          "settings",
+          "secrets"
+        ],
+        "title": "Provider"
+      },
+      "ProviderChange": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "settings": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settings"
+          },
+          "secrets": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secrets",
+            "description": "a secret given as null is removed; one left out is kept"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "check": {
+            "type": "boolean",
+            "title": "Check",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ProviderChange"
+      },
+      "ProviderIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Name"
+          },
+          "driver": {
+            "type": "string",
+            "title": "Driver",
+            "description": "the kind of provider (see /scaling/drivers)"
+          },
+          "settings": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Settings",
+            "description": "the driver's non-secret settings"
+          },
+          "secrets": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Secrets",
+            "description": "its credentials: sealed, never shown again"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price",
+            "description": "USD per unit-hour, when the driver doesn't know it; an estimate"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "check": {
+            "type": "boolean",
+            "title": "Check",
+            "description": "prove the credentials with a read-only call before answering",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "driver"
+        ],
+        "title": "ProviderIn"
       },
       "PublicCard": {
         "properties": {
@@ -66084,6 +68263,194 @@
         "additionalProperties": false,
         "type": "object",
         "title": "RoutineUpdate"
+      },
+      "Rule": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "target",
+              "step",
+              "schedule"
+            ],
+            "title": "Type"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "metric": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metric",
+            "description": "target and step rules: see /scaling/metrics"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target",
+            "description": "target rules: the value to keep the metric at"
+          },
+          "above": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Above",
+            "description": "step rules: fires while the metric is above this"
+          },
+          "below": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Below",
+            "description": "step rules: fires while the metric is below this"
+          },
+          "minutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1440.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minutes",
+            "description": "step rules: for how long before it fires (default 1)"
+          },
+          "add": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Add",
+            "description": "step rules: units to add, a count or a percentage like \"50%\""
+          },
+          "remove": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remove",
+            "description": "step rules: units to remove, a count or a percentage"
+          },
+          "cron": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cron",
+            "description": "schedule rules: when, as a cron expression"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min",
+            "description": "schedule rules: the new min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max",
+            "description": "schedule rules: the new max"
+          },
+          "desired": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desired",
+            "description": "schedule rules: the new desired count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "Rule"
       },
       "S3Key": {
         "properties": {
@@ -72956,6 +75323,25 @@
         ],
         "title": "TermSuggestion"
       },
+      "Terminate": {
+        "properties": {
+          "why": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Terminate"
+      },
       "TicketRequest": {
         "properties": {
           "ticket": {
@@ -74235,6 +76621,213 @@
           "undone"
         ],
         "title": "Undone"
+      },
+      "Unit": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "group": {
+            "type": "integer",
+            "title": "Group"
+          },
+          "provider": {
+            "type": "integer",
+            "title": "Provider"
+          },
+          "driver": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Driver"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id",
+            "description": "the provider's id for it"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "launching",
+              "running",
+              "draining",
+              "terminating",
+              "terminated",
+              "failed"
+            ],
+            "title": "State"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "endpoint": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endpoint",
+            "description": "a model unit's endpoint: base_url, model; api_key true when set"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price",
+            "description": "USD per hour, an estimate"
+          },
+          "launched_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Launched At"
+          },
+          "ready_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ready At"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why"
+          },
+          "protected": {
+            "type": "boolean",
+            "title": "Protected",
+            "default": false
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "accrued_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accrued At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "group",
+          "provider",
+          "name",
+          "state"
+        ],
+        "title": "Unit"
+      },
+      "UnitCounts": {
+        "properties": {
+          "launching": {
+            "type": "integer",
+            "title": "Launching"
+          },
+          "running": {
+            "type": "integer",
+            "title": "Running"
+          },
+          "draining": {
+            "type": "integer",
+            "title": "Draining"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "launching",
+          "running",
+          "draining"
+        ],
+        "title": "UnitCounts"
       },
       "UpdateStatus": {
         "properties": {

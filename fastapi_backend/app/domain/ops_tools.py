@@ -11,7 +11,7 @@ elsewhere, always waits for approval.
 
 from __future__ import annotations
 
-from . import auth, blobs, convert, decide, feeds, jobs, links, llm, metadata, roles, rss, settings, setup, sources, store, uploads
+from . import auth, blobs, convert, decide, feeds, jobs, links, llm, metadata, roles, rss, scaling, settings, setup, sources, store, uploads
 
 R = store.R
 _S = {"type": "string"}
@@ -47,11 +47,70 @@ SECTIONS = (
     "sensors",
     "shares",
     "web",
+    "scaling",
 )
 # telemetry, analytics and web search send data elsewhere; sensors and shares open ports on the network; files moves
-# where new files go
-ALWAYS_ASK = {"telemetry", "analytics", "sensors", "shares", "files", "web"}
+# where new files go; scaling turns on what can launch paid machines
+ALWAYS_ASK = {"telemetry", "analytics", "sensors", "shares", "files", "web", "scaling"}
 ASK_TOOLS = {"invite_person", "change_person"}  # who gets in always waits for the admin's approval
+# within a scaling group's approved terms (its min, max and budget), so made at once unless the answer read outside text
+WITHIN_BOUNDS = {"set_scaling_desired", "pause_scaling_group", "terminate_scaling_unit"}
+_GROUP = {
+    "type": "object",
+    "description": "name, provider (its id), template (what each unit is, as the provider's driver asks), min, max, "
+    "desired, cooldown_seconds, warmup_seconds, terminate (oldest|newest), rules, at_cap (stop|min), enabled, budget "
+    "(USD a month, needed on a provider that charges). Rules: {type: target, metric, target}, {type: step, metric, "
+    'above|below, minutes, add|remove (a count or "50%")}, {type: schedule, cron, timezone, min, max, desired}.',
+}
+SCALING_TOOLS = [
+    (
+        "scaling",
+        "Auto scaling: whether it's on, the providers (where units launch: this machine, clouds, Proxmox, a Linux host, "
+        "or model hosts), the scaling groups with their rules in words, budgets and why one launches nothing now, the "
+        "units running, and the metrics rules can watch (" + ", ".join(scaling.METRICS) + ").",
+        {},
+        [],
+        False,
+    ),
+    (
+        "propose_scaling_group",
+        "Propose a scaling group: units launched on a provider between min and max, by its rules, within its budget. "
+        "It launches nothing until the person approves its terms in the web app (an approval of this proposal there "
+        "does that); you can't approve them. Read scaling first for the providers and metrics.",
+        {"group": _GROUP},
+        ["group"],
+        True,
+    ),
+    (
+        "change_scaling_group",
+        "Change a scaling group (its id from scaling): only the fields given change. A change that widens what the "
+        "person approved (another provider or unit, a higher max or budget) waits for their approval again.",
+        {"group_id": {"type": "integer"}, "changes": _GROUP},
+        ["group_id", "changes"],
+        True,
+    ),
+    (
+        "set_scaling_desired",
+        "Ask a scaling group for a number of units now, within its min and max; its rules take over again at their next change.",
+        {"group_id": {"type": "integer"}, "desired": {"type": "integer", "minimum": 0}},
+        ["group_id", "desired"],
+        True,
+    ),
+    (
+        "pause_scaling_group",
+        "Pause a scaling group (nothing new launches; what runs stays) or resume it (paused false).",
+        {"group_id": {"type": "integer"}, "paused": {"type": "boolean"}, "why": _S},
+        ["group_id"],
+        True,
+    ),
+    (
+        "terminate_scaling_unit",
+        "Let one unit of a scaling group go now, by its id from scaling: a worker finishes or hands back its job first.",
+        {"unit_id": {"type": "integer"}, "why": _S},
+        ["unit_id"],
+        True,
+    ),
+]
 
 ADMIN_TOOLS = [
     (
@@ -159,6 +218,8 @@ ADMIN_TOOLS = [
         True,
     ),
 ]
+ADMIN_TOOLS += SCALING_TOOLS
+
 FILE_TOOLS = [
     (
         "import_files",
@@ -230,8 +291,18 @@ def status(db, cfg, base):
     }
 
 
-def apply(db, cfg, base, tool, args, user, editable, admin):
-    """Carry out a change (approved, or in a conversation that lets the assistant act). Returns the result."""
+def apply(db, cfg, base, tool, args, user, editable, admin, via="agent"):
+    """Carry out a change (approved, or in a conversation that lets the assistant act). Returns the result. `via` is
+    where it was approved (web, chat, or agent when the assistant acts on its own): only web approves a scaling
+    group's terms."""
+    if tool in scaling.TOOLS:
+        if not admin:
+            raise PermissionError("only admins manage scaling")
+        out = scaling.apply_tool(db, cfg, tool, args, user, via)
+        what = out.get("group") or out.get("unit") or {}
+        table = "scale_group" if "group" in out else "scale_node"
+        auth.audit(db, user, f"scaling.{tool}", f"{table}:{what.get('id')}", {"via": via, "assistant": True})
+        return out
     if tool == "change_settings":
         if not admin:
             raise PermissionError("only admins change settings")
@@ -392,7 +463,7 @@ class OpsTools:
 
     def _change(self, tool, args, summary):
         if (
-            (self.act or self._acts_on(tool, args))
+            (self.act or self._acts_on(tool, args) or tool in WITHIN_BOUNDS)
             and tool not in ASK_TOOLS
             and not (tool == "change_settings" and args.get("section") in ALWAYS_ASK)
         ):
@@ -412,6 +483,66 @@ class OpsTools:
             except KeyError:
                 return False  # a new namespace waits for approval, as create_namespace does
         return True
+
+    def t_scaling(self):
+        v = scaling.overview(self.db, self.cfg)
+        out = {
+            "enabled": v["enabled"],
+            "settings": v["settings"],
+            "providers": [{k: p.get(k) for k in ("id", "name", "driver", "kind", "priced", "price", "check")} for p in v["providers"]],
+            "groups": v["groups"],
+            "units": v["units"],
+            "metrics": v["metrics"],
+            "drivers": [{k: d[k] for k in ("id", "kind", "label", "priced", "ready")} for d in v["drivers"]],
+        }
+        if not v["enabled"]:
+            out["note"] = "scaling is off: an admin turns it on in Settings › Scaling (change_settings scaling {enabled: true})"
+        running = sum(u["state"] == "running" for u in v["units"])
+        return out, f"Read auto scaling: {len(v['groups'])} groups, {running} units running"
+
+    def _scaling_group(self, gid):
+        try:
+            return scaling.get_group(self.db, int(gid))
+        except (KeyError, TypeError, ValueError):
+            raise ValueError("there's no scaling group with that id: scaling lists them") from None
+
+    def _terms_said(self, row, budget):
+        p = scaling._provider(self.db, row["provider"])
+        cost = f", up to ${budget:g} a month" if budget is not None else ""
+        return f"on {p['name']}: {row['min']} to {row['max']} {row['kind']} units{cost}"
+
+    def t_propose_scaling_group(self, group):
+        row, budget, _p, _d = scaling._check_group_body(self.db, group)  # said now, not after it waits for approval
+        summary = f"Make the scaling group {row['name']} {self._terms_said(row, budget)}"
+        return self._change("propose_scaling_group", {"group": group}, summary)
+
+    def t_change_scaling_group(self, group_id, changes):
+        g = self._scaling_group(group_id)
+        cur = {**g, "budget": (g.get("budget") or {}).get("usd")}
+        row, budget, _p, _d = scaling._check_group_body(self.db, changes, cur)
+        what = ", ".join(sorted(changes)) or "nothing"
+        summary = f"Change the scaling group {g['name']} ({what}): {self._terms_said(row, budget)}"
+        return self._change("change_scaling_group", {"group_id": g["id"], "changes": changes}, summary)
+
+    def t_set_scaling_desired(self, group_id, desired):
+        g = self._scaling_group(group_id)
+        n = int(desired)
+        if not g["min"] <= n <= g["max"]:
+            raise ValueError(f"desired is from {g['min']} to {g['max']} for {g['name']}")
+        return self._change("set_scaling_desired", {"group_id": g["id"], "desired": n}, f"Ask {g['name']} for {n} units")
+
+    def t_pause_scaling_group(self, group_id, paused=True, why=None):
+        g = self._scaling_group(group_id)
+        args = store.clean({"group_id": g["id"], "paused": bool(paused), "why": why})
+        return self._change("pause_scaling_group", args, f"{'Pause' if paused else 'Resume'} the scaling group {g['name']}")
+
+    def t_terminate_scaling_unit(self, unit_id, why=None):
+        try:
+            n = scaling._node(self.db, int(unit_id))
+        except (KeyError, TypeError, ValueError):
+            raise ValueError("there's no scaling unit with that id: scaling lists them") from None
+        args = store.clean({"unit_id": n["id"], "why": why})
+        return self._change("terminate_scaling_unit", args, f"Let the unit {n['name']} go")
 
     def t_server_status(self):
         return status(self.db, self.cfg, self.base), "Checked what's set up"
