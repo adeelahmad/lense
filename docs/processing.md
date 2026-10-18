@@ -747,7 +747,9 @@ The schedule is a five-field cron expression (minute hour day-of-month month day
 `@hourly`, `@daily`, `@weekly`, `@monthly`, in a time zone; without one a routine runs only when someone presses Run
 now. Every 30 seconds, `lens worker` checks (and so does the API process when it runs background work, and `lens watch`); a routine is
 never started twice at once, and one started in two processes runs once. Each run keeps what every action did and a
-log.
+log. A run that fails, or leaves graph changes to review, can be sent to a chat room through
+Matterbridge or to a webhook: pick `routine.failed` or `routine.proposed` for a namespace's target
+([Notifications](notifications.md#events)).
 
 ### Organising the graph
 

@@ -10,8 +10,9 @@ A namespace's owners add targets, each with the events it wants:
   {"content"} for Discord).
 
 Nothing in the rest of the app calls in here when something happens. A notifier thread in every process that runs
-background work (the API's, `lens worker`) reads what changed since it last looked: runs that ended (job.finished_at)
-and recordings added (recording.created_at). Each event is claimed once across every process (notify_event:<hash of
+background work (the API's, `lens worker`) reads what changed since it last looked: runs that ended (job.finished_at),
+recordings added (recording.created_at), automations' approvals (approval.created_at) and routines' runs that failed or
+left graph changes to review (routine_run.finished_at). Each event is claimed once across every process (notify_event:<hash of
 its key>, which only one CREATE wins, in the same transaction that queues it per target in notify_delivery), then
 sent, with retries. Each source is read in (time, id) order from where the last look stopped, a page at a time; once
 caught up, a look also reads the last minute again, so a row written just as it looked isn't missed, and the claims
@@ -50,6 +51,8 @@ EVENTS = {
     "recording.added": "Something was added",
     "lens.release": "A new Lens release is out",
     "approval.waiting": "An automation's action waits for someone's approval",
+    "routine.failed": "A routine's run failed",
+    "routine.proposed": "A routine's run left graph changes to review",
 }
 DEFAULT_EVENTS = ["job.failed", "batch.finished"]
 KINDS = {
@@ -569,14 +572,23 @@ def _event(kind, key, space, ns, text, url, data):
 JOB_FIELDS = "recording, space, batch, steps, step_index, status, error, finished_at"
 REC_FIELDS = "space, title, source, created_at"
 APPROVAL_FIELDS = "space, summary, automation, origin, intent.action AS action, intent.effect AS effect, expires_at, created_at"
+RUN_FIELDS = "routine, trigger, status, results, error, started_at, finished_at"
 SOURCES = {
     # source: (table, its time column, the fields read, more to match)
-    "jobs": ("job", "finished_at", JOB_FIELDS, "AND status IN ['succeeded', 'failed', 'cancelled']"),
-    "recordings": ("recording", "created_at", REC_FIELDS, ""),
-    "approvals": ("approval", "created_at", APPROVAL_FIELDS, "AND intent != NONE AND status = 'pending'"),  # automations' (approvals.py)
+    "jobs": ("job", "finished_at", JOB_FIELDS, "AND space IN $sp AND status IN ['succeeded', 'failed', 'cancelled']"),
+    "recordings": ("recording", "created_at", REC_FIELDS, "AND space IN $sp"),
+    # automations' (approvals.py)
+    "approvals": ("approval", "created_at", APPROVAL_FIELDS, "AND space IN $sp AND intent != NONE AND status = 'pending'"),
+    # routines' (routines.py), which run over namespaces rather than in one: _routine_events says which
+    "routines": ("routine_run", "finished_at", RUN_FIELDS, "AND (status IN ['error', 'partly'] OR changes.proposed > 0)"),
 }
 JOB_EVENTS = {"job.succeeded", "job.failed", "job.cancelled", "batch.finished"}
-SOURCE_EVENTS = {"jobs": JOB_EVENTS, "recordings": {"recording.added"}, "approvals": {"approval.waiting"}}
+SOURCE_EVENTS = {
+    "jobs": JOB_EVENTS,
+    "recordings": {"recording.added"},
+    "approvals": {"approval.waiting"},
+    "routines": {"routine.failed", "routine.proposed"},
+}
 
 
 def _rows(db, source, pos, floor, spaces, since):
@@ -584,7 +596,7 @@ def _rows(db, source, pos, floor, spaces, since):
     A page that isn't full has caught up, so the rows of the last LOOKBACK seconds (`since`) are read again too, for
     one written as the last look ran; their claims keep them from being sent twice."""
     table, col, fields, more = SOURCES[source]
-    head = f"SELECT id AS key, record::id(id) AS id, {fields} FROM {table} WHERE {col} > $f AND space IN $sp {more}"
+    head = f"SELECT id AS key, record::id(id) AS id, {fields} FROM {table} WHERE {col} > $f {more}"
     page = db.rows(
         f"{head} AND ({col} > $t OR ({col} = $t AND id > $i)) ORDER BY {col}, key LIMIT {PAGE}",
         f=floor,
@@ -710,6 +722,71 @@ def _approval_events(cfg, rows, names):
     return out
 
 
+def _plural(n, one, many):
+    return f"{n} {one if n == 1 else many}"
+
+
+def _routine_events(db, cfg, rows, spaces, names):
+    """routine.failed (a routine's run whose actions all or partly failed, or that stopped without finishing) and
+    routine.proposed (one that left graph changes for someone to accept or dismiss), told to each namespace with
+    targets that the routine runs over (every one, for a routine over all of them). Changes are counted per namespace
+    they touch, as they stand now: a run whose proposals were all decided before the notifier saw it isn't sent. Its
+    errors can hold what the run read from outside Lens, so web addresses in the message are broken up, but Lens's own."""
+    from . import untrusted
+
+    owners = {
+        r["id"]: r
+        for r in db.rows(
+            "SELECT record::id(id) AS id, name, namespaces FROM routine WHERE id IN $ids",
+            ids=[R("routine", i) for i in {r["routine"] for r in rows if isinstance(r.get("routine"), int)}],
+        )
+    }
+    waiting: dict = {}  # run: {space: {kind: proposed changes}}
+    for c in db.rows("SELECT run, kind, spaces FROM graph_change WHERE run IN $ids AND status = 'proposed'", ids=[r["id"] for r in rows]):
+        for s in c.get("spaces") or []:
+            kinds = waiting.setdefault(c["run"], {}).setdefault(s, {})
+            kinds[c["kind"]] = kinds.get(c["kind"], 0) + 1
+    out = []
+    for r in rows:
+        ro = owners.get(r.get("routine"))
+        if not ro:
+            continue  # deleted with its runs as the notifier looked
+        name, over = ro.get("name") or f"Routine {ro['id']}", spaces if ro.get("namespaces") is None else ro["namespaces"]
+        results = r.get("results") or []
+        bad = [
+            {"action": k, "type": a.get("type"), "error": a.get("error")} for k, a in enumerate(results, 1) if a.get("status") == "error"
+        ]
+        base = {
+            "routine": ro["id"],
+            "routine_name": name,
+            "run": r["id"],
+            "trigger": r.get("trigger"),
+            "status": r["status"],
+            "started_at": r.get("started_at"),
+            "finished_at": r["finished_at"],
+        }
+        for sp in sorted(set(over) & set(spaces)):
+            ns = names.get(sp)
+            if r["status"] in ("error", "partly"):
+                why = "; ".join(f"{b['type']}: {b['error']}" for b in bad[:3]) or r.get("error") or "no reason given"
+                if r["status"] == "partly":
+                    head = f"{len(bad)} of {_plural(len(results), 'action', 'actions')} of routine “{name}” failed in {ns}"
+                else:
+                    head = f"Routine “{name}” failed in {ns}"
+                key = f"routine_run-{r['id']}-{sp}-failed"
+                data = {**base, "failed": bad, "actions": len(results), "error": r.get("error")}
+                text = untrusted.defang(f"{head}: {why}", own=[app_url(cfg)])
+                out.append(([key], _event("routine.failed", key, sp, ns, text, _link(cfg, f"/routines/{ro['id']}"), data)))
+            kinds = (waiting.get(r["id"]) or {}).get(sp)
+            if kinds:
+                n = sum(kinds.values())
+                key = f"routine_run-{r['id']}-{sp}-proposed"
+                data = {**base, "proposed": n, "kinds": kinds}
+                text = f"Routine “{name}” left {_plural(n, 'graph change', 'graph changes')} to review in {ns}."
+                out.append(([key], _event("routine.proposed", key, sp, ns, text, _link(cfg, f"/routines/changes?run={r['id']}"), data)))
+    return out
+
+
 _CLAIMED: dict[str, None] = {}  # keys this process knows are claimed, so it doesn't ask the database again
 _CL = threading.Lock()
 
@@ -810,6 +887,8 @@ def scan(db, cfg):
                 events += _batch_events(db, cfg, bids, spaces, names)
         elif source == "approvals":
             events = _approval_events(cfg, rows, names)
+        elif source == "routines":
+            events = _routine_events(db, cfg, rows, spaces, names) if rows else []
         else:
             fresh = _unclaimed(db, [f"recording-{r['id']}-added" for r in rows])
             events = _added_events(cfg, [r for r in rows if f"recording-{r['id']}-added" in fresh], names)

@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Routine run alerts.** A routine's run that fails (all its actions, some of them, or one that stops without
+  finishing) or leaves graph changes to review can now be sent through Matterbridge, to a signed webhook, or to Slack
+  and Discord: pick the new `routine.failed` and `routine.proposed` events for a namespace's notification target. Each
+  namespace the routine runs over gets its own message, linking the routine or the run's changes; new targets' default
+  events are unchanged ([Notifications](docs/notifications.md#events)).
 - **The upgrade agent starts the code sandbox's gateway.** Settings → Code sandbox → Run the gateway on this machine
   now works on installs with an upgrade agent: the agent knows the `sandbox` profile and starts or stops its three
   containers, as it does the MCP runner, the browser and monitoring. An older agent still says to run the line by hand

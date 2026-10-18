@@ -6697,7 +6697,9 @@ export type EventInfo = {
     | "batch.finished"
     | "recording.added"
     | "lens.release"
-    | "approval.waiting";
+    | "approval.waiting"
+    | "routine.failed"
+    | "routine.proposed";
   /**
    * Label
    */
@@ -14404,6 +14406,8 @@ export type NotifyTarget = {
     | "recording.added"
     | "lens.release"
     | "approval.waiting"
+    | "routine.failed"
+    | "routine.proposed"
   >;
   /**
    * Enabled
@@ -14487,6 +14491,8 @@ export type NotifyTargetCreate = {
     | "recording.added"
     | "lens.release"
     | "approval.waiting"
+    | "routine.failed"
+    | "routine.proposed"
   > | null;
   /**
    * Enabled
@@ -14551,6 +14557,8 @@ export type NotifyTargetUpdate = {
     | "recording.added"
     | "lens.release"
     | "approval.waiting"
+    | "routine.failed"
+    | "routine.proposed"
   > | null;
   /**
    * Enabled
