@@ -78,6 +78,7 @@ nav:
       - Access: access.md
   - Use:
       - Chat and batch runs: assistant.md
+      - Projects: projects.md
       - Chat rooms: chat-rooms.md
       - Email: assistant-email.md
       - Podcasts: podcasts.md
@@ -89,6 +90,7 @@ nav:
       - Processing: processing.md
       - Video: video.md
       - NSFW classification: nsfw.md
+      - Enhancing images: enhance.md
       - Notifications: notifications.md
       - Automations: automations.md
       - Schedules: schedules.md

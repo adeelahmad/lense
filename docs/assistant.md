@@ -83,7 +83,9 @@ then.
 - **Chat on any page:** every page except Chat itself has an Ask button that opens a chat panel beside the page (full
   screen on phones). Its conversation follows you between pages, and across visits in the same browser, until New
   chat; it is an ordinary conversation, also listed in Chat. Each question can share the page's text (the page chip,
-  on by default) and text highlighted on the page (Ask about this, above any selection). The model reads them with the
+  on by default) and text highlighted on the page (Ask about this, above any selection). A timeline item's **Ask about
+  this** (or `a` on its line) hands the panel the item instead: its id, line, time, where it opens and its fields
+  ([timeline](timeline.md#asking-about-an-item)). The model reads them with the
   question (up to 12,000 characters of page text and 4,000 of the highlight) as what the person is looking at, not as
   citable excerpts. The question keeps the page's address, title and highlight, shown above it; the page's text isn't
   stored. An asset's text and pages keep their own selection toolbar, whose Ask in chat goes to the
@@ -287,10 +289,12 @@ When the configured model supports function calling, chat becomes an agent.
   straight away without looking anything up gets the same, when the archive has passages that match.
 - **Files:** attach files to a message with the clip, or by dropping or pasting them on the box. They upload as you
   type (`POST /api/v1/uploads` with `hold`), stay out of the archive, and the assistant puts them in a namespace
-  with `import_files` (`attachments` on `POST /api/v1/chats/<id>/messages`).
+  with `import_files` (`attachments` on `POST /api/v1/chats/<id>/messages`). Say what they are ("these are
+  interviews") and it imports them as that [content type](processing.md#content-types), so its pipeline runs.
 - **Web pages:** give it one address, several, or a list of links (pasted, or attached as a text file or a browser's
   bookmark export) and `import_urls` captures each page as a document, as `POST /api/v1/import/web/links` does. Like
-  `import_files`, it picks the namespace when you don't name one, and waits for your approval.
+  `import_files`, it picks the namespace when you don't name one, takes a content type when you say what the pages
+  are, and waits for your approval.
 - **Keep typing:** what you send while an answer is being written waits its turn and goes next.
 - **Your browser** (Chrome and Edge): asked from the Lens extension's side panel, the assistant can open, read, click
   and type in that browser and download files into the conversation, on sites you allow, asking before anything that
@@ -810,6 +814,29 @@ when: someone asks for a recap of a meeting
 Find the meeting, read it, and answer with three bullets: decisions, owners, dates.
 ```
 
+### Manifests as files: `lens ext`
+
+`lens ext` keeps extensions as files in a folder, for a git repository or an agent that writes them:
+
+```bash
+lens ext list                    # the extensions you can see; --json for scripts and agents
+lens ext pull --dir extensions   # yours (admins: all) as files; names or ids pick some, --all adds shared ones
+lens ext check extensions        # read and check them without saving; exits 1 when one doesn't check
+lens ext push extensions         # changed ones become new versions, new ones extensions; --notes says what changed
+```
+
+With no address it works on this install's database, as the first admin or the account `--as` names (run it with
+`docker compose exec backend lens ext …`). With `--url` and `--token` (or `LENS_URL` and `LENS_TOKEN`) it works on
+any Lens server through `/api/v1/extensions`, as the [API token](authentication.md#api-tokens)'s owner; pushing takes a
+write token.
+
+A skill or a prompt tool is pulled as `<name>.md` (Markdown with frontmatter), the rest as `<name>.yaml`; a folder's
+other `.md` files, a README, are left alone. A pulled file says the version it was pulled at (`version: 3`, which the
+check ignores), so neither side's changes are lost: a push refuses when the extension changed in Lens since that
+version, and a pull refuses to overwrite a file changed since it was pulled, each until it's given `--force`. Pushing
+a file that says what Lens has, written differently or with the defaults left out, saves nothing. `visibility` and
+`namespaces` in a file share the extension as they say when it's pushed; without them, who sees it stays as it is.
+
 ### Skills and plugins from marketplaces
 
 Lens reads Anthropic's open plugin and skill formats as they are, so what's made for Claude installs here unchanged:
@@ -928,8 +955,9 @@ not [the assistant in your browser](browser-assistant.md), which uses your own b
 
 ### Optional containers
 
-The MCP runner, the browser, the [code sandbox](#the-gateway)'s gateway and monitoring
-([Prometheus and Grafana](prometheus.md)) are containers Lens can run next to it, off until an admin turns one on. The web app can't start containers itself, so the machine's upgrade agent does
+The MCP runner, the browser, the [code sandbox](#the-gateway)'s gateway, monitoring
+([Prometheus and Grafana](prometheus.md)) and the mesh ([Nodes and the mesh](mesh.md#on-this-machine), started when an
+admin adds a node) are containers Lens can run next to it, off until an admin turns one on. The web app can't start containers itself, so the machine's upgrade agent does
 ([Updates](updates.md)): it adds the profile to `COMPOSE_PROFILES` in Lens's `.env`, or takes it out, and starts or
 stops that profile's containers, one change at a time. Without an agent (Lens wasn't installed with `install.sh`), the
 switch shows the line to run on the machine instead. Agents use the same switches: `GET /api/v1/admin/services` and

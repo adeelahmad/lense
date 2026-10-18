@@ -165,6 +165,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
               <F ctx={ctx} id="transcribe.engine" />
               <F ctx={ctx} id="transcribe.language" options={LANGUAGES.map(([value, label]) => ({ value, label }))} />
             </div>
+            <F ctx={ctx} id="transcribe.vocabulary" />
             <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
               Recordings are sent to {provider.label}, which also tells speakers apart. Its address, model and key are
               in <Link href="/settings/speech-providers">Speech providers</Link>. SenseVoice and Whisper keep their
@@ -187,6 +188,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             <F ctx={ctx} id="transcribe.language" options={langs.map(([value, label]) => ({ value, label }))} />
             <F ctx={ctx} id={`transcribe.${key}.model`} label={`Model for ${name}`} />
           </div>
+          <F ctx={ctx} id="transcribe.vocabulary" />
           <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
             Each engine remembers its own model: {models.join(", ")}. Auto uses the fastest device each worker has.
           </p>
@@ -254,6 +256,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             <div className="grid gap-3.5 sm:grid-cols-2">
               <F ctx={ctx} id="analysis.cleanup_fillers" />
               <F ctx={ctx} id="analysis.cleanup_punctuation" />
+              <F ctx={ctx} id="analysis.cleanup_grammar_url" />
             </div>
           )}
           <F ctx={ctx} id="analysis.entities" />
@@ -416,6 +419,28 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           </p>
         </>
       );
+    case "enhance":
+      return (
+        <>
+          <F ctx={ctx} id="enhance.images" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="enhance.image_engine" />
+            <F ctx={ctx} id="enhance.only_faces" />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-4">
+            <F ctx={ctx} id="enhance.min_side" />
+            <F ctx={ctx} id="enhance.min_sharpness" />
+            <F ctx={ctx} id="enhance.min_face_px" />
+            <F ctx={ctx} id="enhance.max_scale" />
+          </div>
+          <p className="text-[12.5px] leading-[1.45] text-fg-muted">
+            The enhanced copy is kept beside the original, encrypted like it, and is what OCR and descriptions read.
+            Real-ESRGAN general x4v3 (BSD-3-Clause) runs with ONNX Runtime on this server: pictures aren’t sent
+            anywhere. Any image can be enhanced on request from its Details tab, even with this off. Audio isn’t
+            enhanced yet.
+          </p>
+        </>
+      );
     case "workers":
       return (
         <>
@@ -545,8 +570,12 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             <F ctx={ctx} id="automations.catch_up" />
           </div>
           <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
-            Agents read the same stream with the timeline tool (MCP and the assistant) or GET /api/v1/activities, and
-            manage automations over /api/v1/automations.
+            Make and manage automations on the{" "}
+            <Link href="/automations" className="font-semibold text-fg-accent hover:underline">
+              Automations
+            </Link>{" "}
+            page. Agents read the same stream with the timeline tool (MCP and the assistant) or GET /api/v1/activities,
+            and manage automations over /api/v1/automations.
           </p>
         </>
       );

@@ -4,6 +4,7 @@ import { Paperclip, X } from "lucide-react";
 import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 
 import type { SpeakerDirectory } from "@/app/openapi-client/types.gen";
+import { ContentTypeField } from "@/components/import/content-type-field";
 import {
   formatName,
   initialMapping,
@@ -38,7 +39,13 @@ export function PasteTab({
   directory: SpeakerDirectory | undefined;
   /** Why importing is blocked right now (no namespace, no rights), or null. */
   blockReason: string | null;
-  onImport: (body: { text: string; title: string | null; speakers: string | null; audio: File | null }) => void;
+  onImport: (body: {
+    text: string;
+    title: string | null;
+    speakers: string | null;
+    audio: File | null;
+    contentType: string | null;
+  }) => void;
 }) {
   const id = useId();
   const limits = useUploadLimits();
@@ -47,6 +54,7 @@ export function PasteTab({
   const [mapping, setMapping] = useState("");
   const [touched, setTouched] = useState(false);
   const [audio, setAudio] = useState<File | null>(null);
+  const [contentType, setContentType] = useState<string | null>(null);
   const [audioProblem, setAudioProblem] = useState<string | null>(null);
   const pickAudio = async () => {
     const [f] = await chooseFiles(mediaTypes(limits));
@@ -161,6 +169,7 @@ export function PasteTab({
               {namespaceControl}
               {pipelineControl}
             </div>
+            <ContentTypeField base="text" value={contentType} onChange={setContentType} id="paste-content-type" />
           </>
         )}
         <div className="flex-1" />
@@ -198,6 +207,7 @@ export function PasteTab({
                 title: title.trim() || pv.data?.title || null,
                 speakers: mappingParam(m),
                 audio,
+                contentType,
               });
               setText("");
               setTitle("");

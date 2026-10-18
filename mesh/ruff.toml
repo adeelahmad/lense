@@ -1,0 +1,2 @@
+# mesh/sidecar.py is formatted and linted as Lens's server code is
+extend = "../fastapi_backend/pyproject.toml"

@@ -574,6 +574,8 @@ PUT    /api/v1/resources/{rid}/ip-groups/{gid}
 DELETE /api/v1/resources/{rid}/ip-groups/{gid}
 GET    /api/v1/resources/{rid}/player
 PUT    /api/v1/resources/{rid}/nsfw
+POST   /api/v1/resources/{rid}/enhance
+GET    /api/v1/resources/{rid}/enhanced
 GET    /api/v1/resources/{rid}/embed-link
 GET    /api/v1/resources/{rid}/audio
 GET    /api/v1/resources/{rid}/wordcloud.svg
@@ -987,6 +989,12 @@ namespace to put the assets in (default: its default collection; 404 for one of 
 transcribe and its speakers came with it, so its pipeline's transcribe and diarize steps are left out and no speech or
 voice model is fetched for it.
 
+`POST /import`, `POST /import/web`, `POST /import/web/links` and `POST /uploads` also take a `content_type`: the
+[content type](processing.md#content-types) the asset is (a key from `GET /content-types`), instead of the one its
+file is recognised as, so that content type's pipeline runs from the start. It has to be one of the asset's base type
+(text for the imports here; for an upload, the file's: audio, video, image or text), else 400, naming the ones that
+fit, before anything is saved. The asset's Details tab shows it as chosen, and it can be changed there later.
+
 `POST /api/v1/import/source {source, paths, namespace, pipeline?, collection?, documents_as?}` imports chosen files of
 a storage source now, rather than watching their folder (admins, like sources; up to 500 paths, as
 `GET /sources/{sid}/browse` lists them). Audio, video, documents and images stay on the source and run the namespace's
@@ -1117,12 +1125,14 @@ DELETE /api/v1/uploads/{uid}
 (`uploads.max_mb`), the piece size the web app sends (`uploads.chunk_mb`) and the largest text or transcript file for
 `POST /import` (`server.max_upload_mb`).
 
-`POST /uploads {namespace, filename, size, title?, modified?, pipeline?, collection?, recording?}` starts one (editors of the namespace; admins
+`POST /uploads {namespace, filename, size, title?, modified?, pipeline?, content_type?, collection?, recording?}` starts one (editors of the namespace; admins
 may name a new namespace, created when the upload finishes). With `recording`, a text-only asset, the file
 becomes that asset's audio instead of an asset of its own (editors of its namespace; `namespace` can then be left
 out; 409 when it has audio already; 400 for anything but audio or video). [Processing](processing.md#importing-transcripts) says what runs then. `pipeline`
-runs instead of the namespace's once a new asset is made, and `collection` is where it goes (neither with
-`recording`, which stays in its collection). The name loses any folders and its extension is lowercased; `modified`
+runs instead of the namespace's once a new asset is made, `content_type` is the asset's [content
+type](processing.md#content-types) (one of the file's base type, else 400; its pipeline runs) and `collection` is
+where it goes (none of them with `recording`, which keeps its own). The same file uploaded again with a content type
+gives the asset it already is that one. The name loses any folders and its extension is lowercased; `modified`
 (the file's last-modified time in milliseconds) dates the asset when its name doesn't. 400 for a type not in
 `uploads.extensions`, 413 over `uploads.max_mb`, 507 when the server's disk can't hold it with 512 MB to spare.
 
@@ -1389,6 +1399,17 @@ Audited as `recording.nsfw`. `GET /resources/nsfw` (`ns` for one namespace) says
 you read, how many resources are `flagged`, and how many of those the Library leaves out (`hidden`). Search hits and
 photo search results carry `nsfw: true` for the ones the web app blurs.
 
+### Enhancing images
+
+The `enhance` step comes first in the standard pipeline: where [enhancing images](enhance.md) is on (off by
+default), it measures an image and, when it's small, blurry, noisy, dull or has small faces, keeps an enhanced copy
+that `read` and the steps after it work from; the original stays as it is. Other resources skip it. A resource
+carries `enhanced`: `{kind, low, measured, enhanced, engine, scale, width, height, forced, at, download}` (`download`
+a signed link to the copy), or `null` until the step looked at it. `POST /resources/{rid}/enhance` (the process
+permission) enhances an image whatever the settings and its quality and runs its pipeline's later steps again,
+answering the `job`; 400 for anything but an image. Audited as `recording.enhance`. `GET /resources/{rid}/enhanced`
+is the copy, for members of its namespace.
+
 ### Descriptions
 
 The `describe` step has a model that can see images say in a few sentences what each page of a document or an image
@@ -1431,8 +1452,11 @@ POST   /api/v1/jobs
 GET    /api/v1/jobs/{jid}
 GET    /api/v1/jobs/{jid}/log
 POST   /api/v1/jobs/steps/{step}
+POST   /api/v1/jobs/cancel
+POST   /api/v1/jobs/retry
 POST   /api/v1/jobs/{jid}/cancel
 POST   /api/v1/jobs/{jid}/retry
+POST   /api/v1/jobs/{jid}/move
 GET    /api/v1/workers
 POST   /api/v1/workers/{name}/pause
 POST   /api/v1/workers/{name}/drain
@@ -1458,6 +1482,21 @@ Every job names its asset (`title`) and the pipeline it runs with the version it
 `worker`, `log_from`/`log_to` (its lines of the whole log) and `outputs` (`[{key, template, version, model}]`, saved as
 `outputs.<key>`). It also adds `estimates`, how long each step usually takes on this asset in seconds (from the
 last 25 runs of that step or template; null with none), and while the job is queued or running `eta_seconds`.
+
+`GET /jobs?status=queued&order=queue` lists queued jobs in the order workers take them, the next first (each job
+carries its `priority`: the highest is taken first, among the jobs a worker can run). `POST /jobs/{jid}/move` moves a
+queued job: `{to: "top"}` or `{to: "bottom"}`, or `{before: <jid>}` or `{after: <jid>}` another queued job you can
+see. The queue is numbered again around it, so the others keep their order, and jobs queued later join the back. It
+returns `position` (1 is next) and `queued`, both among the jobs you can see.
+
+Bulk changes work in every namespace where you may process (or `namespace`), or on `jobs` (ids, each checked):
+`POST /jobs/cancel {jobs?, namespace?, status?}` clears the queue, cancelling queued and held jobs; with `running` in
+`status`, running jobs stop after the step they're on (`stopping`). `POST /jobs/retry {jobs?, namespace?, status?}`
+retries the failed jobs (the dead letter queue; `status: ["failed", "cancelled"]` takes cancelled ones too), each
+from the step it stopped at and at the back of the queue; a job whose asset was deleted, or whose asset already has a
+job queued or running, is left alone (`skipped`). So `POST /jobs/retry {jobs: <the ids cancel returned>, status:
+["cancelled"]}` undoes clearing the queue. Both return the ids they changed (`jobs`) and are audited as `jobs.cancel`
+and `jobs.retry`. Retrying one job puts it at the back of the queue too.
 
 A run keeps its whole log (up to 100,000 lines); the job itself carries its last 200 lines (`log`) and how many there
 are (`log_total`). `GET /jobs/{jid}/log?after=&limit=` pages through it: `{start, lines, total, more}`, up to 5,000

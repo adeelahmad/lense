@@ -14,7 +14,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from app.api.deps import Acl, AdminWriter, Cfg, Db, Writer, domain_errors
-from app.domain import auth, convert, ingest, jobs, links, mediaurl, pipelines, sources, store, webcapture
+from app.domain import auth, content_types, convert, ingest, jobs, links, mediaurl, pipelines, sources, store, webcapture
 from app.domain.store import DB
 from app.schemas.imports import (
     ImportPreview,
@@ -65,6 +65,16 @@ def check_pipeline(db: Any, pid: int | None) -> None:
         raise HTTPException(400, "there's no such pipeline") from None
 
 
+def check_content_type(db: DB, key: str | None, base: str) -> None:
+    """A content type chosen at import has to be one of the asset's base type (400 before anything is saved)."""
+    if key is None:
+        return
+    try:
+        content_types.check(db, key, base)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+
+
 @contextmanager
 def _unreadable() -> Iterator[None]:
     try:
@@ -90,11 +100,13 @@ def check_collection(db: DB, sid: int | None, collection: int | None) -> None:
 @router.post("")
 def import_transcript(body: ImportRequest, request: Request, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> ImportResult:
     """Import a transcript into a namespace (editors; admins may name a new namespace). The namespace's pipeline, or
-    the one chosen (`pipeline`), is queued as a job."""
+    the one chosen (`pipeline`), is queued as a job; `content_type` (a text one) is the asset's instead of the one
+    recognised from it, so its pipeline runs."""
     ns = body.namespace.strip()
     if not store.NS_RX.match(ns):
         raise HTTPException(400, "choose a namespace: lowercase letters, digits, - and _")
     check_pipeline(db, body.pipeline)
+    check_content_type(db, body.content_type, "text")
     try:
         sid = store.ns_id(db, ns, create=False)
         acl.need(sid, "import")
@@ -120,6 +132,8 @@ def import_transcript(body: ImportRequest, request: Request, acl: Acl, user: Wri
             rid = ingest.import_text(
                 db, cfg, ns, body.text or "", title=title, fmt=body.format, speaker_names=names, collection=body.collection
             )
+    if body.content_type:
+        content_types.choose(db, rid, body.content_type)
     job = jobs.enqueue(db, rid, None, by=user.email, pipeline=body.pipeline)
     auth.audit(db, user.as_audit(), "import", f"recording:{rid}")
     request.app.state.graph_cache.clear()
@@ -131,13 +145,15 @@ def import_web_page(body: WebImportRequest, acl: Acl, user: Writer, db: Db, cfg:
     """Capture a web page as a document (editors; admins may name a new namespace): the namespace's pipeline, or
     `pipeline`, keeps the page as it is now, as a PDF (a link to a PDF is kept as it is; other pages are printed by
     headless Chromium), and reads it page by page. Only public addresses on ports 80 and 443 can be captured (and the
-    networks in documents.web_networks). Audited as `import.web`."""
+    networks in documents.web_networks). `content_type` (a text one) is the page's instead of the one recognised from it. Audited as
+    `import.web`."""
     ns = body.namespace.strip()
     if not store.NS_RX.match(ns):
         raise HTTPException(400, "choose a namespace: lowercase letters, digits, - and _")
     if not convert.web_capture(cfg):
         raise HTTPException(400, "capturing web pages needs Chromium on the server (the lens:full image)")
     check_pipeline(db, body.pipeline)
+    check_content_type(db, body.content_type, "text")
     try:
         sid = store.ns_id(db, ns, create=False)
         acl.need(sid, "import")
@@ -152,6 +168,8 @@ def import_web_page(body: WebImportRequest, acl: Acl, user: Writer, db: Db, cfg:
         raise HTTPException(400, str(e)) from None
     sid = sid if sid is not None else store.ns_id(db, ns)
     rid = webcapture.create(db, sid, url, body.title, body.collection, by=user.email)
+    if body.content_type:
+        content_types.choose(db, rid, body.content_type)
     job = jobs.enqueue(db, rid, None, by=user.email, pipeline=body.pipeline)
     auth.audit(db, user.as_audit(), "import.web", f"recording:{rid}", {"url": url, "namespace": ns})
     return ImportResult(id=rid, job=job)
@@ -195,8 +213,9 @@ def import_web_links(body: LinksImportRequest, acl: Acl, user: Writer, db: Db, c
     """Capture one or many web pages at once (editors; admins may name a new namespace): pasted addresses, one per
     line, a JSON list of them (`urls`), or a file: a list of addresses, a browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON). Each link becomes
     a page captured as a document, as `POST /import/web` does, tagged with the bookmark folders it was in
-    (`folders_as_tags`). At most 500 links; a link already captured in the namespace isn't captured again, and one that
-    can't be is skipped, saying why. Audited as `import.web` once, with how many were queued."""
+    (`folders_as_tags`), of `content_type` when one (a text one) is chosen. At most 500 links; a link already captured
+    in the namespace isn't captured again, and one that can't be is skipped, saying why. Audited as `import.web` once,
+    with how many were queued."""
     ns = body.namespace.strip()
     if not store.NS_RX.match(ns):
         raise HTTPException(400, "choose a namespace: lowercase letters, digits, - and _")
@@ -206,6 +225,7 @@ def import_web_links(body: LinksImportRequest, acl: Acl, user: Writer, db: Db, c
     if sum(given) != 1:
         raise HTTPException(400, "paste the links, list them in urls, or send a file: one of them")
     check_pipeline(db, body.pipeline)
+    check_content_type(db, body.content_type, "text")
     sid: int | None
     try:
         sid = store.ns_id(db, ns, create=False)
@@ -221,9 +241,8 @@ def import_web_links(body: LinksImportRequest, acl: Acl, user: Writer, db: Db, c
     if len(found) > links.MAX:
         raise HTTPException(400, f"import {links.MAX} links at most at once; this has {len(found)}")
     sid = sid if sid is not None else store.ns_id(db, ns)
-    out = [
-        LinkImportResult(**r) for r in links.queue(db, cfg, sid, found, user.email, body.collection, body.pipeline, body.folders_as_tags)
-    ]
+    queued = links.queue(db, cfg, sid, found, user.email, body.collection, body.pipeline, body.folders_as_tags, body.content_type)
+    out = [LinkImportResult(**r) for r in queued]
     queued = sum(r.status == "queued" for r in out)
     auth.audit(db, user.as_audit(), "import.web", f"space:{sid}", {"links": queued, "namespace": ns})
     return LinksImport(results=out)

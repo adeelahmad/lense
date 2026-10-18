@@ -72,6 +72,7 @@ export type SectionId =
   | "reports"
   | "video"
   | "nsfw"
+  | "enhance"
   | "workers"
   | "scaling"
   | "automations"
@@ -206,6 +207,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["nsfw"],
     description:
       "Flag videos, documents and images with NSFW pictures, with a model on this server, and blur or hide them. Off until you turn it on here or a namespace's owner does for theirs.",
+  },
+  {
+    id: "enhance",
+    label: "Enhance",
+    backend: ["enhance"],
+    description:
+      "Find small, blurry, noisy or dull images and keep a sharper copy that Lens reads instead. The original stays as it is. Off until you turn it on.",
   },
   {
     id: "workers",
@@ -433,6 +441,7 @@ export const SECTIONS: SectionSpec[] = [
 const pct = (min = 0, max = 1) => ({ kind: "number" as const, min, max });
 
 export const WORKER_STEPS = [
+  "enhance",
   "transcribe",
   "diarize",
   "shots",
@@ -643,6 +652,13 @@ export const FIELDS: FieldSpec[] = [
     kind: "text",
     mono: true,
   },
+  {
+    section: "transcribe",
+    key: "vocabulary",
+    label: "Expect your own names",
+    kind: "switch",
+    hint: "Each recording is transcribed knowing its namespace's named people, defined entities, custom vocabulary and the names you fixed in its transcripts, so the same mistakes stop coming back (Whisper, OpenAI-compatible, Deepgram and AssemblyAI; SenseVoice and ElevenLabs take no hints)",
+  },
   // Speaker separation
   {
     section: "diarize",
@@ -814,6 +830,16 @@ export const FIELDS: FieldSpec[] = [
       { value: "always", label: "In every transcript" },
     ],
     hint: "A local model adds full stops, commas and question marks, keeping the ones there; about 2 GB, fetched the first time it’s needed",
+  },
+  {
+    section: "analysis",
+    key: "cleanup_grammar_url",
+    label: "LanguageTool server",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "http://languagetool:8010",
+    hint: "Grammar and punctuation fixes from LanguageTool, such as the compose files’ languagetool profile: off while empty. Spelling and style are left alone, and so are names. Transcripts are sent to it",
   },
   {
     section: "analysis",
@@ -2585,6 +2611,68 @@ export const FIELDS: FieldSpec[] = [
     min: 1,
     max: 5000,
     hint: "Spread evenly over a long video or document",
+  },
+  // Enhance
+  {
+    section: "enhance",
+    key: "images",
+    label: "Enhance low quality images",
+    kind: "switch",
+    hint: "Keeps a sharper copy of small, blurry, noisy or dull images and reads that instead; the original stays",
+  },
+  {
+    section: "enhance",
+    key: "image_engine",
+    label: "Engine",
+    kind: "select",
+    options: [
+      { value: "classic", label: "Classic: denoise, resize, contrast, sharpen (light)" },
+      { value: "realesrgan", label: "Real-ESRGAN upscaler (about 6 MB, slower)" },
+    ],
+    hint: "Real-ESRGAN is fetched the first time and runs on this server; very large images use the classic engine",
+  },
+  {
+    section: "enhance",
+    key: "only_faces",
+    label: "Only images with faces",
+    kind: "switch",
+    hint: "Needs face detection on in the namespace",
+  },
+  {
+    section: "enhance",
+    key: "min_side",
+    label: "Small below",
+    kind: "int",
+    min: 64,
+    max: 4000,
+    hint: "Pixels on the shorter side; smaller images are enlarged",
+  },
+  {
+    section: "enhance",
+    key: "min_sharpness",
+    label: "Blurry below",
+    kind: "number",
+    min: 0,
+    max: 10000,
+    hint: "Sharpness score (variance of the Laplacian); 0 never counts an image as blurry",
+  },
+  {
+    section: "enhance",
+    key: "min_face_px",
+    label: "Faces smaller than",
+    kind: "int",
+    min: 0,
+    max: 1024,
+    hint: "Pixels tall; an image with a smaller face is enlarged so recognition has more to go on. 0 turns this off",
+  },
+  {
+    section: "enhance",
+    key: "max_scale",
+    label: "Enlarge at most",
+    kind: "number",
+    min: 1,
+    max: 4,
+    hint: "Times the original size, and never past 4000 pixels a side",
   },
   // Workers
   {

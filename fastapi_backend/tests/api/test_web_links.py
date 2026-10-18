@@ -157,3 +157,23 @@ def test_one_or_several_addresses_as_a_list(client, env, db):
     ]
     r = client.post(url, headers=he, json={"namespace": "pods", "urls": ["https://8.8.8.8/1"], "text": "https://8.8.8.8/2"})
     assert r.status_code == 400 and "one of them" in r.json()["detail"]
+
+
+def test_pages_captured_as_a_content_type(client, env, db):
+    from app.domain import content_types
+
+    he = env["he"]
+    recipe = content_types.create(db, "text", "Recipe")
+    r = client.post(
+        "/api/v1/import/web/links", headers=he, json={"namespace": "pods", "urls": ["https://8.8.8.8/a"], "content_type": "photo"}
+    )
+    assert r.status_code == 400 and "Photo is a image type" in r.json()["detail"]
+    r = client.post(
+        "/api/v1/import/web/links", headers=he, json={"namespace": "pods", "urls": ["https://8.8.8.8/a"], "content_type": recipe}
+    )
+    rid = r.json()["results"][0]["recording"]
+    assert content_types.of_recording(db, rid) == (content_types.get(db, recipe), True)
+    r = client.post("/api/v1/import/web", headers=he, json={"namespace": "pods", "url": "https://8.8.4.4/b", "content_type": recipe})
+    assert content_types.of_recording(db, r.json()["id"])[0]["key"] == recipe
+    r = client.post("/api/v1/import/web", headers=he, json={"namespace": "pods", "url": "https://8.8.4.4/c"})
+    assert content_types.of_recording(db, r.json()["id"])[1] is False  # recognised, as before

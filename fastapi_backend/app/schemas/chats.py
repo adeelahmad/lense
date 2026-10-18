@@ -80,6 +80,8 @@ class ChatSummary(ResponseModel):
     model: str | None = Field(None, description="the model chosen for this conversation; null: the configured one")
     tools: list[str] | None = Field(None, description="the tool groups and tools its answers may use; null: Auto")
     max_tool_calls: int | None = Field(None, description="at most this many tool calls in each answer; null: no limit but the rounds")
+    project: int | None = Field(None, description="the project it's in (GET /projects/{id}): one of its threads, or its coordinator")
+    done: bool = Field(False, description="a project's thread marked done")
     created_at: str | None = None
     updated_at: str | None = None
 
@@ -191,7 +193,9 @@ class MessageRecord(ResponseModel):
     """What produced a message, recorded as it was written (docs/assistant.md, "What each answer records"). A question's
     has `via` and `options`; an answer's the rest. Messages from before it was recorded have none."""
 
-    via: Literal["web", "api", "room", "voice", "automation", "completions"] | None = Field(None, description="a question: how it was sent")
+    via: Literal["web", "api", "room", "voice", "automation", "completions", "project"] | None = Field(
+        None, description="a question: how it was sent (project: a brief a project's coordinator wrote)"
+    )
     options: RecordOptions | None = Field(None, description="a question: the options it was asked with")
     model: str | None = Field(None, description="the model that wrote the answer")
     provider: str | None = Field(None, description="the host name of the model server it ran on (never its address or key)")

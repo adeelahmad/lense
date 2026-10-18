@@ -41,6 +41,8 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+import threading
+import time
 import zipfile
 
 import httpx
@@ -66,6 +68,8 @@ GROUP_PRIMARY, GROUP_NODE = "lens-primary", "lens-node"
 # node's agent serves the primary only
 DB_PORT, API_PORT, AGENT_PORT = 8000, 8080, 7443
 INTERFACE = "lens-mesh"
+# what nodes call on the primary, at its mesh address (core/middleware.py lets that address in for these alone)
+NODE_PATHS = ("/api/v1/mesh/node/",)
 TOKEN_PREFIX = "lensjoin1."
 NODE_PREFIX = "lensnode1."
 TOKEN_HOURS = (1, 24 * 30)
@@ -424,7 +428,8 @@ def primary(db, cfg, public_key=None):
     if public_key:
         crt, info = _sign(db, cfg, "primary", row["ip"], row["groups"], public_key)
         _record_cert(db, row["id"], info, crt)
-        return {**_view(row), "crt": crt, "fingerprint": info["fingerprint"], "not_after": info["not_after"]}
+        db.q("UPDATE $r SET public_key = $p", r=R("mesh_node", row["id"]), p=public_key)
+        return {**_view(row), "crt": crt, "fingerprint": info["fingerprint"], "not_after": info["not_after"], "public_key": public_key}
     return _view(row)
 
 
@@ -557,6 +562,19 @@ def make_token(db, cfg, by=None, role="worker", name=None, namespaces=None, hour
     )
     row = db.one("SELECT record::id(id) AS id, * FROM $r", r=R("mesh_token", tid))
     return _token_view(row), f"{TOKEN_PREFIX}{tid}.{secret}"
+
+
+def join_line(cfg, token, url=None):
+    """The install line another machine joins with (docs/mesh.md, Joining): install.sh with this install's address
+    (the web app's: `url`, else FRONTEND_URL) and the token. Shown once, with the token."""
+    from app.config import settings as env
+
+    repo = cfg["updates"].get("repo") or "adeelahmad/lense"
+    url = (url or env.FRONTEND_URL).rstrip("/")
+    if not re.fullmatch(r"https?://[A-Za-z0-9.\-\[\]:]+(/[A-Za-z0-9._~/-]*)?", url):
+        raise ValueError(f"{url!r} isn't an address a machine can join at")
+    parse_token(token)
+    return f"curl -fsSL https://raw.githubusercontent.com/{repo}/main/install.sh | LENS_JOIN={url} LENS_JOIN_TOKEN={token} sh"
 
 
 def revoke_token(db, tid):
@@ -776,8 +794,196 @@ def undo_remove(db, nid):
     return node(db, nid)
 
 
+# ---------- Nebula on this machine: the `mesh` container ----------
+# Lens's server can't hold NET_ADMIN, so the primary's Nebula runs in the optional `mesh` container (mesh/sidecar.py),
+# which shares a folder with it (LENS_MESH_DIR): Lens writes lens.json there (on or off, the config, the public key it
+# signed), the container writes its public key (host.pub) and how it runs (status.json). The keeper below does
+# Lens's half, in one process at a time (a lease on app_service:mesh_keeper), and asks the machine's upgrade agent to
+# start the container when the mesh is turned on and stop it when it's turned off (services.py, profile `mesh`).
+SERVICE = "mesh"
+KEEPER_ROW = R("app_service", "mesh_keeper")
+KEEPER_SECONDS, LEASE_SECONDS, BEAT_SECONDS = 10, 45, 60
+STATUS_STALE = 30
+
+
+def shared_dir():
+    """The folder shared with the `mesh` container, or None where there is none (not Docker)."""
+    d = os.environ.get("LENS_MESH_DIR")
+    return pathlib.Path(d) if d else None
+
+
+def _write(path, text):
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    tmp.write_text(text)
+    tmp.chmod(0o644)
+    tmp.replace(path)
+
+
+def service(cfg=None):
+    """How the `mesh` container says it runs (status.json): {} when there's no container or it hasn't said;
+    running False when what it said is old (it stopped)."""
+    d = shared_dir()
+    if not d:
+        return {}
+    try:
+        s = json.loads((d / "status.json").read_text())
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(s, dict):
+        return {}
+    try:
+        age = (_now() - dt.datetime.fromisoformat(str(s.get("at")).replace("Z", "+00:00"))).total_seconds()
+    except ValueError:
+        age = STATUS_STALE + 1
+    s["fresh"] = age <= STATUS_STALE
+    if not s["fresh"]:
+        s["nebula"] = False
+    return s
+
+
+def _parse_time(value):
+    try:
+        return dt.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def lens_file(db, cfg, public_key=None):
+    """What goes in lens.json now: off, on and waiting for the container's key, or on with the primary's config
+    (its certificate signed again when the key is new or a third of its life is left)."""
+    c = conf(cfg)
+    if not c["enabled"]:
+        return {"on": False}
+    row = primary(db, cfg)
+    out = {"on": True, "ip": row["ip"], "public_key": None, "config": None, "version": None}
+    if not public_key:
+        return out
+    have = db.one("SELECT crt, public_key, not_after FROM $r", r=R("mesh_node", row["id"])) or {}
+    ends = _parse_time(have.get("not_after"))
+    if not have.get("crt") or have.get("public_key") != public_key or not ends or ends - _now() < dt.timedelta(days=renew_days(cfg)):
+        have = primary(db, cfg, public_key=public_key)
+    config = render(db, cfg, row, have["crt"])
+    return {**out, "public_key": public_key, "config": config, "version": version(config)}
+
+
+class Keeper:
+    """Keeps lens.json as the mesh is, the primary's certificate signed, and the container started or stopped."""
+
+    def __init__(self, db, cfg_fn, name, log=None):
+        self.db, self.cfg_fn, self.name, self.log = db, cfg_fn, name, log or (lambda *a: None)
+        self.last_beat = 0.0
+        self.error = None
+
+    def _lease(self):
+        now = _now()
+        return bool(
+            self.db.rows(
+                "UPSERT $r MERGE {owner: $me, at: $t} WHERE owner = NONE OR owner = $me OR at < $stale RETURN AFTER",
+                r=KEEPER_ROW,
+                me=self.name,
+                t=_ts(now),
+                stale=_ts(now - dt.timedelta(seconds=LEASE_SECONDS)),
+            )
+        )
+
+    def _profile(self, on):
+        """Ask the upgrade agent to start (or stop) the container, once for each turn of mesh.enabled, so an admin
+        who stops it in Settings › Services isn't overruled."""
+        from . import services
+
+        row = self.db.one("SELECT asked_for FROM $r", r=KEEPER_ROW) or {}
+        if row.get("asked_for") is on or (row.get("asked_for") is None and not on):
+            return
+        try:
+            services.ask(self.db, SERVICE, on, by="lens")
+        except services.ServiceError as e:
+            if "upgrade agent" not in str(e):
+                return  # busy: next tick
+            self.log("mesh: %s", e)
+        self.db.q("UPDATE $r SET asked_for = $o", r=KEEPER_ROW, o=on)
+
+    def tick(self):
+        d = shared_dir()
+        if not d or not self._lease():
+            return
+        cfg = self.cfg_fn()
+        on = conf(cfg)["enabled"]
+        self._profile(on)
+        pub = None
+        try:
+            text = (d / "host.pub").read_text()
+            pub = text if PUBLIC_KEY_RX.fullmatch(text.replace("\r\n", "\n")) else None
+        except OSError:
+            pass
+        want = lens_file(self.db, cfg, pub if on else None)
+        text = json.dumps(want, indent=1, sort_keys=True)
+        try:
+            same = (d / "lens.json").read_text() == text
+        except OSError:
+            same = False
+        if not same:
+            _write(d / "lens.json", text)
+            self.log("mesh: wrote the primary's config (%s)", "on" if on else "off")
+        if on and time.monotonic() - self.last_beat > BEAT_SECONDS:
+            s = service(cfg)
+            row = primary(self.db, cfg)
+            beat(
+                self.db,
+                row,
+                {"nebula": bool(s.get("nebula")), "version": s.get("version"), "error": s.get("error"), "log": s.get("log") or []},
+            )
+            self.last_beat = time.monotonic()
+
+    def loop(self, stop):
+        while not stop.is_set():
+            try:
+                self.tick()
+                self.error = None
+            except Exception as e:  # noqa: BLE001 - keep the keeper alive; the error shows in the status
+                self.error = f"{type(e).__name__}: {e}"
+                try:
+                    self.db.q("UPDATE $r SET error = $e WHERE owner = $me", r=KEEPER_ROW, e=self.error, me=self.name)
+                except Exception:  # noqa: BLE001
+                    pass
+            stop.wait(KEEPER_SECONDS)
+        try:
+            self.db.q("UPDATE $r SET owner = NONE WHERE owner = $me", r=KEEPER_ROW, me=self.name)
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def start(db, cfg_fn, stop, name, log=None):
+    """The keeper, where there is a `mesh` container to keep (LENS_MESH_DIR); None elsewhere."""
+    if not shared_dir():
+        return None
+    k = Keeper(db, cfg_fn, name, log)
+    threading.Thread(target=k.loop, args=(stop,), daemon=True, name="mesh").start()
+    return k
+
+
+def service_view(db, cfg):
+    """The `mesh` container as Settings › Network shows it."""
+    from . import services
+
+    s = service(cfg)
+    keeper = db.one("SELECT error FROM $r", r=KEEPER_ROW) or {}
+    return {
+        "available": bool(shared_dir()),
+        "state": s.get("state") or ("off" if s else None),
+        "nebula": bool(s.get("nebula")),
+        "since": s.get("since"),
+        "restarts": s.get("restarts") or 0,
+        "relays": s.get("relays") or [],
+        "error": s.get("error") or keeper.get("error"),
+        "log": (s.get("log") or [])[-40:],
+        "seen_at": s.get("at"),
+        "manual": services.manual(SERVICE),
+    }
+
+
 def status(db, cfg):
-    """What Settings › Network shows: on or off, the network, the CA, the primary's address, the counts."""
+    """What Settings › Network shows: on or off, the network, the CA, the primary's address, the counts, and how
+    Nebula runs on this machine."""
     c, row = conf(cfg), ca_row(db)
     every = nodes(db)
     return {
@@ -792,4 +998,5 @@ def status(db, cfg):
         "tokens": len(tokens(db)),
         "nebula": NEBULA_VERSION,
         "tools": bool(binaries(cfg)),
+        "service": service_view(db, cfg),
     }

@@ -65,9 +65,9 @@ The same agent turns Lens's [optional containers](assistant.md#optional-containe
 `action=services`, a `profile` and `turn=on` or `off` (in the same inbox file, the one every agent watches) adds or
 removes that profile in `COMPOSE_PROFILES` in `.env` and starts or stops its containers, and nothing else. The
 profiles are fixed in the agent: `mcp` (the MCP runner), `browser` (the browser and its proxy), `sandbox` (the
-[code sandbox](assistant.md#the-gateway)'s gateway, its certificates and the client's key) and `monitoring`
-([Charts and history](prometheus.md#prometheus-and-grafana-ready-made): Prometheus, node-exporter and Grafana); it
-refuses any other. It reports in `services-status` and `services.log`. A request from an older Lens, with
+[code sandbox](assistant.md#the-gateway)'s gateway, its certificates and the client's key), `monitoring`
+([Charts and history](prometheus.md#prometheus-and-grafana-ready-made): Prometheus, node-exporter and Grafana) and
+`mesh` ([Nodes and the mesh](mesh.md#on-this-machine): Nebula on the primary); it refuses any other. It reports in `services-status` and `services.log`. A request from an older Lens, with
 `monitoring=on` or `off` and no profile, still works.
 
 With no agent (Lens wasn't installed with install.sh, the machine has neither systemd nor launchd, or install.sh ran
