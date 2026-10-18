@@ -6,7 +6,7 @@
   "scope_subpath": null,
   "description": "Lens is a self-hosted archive for documents, recordings, photos and messages: it reads, transcribes, indexes and publishes them, and people search and chat over them. One operator (the instance admin) runs an instance for their own people: a FastAPI API, a Next.js web app that proxies the API and holds the sign-in session, and background workers, around one SurrealDB database, with content split into namespaces and per-namespace roles. Exposing an instance to the internet behind HTTPS (reverse proxy or Cloudflare tunnel) is supported. Only the instance admin (equivalent to host code execution) and the host operator are trusted; everyone else is trusted only as far as their role.",
   "confidence": {
-    "documented": 255,
+    "documented": 257,
     "inferred": 99
   },
   "components": [
@@ -673,6 +673,15 @@
       "source": "docs/assistant.md \"Optional containers\""
     },
     {
+      "entry_point": "admin auto scaling",
+      "parameter": "/api/v1/scaling (providers, groups, units, tick), PUT /api/v1/settings/scaling, MCP and assistant scaling tools: provider credentials, a group's terms and rules, a unit id",
+      "attacker_controllable": "no",
+      "component": "authz",
+      "caller_must_enforce": "admin is trusted; off until turned on; audited (scaling.*) and in the activity ledger; credentials sealed and shown only as set; a group launches nothing until a person signed in to the web app approves its terms (P-SCALING)",
+      "provenance": "documented",
+      "source": "docs/scaling.md \"The person approves\""
+    },
+    {
       "entry_point": "entity and topic curation tools",
       "parameter": "MCP edit_entity, edit_topic, merge_topics, delete_topic, undo_topic_change, undo_graph_change; assistant propose_topic_change: entity and topic ids, names, labels, definitions",
       "attacker_controllable": "yes",
@@ -1083,6 +1092,14 @@
       "conditions": "a published feed's address opens that feed alone, read-only, with no session; only an editor of the namespace makes one; it lists only items whose resource or activity the readers of the feed's namespace can read, never a vault's, and a namespace made a vault stops its feeds; the token is found by its hash, and rotating or deleting the feed stops the old address at once; text in an item cannot add markup to a reader",
       "provenance": "documented",
       "source": "docs/feeds.md \"Private by default\""
+    },
+    {
+      "property": "P-SCALING",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "auto scaling launches nothing unless a person signed in to the web app approved the group's terms (its provider, what each unit is, its max, its budget, what happens at its cap); an API key, an app, MCP and the assistant acting on its own never approve, and a change that widens the terms takes the approval away; a provider's credentials are sealed per provider and field, opened only for a call to it and never shown; a unit is handed no long-lived Lens secret",
+      "provenance": "documented",
+      "source": "docs/scaling.md \"The person approves\""
     },
     {
       "property": "P-AUTH-REQ",
