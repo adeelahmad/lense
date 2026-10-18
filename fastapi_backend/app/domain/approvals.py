@@ -260,11 +260,21 @@ def edited(intent, new):
     return out
 
 
-def can(row, via="web"):
+def can(row, via="web", cfg=None):
     """What the person can do with a waiting approval from where they are (`via`: web for a signed-in session, chat for
-    their own chat app, token or oauth for an API key or an app, agent for MCP and the assistant, which only decline)."""
+    their own chat app, token or oauth for an API key or an app, agent for MCP and the assistant, which only decline).
+    A research plan is approved by the person only (edited in the web app), unless research.agents_skip_review is on
+    in `cfg`."""
     pending = row.get("status") == "pending"
     intent = row.get("intent")
+    if row.get("tool") == "research":
+        skip = bool(((cfg or {}).get("research") or {}).get("agents_skip_review"))
+        return {
+            "approve": pending and (via in ("web", "chat") or skip),
+            "decline": pending,
+            "edit": pending and via == "web",
+            "always": False,
+        }
     if not intent:
         return {"approve": pending and via != "agent", "decline": pending, "edit": False, "always": False}
     person = via in ("web", "chat")

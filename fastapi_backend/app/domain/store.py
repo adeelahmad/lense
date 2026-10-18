@@ -322,6 +322,10 @@ DEFAULTS = {
     # searxng_url; brave and tavily need api_key. results: per search; read_chars: of a page's text the model reads;
     # render: a page that comes back nearly empty is loaded with Chromium (scripts run), when Chromium is installed
     "web": {"search": "off", "searxng_url": None, "api_key": None, "results": 5, "read_chars": 20000, "render": False},
+    # deep research (research.py, docs/assistant.md#deep-research): the most tool calls a plan may make, the minutes
+    # a run may take before it writes its report with what it found, a model for it (null: the conversation's), and
+    # whether an agent (an API key, an app, MCP) may start a run without the person reviewing its plan
+    "research": {"max_tool_calls": 40, "max_minutes": 20, "model": None, "agents_skip_review": False},
     # talking to Lens (voice.py): input auto uses the server's speech-to-text engine when it has one, else the
     # browser's; spoken answers come from tts_model (an OpenAI-compatible /audio/speech), else the browser reads them
     # stt: the engine that hears voice chat ("same": the transcription engine); tts_provider: who reads answers aloud
@@ -1484,6 +1488,12 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS browser_action_session ON browser_action FIELDS session, state",
     # each conversation's code sandbox on the OpenShell gateway (sandbox.py): its name, settings and last use
     "DEFINE TABLE IF NOT EXISTS code_sandbox SCHEMALESS",
+    # deep research (research.py): a goal's plan, its run's progress and report; research_run:<id> is the claim of
+    # the process carrying a run out, with its heartbeat
+    "DEFINE TABLE IF NOT EXISTS research SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS research_account ON research FIELDS account, status",
+    "DEFINE INDEX IF NOT EXISTS research_chat ON research FIELDS chat",
+    "DEFINE TABLE IF NOT EXISTS research_run SCHEMALESS",
     # files a conversation's sandbox handed the person to download (sandbox.share), kept with the conversation
     "DEFINE TABLE IF NOT EXISTS chat_file SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS chat_file_chat ON chat_file FIELDS chat",

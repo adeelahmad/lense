@@ -628,6 +628,15 @@ entry_points:
         control_kinds: [data, x-prompt-injection]
         caller_must_enforce: "none — served only to the conversation's person (404 otherwise, or for another conversation's id) as an attachment with nosniff and a sandbox content policy, never rendered; random 96-bit id checked against the conversation; kept AES-256-GCM encrypted with a key derived from the server's secret, bound to the file and conversation; at most 20 a conversation, 25 MB each; deleted with the conversation or the account"
         provenance: {kind: documented, source: 'docs/assistant.md "Code sandbox"'}
+  - id: "deep research"
+    component: assistant
+    parameters:
+      - name: "/research <goal>, research: true, POST /chats/{cid}/research, /research/{id} (revise, stop, resume, note, podcast), start_research (assistant and MCP), research_status (MCP): a goal, answers to follow-up questions, plan edits; research.* settings (admins)"
+        attacker_controllable: true
+        x-condition: "anyone who may use the assistant, in their own conversations; indirectly through what the run reads, through the model"
+        control_kinds: [data, x-prompt-injection, size]
+        caller_must_enforce: "none — the plan waits for the person's own approval (P-RESEARCH); the run uses only its sources' read tools, as the person, within its tool calls, minutes and budgets; its web searches and page reads don't ask again, bounded by the plan and the ledger; one run per person at a time; the report's claims are checked against what they cite"
+        provenance: {kind: documented, source: 'docs/assistant.md "Deep research"'}
   - id: "microsandbox program requests"
     component: authz
     parameters:
@@ -1618,7 +1627,7 @@ properties_claimed:
     kind: confidentiality
     components: [assistant]
     tier: correctness-only
-    conditions: "Once an assistant answer has read text from outside Lens (a tool result other than Lens's own, the page it was asked from, a namespace assistant's memories, a message in a chat room with no bridge.users, or an earlier answer in the conversation that read any of these), tools that could carry it out of Lens (the person's own read web tools, a web search or page read neither the person nor a tool gave it, other servers' MCP tools, Python tools with the network) and an admin setup conversation's own changes wait for the person's approval. A chat room's answer keeps a web address linkable only when the person, the archive, a tool or Lens wrote it. A bypass is VALID-HARDENING (Q26). An automation's model and agent actions (ask_model, call_tool, ask_agent) run with nobody reading along: the activity and earlier steps reach the model marked as data, every change they would make (notes included) is an approval of the automation's person, and anything that could carry data out of Lens asks first whatever the run read (docs/automations.md \"The model and the agent\"). A saved variable a run set from outside text stays marked as data in later runs' prompts, and an action whose params read it counts as reading outside text (docs/automations.md \"Saved variables\")."
+    conditions: "Once an assistant answer has read text from outside Lens (a tool result other than Lens's own, the page it was asked from, a namespace assistant's memories, a message in a chat room with no bridge.users, or an earlier answer in the conversation that read any of these), tools that could carry it out of Lens (the person's own read web tools, a web search or page read neither the person nor a tool gave it, other servers' MCP tools, Python tools with the network) and an admin setup conversation's own changes wait for the person's approval. A chat room's answer keeps a web address linkable only when the person, the archive, a tool or Lens wrote it. A bypass is VALID-HARDENING (Q26). An automation's model and agent actions (ask_model, call_tool, ask_agent) run with nobody reading along: the activity and earlier steps reach the model marked as data, every change they would make (notes included) is an approval of the automation's person, and anything that could carry data out of Lens asks first whatever the run read (docs/automations.md \"The model and the agent\"). A saved variable a run set from outside text stays marked as data in later runs' prompts, and an action whose params read it counts as reading outside text (docs/automations.md \"Saved variables\"). Within a research run the person approved, the plan's web searches and page reads, and code with the network when the plan names the code sandbox, don't ask again (P-RESEARCH)."
     violation_symptoms: [info-leak]
     x-voided-by: "ai.untrusted_asks: false (domain/ai_tools.py:519); bridge.safe_links: false (domain/bridge.py:298); notes and memories are written at once; hooks run as their owners set them (P-EXT-SCOPE); an address the read text wrote itself stays linkable in a room; the person's browser asks first as P-BROWSER-GUARD says"
     provenance: {kind: documented, source: 'docs/assistant.md "it read out of Lens waits for your approval"'}
@@ -1825,6 +1834,14 @@ properties_claimed:
     violation_symptoms: [integrity-bypass]
     x-voided-by: "isolation inside the sandbox is OpenShell's; landlock best_effort runs without Landlock where the kernel lacks it (domain/sandbox.py); whoever the gateway lets in (in the sandbox profile, a holder of its client certificate) can run sandboxes of their own; what the code prints is third-party text (N-PROMPT)"
     provenance: {kind: documented, source: 'docs/assistant.md "Code sandbox"'}
+  - id: P-RESEARCH
+    kind: integrity
+    components: [assistant]
+    tier: correctness-only
+    conditions: "a research plan runs only once its person approves it, signed in or with a yes in their chat room from someone in bridge.users; an API key, an app or an agent only declines it unless research.agents_skip_review; the run acts as the person with their access at run time, offered only its sources' read tools, within the plan's tool calls (research.max_tool_calls), research.max_minutes and the budgets of its namespaces and all, checked before each stage; its web searches and page reads (and code with the network, when the plan names the sandbox) don't ask again; one run per person at a time; one process at a time (research_run:<id>, a heartbeat every 10 s, taken over after 2 minutes of silence); every call in the ledger under research:<id>"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "research.agents_skip_review lets an agent's plan run without review (domain/research.py agents_may_approve); a run's web queries can carry archive text it read, within its tool calls (N-PROMPT); a yes in a room is the room's people's (N-BRIDGE)"
+    provenance: {kind: documented, source: 'docs/assistant.md "Deep research"'}
   - id: MX-AUTHZ-LIST-CAPS
     kind: resource-bound
     components: [authz]
