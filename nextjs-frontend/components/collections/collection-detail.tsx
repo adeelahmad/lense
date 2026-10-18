@@ -8,6 +8,7 @@ import {
   MessagesSquare,
   Pencil,
   Play,
+  Podcast,
   SlidersHorizontal,
   Trash2,
 } from "lucide-react";
@@ -19,6 +20,7 @@ import { Collections } from "@/app/openapi-client";
 import type { Collection } from "@/app/openapi-client/types.gen";
 import { CollectionDialog } from "@/components/collections/collection-dialog";
 import { describeCollection } from "@/components/collections/describe";
+import { CollectionFeedDialog } from "@/components/collections/feed-dialog";
 import { EvidencePartsDialog, type EvidencePart } from "@/components/evidence/parts-dialog";
 import { saveBlob, slug } from "@/components/recording/hooks";
 import { recordingHref } from "@/components/search/links";
@@ -59,6 +61,7 @@ export function CollectionDetail({ id }: { id: number }) {
     },
   });
   const [picking, setPicking] = useState(false);
+  const [feeding, setFeeding] = useState(false);
   const evidence = useMutation({
     mutationFn: async ({ name, include }: { name: string; include?: EvidencePart[] }) => {
       const blob = (await data(
@@ -172,6 +175,10 @@ export function CollectionDetail({ id }: { id: number }) {
             >
               <SlidersHorizontal />
             </IconButton>
+            <Button variant="secondary" icon={<Podcast />} onClick={() => setFeeding(true)}>
+              Podcast feed
+            </Button>
+            <CollectionFeedDialog id={id} name={c.name} open={feeding} onOpenChange={setFeeding} />
             <EvidencePartsDialog
               open={picking}
               onOpenChange={setPicking}

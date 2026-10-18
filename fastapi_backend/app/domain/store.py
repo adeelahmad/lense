@@ -1634,10 +1634,12 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS podcast SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS podcast_space ON podcast FIELDS space",
     # published RSS and podcast feeds (app/domain/syndication.py): feed:<n>, its token kept sealed and as a hash, and
-    # its items, one per feed for what each is about (key: "<feed>:<guid>")
+    # its items, one per feed for what each is about (key: "<feed>:<guid>"); a saved collection's feed, one per person,
+    # has `collection` and `account` instead of a namespace
     "DEFINE TABLE IF NOT EXISTS feed SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS feed_token ON feed FIELDS token_hash UNIQUE",
     "DEFINE INDEX IF NOT EXISTS feed_space ON feed FIELDS space",
+    "DEFINE INDEX IF NOT EXISTS feed_collection ON feed FIELDS collection, account",
     "DEFINE TABLE IF NOT EXISTS feed_item SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS feed_item_feed ON feed_item FIELDS feed",
     "DEFINE INDEX IF NOT EXISTS feed_item_key ON feed_item FIELDS key UNIQUE",

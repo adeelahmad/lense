@@ -2364,13 +2364,27 @@ def _feed_out(ctx: Context, row: dict[str, Any]) -> dict[str, Any]:
     "List published feeds",
     "The RSS and podcast feeds the person's namespaces publish (docs/feeds.md): each one's kind, title, namespace, how "
     "many items it holds, and its private address, which feed readers and podcast apps subscribe to. Anyone with the "
-    "address can read the feed, so give it only to the person. With feed_id, one feed and its newest items.",
+    "address can read the feed, so give it only to the person. With feed_id, one feed and its newest items. With "
+    "collection_id, the person's own podcast feed of a saved collection they may read (made the first time they ask): "
+    "its episodes are the collection's assets with audio or video that they can read.",
     Arg("namespace", "string", "only this namespace's feeds"),
     Arg("feed_id", "integer", "one feed, with its newest items"),
+    Arg("collection_id", "integer", "a saved collection: the person's private podcast feed of it"),
 )
-def list_feeds(ctx: Context, namespace: str | None, feed_id: int | None) -> dict[str, Any]:
+def list_feeds(ctx: Context, namespace: str | None, feed_id: int | None, collection_id: int | None) -> dict[str, Any]:
+    from app.api.v1.routes import collections as collection_routes
     from app.domain import syndication
 
+    if collection_id is not None:
+        if ctx.ns:  # a saved collection spans namespaces; this server sees one
+            raise ToolError("a collection's feed is on the main MCP server (/mcp), not a namespace's own")
+        collection_routes.own_collection(ctx.db, collection_id, ctx.user)  # 404: not found
+        fid, made = syndication.for_collection(ctx.db, ctx.cfg, collection_id, ctx.user.id, by=ctx.user.email)
+        if made:
+            auth.audit(ctx.db, ctx.user.as_audit(), "feed.create", f"feed:{fid}", {"collection": collection_id, "via": "mcp"})
+        f = syndication.collection_feed(ctx.db, ctx.cfg, fid, ctx.web)
+        keep = ("id", "kind", "collection", "url", "page", "episodes", "fetched_at")
+        return store.clean({("feed_id" if k == "id" else k): f.get(k) for k in keep})
     if feed_id is not None:
         row = syndication.get(ctx.db, feed_id)  # KeyError: not found
         ctx.acl.need(row["space"])

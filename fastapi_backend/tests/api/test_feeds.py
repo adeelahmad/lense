@@ -212,3 +212,96 @@ def test_agents_use_feeds(client, db, cfg, env):
     assert {i["kind"] for i in one["newest"]} == {"asset", "text"} and any(i.get("url") for i in one["newest"])
     assert tool(client, env["ca"], "list_feeds")["feeds"] == []
     assert "not found" in tool_error(client, env["ca"], "list_feeds", feed_id=feed["feed_id"])
+
+
+def _audio(db, folder, rid, name):
+    """Give a resource audio podcast apps can play."""
+    f = folder / name
+    f.write_bytes(b"ID3" + bytes(range(256)) * 8)
+    db.q("UPDATE $r SET source = 'audio', path = $p, duration_ms = 61000", r=R("recording", rid), p=str(f))
+    return f
+
+
+def _titles(client, path):
+    return sorted(i.findtext("title") for i in _read(client, path)[0].findall("item"))
+
+
+def test_a_collection_feed_lists_its_assets_with_media(client, db, cfg, env, folder):
+    a, b, c = env["ids"]
+    _audio(db, folder, a, "a.mp3")
+    _audio(db, folder, c, "c.mp3")
+    cid = client.post(
+        "/api/v1/collections",
+        headers=env["root"],
+        json={"name": "Commute", "description": "For the train", "recordings": [a, b, c], "shared": True},
+    ).json()["id"]
+    assert client.get(f"/api/v1/collections/{cid}/feed").status_code == 401
+    mine = client.get(f"/api/v1/collections/{cid}/feed", headers=env["root"]).json()
+    assert mine["collection"] == cid and mine["kind"] == "podcast" and mine["episodes"] == 2
+    assert mine["path"].startswith("/api/v1/feeds/public/lfd_") and mine["url"].endswith(mine["path"])
+    assert mine["page"].endswith(f"/collections/{cid}")
+    assert client.get(f"/api/v1/collections/{cid}/feed", headers=env["root"]).json()["url"] == mine["url"]  # the same one after
+    assert not db.one("SELECT token FROM $r", r=R("feed", mine["id"]))["token"].startswith("lfd_")  # sealed
+    # with no session, a podcast app reads the assets with audio or video (not b, a transcript), as their reader may
+    ch, r = _read(client, mine["path"])
+    assert ch.findtext("title") == "Commute" and ch.findtext("description") == "For the train"
+    assert ch.findtext(f"{ITUNES}block") == "Yes" and ch.findtext("link").endswith(f"/collections/{cid}")
+    assert _titles(client, mine["path"]) == ["call", "ep1"]
+    enc = next(i for i in ch.findall("item") if i.findtext("title") == "ep1").find("enclosure")
+    assert enc.get("url") == f"{mine['url']}/items/{a}/audio" and enc.get("type") == "audio/mpeg"
+    got = client.get(enc.get("url").removeprefix("http://127.0.0.1"), headers={"Range": "bytes=0-2"})
+    assert got.status_code == 206 and got.content == b"ID3" and got.headers["referrer-policy"] == "no-referrer"
+    assert client.get(f"{mine['path']}/items/{b}/audio").status_code == 404  # no media: not an episode, not served
+    assert client.get(mine["path"], headers={"If-None-Match": r.headers["etag"]}).status_code == 304
+    # each person's address lists what they may read: a viewer of pods hears ep1 alone, and can't fetch the call
+    theirs = client.get(f"/api/v1/collections/{cid}/feed", headers=env["vi"]).json()
+    assert theirs["url"] != mine["url"] and theirs["episodes"] == 1 and _titles(client, theirs["path"]) == ["ep1"]
+    assert client.get(f"{theirs['path']}/items/{c}/audio").status_code == 404
+    # namespaces' feeds don't show collections' feeds
+    assert client.get("/api/v1/feeds", headers=env["root"]).json() == []
+    assert client.get(f"/api/v1/feeds/{mine['id']}", headers=env["root"]).status_code == 404
+    assert client.post(f"/api/v1/feeds/{mine['id']}/token", headers=env["root"]).status_code == 404
+    # a collection no longer shared stops its other readers' feeds; one never shared has none to give
+    client.patch(f"/api/v1/collections/{cid}", headers=env["root"], json={"shared": False})
+    assert client.get(theirs["path"]).status_code == 404 and _titles(client, mine["path"]) == ["call", "ep1"]
+    assert client.get(f"/api/v1/collections/{cid}/feed", headers=env["vi"]).status_code == 404
+    # a namespace made a vault drops out of the feed
+    db.q("UPSERT $r SET vault = true", r=R("data_key", store.ns_id(db, "calls")))
+    assert _titles(client, mine["path"]) == ["ep1"]
+
+
+def test_a_collection_feed_token_rotates_and_stops(client, db, cfg, env, folder):
+    a, _b, _c = env["ids"]
+    _audio(db, folder, a, "a.mp3")
+    cid = client.post("/api/v1/collections", headers=env["ed"], json={"name": "Mine", "recordings": [a]}).json()["id"]
+    feed = client.get(f"/api/v1/collections/{cid}/feed", headers=env["ed"]).json()
+    audio = f"{feed['path']}/items/{a}/audio"
+    assert client.get(audio).status_code == 200
+    # a new address: the old one, and its audio, stop working at once
+    new = client.post(f"/api/v1/collections/{cid}/feed/token", headers=env["ed"]).json()
+    assert new["id"] == feed["id"] and new["url"] != feed["url"]
+    assert client.get(feed["path"]).status_code == 404 and client.get(audio).status_code == 404
+    assert _titles(client, new["path"]) == ["ep1"]
+    assert set(db.values("SELECT VALUE action FROM audit_log")) >= {"feed.create", "feed.token"}
+    # stopped: the address goes; asking again makes another
+    assert client.delete(f"/api/v1/collections/{cid}/feed", headers=env["ed"]).json() == {"ok": True}
+    assert client.get(new["path"]).status_code == 404
+    again = client.get(f"/api/v1/collections/{cid}/feed", headers=env["ed"]).json()
+    assert again["url"] not in (feed["url"], new["url"])
+    # a disabled account's feeds stop; a deleted collection's feeds go
+    db.q("UPDATE $r SET disabled = true", r=R("account", db.values("SELECT VALUE record::id(id) FROM account WHERE email = 'ed@x.io'")[0]))
+    assert client.get(again["path"]).status_code == 404
+    db.q("UPDATE account SET disabled = false WHERE email = 'ed@x.io'")
+    assert client.get(again["path"]).status_code == 200
+    assert client.delete(f"/api/v1/collections/{cid}", headers=env["ed"]).json() == {"ok": True}
+    assert client.get(again["path"]).status_code == 404 and not db.rows("SELECT id FROM feed WHERE collection = $c", c=cid)
+
+
+def test_agents_get_a_collection_feed(client, db, cfg, env, folder):
+    a, _b, _c = env["ids"]
+    _audio(db, folder, a, "a.mp3")
+    cid = client.post("/api/v1/collections", headers=env["ed"], json={"name": "Mine", "recordings": [a]}).json()["id"]
+    got = tool(client, env["ed"], "list_feeds", collection_id=cid)
+    assert got["collection"] == cid and got["episodes"] == 1 and got["url"].startswith("http")
+    assert got["url"].endswith(client.get(f"/api/v1/collections/{cid}/feed", headers=env["ed"]).json()["path"])  # the same one
+    assert "not found" in tool_error(client, env["vi"], "list_feeds", collection_id=cid)  # not shared with them

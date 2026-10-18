@@ -144,7 +144,7 @@
       "name": "optional",
       "entry_points": [
         "POST /automations/hooks/{token} (an automation's webhook)",
-        "GET /feeds/public/{token}, /feeds/public/{token}/items/{item}/audio (a published feed)",
+        "GET /feeds/public/{token}, /feeds/public/{token}/items/{item}/audio (a published feed, or a saved collection's podcast feed)",
         "automations' params and prompts, POST /automations/preview and /automations/variables",
         "MQTT 1883, syslog 5514, POST /sensors/push/{token}/{stream}",
         "SMB share (port 1445 on the host, 4445 in the worker)",
@@ -588,11 +588,11 @@
       ]
     },
     {
-      "entry_point": "GET /feeds/public/{token}, /feeds/public/{token}/items/{item}/audio (a published feed)",
+      "entry_point": "GET /feeds/public/{token}, /feeds/public/{token}/items/{item}/audio (a published feed, or a saved collection's podcast feed)",
       "parameter": "token in the path, Range, If-None-Match",
       "attacker_controllable": "yes",
       "component": "optional",
-      "caller_must_enforce": "the person shares the address as a password; Lens finds the token by its hash, stops the old address when a new one is made, and lists only what the namespace's readers can read",
+      "caller_must_enforce": "the person shares the address as a password; Lens finds the token by its hash, stops the old address when a new one is made, and lists only what the namespace's readers can read, or for a collection's feed what its person may read now",
       "provenance": "documented",
       "source": "docs/feeds.md \"Private by default\""
     },
@@ -1204,7 +1204,7 @@
       "property": "P-FEEDS",
       "violation_symptom": "info-leak",
       "severity_tier": "security",
-      "conditions": "a published feed's address opens that feed alone, read-only, with no session; only an editor of the namespace makes one; it lists only items whose resource or activity the readers of the feed's namespace can read, never a vault's, and a namespace made a vault stops its feeds; the token is found by its hash, and rotating or deleting the feed stops the old address at once; text in an item cannot add markup to a reader",
+      "conditions": "a published feed's address opens that feed alone, read-only, with no session; only an editor of the namespace makes one; it lists only items whose resource or activity the readers of the feed's namespace can read, never a vault's, and a namespace made a vault stops its feeds; a saved collection's podcast feed is one per person who may read the collection, lists the collection's assets with audio or video that person may read when it is read, never a vault's, and stops when the collection is deleted or no longer shared with them or their account is disabled; the token is found by its hash, and rotating or deleting the feed stops the old address at once; text in an item cannot add markup to a reader",
       "provenance": "documented",
       "source": "docs/feeds.md \"Private by default\""
     },
