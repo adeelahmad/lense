@@ -22,6 +22,7 @@ with AES-GCM and are write-only: the API reports whether one is set, never its v
 | `PASSWORD_RESET_EXPIRE_MINUTES` | `60` | |
 | `SURREAL_URL` | embedded | `ws://host:8000` for a server; see [Database](database.md) |
 | `SURREAL_USER` / `SURREAL_PASS` / `SURREAL_NS` / `SURREAL_DB` / `SURREAL_POOL_SIZE` | `root` / `root` / `archive` / `main` / `8` | |
+| `SURREAL_AUTH` | root | `database`: `SURREAL_USER` is a user of that one database, not the server's root (a [worker node](mesh.md#worker-nodes) signs in so) |
 | `ARCHIVE_SECRET_KEY` | generated in `data_dir/secret.key` | encrypts stored credentials; keep it stable and backed up |
 | `ARCHIVE_CONFIG` | `archive.yaml` | processing configuration file |
 | `ARCHIVE_ALLOWED_HOSTS` | | break-glass override of allowed Host headers if a bad setting locks everyone out |
@@ -112,7 +113,8 @@ Start from `fastapi_backend/archive.example.yaml`, which documents every key. Th
 Admins can change, in Settings: transcription, speaker separation, speech providers, voice IDs, analysis, the LLM
 provider and key, a local model, the AI assistant, the [code sandbox](assistant.md#code-sandbox), search (word
 search and search by meaning), reports and graph,
-video, OCR, faces and objects, [NSFW classification](nsfw.md), workers, sign-in, components (and the edition, full or
+video, OCR, faces and objects, [NSFW classification](nsfw.md), [enhancing
+images](enhance.md), workers, sign-in, components (and the edition, full or
 lean), access and embedding (whether other devices on the network reach Lens, embed frame ancestors, text and transcript
 upload limit, allowed hosts, trusted proxies, session length), remote access, email, chat rooms, notifications,
 automations, telemetry, the Fedora repository, sensors, file shares, uploads, storage, documents, API keys,
@@ -314,7 +316,7 @@ text (Word, text, Markdown) are imported as text. Settings → Documents:
 | `documents.attachment_resources` | true | whether an email's attachments that Lens can read (documents, images, audio, video, emails) also become resources of their own; they're kept as its files either way |
 | `documents.video_urls` | false | whether videos and podcasts can be imported by their address ([API](api.md#videos-and-podcasts)): their media is downloaded with yt-dlp, which Lens fetches on first use |
 | `documents.web_networks` | `[]` | private networks (CIDR, such as `192.168.1.0/24`) that web pages, calendar and news feeds and videos may be fetched from besides the public internet: for an intranet, or a calendar server at home. The web app can't list this machine (loopback) or link-local addresses, where clouds answer with the server's own credentials; archive.yaml or `LENS_WEB_NETWORKS` in `.env` (comma-separated, added to archive.yaml's) can. Those stay whatever Settings saves: the networks listed in Settings are added to them |
-| `documents.converter` | `auto` | who makes the PDFs: `auto` uses [anytopdf](#anytopdf) only for what LibreOffice and Chromium can't do here, `anytopdf` uses it for every document and image (and fetches it), `lens` never uses it |
+| `documents.converter` | `auto` | who makes the PDFs: `auto` uses [anytopdf](#anytopdf) only for what LibreOffice and Chromium can't do here, `anytopdf` uses it for every document and image (and fetches it), `lens` never uses it; a pipeline's Read step can choose its own ([processing](processing.md#choosing-the-converter-for-a-read-step)) |
 | `documents.anytopdf_url` | none | a conversion node: another machine running `anytopdf queue serve` and `anytopdf queue work`, such as `https://convert.home:8640`. Set, it converts instead of the program here |
 | `documents.anytopdf_token` | none | the node's bearer token (its `ANYTOPDF_QUEUE_TOKEN`), kept encrypted |
 | `documents.tika_url` | none (off) | an [Apache Tika](#apache-tika) server, such as `http://tika:9998` for the compose files' `tika` service |

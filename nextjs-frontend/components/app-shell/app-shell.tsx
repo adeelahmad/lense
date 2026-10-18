@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 
-import { Speakers } from "@/app/openapi-client";
+import { Feeds, Speakers } from "@/app/openapi-client";
 import { AccountMenu } from "@/components/app-shell/account-menu";
 import { ActivityPill } from "@/components/app-shell/activity";
 import { CommandPalette } from "@/components/app-shell/command-palette";
@@ -19,6 +19,7 @@ import { useApprovalCount } from "@/components/approvals/use-approvals";
 import { BudgetMeter } from "@/components/costs/budget-meter";
 import { WelcomeTour } from "@/components/home/welcome-tour";
 import { PageChat } from "@/components/page-chat/page-chat";
+import { useReplyCount } from "@/components/replies/use-replies";
 import { SimilarOnSelect } from "@/components/similar/selection-popover";
 import { Button, IconButton } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/states";
@@ -117,7 +118,19 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
     staleTime: 60_000,
   });
   const approvals = useApprovalCount();
-  const counts = { recordings, reviews: reviews.data, approvals: approvals.data?.waiting || undefined };
+  const feeds = useQuery({
+    queryKey: ["feeds", "list", null],
+    queryFn: () => data(Feeds.listFeeds({ client })),
+    staleTime: 60_000,
+  });
+  const replies = useReplyCount();
+  const counts = {
+    recordings,
+    reviews: reviews.data,
+    approvals: approvals.data?.waiting || undefined,
+    feeds: feeds.data?.length || undefined,
+    replies: replies.data || undefined,
+  };
   const canImport = can("editor", namespace);
 
   return (

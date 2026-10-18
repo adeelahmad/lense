@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRightLeft,
   AudioLines,
+  AudioWaveform,
   Captions,
   ChevronDown,
   Clapperboard,
@@ -20,6 +21,7 @@ import {
   Shapes,
   Sparkles,
   TextSearch,
+  WandSparkles,
   Webhook,
   Workflow,
   X,
@@ -63,6 +65,8 @@ import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
 const ICON: Record<string, LucideIcon> = {
+  enhance: WandSparkles,
+  clean_audio: AudioWaveform,
   transcribe: Captions,
   read: ScanText,
   diarize: AudioLines,
@@ -83,6 +87,8 @@ const ICON: Record<string, LucideIcon> = {
   workflow: Workflow,
 };
 const LIB_ORDER = [
+  "enhance",
+  "clean_audio",
   "transcribe",
   "diarize",
   "shots",
@@ -98,6 +104,7 @@ const LIB_ORDER = [
   "summarize",
   "llm",
   "spec",
+  "reply",
   "report",
   "export",
   "workflow",

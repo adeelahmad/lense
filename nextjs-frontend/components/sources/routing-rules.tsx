@@ -29,7 +29,9 @@ function useDebounced<T>(value: T, ms: number): T {
 }
 
 /** An email watch's routing rules: the first rule that matches a new message sends it to a namespace, or skips it;
- * the rest go to the watch's own namespace. Below them, where the latest messages would go. */
+ * then the account's shared rules are tried, and the rest go to the watch's own namespace. With `shared`, the
+ * account's shared rules themselves, which every watch on it tries after its own. Below them, where the latest
+ * messages would go. */
 export function RoutingRules({
   rules,
   onChange,
@@ -38,6 +40,7 @@ export function RoutingRules({
   source,
   path,
   showProblems,
+  shared = false,
 }: {
   rules: RuleForm[];
   onChange: (rules: RuleForm[]) => void;
@@ -46,6 +49,7 @@ export function RoutingRules({
   source: number;
   path: string;
   showProblems: boolean;
+  shared?: boolean;
 }) {
   const client = useApiClient();
   const update = (i: number, r: Partial<RuleForm>) => onChange(rules.map((x, j) => (j === i ? { ...x, ...r } : x)));
@@ -54,13 +58,19 @@ export function RoutingRules({
 
   const ready = rules.every((r) => !ruleProblem(r));
   const body = useDebounced(
-    useMemo(() => ({ source, path, namespace: home, routes: rulesToApi(rules) }), [source, path, home, rules]),
+    useMemo(
+      () =>
+        shared
+          ? { source, path, namespace: "", routes: [], shared_routes: rulesToApi(rules) }
+          : { source, path, namespace: home, routes: rulesToApi(rules) },
+      [shared, source, path, home, rules],
+    ),
     600,
   );
   const preview = useQuery({
     queryKey: ["route-preview", body],
     queryFn: () => data(Sources.previewRoutes({ client, body })),
-    enabled: ready && rules.length > 0 && Boolean(home),
+    enabled: ready && rules.length > 0 && (shared || Boolean(home)),
     staleTime: 60_000,
     retry: false,
   });
@@ -70,12 +80,14 @@ export function RoutingRules({
   return (
     <div className="flex flex-col gap-2" role="group" aria-labelledby="watch-routes">
       <span className="text-[13px] font-bold text-fg-strong" id="watch-routes">
-        Routing rules
+        {shared ? "Shared routing rules" : "Routing rules"}
       </span>
       <p className="text-[12.5px] text-fg-muted">
-        Send some messages to other namespaces. The first rule that matches decides; messages no rule matches go to{" "}
-        {home || "this watch’s namespace"}. Patterns are comma-separated and match anywhere, or use * for a pattern such
-        as *@acme.com. Rules apply to mail that arrives after you save.
+        {shared
+          ? "Every watch on this account tries its own rules first, then these; messages none matches go to the watch’s namespace."
+          : `Send some messages to other namespaces. The first rule that matches decides, then this account’s shared rules; messages none matches go to ${home || "this watch’s namespace"}.`}{" "}
+        Patterns are comma-separated and match anywhere, or use * for a pattern such as *@acme.com. Rules apply to mail
+        that arrives after you save.
       </p>
       {rules.map((r, i) => {
         const problem = showProblems ? ruleProblem(r) : null;
@@ -157,7 +169,7 @@ export function RoutingRules({
         size="sm"
         className="self-start"
         icon={<Plus />}
-        onClick={() => onChange([...rules, blankRule(namespaces.find((n) => n !== home) ?? null)])}
+        onClick={() => onChange([...rules, blankRule(namespaces.find((n) => shared || n !== home) ?? null)])}
       >
         Add a rule
       </Button>
@@ -183,9 +195,11 @@ export function RoutingRules({
                     {m.title || "(no subject)"}
                   </span>
                   <span className={m.skipped ? "text-fg-muted" : "font-semibold text-fg-strong"}>
-                    {m.skipped ? "skipped" : `→ ${m.namespace}`}
+                    {m.skipped ? "skipped" : `→ ${m.namespace || "the watch’s namespace"}`}
                   </span>
-                  <span className="w-12 shrink-0 text-right text-fg-muted">{m.rule ? `rule ${m.rule}` : ""}</span>
+                  <span className="shrink-0 text-right text-fg-muted">
+                    {m.rule ? `${m.shared && !shared ? "shared rule" : "rule"} ${m.rule}` : ""}
+                  </span>
                 </li>
               ))}
               {preview.data?.length === 0 && <li className="text-fg-muted">No messages there yet.</li>}

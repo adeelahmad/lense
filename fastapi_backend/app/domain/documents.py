@@ -19,7 +19,7 @@ import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
 
-from . import anytopdf, convert, ingest, keyring, store, tika, video, webcapture
+from . import anytopdf, convert, enhance, ingest, keyring, store, tika, video, webcapture
 
 R = store.R
 TYPES = {
@@ -417,7 +417,13 @@ def read_image(path, d, opts, engine, say, why="no OCR engine is available"):
 
 
 # ---------- the transcribe step for documents and images ----------
-BY = {"libreoffice": "LibreOffice", "chromium": "Chromium", "anytopdf": "anytopdf", "tika": "Tika"}  # who made its PDF, for people
+BY = {
+    "libreoffice": "LibreOffice",
+    "chromium": "Chromium",
+    "anytopdf": "anytopdf",
+    "tika": "Tika",
+    "pushed": "the import webhook that sent it",
+}  # who made its PDF, for people
 
 
 def segments_of(blocks):
@@ -464,6 +470,18 @@ def _tika_described(cfg, path, say):
         return {}
 
 
+def _email_of(path, say):
+    """What an email handed back as a PDF still tells about itself, read from its own file: {title, email,
+    attachments}, or {} when it can't be read."""
+    try:
+        e = convert.read_eml(path)
+        _, attachments = convert.email_page(e)
+    except (ValueError, OSError, UnicodeError) as err:
+        say(f"its sender and attachments weren't read: {err}")
+        return {}
+    return {"title": e["subject"] or None, "email": convert.email_info(e), "attachments": attachments}
+
+
 def _clear(d):
     for pattern in ("page-*.jpg", "thumb-*.jpg"):
         for f in d.glob(pattern):
@@ -473,8 +491,9 @@ def _clear(d):
 def transcribe(db, cfg, rid, say):
     """Draw a document's or an image's pages and read their text into its segments (the transcribe step for them). A
     document that isn't a PDF is made into one first (convert.py): its rendition, which its pages come from; an email
-    also gives its sender, recipients, date and subject, and its attachments are kept."""
-    rec = db.one("SELECT space, path, remote, source, title, recorded_at, web FROM $r", r=R("recording", rid)) or {}
+    also gives its sender, recipients, date and subject, and its attachments are kept. A PDF an import webhook handed
+    back (import_hooks.hand_back) is its rendition as it is."""
+    rec = db.one("SELECT space, path, remote, source, title, recorded_at, web, rendition, awaits_pdf FROM $r", r=R("recording", rid)) or {}
     if rec.get("web"):  # a web page: captured the first time (webcapture.py)
         try:
             path = webcapture.ensure(db, cfg, rid, rec, say)
@@ -484,9 +503,19 @@ def transcribe(db, cfg, rid, say):
         path = ingest.audio_path(db, cfg, rec)
     if not path or not os.path.exists(path):
         raise FileNotFoundError(f"its file isn't there ({rec.get('path')})")
+    if rec["source"] == "image" and (better := enhance.picture(db, cfg, rid, path)) != path:
+        path = better  # the enhance step's copy of a low quality image; the original stays as it was
+        say("read from its enhanced copy")
     opts, (engine, why) = cfg["documents"], video.ocr_engine_why(cfg)
     learnt, pdf, source, read = {}, path, rec["source"], None
-    if source == "document" and convert.needs(path):
+    pushed = (rec.get("rendition") or {}).get("by") == "pushed" and convert.rendition_path(cfg, rid).is_file()
+    if source == "document" and rec.get("awaits_pdf"):
+        raise ValueError(f"this {convert.word(path)} waits for its PDF from the import webhook that sent it")
+    if source == "document" and pushed and convert.needs(path):
+        pdf, learnt = keyring.working_copy(db, cfg, str(convert.rendition_path(cfg, rid))), {"by": "pushed"}
+        learnt.update(_email_of(path, say) if convert.ext_of(path) == ".eml" else {})
+        say("read from the PDF the import webhook handed back")
+    elif source == "document" and convert.needs(path):
         pdf = convert.rendition_path(cfg, rid)
         try:
             learnt = convert.to_pdf(cfg, path, pdf, say)
@@ -528,7 +557,7 @@ def transcribe(db, cfg, rid, say):
             else:
                 pages, blocks, notes, ocred = read_pdf(pdf, d, opts, engine, say, why, known)
     finally:
-        if learnt and not read:  # the rendition, read: kept encrypted from here on, like the file it was made from
+        if learnt and not read and not pushed:  # the rendition, read: kept encrypted from here on, like the file it was made from
             keyring.protect(db, cfg, rec["space"], pdf)
     if source == "document" and not read and tika.describes(cfg):
         learnt["described"] = _tika_described(cfg, path, say)
@@ -548,6 +577,8 @@ def transcribe(db, cfg, rid, say):
     patch = {"status": "transcribed", "engine": how, "media": media, "transcribed_at": store.now()}
     if learnt.get("by"):
         patch["rendition"] = None if read else {"from": convert.ext_of(path), "by": learnt["by"]}
+    elif source == "image":  # read from the picture itself: a PDF an earlier run made of it isn't where its pages are
+        patch["rendition"] = None
     if source == "document":
         patch["described"] = learnt.get("described") or None  # what it says about itself (Tika), else nothing kept
         patch.update(_named(rec, path, learnt))

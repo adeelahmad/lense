@@ -58,7 +58,9 @@ class Driver:
     label = ""
     about = ""
     priced = True  # it charges money: its groups need a budget
+    kept: tuple[str, ...] = ()  # what a failed check keeps of the last one's answer
     needs_join = False  # its units are other machines, which join over the mesh's install line (scaling.bootstrap)
+    delete_gone = True  # a unit found stopped is still deleted at the provider (a stopped machine's disk still costs)
     extra = None  # the optional dependency (pyproject.toml) it needs, fetched when a provider of it is saved
     modules = ()  # what that extra installs, to see whether it's here
     license = None
@@ -187,6 +189,7 @@ class Local(Driver):
     label = "This machine"
     about = "Runs more Lens workers on the machine Lens runs on, so more jobs run at once. Costs nothing."
     priced = False
+    delete_gone = False  # a process that ended leaves nothing, and its pid may be another process's now
     fields = {}
     template = {
         "steps": _field(
@@ -281,3 +284,5 @@ def get(driver_id):
 
 
 register(Local())
+
+from . import scaling_aws  # noqa: E402,F401 - AWS EC2 registers itself

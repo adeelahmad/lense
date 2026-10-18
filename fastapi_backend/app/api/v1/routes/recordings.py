@@ -22,6 +22,7 @@ from app.domain import (
     analyze,
     auth,
     deletion,
+    enhance,
     hierarchy,
     ipgroups,
     jobs,
@@ -29,6 +30,7 @@ from app.domain import (
     library,
     moving,
     nsfw,
+    playable,
     render,
     sources,
     store,
@@ -328,6 +330,12 @@ def get_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> Recording:
     if r.get("enrichment") and acl.member(r):  # where a photo was taken: members only
         d["enrichment"] = {k: v for k, v in r["enrichment"].items() if k != "photo_fp"}
     d["nsfw"] = _nsfw(db, cfg, r, rid)
+    d["enhanced"] = enhance.brief(r.get("enhanced"), rid)
+    waiting = r.get("awaits_pdf") or None
+    if waiting:
+        by = str(waiting.get("by") or "")
+        hook = by.split(":", 1)[1] if by.startswith("import_hook:") else ""
+        d["awaits_pdf"] = {"hook": int(hook) if hook.isdigit() else None, "since": waiting.get("since")}
     return Recording.model_validate(sign_urls(d, full=True))
 
 
@@ -585,10 +593,14 @@ def _media_type(rec: dict[str, Any], path: Any) -> str | None:
     return None
 
 
-def serve_audio(db: DB, cfg: dict[str, Any], rec: dict[str, Any], rid: int, request: Request) -> Response:
-    """The recording's audio (or video) file with byte ranges: local, from a local source, from the cache, or streamed."""
+def serve_audio(db: DB, cfg: dict[str, Any], rec: dict[str, Any], rid: int, request: Request, player: bool = False) -> Response:
+    """The recording's audio (or video) file with byte ranges: local, from a local source, from the cache, or streamed.
+    For the player, its playable copy when one was made (playable.py); the file itself otherwise."""
     if rec.get("source") != "audio":
         raise HTTPException(404, "no audio for this recording")
+    copy = playable.copy_of(db, cfg, rid) if player else None
+    if copy:
+        return file_response(copy[0], request, copy[1], db, cfg)
     path = render.has_audio(db, cfg, rid)
     if path:
         return file_response(path, request, _media_type(rec, path), db, cfg)
@@ -613,8 +625,10 @@ def serve_audio(db: DB, cfg: dict[str, Any], rec: dict[str, Any], rid: int, requ
 
 @router.get("/{rid}/audio", response_class=Response, responses={200: {"content": {"audio/*": {}}}, 206: {"description": "a byte range"}})
 def get_audio(rid: int, request: Request, acl: Acl, db: Db, cfg: Cfg, s: str = "") -> Response:
-    """The audio, with byte ranges. Accepts a bearer token, a share link (``?s=``) or a signed link."""
-    return serve_audio(db, cfg, acl.recording(rid, share=s), rid, request)
+    """The audio (or video) for the player, with byte ranges: a copy every browser plays when Settings › Video made one,
+    else the file itself (``/media`` always gives the file). Accepts a bearer token, a share link (``?s=``) or a signed
+    link."""
+    return serve_audio(db, cfg, acl.recording(rid, share=s), rid, request, player=True)
 
 
 @router.get("/{rid}/wordcloud.svg", response_class=Response, responses={200: {"content": {"image/svg+xml": {}}}})
@@ -631,6 +645,18 @@ def reprocess_recording(rid: int, acl: Acl, user: Writer, db: Db, body: Reproces
         return JobQueued(job=jobs.enqueue(db, rid, body.steps or None, by=user.email, pipeline=body.pipeline))
     except (ValueError, KeyError) as e:
         raise HTTPException(400, str(e)) from None
+
+
+@router.post("/{rid}/enhance")
+def enhance_recording(rid: int, acl: Acl, user: Writer, db: Db) -> JobQueued:
+    """Enhance an image whatever the settings and its quality (docs/enhance.md): an enhanced copy is made, and its
+    pipeline's steps after enhance (reading its text, faces, objects, …) run again on that copy. The original stays as
+    it is. 400 for anything but an image. Audited as `recording.enhance`."""
+    acl.recording(rid, "process")
+    with domain_errors():
+        job = enhance.queue(db, rid, user.email)
+    auth.audit(db, user.as_audit(), "recording.enhance", f"recording:{rid}", {"job": job})
+    return JobQueued(job=job)
 
 
 @router.post("/{rid}/share")

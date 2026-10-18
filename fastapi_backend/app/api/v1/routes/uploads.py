@@ -95,7 +95,8 @@ def upload_limits(user: CurrentUser, cfg: Cfg) -> UploadLimits:
 def start_upload(body: UploadStart, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> Upload:
     """Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of
     a text-only asset (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the
-    namespace's. Then send the file with PUT /uploads/{uid}.
+    namespace's; `content_type` (one of the file's base type) is the asset's instead of the one recognised from its
+    file, so that content type's pipeline runs. Then send the file with PUT /uploads/{uid}.
     400 for a type not in uploads.extensions, 409 when the asset has audio already, 413 over uploads.max_mb, 507
     when the server's disk can't hold it."""
     ns = body.namespace.strip()
@@ -104,6 +105,8 @@ def start_upload(body: UploadStart, acl: Acl, user: Writer, db: Db, cfg: Cfg) ->
     if body.collection is not None and body.recording is not None:
         raise HTTPException(400, "the asset stays in its collection; a collection can't be chosen for it")
     check_pipeline(db, body.pipeline)
+    if body.content_type is not None and body.recording is not None:
+        raise HTTPException(400, "the asset keeps its content type; one can't be chosen for audio attached to it")
     if body.hold and (body.recording is not None or body.pipeline is not None or body.collection is not None):
         raise HTTPException(400, "a held file is placed later; it can't name an asset, pipeline or collection")
     if body.hold:
@@ -139,6 +142,7 @@ def start_upload(body: UploadStart, acl: Acl, user: Writer, db: Db, cfg: Cfg) ->
             body.pipeline,
             body.collection,
             body.hold,
+            body.content_type,
         )
     return Upload(**uploads.view(cfg, row))
 

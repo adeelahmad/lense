@@ -1,13 +1,14 @@
 name: threat model
 
 # Checks that threat-model.md (canonical), threat-model.yaml and threat-model.json agree: a change to the prose changes
-# a companion too, the property ids in all three, and the open-question numbers. See ci/validate_threat_model.py.
+# a companion too, the property ids in all three, the open-question numbers, and that the tests it cites exist (so it
+# also runs when the backend tests change). See ci/validate_threat_model.py.
 on:
   push:
     branches: [main]
-    paths: [threat-model.md, threat-model.yaml, threat-model.json, ci/validate_threat_model.py, ci/test_validate_threat_model.py, .github/workflows/threat-model.yml]
+    paths: [threat-model.md, threat-model.yaml, threat-model.json, ci/validate_threat_model.py, ci/test_validate_threat_model.py, .github/workflows/threat-model.yml, "fastapi_backend/tests/**"]
   pull_request:
-    paths: [threat-model.md, threat-model.yaml, threat-model.json, ci/validate_threat_model.py, ci/test_validate_threat_model.py, .github/workflows/threat-model.yml]
+    paths: [threat-model.md, threat-model.yaml, threat-model.json, ci/validate_threat_model.py, ci/test_validate_threat_model.py, .github/workflows/threat-model.yml, "fastapi_backend/tests/**"]
   workflow_dispatch:
 
 concurrency:

@@ -22,7 +22,7 @@ from typing import Any, cast
 from app.core.security import sign_path
 from app.domain.store import API
 
-MEDIA_RX = re.compile(rf"^{re.escape(API)}/recordings/\d+/(audio|media|pdf|wordcloud\.svg|frames/[\w.-]+|files/\d+/download)$")
+MEDIA_RX = re.compile(rf"^{re.escape(API)}/recordings/\d+/(audio|media|pdf|enhanced|wordcloud\.svg|frames/[\w.-]+|files/\d+/download)$")
 NS_MEDIA_RX = re.compile(rf"^{re.escape(API)}/namespaces/[a-z0-9][a-z0-9_-]*/wordcloud\.svg$")
 REPORT_RX = re.compile(r"^/(reports|embed)/")
 # the response fields the server fills with links (player audio, frames, face covers, posters, pages and their

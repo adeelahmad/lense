@@ -333,3 +333,80 @@ def test_json_uploaded_is_read_as_records(client, env, db, cfg):
     r = _start(client, env["he"], 7, name="empty.json")
     uid = r.json()["id"]
     assert _send(client, env["he"], uid, 0, b"[1, 2]x").status_code == 400  # not JSON
+
+
+def test_a_content_type_chosen_at_upload(client, env, db, cfg):
+    """Choosing what a file is when it's uploaded: its asset has that content type from the start, and that content
+    type's pipeline is the one that runs."""
+    from app.domain import content_types
+
+    data, he = env["data"], env["he"]
+    shows = pipelines.create(db, "Shows", ["transcribe", "report"], "", "root@x.io")
+    content_types.update(db, "podcast", {"pipeline": shows})
+    count = len(db.values("SELECT VALUE id FROM upload"))
+    # one of the file's base type, else refused before anything arrives, saying which ones fit
+    r = _start(client, he, len(data), content_type="photo")
+    assert r.status_code == 400 and "this is audio; Photo is a image type" in r.json()["detail"] and "podcast" in r.json()["detail"]
+    assert _start(client, he, len(data), content_type="nope").status_code == 400
+    assert _start(client, he, len(data), name="clip.mp4", content_type="podcast").status_code == 400  # a video file
+    assert len(db.values("SELECT VALUE id FROM upload")) == count
+    up = _start(client, he, len(data), name="Monday notes.wav", content_type="podcast").json()
+    assert up["content_type"] == "podcast"
+    done = _send(client, he, up["id"], 0, data).json()
+    t, chosen = content_types.of_recording(db, done["recording"])
+    assert (t["key"], chosen) == ("podcast", True)  # nothing in its name says podcast
+    row = db.one("SELECT steps, pipeline FROM $j", j=R("job", done["job"]))
+    assert [s["type"] for s in row["steps"]] == ["transcribe", "report"] and row["pipeline"]["name"] == "Shows"
+    # a picture or a document takes one of its own base type
+    photo = pathlib.Path(cfg["data_dir"]) / "receipt.png"
+    from PIL import Image
+
+    Image.new("RGB", (40, 30), "white").save(photo)
+    up = _start(client, he, photo.stat().st_size, name="receipt.png", content_type="scan").json()
+    done = _send(client, he, up["id"], 0, photo.read_bytes()).json()
+    assert content_types.of_recording(db, done["recording"])[0]["key"] == "scan"
+    # the same file again without one keeps what it was; another file is recognised from the file, as before
+    again = _upload(client, he, data, name="Tuesday notes.wav")
+    assert again["duplicate"] and content_types.of_recording(db, again["recording"])[0]["key"] == "podcast"
+    other = pathlib.Path(cfg["data_dir"]) / "other.wav"
+    write_wav(other, seconds=1.5)
+    done = _upload(client, he, other.read_bytes(), name="Tuesday notes.wav")
+    assert content_types.of_recording(db, done["recording"]) == (content_types.get(db, "audio"), False)
+    # audio attached to a transcript keeps the asset's
+    rid = ingest.import_text(db, cfg, "pods", "[00:00] Ann: Hello there.\n[00:02] Ben: Hi.\n[00:04] Ann: Bye.")
+    assert _attach(client, he, data, rid, content_type="podcast").status_code == 400
+
+
+def test_a_held_file_is_placed_as_a_content_type(db, cfg, folder):
+    from app.domain import content_types
+
+    wav = folder / "memo.wav"
+    write_wav(wav, seconds=1.5)
+    by = {"id": 1, "email": "a@x.io"}
+    store.ns_id(db, "pods")
+    up = uploads.take(db, cfg, "", str(wav), "memo.wav", by, hold=True)
+    with pytest.raises(ValueError, match="this is audio"):
+        uploads.place(db, cfg, up["id"], "pods", 1, content_type="document")
+    assert uploads.get(db, up["id"])["state"] == "held"  # nothing changed
+    done = uploads.place(db, cfg, up["id"], "pods", 1, content_type="interview")
+    assert content_types.of_recording(db, done["recording"]) == (content_types.get(db, "interview"), True)
+
+
+def test_a_copy_in_a_folder_on_this_machine_links_to_the_one_there(client, env, db, cfg, folder, monkeypatch):
+    """The same file in two folders of a source on this machine, or uploaded after, is one resource, read once."""
+    from tests.api.test_sources import _lsjson_without_rclone
+
+    _lsjson_without_rclone(monkeypatch)
+    data, ha, he = env["data"], env["ha"], env["he"]
+    for sub in ("phone", "laptop"):
+        (folder / "inbox" / sub).mkdir(parents=True)
+        (folder / "inbox" / sub / f"{sub}.wav").write_bytes(data)
+    (folder / "inbox" / "laptop" / "other.wav").write_bytes(data[:100] + b"\1\1" + data[102:])
+    sid = client.post("/api/v1/sources", json={"name": "inbox", "type": "local"}, headers=ha).json()["id"]
+    paths = [str(folder / "inbox" / p) for p in ("phone/phone.wav", "laptop/laptop.wav", "laptop/other.wav")]
+    got = client.post("/api/v1/import/source", json={"source": sid, "paths": paths, "namespace": "pods"}, headers=ha).json()["results"]
+    assert [x["status"] for x in got] == ["queued", "already", "queued"]
+    assert got[1]["recording"] == got[0]["recording"] != got[2]["recording"] and got[1]["job"] is None
+    assert db.one("SELECT count() AS n FROM recording GROUP ALL")["n"] == 2
+    done = _upload(client, he, data)  # and an upload of it finds it there
+    assert (done["recording"], done["duplicate"]) == (got[0]["recording"], True)

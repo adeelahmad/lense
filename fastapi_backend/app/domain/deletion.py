@@ -20,7 +20,7 @@ import logging
 import pathlib
 import shutil
 
-from . import access as acc, files as filemod, keyring, notebook, render, store, video
+from . import access as acc, files as filemod, keyring, notebook, playable, render, store, video
 
 R = store.R
 log = logging.getLogger("lens")
@@ -54,6 +54,7 @@ OWN = (
     "passage",
     "photo_vector",
     "podcast",
+    "email_reply",
 )
 
 
@@ -82,15 +83,23 @@ def stop_jobs(db, rid, verb="delete"):
 
 
 def _files(db, cfg, rec, rid, ns):
-    """The files Lens made from the recording: its frames, its report pages, the PDF made of a document, the exports
-    only it wrote, and a cached copy of a remote file that no other recording uses. Never the media file, unless a
-    convert step made it (conversions.py)."""
+    """The files Lens made from the recording: its frames, its report pages, the PDF made of a document, its enhanced
+    copy, the exports only it wrote, and a cached copy of a remote file that no other recording uses. Never the media
+    file, unless a convert step made it (conversions.py)."""
+    from . import enhance
+
     data = pathlib.Path(cfg["data_dir"])
     reports = data / "reports" / (ns or "_")
     name = f"{render.slug(rec.get('title'))}-{rid}"
-    out = [reports / f"{name}.html", *reports.glob(f"{name}--*.html"), data / "renditions" / f"{int(rid)}.pdf"]
+    out = [
+        reports / f"{name}.html",
+        *reports.glob(f"{name}--*.html"),
+        data / "renditions" / f"{int(rid)}.pdf",
+        enhance.enhanced_path(cfg, rid),
+    ]
     if rec.get("converted_from") and rec.get("path") and keyring.owned(cfg, rec["path"]):
         out.append(pathlib.Path(rec["path"]))
+    out += playable.copies(cfg, rid)
     exports = data / "exports" / (ns or "_")
     mine = {
         (o.get("value") or {}).get("file")

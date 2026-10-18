@@ -18,6 +18,9 @@ then.
   ([Titles](#titles)).
 - **Stopping:** Stop asks the server to end the answer after the piece or tool step it's on (whichever server process
   is writing it); what came before is saved, marked stopped. A model call already under way finishes first.
+- **Leaving mid-answer:** an answer is written on a thread of its own, not by the connection reading it, so closing the
+  tab, losing the connection or moving to another page doesn't stop it: it's finished and saved, and opening the
+  conversation again shows it. Only Stop ends an answer early.
 - **Reopening:** a conversation's answers keep the tools the assistant used (and with what), any notice (the model
   couldn't use tools), the error when there was no answer, their latest source check and what produced them.
 - **Versions:** a conversation is a tree, and nothing in it is deleted. Regenerating an answer writes a new answer to
@@ -80,7 +83,9 @@ then.
 - **Chat on any page:** every page except Chat itself has an Ask button that opens a chat panel beside the page (full
   screen on phones). Its conversation follows you between pages, and across visits in the same browser, until New
   chat; it is an ordinary conversation, also listed in Chat. Each question can share the page's text (the page chip,
-  on by default) and text highlighted on the page (Ask about this, above any selection). The model reads them with the
+  on by default) and text highlighted on the page (Ask about this, above any selection). A timeline item's **Ask about
+  this** (or `a` on its line) hands the panel the item instead: its id, line, time, where it opens and its fields
+  ([timeline](timeline.md#asking-about-an-item)). The model reads them with the
   question (up to 12,000 characters of page text and 4,000 of the highlight) as what the person is looking at, not as
   citable excerpts. The question keeps the page's address, title and highlight, shown above it; the page's text isn't
   stored. An asset's text and pages keep their own selection toolbar, whose Ask in chat goes to the
@@ -279,7 +284,8 @@ When the configured model supports function calling, chat becomes an agent.
   and its other names, hiding one, or adding one to a namespace's fixed list) and changing topics (merging,
   renaming, describing or deleting one; [Topics](topics.md)) don't happen directly.
   They become approval cards (with the batch estimate) that the person approves, approves on a sample, or declines
-  (`POST /api/v1/approvals/<id>`). Viewers only get the read tools. When an [automation](automations.md#the-model-and-the-agent)
+  (`POST /api/v1/approvals/<id>`). Only the person approves one, signed in to Lens or in the chat: an API key, an app,
+  MCP and the assistant can only decline it. Viewers only get the read tools. When an [automation](automations.md#the-model-and-the-agent)
   uses the assistant, every change it would make is an approval of yours, notes included, with the run as its origin.
 - **Check sources** (`POST /api/v1/chats/<id>/messages/<id>/check`) re-checks every cited claim against the lines it
   cites, and lists sentences that cite nothing.
@@ -287,10 +293,12 @@ When the configured model supports function calling, chat becomes an agent.
   straight away without looking anything up gets the same, when the archive has passages that match.
 - **Files:** attach files to a message with the clip, or by dropping or pasting them on the box. They upload as you
   type (`POST /api/v1/uploads` with `hold`), stay out of the archive, and the assistant puts them in a namespace
-  with `import_files` (`attachments` on `POST /api/v1/chats/<id>/messages`).
+  with `import_files` (`attachments` on `POST /api/v1/chats/<id>/messages`). Say what they are ("these are
+  interviews") and it imports them as that [content type](processing.md#content-types), so its pipeline runs.
 - **Web pages:** give it one address, several, or a list of links (pasted, or attached as a text file or a browser's
   bookmark export) and `import_urls` captures each page as a document, as `POST /api/v1/import/web/links` does. Like
-  `import_files`, it picks the namespace when you don't name one, and waits for your approval.
+  `import_files`, it picks the namespace when you don't name one, takes a content type when you say what the pages
+  are, and waits for your approval.
 - **Keep typing:** what you send while an answer is being written waits its turn and goes next.
 - **Your browser** (Chrome and Edge): asked from the Lens extension's side panel, the assistant can open, read, click
   and type in that browser and download files into the conversation, on sites you allow, asking before anything that
@@ -538,6 +546,26 @@ people it's turned on for: those who can edit a namespace, and admins (`sandbox.
   [activity ledger](activity.md) (`sandbox.run`, with its time, language and exit code), counted for the conversation.
 - **Its client.** Lens's own client for the gateway (the `sandbox` Python extra, OpenShell's SDK, Apache-2.0) is
   fetched once the sandbox is on ([Components](components.md)).
+
+### Compute nodes
+
+Once a compute node on the install's [mesh](mesh.md#compute-nodes) has its own sandbox gateway (its install line
+starts one, and hands Lens the gateway's certificate), the assistant can run a conversation's code on it, reached
+only over the mesh's own network:
+
+- **`sandbox_nodes`** lists where code can run: this machine (`here`) and each compute node, with whether it can run
+  code now and, if not, why (it hasn't reported in the last 3 minutes, it isn't on the mesh, its sandbox gateway isn't
+  running), its machine, its groups, and which one has this conversation's sandbox.
+- **`node`** on `run_python` and `run_bash` (a node's id or name, or `here`) runs there. Left out, code runs where the
+  conversation's sandbox already is: this machine until a run asks for a node. A sandbox that moves starts fresh where
+  it moves to, without earlier files, and the one it left is deleted. The model is told to pick a node only when the
+  person asks for a machine or for more power than this one has.
+- **The same rules everywhere.** A node's sandbox has the same image, limits and network setting as this machine's,
+  is stopped when idle and deleted when unused or with its conversation, by its own gateway. Each run's ledger row
+  names its node (`sandbox.run`, `node`). Turning off this machine's gateway leaves the nodes' sandboxes alone, and a
+  node removed from the mesh takes its sandboxes with it.
+- **Nothing changes without nodes:** until the mesh registers some, there is no `sandbox_nodes` and no `node`, and
+  every sandbox runs on this machine's gateway.
 
 ### The gateway
 
@@ -790,6 +818,29 @@ when: someone asks for a recap of a meeting
 Find the meeting, read it, and answer with three bullets: decisions, owners, dates.
 ```
 
+### Manifests as files: `lens ext`
+
+`lens ext` keeps extensions as files in a folder, for a git repository or an agent that writes them:
+
+```bash
+lens ext list                    # the extensions you can see; --json for scripts and agents
+lens ext pull --dir extensions   # yours (admins: all) as files; names or ids pick some, --all adds shared ones
+lens ext check extensions        # read and check them without saving; exits 1 when one doesn't check
+lens ext push extensions         # changed ones become new versions, new ones extensions; --notes says what changed
+```
+
+With no address it works on this install's database, as the first admin or the account `--as` names (run it with
+`docker compose exec backend lens ext …`). With `--url` and `--token` (or `LENS_URL` and `LENS_TOKEN`) it works on
+any Lens server through `/api/v1/extensions`, as the [API token](authentication.md#api-tokens)'s owner; pushing takes a
+write token.
+
+A skill or a prompt tool is pulled as `<name>.md` (Markdown with frontmatter), the rest as `<name>.yaml`; a folder's
+other `.md` files, a README, are left alone. A pulled file says the version it was pulled at (`version: 3`, which the
+check ignores), so neither side's changes are lost: a push refuses when the extension changed in Lens since that
+version, and a pull refuses to overwrite a file changed since it was pulled, each until it's given `--force`. Pushing
+a file that says what Lens has, written differently or with the defaults left out, saves nothing. `visibility` and
+`namespaces` in a file share the extension as they say when it's pushed; without them, who sees it stays as it is.
+
 ### Skills and plugins from marketplaces
 
 Lens reads Anthropic's open plugin and skill formats as they are, so what's made for Claude installs here unchanged:
@@ -799,6 +850,13 @@ Lens reads Anthropic's open plugin and skill formats as they are, so what's made
   and any other is added by its address (`owner/repo`, a GitHub or GitLab link, or a link to its marketplace.json),
   which is how a team runs a custom one. Everyone who can edit browses them, previews a plugin (what it adds and what
   Lens leaves out) and installs it.
+- **Finding and updating**: `GET /api/v1/marketplaces/plugins?q=` looks for a plugin across every marketplace added,
+  by the words in its name, description, category or author. A plugin you installed says which version you have, and
+  when its marketplace (read again on **Refresh**) lists another, its button reads **Update to** that version;
+  `?updates=true` lists only those.
+- **For agents**: over [MCP](mcp.md), `find_plugins` finds them (`updates` for the ones with another version) and
+  `install_plugin` installs one, or with `preview` says what it would add. In chat the assistant has the same two
+  tools, and installing waits for your yes, like saving an extension.
 - **Links and files** (`POST /api/v1/extensions/import`, `/import/archive`): a plugin or a skill from a GitHub or
   GitLab repository or folder, or a `.zip`, `.skill` or `.tar.gz`.
 
@@ -901,8 +959,9 @@ not [the assistant in your browser](browser-assistant.md), which uses your own b
 
 ### Optional containers
 
-The MCP runner, the browser, the [code sandbox](#the-gateway)'s gateway and monitoring
-([Prometheus and Grafana](prometheus.md)) are containers Lens can run next to it, off until an admin turns one on. The web app can't start containers itself, so the machine's upgrade agent does
+The MCP runner, the browser, the [code sandbox](#the-gateway)'s gateway, monitoring
+([Prometheus and Grafana](prometheus.md)) and the mesh ([Nodes and the mesh](mesh.md#on-this-machine), started when an
+admin adds a node) are containers Lens can run next to it, off until an admin turns one on. The web app can't start containers itself, so the machine's upgrade agent does
 ([Updates](updates.md)): it adds the profile to `COMPOSE_PROFILES` in Lens's `.env`, or takes it out, and starts or
 stops that profile's containers, one change at a time. Without an agent (Lens wasn't installed with `install.sh`), the
 switch shows the line to run on the machine instead. Agents use the same switches: `GET /api/v1/admin/services` and

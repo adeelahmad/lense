@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRightLeft,
   AudioLines,
+  AudioWaveform,
   Captions,
   Clapperboard,
   Eraser,
@@ -13,6 +14,7 @@ import {
   FileText,
   FlaskConical,
   List,
+  Reply,
   ScanFace,
   ScanSearch,
   ScanText,
@@ -20,6 +22,7 @@ import {
   Shapes,
   Sparkles,
   TextSearch,
+  WandSparkles,
   Workflow,
   type LucideIcon,
 } from "lucide-react";
@@ -56,6 +59,8 @@ import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
 const ICON: Record<string, LucideIcon> = {
+  enhance: WandSparkles,
+  clean_audio: AudioWaveform,
   transcribe: Captions,
   read: ScanText,
   diarize: AudioLines,
@@ -72,13 +77,26 @@ const ICON: Record<string, LucideIcon> = {
   summarize: Sparkles,
   llm: Sparkles,
   spec: ScrollText,
+  reply: Reply,
   report: FileText,
   export: FileOutput,
   workflow: Workflow,
 };
 const TONE = { intent: "blue", red: "red", green: "green", gate: "gold", neutral: "neutral" } as const;
-const ASSETS = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "convert"];
-const METADATA = ["clean", "analyze", "embed", "summarize", "llm", "spec", "report", "export"];
+const ASSETS = [
+  "enhance",
+  "clean_audio",
+  "transcribe",
+  "diarize",
+  "shots",
+  "ocr",
+  "faces",
+  "objects",
+  "nsfw",
+  "describe",
+  "convert",
+];
+const METADATA = ["clean", "analyze", "embed", "summarize", "llm", "spec", "reply", "report", "export"];
 
 /** A pipeline drawn as a graph: asset steps, metadata steps and workflows, an edge saying what runs after what. */
 export function PipelineCanvas({ id }: { id: number }) {

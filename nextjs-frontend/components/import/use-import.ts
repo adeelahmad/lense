@@ -35,6 +35,8 @@ export type Item = {
   title: string;
   mapping: string;
   mappingTouched: boolean;
+  /** The content type chosen for it (one of its base type's); none: recognised from the file. */
+  contentType?: string | null;
 };
 
 type Action =
@@ -112,7 +114,8 @@ export function useImportFiles() {
   const clear = useCallback(() => dispatch({ type: "clear" }), []);
   /** A PDF as a document (its pages) or a transcript (its text only). */
   const setKind = useCallback(
-    (it: Item, kind: FileKind) => dispatch({ type: "patch", id: it.id, patch: asKind(it.file, kind, limits) }),
+    (it: Item, kind: FileKind) =>
+      dispatch({ type: "patch", id: it.id, patch: { ...asKind(it.file, kind, limits), contentType: null } }),
     [limits],
   );
 
@@ -244,7 +247,7 @@ export type QueueJob = {
   namespace: string;
 } & (
   | { kind: "file" | "paste"; body: () => Promise<ImportBody>; audio?: File }
-  | { kind: "media"; file: File; pipeline?: number | null; collection?: number | null }
+  | { kind: "media"; file: File; pipeline?: number | null; collection?: number | null; contentType?: string | null }
 );
 
 /**
@@ -267,6 +270,7 @@ export function useImportQueue() {
         attach?: number;
         pipeline?: number | null;
         collection?: number | null;
+        contentType?: string | null;
       }
     >(),
   );
@@ -305,6 +309,7 @@ export function useImportQueue() {
           attach: m.attach,
           pipeline: m.pipeline,
           collection: m.collection,
+          contentType: m.contentType,
           title: m.title,
           pieceMb: limits.chunk_mb,
           signal: stop.signal,
@@ -354,6 +359,7 @@ export function useImportQueue() {
             title: j.title,
             pipeline: j.pipeline,
             collection: j.collection,
+            contentType: j.contentType,
           });
           await upload(j.key);
           continue;
@@ -362,13 +368,19 @@ export function useImportQueue() {
           const res = await data(Imports.importTranscript({ client, body: await j.body() }));
           if (j.audio) {
             // then its audio, attached to the transcript that just landed
-            update(j.key, { recording: res.id, job: res.job, audio: j.audio.name, sent: 0, size: j.audio.size });
+            update(j.key, {
+              recording: res.id,
+              job: res.job ?? undefined,
+              audio: j.audio.name,
+              sent: 0,
+              size: j.audio.size,
+            });
             media.current.set(j.key, { file: j.audio, namespace: j.namespace, title: j.title, attach: res.id });
             landed();
             await upload(j.key);
             continue;
           }
-          update(j.key, { state: "sent", recording: res.id, job: res.job });
+          update(j.key, { state: "sent", recording: res.id, job: res.job ?? undefined });
           landed();
         } catch (e) {
           update(j.key, {
@@ -400,6 +412,7 @@ export async function fileBody(
     namespace,
     pipeline,
     collection,
+    content_type: it.contentType ?? null,
     title: it.title.trim() || null,
     speakers: mappingParam(parseMapping(it.mapping, labels)),
     filename: it.file.name,

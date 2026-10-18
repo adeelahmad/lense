@@ -1151,3 +1151,4 @@ from . import events_streams  # noqa: E402, F401 - sensors, chat, webhooks and s
 from . import events_approvals  # noqa: E402, F401 - approvals waiting and decided, after the content sources it reuses
 from . import events_automations  # noqa: E402, F401 - automations' runs, and the automation kinds
 from . import circles  # noqa: E402, F401 - what people share with their circles, as share.sent and share.received
+from . import event_reactions  # noqa: E402, F401 - reactions on activities (reaction.added), logged by people and agents

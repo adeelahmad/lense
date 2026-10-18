@@ -158,3 +158,95 @@ def test_matching():
     assert mail_routes.route([], mail, 5, {5}) == (5, None)
     assert mail_routes.route([{**rule, "space": 9}], mail, 5, {5}) == (5, 1)  # namespace deleted: home
     assert mail_routes.route([{**rule, "space": 9}], None, 5, {5, 9}) == (5, None)  # not an email: home
+
+
+def test_an_accounts_shared_rules_apply_to_every_watch(client, db, cfg, admin, mail, imap):
+    h = admin
+    shared = [{"match": {"from": "*@acme.com"}, "namespace": "finance"}, {"match": {"list": "news.lists.example"}, "skip": True}]
+    r = client.put(f"/api/v1/sources/{mail}/routes", headers=h, json={"routes": shared})
+    assert r.status_code == 200, r.text
+    assert r.json()[1] == {"match": {"list": ["news.lists.example"]}, "namespace": None, "skip": True, "name": None}
+    assert next(s for s in client.get("/api/v1/sources", headers=h).json() if s["id"] == mail)["routes"][0]["namespace"] == "finance"
+
+    # a watch's own rules come first, then the account's, then the watch's namespace
+    own = [{"match": {"to": "support@"}, "namespace": "support"}, {"match": {"subject": "invoice 2231"}, "namespace": "family"}]
+    r = client.post(
+        "/api/v1/watches/routes/preview", headers=h, json={"source": mail, "path": "INBOX", "namespace": "family", "routes": own}
+    )
+    shown = {m["title"]: (m["namespace"], m["skipped"], m["rule"], m["shared"]) for m in r.json()}
+    assert shown == {
+        "Invoice 2231": ("family", False, 2, False),  # the watch's own rule wins over the account's
+        "Ticket: lamp broken": ("support", False, 1, False),
+        "Lunch?": ("family", False, None, False),
+        "Weekly digest": (None, True, 2, True),  # the account's second rule
+        "Forwarded": ("support", False, 1, False),
+    }
+    # rules not saved yet can be tried for the account too; with none, everything goes home
+    r = client.post("/api/v1/watches/routes/preview", headers=h, json={"source": mail, "path": "INBOX", "shared_routes": []})
+    assert {m["namespace"] for m in r.json()} == {""} and not any(m["shared"] for m in r.json())
+
+    inbox = client.post(
+        "/api/v1/watches", headers=h, json={"source": mail, "path": "INBOX", "namespace": "family", "stable_seconds": 0, "backfill": True}
+    ).json()["id"]
+    archive = client.post(
+        "/api/v1/watches",
+        headers=h,
+        json={"source": mail, "path": "Archive", "namespace": "support", "stable_seconds": 0, "backfill": True},
+    ).json()["id"]
+    assert sources.poll_watch(db, cfg, inbox) == {"seen": 5, "new": 4, "waiting": 0, "skipped": 1, "errors": 0, "routed": 1}
+    assert sources.poll_watch(db, cfg, archive)["routed"] == 1
+    assert _where(db) == {
+        "Invoice 2231": "finance",
+        "Ticket: lamp broken": "family",
+        "Lunch?": "family",
+        "Forwarded": "family",
+        "Old invoice": "finance",  # the Archive watch uses the account's rules too
+    }
+    assert db.one("SELECT status, rule, shared FROM remote_file WHERE path = 'INBOX/7-4.eml'") == {
+        "status": "skipped",
+        "rule": 2,
+        "shared": True,
+    }
+
+    # checked as a watch's rules are; none puts things back as they were
+    r = client.put(f"/api/v1/sources/{mail}/routes", headers=h, json={"routes": [{"match": {"from": "a"}, "namespace": "nowhere"}]})
+    assert r.status_code == 400 and "no namespace nowhere" in r.json()["detail"]
+    assert client.put(f"/api/v1/sources/{mail}/routes", headers=h, json={"routes": []}).json() == []
+    assert client.put("/api/v1/sources/999/routes", headers=h, json={"routes": []}).status_code == 404
+
+
+def test_shared_rules_only_on_email_accounts(db):
+    store.ns_id(db, "finance")
+    db.q("CREATE $r CONTENT $d", r=R("storage_source", 77), d={"name": "here", "type": "local", "params": {}})
+    with pytest.raises(ValueError, match="email account"):
+        sources.set_shared_routes(db, 77, [{"match": {"from": "a"}, "namespace": "finance"}])
+
+
+def test_agents_read_and_change_routing_rules(client, db, admin, mail):
+    from tests.api.test_automation_tools import tool, tool_error
+
+    wid = client.post("/api/v1/watches", headers=admin, json={"source": mail, "path": "INBOX", "namespace": "family"}).json()["id"]
+    out = tool(
+        client,
+        admin,
+        "set_mail_routing",
+        account=mail,
+        rules=["from: *@acme.com, *@acme.org; subject: invoice = finance", "list: * = skip"],
+    )
+    assert out == {"account": mail, "shared_rules": ["from: *@acme.com, *@acme.org; subject: invoice = finance", "list: * = skip"]}
+    out = tool(client, admin, "set_mail_routing", account=mail, watch=wid, rules=["to: support@ = support"])
+    assert out == {"account": mail, "watch": wid, "rules": ["to: support@ = support"]}
+    seen = tool(client, admin, "mail_routing")["accounts"]
+    assert seen == [
+        {
+            "account": mail,
+            "name": "shared",
+            "type": "imap",
+            "shared_rules": ["from: *@acme.com, *@acme.org; subject: invoice = finance", "list: * = skip"],
+            "watches": [{"watch": wid, "path": "INBOX", "namespace": "family", "rules": ["to: support@ = support"]}],
+        }
+    ]
+    assert "no namespace nowhere" in tool_error(client, admin, "set_mail_routing", account=mail, rules=["from: a = nowhere"])
+    assert "isn't a rule" in tool_error(client, admin, "set_mail_routing", account=mail, rules=["from: a"])
+    assert "has no watch" in tool_error(client, admin, "set_mail_routing", account=mail, watch=wid + 1, rules=[])
+    assert tool(client, admin, "set_mail_routing", account=mail, rules=[])["shared_rules"] == []

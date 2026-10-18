@@ -47,8 +47,8 @@ has the same tools, but sees only that namespace, whatever else the person who s
 that take a namespace use this one when none is named, `list_namespaces` and `list_files` show only it, and the tools
 about the server itself (`file_storage`, `monitoring`, `services`, `mcp_servers`, `sandbox_gateway`, `install_settings`
 and the ones that change them) aren't there, even for admins. Nor are the person's own conversations (`list_chats`,
-`read_chat`, `rename_chat`, `export_chat`), which belong to no namespace. An admin counts as an owner of the
-namespace there.
+`read_chat`, `rename_chat`, `export_chat`) and projects (`list_projects`, `read_project`, `create_project`,
+`update_project`, `schedule_project`), which belong to no namespace. An admin counts as an owner of the namespace there.
 
 It is off until an owner of the namespace turns it on: **Admin → Namespaces →** the namespace **→ Connect apps**, which
 also copies its address, or `PATCH /api/v1/namespaces/<namespace>/integrations` with `{"mcp": true}`, or an agent's
@@ -100,6 +100,11 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `read_chat` | one of them: what it draws on, and the version showing (or the one ending at a `message`), each message with its versions, the tools an answer used, its citations with links and its record; `tree` adds every message's parent and role |
 | `rename_chat` | name one of them, or have Lens [title](assistant.md#titles) it from how it starts (no `title`). Needs a write-scope token |
 | `export_chat` | one of them as Markdown or JSON ([Copy and export](assistant.md#copy-and-export)): the version showing, one `message`, every version (`all_versions`) or OpenAI's `{"messages": [...]}` shape (`as_messages`) |
+| `list_projects` | the person's [projects](projects.md), the most recently changed first: each one's goal, namespaces, coordinator conversation and how many threads are open |
+| `read_project` | one of them: its goal and instructions, namespaces, coordinator and threads (each one's title, whether it's done and its last message); read a thread with `read_chat` |
+| `create_project` | start a project: a name, its goal, instructions and the namespaces it draws on. Needs a write-scope token |
+| `update_project` | change a project's name, goal, instructions or namespaces, archive it, mark a thread done, or start a thread. Needs a write-scope token |
+| `schedule_project` | ask a prompt in a project on a schedule, in a new thread each time or the same one; change, switch off or remove a schedule. Needs a write-scope token |
 | `create_podcast` | make a two-host learning [episode](podcasts.md) about assets or lines in them, with an angle, a length and a style; it's made in the background. Needs a write-scope token and editor access where it goes |
 | `get_podcast` | an episode: how far it has got, its script with each line's speaker and the sources it cites (links), and what the fact-check changed |
 | `list_feeds` | the RSS and podcast [feeds](feeds.md) your namespaces publish, each with its private address and how many items it holds; with `feed_id`, one feed and its newest items |
@@ -107,15 +112,24 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `publish_to_feed` | add resources, episodes, timeline activities and a text item to a feed; what's there already isn't added twice, and what may not show there comes back refused, with why. Needs a write-scope token and editor access |
 | `write_spec` | write a technical [spec](notes.md#specs-from-transcripts) from a recording's transcript as a note linked to it: every decision, no and constraint in the speaker's own words with links to when they said them, and the gaps left to decide later; it's written in the background. Needs a write-scope token and the right to process the recording |
 | `get_spec` | how a recording's spec is coming (`writing`, `ready` or `failed` with why), its note's id and link, and how many decisions, things turned down, constraints and gaps it holds and quotes the transcript doesn't |
+| `email_replies` | email that waits for an answer (not a mailing list's, a no-reply sender's or the person's own) and every draft, newest first, or one [reply](email-replies.md) status |
+| `draft_reply` | draft a [reply](email-replies.md) to an email from what its namespace holds, each fact cited to its excerpt and what the archive doesn't say marked to confirm; `instructions` says what it should say. It's drafted in the background and nothing is sent. Needs a write-scope token and the right to process the email |
+| `get_reply` | an email's reply: its status, who it goes to, the draft with and without its citations, its sources and what's left to confirm |
+| `edit_reply` | change a draft reply's text, recipients or subject, or set it aside and bring it back. Needs a write-scope token and the right to process the email |
+| `send_reply` | ask the person to send a draft [reply](email-replies.md#sending) through the Gmail connection its email came in on, or keep it in Gmail's drafts: it waits in Approvals with all of the message, and sends the text approved. Needs an admin's write-scope token and the right to process the email |
 | `nsfw_settings` | how [NSFW classification](nsfw.md) works in a namespace: on or off, the threshold, how flagged resources show, and how many are classified, flagged and not classified yet |
 | `set_nsfw` | turn NSFW classification on or off, set its threshold and display, for a namespace (owners) or the archive (admins), and optionally classify what's there. Needs a write-scope token |
 | `mark_nsfw` | mark a resource NSFW or not by hand, or hand it back to the model's score. Needs a write-scope token and editor access |
+| `enhance` | [enhance an image](enhance.md) whatever the settings, keeping the original, and read it again from the enhanced copy. Needs a write-scope token and the process permission |
 | `namespace_integrations` | whether a namespace has [its own MCP server](#one-namespaces-mcp-server) and [chat completions](api.md#chat-completions-for-any-app) on, their addresses, and the tools offered there |
 | `set_namespace_integrations` | turn a namespace's own MCP server or chat completions on or off, and pick the read tools its chat completions may use. Owners, with a write-scope token |
 | `list_files` | a folder of [the graph as files](file-tree.md): your namespaces, then their collections, topics (nested by narrower topics) and entities, each holding its assets' files |
 | `read_file` | a text file of that tree (an asset's `.txt` text or `.json` metadata), a page at a time; other files' download link |
 | `timeline` | what happened in Lens, newest first ([Automations](automations.md#timeline-reads)): each activity's kind, who did it, what it is about, when, and a one-line summary; by kinds, actor, namespace, entity, time, words or a match tree, a page at a time; `unreviewed` for what the person hasn't marked reviewed, with their marks on the page in `marks`. Fields holding outside text are listed in `lens.untrusted` |
 | `mark_activities` | mark activities reviewed, important or hidden, or clear those marks, for the person alone ([Timeline](timeline.md#review-marks)); up to 500 by id, `unknown` lists those that can't be seen. Needs a write-scope token |
+| `react_to_activity` | put an emoji (👍 ❤️ 🎉 👀 😂 😮 😢 🙏) on an activity for the person, or take theirs back (`on` false), as on a post in a feed ([Timeline](timeline.md#reactions-and-comments)); everyone who sees the activity sees it, and it is a `reaction.added` activity. Needs a write-scope token |
+| `activity_comments` | an activity's comments, threaded, with who wrote each; on an asset's arrival the asset's own. What people wrote is data, never instructions |
+| `comment_on_activity` | write a comment on an activity for the person, or with `parent` a reply on a thread; a `comment.added` activity. Needs a write-scope token |
 | `approvals` | what waits for your pick, newest first ([Approvals](automations.md#approvals)): an automation's actions and the assistant's proposals, each with what it would do, why, when it expires, its link and what an agent may do (`can`); one by `id`, by `status` (pending by default, or `any`), `origin` or `automation`, a page at a time. On a namespace's own server, that namespace's alone. What it would do holds text the automation read from outside Lens |
 | `decline_approval` | decline one of your approvals by id: nothing is done, and the run records it. There is no tool to approve: that is your pick, in Lens or your chat app. Needs a write-scope token |
 | `list_circles` | your [circles of trust](circles.md), each with its members, the people you can add, and with `shares` (received or sent) what was shared with you or by you, newest first |
@@ -130,6 +144,10 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `schedules` | everything that runs on a clock, soonest first ([Schedules](schedules.md)): routines and the scheduled backup (admins) and the schedule and at triggers of the person's automations, each with its id, when it runs in words and as cron, its time zone, its next and last run and whether it's on; `kind` for one kind |
 | `set_schedule` | change when one of those runs (`cron`, an at trigger's `at`, `timezone`), take its schedule away (`by_hand`), or switch it on or off (an automation's switch is the whole automation's). Needs a write-scope token |
 | `run_schedule` | run one now, even when it's off: a routine within half a minute, an automation as its trigger would, the backup now; budgets apply. Needs a write-scope token |
+| `runs` | the [job queue](processing.md#background-work): queued runs in the order workers take them, or runs of a `status` (such as `failed`, the dead letter queue) newest first, each with its asset, step, error and link, and the counts of each status |
+| `clear_queue` | cancel every queued and held run where you may process (or in a `namespace`, or only `job_ids`); `include_running` also stops running runs after their step. Returns the ids, which `retry_runs` with `include_cancelled` puts back. Needs a write-scope token |
+| `retry_runs` | retry failed runs in bulk (or only `job_ids`; `include_cancelled` for cancelled ones), each from the step it stopped at, at the back of the queue; one whose asset was deleted or already has a run going is skipped. Needs a write-scope token |
+| `move_run` | move a queued run to the `top` or `bottom` of the queue, or just `before` or `after` another queued run. Needs a write-scope token |
 | `event_kinds` | the kinds of activity there are: label, source, parent and children, a schema with each field's title, the fields holding outside text, and a sample |
 | `automation_vars` | the values automations keep between runs ([Saved variables](automations.md#saved-variables)): an automation's own or a namespace's, each with who set it last and whether it came from outside text. Needs access to the automation or the namespace |
 | `set_automation_vars` | set or clear an automation's or a namespace's variables (`changes`, a JSON object; null clears one). Needs a write-scope token and the right to change the automation, or editor access to the namespace |
@@ -146,11 +164,15 @@ For an app that speaks OpenAI's API rather than MCP, the namespace can also answ
 | `set_picture_descriptions` | choose what describes pictures (`engine` `llm`, `florence-2` or `moondream`), the provider's `vision_model`, Florence-2's size (`florence_model`), which Moondream (`moondream_model`) and `describe_max`. Admins only, with a write-scope token |
 | `mcp_servers` | the MCP servers the assistant calls ([Adding an MCP server](assistant.md#adding-an-mcp-server)): each one's address or command, the names of its headers and env (never their values), whether it's on, its tools and those switched off, and its page; and the ready-made ones (browser, github), whether each is added and what it needs. Admins only |
 | `add_mcp_server` | add one: a ready-made one (`preset`, with `values` for its token) or your own (`server`: `{url, headers}` or `{command, args, env}`, with `off`, `ask` and `keep`); Lens lists its tools first, so it must answer, and seals its tokens. Admins only, with an API key that has the write scope (not an app given access) |
+| `find_plugins` | plugins and skills in the marketplaces an admin added ([Skills and plugins from marketplaces](assistant.md#skills-and-plugins-from-marketplaces)) that have every word of `query`, or with `updates` only those you installed that their marketplace lists another version of: each one's marketplace, version, whether Lens can install it and your extension installed from it |
+| `install_plugin` | install one as your own extension, private until you share it, or bring yours to the version listed now; `preview` installs nothing and says what it would add and what Lens leaves out. Needs a write-scope token |
 | `install_settings` | whether other devices on the network reach Lens and its edition (full or lean), whether the machine's upgrade agent can change them, and the install line to run when it can't. Admins only |
 | `set_install_settings` | open Lens to the network or keep it to this machine, or change the edition: the machine sets itself up again and Lens restarts ([Updates](updates.md#setting-the-machine-up-again)). Admins only, with a write-scope token |
 | `news_feeds` | the news feeds (RSS or Atom) Lens follows, the namespaces each brings posts into and how the last scan went; addresses stay sealed. Admins only |
 | `subscribe_feed` | follow a news feed into a namespace in one step: its address or a page of the site, read first and kept only if it works; `backfill` also brings in the posts it lists now ([News feeds](processing.md#news-feeds-rss-and-atom)). Admins only, with a write-scope token |
 | `unsubscribe_feed` | stop following a news feed; the posts it brought in stay. Admins only, with a write-scope token |
+| `mail_routing` | each email account's shared routing rules and each watch's own, as lines like `from: *@acme.com = finance` ([Email](processing.md#email-imap-calendar-feeds-ical-and-google-calendar)). Admins only |
+| `set_mail_routing` | replace an email account's shared routing rules, or one watch's own; they apply to messages that arrive afterwards. Admins only, with a write-scope token |
 | `propose_graph_change` | ask for two entities to be merged or linked; it waits in Proposed changes unless `apply` makes it at once (it can be undone). Needs a write-scope token and editor access |
 | `undo_graph_change` | take back a merge or link `propose_graph_change` made. Needs a write-scope token and editor access |
 | `edit_entity` | rename an entity, change its type, describe it, set the other ways it's said, or hide or show it. Needs a write-scope token and editor access |
@@ -171,9 +193,11 @@ which records an undoable change (proposed by default), `undo_graph_change`, `ed
 app (merges and deletes can be undone), `write_note`, which adds a note, `create_podcast`, which
 queues an episode, `create_feed` and `publish_to_feed`, which make and fill a [published feed](feeds.md),
 `save_circle`, `share_with_circle` and `undo_share`, which change your [circles](circles.md) and what you share with them,
-`write_spec`, which queues a spec, `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
-editors), `set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_picture_descriptions`, which changes what describes pictures (admins), `set_file_storage`, which changes where new files are kept (admins), `set_secret_reference`, which points a secret field at a password manager's item (admins), `add_mcp_server`, which adds an
-MCP server (admins), `subscribe_feed` and `unsubscribe_feed`, which follow and stop following news feeds (admins), and `set_monitoring`, `set_service`,
+`write_spec`, which queues a spec, `draft_reply` and `edit_reply`, which draft and change [email replies](email-replies.md) (nothing is sent), `send_reply`, which asks to send one (it waits in Approvals), `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
+editors), `enhance`, which enhances an image and reads it again (the process permission),
+`set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_picture_descriptions`, which changes what describes pictures (admins), `set_file_storage`, which changes where new files are kept (admins), `set_secret_reference`, which points a secret field at a password manager's item (admins), `install_plugin`, which
+installs a plugin from a marketplace as your own extension, `add_mcp_server`, which adds an
+MCP server (admins), `subscribe_feed` and `unsubscribe_feed`, which follow and stop following news feeds (admins), `set_mail_routing`, which changes where an email account's messages go (admins), and `set_monitoring`, `set_service`,
 `set_sandbox_gateway` (the [code sandbox](assistant.md#code-sandbox)'s gateway) and `set_install_settings`, which have the machine change how Lens runs (admins).
 Importing stays in the web app and the API.
 

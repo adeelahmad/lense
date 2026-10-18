@@ -14,7 +14,10 @@ Colour = Literal["yellow", "green", "blue", "red"]
 
 class Comment(ResponseModel):
     id: int
-    recording: int
+    recording: int | None = Field(
+        None, description="the resource it is on; null for a comment on an activity that isn't an asset's arrival"
+    )
+    activity: str | None = Field(None, description="the activity of the timeline it was made on, when it was")
     parent: int | None = Field(None, description="the comment this replies to (the thread's first); null: it starts a thread")
     text: str
     t0: int | None = Field(None, description="the moment it's about, in ms from the start; null: the whole resource, or a reply")
@@ -40,6 +43,11 @@ class CommentCreate(RequestModel):
     t0: int | None = Field(None, ge=0, description="the moment it's about, in ms from the start; leave out for the whole resource")
     t1: int | None = Field(None, ge=0, description="where that moment ends, in ms (default: t0)")
     quote: str | None = Field(None, max_length=1000, description="the words picked in the text")
+
+
+class ActivityCommentCreate(RequestModel):
+    text: str = Field(min_length=1, max_length=5000)
+    parent: int | None = Field(None, description="reply on this comment's thread")
 
 
 class CommentUpdate(RequestModel):

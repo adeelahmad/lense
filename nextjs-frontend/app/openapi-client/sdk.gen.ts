@@ -40,6 +40,9 @@ import type {
   AddRecordingPermissionData,
   AddRecordingPermissionErrors,
   AddRecordingPermissionResponses,
+  AddScheduleData,
+  AddScheduleErrors,
+  AddScheduleResponses,
   AddVaultPasskeyData,
   AddVaultPasskeyErrors,
   AddVaultPasskeyResponses,
@@ -94,6 +97,9 @@ import type {
   CancelJobData,
   CancelJobErrors,
   CancelJobResponses,
+  CancelJobsData,
+  CancelJobsErrors,
+  CancelJobsResponses,
   CancelRcloneSigninData,
   CancelRcloneSigninErrors,
   CancelRcloneSigninResponses,
@@ -154,6 +160,9 @@ import type {
   CombineBatchData,
   CombineBatchErrors,
   CombineBatchResponses,
+  CommentOnActivityData,
+  CommentOnActivityErrors,
+  CommentOnActivityResponses,
   ConnectData,
   ConnectErrors,
   ConnectGoogleData,
@@ -261,6 +270,9 @@ import type {
   CreatePodcastData,
   CreatePodcastErrors,
   CreatePodcastResponses,
+  CreateProjectData,
+  CreateProjectErrors,
+  CreateProjectResponses,
   CreateRoleData,
   CreateRoleErrors,
   CreateRoleResponses,
@@ -326,6 +338,9 @@ import type {
   DefineEntityData,
   DefineEntityErrors,
   DefineEntityResponses,
+  DeleteActivityCommentData,
+  DeleteActivityCommentErrors,
+  DeleteActivityCommentResponses,
   DeleteAutomationData,
   DeleteAutomationErrors,
   DeleteAutomationResponses,
@@ -413,6 +428,9 @@ import type {
   DeletePodcastData,
   DeletePodcastErrors,
   DeletePodcastResponses,
+  DeleteProjectData,
+  DeleteProjectErrors,
+  DeleteProjectResponses,
   DeleteRecordingData,
   DeleteRecordingErrors,
   DeleteRecordingResponses,
@@ -472,15 +490,24 @@ import type {
   DraftAutomationData,
   DraftAutomationErrors,
   DraftAutomationResponses,
+  DraftReplyData,
+  DraftReplyErrors,
+  DraftReplyResponses,
   DropPasskeysData,
   DropPasskeysErrors,
   DropPasskeysResponses,
+  EditReplyData,
+  EditReplyErrors,
+  EditReplyResponses,
   EditSegmentData,
   EditSegmentErrors,
   EditSegmentResponses,
   EnableAutomationData,
   EnableAutomationErrors,
   EnableAutomationResponses,
+  EnhanceRecordingData,
+  EnhanceRecordingErrors,
+  EnhanceRecordingResponses,
   EntityToTopicData,
   EntityToTopicErrors,
   EntityToTopicResponses,
@@ -519,6 +546,9 @@ import type {
   FindGraphPathData,
   FindGraphPathErrors,
   FindGraphPathResponses,
+  FindMarketplacePluginsData,
+  FindMarketplacePluginsErrors,
+  FindMarketplacePluginsResponses,
   FindResourcesData,
   FindResourcesErrors,
   FindResourcesResponses,
@@ -595,6 +625,9 @@ import type {
   GetEmbedLinkResponses,
   GetEncryptionData,
   GetEncryptionResponses,
+  GetEnhancedData,
+  GetEnhancedErrors,
+  GetEnhancedResponses,
   GetEntityConnectionsData,
   GetEntityConnectionsErrors,
   GetEntityConnectionsResponses,
@@ -693,6 +726,9 @@ import type {
   GetPodcastData,
   GetPodcastErrors,
   GetPodcastResponses,
+  GetProjectData,
+  GetProjectErrors,
+  GetProjectResponses,
   GetProviderData,
   GetProviderErrors,
   GetProviderResponses,
@@ -725,6 +761,9 @@ import type {
   GetRecordingWordcloudData,
   GetRecordingWordcloudErrors,
   GetRecordingWordcloudResponses,
+  GetReplyData,
+  GetReplyErrors,
+  GetReplyResponses,
   GetResearchData,
   GetResearchErrors,
   GetResearchResponses,
@@ -899,6 +938,9 @@ import type {
   ListActivitiesData,
   ListActivitiesErrors,
   ListActivitiesResponses,
+  ListActivityCommentsData,
+  ListActivityCommentsErrors,
+  ListActivityCommentsResponses,
   ListActivityKindsData,
   ListActivityKindsResponses,
   ListAllTokensData,
@@ -1067,6 +1109,9 @@ import type {
   ListPodcastsData,
   ListPodcastsErrors,
   ListPodcastsResponses,
+  ListProjectsData,
+  ListProjectsErrors,
+  ListProjectsResponses,
   ListProvidersData,
   ListProvidersResponses,
   ListReadingsData,
@@ -1084,6 +1129,9 @@ import type {
   ListRecordingsData,
   ListRecordingsErrors,
   ListRecordingsResponses,
+  ListRepliesData,
+  ListRepliesErrors,
+  ListRepliesResponses,
   ListResearchData,
   ListResearchErrors,
   ListResearchResponses,
@@ -1121,6 +1169,8 @@ import type {
   ListSpeakersData,
   ListSpeakersErrors,
   ListSpeakersResponses,
+  ListStartersData,
+  ListStartersResponses,
   ListTagsData,
   ListTagsErrors,
   ListTagsResponses,
@@ -1129,6 +1179,9 @@ import type {
   ListTemplatesData,
   ListTemplatesErrors,
   ListTemplatesResponses,
+  ListThreadsData,
+  ListThreadsErrors,
+  ListThreadsResponses,
   ListTokensData,
   ListTokensResponses,
   ListTopicChangesData,
@@ -1225,6 +1278,9 @@ import type {
   MetricsData,
   MetricsErrors,
   MetricsResponses,
+  MoveJobData,
+  MoveJobErrors,
+  MoveJobResponses,
   MoveMentionData,
   MoveMentionErrors,
   MoveMentionResponses,
@@ -1247,6 +1303,14 @@ import type {
   NodeBeatResponses,
   NodeConfigData,
   NodeConfigResponses,
+  NodeMediaData,
+  NodeMediaErrors,
+  NodeMediaResponses,
+  NodeSandboxData,
+  NodeSandboxErrors,
+  NodeSandboxResponses,
+  NodeWorkerData,
+  NodeWorkerResponses,
   NotSameSpeakerData,
   NotSameSpeakerErrors,
   NotSameSpeakerResponses,
@@ -1366,6 +1430,9 @@ import type {
   QueueStepData,
   QueueStepErrors,
   QueueStepResponses,
+  ReactToActivityData,
+  ReactToActivityErrors,
+  ReactToActivityResponses,
   ReadFeedAudioData,
   ReadFeedAudioErrors,
   ReadFeedAudioResponses,
@@ -1404,6 +1471,9 @@ import type {
   ReleaseJobData,
   ReleaseJobErrors,
   ReleaseJobResponses,
+  ReleaseThreadData,
+  ReleaseThreadErrors,
+  ReleaseThreadResponses,
   RemoteBackupsData,
   RemoteBackupsResponses,
   RemoveBudgetData,
@@ -1433,6 +1503,9 @@ import type {
   RemoveRecordingPermissionData,
   RemoveRecordingPermissionErrors,
   RemoveRecordingPermissionResponses,
+  RemoveScheduleData,
+  RemoveScheduleErrors,
+  RemoveScheduleResponses,
   RemoveUserData,
   RemoveUserErrors,
   RemoveUserResponses,
@@ -1505,6 +1578,9 @@ import type {
   RetryJobData,
   RetryJobErrors,
   RetryJobResponses,
+  RetryJobsData,
+  RetryJobsErrors,
+  RetryJobsResponses,
   RetypeEntitiesData,
   RetypeEntitiesErrors,
   RetypeEntitiesResponses,
@@ -1625,6 +1701,9 @@ import type {
   SendMessageData,
   SendMessageErrors,
   SendMessageResponses,
+  SendReplyData,
+  SendReplyErrors,
+  SendReplyResponses,
   SetBudgetData,
   SetBudgetErrors,
   SetBudgetResponses,
@@ -1658,6 +1737,9 @@ import type {
   SetServiceData,
   SetServiceErrors,
   SetServiceResponses,
+  SetSharedRoutesData,
+  SetSharedRoutesErrors,
+  SetSharedRoutesResponses,
   SetupData,
   SetupErrors,
   SetupResponses,
@@ -1698,6 +1780,9 @@ import type {
   StartResearchData,
   StartResearchErrors,
   StartResearchResponses,
+  StartThreadData,
+  StartThreadErrors,
+  StartThreadResponses,
   StartUpgradeData,
   StartUpgradeErrors,
   StartUpgradeResponses,
@@ -1862,6 +1947,9 @@ import type {
   UpcomingData,
   UpcomingErrors,
   UpcomingResponses,
+  UpdateActivityCommentData,
+  UpdateActivityCommentErrors,
+  UpdateActivityCommentResponses,
   UpdateAssistantMemoryData,
   UpdateAssistantMemoryErrors,
   UpdateAssistantMemoryResponses,
@@ -1949,6 +2037,9 @@ import type {
   UpdatePipelineData,
   UpdatePipelineErrors,
   UpdatePipelineResponses,
+  UpdateProjectData,
+  UpdateProjectErrors,
+  UpdateProjectResponses,
   UpdateRecordingAccessData,
   UpdateRecordingAccessErrors,
   UpdateRecordingAccessResponses,
@@ -1964,6 +2055,9 @@ import type {
   UpdateRoutineData,
   UpdateRoutineErrors,
   UpdateRoutineResponses,
+  UpdateScheduleData,
+  UpdateScheduleErrors,
+  UpdateScheduleResponses,
   UpdateSearchData,
   UpdateSearchErrors,
   UpdateSearchResponses,
@@ -1979,6 +2073,9 @@ import type {
   UpdateTemplateData,
   UpdateTemplateErrors,
   UpdateTemplateResponses,
+  UpdateThreadData,
+  UpdateThreadErrors,
+  UpdateThreadResponses,
   UpdateTopicData,
   UpdateTopicErrors,
   UpdateTopicResponses,
@@ -4297,6 +4394,94 @@ export class Activities {
       },
     });
   }
+
+  /**
+   * React To Activity
+   *
+   * React to an activity with an emoji from the palette (👍 ❤️ 🎉 👀 😂 😮 😢 🙏), or with `on` false take yours
+   * back. Everyone who sees the activity sees the reactions; a new one is a `reaction.added` activity automations
+   * can act on. The answer is the reactions on it now.
+   */
+  public static reactToActivity<ThrowOnError extends boolean = false>(
+    options: Options<ReactToActivityData, ThrowOnError>,
+  ): RequestResult<ReactToActivityResponses, ReactToActivityErrors, ThrowOnError> {
+    return (options.client ?? client).post<ReactToActivityResponses, ReactToActivityErrors, ThrowOnError>({
+      url: "/api/v1/activities/{activity_id}/react",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Activity Comments
+   *
+   * The activity's comments, threaded: each thread followed by its replies, the earliest first. On an asset's
+   * arrival (`create-recording-<id>`) they are the asset's own comments, the same ones its page shows.
+   */
+  public static listActivityComments<ThrowOnError extends boolean = false>(
+    options: Options<ListActivityCommentsData, ThrowOnError>,
+  ): RequestResult<ListActivityCommentsResponses, ListActivityCommentsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListActivityCommentsResponses, ListActivityCommentsErrors, ThrowOnError>({
+      url: "/api/v1/activities/{activity_id}/comments",
+      ...options,
+    });
+  }
+
+  /**
+   * Comment On Activity
+   *
+   * Comment on an activity, or with `parent` reply on a thread (a reply to a reply goes on the thread too). Anyone
+   * who sees the activity can, up to 1,000 each; everyone who sees it reads them, and each one is a `comment.added`
+   * activity. On an asset's arrival the comment goes on the asset itself.
+   */
+  public static commentOnActivity<ThrowOnError extends boolean = false>(
+    options: Options<CommentOnActivityData, ThrowOnError>,
+  ): RequestResult<CommentOnActivityResponses, CommentOnActivityErrors, ThrowOnError> {
+    return (options.client ?? client).post<CommentOnActivityResponses, CommentOnActivityErrors, ThrowOnError>({
+      url: "/api/v1/activities/{activity_id}/comments",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Activity Comment
+   *
+   * Delete it: its writer, or an owner of the namespace. A thread's first comment takes its replies with it.
+   * Audited (`comment.delete`).
+   */
+  public static deleteActivityComment<ThrowOnError extends boolean = false>(
+    options: Options<DeleteActivityCommentData, ThrowOnError>,
+  ): RequestResult<DeleteActivityCommentResponses, DeleteActivityCommentErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteActivityCommentResponses, DeleteActivityCommentErrors, ThrowOnError>(
+      { url: "/api/v1/activities/{activity_id}/comments/{cid}", ...options },
+    );
+  }
+
+  /**
+   * Update Activity Comment
+   *
+   * Change its text (its writer only), or resolve or reopen its thread (`resolved`, on the thread's first comment:
+   * its writer, or an editor of the namespace).
+   */
+  public static updateActivityComment<ThrowOnError extends boolean = false>(
+    options: Options<UpdateActivityCommentData, ThrowOnError>,
+  ): RequestResult<UpdateActivityCommentResponses, UpdateActivityCommentErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateActivityCommentResponses, UpdateActivityCommentErrors, ThrowOnError>({
+      url: "/api/v1/activities/{activity_id}/comments/{cid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
 }
 
 export class Automations {
@@ -4319,6 +4504,21 @@ export class Automations {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * List Starters
+   *
+   * Starter automations: each a draft to open, change and save (POST /automations), switched off until you turn
+   * it on.
+   */
+  public static listStarters<ThrowOnError extends boolean = false>(
+    options?: Options<ListStartersData, ThrowOnError>,
+  ): RequestResult<ListStartersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListStartersResponses, unknown, ThrowOnError>({
+      url: "/api/v1/automations/starters",
+      ...options,
     });
   }
 
@@ -5943,7 +6143,9 @@ export class Resources {
   /**
    * Get Audio
    *
-   * The audio, with byte ranges. Accepts a bearer token, a share link (``?s=``) or a signed link.
+   * The audio (or video) for the player, with byte ranges: a copy every browser plays when Settings › Video made one,
+   * else the file itself (``/media`` always gives the file). Accepts a bearer token, a share link (``?s=``) or a signed
+   * link.
    */
   public static getAudio<ThrowOnError extends boolean = false>(
     options: Options<GetAudioData, ThrowOnError>,
@@ -5979,6 +6181,22 @@ export class Resources {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Enhance Recording
+   *
+   * Enhance an image whatever the settings and its quality (docs/enhance.md): an enhanced copy is made, and its
+   * pipeline's steps after enhance (reading its text, faces, objects, …) run again on that copy. The original stays as
+   * it is. 400 for anything but an image. Audited as `recording.enhance`.
+   */
+  public static enhanceRecording<ThrowOnError extends boolean = false>(
+    options: Options<EnhanceRecordingData, ThrowOnError>,
+  ): RequestResult<EnhanceRecordingResponses, EnhanceRecordingErrors, ThrowOnError> {
+    return (options.client ?? client).post<EnhanceRecordingResponses, EnhanceRecordingErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/enhance",
+      ...options,
     });
   }
 
@@ -7139,7 +7357,8 @@ export class Imports {
    * Import Transcript
    *
    * Import a transcript into a namespace (editors; admins may name a new namespace). The namespace's pipeline, or
-   * the one chosen (`pipeline`), is queued as a job.
+   * the one chosen (`pipeline`), is queued as a job; `content_type` (a text one) is the asset's instead of the one
+   * recognised from it, so its pipeline runs.
    */
   public static importTranscript<ThrowOnError extends boolean = false>(
     options: Options<ImportTranscriptData, ThrowOnError>,
@@ -7160,7 +7379,8 @@ export class Imports {
    * Capture a web page as a document (editors; admins may name a new namespace): the namespace's pipeline, or
    * `pipeline`, keeps the page as it is now, as a PDF (a link to a PDF is kept as it is; other pages are printed by
    * headless Chromium), and reads it page by page. Only public addresses on ports 80 and 443 can be captured (and the
-   * networks in documents.web_networks). Audited as `import.web`.
+   * networks in documents.web_networks). `content_type` (a text one) is the page's instead of the one recognised from it. Audited as
+   * `import.web`.
    */
   public static importWebPage<ThrowOnError extends boolean = false>(
     options: Options<ImportWebPageData, ThrowOnError>,
@@ -7203,8 +7423,9 @@ export class Imports {
    * Capture one or many web pages at once (editors; admins may name a new namespace): pasted addresses, one per
    * line, a JSON list of them (`urls`), or a file: a list of addresses, a browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON). Each link becomes
    * a page captured as a document, as `POST /import/web` does, tagged with the bookmark folders it was in
-   * (`folders_as_tags`). At most 500 links; a link already captured in the namespace isn't captured again, and one that
-   * can't be is skipped, saying why. Audited as `import.web` once, with how many were queued.
+   * (`folders_as_tags`), of `content_type` when one (a text one) is chosen. At most 500 links; a link already captured
+   * in the namespace isn't captured again, and one that can't be is skipped, saying why. Audited as `import.web` once,
+   * with how many were queued.
    */
   public static importWebLinks<ThrowOnError extends boolean = false>(
     options: Options<ImportWebLinksData, ThrowOnError>,
@@ -7296,7 +7517,8 @@ export class Uploads {
    *
    * Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of
    * a text-only asset (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the
-   * namespace's. Then send the file with PUT /uploads/{uid}.
+   * namespace's; `content_type` (one of the file's base type) is the asset's instead of the one recognised from its
+   * file, so that content type's pipeline runs. Then send the file with PUT /uploads/{uid}.
    * 400 for a type not in uploads.extensions, 409 when the asset has audio already, 413 over uploads.max_mb, 507
    * when the server's disk can't hold it.
    */
@@ -8912,6 +9134,22 @@ export class Video {
   }
 
   /**
+   * Get Enhanced
+   *
+   * The enhanced copy the enhance step made of a low quality image (docs/enhance.md), to save. Members of its
+   * namespace only (a bearer token, or a signed link the API gave one): visitors get its pages, with faces pixelated
+   * where the namespace does that.
+   */
+  public static getEnhanced<ThrowOnError extends boolean = false>(
+    options: Options<GetEnhancedData, ThrowOnError>,
+  ): RequestResult<GetEnhancedResponses, GetEnhancedErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetEnhancedResponses, GetEnhancedErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/enhanced",
+      ...options,
+    });
+  }
+
+  /**
    * Get Frame
    *
    * A still (shot frame, text-on-screen frame or face crop), or a document's or an image's page. Where the namespace
@@ -9177,9 +9415,10 @@ export class Jobs {
   /**
    * List Jobs
    *
-   * Recent jobs, newest first, with counts by status and by namespace (of the jobs in `namespace` and `batch`, of
-   * any status), plus the latest job's step and log (for the progress bar). With `recording`, that asset's runs,
-   * also for someone who sees it through a role on its collection (then the counts are of those runs only).
+   * Recent jobs, newest first (or with `order=queue` in the order workers take them), with counts by status and by
+   * namespace (of the jobs in `namespace` and `batch`, of any status), plus the latest job's step and log (for the
+   * progress bar). With `recording`, that asset's runs, also for someone who sees it through a role on its
+   * collection (then the counts are of those runs only).
    */
   public static listJobs<ThrowOnError extends boolean = false>(
     options?: Options<ListJobsData, ThrowOnError>,
@@ -9250,6 +9489,65 @@ export class Jobs {
     return (options.client ?? client).post<QueueStepResponses, QueueStepErrors, ThrowOnError>({
       url: "/api/v1/jobs/steps/{step}",
       ...options,
+    });
+  }
+
+  /**
+   * Cancel Jobs
+   *
+   * Clear the queue: cancel every queued and held run in the namespaces you may process in (or `namespace`), or
+   * just `jobs`. With `running` in `status`, running runs stop after the step they're on. POST /jobs/retry with the
+   * ids it returns queues them again. Audited as ``jobs.cancel``.
+   */
+  public static cancelJobs<ThrowOnError extends boolean = false>(
+    options: Options<CancelJobsData, ThrowOnError>,
+  ): RequestResult<CancelJobsResponses, CancelJobsErrors, ThrowOnError> {
+    return (options.client ?? client).post<CancelJobsResponses, CancelJobsErrors, ThrowOnError>({
+      url: "/api/v1/jobs/cancel",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Retry Jobs
+   *
+   * Retry in bulk: every failed run (the dead letter queue; cancelled ones too with `status`) in the namespaces you
+   * may process in (or `namespace`), or just `jobs`, each from the step it stopped at, at the back of the queue. A run
+   * whose asset was deleted or already has a run queued or running is skipped. Audited as ``jobs.retry``.
+   */
+  public static retryJobs<ThrowOnError extends boolean = false>(
+    options: Options<RetryJobsData, ThrowOnError>,
+  ): RequestResult<RetryJobsResponses, RetryJobsErrors, ThrowOnError> {
+    return (options.client ?? client).post<RetryJobsResponses, RetryJobsErrors, ThrowOnError>({
+      url: "/api/v1/jobs/retry",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Move Job
+   *
+   * Reprioritise a queued run: move it to the `top` (next) or `bottom` of the queue, or just `before` or `after`
+   * another queued run (one you can see). Workers take queued runs in this order, when they can run their step.
+   */
+  public static moveJob<ThrowOnError extends boolean = false>(
+    options: Options<MoveJobData, ThrowOnError>,
+  ): RequestResult<MoveJobResponses, MoveJobErrors, ThrowOnError> {
+    return (options.client ?? client).post<MoveJobResponses, MoveJobErrors, ThrowOnError>({
+      url: "/api/v1/jobs/{jid}/move",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 
@@ -9412,6 +9710,25 @@ export class Sources {
   ): RequestResult<UpdateSourceResponses, UpdateSourceErrors, ThrowOnError> {
     return (options.client ?? client).patch<UpdateSourceResponses, UpdateSourceErrors, ThrowOnError>({
       url: "/api/v1/sources/{sid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Set Shared Routes
+   *
+   * Save an email account's shared routing rules, which every watch on it tries after its own (none: unchanged
+   * behaviour). They apply to messages that arrive after they're saved.
+   */
+  public static setSharedRoutes<ThrowOnError extends boolean = false>(
+    options: Options<SetSharedRoutesData, ThrowOnError>,
+  ): RequestResult<SetSharedRoutesResponses, SetSharedRoutesErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetSharedRoutesResponses, SetSharedRoutesErrors, ThrowOnError>({
+      url: "/api/v1/sources/{sid}/routes",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -10457,6 +10774,19 @@ export class Extensions {
   }
 
   /**
+   * Find Marketplace Plugins
+   *
+   * Plugins across every marketplace added, to find one to install or see which have updates.
+   */
+  public static findMarketplacePlugins<ThrowOnError extends boolean = false>(
+    options?: Options<FindMarketplacePluginsData, ThrowOnError>,
+  ): RequestResult<FindMarketplacePluginsResponses, FindMarketplacePluginsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<FindMarketplacePluginsResponses, FindMarketplacePluginsErrors, ThrowOnError>(
+      { url: "/api/v1/marketplaces/plugins", ...options },
+    );
+  }
+
+  /**
    * Refresh Marketplace
    *
    * Read its list of plugins again.
@@ -10854,14 +11184,212 @@ export class Chats {
    *
    * Approve (or run a sample of, or decline) something the assistant proposed or an automation's action. Each
    * approval is decided once. An automation's action can also be edited (`params`) and then carried out, or allowed
-   * from now on for that automation (`always`); approving one needs you signed in, since it's your pick: an API key
-   * or an app can only decline it.
+   * from now on for that automation (`always`). Approving is your pick, so it needs you signed in: an API key or an
+   * app can only decline (403 otherwise).
    */
   public static decideApproval<ThrowOnError extends boolean = false>(
     options: Options<DecideApprovalData, ThrowOnError>,
   ): RequestResult<DecideApprovalResponses, DecideApprovalErrors, ThrowOnError> {
     return (options.client ?? client).post<DecideApprovalResponses, DecideApprovalErrors, ThrowOnError>({
       url: "/api/v1/approvals/{aid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Projects {
+  /**
+   * List Projects
+   *
+   * Your projects, the most recently changed first (not archived ones, unless asked).
+   */
+  public static listProjects<ThrowOnError extends boolean = false>(
+    options?: Options<ListProjectsData, ThrowOnError>,
+  ): RequestResult<ListProjectsResponses, ListProjectsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListProjectsResponses, ListProjectsErrors, ThrowOnError>({
+      url: "/api/v1/projects",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Project
+   *
+   * A project: its name, goal, instructions and the namespaces it draws on, with its coordinator conversation.
+   */
+  public static createProject<ThrowOnError extends boolean = false>(
+    options: Options<CreateProjectData, ThrowOnError>,
+  ): RequestResult<CreateProjectResponses, CreateProjectErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateProjectResponses, CreateProjectErrors, ThrowOnError>({
+      url: "/api/v1/projects",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Project
+   *
+   * Delete a project. Its conversations stay, as ordinary ones in Chat.
+   */
+  public static deleteProject<ThrowOnError extends boolean = false>(
+    options: Options<DeleteProjectData, ThrowOnError>,
+  ): RequestResult<DeleteProjectResponses, DeleteProjectErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteProjectResponses, DeleteProjectErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Project
+   *
+   * A project with its threads, the most recently added to first.
+   */
+  public static getProject<ThrowOnError extends boolean = false>(
+    options: Options<GetProjectData, ThrowOnError>,
+  ): RequestResult<GetProjectResponses, GetProjectErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetProjectResponses, GetProjectErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Project
+   *
+   * Rename it, change its goal, instructions or namespaces (its conversations draw on the new ones), or archive it.
+   */
+  public static updateProject<ThrowOnError extends boolean = false>(
+    options: Options<UpdateProjectData, ThrowOnError>,
+  ): RequestResult<UpdateProjectResponses, UpdateProjectErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateProjectResponses, UpdateProjectErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Threads
+   *
+   * The project's threads, the most recently added to first, the coordinator among them.
+   */
+  public static listThreads<ThrowOnError extends boolean = false>(
+    options: Options<ListThreadsData, ThrowOnError>,
+  ): RequestResult<ListThreadsResponses, ListThreadsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListThreadsResponses, ListThreadsErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}/threads",
+      ...options,
+    });
+  }
+
+  /**
+   * Start Thread
+   *
+   * A new thread: a conversation in the project's namespaces (ask in it with POST /chats/{id}/messages). With a
+   * `brief`, it is asked there at once and answered in the background, as you, with your tools and approvals: GET
+   * /chats/{id} shows the answer once it's written (the thread is `answering` until then). With `chat`, one of your
+   * conversations joins the project instead, drawing on its namespaces from then on (with a brief, asked there next).
+   */
+  public static startThread<ThrowOnError extends boolean = false>(
+    options: Options<StartThreadData, ThrowOnError>,
+  ): RequestResult<StartThreadResponses, StartThreadErrors, ThrowOnError> {
+    return (options.client ?? client).post<StartThreadResponses, StartThreadErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}/threads",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Release Thread
+   *
+   * Take a thread out of the project: the conversation stays in Chat (DELETE /chats/{id} deletes it).
+   */
+  public static releaseThread<ThrowOnError extends boolean = false>(
+    options: Options<ReleaseThreadData, ThrowOnError>,
+  ): RequestResult<ReleaseThreadResponses, ReleaseThreadErrors, ThrowOnError> {
+    return (options.client ?? client).delete<ReleaseThreadResponses, ReleaseThreadErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}/threads/{cid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Thread
+   *
+   * Mark a thread done (it stays to read and to go on with), or not done.
+   */
+  public static updateThread<ThrowOnError extends boolean = false>(
+    options: Options<UpdateThreadData, ThrowOnError>,
+  ): RequestResult<UpdateThreadResponses, UpdateThreadErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateThreadResponses, UpdateThreadErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}/threads/{cid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Add Schedule
+   *
+   * Ask a prompt on a schedule: each time, in a new thread or always the same one, answered in the background as
+   * you, with your tools, approvals and budgets.
+   */
+  public static addSchedule<ThrowOnError extends boolean = false>(
+    options: Options<AddScheduleData, ThrowOnError>,
+  ): RequestResult<AddScheduleResponses, AddScheduleErrors, ThrowOnError> {
+    return (options.client ?? client).post<AddScheduleResponses, AddScheduleErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}/schedules",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove Schedule
+   *
+   * Remove a schedule. The threads it started stay.
+   */
+  public static removeSchedule<ThrowOnError extends boolean = false>(
+    options: Options<RemoveScheduleData, ThrowOnError>,
+  ): RequestResult<RemoveScheduleResponses, RemoveScheduleErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveScheduleResponses, RemoveScheduleErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}/schedules/{sid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Schedule
+   *
+   * Change a schedule, or switch it off or on.
+   */
+  public static updateSchedule<ThrowOnError extends boolean = false>(
+    options: Options<UpdateScheduleData, ThrowOnError>,
+  ): RequestResult<UpdateScheduleResponses, UpdateScheduleErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateScheduleResponses, UpdateScheduleErrors, ThrowOnError>({
+      url: "/api/v1/projects/{pid}/schedules/{sid}",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -12276,8 +12804,8 @@ export class ImportHooks {
   /**
    * Update Import Hook
    *
-   * Rename a hook, pause or resume it (`enabled`), or change its collection or pipeline (null for the namespace's
-   * own) (owners).
+   * Rename a hook, pause or resume it (`enabled`), turn PDF hand-back on or off (`hand_back`), or change its
+   * collection or pipeline (null for the namespace's own) (owners).
    */
   public static updateImportHook<ThrowOnError extends boolean = false>(
     options: Options<UpdateImportHookData, ThrowOnError>,
@@ -12336,9 +12864,12 @@ export class ImportHooks {
    * - JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as text), with an optional
    * `title`.
    *
-   * Each runs the hook's pipeline, or the namespace's. 401 for an unknown token, saying which kind it is; 403 while the
-   * hook is paused, for a read-only token, or without the import permission; 413 over uploads.max_mb. Audited as
-   * `import.hook` (by the hook) or `import.push` (by the person).
+   * Each runs the hook's pipeline, or the namespace's. A hook with `hand_back` on takes documents this server can't
+   * make into PDFs itself too: they're kept with `needs_pdf` and wait; push the PDF back (the raw body, or one form
+   * file) with `?for=<recording>` and it becomes the document's rendition and its pipeline runs (404 when that document
+   * doesn't wait for a PDF from this hook). 401 for an unknown token, saying which kind it is; 403 while the hook is
+   * paused, for a read-only token, or without the import permission; 413 over uploads.max_mb. Audited as `import.hook`
+   * (by the hook) or `import.push` (by the person).
    */
   public static pushToImportHook<ThrowOnError extends boolean = false>(
     options?: Options<PushToImportHookData, ThrowOnError>,
@@ -13380,9 +13911,58 @@ export class Mesh {
   }
 
   /**
+   * Node Worker
+   *
+   * What the calling worker node's `lens worker` signs in to the database with: its own user of it. 403 for a node
+   * of another role, 409 where the database is embedded.
+   */
+  public static nodeWorker<ThrowOnError extends boolean = false>(
+    options?: Options<NodeWorkerData, ThrowOnError>,
+  ): RequestResult<NodeWorkerResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<NodeWorkerResponses, unknown, ThrowOnError>({
+      url: "/api/v1/mesh/node/worker",
+      ...options,
+    });
+  }
+
+  /**
+   * Node Media
+   *
+   * A recording's file, plain, for a job on the calling worker node (a vault's never). Its ETag is its size and
+   * time: a node that has it sends If-None-Match and gets 304.
+   */
+  public static nodeMedia<ThrowOnError extends boolean = false>(
+    options: Options<NodeMediaData, ThrowOnError>,
+  ): RequestResult<NodeMediaResponses, NodeMediaErrors, ThrowOnError> {
+    return (options.client ?? client).get<NodeMediaResponses, NodeMediaErrors, ThrowOnError>({
+      url: "/api/v1/mesh/node/media/{recording_id}",
+      ...options,
+    });
+  }
+
+  /**
+   * Node Sandbox
+   *
+   * The client certificate of the calling compute node's sandbox gateway, which Lens keeps sealed and reaches that
+   * gateway over the mesh with. 403 for a node of another role, 400 for what isn't a certificate and key.
+   */
+  public static nodeSandbox<ThrowOnError extends boolean = false>(
+    options: Options<NodeSandboxData, ThrowOnError>,
+  ): RequestResult<NodeSandboxResponses, NodeSandboxErrors, ThrowOnError> {
+    return (options.client ?? client).put<NodeSandboxResponses, NodeSandboxErrors, ThrowOnError>({
+      url: "/api/v1/mesh/node/sandbox",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Node Beat
    *
-   * The calling node's report, every minute: Nebula, its peers, its machine.
+   * The calling node's report, every minute: Nebula, its peers, its machine, its sandbox gateway.
    */
   public static nodeBeat<ThrowOnError extends boolean = false>(
     options: Options<NodeBeatData, ThrowOnError>,
@@ -13530,6 +14110,101 @@ export class Circles {
   ): RequestResult<UpdateCircleResponses, UpdateCircleErrors, ThrowOnError> {
     return (options.client ?? client).patch<UpdateCircleResponses, UpdateCircleErrors, ThrowOnError>({
       url: "/api/v1/circles/{cid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Replies {
+  /**
+   * List Replies
+   *
+   * Email in the namespaces you can read (or `namespace`), newest first, each with its reply. `waiting` (the default)
+   * is mail that may need an answer (not a mailing list's, a no-reply sender's or your own) with no reply yet, and every
+   * draft; or one status, `none` (no reply yet, automatic mail too) or `all`.
+   */
+  public static listReplies<ThrowOnError extends boolean = false>(
+    options?: Options<ListRepliesData, ThrowOnError>,
+  ): RequestResult<ListRepliesResponses, ListRepliesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListRepliesResponses, ListRepliesErrors, ThrowOnError>({
+      url: "/api/v1/replies",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Reply
+   *
+   * This email's reply: its status, the draft with its sources, and what's left to confirm.
+   */
+  public static getReply<ThrowOnError extends boolean = false>(
+    options: Options<GetReplyData, ThrowOnError>,
+  ): RequestResult<GetReplyResponses, GetReplyErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetReplyResponses, GetReplyErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/reply",
+      ...options,
+    });
+  }
+
+  /**
+   * Edit Reply
+   *
+   * Change a draft: its text, who it goes to, its subject; or set it aside (`status` dismissed) and bring it back
+   * (`status` draft), which undoes that. Needs the right to process the email. Audited as `reply.edit`.
+   */
+  public static editReply<ThrowOnError extends boolean = false>(
+    options: Options<EditReplyData, ThrowOnError>,
+  ): RequestResult<EditReplyResponses, EditReplyErrors, ThrowOnError> {
+    return (options.client ?? client).patch<EditReplyResponses, EditReplyErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/reply",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Draft Reply
+   *
+   * Draft a reply to this email in the background, from what its namespace holds, each fact cited to its excerpt
+   * and what the archive doesn't say marked [to confirm: …]; `instructions` says what it should say. It's drafted with
+   * the Reply to an email prompt template (edited on the Templates page), or `template`, and drafting again keeps the
+   * draft before as `previous`. Nothing is sent. Needs the right to process the email and a language model (400 without
+   * one, or when it isn't an email). Audited as `reply.draft`.
+   */
+  public static draftReply<ThrowOnError extends boolean = false>(
+    options: Options<DraftReplyData, ThrowOnError>,
+  ): RequestResult<DraftReplyResponses, DraftReplyErrors, ThrowOnError> {
+    return (options.client ?? client).post<DraftReplyResponses, DraftReplyErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/reply",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Send Reply
+   *
+   * Send this email's reply through the Gmail connection the email came in on, in its thread and without its
+   * citations, or keep it in Gmail's drafts (`draft`). It's your pick, so it needs you signed in to Lens: an API key, an
+   * app or an agent asks with the MCP tool `send_reply`, which waits in Approvals. Only admins send from a connection,
+   * and only from one an admin let send; nothing marked [to confirm: …] may be left in it (400). Audited as
+   * `reply.send`.
+   */
+  public static sendReply<ThrowOnError extends boolean = false>(
+    options: Options<SendReplyData, ThrowOnError>,
+  ): RequestResult<SendReplyResponses, SendReplyErrors, ThrowOnError> {
+    return (options.client ?? client).post<SendReplyResponses, SendReplyErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/reply/send",
       ...options,
       headers: {
         "Content-Type": "application/json",

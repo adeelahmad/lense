@@ -313,8 +313,8 @@ export const JOURNEYS = [
     from: "/",
     async run(ctx) {
       const { page, meter } = ctx;
-      // routines are on the Schedules page (everything on a clock), which has New routine for admins
-      await go(ctx, "Schedules");
+      // routines open from Automations (and its Schedules tab), which has New routine at the top for admins
+      await go(ctx, "Automations");
       await meter.click(page.getByRole("main").getByRole("link", { name: "New routine" }), "New routine");
       await page.getByRole("textbox", { name: "Name" }).waitFor(); // named for you
       await page.waitForFunction(() => document.activeElement?.tagName === "INPUT");
@@ -821,6 +821,25 @@ export const JOURNEYS = [
       await actions.waitFor({ timeout: 120000 });
       await meter.click(actions.getByRole("button", { name: "Save as note" }), "Save as note");
       await page.getByText("Saved as a note in podcasts").first().waitFor();
+    },
+  },
+  {
+    id: "automation-starter",
+    module: "Automations",
+    feature: "Make an automation from a starter and turn it on",
+    note: "The starter fills the builder in (When an email from the school arrives, tell me); it is saved switched on.",
+    from: "/",
+    async run(ctx) {
+      const { page, meter } = ctx;
+      await go(ctx, "Automations");
+      await meter.click(page.getByRole("main").getByRole("link", { name: "New automation" }).first(), "New automation");
+      const starters = page.getByRole("group", { name: "Starters" });
+      await meter.click(starters.getByRole("button", { name: "Tell me about school emails" }), "the school starter");
+      await page.waitForFunction(() =>
+        [...document.querySelectorAll("input[aria-label=Name]")].some((i) => i.value === "Tell me about school emails"),
+      );
+      await meter.click(page.getByRole("button", { name: "Save and turn on" }), "Save and turn on");
+      await page.waitForURL(/\/automations\/\d+/);
     },
   },
   {

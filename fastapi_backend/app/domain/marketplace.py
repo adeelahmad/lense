@@ -635,21 +635,24 @@ def suggested(db):
 
 
 def _installed(db, me):
-    """{(marketplace, plugin): extension id} for this person's installs."""
+    """{(marketplace, plugin): (extension id, the version installed)} for this person's installs."""
     out = {}
     for d in db.rows(
         "SELECT record::id(id) AS id, source FROM extension WHERE deleted_at = NONE AND owner = $o AND source != NONE", o=me["id"]
     ):
         s = d.get("source") or {}
         if s.get("marketplace"):
-            out[(s["marketplace"], s.get("plugin"))] = d["id"]
+            out[(s["marketplace"], s.get("plugin"))] = (d["id"], s.get("version"))
     return out
 
 
 def plugins(db, me, mid):
-    """A marketplace's plugins, each saying whether Lens can install it and whether this person has."""
-    d = _row(db, mid)
-    mine = _installed(db, me)
+    """A marketplace's plugins, each saying whether Lens can install it, whether this person has, and whether the
+    marketplace lists another version than theirs."""
+    return _plugins(_row(db, mid), _installed(db, me))
+
+
+def _plugins(d, mine):
     out = []
     for p in d.get("plugins") or []:
         why = None
@@ -658,22 +661,45 @@ def plugins(db, me, mid):
         except ValueError as e:
             why = str(e)
         author = p.get("author")
+        have, had = mine.get((d["id"], p["name"])) or (None, None)
+        version = str(p["version"]) if p.get("version") else None
         out.append(
             store.clean(
                 {
                     "name": p["name"],
                     "description": p.get("description") if isinstance(p.get("description"), str) else None,
-                    "version": str(p["version"]) if p.get("version") else None,
+                    "version": version,
                     "category": p.get("category") if isinstance(p.get("category"), str) else None,
                     "author": author.get("name") if isinstance(author, dict) else author if isinstance(author, str) else None,
                     "homepage": p.get("homepage") if isinstance(p.get("homepage"), str) else None,
                     "installable": why is None,
                     "why_not": why,
-                    "installed": mine.get((d["id"], p["name"])),
+                    "installed": have,
+                    "installed_version": had,
+                    # a version listed that isn't the one installed; unknown (false) when either has none
+                    "update": bool(have and version and had and version != had),
                 }
             )
         )
     return out
+
+
+def find(db, me, query=None, mid=None, updates=False, limit=50):
+    """Plugins across the marketplaces (or marketplace `mid`) whose name, description, category or author has every
+    word of `query`, each with its marketplace; `updates`: only those this person installed that their marketplace now
+    lists another version of. (plugins, how many matched)"""
+    words = (query or "").lower().split()
+    rows = [_row(db, mid)] if mid is not None else db.rows(f"SELECT {FIELDS}, plugins FROM marketplace ORDER BY id")
+    mine = _installed(db, me)
+    out = []
+    for d in rows:
+        for p in _plugins(d, mine):
+            if updates and not p["update"]:
+                continue
+            text = " ".join(str(p.get(k) or "") for k in ("name", "description", "category", "author")).lower()
+            if all(w in text for w in words):
+                out.append({**p, "marketplace": d["id"], "marketplace_name": d.get("title") or d["name"]})
+    return out[: max(1, int(limit))], len(out)
 
 
 def _entry(db, mid, name):
@@ -717,7 +743,7 @@ def install(db, cfg, me, mid, name):
     source = store.clean(
         {"marketplace": d["id"], "plugin": p["name"], "version": str(p["version"]) if p.get("version") else None, "url": show_source(src)}
     )
-    return _save(db, me, manifest, source, _installed(db, me).get((d["id"], p["name"])))
+    return _save(db, me, manifest, source, (_installed(db, me).get((d["id"], p["name"])) or (None,))[0])
 
 
 def _same(db, me, key, value):

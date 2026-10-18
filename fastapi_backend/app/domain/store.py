@@ -137,6 +137,17 @@ DEFAULTS = {
         "sensevoice": {"model": "iic/SenseVoiceSmall", "hub": "ms", "vad_max_segment_ms": 30000, "batch_size": 16},
         "whisper": {"model": "large-v3-turbo", "compute_type": "default"},
         "mlx_whisper": {"model": "mlx-community/whisper-large-v3-turbo"},
+        # what the clean_audio step does to a recording's sound before it's transcribed (audio_cleanup.py); a pipeline only
+        # runs it when the step is in it
+        "cleanup": {
+            "noise": "moderate",
+            "gain": True,
+            "high_pass": True,
+            "echo": "off",
+            "trim_silence": True,
+            "min_silence_ms": 2000,
+        },
+        "vocabulary": False,  # give each recording's engine the names its namespace knows (vocabulary.py)
     },
     "diarize": {
         "engine": "auto",
@@ -156,8 +167,9 @@ DEFAULTS = {
     # anytopdf: the places and dates anytopdf (run here) finds, as hints for the extractor (enrich.py); dates: the dates
     # each line gives kept as days on the calendar (dates.py); cleanup: the
     # clean step tidies transcripts before analysis (cleanup.py), cleanup_fillers taking out "um" and "uh" too, and
-    # cleanup_punctuation (off, missing, always) putting marks back with a local model; typing: which model types the
-    # names the rules leave terms (name_types.asking)
+    # cleanup_punctuation (off, missing, always) putting marks back with a local model, cleanup_grammar_url a
+    # LanguageTool server's grammar and punctuation fixes (the compose files' `languagetool` profile); typing: which
+    # model types the names the rules leave terms (name_types.asking)
     "analysis": {
         "entities": "rules",
         "typing": "auto",
@@ -168,6 +180,7 @@ DEFAULTS = {
         "cleanup": False,
         "cleanup_fillers": True,
         "cleanup_punctuation": "off",
+        "cleanup_grammar_url": None,
     },
     # chat_models: the models people may pick in Chat; empty: whatever the model server lists (docs/configuration.md)
     "llm": {
@@ -274,6 +287,8 @@ DEFAULTS = {
         "stale_minutes": 15,
         "max_attempts": 3,
         "steps": [
+            "enhance",
+            "clean_audio",
             "transcribe",
             "read",
             "diarize",
@@ -537,12 +552,30 @@ DEFAULTS = {
         "yolox_model": None,
         "ultralytics_model": None,
         "object_min_score": 0.4,
+        # playable copies (playable.py): off by default, since transcoding a long video takes a small machine a while
+        "playable_copies": False,
+        "playable_height": 720,
     },
     # NSFW classification (nsfw.py, docs/nsfw.md): off until an admin turns it on here, or an owner for their namespace
     # (which can also choose its own threshold and display). A local model (ViT, Apache-2.0, fetched on first use) scores
     # each picture; a resource is flagged when one scores at least the threshold. display is how flagged resources show
     # in the web app: blur (click to see), hide (left out of the Library unless asked for) or show.
     "nsfw": {"enabled": False, "threshold": 0.8, "display": "blur", "max_frames": 300},
+    # enhancing low quality images before they're read (enhance.py, docs/enhance.md): off until an admin turns it on.
+    # An image smaller than min_side (its shorter side, in pixels), blurrier than min_sharpness (the variance of its
+    # Laplacian), noisy, dull, or with a face under min_face_px tall gets an enhanced copy, at most max_scale times
+    # bigger, which the steps after it read; the original stays. image_engine: classic (Pillow, nothing to fetch) or
+    # realesrgan (Real-ESRGAN general x4v3, BSD-3-Clause, 5 MB, fetched on first use). only_faces: only pictures with a
+    # face, where the namespace finds faces.
+    "enhance": {
+        "images": False,
+        "image_engine": "classic",
+        "only_faces": False,
+        "min_side": 720,
+        "min_sharpness": 100,
+        "min_face_px": 64,
+        "max_scale": 4,
+    },
     # rclone and local_roots are bootstrap-only on purpose: the web app must not be able to pick an executable
     # or open up arbitrary folders on the server. Local folders can only be watched inside local_roots.
     "sources": {"rclone": None, "local_roots": [], "check_seconds": 15, "cache_dir": None},
@@ -975,6 +1008,8 @@ class DB:
             "password": os.environ.get("SURREAL_PASS") or d.get("password") or "root",
         }
         self._target = (os.environ.get("SURREAL_NS") or d["namespace"], os.environ.get("SURREAL_DB") or d["database"])
+        if os.environ.get("SURREAL_AUTH") == "database":  # a user of this one database (a worker node's: docs/mesh.md)
+            self._creds.update(namespace=self._target[0], database=self._target[1])
         size = 1 if self.embedded else max(1, int(pool_size or os.environ.get("SURREAL_POOL_SIZE") or d.get("pool_size") or 8))
         self.fulltext = None  # FULLTEXT (3.x), SEARCH (2.x) or None; set by connect()
         self.textindex = None  # the SQLite full-text index (textindex.py) when search.engine is sqlite
@@ -1447,6 +1482,11 @@ SCHEMA = [
     # hidden flags on an activity, event_mark:<hash of account and activity> (the id keeps the pair unique)
     "DEFINE TABLE IF NOT EXISTS event_mark SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS event_mark_account ON event_mark FIELDS account",
+    # reactions on the timeline (domain/event_reactions.py): the emojis each person gave an activity, one row per pair
+    # (event_reaction:<hash of account and activity>), seen by everyone who sees the activity
+    "DEFINE TABLE IF NOT EXISTS event_reaction SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS event_reaction_activity ON event_reaction FIELDS activity",
+    "DEFINE INDEX IF NOT EXISTS event_reaction_account ON event_reaction FIELDS account",
     # every line of a run's log, in chunks (jobs.RunLog): job_log:<random>
     "DEFINE TABLE IF NOT EXISTS job_log SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_log_job ON job_log FIELDS job",
@@ -1561,6 +1601,9 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS circle_share_to_account ON circle_share_to FIELDS account",
     "DEFINE INDEX IF NOT EXISTS circle_share_to_share ON circle_share_to FIELDS share",
     "DEFINE INDEX IF NOT EXISTS circle_share_to_at ON circle_share_to FIELDS at",
+    # a reply drafted to an email (app/domain/responder.py): email_reply:<recording id>
+    "DEFINE TABLE IF NOT EXISTS email_reply SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS email_reply_space ON email_reply FIELDS space",
     "DEFINE TABLE IF NOT EXISTS output SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS output_rec ON output FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS chat SCHEMALESS",
@@ -1572,6 +1615,10 @@ SCHEMA = [
     # what each namespace's assistant remembers (ns_assistant.py); its name and instructions are space.assistant
     "DEFINE TABLE IF NOT EXISTS assistant_memory SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS assistant_memory_space ON assistant_memory FIELDS space",
+    # projects (projects.py): someone's goal, the namespaces it draws on, and its conversations (chat.project)
+    "DEFINE TABLE IF NOT EXISTS project SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS project_account ON project FIELDS account",
+    "DEFINE INDEX IF NOT EXISTS chat_project ON chat FIELDS project",
     # browsers connected for the assistant to use (browser.py): a side panel's session, and the actions asked of it
     "DEFINE TABLE IF NOT EXISTS browser_session SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS browser_session_account ON browser_session FIELDS account",
@@ -1666,9 +1713,11 @@ SCHEMA = [
     # the files on a note page (images, attachments), kept where Settings → Storage says (notebook.py, blobs.py)
     "DEFINE TABLE IF NOT EXISTS note_file SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS note_file_page ON note_file FIELDS page, key",
-    # comments on resources, threaded, by everyone who can read them (app/domain/comments.py)
+    # comments on resources, and on activities of the timeline (`activity`), threaded, by everyone who can read them
+    # (app/domain/comments.py)
     "DEFINE TABLE IF NOT EXISTS comment SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS comment_rec ON comment FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS comment_activity ON comment FIELDS activity",
     "DEFINE INDEX IF NOT EXISTS comment_parent ON comment FIELDS parent",
     "DEFINE INDEX IF NOT EXISTS comment_created ON comment FIELDS created_at",
     # passages of resources marked in colour by their editors (app/domain/highlights.py)

@@ -194,6 +194,7 @@ def remove_account(db, uid, lose_vaults=False):
                     "highlight",
                     "event_mark",
                     "circle_share_to",
+                    "event_reaction",
                 )
             ),
             "DELETE circle WHERE owner = $a",

@@ -69,11 +69,20 @@ sandbox = ["openshell>=0.1.4,<0.2"]
 # the assistant's web search through DuckDuckGo (web.py): ddgs (MIT), with its Rust HTTP client (primp) and lxml;
 # fetched when DuckDuckGo is picked in Settings › AI assistant › Web search
 web = ["ddgs>=9.16,<10"]
+# the clean_audio step (audio_cleanup.py): WebRTC's noise suppression, gain control, echo cancellation and voice
+# detection through pywebrtc-audio (Apache-2.0; about 0.5 MB, numpy only); fetched the first time a pipeline runs it
+webrtc = ["pywebrtc-audio>=0.2.0,<0.3"]
+# auto scaling onto AWS EC2 (scaling_aws.py): botocore (Apache-2.0); fetched when the first AWS provider is saved in
+# Settings › Auto scaling
+aws = ["botocore>=1.43.113"]
 # Outlook .msg emails (extract-msg is GPL-3.0; .eml needs nothing)
 msg = ["extract-msg"]
 # secrets read from a Vaultwarden or Bitwarden vault (vaultwarden_secrets.py): python-vaultwarden (Apache-2.0); fetched
 # when Settings › Secrets has a Vaultwarden address
 vaultwarden = ["python-vaultwarden>=1.1.2,<2"]
+# auto scaling on Linux hosts over SSH (scaling_ssh.py): Paramiko (LGPL-2.1, used unmodified as a library); fetched
+# when the first SSH provider is saved
+ssh = ["paramiko>=3.5,<5"]
 
 [project.scripts]
 lens = "app.cli:main"
@@ -103,6 +112,7 @@ dev = [
     "impacket>=0.13",  # the SMB share's server, and the SMB client its tests sign in with
     "openshell>=0.1.4,<0.2",  # the code sandbox's client, tested against a fake OpenShell gateway
     "botocore>=1.43.113",
+    "pywebrtc-audio>=0.2.0,<0.3",  # the clean_audio step's WebRTC audio processing, tested on synthetic audio
     "python-vaultwarden>=1.1.2,<2",  # the Vaultwarden client, tested against a fake Vaultwarden
 ]
 

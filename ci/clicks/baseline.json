@@ -1595,6 +1595,52 @@
       "ok": true
     },
     {
+      "module": "Automations",
+      "feature": "Make an automation from a starter and turn it on",
+      "note": "The starter fills the builder in (When an email from the school arrives, tell me); it is saved switched on.",
+      "clicks": 4,
+      "keys": 0,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "click",
+          "what": "Automations",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/automations",
+          "kind": "click",
+          "what": "New automation",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/automations/new",
+          "kind": "click",
+          "what": "the school starter",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/automations/new",
+          "kind": "click",
+          "what": "Save and turn on",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "automation-starter",
+      "ms": 2663,
+      "ok": true
+    },
+    {
       "module": "Setup",
       "feature": "Switch to a cloud model with an API key",
       "note": "What a Raspberry Pi install does after the installer: a cloud provider picked from the presets fills in its address and model, then a pasted key.",

@@ -68,9 +68,22 @@ export function ImportHooksSection({ ns, isOwner }: { ns: string; isOwner: boole
   const update = useMutation({
     mutationFn: ({ h, body }: { h: ImportHook; body: ImportHookUpdate }) =>
       data(ImportHooks.updateImportHook({ client, path: { name: ns, hid: h.id }, body })),
-    onSuccess: (h) => {
+    onSuccess: (h, { body }) => {
       refresh();
-      toast({ title: h.enabled ? "Hook resumed" : "Hook paused", body: h.name, tone: h.enabled ? "green" : undefined });
+      if (body.hand_back != null)
+        toast({
+          title: h.hand_back ? "PDF hand-back on" : "PDF hand-back off",
+          body: h.hand_back
+            ? `${h.name} can send Office files and emails this server can’t convert, then push their PDFs back.`
+            : h.name,
+          tone: h.hand_back ? "green" : undefined,
+        });
+      else
+        toast({
+          title: h.enabled ? "Hook resumed" : "Hook paused",
+          body: h.name,
+          tone: h.enabled ? "green" : undefined,
+        });
     },
     onError: fail("Couldn’t change the hook"),
   });
@@ -141,6 +154,7 @@ export function ImportHooksSection({ ns, isOwner }: { ns: string; isOwner: boole
                 <span className="flex flex-wrap items-center gap-2">
                   <b className="text-[13.5px] font-semibold text-fg">{h.name}</b>
                   {!h.enabled && <Badge tone="gate">Paused</Badge>}
+                  {h.hand_back && <Badge>Hands back PDFs</Badge>}
                 </span>
                 <span className="font-mono text-[12px] text-fg-secondary">Token ending …{h.token_tail ?? "????"}</span>
                 <span className="text-[12px] text-fg-muted">{lastUsed(h)}</span>
@@ -154,6 +168,16 @@ export function ImportHooksSection({ ns, isOwner }: { ns: string; isOwner: boole
                   aria-label={`${h.enabled ? "Pause" : "Resume"} ${h.name}`}
                 >
                   {h.enabled ? "Pause" : "Resume"}
+                </Button>
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  disabled={update.isPending}
+                  onClick={() => update.mutate({ h, body: { hand_back: !h.hand_back } })}
+                  aria-label={`${h.hand_back ? "Stop handing back PDFs for" : "Hand back PDFs for"} ${h.name}`}
+                  title="Office files and emails this server can’t make into PDFs wait for the service that sent them to push the PDF back"
+                >
+                  {h.hand_back ? "Stop PDF hand-back" : "Hand back PDFs"}
                 </Button>
                 <Button size="xs" variant="ghost" onClick={() => setRekeying(h)} aria-label={`New token for ${h.name}`}>
                   New token

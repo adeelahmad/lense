@@ -22,11 +22,14 @@ export function WebLinks({
   blockReason,
   pipeline,
   collection,
+  contentType = null,
 }: {
   namespace: string | null;
   blockReason: string | null;
   pipeline: number | null;
   collection: number | null;
+  /** What each page is (a text content type); none: recognised. */
+  contentType?: string | null;
 }) {
   const client = useApiClient();
   const toast = useToast();
@@ -47,6 +50,7 @@ export function WebLinks({
             folders_as_tags: folders,
             pipeline,
             collection,
+            content_type: contentType,
           },
         }),
       ),

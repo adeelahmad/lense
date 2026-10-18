@@ -21,6 +21,7 @@ import {
   Quote,
   Search,
   Send,
+  Server,
   Shapes,
   SquareTerminal,
   Waypoints,
@@ -49,6 +50,7 @@ const ICON: Record<string, LucideIcon> = {
   propose_topic_change: PencilLine,
   run_python: SquareTerminal,
   run_bash: SquareTerminal,
+  sandbox_nodes: Server,
   share_sandbox_file: Download,
   search_mail: Mail,
   read_mail: Mail,
@@ -58,6 +60,7 @@ const ICON: Record<string, LucideIcon> = {
   read_file: FileText,
   import_from_connection: FileInput,
   send_mail: Send,
+  send_reply: Send,
   add_event: CalendarPlus,
   write_file: FilePlus,
 };

@@ -5,7 +5,8 @@ this machine (only inside sources.local_roots); or, without rclone, an email acc
 Workspace), a calendar feed (iCal), Google Calendar or a news feed (RSS or Atom), whose messages, events and posts are
 shown as files (feeds.py). A watch maps a folder on a source to a namespace: new audio, video, documents (PDFs) and images become resources queued for
 the whole pipeline, their files staying on the source; new transcripts are imported and queued for analysis. A watch on an email account can carry routing rules that send some
-messages to other namespaces, or skip them (mail_routes.py). Credentials are stored encrypted and handed to rclone in a private
+messages to other namespaces, or skip them, and the account can carry shared ones every watch on it uses
+(mail_routes.py). Credentials are stored encrypted and handed to rclone in a private
 temporary config file per call; OAuth tokens rclone refreshes are saved.
 """
 
@@ -118,7 +119,7 @@ def obscure(cfg, value):
 
 
 def get(db, sid):
-    row = db.one("SELECT record::id(id) AS id, name, type, params, sealed, health, created_at FROM $r", r=R("storage_source", sid))
+    row = db.one("SELECT record::id(id) AS id, name, type, params, sealed, health, created_at, routes FROM $r", r=R("storage_source", sid))
     if not row or row["type"] not in BACKENDS:  # a stream sensor (sensors.py) shares the table, but isn't a source
         raise KeyError(sid)
     return row
@@ -464,14 +465,25 @@ def view(src):
 
 
 def list_sources(db):
-    counts = {}
+    counts, names = {}, store.space_names(db)
     for w in db.rows("SELECT source FROM watch_path"):
         counts[w["source"]] = counts.get(w["source"], 0) + 1
     return [
-        {**view(s), "watches": counts.get(s["id"], 0)}
-        for s in db.rows("SELECT record::id(id) AS id, name, type, params, sealed, health, created_at FROM storage_source ORDER BY id")
+        {**view(s), "watches": counts.get(s["id"], 0), "routes": mail_routes.view(s.get("routes"), names)}
+        for s in db.rows(
+            "SELECT record::id(id) AS id, name, type, params, sealed, health, created_at, routes FROM storage_source ORDER BY id"
+        )
         if s["type"] in BACKENDS
     ]
+
+
+def set_shared_routes(db, sid, routes):
+    """Save an email account's shared routing rules (as the API takes them), which every watch on it uses after its
+    own: the rules as they're shown. Like a watch's, they apply to messages that arrive after they're saved."""
+    src = get(db, sid)
+    rules = _routes(db, src, {"routes": routes})["routes"]
+    db.q("UPDATE $r SET routes = $v", r=R("storage_source", sid), v=rules)
+    return mail_routes.view(rules, store.space_names(db))
 
 
 # ---------- watched folders ----------
@@ -553,19 +565,21 @@ def list_watches(db, spaces=None):
     ]
 
 
-def preview_routes(db, cfg, sid, path, routes, home, limit=50):
-    """Where the latest messages of an email watch would go under these rules (as the API takes them), before
-    they're saved: one row per message, newest first, with the namespace (None: skipped) and the rule that decided.
-    `home` is the name of the watch's namespace, which may not exist yet."""
+def preview_routes(db, cfg, sid, path, routes, home, limit=50, shared=None):
+    """Where the latest messages of an email watch would go under these rules (as the API takes them), then the
+    account's shared rules (`shared` as the API takes them, else the saved ones), before they're saved: one row per
+    message, newest first, with the namespace (None: skipped) and the rule that decided. `home` is the name of the
+    watch's namespace, which may not exist yet."""
     src = get(db, sid)
     if not feeds.is_email(src):
         raise ValueError("routing rules are for watches on an email account")
     rules = _routes(db, src, {"routes": routes})["routes"]
+    common = (src.get("routes") or []) if shared is None else _routes(db, src, {"routes": shared})["routes"]
     names = store.space_names(db)
     files = feeds.latest(cfg, src, check_path(cfg, src, path), limit)
     out = []
     for f in files:
-        to, rule = mail_routes.route(rules, f.get("mail"), "", set(names))  # "": the watch's own namespace, `home`
+        to, rule, by_account = mail_routes.decide(rules, common, f.get("mail"), "", set(names))  # "": the watch's own, `home`
         mail = f.get("mail") or {}
         out.append(
             {
@@ -577,6 +591,7 @@ def preview_routes(db, cfg, sid, path, routes, home, limit=50):
                 "namespace": home if to == "" else names.get(to),
                 "skipped": to is None,
                 "rule": rule,
+                "shared": by_account,
             }
         )
     return out
@@ -632,6 +647,11 @@ def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None, collect
     known = db.one("SELECT record::id(id) AS id FROM recording WHERE fp_key = $k", k=f"{space}:{fp}")
     if known:
         return known["id"], None
+    if src["type"] == "local" and not f.get("key"):  # a file on this machine: by what's in it, as uploads are
+        fp = ingest.fingerprint(check_path(cfg, src, f["path"]))
+        copy = db.one("SELECT record::id(id) AS id FROM recording WHERE space = $s AND fingerprint = $f LIMIT 1", s=space, f=fp)
+        if copy:  # the same file in another folder, uploaded, or found by a scan: link to it, not read it twice
+            return copy["id"], None
     rid, mail = db.next_id("recording"), _mail_of(f)
     db.q(
         "CREATE $r CONTENT $d",
@@ -762,9 +782,9 @@ def poll_watch(db, cfg, wid, log=print):
     known = {r["path"]: r for r in db.rows("SELECT path, size, modified, status FROM remote_file WHERE watch = $w", w=wid)}
     gone = {w["space"]: deletion.gone_remote(db, w["space"])}  # recordings someone deleted stay deleted
     stats = {"seen": 0, "new": 0, "waiting": 0, "skipped": 0, "errors": 0}
-    routes = w.get("routes") or []
-    spaces = set(store.space_names(db)) if routes else set()
-    if routes:
+    routes, shared = w.get("routes") or [], (src.get("routes") or []) if feeds.is_email(src) else []
+    spaces = set(store.space_names(db)) if routes or shared else set()
+    if routes or shared:
         stats["routed"] = 0
     files, held, limited = list_files(db, cfg, src, w["path"], w.get("cursor"), fresh=first and not w.get("backfill")), set(), None
     for f in files:
@@ -777,9 +797,11 @@ def poll_watch(db, cfg, wid, log=print):
             continue
         key = R("remote_file", f"{wid}-{hashlib.sha1(f['path'].encode()).hexdigest()[:20]}")
         row = {"watch": wid, "path": f["path"], "size": f["size"], "modified": f["modified"], "seen_at": store.now()}
-        space, rule = mail_routes.route(routes, f.get("mail"), w["space"], spaces) if routes else (w["space"], None)
+        space, rule, by_account = (
+            mail_routes.decide(routes, shared, f.get("mail"), w["space"], spaces) if routes or shared else (w["space"], None, False)
+        )
         if rule:
-            row.update(rule=rule, space=space)
+            row.update(rule=rule, space=space, **({"shared": True} if by_account else {}))
         if space is not None and space not in gone:
             gone[space] = deletion.gone_remote(db, space)
         if space is None or (first and not w.get("backfill")) or (src["id"], f["path"]) in gone[space]:
@@ -868,7 +890,7 @@ def import_files(db, cfg, sid, paths, space, by, pipeline=None, collection=None,
                 try:
                     deletion.forget(db, space, path=f"{src['name']}:{p}")  # chosen on purpose: it may come back
                     rid, job = _ingest(db, cfg, src, f, kind, space, by, None, pipeline, collection)
-                    results.append(store.clean({"path": p, "status": "queued", "recording": rid, "job": job}))
+                    results.append(store.clean({"path": p, "status": "queued" if job else "already", "recording": rid, "job": job}))
                 except Exception as e:  # noqa: BLE001 - one bad file must not stop the rest
                     results.append({"path": p, "status": "error", "detail": f"{type(e).__name__}: {e}"[:300]})
     return results

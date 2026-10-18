@@ -73,8 +73,8 @@
         "Google Calendar sources",
         "News feed sources",
         "Connect with Google",
-        "POST /imports/web, extension http tools, notification targets",
-        "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search)",
+        "POST /imports/web, extension http tools, workflow HTTP call nodes, notification targets",
+        "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search, LanguageTool server)",
         "replies from remote servers",
         ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY"
       ],
@@ -147,7 +147,10 @@
         "SMB share (port 1445 on the host, 4445 in the worker)",
         "POST /api/v1/mesh/join (a machine joining the mesh)",
         "/api/v1/mesh/node/config, /node/renew, /node/beat (a node's own calls, with its node token)",
-        "POST /api/v1/mesh/tokens, PATCH and DELETE /api/v1/mesh/nodes/{id}, PUT /api/v1/settings/mesh"
+        "GET /api/v1/mesh/node/worker, /node/media/{id} (a worker node's database user and its jobs' files, with its node token)",
+        "PUT /api/v1/mesh/node/sandbox (a compute node's sandbox gateway's client certificate, with its node token), and Lens's calls to that gateway on the node's mesh address, port 7443",
+        "POST /api/v1/mesh/tokens, PATCH and DELETE /api/v1/mesh/nodes/{id}, PUT /api/v1/settings/mesh",
+        "UDP 4242 on the primary and ports 8000 and 8080 on its mesh address (the mesh container, while the mesh is on)"
       ],
       "touches": [
         "network",
@@ -426,7 +429,7 @@
       "parameter": "bearer (a hook's lih_ token, or a person's la_, lo_ or web token with ?namespace=), file bytes, URL, text",
       "attacker_controllable": "yes",
       "component": "ingest",
-      "caller_must_enforce": "none — P-UPLOAD; the address form /hooks/import/{token} takes hook tokens only, so a person's token never sits in a logged path",
+      "caller_must_enforce": "none — P-UPLOAD; the address form /hooks/import/{token} takes hook tokens only, so a person's token never sits in a logged path; ?for= hands a PDF back only for a document the same hook brought in that still waits for one (hand_back, off by default), and it becomes that document's rendition",
       "provenance": "documented",
       "source": "docs/api.md \"the address form takes hook tokens only\""
     },
@@ -467,7 +470,7 @@
       "source": "docs/processing.md \"the consent itself is a person's\""
     },
     {
-      "entry_point": "POST /imports/web, extension http tools, notification targets",
+      "entry_point": "POST /imports/web, extension http tools, workflow HTTP call nodes, notification targets",
       "parameter": "URL",
       "attacker_controllable": "yes",
       "component": "outbound",
@@ -494,7 +497,16 @@
       "source": "docs/assistant.md \"Mail, calendars and files\""
     },
     {
-      "entry_point": "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search)",
+      "entry_point": "email replies",
+      "parameter": "an imported email's headers and text (From, Reply-To, Message-ID, References, the body), read to draft a reply; the reply sent, or kept in Gmail's drafts, through the Gmail connection the email came in on",
+      "attacker_controllable": "yes",
+      "component": "assistant",
+      "caller_must_enforce": "drafting needs the right to process the email; the email reaches the model marked untrusted and the system prompt says not to follow it; only the email's own namespace is searched for excerpts; a web address in the draft that neither the email nor the excerpts hold is broken up, and a citation to an excerpt the model wasn't given is taken out; nothing is sent on its own: sending (or keeping it in Gmail's drafts) is an admin's own pick, signed in to Lens, after an Undo window, on a Gmail connection an admin let send (write), checked when it goes; an API key, an app or an agent can only ask (MCP `send_reply`), which waits in Approvals showing all of the message and sends the text that was approved, never a later edit; a draft with a [to confirm: …] mark left isn't sent; the recipient (the address Reply-To names) is shown and editable before anything goes; the reply goes without its citations; each send is in the audit log",
+      "provenance": "documented",
+      "source": "docs/email-replies.md \"Lens never sends a reply on its own\""
+    },
+    {
+      "entry_point": "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, news feeds, MQTT bridge, OIDC issuer, web search, LanguageTool server)",
       "parameter": "URL, credentials, api_key_env",
       "attacker_controllable": "no",
       "component": "outbound",
@@ -563,7 +575,14 @@
       "component": "optional",
       "caller_must_enforce": "the person keeps the address and secret to the services that call it; Lens keeps the token hashed, caps size and rate, checks signatures sent, and treats what was sent as outside text",
       "provenance": "documented",
-      "source": "docs/automations.md \"No webhook exists until an automation with such a trigger is saved\""
+      "source": "docs/automations.md \"No webhook exists until an automation with such a trigger is saved\"",
+      "x-tests": [
+        "fastapi_backend/tests/api/test_automation_hooks.py::test_a_hook_is_made_for_a_trigger_and_only_its_hash_kept",
+        "fastapi_backend/tests/api/test_automation_hooks.py::test_a_call_is_a_webhook_received_activity",
+        "fastapi_backend/tests/api/test_automation_hooks.py::test_size_and_rate_caps",
+        "fastapi_backend/tests/api/test_automation_hooks.py::test_signed_calls_and_retries",
+        "fastapi_backend/tests/api/test_automations.py::test_a_webhook_trigger_gets_its_address_when_saved_and_loses_it_when_dropped"
+      ]
     },
     {
       "entry_point": "GET /feeds/public/{token}, /feeds/public/{token}/items/{item}/audio (a published feed)",
@@ -707,7 +726,11 @@
       "component": "assistant",
       "caller_must_enforce": "none — it runs as its maker with their permissions at run time (P-AUTOMATION-ACTOR); actions reaching outside Lens ask first; outside text marks intents untrusted and breaks up links (P-INJECTION-EGRESS); chains and bursts are bounded (P-AUTOMATION-LOOP); `matches` patterns refuse nested repeats and repeated alternatives that start alike, read at most 20,000 characters and give up after 50 ms",
       "provenance": "documented",
-      "source": "docs/automations.md \"Running automations\""
+      "source": "docs/automations.md \"Running automations\"",
+      "x-tests": [
+        "fastapi_backend/tests/domain/test_match_ops.py::test_checks_refuse_values_a_test_cant_use",
+        "fastapi_backend/tests/domain/test_match_ops.py::test_a_pattern_reads_a_long_value_only_so_far_and_gives_up_when_slow"
+      ]
     },
     {
       "entry_point": "admin sandbox gateway",
@@ -720,10 +743,10 @@
     },
     {
       "entry_point": "code sandbox",
-      "parameter": "assistant run_python, run_bash, sandbox_files, share_sandbox_file and import_sandbox_file: code the model writes, attachment ids, a path in the sandbox; sandbox.* settings (admins)",
+      "parameter": "assistant run_python, run_bash, sandbox_files, sandbox_nodes, share_sandbox_file and import_sandbox_file: code the model writes, attachment ids, a path in the sandbox, a compute node's id or name; sandbox.* settings (admins)",
       "attacker_controllable": "yes",
       "component": "assistant",
-      "caller_must_enforce": "none — off by default; the code runs in the conversation's own OpenShell sandbox with none of Lens's data or keys and no network unless sandbox.network allows it (P-SANDBOX); with the network on, a run after outside text asks first (P-INJECTION-EGRESS); files in only from the person's attachments, out only through an approved import or as a download for that person",
+      "caller_must_enforce": "none — off by default; the code runs in the conversation's own OpenShell sandbox with none of Lens's data or keys and no network unless sandbox.network allows it (P-SANDBOX); with the network on, a run after outside text asks first (P-INJECTION-EGRESS); files in only from the person's attachments, out only through an approved import or as a download for that person; with compute nodes registered by the mesh, a run may go to a ready compute node's own gateway, reached only over the mesh, with the same sandbox settings, and only where the model passed node or the conversation's sandbox already is",
       "provenance": "documented",
       "source": "docs/assistant.md \"Code sandbox\""
     },
@@ -777,9 +800,27 @@
       "parameter": "a public key to certify; a status report: whether Nebula runs, its peers, its machine, its log lines",
       "attacker_controllable": "yes",
       "component": "optional",
-      "caller_must_enforce": "the node token is 256 random bits kept only as a hash; a node gets its own config and a certificate for its own address and groups only; reports are capped",
+      "caller_must_enforce": "the node token is 256 random bits kept only as a hash; a node gets its own config and a certificate for its own address and groups only; reports are capped; they arrive at the primary's mesh address, which the API's host check admits for these paths alone while the mesh is on",
       "provenance": "documented",
       "source": "docs/mesh.md \"After joining\""
+    },
+    {
+      "entry_point": "GET /api/v1/mesh/node/worker, /node/media/{id} (a worker node's database user and its jobs' files, with its node token)",
+      "parameter": "a recording id; the node's role and namespaces",
+      "attacker_controllable": "yes",
+      "component": "optional",
+      "caller_must_enforce": "worker nodes only (403 for others); the database user is the node's own, of Lens's database only, never the server's root, removed with the node and made again with a new password on an undo; files are those of the namespaces the node serves, never a vault's, sent plain over the mesh; the archive's secret never leaves the primary",
+      "provenance": "documented",
+      "source": "docs/mesh.md \"Worker nodes\""
+    },
+    {
+      "entry_point": "PUT /api/v1/mesh/node/sandbox (a compute node's sandbox gateway's client certificate, with its node token), and Lens's calls to that gateway on the node's mesh address, port 7443",
+      "parameter": "a CA certificate, a client certificate and its key, PEM",
+      "attacker_controllable": "yes",
+      "component": "optional",
+      "caller_must_enforce": "compute nodes only (403 for others); each part capped and loaded as a certificate or key (400 otherwise); the key kept sealed like a setting's secret; Lens reaches the gateway over the mesh only (7443 open to the primary only, relayed to the gateway by the node's mesh container), with mutual TLS checked against the name the gateway's certificate was made for; the node gets nothing of Lens's",
+      "provenance": "documented",
+      "source": "docs/mesh.md \"Compute nodes\""
     },
     {
       "entry_point": "POST /api/v1/mesh/tokens, PATCH and DELETE /api/v1/mesh/nodes/{id}, PUT /api/v1/settings/mesh",
@@ -789,6 +830,15 @@
       "caller_must_enforce": "admin is trusted; audited (mesh.token.create, mesh.join, mesh.node.*); the network can't change once machines have addresses in it",
       "provenance": "documented",
       "source": "docs/mesh.md \"Settings\""
+    },
+    {
+      "entry_point": "UDP 4242 on the primary and ports 8000 and 8080 on its mesh address (the mesh container, while the mesh is on)",
+      "parameter": "Nebula handshakes and tunnelled packets from anyone reaching the port; on the mesh, TCP to the database and the API",
+      "attacker_controllable": "yes",
+      "component": "optional",
+      "caller_must_enforce": "Nebula drops what no certificate of the mesh's CA signs and anything on the blocklist; its firewall, rendered by Lens, lets only lens-worker reach 8000 and lens-node 8080; the relays listen on the mesh address only; the container is the only one holding NET_ADMIN, makes its own key pair (the private key stays in its own volume) and runs only Nebula's release with the checksum kept in Lens",
+      "provenance": "documented",
+      "source": "docs/mesh.md \"On this machine\""
     }
   ],
   "environment": {
@@ -1243,9 +1293,16 @@
       "property": "P-SSRF-GUARD",
       "violation_symptom": "info-leak",
       "severity_tier": "security",
-      "conditions": "URLs a non-admin sets (web import and extension http tools by editors; notification targets by owners; an automation's http_request by its person, within the notification networks; the page addresses the assistant's web_read reads, which the model picks for whoever uses the assistant) reach public addresses only, or networks the operator listed; web paths use ports 80 and 443, follow redirects only to http and https, re-check every redirect and sub-request, and connect to the checked address; an automation's http_request follows no redirect, takes 10 seconds and reads 64 KB at most, asks first unless the person set its node to run on its own, and passes the answer on as outside text",
+      "conditions": "URLs a non-admin sets (web import and extension http tools by editors; notification targets by owners; an automation's http_request by its person, within the notification networks; a workflow's HTTP call node by admins, with its host written out; the page addresses the assistant's web_read reads, which the model picks for whoever uses the assistant) reach public addresses only, or networks the operator listed; web paths use ports 80 and 443, follow redirects only to http and https, re-check every redirect and sub-request, and connect to the checked address; an automation's http_request follows no redirect, takes 10 seconds and reads 64 KB at most, asks first unless the person set its node to run on its own, and passes the answer on as outside text; a workflow's HTTP call node seals credential headers to their header and host and never sends them to another server, reads 200,000 characters at most, and passes the answer on marked as outside text",
       "provenance": "documented",
-      "source": "maintainer ruling, 2026-10"
+      "source": "maintainer ruling, 2026-10",
+      "x-tests-note": "an automation's http_request",
+      "x-tests": [
+        "fastapi_backend/tests/api/test_actions_web.py::test_only_public_addresses_unless_an_admin_allowed_the_network",
+        "fastapi_backend/tests/api/test_actions_web.py::test_the_answer_is_capped_redirects_are_not_followed_and_it_waits_ten_seconds_at_most",
+        "fastapi_backend/tests/api/test_actions_web.py::test_it_reaches_outside_lens_so_it_asks_unless_the_node_runs_on_its_own",
+        "fastapi_backend/tests/api/test_actions_web.py::test_it_calls_an_address_and_passes_on_the_answer_as_outside_text"
+      ]
     },
     {
       "property": "P-ADMIN-GUARD",
@@ -1283,7 +1340,7 @@
       "property": "P-APPROVAL",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",
-      "conditions": "assistant tools that change data wait for the person's approval, except notes and an admin's setup conversation",
+      "conditions": "assistant tools that change data wait for the person's approval, except notes and an admin's setup conversation; only the person approves, signed in or in the chat (API keys, apps, MCP and the assistant only decline)",
       "provenance": "documented",
       "source": "docs/assistant.md \"Approvals\""
     },
@@ -1293,7 +1350,20 @@
       "severity_tier": "security",
       "conditions": "an automation's action that asks first waits as an approval of the automation's person and nothing runs until they pick; approving, editing or always need them signed in, or (approving an action inside Lens) a yes in the private chat they were told in, from someone the channel lets approve, while it is the only one waiting there or named by number (API keys, apps, MCP and the assistant only list and decline); a decision is claimed once; at most 100 wait per automation, each tells the person once, and undecided ones expire after automations.approval_days",
       "provenance": "documented",
-      "source": "docs/automations.md \"Approvals\""
+      "source": "docs/automations.md \"Approvals\"",
+      "x-tests": [
+        "fastapi_backend/tests/api/test_approvals.py::test_an_automation_action_waits_as_an_approval_and_the_person_is_told_once",
+        "fastapi_backend/tests/api/test_approvals.py::test_approve_carries_the_action_out_and_the_run_records_it",
+        "fastapi_backend/tests/api/test_approvals.py::test_always_lets_the_node_run_on_its_own_and_only_signed_in",
+        "fastapi_backend/tests/api/test_approvals.py::test_agents_over_mcp_list_and_decline_but_never_approve",
+        "fastapi_backend/tests/api/test_approvals.py::test_the_assistant_lists_and_declines_but_never_approves",
+        "fastapi_backend/tests/api/test_approvals.py::test_a_flood_of_approvals_is_capped_per_automation",
+        "fastapi_backend/tests/api/test_approvals.py::test_undecided_approvals_expire_and_nothing_runs",
+        "fastapi_backend/tests/api/test_approvals_chat.py::test_a_yes_in_my_chat_decides_an_action_inside_lens",
+        "fastapi_backend/tests/api/test_approvals_chat.py::test_an_action_reaching_outside_lens_is_decided_on_its_card",
+        "fastapi_backend/tests/api/test_approvals_chat.py::test_with_two_waiting_a_bare_yes_names_them_and_a_number_picks_one",
+        "fastapi_backend/tests/api/test_approvals_chat.py::test_a_yes_counts_only_from_someone_let_in_to_approve"
+      ]
     },
     {
       "property": "P-INJECTION-EGRESS",
@@ -1301,7 +1371,16 @@
       "severity_tier": "correctness",
       "conditions": "Once an assistant answer has read text from outside Lens (a tool result other than Lens's own, the page it was asked from, a namespace assistant's memories, a message in a chat room with no bridge.users, or an earlier answer in the conversation that read any of these), tools that could carry it out of Lens (the person's own read web tools, a web search or page read neither the person nor a tool gave it, other servers' MCP tools, Python tools with the network) and an admin setup conversation's own changes wait for the person's approval. A chat room's answer keeps a web address linkable only when the person, the archive, a tool or Lens wrote it. A bypass is VALID-HARDENING (Q26). An automation's model and agent actions (ask_model, call_tool, ask_agent) run with nobody reading along: the activity and earlier steps reach the model marked as data, every change they would make (notes included) is an approval of the automation's person, and anything that could carry data out of Lens asks first whatever the run read (docs/automations.md \"The model and the agent\"). A saved variable a run set from outside text stays marked as data in later runs' prompts, and an action whose params read it counts as reading outside text (docs/automations.md \"Saved variables\"). Within a research run the person approved, the plan's web searches and page reads, and code with the network when the plan names the code sandbox, don't ask again (P-RESEARCH).",
       "provenance": "documented",
-      "source": "docs/assistant.md \"it read out of Lens waits for your approval\""
+      "source": "docs/assistant.md \"it read out of Lens waits for your approval\"",
+      "x-tests-note": "an automation's ask_model, call_tool and ask_agent, and saved variables",
+      "x-tests": [
+        "fastapi_backend/tests/api/test_actions_ai.py::test_prompts_mark_what_the_run_read_from_outside_lens_as_data",
+        "fastapi_backend/tests/api/test_actions_ai.py::test_an_agent_with_nobody_reading_along_asks_before_anything_goes_out",
+        "fastapi_backend/tests/api/test_actions_ai.py::test_call_tool_reads_as_the_person_and_changes_only_by_asking_them",
+        "fastapi_backend/tests/api/test_actions_ai.py::test_ask_agent_works_on_what_happened_and_saves_the_conversation",
+        "fastapi_backend/tests/domain/test_automation_nodes.py::test_prompts_mark_outside_text_and_template_defaults_are_filled_in",
+        "fastapi_backend/tests/api/test_automation_vars.py::test_runs_read_their_own_and_their_namespace_s_variables"
+      ]
     },
     {
       "property": "P-EXT-SCOPE",
@@ -1477,15 +1556,27 @@
       "severity_tier": "security",
       "conditions": "an automation acts only for its maker (run_as), with their permissions when it runs, in namespaces they edit, on activities they may see published after it was switched on; a maker who lost access fails its next run and switches it off; actions reaching outside Lens or other people ask first unless the person, signed in to the web app, set the node to auto (API keys, apps, agents and drafts cannot); the assistant saves automations switched off, and switching one on or running one waits for the person's approval",
       "provenance": "documented",
-      "source": "docs/automations.md \"Running automations\""
+      "source": "docs/automations.md \"Running automations\"",
+      "x-tests": [
+        "fastapi_backend/tests/domain/test_automation_runs.py::test_what_a_run_does_is_caused_by_it_and_acts_for_its_person",
+        "fastapi_backend/tests/domain/test_automation_runs.py::test_a_person_who_lost_access_stops_their_automation",
+        "fastapi_backend/tests/domain/test_automation_runs.py::test_the_guards_leave_activities_out",
+        "fastapi_backend/tests/api/test_automations.py::test_only_the_person_lets_a_node_run_on_its_own",
+        "fastapi_backend/tests/api/test_automation_tools.py::test_the_assistant_saves_at_once_and_asks_to_switch_on_or_run"
+      ]
     },
     {
       "property": "P-AUTOMATION-LOOP",
       "violation_symptom": "x-cap-exceeded",
       "severity_tier": "correctness",
-      "conditions": "activities an automation made start another only with from_automations; a chain stops at automations.max_depth runs (3); each automation has a cooldown and a most runs an hour (60) under a most runs a minute for all (60); a run over a limit does nothing, is counted and logged at most hourly",
+      "conditions": "activities an automation made start another only with from_automations; a chain stops at automations.max_depth runs (3); each automation has a cooldown and a most runs an hour (60) under a most runs a minute for all (60); a run over a limit does nothing, is counted and logged at most hourly; an automation has at most 1000 timers waiting; setting more is refused",
       "provenance": "documented",
-      "source": "docs/automations.md \"Running automations\""
+      "source": "docs/automations.md \"Running automations\"",
+      "x-tests": [
+        "fastapi_backend/tests/domain/test_automation_runs.py::test_the_guards_leave_activities_out",
+        "fastapi_backend/tests/domain/test_automation_runs.py::test_the_if_limits_and_dry_runs",
+        "fastapi_backend/tests/domain/test_timers.py::test_an_automation_has_at_most_so_many_timers_waiting"
+      ]
     },
     {
       "property": "P-BROWSER",
@@ -1539,7 +1630,7 @@
       "property": "P-MESH",
       "violation_symptom": "info-leak, integrity-bypass",
       "severity_tier": "security",
-      "conditions": "the mesh (mesh.enabled, off until an admin adds a node) admits only machines that joined with a token an admin made, spent on use and expiring, which never crosses the wire (HMAC proof; answer sealed with a key derived from it); each machine's certificate names only its own address, role and namespaces; the rendered firewall opens the database port to worker nodes and the API port to every node on the primary, a node's agent port to the primary only; removing a node blocklists every certificate it was given on every machine and stops its node token; nodes still sign in to Lens as any client does",
+      "conditions": "the mesh (mesh.enabled, off until an admin adds a node) admits only machines that joined with a token an admin made, spent on use and expiring, which never crosses the wire (HMAC proof; answer sealed with a key derived from it); each machine's certificate names only its own address, role and namespaces; the rendered firewall opens the database port to worker nodes and the API port to every node on the primary, a node's agent port to the primary only; removing a node blocklists every certificate it was given on every machine and stops its node token; nodes still sign in to Lens as any client does; on the primary Nebula runs in the mesh container, the only one holding NET_ADMIN, with a key pair it makes itself and Nebula's release checked against the kept checksum; its relays listen on the mesh address only; a node runs lens node and Nebula in two containers with nothing published, its node token and agent key in its own volume (0600), the join token in the first start's environment only; a worker node signs in to the database as its own user of Lens's database (never root, removed with the node) and reads its namespaces' files over the mesh, never a vault's, without the archive's secret; a compute node runs the assistant's sandboxes on a gateway of its own, which Lens reaches over the mesh only with mutual TLS, holding its client certificate sealed, and the node gets nothing of Lens's",
       "provenance": "documented",
       "source": "docs/mesh.md \"What keeps it safe\""
     }
@@ -1554,7 +1645,7 @@
     },
     {
       "property": "N-EGRESS",
-      "reason": "an egress firewall; netguard guards web import, iCal and news feeds, extension http tools, notifications, the assistant's web search and page reads, Chromium and the opt-in browser container (as browser-proxy), nothing else; admin-set URLs other than iCal and news feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search) are unguarded",
+      "reason": "an egress firewall; netguard guards web import, iCal and news feeds, extension http tools, workflow HTTP call nodes, notifications, the assistant's web search and page reads, Chromium and the opt-in browser container (as browser-proxy), nothing else; admin-set URLs other than iCal and news feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel, a SearXNG instance for web search, LanguageTool server) are unguarded",
       "false_friend": true,
       "provenance": "documented",
       "source": "maintainer ruling, 2026-10"

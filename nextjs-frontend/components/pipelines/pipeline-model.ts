@@ -26,7 +26,16 @@ export type StepSpec = {
   to?: "audio" | "images";
   format?: string;
   pipeline?: number | "none";
+  /** A read step: what makes its PDFs, in place of the server's choice (Settings › Documents). */
+  converter?: "auto" | "anytopdf" | "lens";
 };
+
+/** What a read step can make its PDFs with; unset follows Settings › Documents. */
+export const CONVERTERS: { value: NonNullable<StepSpec["converter"]>; label: string }[] = [
+  { value: "auto", label: "anytopdf for what Lens can’t convert" },
+  { value: "anytopdf", label: "anytopdf for every document and image" },
+  { value: "lens", label: "Lens’s own converters only" },
+];
 
 /** The audio formats a convert step makes (the first is the default). */
 export const AUDIO_FORMATS = ["m4a", "mp3", "opus", "flac"];
@@ -86,11 +95,14 @@ export function cleanSpec(s: StepSpec): StepSpec | string {
     if (s.to === "audio" && s.format) out.format = s.format;
     if (s.pipeline != null) out.pipeline = s.pipeline;
   }
+  if (s.type === "read" && s.converter) out.converter = s.converter;
   return Object.keys(out).length === 1 ? s.type : (out as StepSpec);
 }
 
 /** Which earlier steps a step reads from, when they are in the same pipeline. */
 export const NEEDS: Record<string, string[]> = {
+  read: ["enhance"],
+  transcribe: ["clean_audio"],
   diarize: ["transcribe"],
   ocr: ["shots"],
   faces: ["shots"],
@@ -104,6 +116,7 @@ export const NEEDS: Record<string, string[]> = {
   summarize: ["analyze"],
   llm: ["transcribe", "read", "diarize", "clean", "analyze"],
   spec: ["transcribe", "read", "diarize", "clean"],
+  reply: ["transcribe", "read"],
   report: ["analyze", "summarize", "llm"],
   export: ["analyze", "summarize", "llm"],
   workflow: ["transcribe", "read", "diarize", "clean"],
@@ -111,6 +124,8 @@ export const NEEDS: Record<string, string[]> = {
 
 /** What a step makes available to later steps and templates. */
 export const PROVIDES: Record<string, string> = {
+  enhance: "an enhanced copy that read uses",
+  clean_audio: "audio_cleanup (speech · silence left out) for transcribe",
   transcribe: "transcript · segments[] · language",
   read: "pages[] · segments[]",
   diarize: "speakers[] · turns",
@@ -127,12 +142,17 @@ export const PROVIDES: Record<string, string> = {
   summarize: "summary.*",
   llm: "outputs.<key>",
   spec: "a spec note · outputs.spec",
+  reply: "a draft reply to the email",
   report: "a report page",
   export: "a file",
   workflow: "outputs · fields · entities",
 };
 
 export const DESCRIBE: Record<string, string> = {
+  enhance:
+    "Keeps a sharper copy of small, blurry, noisy or dull images for read to use; the original stays (Settings → Enhance)",
+  clean_audio:
+    "Cleans up the sound before it’s transcribed with WebRTC: noise, gain, rumble, echo, and silence left out (Settings → Transcription)",
   transcribe: "Speech to text with word timings (Settings → Transcription)",
   read: "Draws a document’s or an image’s pages and reads their text (Settings → Documents)",
   diarize: "Who spoke when (Settings → Diarization)",
@@ -151,6 +171,8 @@ export const DESCRIBE: Record<string, string> = {
   summarize: "The built-in summary with the LLM in Settings",
   llm: "Your prompt template; saves a structured output",
   spec: "A technical spec from the transcript, as a note linked to the asset: decisions, every no, constraints and what was left to decide later (Spec from transcript template)",
+  reply:
+    "A cited reply drafted to an email from what its namespace holds; it waits for you, and mailing lists and no-reply mail are skipped (Reply to an email template)",
   report: "The asset’s report page, or your report template",
   export: "Writes a file from an export template, optionally to a source",
   workflow: "Runs a workflow you drew on the canvas: outputs, custom fields and entities",
@@ -206,11 +228,15 @@ export function stepSummary(s: StepSpec, templateName?: (id: number) => string |
     parts.push(`${templateName?.(s.template) ?? `template #${s.template}`}${s.version ? ` v${s.version}` : ""}`);
   else if (s.type === "report") parts.push("built-in report");
   else if (s.type === "spec") parts.push("Spec from transcript");
+  else if (s.type === "reply") parts.push("Reply to an email");
   if (s.type === "llm" && s.key) parts.push(`outputs.${s.key}`);
   if (s.type === "export" && s.filename) parts.push(s.filename);
   if (s.type === "convert") {
     parts.push(s.to === "images" ? "pages to images" : `to audio · ${s.format ?? AUDIO_FORMATS[0]}`);
     if (s.pipeline === "none") parts.push("not processed");
+  }
+  if (s.type === "read" && s.converter) {
+    parts.push({ auto: "anytopdf when needed", anytopdf: "with anytopdf", lens: "Lens converters" }[s.converter]);
   }
   if (s.model) parts.push(s.model);
   if (s.force) parts.push("forced");
@@ -226,7 +252,7 @@ export function specProblems(
 ): Record<number, string> {
   const out: Record<number, string> = {};
   steps.forEach((s, i) => {
-    const need = { llm: "prompt", spec: "prompt", export: "export", report: "report" }[s.type];
+    const need = { llm: "prompt", spec: "prompt", reply: "prompt", export: "export", report: "report" }[s.type];
     if (s.type === "workflow" && s.workflow == null) out[i] = "Choose a workflow.";
     else if (s.type === "llm" && s.template == null) out[i] = "Choose a prompt template.";
     else if (s.type === "export" && s.template == null) out[i] = "Choose an export template.";

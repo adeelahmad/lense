@@ -63,6 +63,12 @@ from a LanguageTool server, spaCy fetched for named entities, and dates found an
 
 Refine later: revert a whole cleanup at once; cleanup rules for other languages' fillers; per-namespace switch.
 
+Grammar: the clean step takes a LanguageTool server's GRAMMAR, PUNCTUATION and TYPOGRAPHY fixes, and EN_A_VS_AN (filed
+under MISC) (analysis.cleanup_grammar_url, the compose files' `languagetool` profile), never spelling, style or a word
+with a capital. language_tool_python from the script is GPL-3.0 and starts Java itself, so Lens talks to a server
+instead. Refine later: start the profile from Settings through the machine agent; per-namespace grammar; LanguageTool's
+other categories as opt-in switches.
+
 ## 2026-10-17 · Describing pictures with Moondream on this machine
 
 Moondream is the third describe engine (`llm.describe_engine` `moondream`), opt-in, through Hugging Face transformers
@@ -466,29 +472,34 @@ authority records (variant names, external identifiers); topic history and undo 
 to accept analysis suggestions without asking, or to stop offering new topics; matching labels of three or more words
 in transcripts (only summaries match them now).
 
-## 2026-10-04 · anytopdf as the conversion engine (not started: wait for Adeel's go)
+## 2026-10-04 · anytopdf as the conversion engine (started 2026-10-06; status 2026-10-18)
 
-Goal (Adeel): use the sister project [anytopdf-rs](https://github.com/adeelahmad/anytopdf-rs) (README on its sprint2
-branch) to turn any source into one searchable, cited PDF: OCR, captions, transcripts, keyframes and metadata as an
-invisible text layer, with an embedded manifest, chunks, source anchors and provenance. Do not start until Adeel says go.
+Goal (Adeel): use the sister project [anytopdf-rs](https://github.com/adeelahmad/anytopdf-rs) to turn any source into
+one searchable, cited PDF: OCR, captions, transcripts, keyframes and metadata as an invisible text layer, with an
+embedded manifest, chunks, source anchors and provenance.
 
 Why it fits: one static Rust binary (Linux x86_64 and arm64 musl, so a Raspberry Pi) that Lens can download as a
 component, instead of LibreOffice and Chromium in the full image; provenance per fact matches "trusted, cited memory".
 
-Todo (when started):
+Todo:
 
-- [ ] Wait for anytopdf's JSON output (`--json`, schemas, exit codes) and `extract --json` manifest to land
-- [ ] anytopdf as a component Lens installs itself (settings: auto, on, off), with its version recorded
-- [ ] A pipeline / workflow node "Make evidence PDF": inputs a recording or resource, outputs the PDF as a rendition
-      and its manifest chunks and anchors as Lens chunks (citations jump to time span, box or byte range)
-- [ ] Use it where Lens has no converter first (images, captions, mixed folders); keep LibreOffice and Chromium as
-      the default for Office, HTML and email until anytopdf reads them (its roadmap: PDF, HTML, EML, Office)
-- [ ] Reuse Lens's own OCR and transcripts as sidecars rather than running them twice
-- [ ] Run it with no network, size and time caps, plugins off unless an admin allows them (its plugins run with full
-      user rights until its sandbox lands)
+- [x] anytopdf as a component Lens fetches itself, checked against its release checksum (`documents.converter` auto,
+      anytopdf, lens), or a conversion node (#210 #220 #224); release 0.4.0 pinned in anytopdf.py
+- [x] Use it where Lens has no converter first; LibreOffice and Chromium stay the default for Office, HTML and email
+      on `auto` (#210); web pages and emails drawn as they look, with its OCR word boxes used as page text (#222 #223)
+- [x] Run it with no network, no plugins and no config file for conversions; face and object plugins only sandboxed
+      (#221 #227 #228); camera RAW and HEIC photos (#233)
+- [x] Evidence PDF of an asset or a collection, with Lens's transcripts handed over as sidecars (#226 #370)
+- [x] Places, dates and photo GPS as graph hints, CLIP photo search (#229 #230)
+- [x] A pipeline's Read step picks its own converter, so one pipeline can use anytopdf while the server's choice stays
+- [ ] An evidence PDF as a pipeline step (today an endpoint and an Export menu item)
+- [ ] Read anytopdf's structured output (manifest chunks and anchors as Lens chunks, citations jumping to a time span
+      or a box) once it ships a portable graph bundle
+- [ ] Hand Lens's own OCR to anytopdf as a sidecar where Lens read a page first, so it isn't run twice
 
 Refine later: anytopdf's intake channels (IMAP, webhooks, watched folders) and printing overlap Lens's sources and
 sensors; decide which side owns them. MCP server mode could be an extension.
+
 ## 2026-10-04 · Notes: a page for everything
 
 Goal (Adeel): every resource, entity and topic has its own page (its note), next to free notes written by people or
@@ -575,7 +586,7 @@ Todo:
 - [x] Canvas editor for tool graphs in the web app (Extensions → Draw a tool)
 - [x] Authoring from chat and voice: the assistant drafts and saves extensions behind an approval card
 - [x] Extensions page in the web app: list, manifest editor, switch on/off, share, try, versions
-- [ ] `lens ext` CLI (push/pull manifests)
+- [x] `lens ext` CLI: list, pull, push and check manifests, here or over the API (docs/assistant.md)
 
 Refine later: hook-called tools don't show as steps; web tools reach ports 80/443 only and have no secret
 references yet; extensions aren't offered over MCP yet; marketplace on top of plugins.
@@ -603,7 +614,7 @@ Todo:
 - [x] API tests
 - [x] Web app: Routines page, run history, proposed changes review, graph nodes on the canvas
 - [ ] Notify (Matterbridge/webhooks thread) when a run fails or leaves proposals
-- [ ] More graph nodes: retype entities, hide noise, cluster topics
+- [x] More graph nodes: retype entities, hide noise, cluster topics (the candidates node's retype, hide and cluster kinds)
 - [ ] Routing rules (shared IMAP inbox → namespaces) slot in between sync and ingest
 
 ## 2026-10-02 · Workflow canvas
@@ -636,7 +647,7 @@ Todo:
 - [x] Attach workflows from the pipeline editor
 - [x] Content-type mapping on the Pipelines page (By content type)
 - [x] Asset converter steps (video → audio, document → images) as pipeline steps (the convert step, conversions.py)
-- [ ] Workflow node types: HTTP call, template render, entity filter
+- [x] Workflow node types: HTTP call, template render, entity filter (HTTP call and entity filter added 2026-10-18; template render is the template primitive)
 - [x] Docs: processing.md section on workflows
 
 Content types (2026-10-02, follow-up in the same PR):

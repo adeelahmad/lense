@@ -1,7 +1,7 @@
 # Notifications
 
 Lens can tell a chat room or another app when something happens in a namespace: a run finishes or fails, a batch
-run finishes, something is added. Each namespace's owners choose where its notifications go (its **targets**) and
+run finishes, something is added, a routine's run fails or leaves graph changes to review. Each namespace's owners choose where its notifications go (its **targets**) and
 which events each target gets, on the namespace's page under **Notifications**.
 
 ## Targets
@@ -93,14 +93,16 @@ check that the timestamp is recent too, to refuse replays.
 | `recording.added` | an asset (a recording, document, image or web page) was added, however it came | `recording`, `title`, `source`, `created_at` |
 | `lens.release` | a new Lens release is out, once per release ([Updates](updates.md)) | `tag`, `name`, `current`, `published_at`, `notes_url` |
 | `approval.waiting` | an automation's action waits for its person's pick ([Approvals](automations.md#approvals)); one decided before the notifier saw it isn't sent | `approval`, `automation`, `automation_name`, `summary`, `action`, `effect`, `expires_at`, `created_at` |
+| `routine.failed` | a [routine](processing.md#routines)'s run failed: all its actions, some of them (`text` says how many), or it stopped without finishing; each namespace the routine runs over gets it | `routine`, `routine_name`, `run`, `trigger`, `status` (`error` or `partly`), `failed` (each failed action's `action` number, `type` and `error`), `actions`, `error`, `started_at`, `finished_at` |
+| `routine.proposed` | a routine's run left graph changes to accept or dismiss, counted in each namespace they touch; one whose changes were all decided before the notifier saw it isn't sent | `routine`, `routine_name`, `run`, `trigger`, `status`, `proposed`, `kinds` (`merge`, `link`), `started_at`, `finished_at` |
 
 New targets get `job.failed` and `batch.finished`. A batch run's own runs aren't sent one by one: the batch run is,
 when it finishes. More than five things added to a namespace at once (a watched folder's new files, an import) are one
 message (`data.recordings`, `data.count`).
 
-`text` is the message chat targets get, and `url` links to the run, batch run, asset or approval in the web app. What
-an approval would do holds text its run read from outside Lens, so web addresses in its `text` are broken up
-(`hxxps://evil[.]example`), except the web app's own.
+`text` is the message chat targets get, and `url` links to the run, batch run, asset, approval, routine or a routine
+run's graph changes in the web app. What an approval would do, and a routine's errors, can hold text read from outside
+Lens, so web addresses in their `text` are broken up (`hxxps://evil[.]example`), except the web app's own.
 
 ## How it's sent
 

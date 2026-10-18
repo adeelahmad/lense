@@ -11,13 +11,14 @@ import { Chats } from "@/app/openapi-client";
 import type { ChatMessage, Passage, SharedContext } from "@/app/openapi-client/types.gen";
 import { NO_ANSWER } from "@/components/chat/cite";
 import { CitationChip } from "@/components/chat/citation";
-import { useChat, useLlmStatus, useStopAnswer } from "@/components/chat/data";
+import { refetchFresh, useChat, useLlmStatus, useStopAnswer } from "@/components/chat/data";
 import { RichText } from "@/components/chat/rich-text";
 import { SharedFiles } from "@/components/chat/shared-files";
 import { ToolSteps } from "@/components/chat/steps";
 import { applyEvent, newTurn, savedSteps, sharedFiles, type ToolStep, type TurnState } from "@/components/chat/stream";
 import { useAskPlace } from "@/components/page-chat/ask-place";
 import {
+  ASK_ABOUT_EVENT,
   hiddenOn,
   INITIAL,
   PAGE_CHAT_KEY,
@@ -100,6 +101,16 @@ export function PageChat() {
     },
     [update],
   );
+
+  // A page's own "Ask about this" (askAbout): a timeline item, say.
+  useEffect(() => {
+    const onAsk = (e: Event) => {
+      const quote = (e as CustomEvent<unknown>).detail;
+      if (typeof quote === "string" && quote.trim()) open(quote.trim());
+    };
+    window.addEventListener(ASK_ABOUT_EVENT, onAsk);
+    return () => window.removeEventListener(ASK_ABOUT_EVENT, onAsk);
+  }, [open]);
 
   // On a phone the panel covers the page: following a link (a citation, the page a question was asked on) shows it.
   const lastPath = useRef(pathname);
@@ -312,7 +323,7 @@ function ChatPanel({
     }
     if (cid == null) return setLive({ chatId: -1, turn, context: shown });
     setLive({ chatId: cid, turn, context: shown });
-    await qc.invalidateQueries({ queryKey: ["chat", cid] });
+    await refetchFresh(qc, ["chat", cid]);
     void qc.invalidateQueries({ queryKey: ["chats"] });
     // a saved answer is in the conversation now; one that wasn't saved stays shown
     if (turn.messageId != null) setLive(null);

@@ -187,6 +187,7 @@ GET    /api/v1/automations
 POST   /api/v1/automations
 GET    /api/v1/automations/actions
 POST   /api/v1/automations/draft
+GET    /api/v1/automations/starters
 GET    /api/v1/automations/{id}
 PATCH  /api/v1/automations/{id}
 DELETE /api/v1/automations/{id}
@@ -209,8 +210,8 @@ only in namespaces they can edit (`?removed=true` lists deleted ones, to restore
 `/policy` lets an action node run without asking (`auto`) only from a signed-in session in the web app.
 `/actions` lists what action nodes can do. `/draft {"text": ...}` asks the model to turn a sentence into a draft to
 try and save, saying what didn't fit (`dropped`) and what it couldn't express (`unmapped`) ([Describe it in
-words](automations.md#describe-it-in-words)). The list adds each one's actions waiting (`waiting`) and cost this month
-(`cost_month`). `/test` tries a saved automation, and `POST /automations/test {"draft": ...}` an unsaved one, on an
+words](automations.md#describe-it-in-words)). The list adds each one's actions waiting (`waiting`), cost this month
+(`cost_month`), its triggers in words (`reads`), its runs today (`runs_today`) and when it runs next (`next_at`). `/test` tries a saved automation, and `POST /automations/test {"draft": ...}` an unsaved one, on an
 activity (`activity`) or a kind's sample (`kind`) without keeping or sending anything; `/run` runs it now (on
 `activity`, else the newest one its triggers listen for). `/runs` pages its runs (`before`, `limit`; `next` for the
 page after), `/runs?activity=<id>` lists the runs an activity started, `/runs/{run}` gives one with its trace, log and
@@ -225,6 +226,11 @@ GET    /api/v1/activities/kinds
 GET    /api/v1/activities/{activity_id}
 POST   /api/v1/activities/mark
 POST   /api/v1/activities/{activity_id}/mark
+POST   /api/v1/activities/{activity_id}/react
+GET    /api/v1/activities/{activity_id}/comments
+POST   /api/v1/activities/{activity_id}/comments
+PATCH  /api/v1/activities/{activity_id}/comments/{cid}
+DELETE /api/v1/activities/{activity_id}/comments/{cid}
 ```
 
 `GET /activities` is what happened in Lens, newest first, from every source: Activity Streams 2.0 activities with a
@@ -242,6 +248,16 @@ Each person marks activities `reviewed`, `important` or `hidden` for themselves 
 `POST /activities/{id}/mark` with any of the three (true or false; one left out stays) answers the marks on it now,
 and `POST /activities/mark` with `ids` (up to 500) answers `{marks, unknown}`. `GET /activities` has your marks on
 the page in `marks` and filters by them with `reviewed`, `important` and `hidden` (true or false).
+
+Reactions and comments are shared by everyone who sees the activity
+([Timeline](timeline.md#reactions-and-comments)). `POST /activities/{id}/react` with `{"emoji": "👍"}` (one of
+👍 ❤️ 🎉 👀 😂 😮 😢 🙏; `"on": false` takes yours back) answers `{reactions: [{emoji, count, mine}]}` and logs a
+`reaction.added` activity when it is new. `/activities/{id}/comments` is the activity's thread, shaped as
+[comments on a resource](#comments): `GET` lists them threaded, `POST` with `text` (and `parent` for a reply) writes
+one, `PATCH` changes its text (its writer) or resolves the thread (`resolved`: its writer or an editor of the
+namespace), `DELETE` deletes it (its writer or an owner). On an asset's arrival (`create-recording-<id>`) they are the
+asset's own comments. `GET /activities` carries everyone's reactions on the page in `reactions` and each item's
+comment count in `comments`, by id. Writing needs a session or a write-scope key; a read-only key reads them.
 
 ## circles
 
@@ -596,6 +612,8 @@ PUT    /api/v1/resources/{rid}/ip-groups/{gid}
 DELETE /api/v1/resources/{rid}/ip-groups/{gid}
 GET    /api/v1/resources/{rid}/player
 PUT    /api/v1/resources/{rid}/nsfw
+POST   /api/v1/resources/{rid}/enhance
+GET    /api/v1/resources/{rid}/enhanced
 GET    /api/v1/resources/{rid}/embed-link
 GET    /api/v1/resources/{rid}/audio
 GET    /api/v1/resources/{rid}/wordcloud.svg
@@ -1009,12 +1027,19 @@ namespace to put the assets in (default: its default collection; 404 for one of 
 transcribe and its speakers came with it, so its pipeline's transcribe and diarize steps are left out and no speech or
 voice model is fetched for it.
 
+`POST /import`, `POST /import/web`, `POST /import/web/links` and `POST /uploads` also take a `content_type`: the
+[content type](processing.md#content-types) the asset is (a key from `GET /content-types`), instead of the one its
+file is recognised as, so that content type's pipeline runs from the start. It has to be one of the asset's base type
+(text for the imports here; for an upload, the file's: audio, video, image or text), else 400, naming the ones that
+fit, before anything is saved. The asset's Details tab shows it as chosen, and it can be changed there later.
+
 `POST /api/v1/import/source {source, paths, namespace, pipeline?, collection?, documents_as?}` imports chosen files of
 a storage source now, rather than watching their folder (admins, like sources; up to 500 paths, as
 `GET /sources/{sid}/browse` lists them). Audio, video, documents and images stay on the source and run the namespace's
 pipeline, or `pipeline`; transcripts are imported. A PDF, Word, text or Markdown file is a document unless
 `documents_as` is `transcript` (its text only), or the server can't make a PDF of it. Each path gets a result: `queued` (with `recording` and `job`), `already` (the namespace has it from this
-source), `skipped` (a folder, or not audio, video, a document, an image or a transcript) or `error`. Choosing a file
+source, or, for a folder on this machine, has the same file from anywhere: another folder, an upload or a scan, by
+what's in it, so it isn't read twice; with that `recording`), `skipped` (a folder, or not audio, video, a document, an image or a transcript) or `error`. Choosing a file
 whose asset was deleted brings it back. Audited as `import.source`.
 
 ### Web pages
@@ -1024,7 +1049,8 @@ of the namespace; admins may name a new one). Its pipeline keeps the page as it 
 any document ([Documents and images](#documents-and-images)): a link to a PDF is kept as it is, any other page is
 printed by headless Chromium with its scripts run. Its `web` is `{url, final, captured_at, how}`: the address given,
 the one it ended at after redirects, when it was captured, and `printed` or `pdf`. Its title is the page's own once it's
-captured, unless `title` gave one. Capturing happens once: reading it again keeps the page it captured.
+captured, unless `title` gave one. Capturing happens once: reading it again keeps the page it captured. An address the
+namespace has a page from already isn't captured again: the answer is that resource, with `duplicate` true and no `job`.
 
 Only public addresses are reached, on ports 80 and 443: the address is checked when it's given (400, saying why: not
 http(s), a user name or password in it, another port, or a host with an address that isn't public), and every request
@@ -1050,7 +1076,8 @@ as the checks above would). Audited as `import.web` once, with how many were que
 
 `POST /api/v1/import/video {url, namespace, title?, collection?, pipeline?}` imports a video or a podcast episode by its
 address (editors of the namespace; admins may name a new one): a page on a video site, a podcast's episode page, or a
-media file. It's off by default: `documents.video_urls` (Settings › Documents) turns it on, and until then it answers
+media file. An address the namespace has the video from already isn't downloaded again: the answer is that resource,
+with `duplicate` true and no `job`. It's off by default: `documents.video_urls` (Settings › Documents) turns it on, and until then it answers
 400. Its transcribe step downloads the media with [yt-dlp](https://github.com/yt-dlp/yt-dlp) (Unlicense), which Lens
 fetches on first use (release 2026.08.19, checked against its SHA-256, into `data_dir/models/`) unless one is on PATH,
 then transcribes it like an upload. One video is downloaded, never a playlist: the best single file with both sound and
@@ -1080,9 +1107,10 @@ POST   /api/v1/hooks/import
 POST   /api/v1/hooks/import/{token}
 ```
 
-A namespace's owners manage its hooks. `POST {name, collection?, pipeline?}` makes one and answers with its token
-(`lih_...`), shown this once; only a hash is kept, and lists show its last four characters. `PATCH` renames it, pauses
-or resumes it (`enabled`), or changes its collection or pipeline (null for the namespace's own). `POST .../token` gives
+A namespace's owners manage its hooks. `POST {name, collection?, pipeline?, hand_back?}` makes one and answers with its
+token (`lih_...`), shown this once; only a hash is kept, and lists show its last four characters. `PATCH` renames it,
+pauses or resumes it (`enabled`), turns [PDF hand-back](#pdf-hand-back) on or off (`hand_back`), or changes its
+collection or pipeline (null for the namespace's own). `POST .../token` gives
 it a new token and the old one stops at once; `DELETE` stops it altogether. What a hook imported stays either way.
 Audited as `import_hook.create`, `.update`, `.token` and `.delete`.
 
@@ -1096,7 +1124,7 @@ a URL; the address form ends up in proxy logs, so prefer the header). Three ways
 - **JSON** `{url?, text?, title?}`: a web page or PDF kept as a document, as [web pages](#web-pages) are (a page needs
   Chromium on the server; a link to a PDF doesn't), and text imported as pasted text is.
 
-The answer (202) is `{namespace, items: [{kind, name, recording, job, duplicate}]}`. 401 for a token Lens doesn't know,
+The answer (202) is `{namespace, items: [{kind, name, recording, job, duplicate, needs_pdf}]}`. 401 for a token Lens doesn't know,
 saying which kind it took it for (a hook's, an API token, a sign-in), 403 while the hook is paused, 413 over
 `uploads.max_mb`, 507 when the disk can't hold the file. Each item is audited as `import.hook`, by `import_hook:<id>`
 rather than a person.
@@ -1120,6 +1148,30 @@ curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{
 curl -H "Authorization: Bearer $LENS_API_TOKEN" -H "Content-Type: application/json" -d '{"text": "Notes", "title": "Notes"}' "https://lens.example/api/v1/hooks/import?namespace=pods"
 ```
 
+#### PDF hand-back
+
+A light server (a Raspberry Pi without LibreOffice or Chromium) can't make Word, PowerPoint and Excel files, emails or
+saved web pages into PDFs, so it refuses them. A conversion node that can (anytopdf, or any service with LibreOffice)
+can push them through a hook with **`hand_back`** on and send the PDF back. It's off on every hook until an owner turns
+it on, and does nothing on a server that converts those files itself.
+
+1. Push the file as usual. Where this server can't convert it, it's kept, and its item says `needs_pdf: true`, with
+   no `job`: the resource waits (its page shows that it waits, `awaits_pdf` on `GET /recordings/{id}`), and running
+   what's waiting leaves it alone.
+2. Convert the file you already have and push its PDF to the same hook with `?for=<recording>`, as the raw body or the
+   one file of a form. It becomes the document's rendition (made by `pushed`), the pipeline the file was pushed with
+   runs, and its pages are drawn and read from that PDF. An email still gives its sender, recipients, subject and
+   attachments, read from its own file. The item is `{kind: "pdf", recording, job}`, audited as `import.hook`.
+
+Only the hook a document came through can hand back its PDF, and only once, while it waits: 404 for any other
+recording, a person's own token gets 400, and a body that isn't a PDF gets 400.
+
+```
+curl -H "Authorization: Bearer $TOKEN" --data-binary @minutes.docx "https://lens.example/api/v1/hooks/import?filename=minutes.docx"
+# {"namespace": "pods", "items": [{"kind": "file", "name": "minutes.docx", "recording": 42, "needs_pdf": true, ...}]}
+curl -H "Authorization: Bearer $TOKEN" --data-binary @minutes.pdf "https://lens.example/api/v1/hooks/import?for=42"
+```
+
 ### Uploads
 
 Audio, video, documents (PDF) and images go up in pieces, so a dropped connection costs one piece, not the file. A PDF
@@ -1139,12 +1191,14 @@ DELETE /api/v1/uploads/{uid}
 (`uploads.max_mb`), the piece size the web app sends (`uploads.chunk_mb`) and the largest text or transcript file for
 `POST /import` (`server.max_upload_mb`).
 
-`POST /uploads {namespace, filename, size, title?, modified?, pipeline?, collection?, recording?}` starts one (editors of the namespace; admins
+`POST /uploads {namespace, filename, size, title?, modified?, pipeline?, content_type?, collection?, recording?}` starts one (editors of the namespace; admins
 may name a new namespace, created when the upload finishes). With `recording`, a text-only asset, the file
 becomes that asset's audio instead of an asset of its own (editors of its namespace; `namespace` can then be left
 out; 409 when it has audio already; 400 for anything but audio or video). [Processing](processing.md#importing-transcripts) says what runs then. `pipeline`
-runs instead of the namespace's once a new asset is made, and `collection` is where it goes (neither with
-`recording`, which stays in its collection). The name loses any folders and its extension is lowercased; `modified`
+runs instead of the namespace's once a new asset is made, `content_type` is the asset's [content
+type](processing.md#content-types) (one of the file's base type, else 400; its pipeline runs) and `collection` is
+where it goes (none of them with `recording`, which keeps its own). The same file uploaded again with a content type
+gives the asset it already is that one. The name loses any folders and its extension is lowercased; `modified`
 (the file's last-modified time in milliseconds) dates the asset when its name doesn't. 400 for a type not in
 `uploads.extensions`, 413 over `uploads.max_mb`, 507 when the server's disk can't hold it with 512 MB to spare.
 
@@ -1180,7 +1234,8 @@ GET    /api/v1/mentions
 `GET /search?q=` finds the moments where the words appear (in an asset's text or transcript, on screen in a video, in a resource's
 supplementary transcripts, captions, translations and indexes, or in what a model says its shots and pages show) in the
 namespaces you can read, best first: every word
-(English stemming), "quoted phrases" as written, `OR` between alternatives; `ns`, `speaker`, `emotion` and `recording`
+(English stemming), "quoted phrases" as written, `OR` between alternatives, `NOT` or `-` before a word or phrase to leave out the lines
+with it; `ns`, `speaker`, `emotion` and `recording`
 narrow it, and `object` keeps to the assets a kind of object is seen in ([Objects](#objects));
 `limit`/`offset` page through it. `total` counts the moments ranked so far (`capped` when there may be more).
 With `facets=true` it also counts all the matching moments, whatever the page, by namespace, person, emotion and
@@ -1411,6 +1466,17 @@ Audited as `recording.nsfw`. `GET /resources/nsfw` (`ns` for one namespace) says
 you read, how many resources are `flagged`, and how many of those the Library leaves out (`hidden`). Search hits and
 photo search results carry `nsfw: true` for the ones the web app blurs.
 
+### Enhancing images
+
+The `enhance` step comes first in the standard pipeline: where [enhancing images](enhance.md) is on (off by
+default), it measures an image and, when it's small, blurry, noisy, dull or has small faces, keeps an enhanced copy
+that `read` and the steps after it work from; the original stays as it is. Other resources skip it. A resource
+carries `enhanced`: `{kind, low, measured, enhanced, engine, scale, width, height, forced, at, download}` (`download`
+a signed link to the copy), or `null` until the step looked at it. `POST /resources/{rid}/enhance` (the process
+permission) enhances an image whatever the settings and its quality and runs its pipeline's later steps again,
+answering the `job`; 400 for anything but an image. Audited as `recording.enhance`. `GET /resources/{rid}/enhanced`
+is the copy, for members of its namespace.
+
 ### Descriptions
 
 The `describe` step has a model that can see images say in a few sentences what each page of a document or an image
@@ -1453,8 +1519,11 @@ POST   /api/v1/jobs
 GET    /api/v1/jobs/{jid}
 GET    /api/v1/jobs/{jid}/log
 POST   /api/v1/jobs/steps/{step}
+POST   /api/v1/jobs/cancel
+POST   /api/v1/jobs/retry
 POST   /api/v1/jobs/{jid}/cancel
 POST   /api/v1/jobs/{jid}/retry
+POST   /api/v1/jobs/{jid}/move
 GET    /api/v1/workers
 POST   /api/v1/workers/{name}/pause
 POST   /api/v1/workers/{name}/drain
@@ -1480,6 +1549,21 @@ Every job names its asset (`title`) and the pipeline it runs with the version it
 `worker`, `log_from`/`log_to` (its lines of the whole log) and `outputs` (`[{key, template, version, model}]`, saved as
 `outputs.<key>`). It also adds `estimates`, how long each step usually takes on this asset in seconds (from the
 last 25 runs of that step or template; null with none), and while the job is queued or running `eta_seconds`.
+
+`GET /jobs?status=queued&order=queue` lists queued jobs in the order workers take them, the next first (each job
+carries its `priority`: the highest is taken first, among the jobs a worker can run). `POST /jobs/{jid}/move` moves a
+queued job: `{to: "top"}` or `{to: "bottom"}`, or `{before: <jid>}` or `{after: <jid>}` another queued job you can
+see. The queue is numbered again around it, so the others keep their order, and jobs queued later join the back. It
+returns `position` (1 is next) and `queued`, both among the jobs you can see.
+
+Bulk changes work in every namespace where you may process (or `namespace`), or on `jobs` (ids, each checked):
+`POST /jobs/cancel {jobs?, namespace?, status?}` clears the queue, cancelling queued and held jobs; with `running` in
+`status`, running jobs stop after the step they're on (`stopping`). `POST /jobs/retry {jobs?, namespace?, status?}`
+retries the failed jobs (the dead letter queue; `status: ["failed", "cancelled"]` takes cancelled ones too), each
+from the step it stopped at and at the back of the queue; a job whose asset was deleted, or whose asset already has a
+job queued or running, is left alone (`skipped`). So `POST /jobs/retry {jobs: <the ids cancel returned>, status:
+["cancelled"]}` undoes clearing the queue. Both return the ids they changed (`jobs`) and are audited as `jobs.cancel`
+and `jobs.retry`. Retrying one job puts it at the back of the queue too.
 
 A run keeps its whole log (up to 100,000 lines); the job itself carries its last 200 lines (`log`) and how many there
 are (`log_total`). `GET /jobs/{jid}/log?after=&limit=` pages through it: `{start, lines, total, more}`, up to 5,000
@@ -1573,8 +1657,9 @@ automations' actions ([Approvals](automations.md#approvals)); filter by `status`
 `automation` or `chat_id`, and page with `before` (the last id of the page before) and `limit`. `/approvals/count`
 gives `{waiting, automations}`. `POST /approvals/{aid} {decision, params?}` decides one: `approve`, `sample` (a batch
 run on 3 assets first), `decline`, `edit` (an automation's action with `params` changed) or `always` (approved, and
-that node runs without asking from now on). Approving, editing and `always` on an automation's action need a signed-in
-session (403 for an API key or an app); each approval's `can` says what you may do with it.
+that node runs without asking from now on). Approving (and a sample), editing and `always` need a signed-in session,
+for the assistant's proposals as for an automation's actions (403 for an API key or an app, which can only decline);
+each approval's `can` says what you may do with it.
 
 `GET /chats/capabilities` tells anyone signed in whether a language model is set up (`configured`), which (`model`),
 whether it uses tools (`tools`, `max_steps`, `max_tool_calls`), whether answers can be checked (`check`) and the `models` people may pick

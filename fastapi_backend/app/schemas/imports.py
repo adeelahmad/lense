@@ -24,12 +24,16 @@ class ImportRequest(ImportPreviewRequest):
     speakers: str | None = Field(None, description='rename speakers on the way in: "S1=Alice,S2=Bob"')
     pipeline: int | None = Field(None, description="run this pipeline afterwards instead of the namespace's (GET /pipelines)")
     collection: int | None = Field(None, description="a collection of the namespace to put it in; default: its default collection")
+    content_type: str | None = Field(
+        None, description="a text content type (GET /content-types), e.g. transcript, instead of the one recognised from it"
+    )
 
 
 class ImportResult(ResponseModel):
     ok: bool = True
     id: int
-    job: int
+    job: int | None = None  # None when nothing was queued: the namespace had it already
+    duplicate: bool = Field(False, description="the namespace already had this page or video: `id` is that resource")
 
 
 class PreviewLine(ResponseModel):
@@ -65,6 +69,9 @@ class WebImportRequest(RequestModel):
     title: str | None = Field(None, max_length=200, description="default: the page's own title, once it's captured")
     pipeline: int | None = Field(None, description="run this pipeline afterwards instead of the namespace's")
     collection: int | None = Field(None, description="a collection of the namespace to put it in; default: its default collection")
+    content_type: str | None = Field(
+        None, description="a text content type (GET /content-types) for the page instead of the one recognised from it"
+    )
 
 
 class VideoImportRequest(RequestModel):
@@ -87,6 +94,9 @@ class LinksImportRequest(RequestModel):
     folders_as_tags: bool = Field(True, description="tag each page with the bookmark folders it was in")
     pipeline: int | None = Field(None, description="run this pipeline afterwards instead of the namespace's")
     collection: int | None = Field(None, description="a collection of the namespace to put them in; default: its default collection")
+    content_type: str | None = Field(
+        None, description="a text content type (GET /content-types) for each page instead of the one recognised from it"
+    )
 
 
 class LinkImportResult(ResponseModel):

@@ -1,7 +1,8 @@
 /**
  * The search box: free words plus typed filters (`speaker:"Host B"`, `namespace:podcasts`, `emotion:surprise`,
  * `recording:"Episode 12"`, `object:car`). Typed filters become chips; the chip and the facet are one filter. The backend's rules:
- * every word must appear (English stemming), "quoted phrases" as written, OR between alternatives, no prefix search.
+ * every word must appear (English stemming), "quoted phrases" as written, OR between alternatives, NOT or -word to
+ * leave lines out, no prefix search.
  */
 
 export type FilterKey = "namespace" | "speaker" | "emotion" | "recording" | "object";
@@ -80,12 +81,22 @@ export function phrases(text: string): string[] {
 
 /** Words and phrases, as the backend splits them. */
 export function tokens(text: string): string[] {
-  return text.match(/"[^"]+"|\S+/g) ?? [];
+  return text.match(/-?"[^"]+"|\S+/g) ?? [];
 }
 
 /** True when there is anything to search for (not just OR or punctuation). */
 export function hasTerms(text: string): boolean {
-  return tokens(text).some((t) => t.toUpperCase() !== "OR" && /[\p{L}\p{N}]/u.test(t));
+  let negate = false;
+  return tokens(text).some((t) => {
+    const op = t.toUpperCase();
+    if (op === "OR" || op === "AND" || op === "NOT") {
+      negate = op === "NOT";
+      return false;
+    }
+    const left = negate || t.startsWith("-");
+    negate = false;
+    return !left && /[\p{L}\p{N}]/u.test(t);
+  });
 }
 
 /**

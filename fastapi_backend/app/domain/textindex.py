@@ -175,12 +175,14 @@ def _quote(term):
 
 
 def match_expr(groups):
-    """An FTS5 query for search groups: each group's words and phrases all present, any group will do."""
+    """An FTS5 query for search groups: each group's words and phrases all present, any group will do, and none of
+    the words or phrases it leaves out (`not`)."""
     parts = []
     for g in groups:
         terms = [_quote(t) for t in g["words"] + g["phrases"] if t.strip()]
+        nots = [_quote(t) for t in g.get("not") or [] if t.strip()]
         if terms:
-            parts.append("(" + " ".join(terms) + ")")
+            parts.append("(" + " ".join(terms) + ")" + (" NOT (" + " OR ".join(nots) + ")" if nots else ""))
     return " OR ".join(parts)
 
 
@@ -347,7 +349,7 @@ class OpenSearch(Engine):
             must = [{"match": {"text": {"query": " ".join(g["words"]), "operator": "and"}}}] if g["words"] else []
             must += [{"match_phrase": {"text": p}} for p in g["phrases"]]
             if must:
-                should.append({"bool": {"must": must}})
+                should.append({"bool": {"must": must, "must_not": [{"match_phrase": {"text": t}} for t in g.get("not") or []]}})
         if not should:
             return []
         body = {"size": limit, "_source": False, "query": {"bool": {"should": should, "minimum_should_match": 1}}}

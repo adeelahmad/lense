@@ -25,6 +25,7 @@ import {
   type SettingsView,
 } from "@/components/settings/model";
 import { useUnsavedGuard } from "@/components/settings/use-unsaved-guard";
+import { SecretsProvider } from "@/components/settings/vault-picker";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -205,6 +206,7 @@ export function SettingsSection({
       setServerErrors({});
       setNsInitial(nsAccess);
       await qc.invalidateQueries({ queryKey: ["settings"] });
+      if (specs.some((f) => f.kind === "secret")) void qc.invalidateQueries({ queryKey: ["secrets"] });
       if (nsChanges.length) void qc.invalidateQueries({ queryKey: ["namespace-metadata"] });
       toast({
         title: `Saved ${spec.label}`,
@@ -265,7 +267,7 @@ export function SettingsSection({
         <div className="flex flex-col gap-1.5">
           <h2 className="text-[22px] font-bold leading-[1.2] text-fg">{spec.label}</h2>
           <p className="text-[14px] leading-normal text-fg-secondary">{spec.description}</p>
-          {id !== "startup" && (
+          {spec.backend.length > 0 && (
             <span className="text-[12.5px] text-fg-muted">
               {updatedAt
                 ? `Last saved by ${updatedBy ?? "someone"} on ${absolute(updatedAt)}`
@@ -278,7 +280,10 @@ export function SettingsSection({
             {banner}
           </Banner>
         )}
-        <SectionBody ctx={ctx} />
+        {/* the vault secret fields can refer to (Settings › Secrets); its own sign-in can't be a reference */}
+        <SecretsProvider enabled={id !== "secrets" && specs.some((f) => f.kind === "secret")}>
+          <SectionBody ctx={ctx} />
+        </SecretsProvider>
       </div>
 
       {id !== "startup" && (dirty || errorCount > 0) && (

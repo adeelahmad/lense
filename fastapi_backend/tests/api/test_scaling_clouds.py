@@ -1,6 +1,6 @@
 """Auto scaling on DigitalOcean and Hetzner Cloud (docs/scaling.md "Providers"): the drivers against their REST APIs
-(an httpx MockTransport for each cloud), and a group on another machine waiting for the mesh's install line before it
-launches anything."""
+(an httpx MockTransport for each cloud), and a group on another machine waiting for the mesh before it
+launches anything, and counting only the jobs a worker node takes."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ import pytest
 
 from app.domain import scaling, settings, store
 from app.domain import scaling_drivers as drivers
+from app.domain.mesh import WORKER_STEPS
 from tests.helpers import login, make_user
 
 R = store.R
@@ -136,7 +137,7 @@ def test_a_digitalocean_group_waits_for_the_install_line_then_launches_droplets(
     assert g["template"] == {"size": "s-1vcpu-2gb", "image": "ubuntu-24-04-x64", "steps": ["transcribe"]}
     assert tick(db, cfg)["launched"] == 0 and not do.machines  # no way for a droplet to join yet: none is started
     (view,) = client.get("/api/v1/scaling", headers=h).json()["groups"]
-    assert "install line" in view["waiting_for"]
+    assert "Settings › Network" in view["waiting_for"]  # the mesh is off
 
     mesh = Mesh()
     monkeypatch.setattr(scaling, "mesh_module", lambda: mesh)
@@ -194,3 +195,27 @@ def test_the_cloud_drivers_are_listed_and_need_the_mesh(client, h):
     assert ds["digitalocean"]["needs_join"] is True and ds["hetzner"]["priced"] is True
     assert ds["local"]["needs_join"] is False
     assert ds["hetzner"]["fields"]["token"]["secret"] is True and ds["digitalocean"]["extra"] is None  # nothing to install
+
+
+def test_a_group_elsewhere_counts_only_the_jobs_a_node_takes(client, db, cfg, h, do, monkeypatch):
+    """A machine elsewhere is a worker node, which runs only mesh.WORKER_STEPS: a group never launches one for jobs
+    it would never take (docs/mesh.md, Worker nodes)."""
+    settings.save(db, cfg, "scaling", {"enabled": True}, "root@x.io")
+    cfg = settings.effective(db, cfg)
+    fake = Mesh()
+    fake.WORKER_STEPS = WORKER_STEPS
+    monkeypatch.setattr(scaling, "mesh_module", lambda: fake)
+    body = {"name": "DO", "driver": "digitalocean", "settings": {"region": "fra1"}, "secrets": {"token": "dop_v1_abc"}}
+    p = client.post("/api/v1/scaling/providers", headers=h, json=body).json()
+    rule = {"type": "step", "metric": "jobs_waiting", "above": 0, "minutes": 0, "add": 1}
+    made = {"provider": p["id"], "min": 0, "max": 2, "budget": 30, "rules": [rule], "cooldown_seconds": 0, "warmup_seconds": 0}
+    g = client.post("/api/v1/scaling/groups", headers=h, json={"name": "Any", **made}).json()
+    assert g["unit_steps"] == ["transcribe", "diarize"] and g["waiting_for"] is None
+    odd = client.post("/api/v1/scaling/groups", headers=h, json={"name": "Odd", **made, "template": {"steps": ["summarize"]}}).json()
+    assert odd["unit_steps"] == [] and "transcribe and diarize" in odd["waiting_for"]
+
+    db.q("CREATE job CONTENT {status: 'queued', next_step: 'summarize', created_at: $t}", t=NOW.isoformat())
+    assert tick(db, cfg)["launched"] == 0 and not do.machines  # a summarize job: no node would take it
+    db.q("CREATE job CONTENT {status: 'queued', next_step: 'transcribe', created_at: $t}", t=NOW.isoformat())
+    assert tick(db, cfg)["launched"] == 1  # the Any group, for the transcription; Odd still launches nothing
+    assert [len(scaling.nodes(db, x["id"])) for x in (g, odd)] == [1, 0]

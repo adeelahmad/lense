@@ -18,10 +18,31 @@ class MeshAuthority(ResponseModel):
     created_at: str | None = None
 
 
+class MeshRelay(ResponseModel):
+    port: int = Field(description="the port on this machine's mesh address")
+    to: str = Field(description="the container it passes connections to")
+    listening: bool
+    open: int = Field(0, description="connections through it now")
+    error: str | None = None
+
+
+class MeshService(ResponseModel):
+    available: bool = Field(description="this install runs the primary's Nebula in the `mesh` container (Docker installs)")
+    state: str | None = Field(None, description="off, waiting (for its key to be signed), starting, running or error")
+    nebula: bool = Field(False, description="Nebula runs on this machine now")
+    since: str | None = Field(None, description="when Nebula last started")
+    restarts: int = 0
+    relays: list[MeshRelay] = Field(default_factory=list, description="what the mesh reaches on this machine")
+    error: str | None = None
+    log: list[str] = Field(default_factory=list, description="Nebula's last lines")
+    seen_at: str | None = Field(None, description="when the container last said how it runs")
+    manual: str = Field(description="the line that starts the container on this machine, where there's no upgrade agent")
+
+
 class MeshStatus(ResponseModel):
     enabled: bool = Field(description="the mesh is on (mesh.enabled): adding a node turns it on")
     network: str = Field(description="the mesh's addresses (mesh.network)")
-    port: int = Field(description="the UDP port the primary listens on (mesh.port)")
+    port: int = Field(description="the UDP port other machines reach the primary at (mesh.port)")
     hosts: list[str] = Field(description="where other machines reach that port (mesh.hosts); empty: where each joined")
     primary_ip: str = Field(description="this machine's address on the mesh")
     ca: MeshAuthority | None = Field(None, description="the mesh's certificate authority, once made")
@@ -30,6 +51,7 @@ class MeshStatus(ResponseModel):
     tokens: int = Field(description="join tokens that can still be used")
     nebula: str = Field(description="the Nebula version Lens runs")
     tools: bool = Field(description="Nebula's programs are on this server (else they're fetched when first needed)")
+    service: MeshService = Field(description="Nebula on this machine, in the `mesh` container")
 
 
 class MeshNode(ResponseModel):
@@ -82,6 +104,7 @@ class MeshTokenCreated(ResponseModel):
     token: MeshToken
     secret: str = Field(description="the join token itself, shown this once")
     join_url: str = Field(description="this install's address the machine joins at")
+    install_line: str = Field(description="the line to run on the machine: install.sh with LENS_JOIN and LENS_JOIN_TOKEN")
 
 
 class MeshJoin(RequestModel):
@@ -106,8 +129,23 @@ class MeshNodeConfig(ResponseModel):
     crt: str | None = Field(None, description="the new certificate (renew)")
 
 
+class MeshWorkerAccess(ResponseModel):
+    url: str = Field(description="the database through the mesh: ws://<the primary's mesh address>:8000")
+    namespace: str
+    database: str
+    user: str = Field(description="the node's own user of this database (removed with the node)")
+    password: str
+    steps: list[str] = Field(description="the steps a worker node runs unless LENS_WORKER_STEPS says otherwise")
+
+
 class MeshRenew(RequestModel):
     public_key: str = Field(max_length=500, description="its Nebula public key, the same or a new one")
+
+
+class MeshSandboxGateway(RequestModel):
+    ca: str = Field(max_length=16384, description="the gateway's CA certificate, PEM")
+    cert: str = Field(max_length=16384, description="the client certificate Lens shows the gateway, PEM")
+    key: str = Field(max_length=16384, description="its private key, PEM: kept sealed")
 
 
 class MeshBeat(RequestModel):
@@ -115,6 +153,6 @@ class MeshBeat(RequestModel):
     version: str | None = Field(None, max_length=40, description="the Lens version it runs")
     peers: list[dict[str, Any]] | None = Field(None, max_length=500, description="the machines it has tunnels to")
     machine: dict[str, Any] | None = Field(None, description="its processors, memory and system")
-    sandbox: dict[str, Any] | None = Field(None, description="the sandboxes it can run")
+    sandbox: dict[str, Any] | None = Field(None, description="a compute node's sandbox gateway, when it answers: {gateway}")
     error: str | None = Field(None, max_length=500)
     log: list[str] | None = Field(None, max_length=40, description="Nebula's last lines")

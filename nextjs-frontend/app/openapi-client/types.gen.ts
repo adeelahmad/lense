@@ -179,6 +179,22 @@ export type ActivityActor = {
 };
 
 /**
+ * ActivityCommentCreate
+ */
+export type ActivityCommentCreate = {
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Parent
+   *
+   * reply on this comment's thread
+   */
+  parent?: number | null;
+};
+
+/**
  * ActivityCosts
  */
 export type ActivityCosts = {
@@ -489,6 +505,22 @@ export type ActivityPage = {
    */
   marks?: {
     [key: string]: ActivityMark;
+  };
+  /**
+   * Reactions
+   *
+   * everyone's reactions on items, by id (those with any)
+   */
+  reactions?: {
+    [key: string]: Array<Reaction>;
+  };
+  /**
+   * Comments
+   *
+   * how many comments items have, by id (those with any)
+   */
+  comments?: {
+    [key: string]: number;
   };
   [key: string]: unknown;
 };
@@ -1383,6 +1415,93 @@ export type Attachment = {
 };
 
 /**
+ * AudioCleanup
+ *
+ * How the clean_audio step cleaned up a recording's sound for transcription (docs/processing.md, Cleaning up audio).
+ */
+export type AudioCleanup = {
+  /**
+   * Noise
+   *
+   * noise suppression: off, low, moderate, high or very_high (6, 12, 18 or 21 dB)
+   */
+  noise: string;
+  /**
+   * Gain
+   *
+   * automatic gain control
+   */
+  gain: boolean;
+  /**
+   * High Pass
+   *
+   * the rumble below speech taken out
+   */
+  high_pass: boolean;
+  /**
+   * Echo
+   *
+   * echo cancellation: off, or the channel (left or right) holding what the speakers played
+   */
+  echo: string;
+  /**
+   * Trim Silence
+   *
+   * silences of min_silence_ms or longer left out of what's transcribed
+   */
+  trim_silence: boolean;
+  /**
+   * Min Silence Ms
+   *
+   * the shortest pause left out when trimming silence
+   */
+  min_silence_ms: number;
+  /**
+   * Duration Ms
+   *
+   * how long the recording is
+   */
+  duration_ms: number;
+  /**
+   * Speech Ms
+   *
+   * how much of it WebRTC's voice detection heard as speech
+   */
+  speech_ms: number;
+  /**
+   * Kept Ms
+   *
+   * how much of it is transcribed: all of it unless silence is trimmed
+   */
+  kept_ms: number;
+  /**
+   * Gain Db
+   *
+   * the gain applied by the end of the recording, in dB
+   */
+  gain_db?: number | null;
+  /**
+   * Echo Note
+   *
+   * why echo wasn't cancelled though it was asked for
+   */
+  echo_note?: string | null;
+  /**
+   * Engine
+   *
+   * what cleaned it up, with its version
+   */
+  engine?: string | null;
+  /**
+   * At
+   *
+   * when the step ran
+   */
+  at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * AuditEntry
  */
 export type AuditEntry = {
@@ -1587,9 +1706,21 @@ export type Automation = {
   /**
    * Next At
    *
-   * in lists: when it runs next, from its schedules (coming soon)
+   * in lists: when it runs next, from its schedule, at and relative triggers and its joins' timers
    */
   next_at?: string | null;
+  /**
+   * Runs Today
+   *
+   * in lists: its runs since midnight (UTC), tries left out
+   */
+  runs_today?: number | null;
+  /**
+   * Reads
+   *
+   * in lists: what sets it off, in words: each trigger, then its join (match.describe_triggers)
+   */
+  reads?: string | null;
   [key: string]: unknown;
 };
 
@@ -2121,6 +2252,46 @@ export type AutomationStarted = {
 };
 
 /**
+ * AutomationStarter
+ */
+export type AutomationStarter = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   *
+   * what it does, and what to change before turning it on
+   */
+  description: string;
+  /**
+   * Draft
+   *
+   * what POST /automations takes, switched off
+   */
+  draft: {
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
+
+/**
+ * AutomationStarters
+ */
+export type AutomationStarters = {
+  /**
+   * Starters
+   */
+  starters: Array<AutomationStarter>;
+  [key: string]: unknown;
+};
+
+/**
  * AutomationSwitch
  */
 export type AutomationSwitch = {
@@ -2340,6 +2511,26 @@ export type AutomationVarsIn = {
   vars: {
     [key: string]: unknown;
   };
+};
+
+/**
+ * AwaitsPdf
+ *
+ * A document an import webhook brought in that this server can't make into a PDF: it waits for the hook to hand
+ * its PDF back.
+ */
+export type AwaitsPdf = {
+  /**
+   * Hook
+   *
+   * the import webhook it waits on
+   */
+  hook?: number | null;
+  /**
+   * Since
+   */
+  since?: string | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -3414,6 +3605,18 @@ export type Chat = {
    */
   max_tool_calls?: number | null;
   /**
+   * Project
+   *
+   * the project it's in (GET /projects/{id}): one of its threads, or its coordinator
+   */
+  project?: number | null;
+  /**
+   * Done
+   *
+   * a project's thread marked done
+   */
+  done?: boolean;
+  /**
    * Created At
    */
   created_at?: string | null;
@@ -3425,6 +3628,12 @@ export type Chat = {
    * Account
    */
   account: number;
+  /**
+   * Answering
+   *
+   * an answer is being written in it now: streamed, or a brief's in the background
+   */
+  answering?: boolean;
   /**
    * Head
    *
@@ -3854,6 +4063,18 @@ export type ChatSummary = {
    * at most this many tool calls in each answer; null: no limit but the rounds
    */
   max_tool_calls?: number | null;
+  /**
+   * Project
+   *
+   * the project it's in (GET /projects/{id}): one of its threads, or its coordinator
+   */
+  project?: number | null;
+  /**
+   * Done
+   *
+   * a project's thread marked done
+   */
+  done?: boolean;
   /**
    * Created At
    */
@@ -4739,8 +4960,16 @@ export type Comment = {
   id: number;
   /**
    * Recording
+   *
+   * the resource it is on; null for a comment on an activity that isn't an asset's arrival
    */
-  recording: number;
+  recording?: number | null;
+  /**
+   * Activity
+   *
+   * the activity of the timeline it was made on, when it was
+   */
+  activity?: string | null;
   /**
    * Parent
    *
@@ -6314,6 +6543,124 @@ export type EncryptionProgress = {
 };
 
 /**
+ * EnhanceMeasured
+ *
+ * How good a picture looked to the enhance step (docs/enhance.md).
+ */
+export type EnhanceMeasured = {
+  /**
+   * Width
+   */
+  width: number;
+  /**
+   * Height
+   */
+  height: number;
+  /**
+   * Sharpness
+   *
+   * the variance of its Laplacian: how sharply its tones change
+   */
+  sharpness: number;
+  /**
+   * Noise
+   *
+   * its estimated noise, in levels out of 255
+   */
+  noise: number;
+  /**
+   * Contrast
+   *
+   * the standard deviation of its tones (0 to 255)
+   */
+  contrast: number;
+  /**
+   * Brightness
+   *
+   * the mean of its tones (0 to 255)
+   */
+  brightness: number;
+  /**
+   * Faces
+   *
+   * how many faces it has, where they were looked for
+   */
+  faces?: number | null;
+  /**
+   * Smallest Face
+   *
+   * the height of its smallest face, in pixels
+   */
+  smallest_face?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * Enhanced
+ *
+ * What the enhance step found and did (docs/enhance.md): whether the picture looked low quality and why, and the
+ * enhanced copy it's read from, if one was made. The original stays as it is.
+ */
+export type Enhanced = {
+  /**
+   * Kind
+   */
+  kind: "image";
+  /**
+   * Low
+   *
+   * why it looked low quality; empty when it looked good enough
+   */
+  low?: Array<"small" | "blurry" | "noisy" | "dull" | "small_faces">;
+  measured: EnhanceMeasured;
+  /**
+   * Enhanced
+   *
+   * an enhanced copy was made, and the steps after it read that
+   */
+  enhanced: boolean;
+  /**
+   * Engine
+   *
+   * what enhanced it: classic, or realesr-general-x4v3 (Real-ESRGAN)
+   */
+  engine?: string | null;
+  /**
+   * Scale
+   *
+   * how many times bigger the copy is
+   */
+  scale?: number | null;
+  /**
+   * Width
+   *
+   * the copy's width in pixels
+   */
+  width?: number | null;
+  /**
+   * Height
+   */
+  height?: number | null;
+  /**
+   * Forced
+   *
+   * enhanced on request, whatever the settings and its quality
+   */
+  forced?: boolean | null;
+  /**
+   * At
+   */
+  at?: string | null;
+  /**
+   * Download
+   *
+   * a signed link to save the enhanced copy
+   */
+  download?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * EnrichedDate
  *
  * A date or time the text gives.
@@ -7017,7 +7364,9 @@ export type EventInfo = {
     | "batch.finished"
     | "recording.added"
     | "lens.release"
-    | "approval.waiting";
+    | "approval.waiting"
+    | "routine.failed"
+    | "routine.proposed";
   /**
    * Label
    */
@@ -9127,19 +9476,55 @@ export type GraphChange = {
   /**
    * Kind
    */
-  kind: "merge" | "link";
+  kind: "merge" | "link" | "retype" | "hide" | "cluster";
   /**
    * A
+   *
+   * the entity changed, the first of a pair, or a group's broader topic (no id when new)
    */
   a: {
     [key: string]: unknown;
   };
   /**
    * B
+   *
+   * a merge's or link's other entity
    */
-  b: {
+  b?: {
     [key: string]: unknown;
-  };
+  } | null;
+  /**
+   * To
+   *
+   * a retype's new type
+   */
+  to?: string | null;
+  /**
+   * Topics
+   *
+   * a group's topics, to put under its broader topic
+   */
+  topics?: Array<{
+    [key: string]: unknown;
+  }> | null;
+  /**
+   * Parent
+   *
+   * an applied group's broader topic
+   */
+  parent?: number | null;
+  /**
+   * Created
+   *
+   * the broader topic an applied group made
+   */
+  created?: number | null;
+  /**
+   * Grouped
+   *
+   * the topics an applied group put under its broader topic
+   */
+  grouped?: Array<number> | null;
   /**
    * Spaces
    */
@@ -9203,6 +9588,18 @@ export type GraphChangeAccept = {
    * for a merge: the entity to keep (default: the one proposed)
    */
   keep?: number | null;
+  /**
+   * To
+   *
+   * for a retype: the type to give (default: the one proposed)
+   */
+  to?: string | null;
+  /**
+   * Label
+   *
+   * for a group under a new topic: its label (default: the one proposed)
+   */
+  label?: string | null;
 };
 
 /**
@@ -9377,6 +9774,12 @@ export type Group = {
    * why it launches nothing now, when it doesn't
    */
   waiting_for?: string | null;
+  /**
+   * Unit Steps
+   *
+   * the steps its units run, which its queue metrics count (None: every step); on a machine elsewhere, only a worker node's
+   */
+  unit_steps?: Array<string> | null;
   /**
    * Last Out At
    */
@@ -10054,8 +10457,10 @@ export type HookCalled = {
 export type HookItem = {
   /**
    * Kind
+   *
+   * pdf: a PDF handed back for a document (?for=)
    */
-  kind: "file" | "url" | "text";
+  kind: "file" | "url" | "text" | "pdf";
   /**
    * Name
    *
@@ -10080,6 +10485,12 @@ export type HookItem = {
    * the namespace had this file already; it's that asset
    */
   duplicate?: boolean;
+  /**
+   * Needs Pdf
+   *
+   * this server can't make it into a PDF, and the hook hands PDFs back: push its PDF with ?for=<recording> and its pipeline runs
+   */
+  needs_pdf?: boolean;
   [key: string]: unknown;
 };
 
@@ -10517,6 +10928,12 @@ export type ImportHook = {
    */
   enabled: boolean;
   /**
+   * Hand Back
+   *
+   * hand PDFs back: a document this server can't make into a PDF itself is kept and waits for the service that sent it to push its PDF with ?for=<recording> (off by default)
+   */
+  hand_back?: boolean;
+  /**
    * Token Tail
    *
    * the token's last four characters, to tell tokens apart
@@ -10561,6 +10978,12 @@ export type ImportHookCreate = {
    * Pipeline
    */
   pipeline?: number | null;
+  /**
+   * Hand Back
+   *
+   * hand PDFs back: a document this server can't make into a PDF itself is kept and waits for the service that sent it to push its PDF with ?for=<recording> (off by default)
+   */
+  hand_back?: boolean;
 };
 
 /**
@@ -10616,6 +11039,12 @@ export type ImportHookUpdate = {
    * Enabled
    */
   enabled?: boolean | null;
+  /**
+   * Hand Back
+   *
+   * hand PDFs back (see ImportHook.hand_back)
+   */
+  hand_back?: boolean | null;
 };
 
 /**
@@ -10725,6 +11154,12 @@ export type ImportRequest = {
    * a collection of the namespace to put it in; default: its default collection
    */
   collection?: number | null;
+  /**
+   * Content Type
+   *
+   * a text content type (GET /content-types), e.g. transcript, instead of the one recognised from it
+   */
+  content_type?: string | null;
 };
 
 /**
@@ -10742,7 +11177,13 @@ export type ImportResult = {
   /**
    * Job
    */
-  job: number;
+  job?: number | null;
+  /**
+   * Duplicate
+   *
+   * the namespace already had this page or video: `id` is that resource
+   */
+  duplicate?: boolean;
   [key: string]: unknown;
 };
 
@@ -11139,6 +11580,12 @@ export type Job = {
    */
   cost_estimate?: boolean | null;
   /**
+   * Priority
+   *
+   * its place among queued runs: the highest is taken first (POST /jobs/{jid}/move sets it)
+   */
+  priority?: number | null;
+  /**
    * Hold
    *
    * held or skipped over a budget (docs/budgets.md): {why, resource (the budget), action (ask, skip), decided: {run, by, at} once someone picked}
@@ -11256,6 +11703,53 @@ export type JobLog = {
 };
 
 /**
+ * JobMove
+ */
+export type JobMove = {
+  /**
+   * To
+   *
+   * the front of the queue (next) or its back
+   */
+  to?: "top" | "bottom" | null;
+  /**
+   * Before
+   *
+   * just before this queued run
+   */
+  before?: number | null;
+  /**
+   * After
+   *
+   * just after this queued run
+   */
+  after?: number | null;
+};
+
+/**
+ * JobMoved
+ */
+export type JobMoved = {
+  /**
+   * Ok
+   */
+  ok?: boolean;
+  /**
+   * Position
+   *
+   * its place now among the queued runs you can see: 1 is next
+   */
+  position: number;
+  /**
+   * Queued
+   *
+   * how many runs you can see are queued
+   */
+  queued: number;
+  [key: string]: unknown;
+};
+
+/**
  * JobPipeline
  */
 export type JobPipeline = {
@@ -11294,6 +11788,35 @@ export type JobQueued = {
 };
 
 /**
+ * JobsChanged
+ */
+export type JobsChanged = {
+  /**
+   * Ok
+   */
+  ok?: boolean;
+  /**
+   * Jobs
+   *
+   * the runs cancelled, or queued again
+   */
+  jobs: Array<number>;
+  /**
+   * Stopping
+   *
+   * running runs asked to stop after the step they're on
+   */
+  stopping?: Array<number>;
+  /**
+   * Skipped
+   *
+   * runs retry left alone: their asset was deleted, or already has a run queued or running
+   */
+  skipped?: number;
+  [key: string]: unknown;
+};
+
+/**
  * JobsCreate
  */
 export type JobsCreate = {
@@ -11320,6 +11843,30 @@ export type JobsCreate = {
    * also queue everything in this namespace that still needs work
    */
   namespace?: string | null;
+};
+
+/**
+ * JobsPick
+ */
+export type JobsPick = {
+  /**
+   * Jobs
+   *
+   * these runs; leave out for every run with `status`
+   */
+  jobs?: Array<number> | null;
+  /**
+   * Namespace
+   *
+   * only this namespace's runs (default: every one you can process in)
+   */
+  namespace?: string | null;
+  /**
+   * Status
+   *
+   * POST /jobs/cancel: default queued and held (clearing the queue), running too to stop those after their step; POST /jobs/retry: default failed (the dead letter queue), cancelled too
+   */
+  status?: Array<"queued" | "held" | "running" | "failed" | "cancelled"> | null;
 };
 
 /**
@@ -11551,6 +12098,12 @@ export type LinksImportRequest = {
    * a collection of the namespace to put them in; default: its default collection
    */
   collection?: number | null;
+  /**
+   * Content Type
+   *
+   * a text content type (GET /content-types) for each page instead of the one recognised from it
+   */
+  content_type?: string | null;
 };
 
 /**
@@ -12275,6 +12828,87 @@ export type MarketplacePlugin = {
    * your extension installed from it, if you installed it
    */
   installed?: number | null;
+  /**
+   * Installed Version
+   *
+   * the version you installed, when the marketplace gave one
+   */
+  installed_version?: string | null;
+  /**
+   * Update
+   *
+   * the marketplace lists another version than the one you installed
+   */
+  update?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * MarketplacePluginFound
+ */
+export type MarketplacePluginFound = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Version
+   */
+  version?: string | null;
+  /**
+   * Category
+   */
+  category?: string | null;
+  /**
+   * Author
+   */
+  author?: string | null;
+  /**
+   * Homepage
+   */
+  homepage?: string | null;
+  /**
+   * Installable
+   *
+   * whether Lens can read it (why_not says why when it can't)
+   */
+  installable: boolean;
+  /**
+   * Why Not
+   */
+  why_not?: string | null;
+  /**
+   * Installed
+   *
+   * your extension installed from it, if you installed it
+   */
+  installed?: number | null;
+  /**
+   * Installed Version
+   *
+   * the version you installed, when the marketplace gave one
+   */
+  installed_version?: string | null;
+  /**
+   * Update
+   *
+   * the marketplace lists another version than the one you installed
+   */
+  update?: boolean;
+  /**
+   * Marketplace
+   *
+   * the marketplace that lists it
+   */
+  marketplace: number;
+  /**
+   * Marketplace Name
+   */
+  marketplace_name: string;
   [key: string]: unknown;
 };
 
@@ -12830,7 +13464,7 @@ export type MeshBeat = {
   /**
    * Sandbox
    *
-   * the sandboxes it can run
+   * a compute node's sandbox gateway, when it answers: {gateway}
    */
   sandbox?: {
     [key: string]: unknown;
@@ -13057,6 +13691,39 @@ export type MeshNodeConfig = {
 };
 
 /**
+ * MeshRelay
+ */
+export type MeshRelay = {
+  /**
+   * Port
+   *
+   * the port on this machine's mesh address
+   */
+  port: number;
+  /**
+   * To
+   *
+   * the container it passes connections to
+   */
+  to: string;
+  /**
+   * Listening
+   */
+  listening: boolean;
+  /**
+   * Open
+   *
+   * connections through it now
+   */
+  open?: number;
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * MeshRenew
  */
 export type MeshRenew = {
@@ -13066,6 +13733,93 @@ export type MeshRenew = {
    * its Nebula public key, the same or a new one
    */
   public_key: string;
+};
+
+/**
+ * MeshSandboxGateway
+ */
+export type MeshSandboxGateway = {
+  /**
+   * Ca
+   *
+   * the gateway's CA certificate, PEM
+   */
+  ca: string;
+  /**
+   * Cert
+   *
+   * the client certificate Lens shows the gateway, PEM
+   */
+  cert: string;
+  /**
+   * Key
+   *
+   * its private key, PEM: kept sealed
+   */
+  key: string;
+};
+
+/**
+ * MeshService
+ */
+export type MeshService = {
+  /**
+   * Available
+   *
+   * this install runs the primary's Nebula in the `mesh` container (Docker installs)
+   */
+  available: boolean;
+  /**
+   * State
+   *
+   * off, waiting (for its key to be signed), starting, running or error
+   */
+  state?: string | null;
+  /**
+   * Nebula
+   *
+   * Nebula runs on this machine now
+   */
+  nebula?: boolean;
+  /**
+   * Since
+   *
+   * when Nebula last started
+   */
+  since?: string | null;
+  /**
+   * Restarts
+   */
+  restarts?: number;
+  /**
+   * Relays
+   *
+   * what the mesh reaches on this machine
+   */
+  relays?: Array<MeshRelay>;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Log
+   *
+   * Nebula's last lines
+   */
+  log?: Array<string>;
+  /**
+   * Seen At
+   *
+   * when the container last said how it runs
+   */
+  seen_at?: string | null;
+  /**
+   * Manual
+   *
+   * the line that starts the container on this machine, where there's no upgrade agent
+   */
+  manual: string;
+  [key: string]: unknown;
 };
 
 /**
@@ -13087,7 +13841,7 @@ export type MeshStatus = {
   /**
    * Port
    *
-   * the UDP port the primary listens on (mesh.port)
+   * the UDP port other machines reach the primary at (mesh.port)
    */
   port: number;
   /**
@@ -13136,6 +13890,10 @@ export type MeshStatus = {
    * Nebula's programs are on this server (else they're fetched when first needed)
    */
   tools: boolean;
+  /**
+   * Nebula on this machine, in the `mesh` container
+   */
+  service: MeshService;
   [key: string]: unknown;
 };
 
@@ -13247,6 +14005,49 @@ export type MeshTokenCreated = {
    * this install's address the machine joins at
    */
   join_url: string;
+  /**
+   * Install Line
+   *
+   * the line to run on the machine: install.sh with LENS_JOIN and LENS_JOIN_TOKEN
+   */
+  install_line: string;
+  [key: string]: unknown;
+};
+
+/**
+ * MeshWorkerAccess
+ */
+export type MeshWorkerAccess = {
+  /**
+   * Url
+   *
+   * the database through the mesh: ws://<the primary's mesh address>:8000
+   */
+  url: string;
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Database
+   */
+  database: string;
+  /**
+   * User
+   *
+   * the node's own user of this database (removed with the node)
+   */
+  user: string;
+  /**
+   * Password
+   */
+  password: string;
+  /**
+   * Steps
+   *
+   * the steps a worker node runs unless LENS_WORKER_STEPS says otherwise
+   */
+  steps: Array<string>;
   [key: string]: unknown;
 };
 
@@ -13437,9 +14238,9 @@ export type MessageRecord = {
   /**
    * Via
    *
-   * a question: how it was sent
+   * a question: how it was sent (project: a brief a project's coordinator wrote)
    */
-  via?: "web" | "api" | "room" | "voice" | "automation" | "completions" | null;
+  via?: "web" | "api" | "room" | "voice" | "automation" | "completions" | "project" | null;
   /**
    * a question: the options it was asked with
    */
@@ -15545,6 +16346,8 @@ export type NotifyTarget = {
     | "recording.added"
     | "lens.release"
     | "approval.waiting"
+    | "routine.failed"
+    | "routine.proposed"
   >;
   /**
    * Enabled
@@ -15628,6 +16431,8 @@ export type NotifyTargetCreate = {
     | "recording.added"
     | "lens.release"
     | "approval.waiting"
+    | "routine.failed"
+    | "routine.proposed"
   > | null;
   /**
    * Enabled
@@ -15692,6 +16497,8 @@ export type NotifyTargetUpdate = {
     | "recording.added"
     | "lens.release"
     | "approval.waiting"
+    | "routine.failed"
+    | "routine.proposed"
   > | null;
   /**
    * Enabled
@@ -17609,6 +18416,394 @@ export type PrimaryFile = {
 };
 
 /**
+ * Project
+ */
+export type Project = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Goal
+   */
+  goal?: string;
+  /**
+   * Namespaces
+   *
+   * the namespaces it draws on, which its conversations are scoped to
+   */
+  namespaces?: Array<string>;
+  /**
+   * Coordinator
+   *
+   * the project's own conversation (a chat)
+   */
+  coordinator?: number | null;
+  /**
+   * Archived
+   */
+  archived?: boolean;
+  /**
+   * Threads
+   *
+   * how many threads it has, besides the coordinator
+   */
+  threads?: number;
+  /**
+   * Open
+   *
+   * how many of them aren't done
+   */
+  open?: number;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Instructions
+   *
+   * what its owner tells the assistant in every one of its conversations
+   */
+  instructions?: string;
+  /**
+   * Thread List
+   *
+   * its threads, the most recently added to first
+   */
+  thread_list?: Array<ProjectThread>;
+  /**
+   * Schedules
+   *
+   * prompts it asks on a schedule
+   */
+  schedules?: Array<ProjectSchedule>;
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectCreate
+ */
+export type ProjectCreate = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Goal
+   *
+   * what the project is for, in your words: every answer in it reads it
+   */
+  goal?: string;
+  /**
+   * Instructions
+   *
+   * how the assistant should work in it
+   */
+  instructions?: string;
+  /**
+   * Namespaces
+   *
+   * the namespaces it draws on (ones you can read)
+   */
+  namespaces: Array<string>;
+};
+
+/**
+ * ProjectSchedule
+ */
+export type ProjectSchedule = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Prompt
+   *
+   * what it asks each time, as a brief
+   */
+  prompt: string;
+  /**
+   * Cron
+   *
+   * when: five cron fields (minute hour day-of-month month day-of-week)
+   */
+  cron: string;
+  /**
+   * Timezone
+   */
+  timezone?: string;
+  /**
+   * Thread
+   *
+   * new: a new thread each time; same: always the same one
+   */
+  thread?: string;
+  /**
+   * On
+   */
+  on?: boolean;
+  /**
+   * Chat
+   *
+   * its thread, when it asks in the same one (made on its first run)
+   */
+  chat?: number | null;
+  /**
+   * When
+   *
+   * the schedule in words
+   */
+  when?: string;
+  /**
+   * Next At
+   *
+   * its next time (none while off or the project is archived)
+   */
+  next_at?: string | null;
+  last?: ProjectScheduleRun | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectScheduleCreate
+ */
+export type ProjectScheduleCreate = {
+  /**
+   * Prompt
+   *
+   * what to ask each time, answered in the background
+   */
+  prompt: string;
+  /**
+   * Cron
+   *
+   * when: five cron fields, like 0 8 * * 1-5 (8:00 on weekdays), or @daily
+   */
+  cron: string;
+  /**
+   * Timezone
+   *
+   * the time zone the schedule is in, like Europe/London
+   */
+  timezone?: string;
+  /**
+   * Thread
+   *
+   * new: a new thread each time; same: always the same one
+   */
+  thread?: "new" | "same";
+};
+
+/**
+ * ProjectScheduleRun
+ */
+export type ProjectScheduleRun = {
+  /**
+   * At
+   *
+   * the time it was for
+   */
+  at?: string | null;
+  /**
+   * Ok
+   */
+  ok?: boolean;
+  /**
+   * Error
+   *
+   * why it didn't ask, or what went wrong
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectScheduleUpdate
+ *
+ * Only the fields you send change.
+ */
+export type ProjectScheduleUpdate = {
+  /**
+   * Prompt
+   */
+  prompt?: string | null;
+  /**
+   * Cron
+   */
+  cron?: string | null;
+  /**
+   * Timezone
+   */
+  timezone?: string | null;
+  /**
+   * Thread
+   */
+  thread?: "new" | "same" | null;
+  /**
+   * On
+   *
+   * switched off, it waits until it's switched on again
+   */
+  on?: boolean | null;
+};
+
+/**
+ * ProjectSummary
+ */
+export type ProjectSummary = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Goal
+   */
+  goal?: string;
+  /**
+   * Namespaces
+   *
+   * the namespaces it draws on, which its conversations are scoped to
+   */
+  namespaces?: Array<string>;
+  /**
+   * Coordinator
+   *
+   * the project's own conversation (a chat)
+   */
+  coordinator?: number | null;
+  /**
+   * Archived
+   */
+  archived?: boolean;
+  /**
+   * Threads
+   *
+   * how many threads it has, besides the coordinator
+   */
+  threads?: number;
+  /**
+   * Open
+   *
+   * how many of them aren't done
+   */
+  open?: number;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectThread
+ */
+export type ProjectThread = {
+  /**
+   * Id
+   *
+   * the conversation (GET /chats/{id}, POST /chats/{id}/messages)
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Title By
+   */
+  title_by?: string | null;
+  /**
+   * Coordinator
+   *
+   * the project's own conversation, about the project as a whole
+   */
+  coordinator?: boolean;
+  /**
+   * Done
+   *
+   * marked done: it stays to read and to go on with
+   */
+  done?: boolean;
+  /**
+   * Answering
+   *
+   * an answer is being written in it now
+   */
+  answering?: boolean;
+  /**
+   * Messages
+   *
+   * how many messages it has, every version's
+   */
+  messages?: number;
+  /**
+   * its last message, of the version showing
+   */
+  last?: ThreadLast | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ProjectUpdate
+ *
+ * Only the fields you send change.
+ */
+export type ProjectUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Goal
+   */
+  goal?: string | null;
+  /**
+   * Instructions
+   */
+  instructions?: string | null;
+  /**
+   * Namespaces
+   *
+   * its conversations draw on these from now on
+   */
+  namespaces?: Array<string> | null;
+  /**
+   * Archived
+   *
+   * archived projects are listed apart; nothing in them changes
+   */
+  archived?: boolean | null;
+};
+
+/**
  * Protected
  */
 export type Protected = {
@@ -18709,6 +19904,58 @@ export type RdfUnmatched = {
 };
 
 /**
+ * ReactIn
+ */
+export type ReactIn = {
+  /**
+   * Emoji
+   *
+   * one of the palette: 👍 ❤️ 🎉 👀 😂 😮 😢 🙏
+   */
+  emoji: string;
+  /**
+   * On
+   *
+   * give it (true) or take yours back (false)
+   */
+  on?: boolean;
+};
+
+/**
+ * Reaction
+ *
+ * One emoji on an activity: how many people gave it, and whether you did.
+ */
+export type Reaction = {
+  /**
+   * Emoji
+   */
+  emoji: string;
+  /**
+   * Count
+   */
+  count: number;
+  /**
+   * Mine
+   */
+  mine?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * ReactionsOut
+ */
+export type ReactionsOut = {
+  /**
+   * Reactions
+   *
+   * the reactions on the activity now, in the palette's order
+   */
+  reactions: Array<Reaction>;
+  [key: string]: unknown;
+};
+
+/**
  * Reading
  */
 export type Reading = {
@@ -18957,6 +20204,10 @@ export type Recording = {
    */
   rendition?: Rendition | null;
   /**
+   * waiting for the PDF the import webhook that sent it hands back
+   */
+  awaits_pdf?: AwaitsPdf | null;
+  /**
    * a document: what it says about itself (title, authors, dates), read by Tika
    */
   described?: Described | null;
@@ -18980,6 +20231,14 @@ export type Recording = {
    * NSFW classification, where it's on in its namespace and it was classified
    */
   nsfw?: NsfwState | null;
+  /**
+   * how its clean_audio step cleaned up its sound before transcription
+   */
+  audio_cleanup?: AudioCleanup | null;
+  /**
+   * an image the enhance step looked at: what it found, and its enhanced copy
+   */
+  enhanced?: Enhanced | null;
   [key: string]: unknown;
 };
 
@@ -19609,8 +20868,377 @@ export type Rendition = {
   from: string;
   /**
    * By
+   *
+   * pushed: handed back by the import webhook that sent it (docs/api.md#import-webhooks)
    */
-  by: "libreoffice" | "chromium" | "anytopdf";
+  by: "libreoffice" | "chromium" | "anytopdf" | "pushed";
+  [key: string]: unknown;
+};
+
+/**
+ * Reply
+ */
+export type Reply = {
+  /**
+   * Recording
+   *
+   * the email it answers
+   */
+  recording?: number | null;
+  /**
+   * Status
+   *
+   * draft: waiting for the person; drafting: a job is on it (job); skipped: mail not to answer (why); failed: the last job to draft it failed (error); saved: kept in Gmail's drafts; sent: sent (sent)
+   */
+  status: "none" | "drafting" | "draft" | "skipped" | "dismissed" | "saved" | "sent" | "failed";
+  /**
+   * Why
+   */
+  why?: string | null;
+  /**
+   * To
+   */
+  to?: Array<string> | null;
+  /**
+   * Cc
+   */
+  cc?: Array<string> | null;
+  /**
+   * Others
+   *
+   * the email's other recipients, to answer all of them
+   */
+  others?: Array<string> | null;
+  /**
+   * From
+   *
+   * the address it answers from: the one the email came in to
+   */
+  from?: string | null;
+  /**
+   * Subject
+   */
+  subject?: string | null;
+  /**
+   * In Reply To
+   *
+   * the email's Message-ID, which threads the reply
+   */
+  in_reply_to?: string | null;
+  /**
+   * References
+   */
+  references?: Array<string> | null;
+  /**
+   * Text
+   *
+   * the draft, with [n] after each fact taken from source n
+   */
+  text?: string | null;
+  /**
+   * Plain
+   *
+   * the draft as it would be sent, without its citations
+   */
+  plain?: string | null;
+  /**
+   * Gaps
+   *
+   * what the archive doesn't say, marked [to confirm: …] in the draft
+   */
+  gaps?: Array<string> | null;
+  /**
+   * Unconfirmed
+   *
+   * how many [to confirm: …] marks are still in the draft
+   */
+  unconfirmed?: number | null;
+  /**
+   * Sources
+   */
+  sources?: Array<ReplySource> | null;
+  /**
+   * Job
+   */
+  job?: number | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Model
+   */
+  model?: string | null;
+  /**
+   * Template
+   */
+  template?: number | null;
+  /**
+   * Version
+   */
+  version?: number | null;
+  /**
+   * Instructions
+   */
+  instructions?: string | null;
+  /**
+   * Edited
+   *
+   * someone changed the draft's text
+   */
+  edited?: boolean | null;
+  /**
+   * the text it had before the last edit or draft, to undo it
+   */
+  previous?: ReplyBefore | null;
+  /**
+   * Sends
+   *
+   * it can go out through the Gmail connection the email came in on
+   */
+  sends?: boolean | null;
+  /**
+   * when and how it was sent or kept in Gmail's drafts
+   */
+  sent?: ReplySent | null;
+  /**
+   * Drafted At
+   */
+  drafted_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ReplyBefore
+ */
+export type ReplyBefore = {
+  /**
+   * Text
+   */
+  text?: string | null;
+  /**
+   * At
+   */
+  at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ReplyDraft
+ */
+export type ReplyDraft = {
+  /**
+   * Instructions
+   *
+   * what the reply should say, in the person's words
+   */
+  instructions?: string | null;
+  /**
+   * Template
+   *
+   * another prompt template to draft it with (default: Reply to an email)
+   */
+  template?: number | null;
+  /**
+   * Version
+   *
+   * that template's version (default: its current one)
+   */
+  version?: number | null;
+};
+
+/**
+ * ReplyEdit
+ */
+export type ReplyEdit = {
+  /**
+   * Text
+   *
+   * the reply, as it will be sent (its [n] citations are left out)
+   */
+  text?: string | null;
+  /**
+   * To
+   */
+  to?: Array<string> | null;
+  /**
+   * Cc
+   */
+  cc?: Array<string> | null;
+  /**
+   * Subject
+   */
+  subject?: string | null;
+  /**
+   * Status
+   *
+   * dismissed sets it aside; draft brings it back (undo)
+   */
+  status?: "draft" | "dismissed" | null;
+};
+
+/**
+ * ReplyEmail
+ */
+export type ReplyEmail = {
+  /**
+   * Recording
+   */
+  recording: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Received At
+   */
+  received_at?: string | null;
+  /**
+   * From
+   */
+  from?: string | null;
+  /**
+   * Sender
+   *
+   * who sent it, as its From says
+   */
+  sender?: string | null;
+  /**
+   * Subject
+   */
+  subject?: string;
+  /**
+   * Snippet
+   */
+  snippet?: string | null;
+  /**
+   * Automatic
+   *
+   * why it looks like mail not to answer
+   */
+  automatic?: string | null;
+  reply: Reply;
+  [key: string]: unknown;
+};
+
+/**
+ * ReplyList
+ */
+export type ReplyList = {
+  /**
+   * Emails
+   */
+  emails: Array<ReplyEmail>;
+  /**
+   * Drafts
+   *
+   * drafts waiting in these namespaces
+   */
+  drafts: number;
+  [key: string]: unknown;
+};
+
+/**
+ * ReplySend
+ */
+export type ReplySend = {
+  /**
+   * Draft
+   *
+   * keep it in Gmail's drafts instead of sending it
+   */
+  draft?: boolean;
+};
+
+/**
+ * ReplySent
+ */
+export type ReplySent = {
+  /**
+   * At
+   */
+  at?: string | null;
+  /**
+   * By
+   */
+  by?: string | null;
+  /**
+   * Connection
+   *
+   * the mail connection it went out through
+   */
+  connection?: number | null;
+  /**
+   * Id
+   *
+   * Gmail's id of the message
+   */
+  id?: string | null;
+  /**
+   * Draft
+   *
+   * Gmail's id of the draft, when it was kept as one
+   */
+  draft?: string | null;
+  /**
+   * Thread
+   */
+  thread?: string | null;
+  /**
+   * Url
+   *
+   * the message in Gmail
+   */
+  url?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ReplySource
+ */
+export type ReplySource = {
+  /**
+   * N
+   */
+  n: number;
+  /**
+   * Recording Id
+   */
+  recording_id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Time
+   */
+  time?: string | null;
+  /**
+   * Page
+   */
+  page?: number | null;
+  /**
+   * T0
+   */
+  t0?: number | null;
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Used
+   *
+   * the draft cites it
+   */
+  used: boolean;
   [key: string]: unknown;
 };
 
@@ -20507,11 +22135,19 @@ export type RoutePreviewRequest = {
    *
    * the watch's own namespace, for messages no rule matches
    */
-  namespace: string;
+  namespace?: string;
   /**
    * Routes
+   *
+   * the watch's own rules
    */
   routes?: Array<Route>;
+  /**
+   * Shared Routes
+   *
+   * the account's shared rules to try after the watch's; left out, the saved ones
+   */
+  shared_routes?: Array<Route> | null;
 };
 
 /**
@@ -20576,9 +22212,15 @@ export type RoutedMessage = {
   /**
    * Rule
    *
-   * the rule that decided, counted from 1; None: no rule matched
+   * the rule that decided, counted from 1 in its list; None: no rule matched
    */
   rule?: number | null;
+  /**
+   * Shared
+   *
+   * the rule that decided is one of the account's shared rules
+   */
+  shared?: boolean;
   [key: string]: unknown;
 };
 
@@ -21589,7 +23231,7 @@ export type SearchCreate = {
   /**
    * Q
    *
-   * words, "phrases", OR between alternatives
+   * words, "phrases", OR between alternatives, NOT or -word to leave out
    */
   q: string;
   /**
@@ -23335,6 +24977,18 @@ export type SharedContext = {
 };
 
 /**
+ * SharedRoutes
+ */
+export type SharedRoutes = {
+  /**
+   * Routes
+   *
+   * an email account's shared routing rules: every watch on the account tries its own rules first, then these, in order; a message none matches goes to the watch's namespace. They're written like a watch's rules.
+   */
+  routes?: Array<Route>;
+};
+
+/**
  * SigninLink
  */
 export type SigninLink = {
@@ -23801,6 +25455,12 @@ export type Source = {
    * Watches
    */
   watches?: number;
+  /**
+   * Routes
+   *
+   * an email account's shared routing rules, used by every watch on it after its own
+   */
+  routes?: Array<RouteView>;
   [key: string]: unknown;
 };
 
@@ -25406,6 +27066,65 @@ export type Terminate = {
 };
 
 /**
+ * ThreadCreate
+ */
+export type ThreadCreate = {
+  /**
+   * Title
+   *
+   * left out, Lens titles it after its first answer
+   */
+  title?: string | null;
+  /**
+   * Chat
+   *
+   * bring in one of your conversations instead of starting a new one
+   */
+  chat?: number | null;
+  /**
+   * Brief
+   *
+   * what to do: asked as the thread's first question and answered in the background, with your tools and approvals (follow it with GET /chats/{id})
+   */
+  brief?: string | null;
+};
+
+/**
+ * ThreadLast
+ */
+export type ThreadLast = {
+  /**
+   * Role
+   *
+   * user (a question) or assistant (an answer)
+   */
+  role: string;
+  /**
+   * Text
+   *
+   * its first 300 characters
+   */
+  text: string;
+  /**
+   * At
+   */
+  at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ThreadUpdate
+ */
+export type ThreadUpdate = {
+  /**
+   * Done
+   *
+   * mark it done, or not done
+   */
+  done: boolean;
+};
+
+/**
  * TicketRequest
  */
 export type TicketRequest = {
@@ -26501,6 +28220,12 @@ export type Upload = {
    */
   pipeline?: number | null;
   /**
+   * Content Type
+   *
+   * the content type chosen for its asset (default: recognised from the file)
+   */
+  content_type?: string | null;
+  /**
    * Recording
    *
    * the asset it became (or was attached to), once done
@@ -26601,6 +28326,12 @@ export type UploadStart = {
    * run this pipeline once it's here instead of the namespace's (not with `recording`)
    */
   pipeline?: number | null;
+  /**
+   * Content Type
+   *
+   * the asset's content type (GET /content-types), one of its file's base type, instead of the one recognised from the file; its pipeline runs (not with `recording`)
+   */
+  content_type?: string | null;
   /**
    * Collection
    *
@@ -27630,6 +29361,12 @@ export type WebImportRequest = {
    * a collection of the namespace to put it in; default: its default collection
    */
   collection?: number | null;
+  /**
+   * Content Type
+   *
+   * a text content type (GET /content-types) for the page instead of the one recognised from it
+   */
+  content_type?: string | null;
 };
 
 /**
@@ -31587,6 +33324,166 @@ export type MarkActivityResponses = {
 
 export type MarkActivityResponse = MarkActivityResponses[keyof MarkActivityResponses];
 
+export type ReactToActivityData = {
+  body: ReactIn;
+  path: {
+    /**
+     * Activity Id
+     */
+    activity_id: string;
+  };
+  query?: never;
+  url: "/api/v1/activities/{activity_id}/react";
+};
+
+export type ReactToActivityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ReactToActivityError = ReactToActivityErrors[keyof ReactToActivityErrors];
+
+export type ReactToActivityResponses = {
+  /**
+   * Successful Response
+   */
+  200: ReactionsOut;
+};
+
+export type ReactToActivityResponse = ReactToActivityResponses[keyof ReactToActivityResponses];
+
+export type ListActivityCommentsData = {
+  body?: never;
+  path: {
+    /**
+     * Activity Id
+     */
+    activity_id: string;
+  };
+  query?: never;
+  url: "/api/v1/activities/{activity_id}/comments";
+};
+
+export type ListActivityCommentsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListActivityCommentsError = ListActivityCommentsErrors[keyof ListActivityCommentsErrors];
+
+export type ListActivityCommentsResponses = {
+  /**
+   * Response Activities-List Activity Comments
+   *
+   * Successful Response
+   */
+  200: Array<Comment>;
+};
+
+export type ListActivityCommentsResponse = ListActivityCommentsResponses[keyof ListActivityCommentsResponses];
+
+export type CommentOnActivityData = {
+  body: ActivityCommentCreate;
+  path: {
+    /**
+     * Activity Id
+     */
+    activity_id: string;
+  };
+  query?: never;
+  url: "/api/v1/activities/{activity_id}/comments";
+};
+
+export type CommentOnActivityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CommentOnActivityError = CommentOnActivityErrors[keyof CommentOnActivityErrors];
+
+export type CommentOnActivityResponses = {
+  /**
+   * Successful Response
+   */
+  200: Comment;
+};
+
+export type CommentOnActivityResponse = CommentOnActivityResponses[keyof CommentOnActivityResponses];
+
+export type DeleteActivityCommentData = {
+  body?: never;
+  path: {
+    /**
+     * Activity Id
+     */
+    activity_id: string;
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/activities/{activity_id}/comments/{cid}";
+};
+
+export type DeleteActivityCommentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteActivityCommentError = DeleteActivityCommentErrors[keyof DeleteActivityCommentErrors];
+
+export type DeleteActivityCommentResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteActivityCommentResponse = DeleteActivityCommentResponses[keyof DeleteActivityCommentResponses];
+
+export type UpdateActivityCommentData = {
+  body: CommentUpdate;
+  path: {
+    /**
+     * Activity Id
+     */
+    activity_id: string;
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/activities/{activity_id}/comments/{cid}";
+};
+
+export type UpdateActivityCommentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateActivityCommentError = UpdateActivityCommentErrors[keyof UpdateActivityCommentErrors];
+
+export type UpdateActivityCommentResponses = {
+  /**
+   * Successful Response
+   */
+  200: Comment;
+};
+
+export type UpdateActivityCommentResponse = UpdateActivityCommentResponses[keyof UpdateActivityCommentResponses];
+
 export type CallAutomationHookData = {
   body?: unknown;
   path: {
@@ -31636,6 +33533,22 @@ export type CallAutomationHookResponses = {
 };
 
 export type CallAutomationHookResponse = CallAutomationHookResponses[keyof CallAutomationHookResponses];
+
+export type ListStartersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/automations/starters";
+};
+
+export type ListStartersResponses = {
+  /**
+   * Successful Response
+   */
+  200: AutomationStarters;
+};
+
+export type ListStartersResponse = ListStartersResponses[keyof ListStartersResponses];
 
 export type GetAutomationVarsData = {
   body?: never;
@@ -34910,6 +36823,36 @@ export type ReprocessRecordingResponses = {
 
 export type ReprocessRecordingResponse = ReprocessRecordingResponses[keyof ReprocessRecordingResponses];
 
+export type EnhanceRecordingData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/enhance";
+};
+
+export type EnhanceRecordingErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type EnhanceRecordingError = EnhanceRecordingErrors[keyof EnhanceRecordingErrors];
+
+export type EnhanceRecordingResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobQueued;
+};
+
+export type EnhanceRecordingResponse = EnhanceRecordingResponses[keyof EnhanceRecordingResponses];
+
 export type RevokeSharesData = {
   body?: never;
   path: {
@@ -37598,7 +39541,7 @@ export type SearchTranscriptsData = {
     /**
      * Q
      *
-     * words, "phrases", OR between alternatives
+     * words, "phrases", OR between alternatives, NOT or -word to leave out
      */
     q: string;
     /**
@@ -40915,6 +42858,39 @@ export type GetPdfResponses = {
 
 export type GetPdfResponse = GetPdfResponses[keyof GetPdfResponses];
 
+export type GetEnhancedData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: {
+    /**
+     * S
+     */
+    s?: string;
+  };
+  url: "/api/v1/resources/{rid}/enhanced";
+};
+
+export type GetEnhancedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetEnhancedError = GetEnhancedErrors[keyof GetEnhancedErrors];
+
+export type GetEnhancedResponses = {
+  /**
+   * Successful Response
+   */
+  200: unknown;
+};
+
 export type GetFrameData = {
   body?: never;
   path: {
@@ -41447,6 +43423,12 @@ export type ListJobsData = {
      * Limit
      */
     limit?: number;
+    /**
+     * Order
+     *
+     * queue: in the order workers take them, the next first
+     */
+    order?: "newest" | "queue";
   };
   url: "/api/v1/jobs";
 };
@@ -41594,6 +43576,86 @@ export type QueueStepResponses = {
 };
 
 export type QueueStepResponse = QueueStepResponses[keyof QueueStepResponses];
+
+export type CancelJobsData = {
+  body: JobsPick;
+  path?: never;
+  query?: never;
+  url: "/api/v1/jobs/cancel";
+};
+
+export type CancelJobsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CancelJobsError = CancelJobsErrors[keyof CancelJobsErrors];
+
+export type CancelJobsResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobsChanged;
+};
+
+export type CancelJobsResponse = CancelJobsResponses[keyof CancelJobsResponses];
+
+export type RetryJobsData = {
+  body: JobsPick;
+  path?: never;
+  query?: never;
+  url: "/api/v1/jobs/retry";
+};
+
+export type RetryJobsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RetryJobsError = RetryJobsErrors[keyof RetryJobsErrors];
+
+export type RetryJobsResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobsChanged;
+};
+
+export type RetryJobsResponse = RetryJobsResponses[keyof RetryJobsResponses];
+
+export type MoveJobData = {
+  body: JobMove;
+  path: {
+    /**
+     * Jid
+     */
+    jid: number;
+  };
+  query?: never;
+  url: "/api/v1/jobs/{jid}/move";
+};
+
+export type MoveJobErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type MoveJobError = MoveJobErrors[keyof MoveJobErrors];
+
+export type MoveJobResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobMoved;
+};
+
+export type MoveJobResponse = MoveJobResponses[keyof MoveJobResponses];
 
 export type CancelJobData = {
   body?: never;
@@ -41929,6 +43991,38 @@ export type UpdateSourceResponses = {
 };
 
 export type UpdateSourceResponse = UpdateSourceResponses[keyof UpdateSourceResponses];
+
+export type SetSharedRoutesData = {
+  body: SharedRoutes;
+  path: {
+    /**
+     * Sid
+     */
+    sid: number;
+  };
+  query?: never;
+  url: "/api/v1/sources/{sid}/routes";
+};
+
+export type SetSharedRoutesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetSharedRoutesError = SetSharedRoutesErrors[keyof SetSharedRoutesErrors];
+
+export type SetSharedRoutesResponses = {
+  /**
+   * Response Sources-Set Shared Routes
+   *
+   * Successful Response
+   */
+  200: Array<RouteView>;
+};
+
+export type SetSharedRoutesResponse = SetSharedRoutesResponses[keyof SetSharedRoutesResponses];
 
 export type StartRcloneSigninData = {
   body: RcloneSignInStart;
@@ -43680,6 +45774,50 @@ export type SuggestedMarketplacesResponses = {
 
 export type SuggestedMarketplacesResponse = SuggestedMarketplacesResponses[keyof SuggestedMarketplacesResponses];
 
+export type FindMarketplacePluginsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Q
+     *
+     * words its name, description, category or author has
+     */
+    q?: string | null;
+    /**
+     * Updates
+     *
+     * only plugins you installed that their marketplace lists another version of
+     */
+    updates?: boolean;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/marketplaces/plugins";
+};
+
+export type FindMarketplacePluginsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type FindMarketplacePluginsError = FindMarketplacePluginsErrors[keyof FindMarketplacePluginsErrors];
+
+export type FindMarketplacePluginsResponses = {
+  /**
+   * Response Extensions-Find Marketplace Plugins
+   *
+   * Successful Response
+   */
+  200: Array<MarketplacePluginFound>;
+};
+
+export type FindMarketplacePluginsResponse = FindMarketplacePluginsResponses[keyof FindMarketplacePluginsResponses];
+
 export type RefreshMarketplaceData = {
   body?: never;
   path: {
@@ -44424,6 +46562,386 @@ export type DecideApprovalResponses = {
 };
 
 export type DecideApprovalResponse = DecideApprovalResponses[keyof DecideApprovalResponses];
+
+export type ListProjectsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Archived
+     *
+     * true: only archived ones; left out: every one
+     */
+    archived?: boolean | null;
+  };
+  url: "/api/v1/projects";
+};
+
+export type ListProjectsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListProjectsError = ListProjectsErrors[keyof ListProjectsErrors];
+
+export type ListProjectsResponses = {
+  /**
+   * Response Projects-List Projects
+   *
+   * Successful Response
+   */
+  200: Array<ProjectSummary>;
+};
+
+export type ListProjectsResponse = ListProjectsResponses[keyof ListProjectsResponses];
+
+export type CreateProjectData = {
+  body: ProjectCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/projects";
+};
+
+export type CreateProjectErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateProjectError = CreateProjectErrors[keyof CreateProjectErrors];
+
+export type CreateProjectResponses = {
+  /**
+   * Successful Response
+   */
+  200: Project;
+};
+
+export type CreateProjectResponse = CreateProjectResponses[keyof CreateProjectResponses];
+
+export type DeleteProjectData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/projects/{pid}";
+};
+
+export type DeleteProjectErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteProjectError = DeleteProjectErrors[keyof DeleteProjectErrors];
+
+export type DeleteProjectResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteProjectResponse = DeleteProjectResponses[keyof DeleteProjectResponses];
+
+export type GetProjectData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/projects/{pid}";
+};
+
+export type GetProjectErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetProjectError = GetProjectErrors[keyof GetProjectErrors];
+
+export type GetProjectResponses = {
+  /**
+   * Successful Response
+   */
+  200: Project;
+};
+
+export type GetProjectResponse = GetProjectResponses[keyof GetProjectResponses];
+
+export type UpdateProjectData = {
+  body: ProjectUpdate;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/projects/{pid}";
+};
+
+export type UpdateProjectErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateProjectError = UpdateProjectErrors[keyof UpdateProjectErrors];
+
+export type UpdateProjectResponses = {
+  /**
+   * Successful Response
+   */
+  200: Project;
+};
+
+export type UpdateProjectResponse = UpdateProjectResponses[keyof UpdateProjectResponses];
+
+export type ListThreadsData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/projects/{pid}/threads";
+};
+
+export type ListThreadsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListThreadsError = ListThreadsErrors[keyof ListThreadsErrors];
+
+export type ListThreadsResponses = {
+  /**
+   * Response Projects-List Threads
+   *
+   * Successful Response
+   */
+  200: Array<ProjectThread>;
+};
+
+export type ListThreadsResponse = ListThreadsResponses[keyof ListThreadsResponses];
+
+export type StartThreadData = {
+  /**
+   * Body
+   */
+  body?: ThreadCreate | null;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/projects/{pid}/threads";
+};
+
+export type StartThreadErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type StartThreadError = StartThreadErrors[keyof StartThreadErrors];
+
+export type StartThreadResponses = {
+  /**
+   * Successful Response
+   */
+  200: Created;
+};
+
+export type StartThreadResponse = StartThreadResponses[keyof StartThreadResponses];
+
+export type ReleaseThreadData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/projects/{pid}/threads/{cid}";
+};
+
+export type ReleaseThreadErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ReleaseThreadError = ReleaseThreadErrors[keyof ReleaseThreadErrors];
+
+export type ReleaseThreadResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type ReleaseThreadResponse = ReleaseThreadResponses[keyof ReleaseThreadResponses];
+
+export type UpdateThreadData = {
+  body: ThreadUpdate;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/projects/{pid}/threads/{cid}";
+};
+
+export type UpdateThreadErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateThreadError = UpdateThreadErrors[keyof UpdateThreadErrors];
+
+export type UpdateThreadResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UpdateThreadResponse = UpdateThreadResponses[keyof UpdateThreadResponses];
+
+export type AddScheduleData = {
+  body: ProjectScheduleCreate;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/projects/{pid}/schedules";
+};
+
+export type AddScheduleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AddScheduleError = AddScheduleErrors[keyof AddScheduleErrors];
+
+export type AddScheduleResponses = {
+  /**
+   * Successful Response
+   */
+  200: ProjectSchedule;
+};
+
+export type AddScheduleResponse = AddScheduleResponses[keyof AddScheduleResponses];
+
+export type RemoveScheduleData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+    /**
+     * Sid
+     */
+    sid: string;
+  };
+  query?: never;
+  url: "/api/v1/projects/{pid}/schedules/{sid}";
+};
+
+export type RemoveScheduleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveScheduleError = RemoveScheduleErrors[keyof RemoveScheduleErrors];
+
+export type RemoveScheduleResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RemoveScheduleResponse = RemoveScheduleResponses[keyof RemoveScheduleResponses];
+
+export type UpdateScheduleData = {
+  body: ProjectScheduleUpdate;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+    /**
+     * Sid
+     */
+    sid: string;
+  };
+  query?: never;
+  url: "/api/v1/projects/{pid}/schedules/{sid}";
+};
+
+export type UpdateScheduleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateScheduleError = UpdateScheduleErrors[keyof UpdateScheduleErrors];
+
+export type UpdateScheduleResponses = {
+  /**
+   * Successful Response
+   */
+  200: ProjectSchedule;
+};
+
+export type UpdateScheduleResponse = UpdateScheduleResponses[keyof UpdateScheduleResponses];
 
 export type StartResearchData = {
   body: ResearchStart;
@@ -45335,7 +47853,7 @@ export type SearchPublicData = {
     /**
      * Q
      *
-     * words, "phrases", OR between alternatives
+     * words, "phrases", OR between alternatives, NOT or -word to leave out
      */
     q?: string;
     /**
@@ -47193,6 +49711,12 @@ export type PushToImportHookData = {
      * with your own token: the namespace it goes into (default: the only one you can import into)
      */
     namespace?: string | null;
+    /**
+     * For
+     *
+     * hand back a document's PDF: the recording a push with needs_pdf became (the hook's own documents only)
+     */
+    for?: number | null;
   };
   url: "/api/v1/hooks/import";
 };
@@ -47256,6 +49780,12 @@ export type PushToImportHookTokenData = {
      * Title
      */
     title?: string | null;
+    /**
+     * For
+     *
+     * hand back a document's PDF: the recording a push with needs_pdf became (the hook's own documents only)
+     */
+    for?: number | null;
   };
   url: "/api/v1/hooks/import/{token}";
 };
@@ -49053,6 +51583,75 @@ export type RenewNodeResponses = {
 
 export type RenewNodeResponse = RenewNodeResponses[keyof RenewNodeResponses];
 
+export type NodeWorkerData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/mesh/node/worker";
+};
+
+export type NodeWorkerResponses = {
+  /**
+   * Successful Response
+   */
+  200: MeshWorkerAccess;
+};
+
+export type NodeWorkerResponse = NodeWorkerResponses[keyof NodeWorkerResponses];
+
+export type NodeMediaData = {
+  body?: never;
+  path: {
+    /**
+     * Recording Id
+     */
+    recording_id: number;
+  };
+  query?: never;
+  url: "/api/v1/mesh/node/media/{recording_id}";
+};
+
+export type NodeMediaErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type NodeMediaError = NodeMediaErrors[keyof NodeMediaErrors];
+
+export type NodeMediaResponses = {
+  /**
+   * Successful Response
+   */
+  200: unknown;
+};
+
+export type NodeSandboxData = {
+  body: MeshSandboxGateway;
+  path?: never;
+  query?: never;
+  url: "/api/v1/mesh/node/sandbox";
+};
+
+export type NodeSandboxErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type NodeSandboxError = NodeSandboxErrors[keyof NodeSandboxErrors];
+
+export type NodeSandboxResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type NodeSandboxResponse = NodeSandboxResponses[keyof NodeSandboxResponses];
+
 export type NodeBeatData = {
   body: MeshBeat;
   path?: never;
@@ -49317,3 +51916,167 @@ export type UpdateCircleResponses = {
 };
 
 export type UpdateCircleResponse = UpdateCircleResponses[keyof UpdateCircleResponses];
+
+export type ListRepliesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Show
+     */
+    show?: "waiting" | "draft" | "drafting" | "skipped" | "dismissed" | "saved" | "sent" | "failed" | "none" | "all";
+    /**
+     * Namespace
+     */
+    namespace?: string | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/replies";
+};
+
+export type ListRepliesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListRepliesError = ListRepliesErrors[keyof ListRepliesErrors];
+
+export type ListRepliesResponses = {
+  /**
+   * Successful Response
+   */
+  200: ReplyList;
+};
+
+export type ListRepliesResponse = ListRepliesResponses[keyof ListRepliesResponses];
+
+export type GetReplyData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/reply";
+};
+
+export type GetReplyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetReplyError = GetReplyErrors[keyof GetReplyErrors];
+
+export type GetReplyResponses = {
+  /**
+   * Successful Response
+   */
+  200: Reply;
+};
+
+export type GetReplyResponse = GetReplyResponses[keyof GetReplyResponses];
+
+export type EditReplyData = {
+  body: ReplyEdit;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/reply";
+};
+
+export type EditReplyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type EditReplyError = EditReplyErrors[keyof EditReplyErrors];
+
+export type EditReplyResponses = {
+  /**
+   * Successful Response
+   */
+  200: Reply;
+};
+
+export type EditReplyResponse = EditReplyResponses[keyof EditReplyResponses];
+
+export type DraftReplyData = {
+  /**
+   * Body
+   */
+  body?: ReplyDraft | null;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/reply";
+};
+
+export type DraftReplyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DraftReplyError = DraftReplyErrors[keyof DraftReplyErrors];
+
+export type DraftReplyResponses = {
+  /**
+   * Successful Response
+   */
+  202: JobQueued;
+};
+
+export type DraftReplyResponse = DraftReplyResponses[keyof DraftReplyResponses];
+
+export type SendReplyData = {
+  /**
+   * Body
+   */
+  body?: ReplySend | null;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/reply/send";
+};
+
+export type SendReplyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SendReplyError = SendReplyErrors[keyof SendReplyErrors];
+
+export type SendReplyResponses = {
+  /**
+   * Successful Response
+   */
+  200: Reply;
+};
+
+export type SendReplyResponse = SendReplyResponses[keyof SendReplyResponses];

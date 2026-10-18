@@ -132,6 +132,10 @@ export function actionText(e: ActivityEntry): string {
   if (a === "decision") return `Decision model${e.model ? ` · ${e.model}` : ""}`;
   if (a.startsWith("notify.")) return `Notification · ${a.slice(7)}`;
   if (a === "tool.http") return "Web tool";
+  if (a === "workflow.http") {
+    const host = ((e.detail ?? {}) as { host?: string }).host;
+    return `Workflow web call${host ? ` · ${host}` : ""}`;
+  }
   if (a === "web.search" || a === "web.read") {
     const d = (e.detail ?? {}) as { provider?: string; host?: string };
     const where = a === "web.search" ? d.provider : d.host;

@@ -1,5 +1,5 @@
-"""Automation actions that run Lens's own work (docs/automations.md, Actions): `run_workflow`, `run_pipeline` and
-`run_routine`.
+"""Automation actions that run Lens's own work (docs/automations.md, Actions): `run_workflow`, `run_pipeline`,
+`run_routine` and `enhance`.
 
 Each changes something inside Lens (effect `lens`): a workflow or a pipeline on the asset the run is about, in the
 automation's namespaces, runs without asking; on any other asset, and a routine always, it asks first. The work is
@@ -11,7 +11,7 @@ assets in that namespace; a routine is an admin's to run, as in Settings.
 
 from __future__ import annotations
 
-from . import actions, budgets, jobs, pipelines, routines, workflows
+from . import actions, budgets, enhance, jobs, pipelines, routines, store, workflows
 
 
 def _int(p, key, what):
@@ -60,6 +60,19 @@ def _run_pipeline(db, cfg, intent, user, dry):
     except KeyError:
         raise ValueError(f"there's no pipeline {pid}") from None
     return {**out, "job": jid}
+
+
+# ---------- enhance ----------
+def _enhance(db, cfg, intent, user, dry):
+    p = intent["params"]
+    acc = actions.person(db, intent, user)
+    rec = actions.asset_for(db, intent, acc, actions.asset_id(p.get("asset")), "process")
+    if (db.one("SELECT source FROM $r", r=store.R("recording", rec["id"])) or {}).get("source") != "image":
+        raise ValueError(f"{rec.get('title') or rec['id']} isn't an image: only images are enhanced so far")
+    out = {"asset": rec["id"]}
+    if dry:
+        return {**out, "job": None, "would": f"enhance {rec.get('title') or rec['id']} and read it again"}
+    return {**out, "job": enhance.queue(db, rec["id"], actions.actor(db, intent)["email"])}
 
 
 # ---------- run_routine ----------
@@ -142,6 +155,22 @@ actions.register(
         },
         perform=_run_pipeline,
         describe=lambda p: f"Run {'pipeline ' + str(p['pipeline']) if p.get('pipeline') else 'its pipeline'} on {actions.on_asset(p)}",
+    )
+)
+
+actions.register(
+    actions.ActionSpec(
+        name="enhance",
+        label="Enhance an image",
+        group="Run",
+        description="Makes an enhanced copy of an image (bigger, sharper, less noisy) and reads it again from that copy; "
+        "the original stays.",
+        params={"type": "object", "properties": {"asset": actions.asset_param("Image")}},
+        effect="lens",
+        subject=actions.asset_subject,
+        output={"type": "object", "properties": {"job": {"type": "integer"}, "asset": {"type": "integer"}}},
+        perform=_enhance,
+        describe=lambda p: f"Enhance {actions.on_asset(p)}",
     )
 )
 

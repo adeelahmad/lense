@@ -83,12 +83,19 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "undo_topic_change",
         "write_note",
         "rename_chat",
+        "create_project",
+        "update_project",
+        "schedule_project",
         "create_podcast",
         "create_feed",
         "publish_to_feed",
         "write_spec",
+        "draft_reply",
+        "edit_reply",
+        "send_reply",
         "set_nsfw",
         "mark_nsfw",
+        "enhance",
         "set_namespace_integrations",
         "set_picture_descriptions",
         "set_file_storage",
@@ -102,10 +109,14 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "set_service",
         "set_sandbox_gateway",
         "add_mcp_server",
+        "install_plugin",
         "set_install_settings",
         "subscribe_feed",
         "unsubscribe_feed",
+        "set_mail_routing",
         "mark_activities",
+        "react_to_activity",
+        "comment_on_activity",
         "decline_approval",
         "start_research",
         "set_automation_vars",
@@ -116,6 +127,9 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "undo_share",
         "set_schedule",
         "run_schedule",
+        "clear_queue",
+        "retry_runs",
+        "move_run",
     ]
     assert next(t for t in tools if t["name"] == "search")["inputSchema"]["required"] == ["query"]
     # API tokens and sessions work too
@@ -550,7 +564,7 @@ def test_monitoring_tools(client, db, env, monkeypatch):
     assert "no upgrade agent" in tool_error(client, ha, "set_monitoring", on=True)
     # and every optional container, the same way
     got = tool(client, ha, "services")
-    assert [s["profile"] for s in got["services"]] == ["mcp", "browser", "monitoring"]
+    assert [s["profile"] for s in got["services"]] == ["mcp", "browser", "monitoring", "mesh"]
     assert "no upgrade agent" in tool_error(client, ha, "set_service", profile="browser", on=True)
     assert "only admins" in tool_error(client, env["h"], "set_service", profile="browser", on=True)
 
