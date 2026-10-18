@@ -104,6 +104,7 @@ const ICON: Record<AnySectionId, LucideIcon> = {
   https: Lock,
   nodes: Server,
   network: Waypoints,
+  federation: Users,
   "sign-in": LockKeyhole,
   encryption: FileLock,
   secrets: KeySquare,

@@ -12,7 +12,7 @@ const nextConfig = {
       // The app's own pages. The API's paths (proxied: /api/v1, /embed, /s, /iiif resources, /reports, ...) send
       // their own headers, so the embed player can still be framed where Settings › Access allows it.
       {
-        source: "/((?!api/|embed/|s/|iiif/|reports/|static/|id/|ns$|mcp|\\.well-known/).*)",
+        source: "/((?!api/|ap/|embed/|s/|iiif/|reports/|static/|id/|ns$|mcp|\\.well-known/).*)",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

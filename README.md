@@ -242,7 +242,9 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   live under Profile and Share sits on every timeline item and resource. Rules (automations) share what comes in,
   like the school's emails, asking you first until you let them run on their own. Let a circle see when you're free
   (never what), and agents find a time that suits everyone, or ask your agent questions about the namespaces you
-  pick, answered with citations. Agents do the same over MCP, and the assistant asks you first before sharing.
+  pick, answered with citations. Once an admin turns it on, circles hold people on other Lens or ActivityPub servers
+  by handle, and shares reach them signed. Agents do the same over MCP, and the assistant asks you first before
+  sharing.
   ([Circles of trust](docs/circles.md);
   [checks](docs/requirements.md#share-with-the-people-close-to-you))
 - **See what it costs.** An activity ledger of every model call, with reports, charts and budgets that cap spending.
@@ -338,7 +340,6 @@ Open pull requests, not yet part of Lens, are listed here; none right now.
 
 Next, and not in a pull request yet; each links to where it is tracked:
 
-- **Circles of trust:** circles across Lens servers over ActivityPub ([circles of trust](docs/circles.md)).
 - **Notes:** nesting a note under its project or area without a click, pages in the graph, and wiki addresses for
   topics, recordings and the other things that have pages ([notes](docs/notes.md)).
 - **Local models:** GPU builds of llama.cpp fetched by Lens, and local embedding models

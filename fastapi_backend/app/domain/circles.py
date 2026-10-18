@@ -30,7 +30,7 @@ MAX_MEMBERS = 200
 NAME_MAX = 80
 NOTE_MAX = 2000
 LETS = ("free_busy", "questions")  # what a circle's people may ask its owner's agent (circles_ask.py); nothing until picked
-SHARE_FIELDS = "id AS rid, record::id(id) AS id, by, at, circles, people, object, tag, note, with_item, granted, space, via"
+SHARE_FIELDS = "id AS rid, record::id(id) AS id, by, at, circles, people, elsewhere, object, tag, note, with_item, granted, space, via"
 TO_FIELDS = "id AS rid, record::id(id) AS id, share, account, at, opens"
 UNTRUSTED = ("object.name", "object.summary", "object.content")
 
@@ -88,6 +88,7 @@ def _view(db, row, names=None):
         "members": members,
         "lets": [x for x in row.get("lets") or [] if x in LETS],
         "about": [n for n in (store.space_names(db).get(s) for s in row.get("ask_spaces") or []) if n],
+        "remote": _elsewhere(db, row.get("remote")),
         "created_at": row.get("created_at"),
         "updated_at": row.get("updated_at"),
     }
@@ -96,7 +97,7 @@ def _view(db, row, names=None):
 def circles(db, owner):
     """Someone's circles, by name, each with its members who can still sign in."""
     rows = db.rows(
-        "SELECT record::id(id) AS id, name, members, lets, ask_spaces, created_at, updated_at FROM circle WHERE owner = $o", o=owner
+        "SELECT record::id(id) AS id, name, members, remote, lets, ask_spaces, created_at, updated_at FROM circle WHERE owner = $o", o=owner
     )
     names = _people(db, [m for r in rows for m in r.get("members") or []])
     return sorted((_view(db, r, names) for r in rows), key=lambda c: (c["name"].lower(), c["id"]))
@@ -104,7 +105,8 @@ def circles(db, owner):
 
 def _row(db, cid, owner):
     r = db.one(
-        "SELECT record::id(id) AS id, owner, name, members, lets, ask_spaces, created_at, updated_at FROM $r", r=R("circle", int(cid))
+        "SELECT record::id(id) AS id, owner, name, members, remote, lets, ask_spaces, created_at, updated_at FROM $r",
+        r=R("circle", int(cid)),
     )
     if not r or r.get("owner") != owner:
         raise KeyError(cid)
@@ -148,6 +150,26 @@ def _members(db, me, members):
     return out
 
 
+def _elsewhere(db, ids):
+    """People on other servers among `ids` (ap_remote ids), as a circle lists them: [{id, handle, name}]."""
+    if not ids:
+        return []
+
+    got = federation.remote_people(db, ids)
+    return [got[i] for i in ids if i in got]
+
+
+def _remote(db, cfg, handles):
+    """ap_remote ids for people on other servers, by handle (looked up the first time; federation.py)."""
+
+    out = []
+    for h in handles or []:
+        rid = federation.resolve(db, cfg, h)
+        if rid not in out:
+            out.append(rid)
+    return out
+
+
 def _lets(lets):
     out = [str(x) for x in dict.fromkeys(lets or [])]
     bad = [x for x in out if x not in LETS]
@@ -172,27 +194,41 @@ def _about(db, me, about):
     return out
 
 
-def create(db, me, name, members=(), lets=(), about=()):
-    """A new circle of `me`'s, with members picked by id or email, and what they may ask `me`'s agent (`lets`). Its id."""
+def create(db, me, name, members=(), lets=(), about=(), remote=(), cfg=None):
+    """A new circle of `me`'s, with members picked by id or email, people on other servers by handle (`remote`), and
+    what they may ask `me`'s agent (`lets`). Its id."""
     if len(db.values("SELECT VALUE id FROM circle WHERE owner = $o", o=me["id"])) >= MAX_CIRCLES:
         raise Problem(f"you can have at most {MAX_CIRCLES} circles")
     name = _name(db, me["id"], name)
     picked = _members(db, me, members)
     allowed = _lets(lets)
     spaces = _about(db, me, about)
+    elsewhere = _remote(db, cfg, remote) if remote else []
+    if len(picked) + len(elsewhere) > MAX_MEMBERS:
+        raise Problem(f"a circle holds at most {MAX_MEMBERS} people")
     cid = db.next_id("circle")
     at = store.now()
     db.q(
         "CREATE $r CONTENT $d",
         r=R("circle", cid),
-        d={"owner": me["id"], "name": name, "members": picked, "lets": allowed, "ask_spaces": spaces, "created_at": at, "updated_at": at},
+        d={
+            "owner": me["id"],
+            "name": name,
+            "members": picked,
+            "remote": elsewhere,
+            "lets": allowed,
+            "ask_spaces": spaces,
+            "created_at": at,
+            "updated_at": at,
+        },
     )
     return cid
 
 
-def update(db, me, cid, name=None, members=None, add=(), remove=(), lets=None, about=None):
-    """Rename a circle of `me`'s, set its members, or add and take some away, or set what they may ask `me`'s agent
-    (`lets`) and which namespaces of `me`'s its questions are answered from (`about`). KeyError for anyone else's."""
+def update(db, me, cid, name=None, members=None, add=(), remove=(), lets=None, about=None, add_remote=(), remove_remote=(), cfg=None):
+    """Rename a circle of `me`'s, set its members, or add and take some away (people on other servers by handle:
+    `add_remote`, `remove_remote`), or set what they may ask `me`'s agent (`lets`) and which namespaces of `me`'s its
+    questions are answered from (`about`). KeyError for anyone else's."""
     row = _row(db, cid, me["id"])
     patch = {"updated_at": store.now()}
     if name is not None:
@@ -207,6 +243,13 @@ def update(db, me, cid, name=None, members=None, add=(), remove=(), lets=None, a
         drop = {int(m) for m in remove or [] if str(m).strip().isdigit()}
         drop |= {a["id"] for a in (auth.find_account(db, m) for m in remove or [] if isinstance(m, str) and "@" in m) if a}
         patch["members"] = [m for m in now if m not in drop]
+    if add_remote or remove_remote:
+        now = list(row.get("remote") or [])
+        now += [r for r in _remote(db, cfg, add_remote) if r not in now]
+        gone = {str(h).strip().lstrip("@").lower() for h in remove_remote or []}
+        patch["remote"] = [r["id"] for r in _elsewhere(db, now) if r["handle"] not in gone and str(r["id"]) not in gone]
+    if len(patch.get("members", row.get("members") or [])) + len(patch.get("remote", row.get("remote") or [])) > MAX_MEMBERS:
+        raise Problem(f"a circle holds at most {MAX_MEMBERS} people")
     db.q("UPDATE $r MERGE $d", r=R("circle", row["id"]), d=patch)
     return get(db, row["id"], me["id"])
 
@@ -287,11 +330,11 @@ def _from_recording(db, me, who, rid):
 
 
 def _recipients(db, me, circle_ids, people_ids):
-    """(member ids, circle names) for a share: every member of `me`'s circles named (by id, or by name as automations
-    name them), and people in any of their circles. Problem when that's nobody."""
-    rows = db.rows("SELECT record::id(id) AS id, name, members FROM circle WHERE owner = $o", o=me["id"])
+    """(member ids, circle names, ids of people on other servers) for a share: every member of `me`'s circles named
+    (by id, or by name as automations name them), and people in any of their circles. Problem when that's nobody."""
+    rows = db.rows("SELECT record::id(id) AS id, name, members, remote FROM circle WHERE owner = $o", o=me["id"])
     mine = {r["id"]: r for r in rows}
-    out, names = [], []
+    out, names, elsewhere = [], [], []
     by_name = {str(r["name"]).casefold(): r for r in rows}
     for c in circle_ids or []:
         r = mine.get(int(c)) if str(c).strip().isdigit() else by_name.get(str(c).strip().casefold())
@@ -299,6 +342,7 @@ def _recipients(db, me, circle_ids, people_ids):
             raise KeyError(f"circle {c}")
         names.append(r["name"])
         out += [m for m in r.get("members") or [] if m not in out]
+        elsewhere += [m for m in r.get("remote") or [] if m not in elsewhere]
     every = {m for r in rows for m in r.get("members") or []}
     for p in people_ids or []:
         pid = int(p) if str(p).strip().isdigit() else None
@@ -311,14 +355,15 @@ def _recipients(db, me, circle_ids, people_ids):
             out.append(pid)
     live = _people(db, out)
     out = [m for m in out if m in live and m != me["id"]]
-    if not out:
+    elsewhere = [r["id"] for r in _elsewhere(db, elsewhere)]
+    if not out and not elsewhere:
         raise Problem("there's nobody to share with: pick a circle with people in it")
-    return out, names
+    return out, names, elsewhere
 
 
 def _prepare(db, cfg, me, activity, recording, circles_, people_, note, with_item, who):
     """What a share would be, checked, without sharing it: (snapshot, tags, namespace, recording id, its row, member
-    ids, circle names, note)."""
+    ids, circle names, note, ids of people elsewhere)."""
     if (activity is None) == (recording is None):
         raise Problem("share one thing: an activity or a resource")
     note = (str(note).strip() or None) if note is not None else None
@@ -332,20 +377,25 @@ def _prepare(db, cfg, me, activity, recording, circles_, people_, note, with_ite
     rec = db.one("SELECT space, collection FROM $r", r=R("recording", rid)) if rid is not None else None
     if _vault(db, space) or (rec is not None and _vault(db, rec.get("space"))):
         raise Problem("what's in a vault stays in it: it can't be shared")
-    to, names = _recipients(db, me, circles_, people_)
+    to, names, elsewhere = _recipients(db, me, circles_, people_)
     if with_item:
         if rec is None:
             raise Problem("only a resource can be shared with the item itself")
         if "publish" not in auth.permissions(db, me).get(rec["space"], frozenset()):
             raise PermissionError("giving people the item needs the publish permission in its namespace")
-    return obj, tags, space, rid, rec, to, names, note
+    return obj, tags, space, rid, rec, to, names, note, elsewhere
 
 
 def preview(db, cfg, me, *, activity=None, recording=None, circles_=(), people_=(), note=None, with_item=False, who=None):
-    """What share() would share and with whom, checked the same way, without sharing it: {object, circles, people}."""
-    obj, _, _, _, _, to, names, _ = _prepare(db, cfg, me, activity, recording, circles_, people_, note, with_item, who)
+    """What share() would share and with whom, checked the same way, without sharing it: {object, circles, people,
+    elsewhere}."""
+    obj, _, _, _, _, to, names, _, elsewhere = _prepare(db, cfg, me, activity, recording, circles_, people_, note, with_item, who)
     named = _people(db, to)
-    return {"object": obj, "circles": names, "people": [named[m] for m in to if m in named]}
+    return {"object": obj, "circles": names, "people": [named[m] for m in to if m in named], "elsewhere": _handles(db, elsewhere)}
+
+
+def _handles(db, ids):
+    return [r["handle"] for r in _elsewhere(db, ids)]
 
 
 def share(db, cfg, me, *, activity=None, recording=None, circles_=(), people_=(), note=None, with_item=False, via="web", who=None):
@@ -353,7 +403,9 @@ def share(db, cfg, me, *, activity=None, recording=None, circles_=(), people_=()
     and people in them, with a note. `with_item` also gives members who can't open the resource permission on it (it
     needs the publish permission in its namespace). `who`: the viewer `me` reads the timeline as (their own by
     default). The share as list_shares gives it."""
-    obj, tags, space, rid, rec, to, names, note = _prepare(db, cfg, me, activity, recording, circles_, people_, note, with_item, who)
+    obj, tags, space, rid, rec, to, names, note, elsewhere = _prepare(
+        db, cfg, me, activity, recording, circles_, people_, note, with_item, who
+    )
     opens, granted = {}, []
     for m in to:
         how = None
@@ -392,6 +444,7 @@ def share(db, cfg, me, *, activity=None, recording=None, circles_=(), people_=()
                 "granted": granted,
                 "space": space,
                 "via": via,
+                "elsewhere": elsewhere or None,
             }
         ),
     }
@@ -399,6 +452,10 @@ def share(db, cfg, me, *, activity=None, recording=None, circles_=(), people_=()
         params[f"t{i}"] = R("circle_share_to", db.next_id("circle_share_to"))
         params[f"d{i}"] = store.clean({"share": sid, "account": m, "at": at, "opens": opens[m]})
     db.run(stmts, **params)
+    if elsewhere:
+        from . import federation  # it builds on this module
+
+        federation.queue_share(db, cfg, me, sid, at, {**obj, "tag": tags}, note, elsewhere)
     events.wake()
     return {
         "id": sid,
@@ -408,10 +465,11 @@ def share(db, cfg, me, *, activity=None, recording=None, circles_=(), people_=()
         "people": [named[m] for m in to if m in named],
         "with_item": bool(with_item),
         "granted": len(granted),
+        "elsewhere": _handles(db, elsewhere),
     }
 
 
-def undo(db, me, sid):
+def undo(db, me, sid, cfg=None):
     """Take back a share of `me`'s: it leaves every member's timeline and the sharer's, and the permissions it gave are
     taken back. KeyError for anyone else's, or none."""
     row = db.one(f"SELECT {SHARE_FIELDS} FROM $r", r=R("circle_share", int(sid)))
@@ -421,8 +479,20 @@ def undo(db, me, sid):
     for m in row.get("granted") or []:
         if isinstance(rid, int):
             access.take(db, rid, m)
+    if cfg is not None:
+        from . import federation  # it builds on this module
+
+        federation.queue_undo(db, cfg, me, row["id"])
     db.run(["DELETE circle_share_to WHERE share = $n", "DELETE $r"], n=row["id"], r=R("circle_share", row["id"]))
     return {"undone": row["id"], "taken_back": len(row.get("granted") or [])}
+
+
+def get_share(db, me, sid):
+    """A share of `me`'s; KeyError for anyone else's, or none."""
+    row = db.one(f"SELECT {SHARE_FIELDS} FROM $r", r=R("circle_share", int(sid)))
+    if not row or row.get("by") != me["id"]:
+        raise KeyError(sid)
+    return row
 
 
 def shares(db, me, direction="received", limit=50):
@@ -507,7 +577,7 @@ def _sent(db, rows):
             **store.clean({**(r.get("object") or {}), "url": _url(r.get("object") or {}, "member")}),
             "share": r["id"],
             "circles": list(r.get("circles") or []),
-            "people": [_label(names.get(m)) for m in r.get("people") or [] if m in names],
+            "people": [_label(names.get(m)) for m in r.get("people") or [] if m in names] + _handles(db, r.get("elsewhere")),
             "with_item": bool(r.get("with_item")),
         }
         actor = _actor(names, r["by"])
@@ -651,6 +721,7 @@ _OBJECT = {
         "circles": {"type": "array", "title": "Circles", "items": _s("Circle")},
         "people": {"type": "array", "title": "Shared with", "items": _s("Person")},
         "with_item": _s("With the item", "boolean"),
+        "remote": _s("From someone on another server", "boolean"),
     },
 }
 _SHARED = {
@@ -716,3 +787,4 @@ events.kind(
 
 # what builds on circles' sources, loaded once they're defined, so that any of these modules can be imported first
 from . import circles_ask  # noqa: E402, F401 - what people's agents ask of each other, as agent.asked
+from . import federation  # noqa: E402, F401 - what people on other servers share, as share.received

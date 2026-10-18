@@ -737,6 +737,9 @@ DEFAULTS = {
         "min_tls": "1.2",
     },
     "notifications": {"enabled": True, "networks": [], "poll_seconds": 5, "max_attempts": 6, "app_url": None},
+    # circles with people on other servers over ActivityPub (domain/federation.py, docs/federation.md). Off by default;
+    # url: this Lens's public https:// address (empty: the HTTPS domain's)
+    "federation": {"enabled": False, "url": ""},
     # OpenTelemetry traces and metrics (docs/telemetry.md): off unless an admin turns it on, and sent only to the OTLP/HTTP
     # endpoint set here (e.g. a collector at http://localhost:4318). headers is a secret: key=value pairs for the
     # endpoint's auth. prices: {model: {input, output}} in USD per million tokens, for cost estimates.
@@ -1635,6 +1638,21 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS agent_ask SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS agent_ask_to ON agent_ask FIELDS to",
     "DEFINE INDEX IF NOT EXISTS agent_ask_at ON agent_ask FIELDS at",
+    # circles between Lens servers (app/domain/federation.py, docs/federation.md): who here is findable (ap_person: account,
+    # handle, public key, sealed private key), people elsewhere (ap_remote: actor, handle, inbox, key), what's queued for
+    # them (ap_delivery) and what they sent (ap_inbox: Notes, as share.received)
+    "DEFINE TABLE IF NOT EXISTS ap_person SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS ap_person_account ON ap_person FIELDS account UNIQUE",
+    "DEFINE INDEX IF NOT EXISTS ap_person_handle ON ap_person FIELDS handle UNIQUE",
+    "DEFINE TABLE IF NOT EXISTS ap_remote SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS ap_remote_actor ON ap_remote FIELDS actor UNIQUE",
+    "DEFINE INDEX IF NOT EXISTS ap_remote_key ON ap_remote FIELDS key_id",
+    "DEFINE TABLE IF NOT EXISTS ap_delivery SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS ap_delivery_share ON ap_delivery FIELDS share",
+    "DEFINE INDEX IF NOT EXISTS ap_delivery_next ON ap_delivery FIELDS next_at",
+    "DEFINE TABLE IF NOT EXISTS ap_inbox SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS ap_inbox_account ON ap_inbox FIELDS account",
+    "DEFINE INDEX IF NOT EXISTS ap_inbox_at ON ap_inbox FIELDS at",
     "DEFINE TABLE IF NOT EXISTS output SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS output_rec ON output FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS chat SCHEMALESS",

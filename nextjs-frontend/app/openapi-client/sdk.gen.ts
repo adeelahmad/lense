@@ -635,6 +635,8 @@ import type {
   GetCustomNodeData,
   GetCustomNodeErrors,
   GetCustomNodeResponses,
+  GetElsewhereData,
+  GetElsewhereResponses,
   GetEmbedLinkData,
   GetEmbedLinkErrors,
   GetEmbedLinkResponses,
@@ -1175,6 +1177,9 @@ import type {
   ListServicesResponses,
   ListSessionsData,
   ListSessionsResponses,
+  ListShareDeliveriesData,
+  ListShareDeliveriesErrors,
+  ListShareDeliveriesResponses,
   ListSharesData,
   ListSharesErrors,
   ListSharesResponses,
@@ -1735,6 +1740,9 @@ import type {
   SetDesiredData,
   SetDesiredErrors,
   SetDesiredResponses,
+  SetElsewhereData,
+  SetElsewhereErrors,
+  SetElsewhereResponses,
   SetInstallData,
   SetInstallErrors,
   SetInstallResponses,
@@ -14189,7 +14197,8 @@ export class Circles {
   /**
    * Create Circle
    *
-   * A new circle of yours. Audited as `circle.create`.
+   * A new circle of yours, with people here (`members`) and on other servers (`remote`, by handle). Audited as
+   * `circle.create`.
    */
   public static createCircle<ThrowOnError extends boolean = false>(
     options: Options<CreateCircleData, ThrowOnError>,
@@ -14268,6 +14277,53 @@ export class Circles {
   }
 
   /**
+   * List Share Deliveries
+   *
+   * How a share of yours is getting on with the people on other servers it went to: waiting, sent or gave up.
+   */
+  public static listShareDeliveries<ThrowOnError extends boolean = false>(
+    options: Options<ListShareDeliveriesData, ThrowOnError>,
+  ): RequestResult<ListShareDeliveriesResponses, ListShareDeliveriesErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListShareDeliveriesResponses, ListShareDeliveriesErrors, ThrowOnError>({
+      url: "/api/v1/circles/shares/{sid}/elsewhere",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Elsewhere
+   *
+   * Whether people on other servers can find you, and your handle (docs/federation.md).
+   */
+  public static getElsewhere<ThrowOnError extends boolean = false>(
+    options?: Options<GetElsewhereData, ThrowOnError>,
+  ): RequestResult<GetElsewhereResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetElsewhereResponses, unknown, ThrowOnError>({
+      url: "/api/v1/circles/elsewhere",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Elsewhere
+   *
+   * Let people on other servers find you by a handle and add you to their circles, or stop (your handle and keys
+   * are deleted). Audited as `circle.findable`.
+   */
+  public static setElsewhere<ThrowOnError extends boolean = false>(
+    options: Options<SetElsewhereData, ThrowOnError>,
+  ): RequestResult<SetElsewhereResponses, SetElsewhereErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetElsewhereResponses, SetElsewhereErrors, ThrowOnError>({
+      url: "/api/v1/circles/elsewhere",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Ask Their Agent
    *
    * Ask someone's agent a question, answered only from the namespaces they let a circle of theirs with you ask about
@@ -14336,8 +14392,8 @@ export class Circles {
   /**
    * Update Circle
    *
-   * Rename a circle of yours, set who is in it, add and take people out, or set what they may ask your agent
-   * (`lets`: free_busy lets them see when you're free).
+   * Rename a circle of yours, set who is in it, add and take people out (on other servers too, by handle), or set
+   * what they may ask your agent (`lets`: free_busy lets them see when you're free).
    */
   public static updateCircle<ThrowOnError extends boolean = false>(
     options: Options<UpdateCircleData, ThrowOnError>,

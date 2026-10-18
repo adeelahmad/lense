@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.api.federation import router as federation_router
 from app.api.iiif import router as iiif_router
 from app.api.linked_data import router as linked_data_router
 from app.api.mcp import router as mcp_router
@@ -94,6 +95,7 @@ def create_app(cfg: dict[str, Any] | None = None, db: store.DB | None = None, ba
     app.add_exception_handler(StarletteHTTPException, bearer_challenge)  # type: ignore[arg-type]
     app.include_router(iiif_router)
     app.include_router(linked_data_router)
+    app.include_router(federation_router)
     app.include_router(pages_router)
     app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
 

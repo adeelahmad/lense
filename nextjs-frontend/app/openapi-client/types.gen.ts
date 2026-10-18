@@ -4360,6 +4360,12 @@ export type Circle = {
    */
   members: Array<Person>;
   /**
+   * Remote
+   *
+   * people on other servers in it (docs/federation.md)
+   */
+  remote?: Array<RemotePerson>;
+  /**
    * Lets
    *
    * what its people may ask your agent: free_busy, questions
@@ -4396,6 +4402,12 @@ export type CircleCreate = {
    * people by account id or email
    */
   members?: Array<number | string>;
+  /**
+   * Remote
+   *
+   * people on other servers, by handle like sam@lens.example (docs/federation.md)
+   */
+  remote?: Array<string>;
   /**
    * Lets
    *
@@ -4504,6 +4516,18 @@ export type CircleUpdate = {
    * people to take out
    */
   remove?: Array<number | string>;
+  /**
+   * Add Remote
+   *
+   * people on other servers to add, by handle
+   */
+  add_remote?: Array<string>;
+  /**
+   * Remove Remote
+   *
+   * people on other servers to take out, by handle
+   */
+  remove_remote?: Array<string>;
   /**
    * Lets
    *
@@ -6640,6 +6664,49 @@ export type DriverSpec = {
     [key: string]: DriverField;
   };
   [key: string]: unknown;
+};
+
+/**
+ * Elsewhere
+ */
+export type Elsewhere = {
+  /**
+   * On
+   *
+   * whether an admin turned on circles with other servers, and Lens has a public address
+   */
+  on: boolean;
+  /**
+   * Findable
+   *
+   * whether people on other servers can find you and add you to their circles
+   */
+  findable: boolean;
+  /**
+   * Handle
+   *
+   * what they add you by, like adeel@lens.example
+   */
+  handle?: string | null;
+  /**
+   * Actor
+   *
+   * your ActivityPub actor
+   */
+  actor?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ElsewhereIn
+ */
+export type ElsewhereIn = {
+  /**
+   * Findable
+   *
+   * let people on other servers find you by your handle, or stop
+   */
+  findable: boolean;
 };
 
 /**
@@ -21220,6 +21287,27 @@ export type RemoteBackups = {
 };
 
 /**
+ * RemotePerson
+ */
+export type RemotePerson = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Handle
+   *
+   * where they are, like sam@lens.example
+   */
+  handle: string;
+  /**
+   * Name
+   */
+  name?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * Removed
  */
 export type Removed = {
@@ -25145,6 +25233,25 @@ export type ShareCreate = {
 };
 
 /**
+ * ShareDelivery
+ */
+export type ShareDelivery = {
+  /**
+   * Handle
+   */
+  handle?: string | null;
+  /**
+   * State
+   */
+  state: "waiting" | "sent" | "gave up";
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * ShareIn
  */
 export type ShareIn = {
@@ -25322,6 +25429,12 @@ export type Shared = {
    * how many members were given permission on the resource
    */
   granted: number;
+  /**
+   * Elsewhere
+   *
+   * people on other servers it's being sent to, by handle
+   */
+  elsewhere?: Array<string>;
   [key: string]: unknown;
 };
 
@@ -52720,6 +52833,79 @@ export type UndoCircleShareResponses = {
 };
 
 export type UndoCircleShareResponse = UndoCircleShareResponses[keyof UndoCircleShareResponses];
+
+export type ListShareDeliveriesData = {
+  body?: never;
+  path: {
+    /**
+     * Sid
+     */
+    sid: number;
+  };
+  query?: never;
+  url: "/api/v1/circles/shares/{sid}/elsewhere";
+};
+
+export type ListShareDeliveriesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListShareDeliveriesError = ListShareDeliveriesErrors[keyof ListShareDeliveriesErrors];
+
+export type ListShareDeliveriesResponses = {
+  /**
+   * Response Circles-List Share Deliveries
+   *
+   * Successful Response
+   */
+  200: Array<ShareDelivery>;
+};
+
+export type ListShareDeliveriesResponse = ListShareDeliveriesResponses[keyof ListShareDeliveriesResponses];
+
+export type GetElsewhereData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/circles/elsewhere";
+};
+
+export type GetElsewhereResponses = {
+  /**
+   * Successful Response
+   */
+  200: Elsewhere;
+};
+
+export type GetElsewhereResponse = GetElsewhereResponses[keyof GetElsewhereResponses];
+
+export type SetElsewhereData = {
+  body: ElsewhereIn;
+  path?: never;
+  query?: never;
+  url: "/api/v1/circles/elsewhere";
+};
+
+export type SetElsewhereErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetElsewhereError = SetElsewhereErrors[keyof SetElsewhereErrors];
+
+export type SetElsewhereResponses = {
+  /**
+   * Successful Response
+   */
+  200: Elsewhere;
+};
+
+export type SetElsewhereResponse = SetElsewhereResponses[keyof SetElsewhereResponses];
 
 export type AskTheirAgentData = {
   body: AskIn;

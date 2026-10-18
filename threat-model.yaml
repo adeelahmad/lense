@@ -8,7 +8,7 @@ project: lens
 prose_version: "threat-model.md@same-commit"
 model_status: under-review
 triage_policy: strict
-confidence: {documented: 219, maintainer: 46, inferred: 91, assumption: 8}
+confidence: {documented: 222, maintainer: 46, inferred: 91, assumption: 8}
 
 generation:
   model: "Claude Opus 5.5 (claude-opus-5-5)"
@@ -541,6 +541,16 @@ entry_points:
         obligation_id: ask-agent-only-when-let
         caller_must_enforce: "the person asked must have let a circle with the asker ask and named the namespaces; Lens answers from those only, wraps the question as outside text, and records the question and answer in their timeline"
         provenance: {kind: documented, source: 'docs/circles.md "Ask their agent"'}
+  - id: "POST /ap/users/<name>/inbox, GET /ap/users/<name>, /.well-known/webfinger (circles with other servers)"
+    component: ingest
+    parameters:
+      - name: "an ActivityPub activity and its HTTP Signature, a handle"
+        attacker_controllable: true
+        x-condition: "anyone on the internet once federation is on"
+        control_kinds: [data, size, x-prompt-injection, auth]
+        obligation_id: federation-signed-from-a-circle
+        caller_must_enforce: "Lens answers 404 until an admin and the person turn it on, and takes a Note only signed by someone in one of their circles with the key Lens kept, recent, its digest matching; its text is outside text"
+        provenance: {kind: documented, source: 'docs/federation.md "What travels"'}
   - id: "automations' params and prompts, POST /automations/preview and /automations/variables"
     component: optional
     parameters:
@@ -1103,6 +1113,15 @@ outputs:
       - {id: inv-ask-agent-named-namespaces, statement: "answers come only from the namespaces the owner named for that circle, never a vault's", property_id: P-ASK-AGENT, provenance: {kind: documented, source: 'docs/circles.md "Ask their agent"'}}
     downstream_must_not_assume:
       - {id: dmna-answer-only-excerpts, statement: "that the answer is only what the excerpts say, or that the question is not text steering a model", provenance: {kind: documented, source: 'docs/circles.md "Ask their agent"'}}
+  - component: outbound
+    channel: "What is shared with people on other servers (ap_delivery; domain/federation.py)"
+    taint: same-as-input
+    x-taint-note: "a signed Create of a Note: the share's name, note and timeline line, to the inbox Lens kept for each person elsewhere in the circles shared with"
+    taint_provenance: {kind: documented, source: 'docs/federation.md "What travels"'}
+    invariants:
+      - {id: inv-federation-no-item, statement: "the item itself, its links into Lens and a vault's content never leave", property_id: P-FEDERATION, provenance: {kind: documented, source: 'docs/federation.md "What travels"'}}
+    downstream_must_not_assume:
+      - {id: dmna-federation-kept-private, statement: "that the other server keeps it private, or deletes it when the share is undone", provenance: {kind: documented, source: 'docs/federation.md "What travels"'}}
 
 # ---------------------------------------------------------------- §1.10
 adversaries:
@@ -1710,6 +1729,14 @@ properties_claimed:
     violation_symptoms: [info-leak]
     x-voided-by: "whatever those namespaces hold can be read out by questions, so naming a namespace lets the circle read it through the agent; the model may say more than the excerpts support; the answer is a model call charged to both people (domain/circles_ask.py)"
     provenance: {kind: documented, source: 'docs/circles.md "Ask their agent"'}
+  - id: P-FEDERATION
+    kind: integrity
+    components: [ingest, outbound, authz]
+    tier: security-critical
+    conditions: "off until an admin turns on federation and a person makes themselves findable; an inbox takes a Note only signed with the key Lens kept when the person added the sender to a circle (never one the request points to), over the request target, host, date and a matching digest, dated within five minutes, from the activity's own actor, who is in one of their circles; its text is outside text; what is sent elsewhere is the share's name, note and timeline line, never the item, its links or a vault's content; Lens fetches only https addresses at public IPs, through netguard"
+    violation_symptoms: [info-leak, auth-bypass]
+    x-voided-by: "someone in a circle elsewhere can put anything in a Note they send, which then sits in the person's timeline as outside text; what was sent to another server can't be taken back there beyond a Delete it may ignore; a server whose key was stolen can send as its people (domain/federation.py)"
+    provenance: {kind: documented, source: 'docs/federation.md "What travels"'}
   - id: P-AUTH-REQ
     kind: authentication
     components: [web, identity]

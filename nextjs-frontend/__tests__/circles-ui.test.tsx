@@ -3,7 +3,16 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 import { CirclesPanel } from "@/components/account/circles";
-import { addable, firstPick, personLabel, reach, shareable, whom } from "@/components/circles/model";
+import {
+  addable,
+  firstPick,
+  isHandle,
+  personLabel,
+  reach,
+  remoteLabel,
+  shareable,
+  whom,
+} from "@/components/circles/model";
 import { ShareDialog } from "@/components/circles/share-dialog";
 import { familyOf } from "@/components/timeline/model";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -24,6 +33,8 @@ const mockApi = {
     ok({ id: 7, at: "", object: {}, circles: [], people: [], with_item: false, granted: 0 }),
   ),
   undoCircleShare: jest.fn(() => ok({ undone: 1, taken_back: 0 })),
+  getElsewhere: jest.fn(),
+  setElsewhere: jest.fn(() => ok({ on: true, findable: true, handle: "adeel@lens.example" })),
 };
 jest.mock("@/app/openapi-client", () => ({
   get Circles() {
@@ -40,6 +51,7 @@ jest.mock("@/components/ui/toast", () => ({ useToast: () => toast }));
 beforeEach(() => {
   jest.clearAllMocks();
   mockApi.listCircles.mockImplementation(() => ok({ circles: [family], suggested: ["Close family", "Friends"] }));
+  mockApi.getElsewhere.mockImplementation(() => ok({ on: false, findable: false }));
 });
 
 function show(ui: React.ReactNode) {
@@ -64,6 +76,19 @@ describe("the circles model", () => {
     expect(whom(all, [1, 4])).toBe("Immediate family and Friends");
     expect(whom([...all, { id: 6, name: "Work" }], [1, 4, 6])).toBe("3 circles");
     expect(reach(all, [1, 4])).toBe(2);
+    const kim = { id: 1, handle: "kim@far.example", name: null };
+    expect(
+      reach(
+        [
+          { ...family, remote: [kim] },
+          { ...friends, remote: [kim] },
+        ],
+        [1, 4],
+      ),
+    ).toBe(3);
+    expect(remoteLabel(kim)).toBe("kim@far.example");
+    expect(isHandle("@kim@far.example")).toBe(true);
+    expect(isHandle("kim")).toBe(false);
     expect(firstPick([family])).toEqual([1]);
     expect(firstPick(all)).toEqual([]);
   });
@@ -188,6 +213,46 @@ describe("sharing", () => {
     expect(await screen.findByRole("link", { name: "Make one under Profile" })).toHaveAttribute(
       "href",
       "/account#circles",
+    );
+  });
+});
+
+describe("circles with people on other servers", () => {
+  it("shows nothing of it until an admin turns it on", async () => {
+    show(<CirclesPanel />);
+    await screen.findByRole("button", { name: "Delete Immediate family" });
+    expect(screen.queryByRole("textbox", { name: /another server/ })).not.toBeInTheDocument();
+  });
+
+  it("makes you findable, and adds someone elsewhere by handle with Enter", async () => {
+    mockApi.getElsewhere.mockImplementation(() => ok({ on: true, findable: false }));
+    show(<CirclesPanel />);
+    fireEvent.click(await screen.findByRole("switch", { name: /People on other servers can find you/ }));
+    await waitFor(() =>
+      expect(mockApi.setElsewhere).toHaveBeenCalledWith(expect.objectContaining({ body: { findable: true } })),
+    );
+    expect(await screen.findByText("adeel@lens.example")).toBeInTheDocument();
+    const box = screen.getByRole("textbox", { name: "Add someone on another server to Immediate family" });
+    fireEvent.change(box, { target: { value: "kim@far.example" } });
+    fireEvent.submit(box);
+    await waitFor(() =>
+      expect(mockApi.updateCircle).toHaveBeenCalledWith(
+        expect.objectContaining({ path: { cid: 1 }, body: { add_remote: ["kim@far.example"] } }),
+      ),
+    );
+  });
+
+  it("takes someone elsewhere out by their handle", async () => {
+    mockApi.getElsewhere.mockImplementation(() => ok({ on: true, findable: true, handle: "adeel@lens.example" }));
+    mockApi.listCircles.mockImplementation(() =>
+      ok({ circles: [{ ...family, remote: [{ id: 3, handle: "kim@far.example", name: "Kim" }] }], suggested: [] }),
+    );
+    show(<CirclesPanel />);
+    fireEvent.click(await screen.findByRole("button", { name: "Take Kim out of Immediate family" }));
+    await waitFor(() =>
+      expect(mockApi.updateCircle).toHaveBeenCalledWith(
+        expect.objectContaining({ body: { remove_remote: ["kim@far.example"] } }),
+      ),
     );
   });
 });

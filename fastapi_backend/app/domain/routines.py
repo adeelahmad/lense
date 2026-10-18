@@ -629,6 +629,13 @@ def run_due(db, cfg, log=print, now=None):
         if log:
             log(f"approvals: {type(e).__name__}: {e}")
     try:
+        from . import federation
+
+        federation.deliver_due(db, cfg)  # shares for people on other servers, while circles with them are on
+    except Exception as e:  # noqa: BLE001 - the schedule carries on
+        if log:
+            log(f"federation: {type(e).__name__}: {e}")
+    try:
         analytics.tick(db, cfg, now)  # once a day, while Google Analytics is on (docs/analytics.md)
     except Exception as e:  # noqa: BLE001 - the schedule carries on
         if log:

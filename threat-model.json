@@ -6,7 +6,7 @@
   "scope_subpath": null,
   "description": "Lens is a self-hosted archive for documents, recordings, photos and messages: it reads, transcribes, indexes and publishes them, and people search and chat over them. One operator (the instance admin) runs an instance for their own people: a FastAPI API, a Next.js web app that proxies the API and holds the sign-in session, and background workers, around one SurrealDB database, with content split into namespaces and per-namespace roles. Exposing an instance to the internet behind HTTPS (reverse proxy or Cloudflare tunnel) is supported. Only the instance admin (equivalent to host code execution) and the host operator are trusted; everyone else is trusted only as far as their role.",
   "confidence": {
-    "documented": 266,
+    "documented": 269,
     "inferred": 99
   },
   "components": [
@@ -93,7 +93,8 @@
       "name": "ingest",
       "entry_points": [
         "/uploads, /import, /recordings/{rid}/files",
-        "POST /hooks/import"
+        "POST /hooks/import",
+        "POST /ap/users/<name>/inbox, GET /ap/users/<name>, /.well-known/webfinger (circles with other servers)"
       ],
       "touches": [
         "filesystem",
@@ -621,6 +622,15 @@
       "caller_must_enforce": "the person asked must have let a circle with the asker ask and named the namespaces; Lens answers from those only, wraps the question as outside text, and records the question and answer in their timeline",
       "provenance": "documented",
       "source": "docs/circles.md \"Ask their agent\""
+    },
+    {
+      "entry_point": "POST /ap/users/<name>/inbox, GET /ap/users/<name>, /.well-known/webfinger (circles with other servers)",
+      "parameter": "an ActivityPub activity and its HTTP Signature, a handle",
+      "attacker_controllable": "yes",
+      "component": "ingest",
+      "caller_must_enforce": "Lens answers 404 until an admin and the person turn it on, and takes a Note only signed by someone in one of their circles with the key Lens kept, recent, its digest matching; its text is outside text",
+      "provenance": "documented",
+      "source": "docs/federation.md \"What travels\""
     },
     {
       "entry_point": "automations' params and prompts, POST /automations/preview and /automations/variables",
@@ -1204,6 +1214,14 @@
       "conditions": "someone's agent answers a question only for people in a circle of theirs that lets questions, which nothing but they turn on, and only from excerpts in the namespaces they named on it (about) that they still read, never a vault's; the question is outside text to the model; every question and its answer show in their own timeline; a source links only when the asker can open it",
       "provenance": "documented",
       "source": "docs/circles.md \"Ask their agent\""
+    },
+    {
+      "property": "P-FEDERATION",
+      "violation_symptom": "info-leak, auth-bypass",
+      "severity_tier": "security",
+      "conditions": "off until an admin turns on federation and a person makes themselves findable; an inbox takes a Note only signed with the key Lens kept when the person added the sender to a circle (never one the request points to), over the request target, host, date and a matching digest, dated within five minutes, from the activity's own actor, who is in one of their circles; its text is outside text; what is sent elsewhere is the share's name, note and timeline line, never the item, its links or a vault's content; Lens fetches only https addresses at public IPs, through netguard",
+      "provenance": "documented",
+      "source": "docs/federation.md \"What travels\""
     },
     {
       "property": "P-AUTH-REQ",

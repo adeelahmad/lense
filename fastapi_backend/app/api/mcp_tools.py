@@ -4520,7 +4520,8 @@ def list_circles(ctx: Context, shares: str | None, limit: int) -> dict[str, Any]
     "Make or change a circle",
     "Make a circle of trust (name and members), or change one of yours (circle_id): rename it, set its members, add "
     "or take people out, or set what they may ask your agent (lets: free_busy lets them see when you're free). Members "
-    "are people on this Lens, by account id or email, from list_circles' people. delete: true deletes it (what was "
+    "are people on this Lens, by account id or email, from list_circles' people; add_remote adds people on other servers "
+    "by handle (sam@lens.example), once an admin turned on circles with other servers. delete: true deletes it (what was "
     "shared with it stays shared). Needs a token with the write scope.",
     Arg("circle_id", "integer", "the circle to change; leave out to make one"),
     Arg("name", "string", "its name, like Immediate family", max_length=80),
@@ -4529,6 +4530,8 @@ def list_circles(ctx: Context, shares: str | None, limit: int) -> dict[str, Any]
     Arg("remove", "string[]", "people to take out"),
     Arg("lets", "string[]", "what its people may ask your agent: free_busy (when you're free), questions; replaces what they could"),
     Arg("about", "string[]", "the namespaces of yours, by name, their questions are answered from (never a vault)"),
+    Arg("add_remote", "string[]", "people on other servers to add, by handle like sam@lens.example"),
+    Arg("remove_remote", "string[]", "people on other servers to take out, by handle"),
     Arg("delete", "boolean", "delete the circle", default=False),
     writes=True,
     personal=True,
@@ -4542,6 +4545,8 @@ def save_circle(
     remove: list[str] | None,
     lets: list[str] | None,
     about: list[str] | None,
+    add_remote: list[str] | None,
+    remove_remote: list[str] | None,
     delete: bool,
 ) -> dict[str, Any]:
     from app.domain import circles
@@ -4553,16 +4558,39 @@ def save_circle(
             raise ToolError("name the circle to delete with circle_id")
         if not name:
             raise ToolError("a new circle needs a name")
-        cid = circles.create(ctx.db, me, name, list(members or []) + list(add or []), lets or (), about or ())
+        cid = circles.create(ctx.db, me, name, list(members or []) + list(add or []), lets or (), about or (), add_remote or (), ctx.cfg)
         auth.audit(ctx.db, ctx.user.as_audit(), "circle.create", f"circle:{cid}", {"via": "mcp"})
         return {"circle": circles.get(ctx.db, cid, me["id"])}
     if delete:
         circles.delete(ctx.db, me, circle_id)
         auth.audit(ctx.db, ctx.user.as_audit(), "circle.delete", f"circle:{circle_id}", {"via": "mcp"})
         return {"deleted": circle_id}
-    out = circles.update(ctx.db, me, circle_id, name, members, add or (), remove or (), lets, about)
+    out = circles.update(
+        ctx.db, me, circle_id, name, members, add or (), remove or (), lets, about, add_remote or (), remove_remote or (), ctx.cfg
+    )
     auth.audit(ctx.db, ctx.user.as_audit(), "circle.update", f"circle:{circle_id}", {"via": "mcp"})
     return {"circle": out}
+
+
+@tool(
+    "circles_elsewhere",
+    "Be findable on other servers",
+    "Whether people on other Lens or ActivityPub servers can find you by a handle and add you to their circles, and "
+    "your handle. findable: true makes you findable (a handle and keys), false stops it (they're deleted); leave it out "
+    "to only read. It needs an admin to have turned on circles with other servers. Making you findable is the person's "
+    "call: change it only when they ask. Changing it needs a token with the write scope.",
+    Arg("findable", "boolean", "true to be findable, false to stop; leave out to read"),
+    personal=True,
+)
+def circles_elsewhere(ctx: Context, findable: bool | None) -> dict[str, Any]:
+    from app.domain import federation
+
+    if findable is None:
+        return federation.me(ctx.db, ctx.cfg, ctx.user.id)
+    _writer(ctx, "change whether you're findable")
+    out = federation.findable(ctx.db, ctx.cfg, _me(ctx), findable)
+    auth.audit(ctx.db, ctx.user.as_audit(), "circle.findable", f"account:{ctx.user.id}", {"findable": findable, "via": "mcp"})
+    return out
 
 
 @tool(
@@ -4627,7 +4655,7 @@ def undo_share(ctx: Context, share_id: int) -> dict[str, Any]:
     from app.domain import circles
 
     _writer(ctx, "take shares back")
-    out = circles.undo(ctx.db, _me(ctx), share_id)
+    out = circles.undo(ctx.db, _me(ctx), share_id, ctx.cfg)
     auth.audit(ctx.db, ctx.user.as_audit(), "circle.unshare", f"circle_share:{share_id}", {"via": "mcp"})
     return out
 

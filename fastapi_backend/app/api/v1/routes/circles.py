@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.api.deps import Acl, Cfg, CurrentUser, Db, Principal, Writer, domain_errors
 from app.api.v1.routes import activities as activity_routes
-from app.domain import auth, circles, circles_ask
+from app.domain import auth, circles, circles_ask, federation
 from app.schemas.circles import (
     AgentAnswer,
     AskIn,
@@ -17,8 +17,11 @@ from app.schemas.circles import (
     CircleShare,
     CircleUpdate,
     Direction,
+    Elsewhere,
+    ElsewhereIn,
     Person,
     Shared,
+    ShareDelivery,
     ShareIn,
     ShareUndone,
     WhenFree,
@@ -49,10 +52,11 @@ def list_circle_people(user: CurrentUser, db: Db) -> list[Person]:
 
 
 @router.post("", status_code=201)
-def create_circle(body: CircleCreate, user: Writer, db: Db) -> Circle:
-    """A new circle of yours. Audited as `circle.create`."""
+def create_circle(body: CircleCreate, user: Writer, db: Db, cfg: Cfg) -> Circle:
+    """A new circle of yours, with people here (`members`) and on other servers (`remote`, by handle). Audited as
+    `circle.create`."""
     with domain_errors():
-        cid = circles.create(db, me(user), body.name, body.members, body.lets, body.about)
+        cid = circles.create(db, me(user), body.name, body.members, body.lets, body.about, body.remote, cfg)
     auth.audit(db, user.as_audit(), "circle.create", f"circle:{cid}", {"members": len(body.members)})
     return Circle.model_validate(circles.get(db, cid, user.id))
 
@@ -98,12 +102,36 @@ def share_with_circles(body: ShareIn, user: Writer, acl: Acl, db: Db, cfg: Cfg) 
 
 
 @router.delete("/shares/{sid}")
-def undo_circle_share(sid: int, user: Writer, db: Db) -> ShareUndone:
+def undo_circle_share(sid: int, user: Writer, db: Db, cfg: Cfg) -> ShareUndone:
     """Take back a share of yours: it leaves everyone's timeline, and the permissions it gave are taken back."""
     with domain_errors():
-        out = circles.undo(db, me(user), sid)
+        out = circles.undo(db, me(user), sid, cfg)
     auth.audit(db, user.as_audit(), "circle.unshare", f"circle_share:{sid}", {"taken_back": out["taken_back"]})
     return ShareUndone.model_validate(out)
+
+
+@router.get("/shares/{sid}/elsewhere")
+def list_share_deliveries(sid: int, user: CurrentUser, db: Db) -> list[ShareDelivery]:
+    """How a share of yours is getting on with the people on other servers it went to: waiting, sent or gave up."""
+    with domain_errors():
+        circles.get_share(db, me(user), sid)
+    return [ShareDelivery.model_validate(d) for d in federation.deliveries(db, sid)]
+
+
+@router.get("/elsewhere")
+def get_elsewhere(user: CurrentUser, db: Db, cfg: Cfg) -> Elsewhere:
+    """Whether people on other servers can find you, and your handle (docs/federation.md)."""
+    return Elsewhere.model_validate(federation.me(db, cfg, user.id))
+
+
+@router.put("/elsewhere")
+def set_elsewhere(body: ElsewhereIn, user: Writer, db: Db, cfg: Cfg) -> Elsewhere:
+    """Let people on other servers find you by a handle and add you to their circles, or stop (your handle and keys
+    are deleted). Audited as `circle.findable`."""
+    with domain_errors():
+        out = federation.findable(db, cfg, me(user), body.findable)
+    auth.audit(db, user.as_audit(), "circle.findable", f"account:{user.id}", {"findable": body.findable})
+    return Elsewhere.model_validate(out)
 
 
 @router.post("/ask")
@@ -144,11 +172,24 @@ def get_circle(cid: int, user: CurrentUser, db: Db) -> Circle:
 
 
 @router.patch("/{cid}")
-def update_circle(cid: int, body: CircleUpdate, user: Writer, db: Db) -> Circle:
-    """Rename a circle of yours, set who is in it, add and take people out, or set what they may ask your agent
-    (`lets`: free_busy lets them see when you're free)."""
+def update_circle(cid: int, body: CircleUpdate, user: Writer, db: Db, cfg: Cfg) -> Circle:
+    """Rename a circle of yours, set who is in it, add and take people out (on other servers too, by handle), or set
+    what they may ask your agent (`lets`: free_busy lets them see when you're free)."""
     with domain_errors():
-        out = circles.update(db, me(user), cid, body.name, body.members, body.add, body.remove, body.lets, body.about)
+        out = circles.update(
+            db,
+            me(user),
+            cid,
+            body.name,
+            body.members,
+            body.add,
+            body.remove,
+            body.lets,
+            body.about,
+            body.add_remote,
+            body.remove_remote,
+            cfg,
+        )
     auth.audit(db, user.as_audit(), "circle.update", f"circle:{cid}", None)
     return Circle.model_validate(out)
 

@@ -97,6 +97,7 @@ nav:
       - Schedules: schedules.md
       - Timeline: timeline.md
       - Circles of trust: circles.md
+      - Circles with other servers: federation.md
   - Knowledge:
       - Graph and Cypher: graph.md
       - Graph history: graph-history.md
