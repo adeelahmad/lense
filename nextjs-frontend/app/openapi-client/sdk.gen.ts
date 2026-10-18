@@ -94,6 +94,9 @@ import type {
   CancelJobData,
   CancelJobErrors,
   CancelJobResponses,
+  CancelJobsData,
+  CancelJobsErrors,
+  CancelJobsResponses,
   CancelRcloneSigninData,
   CancelRcloneSigninErrors,
   CancelRcloneSigninResponses,
@@ -481,6 +484,9 @@ import type {
   EnableAutomationData,
   EnableAutomationErrors,
   EnableAutomationResponses,
+  EnhanceRecordingData,
+  EnhanceRecordingErrors,
+  EnhanceRecordingResponses,
   EntityToTopicData,
   EntityToTopicErrors,
   EntityToTopicResponses,
@@ -592,6 +598,9 @@ import type {
   GetEmbedLinkResponses,
   GetEncryptionData,
   GetEncryptionResponses,
+  GetEnhancedData,
+  GetEnhancedErrors,
+  GetEnhancedResponses,
   GetEntityConnectionsData,
   GetEntityConnectionsErrors,
   GetEntityConnectionsResponses,
@@ -1224,6 +1233,9 @@ import type {
   MetricsData,
   MetricsErrors,
   MetricsResponses,
+  MoveJobData,
+  MoveJobErrors,
+  MoveJobResponses,
   MoveMentionData,
   MoveMentionErrors,
   MoveMentionResponses,
@@ -1507,6 +1519,9 @@ import type {
   RetryJobData,
   RetryJobErrors,
   RetryJobResponses,
+  RetryJobsData,
+  RetryJobsErrors,
+  RetryJobsResponses,
   RetypeEntitiesData,
   RetypeEntitiesErrors,
   RetypeEntitiesResponses,
@@ -5985,6 +6000,22 @@ export class Resources {
   }
 
   /**
+   * Enhance Recording
+   *
+   * Enhance an image whatever the settings and its quality (docs/enhance.md): an enhanced copy is made, and its
+   * pipeline's steps after enhance (reading its text, faces, objects, …) run again on that copy. The original stays as
+   * it is. 400 for anything but an image. Audited as `recording.enhance`.
+   */
+  public static enhanceRecording<ThrowOnError extends boolean = false>(
+    options: Options<EnhanceRecordingData, ThrowOnError>,
+  ): RequestResult<EnhanceRecordingResponses, EnhanceRecordingErrors, ThrowOnError> {
+    return (options.client ?? client).post<EnhanceRecordingResponses, EnhanceRecordingErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/enhance",
+      ...options,
+    });
+  }
+
+  /**
    * Revoke Shares
    *
    * Revoke every link that still works. Opening one shows a page saying the link isn't available.
@@ -8918,6 +8949,22 @@ export class Video {
   }
 
   /**
+   * Get Enhanced
+   *
+   * The enhanced copy the enhance step made of a low quality image (docs/enhance.md), to save. Members of its
+   * namespace only (a bearer token, or a signed link the API gave one): visitors get its pages, with faces pixelated
+   * where the namespace does that.
+   */
+  public static getEnhanced<ThrowOnError extends boolean = false>(
+    options: Options<GetEnhancedData, ThrowOnError>,
+  ): RequestResult<GetEnhancedResponses, GetEnhancedErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetEnhancedResponses, GetEnhancedErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/enhanced",
+      ...options,
+    });
+  }
+
+  /**
    * Get Frame
    *
    * A still (shot frame, text-on-screen frame or face crop), or a document's or an image's page. Where the namespace
@@ -9183,9 +9230,10 @@ export class Jobs {
   /**
    * List Jobs
    *
-   * Recent jobs, newest first, with counts by status and by namespace (of the jobs in `namespace` and `batch`, of
-   * any status), plus the latest job's step and log (for the progress bar). With `recording`, that asset's runs,
-   * also for someone who sees it through a role on its collection (then the counts are of those runs only).
+   * Recent jobs, newest first (or with `order=queue` in the order workers take them), with counts by status and by
+   * namespace (of the jobs in `namespace` and `batch`, of any status), plus the latest job's step and log (for the
+   * progress bar). With `recording`, that asset's runs, also for someone who sees it through a role on its
+   * collection (then the counts are of those runs only).
    */
   public static listJobs<ThrowOnError extends boolean = false>(
     options?: Options<ListJobsData, ThrowOnError>,
@@ -9256,6 +9304,65 @@ export class Jobs {
     return (options.client ?? client).post<QueueStepResponses, QueueStepErrors, ThrowOnError>({
       url: "/api/v1/jobs/steps/{step}",
       ...options,
+    });
+  }
+
+  /**
+   * Cancel Jobs
+   *
+   * Clear the queue: cancel every queued and held run in the namespaces you may process in (or `namespace`), or
+   * just `jobs`. With `running` in `status`, running runs stop after the step they're on. POST /jobs/retry with the
+   * ids it returns queues them again. Audited as ``jobs.cancel``.
+   */
+  public static cancelJobs<ThrowOnError extends boolean = false>(
+    options: Options<CancelJobsData, ThrowOnError>,
+  ): RequestResult<CancelJobsResponses, CancelJobsErrors, ThrowOnError> {
+    return (options.client ?? client).post<CancelJobsResponses, CancelJobsErrors, ThrowOnError>({
+      url: "/api/v1/jobs/cancel",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Retry Jobs
+   *
+   * Retry in bulk: every failed run (the dead letter queue; cancelled ones too with `status`) in the namespaces you
+   * may process in (or `namespace`), or just `jobs`, each from the step it stopped at, at the back of the queue. A run
+   * whose asset was deleted or already has a run queued or running is skipped. Audited as ``jobs.retry``.
+   */
+  public static retryJobs<ThrowOnError extends boolean = false>(
+    options: Options<RetryJobsData, ThrowOnError>,
+  ): RequestResult<RetryJobsResponses, RetryJobsErrors, ThrowOnError> {
+    return (options.client ?? client).post<RetryJobsResponses, RetryJobsErrors, ThrowOnError>({
+      url: "/api/v1/jobs/retry",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Move Job
+   *
+   * Reprioritise a queued run: move it to the `top` (next) or `bottom` of the queue, or just `before` or `after`
+   * another queued run (one you can see). Workers take queued runs in this order, when they can run their step.
+   */
+  public static moveJob<ThrowOnError extends boolean = false>(
+    options: Options<MoveJobData, ThrowOnError>,
+  ): RequestResult<MoveJobResponses, MoveJobErrors, ThrowOnError> {
+    return (options.client ?? client).post<MoveJobResponses, MoveJobErrors, ThrowOnError>({
+      url: "/api/v1/jobs/{jid}/move",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 
@@ -10973,8 +11080,10 @@ export class Projects {
   /**
    * Start Thread
    *
-   * A new thread: a conversation in the project's namespaces (ask in it with POST /chats/{id}/messages). With `chat`,
-   * one of your conversations joins the project instead, drawing on its namespaces from then on.
+   * A new thread: a conversation in the project's namespaces (ask in it with POST /chats/{id}/messages). With a
+   * `brief`, it is asked there at once and answered in the background, as you, with your tools and approvals: GET
+   * /chats/{id} shows the answer once it's written (the thread is `answering` until then). With `chat`, one of your
+   * conversations joins the project instead, drawing on its namespaces from then on (with a brief, asked there next).
    */
   public static startThread<ThrowOnError extends boolean = false>(
     options: Options<StartThreadData, ThrowOnError>,

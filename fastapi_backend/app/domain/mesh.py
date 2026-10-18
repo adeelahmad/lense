@@ -68,6 +68,8 @@ GROUP_PRIMARY, GROUP_NODE = "lens-primary", "lens-node"
 # node's agent serves the primary only
 DB_PORT, API_PORT, AGENT_PORT = 8000, 8080, 7443
 INTERFACE = "lens-mesh"
+# what nodes call on the primary, at its mesh address (core/middleware.py lets that address in for these alone)
+NODE_PATHS = ("/api/v1/mesh/node/",)
 TOKEN_PREFIX = "lensjoin1."
 NODE_PREFIX = "lensnode1."
 TOKEN_HOURS = (1, 24 * 30)
@@ -560,6 +562,19 @@ def make_token(db, cfg, by=None, role="worker", name=None, namespaces=None, hour
     )
     row = db.one("SELECT record::id(id) AS id, * FROM $r", r=R("mesh_token", tid))
     return _token_view(row), f"{TOKEN_PREFIX}{tid}.{secret}"
+
+
+def join_line(cfg, token, url=None):
+    """The install line another machine joins with (docs/mesh.md, Joining): install.sh with this install's address
+    (the web app's: `url`, else FRONTEND_URL) and the token. Shown once, with the token."""
+    from app.config import settings as env
+
+    repo = cfg["updates"].get("repo") or "adeelahmad/lense"
+    url = (url or env.FRONTEND_URL).rstrip("/")
+    if not re.fullmatch(r"https?://[A-Za-z0-9.\-\[\]:]+(/[A-Za-z0-9._~/-]*)?", url):
+        raise ValueError(f"{url!r} isn't an address a machine can join at")
+    parse_token(token)
+    return f"curl -fsSL https://raw.githubusercontent.com/{repo}/main/install.sh | LENS_JOIN={url} LENS_JOIN_TOKEN={token} sh"
 
 
 def revoke_token(db, tid):

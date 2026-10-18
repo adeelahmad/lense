@@ -609,7 +609,7 @@ Todo:
 - [x] API tests
 - [x] Web app: Routines page, run history, proposed changes review, graph nodes on the canvas
 - [ ] Notify (Matterbridge/webhooks thread) when a run fails or leaves proposals
-- [ ] More graph nodes: retype entities, hide noise, cluster topics
+- [x] More graph nodes: retype entities, hide noise, cluster topics (the candidates node's retype, hide and cluster kinds)
 - [ ] Routing rules (shared IMAP inbox → namespaces) slot in between sync and ingest
 
 ## 2026-10-02 · Workflow canvas

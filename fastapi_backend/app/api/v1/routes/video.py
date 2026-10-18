@@ -19,7 +19,7 @@ from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Writer, domain_error
 from app.api.media import sign_urls
 from app.api.streaming import LOCKED, picture_response, stored_file
 from app.api.v1.routes.recordings import serve_audio
-from app.domain import auth, convert, documents, files, ingest, jobs, keyring, store, video
+from app.domain import auth, convert, documents, enhance, files, ingest, jobs, keyring, store, video
 from app.domain import faces as facemod
 from app.domain.store import API, DB, R
 from app.schemas.common import Ok
@@ -79,6 +79,21 @@ def get_pdf(rid: int, request: Request, acl: Acl, db: Db, cfg: Cfg, s: str = "")
         raise HTTPException(404, "not found")
     name = pathlib.PurePosixPath(str((rec.get("remote") or {}).get("path") or rec.get("path") or "document")).stem or "document"
     return stored_file(db, cfg, path, request, "application/pdf", f"{name}.pdf", files.HEADERS)
+
+
+@router.get("/recordings/{rid}/enhanced", response_class=FileResponse, responses={200: {"content": {"image/jpeg": {}}}})
+def get_enhanced(rid: int, request: Request, acl: Acl, db: Db, cfg: Cfg, s: str = "") -> Response:
+    """The enhanced copy the enhance step made of a low quality image (docs/enhance.md), to save. Members of its
+    namespace only (a bearer token, or a signed link the API gave one): visitors get its pages, with faces pixelated
+    where the namespace does that."""
+    rec = acl.recording(rid, share=s)
+    if not acl.member(rec):
+        raise HTTPException(404, "not found")
+    path = enhance.enhanced_path(cfg, rid)
+    if not path.is_file():
+        raise HTTPException(404, "not found")
+    name = pathlib.PurePosixPath(str((rec.get("remote") or {}).get("path") or rec.get("path") or "image")).stem or "image"
+    return stored_file(db, cfg, path, request, "image/jpeg", f"{name}-enhanced.jpg", files.HEADERS)
 
 
 @router.get("/recordings/{rid}/frames/{name}", response_class=FileResponse, responses={200: {"content": {"image/jpeg": {}}}})

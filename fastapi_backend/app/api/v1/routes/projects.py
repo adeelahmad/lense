@@ -7,7 +7,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.api.deps import Acl, CurrentUser, Db, Principal, Writer
+from app.api.deps import Acl, Cfg, CurrentUser, Db, Principal, Writer
 from app.domain import projects
 from app.domain.store import DB
 from app.schemas.common import Created, Ok
@@ -103,16 +103,20 @@ def list_threads(pid: int, user: CurrentUser, db: Db) -> list[ProjectThread]:
 
 
 @router.post("/{pid}/threads")
-def start_thread(pid: int, user: Writer, db: Db, body: ThreadCreate | None = None) -> Created:
-    """A new thread: a conversation in the project's namespaces (ask in it with POST /chats/{id}/messages). With `chat`,
-    one of your conversations joins the project instead, drawing on its namespaces from then on."""
+def start_thread(pid: int, user: Writer, db: Db, cfg: Cfg, body: ThreadCreate | None = None) -> Created:
+    """A new thread: a conversation in the project's namespaces (ask in it with POST /chats/{id}/messages). With a
+    `brief`, it is asked there at once and answered in the background, as you, with your tools and approvals: GET
+    /chats/{id} shows the answer once it's written (the thread is `answering` until then). With `chat`, one of your
+    conversations joins the project instead, drawing on its namespaces from then on (with a brief, asked there next)."""
     body = body or ThreadCreate()
     p = own(db, pid, user)
     try:
+        cid = body.chat if body.chat is not None else projects.start_thread(db, p, body.title)
         if body.chat is not None:
             projects.adopt(db, p, body.chat)
-            return Created(id=body.chat)
-        return Created(id=projects.start_thread(db, p, body.title))
+        if body.brief and body.brief.strip():
+            projects.brief(db, cfg, p, cid, body.brief, via="web" if user.via == "access" else "api")
+        return Created(id=cid)
     except KeyError:
         raise HTTPException(404, "no such conversation of yours") from None
     except ValueError as e:

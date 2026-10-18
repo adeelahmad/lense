@@ -334,7 +334,8 @@ export const NODES: Record<string, Info> = {
   // Graph workflows (scope graph)
   candidates: {
     label: "Find what to tidy",
-    describe: "Found by rules: look-alike entities to merge or link, entities whose type looks wrong, or noise to hide",
+    describe:
+      "Found by rules: look-alike entities to merge or link, entities whose type looks wrong, noise to hide, or topics to group under a broader one",
     icon: SearchCheck,
     tone: "green",
     inputs: 1,
@@ -346,7 +347,7 @@ export const NODES: Record<string, Info> = {
   llm_judge: {
     label: "Ask the model",
     describe:
-      "Asks the model about each candidate, with lines where each name appears: one thing or two, its type, or noise",
+      "Asks the model about each candidate, with lines where each name appears: one thing or two, its type, noise, or whether topics go together",
     icon: Gavel,
     tone: "gold",
     inputs: 1,
@@ -404,7 +405,7 @@ export const NODES: Record<string, Info> = {
   apply_changes: {
     label: "Apply changes",
     describe:
-      "Makes the changes it’s sure of (merges, links, types, hides) and proposes the rest for someone to accept; all can be undone",
+      "Makes the changes it’s sure of (merges, links, types, hides, groups) and proposes the rest for someone to accept; all can be undone",
     icon: CheckCheck,
     tone: "gold",
     inputs: 1,
@@ -612,6 +613,7 @@ export const CANDIDATE_KINDS: Record<string, string> = {
   link: "look-alikes across namespaces",
   retype: "wrong types",
   hide: "noise",
+  cluster: "topics to group",
 };
 /** What a classify node chooses from. */
 export const VOCABULARIES: Record<string, string> = { content_type: "Content types", topic: "The namespace’s topics" };

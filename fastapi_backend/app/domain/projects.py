@@ -6,7 +6,9 @@ project's namespaces (each one's scope follows the project's when that changes):
 
 - the coordinator, the project's own conversation, made with it (and made again if it was deleted): talking about the
   project as a whole, it is told about every thread;
-- threads, each about one part of the work; one marked done stays to read.
+- threads, each about one part of the work; one marked done stays to read. A thread can start with a brief (from the
+  person, an agent or the coordinator's start_thread), which the assistant answers in the background (work), with the
+  person's tools and approvals; a process that stops mid-answer leaves the thread marked by the sweep, not stuck.
 
 Every answer in a project's conversation reads what the project is (projects.note): its name, goal and instructions,
 which conversation this is, and, for the coordinator, the threads. The goal and instructions are the person's own
@@ -20,7 +22,13 @@ rooms and email routed to a project, a project template.
 
 from __future__ import annotations
 
-from . import chat, store, untrusted
+import datetime as dt
+import logging
+import threading
+
+from . import activity, auth, chat, llm, store, untrusted
+
+log = logging.getLogger("lens")
 
 R = store.R
 NAME_MAX = 120
@@ -31,6 +39,12 @@ PER_ACCOUNT = 500
 THREADS_MAX = 500  # per project
 NOTE_THREADS = 30  # threads the coordinator is told about, the most recent first
 LAST_CHARS = 300  # of a thread's last message, in the coordinator's note and in listings
+BRIEF_MAX = 4000
+STARTS_PER_ANSWER = 3  # threads one answer of the coordinator may start
+BRIEF_STEPS = 12  # rounds of tool calls a brief's answer may take, at most
+STALE_SECONDS = 600  # a brief's answer with no sign of life for this long was cut off (the process stopped)
+SWEEP_SECONDS = 60
+STOPPED = "Lens stopped before this was answered: ask again."
 FIELDS = (
     "record::id(id) AS id, account, name, goal ?? '' AS goal, instructions ?? '' AS instructions, spaces ?? [] AS spaces, "
     "coordinator, archived ?? false AS archived, created_at, updated_at"
@@ -276,6 +290,174 @@ def for_chat(db, cid):
         return get(db, row["project"], row["account"])
     except KeyError:
         return None
+
+
+# ---------- briefs: a question answered in the background ----------
+def brief(db, cfg, p, cid, text, by="person", via="api"):
+    """Ask `text` in thread `cid`, where it goes on from, and answer it in the background (launch). `by`: person, or
+    coordinator when the coordinator's start_thread wrote it (then it isn't taken for the person's own message). The
+    question's id."""
+    text = str(text or "").strip()
+    if not text:
+        raise ValueError("A brief says what to do.")
+    if len(text) > BRIEF_MAX:
+        raise ValueError(f"A brief can have up to {BRIEF_MAX} characters.")
+    t = thread(db, p, cid)
+    if t["answering"]:
+        raise ValueError("An answer is being written in that thread: wait for it, or stop it.")
+    c = db.one("SELECT title, title_by, head FROM $r", r=R("chat", int(cid))) or {}
+    if c.get("head") is None and chat.lens_titles(c):
+        chat.title_from_question(db, int(cid), text)
+    origin = {"project": p["id"], "by": "coordinator"} if by == "coordinator" else None
+    qid = chat.add(db, int(cid), "user", text, origin=origin, meta=chat.question_record(via))
+    db.q(
+        "UPDATE $r SET answering = true, stop_requested = false, working = $w",
+        r=R("chat", int(cid)),
+        w={"question": qid, "beat": store.now()},
+    )
+    touch(db, p["id"])
+    launch(db, cfg, int(cid), qid)
+    return qid
+
+
+def launch(db, cfg, cid, qid):
+    """Answer the question in the background, on a thread of its own."""
+    threading.Thread(target=work, args=(db, cfg, cid, qid), daemon=True, name=f"project thread {cid}").start()
+
+
+def _account(db, aid):
+    a = auth.get_account(db, aid)
+    if not a or a.get("disabled") or a.get("removed_at"):
+        return None
+    return {"id": a["id"], "email": a["email"], "admin": bool(a.get("admin"))}
+
+
+def _beat(db, cid, qid):
+    db.q("UPDATE $r SET working.beat = $t WHERE working.question = $q", r=R("chat", cid), t=store.now(), q=qid)
+
+
+def _end(db, cid):
+    db.q("UPDATE $r SET answering = false, stop_requested = false, working = NONE", r=R("chat", cid))
+
+
+def work(db, cfg, cid, qid):
+    """Answer question `qid` of conversation `cid` as its person, with the tools they have there (the conversation's
+    choice of them) and the same approvals: the tool loop (chat.tool_answer), every call counted for the answer in the
+    activity ledger, the answer saved with its record. Stop (POST /chats/{cid}/stop) stops it between steps."""
+    from . import ai_tools
+
+    try:
+        c = db.one(
+            "SELECT account, scope, model, tools, max_tool_calls, title, title_by FROM $r WHERE working.question = $q",
+            r=R("chat", cid),
+            q=qid,
+        )
+        if not c:
+            return
+        q = chat.said(db, cid, qid, "user")
+        acc = _account(db, c["account"])
+        mid = db.next_id("chat_message")
+        steps, text, how, error, notice = [], "", "answered", None, None
+        record = chat.Record(cfg, c.get("model"), c.get("scope"), c.get("tools"), c.get("max_tool_calls"))
+        if acc is None:
+            text, how, error = "(no answer)", "error", "the person this thread is for can't sign in anymore"
+        elif not llm.configured(cfg):
+            text, how, error = "(no answer)", "error", "no model is set up: pick one in Settings › Model"
+        else:
+            roles = auth.roles(db, acc)
+            readable, editable = set(roles), {s for s in roles if auth.allows(roles, s, "editor")}
+            past = chat.path(db, cid, q.get("parent")) if q.get("parent") is not None else []
+            summary = chat.memory(db, cfg, cid, past)
+            box = ai_tools.Toolbox(
+                db,
+                cfg,
+                {"id": acc["id"], "email": acc["email"]},
+                readable,
+                editable,
+                c.get("scope"),
+                cid,
+                None,
+                acc["admin"],
+                said=q["content"],
+                # a brief the coordinator wrote may carry what it read: tools that send data out ask first
+                outside=(["the coordinator's brief"] if (q.get("origin") or {}).get("by") == "coordinator" else [])
+                + ai_tools.read_before(past, summary),
+                only=c.get("tools"),
+            )
+            on = chat.Answering(db, cid)  # what POST /chats/{cid}/stop asks of it (_end clears it after)
+            try:
+                with activity.scope(db, f"chat:{cid}", f"chat_message:{mid}", cfg=cfg):
+                    steps_max = max(int(cfg["ai"].get("max_steps") or 6), 6)
+                    for kind, data in chat.tool_answer(
+                        cfg,
+                        box,
+                        q["content"],
+                        past,
+                        min(steps_max, BRIEF_STEPS),
+                        c.get("model"),
+                        summary=summary,
+                        record=record,
+                        max_tool_calls=c.get("max_tool_calls"),
+                    ):
+                        if kind == "step":
+                            steps.append(data)
+                            _beat(db, cid, qid)
+                            if on.stop_requested(force=True):
+                                text, how, notice = text or "(stopped)", "stopped", None
+                                break
+                        else:
+                            text, how = data, "direct" if kind == "direct" else "answered"
+                    else:
+                        box.after_answer(text)
+            except llm.ToolsUnsupported:
+                text, how, error = "(no answer)", "error", "this model can't use tools: pick one that can in Settings › Model"
+            except (llm.LLMError, activity.OverBudget) as e:
+                text, how, error = text or "(no answer)", "error", str(e)
+            cited = box.cited(text) if how != "error" else []
+            with activity.scope(db, f"chat:{cid}", f"chat_message:{mid}", cfg=cfg):
+                meta = record.meta(db, how, f"chat_message:{mid}")
+            wrote = c.get("model") or cfg["llm"].get("model")
+            chat.add(
+                db,
+                cid,
+                "assistant",
+                text or "(no answer)",
+                cited,
+                steps=steps,
+                notice=notice,
+                error=error,
+                model=wrote,
+                parent=qid,
+                mid=mid,
+                meta=meta,
+                stopped=how == "stopped",
+            )
+            if how not in ("error", "stopped") and q.get("parent") is None and chat.lens_titles(c):
+                chat.auto_title(db, cfg, cid, q["content"], text)
+            return
+        chat.add(db, cid, "assistant", text, [], steps=steps, error=error, parent=qid, mid=mid, meta=record.meta(db, how))
+    except Exception:  # noqa: BLE001 - the thread says so rather than waiting for an answer that won't come
+        log.exception("project thread %s: the brief's answer failed", cid)
+        try:
+            chat.add(db, cid, "assistant", "(no answer)", [], error="Something went wrong while answering. Try again.", parent=qid)
+        except Exception:  # noqa: BLE001
+            log.warning("project thread %s: couldn't save the error", cid, exc_info=True)
+    finally:
+        _end(db, cid)
+
+
+def sweep(db, cfg, log=None):
+    """Briefs whose answer stopped with its process (no step for STALE_SECONDS): the thread says so and is free again."""
+    cutoff = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(seconds=STALE_SECONDS)).isoformat(timespec="seconds")
+    for row in db.rows("SELECT record::id(id) AS id, working FROM chat WHERE working != NONE AND working.beat < $c", c=cutoff):
+        qid = (row.get("working") or {}).get("question")
+        took = db.rows(
+            "UPDATE $r SET working = NONE, answering = false WHERE working.question = $q RETURN id", r=R("chat", row["id"]), q=qid
+        )
+        if took and qid is not None:
+            chat.add(db, row["id"], "assistant", "(no answer)", [], error=STOPPED, parent=qid)
+            if log:
+                log(f"project thread {row['id']}: its brief's answer was cut off")
 
 
 # ---------- what an answer in a project is told ----------

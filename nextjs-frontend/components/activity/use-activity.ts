@@ -15,7 +15,9 @@ import { useArchive } from "@/lib/hooks/session";
  * A job list kept fresh by the live feed (see job-events.ts). Its key matches lib/hooks/jobs.ts, so the feed patches
  * it in place; it only polls while the feed is down.
  */
-export function useJobList(opts: { status?: string; limit?: number; namespace?: string; batch?: number } = {}) {
+export function useJobList(
+  opts: { status?: string; limit?: number; namespace?: string; batch?: number; order?: "queue" } = {},
+) {
   const client = useApiClient();
   const feed = useJobEvents();
   const key = {
@@ -23,6 +25,7 @@ export function useJobList(opts: { status?: string; limit?: number; namespace?: 
     limit: opts.limit ?? 200,
     namespace: opts.namespace || undefined,
     batch: opts.batch,
+    order: opts.order,
   };
   const q = useQuery({
     queryKey: ["jobs", key],

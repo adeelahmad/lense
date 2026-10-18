@@ -299,6 +299,28 @@ export function fieldLabel(k: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+// ---------- asking about items ----------
+/** What "Ask about this" hands the page chat for items: for each, its id (so the assistant can mark it), kind and
+ * time, who did it and its line, where it opens and its fields. Whole items only, up to `max` characters. */
+export function askQuote(items: Activity[], max = 4000): string {
+  const out: string[] = [];
+  let size = 0;
+  for (const a of items) {
+    const href = objectHref(a);
+    const lines = [
+      `Timeline item ${a.id} (${a.kind}, ${a.published})`,
+      `${a.actor.name}: ${a.summary}`,
+      ...(href ? [`Opens at ${href}`] : []),
+      ...objectFields(a).map(([k, v]) => `${fieldLabel(k)}: ${v}`),
+    ];
+    const text = lines.join("\n");
+    if (out.length && size + text.length + 2 > max) break;
+    out.push(text);
+    size += text.length + 2;
+  }
+  return out.join("\n\n").slice(0, max);
+}
+
 // ---------- the last view, per browser ----------
 export const LAST_KEY = "lens.timeline.filters";
 
